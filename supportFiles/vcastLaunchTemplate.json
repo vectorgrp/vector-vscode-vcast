@@ -1,0 +1,30 @@
+{
+  "configurations": [
+    {
+      "name": "VectorCAST Harness Debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${command:vectorcastTestExplorer.debugEnviroPath}/UUT_INTE",
+      "cwd": "${command:vectorcastTestExplorer.debugEnviroPath}",
+      "stopAtEntry": false,
+      "args": [],
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "preLaunchTask": "",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set Disassembly Flavor to Intel",
+          "text": "-gdb-set disassembly-flavor intel",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}

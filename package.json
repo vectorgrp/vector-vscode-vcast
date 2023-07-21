@@ -1,0 +1,391 @@
+{
+  "name": "vectorcasttestexplorer",
+  "displayName": "VectorCAST Test Explorer",
+  "description": "VectorCAST Test Explorer for VS Code",
+  "version": "1.0.0",
+  "license": "See License in file: LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vectorgrp/vector-vscode-vcast"
+  },
+  "sponsor": {
+    "url": "https:vector.com"
+  },
+  "icon": "resources/vector-icon.png",
+  "author": "Vector Informatik GmbH",
+  "publisher": "vectorgroup",
+  "categories": [
+    "Testing",
+    "Debuggers"
+  ],
+  "bugs": {
+    "url": "https://github.com/vectorgrp/vector-vscode-vcast/issues"
+  },
+  "qna": "https://github.com/vectorgrp/vector-vscode-vcast/discussions/categories/q-n-a",
+  "keywords": [
+    "vectorcast",
+    "vector",
+    "unittesting",
+    "test",
+    "testing"
+  ],
+  "main": "out/extension.js",
+  "activationEvents": [
+    "onCommand:vectorcastTestExplorer.configure",
+    "workspaceContains:**/UNITDATA.VCD"
+  ],
+  "contributes": {
+    "viewsWelcome": [
+      {
+        "view": "testing",
+        "when": "!vectorcastTestExplorer.configured",
+        "contents": "[Configure VectorCAST Tests](command:vectorcastTestExplorer.configure)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "vectorcastTestExplorer.configure",
+        "category": "VectorCAST Test Explorer",
+        "title": "Configure"
+      },
+      {
+        "command": "vectorcastTestExplorer.showSettings",
+        "title": "Open settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "vectorcastTestExplorer.toggleLog",
+        "category": "VectorCAST Test Explorer",
+        "title": "View Message Pane",
+        "icon": "$(output)"
+      },
+      {
+        "command": "vectorcastTestExplorer.openVCAST",
+        "category": "VectorCAST Test Explorer",
+        "title": "Open Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.rebuildEnviro",
+        "category": "VectorCAST Test Explorer",
+        "title": "Re-Build Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.deleteEnviro",
+        "category": "VectorCAST Test Explorer",
+        "title": "Delete Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.newEnviroVCAST",
+        "category": "VectorCAST Test Explorer",
+        "title": "Create VectorCAST Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.addLaunchConfiguration",
+        "category": "VectorCAST Test Explorer",
+        "title": "VectorCAST: Add Launch Configuration"
+      },
+      {
+        "command": "vectorcastTestExplorer.addSettingsFileFilter",
+        "category": "VectorCAST Test Explorer",
+        "title": "VectorCAST: Add Filter for Environment Files"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverage",
+        "category": "VectorCAST Test Explorer",
+        "title": "Toggle Coverage Annotations"
+      },
+      {
+        "command": "vectorcastTestExplorer.viewResults",
+        "category": "VectorCAST Test Explorer",
+        "title": "View Test Results"
+      },
+      {
+        "command": "vectorcastTestExplorer.createTestScript",
+        "category": "VectorCAST Test Explorer",
+        "title": "New Test Script"
+      },
+      {
+        "command": "vectorcastTestExplorer.deleteTest",
+        "category": "VectorCAST Test Explorer",
+        "title": "Delete Test"
+      },
+      {
+        "command": "vectorcastTestExplorer.editTestScript",
+        "category": "VectorCAST Test Explorer",
+        "title": "Edit Test Script"
+      },
+      {
+        "command": "vectorcastTestExplorer.loadTestScript",
+        "category": "VectorCAST Test Explorer",
+        "title": "Load Test Script into Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.debugEnviroPath",
+        "category": "VectorCAST Test Explorer",
+        "title": "Path for environment containing test to be debugged"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vectorcastTestExplorer.coverage",
+        "key": "shift+ctrl+c",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "vectorcastTestExplorer.toggleLog",
+        "key": "shift+ctrl+v"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "VectorCAST Test Explorer",
+      "properties": {
+        "vectorcastTestExplorer.vcastInstallationLocation": {
+          "order": 1,
+          "type": "string",
+          "description": "Path to the VectorCAST installation, used if VectorCAST is not found on the system PATH"
+        },
+        "vectorcastTestExplorer.unitTestLocation": {
+          "type": "string",
+          "order": 2,
+          "default": "./unitTests",
+          "description": "The folder path for storing unit tests, can be absolute or relative to the file location"
+        },
+        "vectorcastTestExplorer.showReportOnExecute": {
+          "type": "boolean",
+          "order": 3,
+          "default": true,
+          "description": "Display the VectorCAST execution report after test run"
+        },
+        "vectorcastTestExplorer.decorateExplorer": {
+          "type": "boolean",
+          "order": 4,
+          "default": true,
+          "description": "Decorate files that have coverage in the File Explorer pane"
+        },
+        "vectorcastTestExplorer.verboseLogging": {
+          "type": "boolean",
+          "order": 5,
+          "default": false,
+          "description": "Log internal extension details"
+        }
+      }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "vectorcastTestExplorer.configure"
+        },
+        {
+          "command": "vectorcastTestExplorer.toggleLog",
+          "when": "vectorcastTestExplorer.configured"
+        },
+        {
+          "command": "vectorcastTestExplorer.openVCAST",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.rebuildEnviro",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteEnviro",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.newEnviroVCAST",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.addLaunchConfiguration",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.addSettingsFileFilter",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.coverage",
+          "when": "vectorcastTestExplorer.configured"
+        },
+        {
+          "command": "vectorcastTestExplorer.viewResults",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.createTestScript",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteTest",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.editTestScript",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.loadTestScript",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.debugEnviroPath",
+          "when": "never"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "vectorcastTestExplorer.toggleLog",
+          "when": "view=~/^.*test.*$/",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vectorcastTestExplorer.showSettings",
+          "when": "view=~/^.*test.*$/",
+          "group": "navigation@3"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "vectorcastTestExplorer.newEnviroVCAST",
+          "when": "vectorcastTestExplorer.configured && resourceLangId == cpp || resourceLangId == c",
+          "group": "2_workspace"
+        },
+        {
+          "command": "vectorcastTestExplorer.addLaunchConfiguration",
+          "when": "vectorcastTestExplorer.configured && resourceFilename==launch.json",
+          "group": "7_modification"
+        },
+        {
+          "command": "vectorcastTestExplorer.addSettingsFileFilter",
+          "when": "vectorcastTestExplorer.configured && resourceFilename==settings.json",
+          "group": "7_modification"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "vectorcastTestExplorer.loadTestScript",
+          "when": "vectorcastTestExplorer.configured && resourceExtname==.tst"
+        }
+      ],
+      "testing/item/context": [
+        {
+          "submenu": "vectorcastTestExplorer.vcastsubmenu",
+          "group": "vcast"
+        }
+      ],
+      "vectorcastTestExplorer.vcastsubmenu": [
+        {
+          "command": "vectorcastTestExplorer.openVCAST",
+          "group": "vcast@1",
+          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.rebuildEnviro",
+          "group": "vcast@2",
+          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteEnviro",
+          "group": "vcast@3",
+          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.editTestScript",
+          "group": "vcast@4"
+        },
+        {
+          "command": "vectorcastTestExplorer.createTestScript",
+          "group": "vcast@5",
+          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteTest",
+          "group": "vcast@6",
+          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.viewResults",
+          "group": "vcast@7",
+          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "label": "VectorCAST",
+        "id": "vectorcastTestExplorer.vcastsubmenu"
+      }
+    ],
+    "languages": [
+      {
+        "id": "vcast.tst",
+        "aliases": [
+          "VectorCAST Test Script"
+        ],
+        "extensions": [
+          ".tst"
+        ],
+        "configuration": "./syntax/language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vcast.tst",
+        "scopeName": "source.vcast.tst",
+        "path": "./syntax/vcast.tst.grammar.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "vcast.tst",
+        "path": "./syntax/snippets.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-server -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild-server": "esbuild ./server/server.ts --bundle --outfile=out/server.js --external:vscode --format=cjs --platform=node",
+    "esbuild-watch": "npm-run-all --parallel esbuild-base esbuild-server -- --sourcemap --watch",
+    "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-server -- --sourcemap",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "test": "vitest run --reporter verbose --coverage"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.1.4",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.73.1",
+    "@typescript-eslint/eslint-plugin": "^5.59.0",
+    "@typescript-eslint/parser": "^5.59.0",
+    "@vscode/test-electron": "^1.6.2",
+    "@vitest/coverage-v8": "^0.32.2",
+    "esbuild": "^0.14.2",
+    "inject-markdown": "^1.5.0",
+    "mocha": "^9.1.3",
+    "typescript": "^4.4.4",
+    "vite": "^4.3.9",
+    "vitest": "^0.32.2",
+    "unzipper": "^0.10.11",
+    "prettier": "^2.8.8",
+    "eslint": "^8.39.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1"
+  },
+  "dependencies": {
+    "crc-32": "^1.2.0",
+    "glob": "^7.1.7",
+    "hasbin": "^1.2.3",
+    "local": "^0.3.3",
+    "npm-run-all": "^4.1.5",
+    "tslib": "^1.9.3",
+    "vscode-languageclient": "^5.2.1",
+    "vscode-languageserver": "^5.2.1"
+  },
+  "extensionDependencies": [],
+  "engines": {
+    "vscode": "^1.73.1"
+  }
+}

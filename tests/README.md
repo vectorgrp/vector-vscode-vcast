@@ -1,0 +1,3 @@
+- To run the vitest-based unit tests, run `npm test` in the root of the repository.
+- Coverage info is found under `coverage/index.html` in the root of the repository.
+- VectorCAST test environment which is created for running the unit tests is `tests/unit/vcast`

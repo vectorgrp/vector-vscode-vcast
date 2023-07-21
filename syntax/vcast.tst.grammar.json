@@ -1,0 +1,131 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "VectorCAST Test Script",
+  "patterns": [
+    {
+      "match": "^\\s*--.*$",
+      "name": "comment.line"
+    },
+    {
+      "match": "^\\s*//.*$",
+      "name": "comment.line"
+    },
+    {
+      "match": "^TEST\\.(?:NEW|REPLACE|ADD|END)(\\s|$)",
+      "name": "keyword"
+    },
+    {
+      "match": "^TEST\\.(?:UNIT|SUBPROGRAM|NAME|SCRIPT_FEATURE|STUB)(:|$)(.*)$",
+      "name": "keyword",
+      "captures": {
+        "1": {
+          "name": "keyword"
+        },
+        "2": {
+          "name": "variable"
+        }
+      }
+    },
+    {
+      "match": "^TEST\\.(?:VALUE|EXPECTED)(:)(.*?)(?<!:)(:|$)(?!:)(.*)$",
+      "name": "keyword",
+      "captures": {
+        "1": {
+          "name": "keyword"
+        },
+        "2": {
+          "name": "variable"
+        },
+        "3": {
+          "name": "variable"
+        },
+        "4": {
+          "name": "comment"
+        }
+      }
+    },
+    {
+      "match": "^TEST\\.(?:SLOT):(.*),(.*),(.*),(.*),(.*)$",
+      "name": "keyword",
+      "captures": {
+        "1": {
+          "name": "constant.numeric"
+        },
+        "2": {
+          "name": "variable"
+        },
+        "3": {
+          "name": "variable"
+        },
+        "4": {
+          "name": "constant.numeric"
+        },
+        "5": {
+          "name": "variable"
+        }
+      }
+    },
+    {
+      "begin": "^TEST\\.NOTES(:)",
+      "end": "^TEST\\.END_NOTES(:)",
+      "name": "keyword",
+      "contentName": "string.unquoted",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "keyword"
+        }
+      }
+    },
+    {
+      "begin": "^TEST\\.FLOW",
+      "end": "^TEST\\.END_FLOW",
+      "name": "keyword",
+      "contentName": "string.unquoted"
+    },
+    {
+      "begin": "^TEST\\.IMPORT_FAILURES(:)",
+      "end": "^TEST\\.END_IMPORT_FAILURES(:)",
+      "name": "keyword",
+      "contentName": "string.unquoted",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "keyword"
+        }
+      }
+    },
+    {
+      "begin": "^TEST\\.(\\w+)_USER_CODE(:)(.*)$",
+      "end": "^TEST\\.END_(\\w+)_USER_CODE(:)$",
+      "name": "keyword",
+      "contentName": "comment",
+      "beginCaptures": {
+        "2": {
+          "name": "keyword"
+        },
+        "3": {
+          "name": "variable"
+        }
+      },
+      "endCaptures": {
+        "2": {
+          "name": "keyword"
+        }
+      }
+    },
+    {
+      "match": "^TEST\\.VALUE[^:]+$",
+      "name": "keyword"
+    }
+  ],
+  "scopeName": "source.vcast.tst"
+}

@@ -1,0 +1,11 @@
+node_modules
+.wdio-vscode-service
+test/log
+*.png
+test/extension
+trace
+*.log
+*.tar.gz
+test/*.tar.gz
+test/*.log
+test/test_input

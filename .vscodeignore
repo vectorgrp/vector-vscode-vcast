@@ -1,0 +1,17 @@
+.vscode/*
+**/node_modules
+**/*.ts
+**/*.js
+!out/extension.js
+!out/server.js
+**/tsconfig.json
+**/__pycache__
+**/*.map
+node_modules
+ci_scripts
+tests
+*.config.ts
+coverage
+*.tar.gz
+*.bat
+*.sh

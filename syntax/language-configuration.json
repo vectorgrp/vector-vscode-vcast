@@ -1,0 +1,25 @@
+{
+  "comments": {
+    "lineComment": "--"
+  },
+  "autoClosingPairs": [
+    { "open": "[", "close": "]" },
+    { "open": "TEST.NEW", "close": " \nTEST.END" },
+    { "open": "TEST.REPLACE", "close": " \nTEST.END" },
+    { "open": "TEST.NOTES:", "close": " \nTEST.END_NOTES:" },
+    { "open": "TEST.FLOW", "close": " \nTEST.END_FLOW" },
+    { "open": "TEST.VALUE_USER_CODE", "close": " \nTEST.END_VALUE_USER_CODE:" },
+    {
+      "open": "TEST.EXPECTED_USER_CODE",
+      "close": " \n{{ }}\nTEST.END_EXPECTED_USER_CODE:"
+    },
+    { "open": "TEST.IMPORT_FAILURES:", "close": " \nTEST.END_IMPORT_FAILURES:" }
+  ],
+  "autoCloseBefore": "\n",
+  "folding": {
+    "markers": {
+      "start": "^TEST.NEW|TEST.REPLACE",
+      "end": "^TEST.END$"
+    }
+  }
+}
