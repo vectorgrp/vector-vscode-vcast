@@ -177,7 +177,7 @@ This extension contributes the following settings:
 
 This extension is open-source, released under the MIT license, and we welcome your contributions.
 
-- [Access the source repository on the Vector Group public GitHub](https://github.com/vectorgrp/vector-vscode-vtypecheck)
+- [Access the source repository on the Vector Group public GitHub](https://github.com/vectorgrp/vector-vscode-vcast)
 - [Submit Bugs and Feature Requests](https://github.com/vectorgrp/vector-vscode-vcast/issues)
 - Implement improvements and [create a pull request](https://github.com/vectorgrp/vector-vscode-vcast/pulls)
 
