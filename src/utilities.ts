@@ -9,16 +9,16 @@ const spawn = require("child_process").spawn;
 const hasbin = require("hasbin");
 const fs = require("fs");
 const path = require("path");
+const which = require ("which")
 
 const vPythonName = "vpython";
-const vpythonOnPath = hasbin.sync(vPythonName);
+const vpythonOnPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string | undefined = undefined;
 
 const clicastName = "clicast";
-const clicastOnPath = hasbin.sync(clicastName);
 export let clicastCommandToUse: string | undefined = undefined;
 
-const vcastName = "vcastqt";
+const vcastqtName = "vcastqt";
 export let vcastCommandtoUse: string | undefined = undefined;
 
 // The testInterface is delivered int the .vsix
@@ -115,7 +115,7 @@ function CRCutilityIsAvailable() {
 
   // check the value of the option, I know this is extra work if
   // the vcast installation is on the path but this is done once and it make the code cleaner
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   const installationLocation = settings.get("vcastInstallationLocation", "");
 
   let returnValue: string | undefined = undefined;
@@ -394,85 +394,112 @@ function exeFilename(basename: string): string {
   else return basename;
 }
 
-function findVcastTools() {
-  // This function will check if vPython is on the path or if the
-  // VectorCAST Installation directory option is set
-  // In either of these "positive" cases it will setup the
-  // vPythonCommandToUse and clicastCommandtoUse global variables
-  // otherwise it will display and error.
+function findVcastTools():boolean {
 
-  // check the value of the option, I know this is extra work if
-  // vcast is on the path but this is done once and it make the code cleaner
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const installationLocation = settings.get("vcastInstallationLocation", "");
+  // This function will set global paths to vpython, clicast and vcastqt
+  // by sequentially looking for vpython in the directory set via the 
+  // 1. extension option: "vcastInstallationLocation"
+  // 2. VECTORCAST_DIR
+  // 3. system PATH variable
 
-  let vcastToolsOK: boolean = true;
 
-  if (vpythonOnPath) {
-    vPythonCommandToUse = vPythonName;
-    vectorMessage(`   found '${vPythonName}' on the system PATH ...`);
-  } else if (installationLocation.length > 0) {
+  // return valuo
+  let foundAllvcastTools = false;
+
+  // value of the extension option
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const installationOptionString = settings.get("vcastInstallationLocation", "");
+
+  // value of VECTORCAST_DIR
+  const  vectorcastDirString = process.env ["VECTORCAST_DIR"];
+
+
+  // possible installation location
+  let vcastInstallationPath:string|undefined = undefined;
+
+  // priority 1 is the option value, since this lets the user over-ride PATH or VECTORCAST_DIR
+  if (installationOptionString.length > 0) {
     const candidatePath = path.join(
-      installationLocation,
+      installationOptionString,
       exeFilename(vPythonName)
     );
     if (fs.existsSync(candidatePath)) {
+      vcastInstallationPath = installationOptionString;
       vPythonCommandToUse = candidatePath;
-      vectorMessage(`   found '${vPythonName}' here: ${vPythonCommandToUse}`);
+      vectorMessage(`   found '${vPythonName}' using the 'Vcast Installation Location' option [${installationOptionString}].`);
     } else {
-      vcastToolsOK = false;
       vectorMessage(
-        `   the instllation path provided: '${installationLocation}' does not contain ${vPythonName} ` +
-          "please correct the path to the VectorCAST installation directory"
+        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}, ` +
+        "use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
-  } else {
-    vcastToolsOK = false;
-    vectorMessage(
-      `   command: '${vPythonName}' is not on the system PATH ` +
-        "please set the Installation Location in the settings dialog"
-    );
-    showSettings();
-  }
+  } 
 
-  // we could actually just combine this with the above, because the chances of us finding
-  // vpython and not clicast are virtually 0 but for simplicity, just duplicating the code here
-
-  if (clicastOnPath) {
-    clicastCommandToUse = clicastName;
-    vcastCommandtoUse = vcastName;
-    vectorMessage(`   found '${clicastName}' on the system PATH ...`);
-  } else if (installationLocation.length > 0) {
+  // priority 2 is VECTORCAST_DIR, while this is no longer required, is it still widely used
+  else if (vectorcastDirString) {
     const candidatePath = path.join(
-      installationLocation,
-      exeFilename(clicastName)
+      vectorcastDirString,
+      exeFilename(vPythonName)
     );
     if (fs.existsSync(candidatePath)) {
-      clicastCommandToUse = candidatePath;
-      vcastCommandtoUse = path.join(
-        installationLocation,
-        exeFilename(vcastName)
-      );
-      vectorMessage(`   found '${clicastName}' here: ${clicastCommandToUse}`);
+      vcastInstallationPath = vectorcastDirString;
+      vPythonCommandToUse = candidatePath;
+      vectorMessage(`   found '${vPythonName}' using VECTORCAST_DIR [${vectorcastDirString}]`);
     } else {
-      vcastToolsOK = false;
       vectorMessage(
-        `   the instllation path provided: '${installationLocation}' does not contain ${clicastName} ` +
-          "please correct the path to the VectorCAST installation directory"
+        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}, ` +
+          "use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
-  } else {
-    vcastToolsOK = false;
+  } 
+
+  // priority 3 is the system path
+  else if (vpythonOnPath) {
+    vcastInstallationPath = path.dirname (vpythonOnPath)
+    vPythonCommandToUse = vpythonOnPath;
+    vectorMessage(`   found '${vPythonName}' on the system path [${vcastInstallationPath}]`);
+  } 
+  
+  else {
     vectorMessage(
-      `   command: '${clicastName}' is not on the system PATH ` +
-        "please set the Installation Location in the settings dialog"
+      `   command: '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set, ` +
+      "use the extension options to provide a valid VectorCAST installation directory."
     );
     showSettings();
   }
 
-  return vcastToolsOK;
+  // if we found a vpython somewhere ...  
+  // we assume the other executables are there too,  but we check anyway :)
+  if (vcastInstallationPath) {
+
+      clicastCommandToUse = path.join(
+        vcastInstallationPath,
+        exeFilename(clicastName)
+      );
+
+      if (fs.existsSync (clicastCommandToUse)) {
+        vectorMessage(`   found '${clicastName}' here: ${vcastInstallationPath}`);
+        vcastCommandtoUse =  path.join(
+            vcastInstallationPath,
+            exeFilename(vcastqtName)
+          );
+        if (fs.existsSync (vcastCommandtoUse)) {
+            vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
+            foundAllvcastTools = true;
+          }
+        else {
+          vectorMessage(`   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`);
+          }
+        }
+      else {
+        vectorMessage(`   could NOT find '${clicastName}' here: ${vcastInstallationPath}`);
+      }
+  }
+  
+
+  return foundAllvcastTools;
 }
 
 export function checkIfInstallationIsOK() {

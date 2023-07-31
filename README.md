@@ -7,7 +7,8 @@ as a margin decoration in C/C++ source editors.
 ## Prerequisites
 
 You must have VectorCAST installed and licensed, and the installation directory
-must either be on the **system PATH**, or set using the extension option: **VCAST Installation Location**
+must either be on the **system PATH**, set using the VECTORCAST_DIR environment variable
+or set using the extension option: **Vcast Installation Location**
 During extension activation, the prerequisites will be checked, and any errors
 reported in the VectorCAST Test Explorer output pane.
 
@@ -15,6 +16,11 @@ You can check if VectorCAST is on your path by:
 
 - Linux: open a shell, and type: which clicast
 - Windows: open a command prompt, and type: where clicast
+
+You can check if VECTORCAST_DIR is set properly by:
+
+- Linux: open a shell, and type: ls $VECTORCAST_DIR/clicast
+- Windows: open a command prompt, and type: dir %VECTORCAST_DIR%\clicast
 
 Additionally, if you are using a version of VectorCAST that is older than
 VectorCAST 23, you must manually add the crc32 utilities to your VectorCAST
