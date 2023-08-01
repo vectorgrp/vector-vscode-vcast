@@ -97,7 +97,7 @@ const win32CRC32 = "crc32-win32";
 
 function pyCrc32IsAvailable(): boolean {
   // Although crc32.py simply puts out AVAILABLE or NOT-AVAILABLE,
-  // vpython prints a long message of VECTORCAST_DIR is not set properly
+  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
   // so we need this logic to handle that case.
 
   // I'm doing this in multiple steps for clarity
@@ -253,9 +253,8 @@ export function executeVPythonScript(
   commandToRun: string,
   whereToRun: string
 ): any {
-  // we use this common functon to run the vpython and process the output
-  // primarily because vpython puts out this annoying VECTORCAST_DIR does not match
-  // message to stdout when VC_DIR does not match the vcast distro being run.
+  // we use this common functon to run the vpython and process the output because
+  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
   // Since this happens before our script even starts so we cannot suppress it.
   // We could send the json data to a temp file, but the create/open file operations
   // have overhead.
