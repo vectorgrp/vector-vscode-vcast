@@ -12,6 +12,6 @@ All notable changes to the "vectorcastTestExplorer" extension will be documented
 ### Added support for VECTORCAST_DIR
 The VectorCAST installation location can now be provided to the extension using one of the following 3 methods,
 and will be checked for by the extension in the following order
-- The path set in the extension option **Vcast Installation Location**
+- The path set in the extension option **Vectorcast Installation Location**
 - The path set via the VECTORCAST_DIR environment variable
 - The system PATH

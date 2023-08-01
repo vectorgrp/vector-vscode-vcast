@@ -376,7 +376,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
     if (
       event.affectsConfiguration(
-        "vectorcastTestExplorer.vcastInstallationLocation"
+        "vectorcastTestExplorer.vectorcastInstallationLocation"
       )
     ) {
       // if the user changes the path to vcast, we need to reset the values

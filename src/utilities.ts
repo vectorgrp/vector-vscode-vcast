@@ -114,9 +114,9 @@ function CRCutilityIsAvailable() {
   // check if the crc32 utility has been added to the the VectorCAST installation
 
   // check the value of the option, I know this is extra work if
-  // the vcast installation is on the path but this is done once and it make the code cleaner
+  // the Vectorcast Installation is on the path but this is done once and it make the code cleaner
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const installationLocation = settings.get("vcastInstallationLocation", "");
+  const installationLocation = settings.get("vectorcastInstallationLocation", "");
 
   let returnValue: string | undefined = undefined;
   if (process.platform == "linux") {
@@ -397,7 +397,7 @@ function findVcastTools():boolean {
 
   // This function will set global paths to vpython, clicast and vcastqt
   // by sequentially looking for vpython in the directory set via the 
-  // 1. extension option: "vcastInstallationLocation"
+  // 1. extension option: "vectorcastInstallationLocation"
   // 2. VECTORCAST_DIR
   // 3. system PATH variable
 
@@ -407,7 +407,7 @@ function findVcastTools():boolean {
 
   // value of the extension option
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const installationOptionString = settings.get("vcastInstallationLocation", "");
+  const installationOptionString = settings.get("vectorcastInstallationLocation", "");
 
   // value of VECTORCAST_DIR
   const  VECTORCAST_DIR = process.env ["VECTORCAST_DIR"];
@@ -425,7 +425,7 @@ function findVcastTools():boolean {
     if (fs.existsSync(candidatePath)) {
       vcastInstallationPath = installationOptionString;
       vPythonCommandToUse = candidatePath;
-      vectorMessage(`   found '${vPythonName}' using the 'Vcast Installation Location' option [${installationOptionString}].`);
+      vectorMessage(`   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`);
     } else {
       vectorMessage(
         `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}, ` +

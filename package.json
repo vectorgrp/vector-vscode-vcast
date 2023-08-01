@@ -140,7 +140,7 @@
       "type": "object",
       "title": "VectorCAST Test Explorer",
       "properties": {
-        "vectorcastTestExplorer.vcastInstallationLocation": {
+        "vectorcastTestExplorer.vectorcastInstallationLocation": {
           "order": 1,
           "type": "string",
           "description": "Path to the VectorCAST installation, used if VectorCAST is not found on the system PATH"
