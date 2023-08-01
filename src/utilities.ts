@@ -12,7 +12,7 @@ const path = require("path");
 const which = require ("which")
 
 const vPythonName = "vpython";
-const vpythonOnPath = which.sync(vPythonName, { nothrow: true })
+const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string | undefined = undefined;
 
 const clicastName = "clicast";
@@ -403,7 +403,7 @@ function findVcastTools():boolean {
   // 3. system PATH variable
 
 
-  // return valuo
+  // return value
   let foundAllvcastTools = false;
 
   // value of the extension option
@@ -411,7 +411,7 @@ function findVcastTools():boolean {
   const installationOptionString = settings.get("vcastInstallationLocation", "");
 
   // value of VECTORCAST_DIR
-  const  vectorcastDirString = process.env ["VECTORCAST_DIR"];
+  const  VECTORCAST_DIR = process.env ["VECTORCAST_DIR"];
 
 
   // possible installation location
@@ -436,16 +436,16 @@ function findVcastTools():boolean {
     }
   } 
 
-  // priority 2 is VECTORCAST_DIR, while this is no longer required, is it still widely used
-  else if (vectorcastDirString) {
+  // priority 2 is VECTORCAST_DIR, while this is no longer required, it is still widely used
+  else if (VECTORCAST_DIR) {
     const candidatePath = path.join(
-      vectorcastDirString,
+      VECTORCAST_DIR,
       exeFilename(vPythonName)
     );
     if (fs.existsSync(candidatePath)) {
-      vcastInstallationPath = vectorcastDirString;
+      vcastInstallationPath = VECTORCAST_DIR;
       vPythonCommandToUse = candidatePath;
-      vectorMessage(`   found '${vPythonName}' using VECTORCAST_DIR [${vectorcastDirString}]`);
+      vectorMessage(`   found '${vPythonName}' using VECTORCAST_DIR [${VECTORCAST_DIR}]`);
     } else {
       vectorMessage(
         `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}, ` +
@@ -456,9 +456,9 @@ function findVcastTools():boolean {
   } 
 
   // priority 3 is the system path
-  else if (vpythonOnPath) {
-    vcastInstallationPath = path.dirname (vpythonOnPath)
-    vPythonCommandToUse = vpythonOnPath;
+  else if (vpythonFromPath) {
+    vcastInstallationPath = path.dirname (vpythonFromPath)
+    vPythonCommandToUse = vpythonFromPath;
     vectorMessage(`   found '${vPythonName}' on the system path [${vcastInstallationPath}]`);
   } 
   
