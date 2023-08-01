@@ -113,7 +113,7 @@ function pyCrc32IsAvailable(): boolean {
 }
 
 
-function CRCutilityIsAvailable(vcastInstallationPath:string) {
+function getCRCutilityPath(vcastInstallationPath:string) {
 
   // check if the crc32 utility has been added to the the VectorCAST installation
 
@@ -134,7 +134,7 @@ export function initializeChecksumCommand(vcastInstallationPath:string): string 
     globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
   } else {
     // check if the user has patched the distro with the crc32 utility
-    globalCheckSumCommand = CRCutilityIsAvailable(vcastInstallationPath);
+    globalCheckSumCommand = getCRCutilityPath(vcastInstallationPath);
   }
 
   return globalCheckSumCommand;
