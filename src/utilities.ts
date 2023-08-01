@@ -124,6 +124,9 @@ function getCRCutilityPath(vcastInstallationPath:string) {
         vectorMessage(`   found '${crc32Name}' here: ${vcastInstallationPath}`);
         returnValue = candidatePath;
       }
+      else {
+        vectorMessage(`   could NOT find '${crc32Name}' here: ${vcastInstallationPath}, coverage annotations will not be available`);
+      }
     }
   return returnValue;
 }
