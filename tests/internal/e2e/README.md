@@ -20,7 +20,7 @@ Inside `internal/e2e/test/wdio.conf.ts`, we can specify some configuration param
 You should have `npm>=8.0` and `node>=16.9`. The following instructions were tested on `Ubuntu 20.04.4 LTS` with `npm==8.19.2` and `node==16.18.1`.
 
 You must have VectorCAST installed and licensed, and the installation directory
-must either be on the **system PATH**, or set using the extension option: **VCAST Installation Location**
+must either be on the **system PATH**, or set using the extension option: **Vectorcast Installation Location**
 During extension activation, the prerequisites will be checked, and any errors 
 reported in the VectorCAST Test Explorer output pane.
 

@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "See License in file: LICENSE",
   "repository": {
     "type": "git",
@@ -140,7 +140,7 @@
       "type": "object",
       "title": "VectorCAST Test Explorer",
       "properties": {
-        "vectorcastTestExplorer.vcastInstallationLocation": {
+        "vectorcastTestExplorer.vectorcastInstallationLocation": {
           "order": 1,
           "type": "string",
           "description": "Path to the VectorCAST installation, used if VectorCAST is not found on the system PATH"

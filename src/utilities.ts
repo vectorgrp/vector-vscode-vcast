@@ -9,16 +9,16 @@ const spawn = require("child_process").spawn;
 const hasbin = require("hasbin");
 const fs = require("fs");
 const path = require("path");
+const which = require ("which")
 
 const vPythonName = "vpython";
-const vpythonOnPath = hasbin.sync(vPythonName);
+const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string | undefined = undefined;
 
 const clicastName = "clicast";
-const clicastOnPath = hasbin.sync(clicastName);
 export let clicastCommandToUse: string | undefined = undefined;
 
-const vcastName = "vcastqt";
+const vcastqtName = "vcastqt";
 export let vcastCommandtoUse: string | undefined = undefined;
 
 // The testInterface is delivered int the .vsix
@@ -52,14 +52,13 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
 
   const crc32Path = context.asAbsolutePath("./python/crc32.py");
   if (fs.existsSync(crc32Path)) {
-    vectorMessage("Found crc32 here: " + crc32Path);
+    vectorMessage("Found the crc32 python wrapper here: " + crc32Path);
     globalCrc32Path = `${crc32Path}`;
   }
 
   const pathToSupportFiles = context.asAbsolutePath("./supportFiles");
   if (fs.existsSync(pathToSupportFiles)) {
     vectorMessage("Found extension suppoort files here: " + pathToSupportFiles);
-    vectorMessage("-".repeat(100) + "\n");
     globalPathToSupportFiles = `${pathToSupportFiles}`;
   }
 }
@@ -92,12 +91,15 @@ export function testInterfaceCommand(
 }
 
 let globalCheckSumCommand: string | undefined = undefined;
-const linuxCRC32 = "crc32-linux";
-const win32CRC32 = "crc32-win32";
+let crc32Name="crc32-win32.exe";
+if (process.platform == "linux") {
+  crc32Name = "crc32-linux";
+}
+
 
 function pyCrc32IsAvailable(): boolean {
   // Although crc32.py simply puts out AVAILABLE or NOT-AVAILABLE,
-  // vpython prints a long message of VECTORCAST_DIR is not set properly
+  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
   // so we need this logic to handle that case.
 
   // I'm doing this in multiple steps for clarity
@@ -110,47 +112,32 @@ function pyCrc32IsAvailable(): boolean {
   return lastOutputLine == "AVAILABLE";
 }
 
-function CRCutilityIsAvailable() {
+
+function getCRCutilityPath(vcastInstallationPath:string) {
+
   // check if the crc32 utility has been added to the the VectorCAST installation
 
-  // check the value of the option, I know this is extra work if
-  // the vcast installation is on the path but this is done once and it make the code cleaner
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const installationLocation = settings.get("vcastInstallationLocation", "");
-
   let returnValue: string | undefined = undefined;
-  if (process.platform == "linux") {
-    if (hasbin.sync(linuxCRC32)) {
-      returnValue = linuxCRC32;
-    } else if (installationLocation.length > 0) {
-      let candidatePath = path.join(installationLocation, linuxCRC32);
+  if (vcastInstallationPath) {
+      let candidatePath = path.join(vcastInstallationPath, crc32Name);
       if (fs.existsSync(candidatePath)) {
+        vectorMessage(`   found '${crc32Name}' here: ${vcastInstallationPath}`);
         returnValue = candidatePath;
       }
-    }
-  } else if (process.platform == "win32") {
-    if (hasbin.sync(win32CRC32)) {
-      returnValue = win32CRC32;
-    } else if (installationLocation.length > 0) {
-      let candidatePath = path.join(
-        installationLocation,
-        exeFilename(win32CRC32)
-      );
-      if (fs.existsSync(candidatePath)) {
-        returnValue = candidatePath;
+      else {
+        vectorMessage(`   could NOT find '${crc32Name}' here: ${vcastInstallationPath}, coverage annotations will not be available`);
       }
     }
-  }
   return returnValue;
 }
 
-export function initializeChecksumCommand(): string | undefined {
+export function initializeChecksumCommand(vcastInstallationPath:string): string | undefined {
   // checks if this vcast distro has python checksum support built-in
   if (globalCrc32Path && pyCrc32IsAvailable()) {
     globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
   } else {
     // check if the user has patched the distro with the crc32 utility
-    globalCheckSumCommand = CRCutilityIsAvailable();
+    globalCheckSumCommand = getCRCutilityPath(vcastInstallationPath);
   }
 
   return globalCheckSumCommand;
@@ -253,9 +240,8 @@ export function executeVPythonScript(
   commandToRun: string,
   whereToRun: string
 ): any {
-  // we use this common functon to run the vpython and process the output
-  // primarily because vpython puts out this annoying VECTORCAST_DIR does not match
-  // message to stdout when VC_DIR does not match the vcast distro being run.
+  // we use this common functon to run the vpython and process the output because
+  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
   // Since this happens before our script even starts so we cannot suppress it.
   // We could send the json data to a temp file, but the create/open file operations
   // have overhead.
@@ -394,85 +380,122 @@ function exeFilename(basename: string): string {
   else return basename;
 }
 
-function findVcastTools() {
-  // This function will check if vPython is on the path or if the
-  // VectorCAST Installation directory option is set
-  // In either of these "positive" cases it will setup the
-  // vPythonCommandToUse and clicastCommandtoUse global variables
-  // otherwise it will display and error.
+function findVcastTools():boolean {
 
-  // check the value of the option, I know this is extra work if
-  // vcast is on the path but this is done once and it make the code cleaner
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const installationLocation = settings.get("vcastInstallationLocation", "");
+  // This function will set global paths to vpython, clicast and vcastqt
+  // by sequentially looking for vpython in the directory set via the 
+  // 1. extension option: "vectorcastInstallationLocation"
+  // 2. VECTORCAST_DIR
+  // 3. system PATH variable
 
-  let vcastToolsOK: boolean = true;
 
-  if (vpythonOnPath) {
-    vPythonCommandToUse = vPythonName;
-    vectorMessage(`   found '${vPythonName}' on the system PATH ...`);
-  } else if (installationLocation.length > 0) {
+  // return value
+  let foundAllvcastTools = false;
+
+  // value of the extension option
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const installationOptionString = settings.get("vectorcastInstallationLocation", "");
+
+  // value of VECTORCAST_DIR
+  const  VECTORCAST_DIR = process.env ["VECTORCAST_DIR"];
+
+  // VectorCAST installation location
+  let vcastInstallationPath:string|undefined = undefined;
+
+  // priority 1 is the option value, since this lets the user over-ride PATH or VECTORCAST_DIR
+  if (installationOptionString.length > 0) {
     const candidatePath = path.join(
-      installationLocation,
+      installationOptionString,
       exeFilename(vPythonName)
     );
     if (fs.existsSync(candidatePath)) {
+      vcastInstallationPath = installationOptionString;
       vPythonCommandToUse = candidatePath;
-      vectorMessage(`   found '${vPythonName}' here: ${vPythonCommandToUse}`);
+      vectorMessage(`   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`);
     } else {
-      vcastToolsOK = false;
       vectorMessage(
-        `   the instllation path provided: '${installationLocation}' does not contain ${vPythonName} ` +
-          "please correct the path to the VectorCAST installation directory"
+        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}, ` +
+        "use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
-  } else {
-    vcastToolsOK = false;
-    vectorMessage(
-      `   command: '${vPythonName}' is not on the system PATH ` +
-        "please set the Installation Location in the settings dialog"
-    );
-    showSettings();
-  }
+  } 
 
-  // we could actually just combine this with the above, because the chances of us finding
-  // vpython and not clicast are virtually 0 but for simplicity, just duplicating the code here
-
-  if (clicastOnPath) {
-    clicastCommandToUse = clicastName;
-    vcastCommandtoUse = vcastName;
-    vectorMessage(`   found '${clicastName}' on the system PATH ...`);
-  } else if (installationLocation.length > 0) {
+  // priority 2 is VECTORCAST_DIR, while this is no longer required, it is still widely used
+  else if (VECTORCAST_DIR) {
     const candidatePath = path.join(
-      installationLocation,
-      exeFilename(clicastName)
+      VECTORCAST_DIR,
+      exeFilename(vPythonName)
     );
     if (fs.existsSync(candidatePath)) {
-      clicastCommandToUse = candidatePath;
-      vcastCommandtoUse = path.join(
-        installationLocation,
-        exeFilename(vcastName)
-      );
-      vectorMessage(`   found '${clicastName}' here: ${clicastCommandToUse}`);
+      vcastInstallationPath = VECTORCAST_DIR;
+      vPythonCommandToUse = candidatePath;
+      vectorMessage(`   found '${vPythonName}' using VECTORCAST_DIR [${VECTORCAST_DIR}]`);
     } else {
-      vcastToolsOK = false;
       vectorMessage(
-        `   the instllation path provided: '${installationLocation}' does not contain ${clicastName} ` +
-          "please correct the path to the VectorCAST installation directory"
+        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}, ` +
+          "use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
-  } else {
-    vcastToolsOK = false;
+  } 
+
+  // priority 3 is the system path
+  else if (vpythonFromPath) {
+    vcastInstallationPath = path.dirname (vpythonFromPath)
+    vPythonCommandToUse = vpythonFromPath;
+    vectorMessage(`   found '${vPythonName}' on the system path [${vcastInstallationPath}]`);
+  } 
+  
+  else {
     vectorMessage(
-      `   command: '${clicastName}' is not on the system PATH ` +
-        "please set the Installation Location in the settings dialog"
+      `   command: '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set, ` +
+      "use the extension options to provide a valid VectorCAST installation directory."
     );
     showSettings();
   }
 
-  return vcastToolsOK;
+  // if we found a vpython somewhere ...  
+  // we assume the other executables are there too,  but we check anyway :)
+  if (vcastInstallationPath) {
+
+      clicastCommandToUse = path.join(
+        vcastInstallationPath,
+        exeFilename(clicastName)
+      );
+
+      if (fs.existsSync (clicastCommandToUse)) {
+        vectorMessage(`   found '${clicastName}' here: ${vcastInstallationPath}`);
+        vcastCommandtoUse =  path.join(
+            vcastInstallationPath,
+            exeFilename(vcastqtName)
+          );
+        if (fs.existsSync (vcastCommandtoUse)) {
+            vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
+            foundAllvcastTools = true;
+          }
+        else {
+          vectorMessage(`   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`);
+          }
+        }
+      else {
+        vectorMessage(`   could NOT find '${clicastName}' here: ${vcastInstallationPath}`);
+      }
+
+    // check if we have access to a valid crc32 command - this is not fatal
+    // must be called after initializeInstallerFiles()
+
+    if (!initializeChecksumCommand(vcastInstallationPath)) {
+      vscode.window.showWarningMessage(
+        "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
+          "so the code coverage feature will not be available.  For details on how to resolve " +
+          "this issue, please refer to the 'Prerequisites' section of the README.md file."
+      );
+    }
+  }
+
+
+  return foundAllvcastTools;
 }
 
 export function checkIfInstallationIsOK() {
@@ -502,6 +525,8 @@ export function checkIfInstallationIsOK() {
       returnValue = false;
     }
   }
+
+  vectorMessage("-".repeat(100) + "\n");
 
   if (!returnValue) {
     vectorMessage(
