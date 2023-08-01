@@ -52,14 +52,13 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
 
   const crc32Path = context.asAbsolutePath("./python/crc32.py");
   if (fs.existsSync(crc32Path)) {
-    vectorMessage("Found crc32 here: " + crc32Path);
+    vectorMessage("Found the crc32 python wrapper here: " + crc32Path);
     globalCrc32Path = `${crc32Path}`;
   }
 
   const pathToSupportFiles = context.asAbsolutePath("./supportFiles");
   if (fs.existsSync(pathToSupportFiles)) {
     vectorMessage("Found extension suppoort files here: " + pathToSupportFiles);
-    vectorMessage("-".repeat(100) + "\n");
     globalPathToSupportFiles = `${pathToSupportFiles}`;
   }
 }
@@ -92,8 +91,11 @@ export function testInterfaceCommand(
 }
 
 let globalCheckSumCommand: string | undefined = undefined;
-const linuxCRC32 = "crc32-linux";
-const win32CRC32 = "crc32-win32";
+let crc32Name="crc32-win32.exe";
+if (process.platform == "linux") {
+  crc32Name = "crc32-linux";
+}
+
 
 function pyCrc32IsAvailable(): boolean {
   // Although crc32.py simply puts out AVAILABLE or NOT-AVAILABLE,
@@ -110,47 +112,29 @@ function pyCrc32IsAvailable(): boolean {
   return lastOutputLine == "AVAILABLE";
 }
 
-function CRCutilityIsAvailable() {
+
+function CRCutilityIsAvailable(vcastInstallationPath:string) {
+
   // check if the crc32 utility has been added to the the VectorCAST installation
 
-  // check the value of the option, I know this is extra work if
-  // the Vectorcast Installation is on the path but this is done once and it make the code cleaner
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const installationLocation = settings.get("vectorcastInstallationLocation", "");
-
   let returnValue: string | undefined = undefined;
-  if (process.platform == "linux") {
-    if (hasbin.sync(linuxCRC32)) {
-      returnValue = linuxCRC32;
-    } else if (installationLocation.length > 0) {
-      let candidatePath = path.join(installationLocation, linuxCRC32);
+  if (vcastInstallationPath) {
+      let candidatePath = path.join(vcastInstallationPath, crc32Name);
       if (fs.existsSync(candidatePath)) {
+        vectorMessage(`   found '${crc32Name}' here: ${vcastInstallationPath}`);
         returnValue = candidatePath;
       }
     }
-  } else if (process.platform == "win32") {
-    if (hasbin.sync(win32CRC32)) {
-      returnValue = win32CRC32;
-    } else if (installationLocation.length > 0) {
-      let candidatePath = path.join(
-        installationLocation,
-        exeFilename(win32CRC32)
-      );
-      if (fs.existsSync(candidatePath)) {
-        returnValue = candidatePath;
-      }
-    }
-  }
   return returnValue;
 }
 
-export function initializeChecksumCommand(): string | undefined {
+export function initializeChecksumCommand(vcastInstallationPath:string): string | undefined {
   // checks if this vcast distro has python checksum support built-in
   if (globalCrc32Path && pyCrc32IsAvailable()) {
     globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
   } else {
     // check if the user has patched the distro with the crc32 utility
-    globalCheckSumCommand = CRCutilityIsAvailable();
+    globalCheckSumCommand = CRCutilityIsAvailable(vcastInstallationPath);
   }
 
   return globalCheckSumCommand;
@@ -412,8 +396,7 @@ function findVcastTools():boolean {
   // value of VECTORCAST_DIR
   const  VECTORCAST_DIR = process.env ["VECTORCAST_DIR"];
 
-
-  // possible installation location
+  // VectorCAST installation location
   let vcastInstallationPath:string|undefined = undefined;
 
   // priority 1 is the option value, since this lets the user over-ride PATH or VECTORCAST_DIR
@@ -495,8 +478,19 @@ function findVcastTools():boolean {
       else {
         vectorMessage(`   could NOT find '${clicastName}' here: ${vcastInstallationPath}`);
       }
+
+    // check if we have access to a valid crc32 command - this is not fatal
+    // must be called after initializeInstallerFiles()
+
+    if (!initializeChecksumCommand(vcastInstallationPath)) {
+      vscode.window.showWarningMessage(
+        "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
+          "so the code coverage feature will not be available.  For details on how to resolve " +
+          "this issue, please refer to the 'Prerequisites' section of the README.md file."
+      );
+    }
   }
-  
+
 
   return foundAllvcastTools;
 }
@@ -528,6 +522,8 @@ export function checkIfInstallationIsOK() {
       returnValue = false;
     }
   }
+
+  vectorMessage("-".repeat(100) + "\n");
 
   if (!returnValue) {
     vectorMessage(

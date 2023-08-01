@@ -76,6 +76,10 @@ export async function activate(context: vscode.ExtensionContext) {
 let alreadyConfigured: boolean = false;
 export function checkPrerequisites(context: vscode.ExtensionContext) {
   if (!alreadyConfigured) {
+    
+    // setup the location of vTestInterface.py and other utilities
+    initializeInstallerFiles(context);
+
     if (checkIfInstallationIsOK()) {
       activationLogic(context);
       alreadyConfigured = true;
@@ -97,19 +101,6 @@ export function checkPrerequisites(context: vscode.ExtensionContext) {
 function activationLogic(context: vscode.ExtensionContext) {
   // adds all of the command handlers
   configureExtension(context);
-
-  // setup the location of vTestInterface.py
-  initializeInstallerFiles(context);
-
-  // must be called after initializeInstallerFiles()
-  // check if we have access to a valid crc32 command
-  if (!initializeChecksumCommand()) {
-    vscode.window.showWarningMessage(
-      "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
-        "so the code coverage feature will not be available.  For details on how to resolve " +
-        "this issue, please refer to the 'Prerequisites' section of the README.md file."
-    );
-  }
 
   // setup the decorations for coverage
   initializeCodeCoverageFeatures(context);
