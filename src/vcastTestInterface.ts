@@ -117,6 +117,7 @@ export interface testDataType {
   resultFilePath: string;
   notes: string;
   URI: vscode.Uri | undefined;
+  compoundOnly: boolean;
 }
 
 // This allows us to get diret access to the test nodes via the ID

@@ -102,6 +102,7 @@ function addTestNodes(
       notes: testList[testIndex].notes,
       resultFilePath: "",
       URI: fileURI,
+      compoundOnly: testList[testIndex].compoundOnly,
     };
 
     const testName = testList[testIndex].testName;

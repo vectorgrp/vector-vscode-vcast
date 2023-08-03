@@ -205,6 +205,7 @@ export const testCommandList = [
   "END_EXPECTED_USER_CODE",
   "IMPORT_FAILURES",
   "END_IMPORT_FAILURES",
+  "COMPOUND_ONLY",
 ];
 
 export const scriptFeatureList = [

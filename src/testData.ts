@@ -6,7 +6,7 @@ export interface testNodeType {
   testName: string;
 }
 // this is a lookup table for the nodes in the test tree
-// the key is the nodeID, the data is an testNodeDataType
+// the key is the nodeID, the data is an testNodeType
 var testNodeCache = new Map();
 
 export function createTestNodeinCache(

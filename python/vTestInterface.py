@@ -126,6 +126,8 @@ def generateTestInfo(test):
     testInfo = dict()
     testInfo["testName"] = test.name
     testInfo["notes"] = test.notes
+    # stored as 0 or 1
+    testInfo["compoundOnly"] = test.for_compound_only
     testInfo["time"] = getTime(test.start_time)
     testInfo["status"] = textStatus(test.status)
     testInfo["passfail"] = getPassFailString(test)
@@ -180,7 +182,7 @@ def getTestDataVCAST(enviroPath):
                 functionNode["name"] = function.vcast_name
                 functionNode["tests"] = list()
                 for test in function.testcases:
-                    if test.is_csv_map or test.for_compound_only:
+                    if test.is_csv_map:
                         pass
                     else:
                         testInfo = generateTestInfo(test)

@@ -525,6 +525,12 @@ describe("Text Completion", () => {
           detail: "",
           data: 21,
         },
+        {
+          label: "COMPOUND_ONLY",
+          kind: 14,
+          detail: "",
+          data: 22,
+        }
       ]);
     },
     timeout
