@@ -59,7 +59,7 @@ def setupArgs():
     parser.add_argument(
         "--path",
         required=True,
-        help="Path to Envionment Directory",
+        help="Path to Environment Directory",
     )
 
     parser.add_argument("--test", help="Test ID")
@@ -264,7 +264,7 @@ def getCoverageData(sourceObject):
         # line is of type 'class SourceLine'
         checksum = sourceObject.checksum
 
-        # if iterate_coverrage crashes if the original
+        # if iterate_coverage crashes if the original
         # file path does not exist.
         if os.path.exists (sourceObject.path):
             for line in sourceObject.iterate_coverage():

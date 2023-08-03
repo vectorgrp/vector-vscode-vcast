@@ -157,7 +157,7 @@ export async function openTestScript(nodeID: string) {
   if (commandStatus.errorCode == 0) {
     // Improvement needed:
     // It would be nice if vcast generated the scripts with TEST.REPLACE, but for now
-    // convert TEST.NEW to TEST.REPLACE so doing an "immedidate load" works without error
+    // convert TEST.NEW to TEST.REPLACE so doing an "immediate load" works without error
     convertTestScriptContents(scriptPath);
 
     // open the script file for editing
@@ -291,7 +291,7 @@ function processVCtestData(
       }
 
       const testList = unitData.tests;
-      // we insert not-used to make the format of the IDs consisten
+      // we insert not-used to make the format of the IDs consistent
       // this gets stripped off/processed in the functions
       //   -- getClicastArgsFromTestNode()     -- ts
       //   -- getStandardArgsFromTestObject()  -- python
@@ -330,7 +330,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
   // so turn this into a list of the enclosing directories only
   let returnList: string[] = [];
   for (const file of fileList) {
-    // note that glob always usees / as path separator ...
+    // note that glob always uses / as path separator ...
     if (!file.includes(".BAK")) {
       returnList.push(path.dirname(file));
     }
@@ -340,7 +340,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
 }
 
 // This is intended to be used in the package.json to control the display of context menu items
-// Search for 'vectorcastTestExplorer.vcastEnviroList' in package.json to seee where we reference
+// Search for 'vectorcastTestExplorer.vcastEnviroList' in package.json to see where we reference
 // this list in a "when" clause
 export var vcastEnviroList: string[] = [];
 
@@ -602,7 +602,7 @@ async function debugNode(
   // Here are the steps needed to debug.
   //   - Check if we have a single test selected, if not do normal run
   //   - Check if we are gcc/gdb, if now issue a warning and do normal run
-  //	 - Disable coverage so that the UUT source code is more readble
+  //	 - Disable coverage so that the UUT source code is more readable
   //   - Run the test without debug to setup all the test input files
   //   - Open the file: <uut>_vcast.cpp -> this is the source that will run
   //   - Start debugger using the VectorCAST launch configuration

@@ -27,7 +27,7 @@ export function getPieceAtColumn(pieces: string[], columnIndex: number) {
   let index: number;
   let endOfPieceIndex: number = 0;
   for (index = 0; index < pieces.length; index++) {
-    // +1 for the delimeter
+    // +1 for the delimiter
     endOfPieceIndex += pieces[index].length + 1;
     if (endOfPieceIndex > columnIndex) {
       return {
@@ -45,7 +45,7 @@ export function completionList(
   choiceKind: CompletionItemKind
 ): CompletionItem[] {
   // the format of what comes in here looks like a list of strings
-  // formated as textValue or textValue@extraInfo
+  // formatted as textValue or textValue@extraInfo
 
   let i;
   let returnList: CompletionItem[] = [];

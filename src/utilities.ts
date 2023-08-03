@@ -6,7 +6,6 @@ import { showSettings } from "./helper";
 
 const execSync = require("child_process").execSync;
 const spawn = require("child_process").spawn;
-const hasbin = require("hasbin");
 const fs = require("fs");
 const path = require("path");
 const which = require ("which")
@@ -24,7 +23,7 @@ export let vcastCommandtoUse: string | undefined = undefined;
 // The testInterface is delivered int the .vsix
 // in the sub-directory "python"
 
-// The VectorCAST extensioons for settings and launch are delivered in the .vsix
+// The VectorCAST extensions for settings and launch are delivered in the .vsix
 // in the sub-directory "support"
 
 export let globalTestInterfacePath: string | undefined = undefined;
@@ -58,7 +57,7 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
 
   const pathToSupportFiles = context.asAbsolutePath("./supportFiles");
   if (fs.existsSync(pathToSupportFiles)) {
-    vectorMessage("Found extension suppoort files here: " + pathToSupportFiles);
+    vectorMessage("Found extension support files here: " + pathToSupportFiles);
     globalPathToSupportFiles = `${pathToSupportFiles}`;
   }
 }
@@ -68,7 +67,7 @@ export function testInterfaceCommand(
   enviroPath: string,
   testID: string = ""
 ): any | undefined {
-  // enviroPath is the absolute path to the environnment directory
+  // enviroPath is the absolute path to the environnement directory
   // testID is contains the string that uniquely identifies the node, something like:
   //    'Environments-GCC/TUTORIAL-C++-4|manager.Manager::PlaceOrder.Manager::PlaceOrder.001'
 
@@ -148,7 +147,7 @@ export function getChecksumCommand() {
 }
 
 export function loadLaunchFile(jsonPath: string): any {
-  // this funciton takes the path to a launch.json
+  // this function takes the path to a launch.json
   // and returns the contents, or an empty list of configurations
   // if we cannot read the file
   let existingJSON: any;
@@ -240,7 +239,7 @@ export function executeVPythonScript(
   commandToRun: string,
   whereToRun: string
 ): any {
-  // we use this common functon to run the vpython and process the output because
+  // we use this common function to run the vpython and process the output because
   // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
   // Since this happens before our script even starts so we cannot suppress it.
   // We could send the json data to a temp file, but the create/open file operations

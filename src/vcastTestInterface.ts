@@ -575,7 +575,7 @@ function commonNewEnvironmentStuff(
     const filename = path.basename(firstFile);
     let enviroName = filename.split(".")[0].toUpperCase();
 
-    // if multiple files are in the list make the environame the hyphenated name of the first 2
+    // if multiple files are in the list make the enviroName the hyphenated name of the first 2
     if (fileList.length > 1) {
       enviroName += `-${path
         .basename(fileList[1])
@@ -619,7 +619,7 @@ function commonNewEnvironmentStuff(
   } else vectorMessage("No C/C++ source files found in selection ...");
 }
 
-// Improvement needed: get the language extensions automatcally, don't hard-code
+// Improvement needed: get the language extensions automatically, don't hard-code
 const extensionsOfInterest = ["c", "cpp", "cc", "cxx"];
 
 export function newEnvironment(URIlist: Uri[]) {

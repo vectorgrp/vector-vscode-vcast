@@ -176,7 +176,7 @@ This extension contributes the following settings:
   before building a new environment
 - Debugging is only supported for GNU compilers
 - LSE features for Class Instances have not yet been implemented
-- LSE featrures for TEST.FLOW have not been implemented
+- LSE features for TEST.FLOW have not been implemented
 - Deleting a test does not remove the TC annotations in the File Explorer pane
 
 ## Contributing
