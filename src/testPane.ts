@@ -189,6 +189,7 @@ export async function loadTestScript() {
   const activeEditor = vscode.window.activeTextEditor;
   if (activeEditor) {
     if (activeEditor.document.isDirty) {
+      // need to wait, otherwise we have a race condition with clicast
       await activeEditor.document.save();
     }
     let scriptPath = url.fileURLToPath(activeEditor.document.uri.toString());
