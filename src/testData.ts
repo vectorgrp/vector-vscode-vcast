@@ -1,3 +1,5 @@
+export const compoundOnlyString = " [compound only]";
+
 export interface testNodeType {
   enviroPath: string; // the full path including the enviro directory
   enviroName: string; // the directory name
@@ -66,5 +68,6 @@ export function getFunctionNameFromID(nodeID: string): string {
 }
 
 export function getTestNameFromID(nodeID: string): string {
-  return testNodeCache.get(nodeID).testName;
+  const testName =  testNodeCache.get(nodeID).testName;
+  return testName.replace (compoundOnlyString,"");
 }

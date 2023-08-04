@@ -20,6 +20,7 @@ import { viewResultsReport } from "./reporting";
 import {
   addTestNodeToCache,
   clearTestNodeCache,
+  compoundOnlyString,
   createTestNodeinCache,
   duplicateTestNode,
   getEnviroPathFromID,
@@ -105,7 +106,9 @@ function addTestNodes(
       compoundOnly: testList[testIndex].compoundOnly,
     };
 
-    const testName = testList[testIndex].testName;
+    let testName = testList[testIndex].testName;
+    if (testData.compoundOnly)
+      testName += compoundOnlyString;
     const testNodeID = parentNodeID + "." + testName;
 
     // add a cache node for the test
@@ -120,6 +123,7 @@ function addTestNodes(
       fileURI
     );
     testNode.nodeKind = nodeKind.test;
+    testNode.isCompoundOnly = testData.compoundOnly;
     if (fileURI) testNode.range = getTestLocation(fileURI, testName);
     parentNode.add(testNode);
   }
@@ -185,7 +189,7 @@ export async function loadTestScript() {
   const activeEditor = vscode.window.activeTextEditor;
   if (activeEditor) {
     if (activeEditor.document.isDirty) {
-      activeEditor.document.save();
+      await activeEditor.document.save();
     }
     let scriptPath = url.fileURLToPath(activeEditor.document.uri.toString());
     const enviroName = getEnviroNameFromScript(scriptPath);
@@ -839,6 +843,7 @@ async function runTests(
   const run = controller.createTestRun(request);
   for (const test of testList) {
     if (cancellation.isCancellationRequested) run.skipped(test);
+    else if (test.isCompoundOnly) run.skipped(test);
     else await runNode(test, run);
     // used to allow the message window to display properly
     await new Promise<void>((r) => setTimeout(r, 0));
@@ -864,11 +869,17 @@ async function processRunRequest(
   cancellation: vscode.CancellationToken,
   isDebug: boolean = false
 ) {
-  // debug is only valid for a single test node
+
+  // Debug is only valid for a single test node
+  // requests.include will be null if the request is for all tests
+  // or it will have a list if the request is for one or more tests
+  // isSingleTestNode checks if it is exactly one and it is a test 
+  // not a unit, function, ...
   if (isDebug && request.include && isSingleTestNode(request)) {
     const node = request.include[0];
     debugNode(controller, request, node);
-  } else {
+  }
+  else {
     // tell user that we are doing a normal run ...
     if (isDebug) {
       vscode.window.showInformationMessage(
@@ -965,8 +976,10 @@ export interface vcastTestItem extends vscode.TestItem {
 
   // Thought I could use this in a package.json when clause
   // but have not figured this out yet.
-  // kind of node - not currently used
   nodeKind?: nodeKind;
+
+  // used to inhibit run for compound only tests
+  isCompoundOnly?:boolean;
 
   // this is used for unit nodes to keep track of the
   // full path to the source file

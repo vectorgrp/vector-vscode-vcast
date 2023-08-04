@@ -9,7 +9,11 @@ import {
   vcastMessage,
   errorLevel,
 } from "./messagePane";
-import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+import { 
+  compoundOnlyString, 
+  getEnviroPathFromID, 
+  getTestNode, 
+  testNodeType } from "./testData";
 import {
   clicastCommandToUse,
   commandStatusType,
@@ -756,7 +760,7 @@ export function getClicastArgsFromTestNode(testNode: testNodeType) {
   // we need the quotes on the names to handle <<COMPOUND>> and <<INIT>>
   if (testNode.functionName.length > 0)
     returnString += ` -s"${testNode.functionName}"`;
-  if (testNode.testName.length > 0) returnString += ` -t"${testNode.testName}"`;
+  if (testNode.testName.length > 0) returnString += ` -t"${testNode.testName.replace (compoundOnlyString,"")}"`;
 
   return returnString;
 }
