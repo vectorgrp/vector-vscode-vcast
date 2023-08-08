@@ -188,7 +188,7 @@ export function validateTextDocument(textDocument: TextDocument) {
               )
             );
           }
-        E} else if (command == "SCRIPT_FEATURE" && pieces.length>2) {
+        } else if (command == "SCRIPT_FEATURE" && pieces.length>2) {
           const featureName = pieces[2].trim();
           if (scriptFeatureList.indexOf(featureName) < 0) {
             diagnosticList.push(
