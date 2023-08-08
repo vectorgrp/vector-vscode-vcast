@@ -43,7 +43,6 @@ import {
   addSettingsFileFilter,
   checkIfInstallationIsOK,
   executeClicastCommand,
-  initializeChecksumCommand,
   initializeInstallerFiles,
   vcastCommandtoUse,
 } from "./utilities";

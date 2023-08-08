@@ -402,7 +402,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // this produces invalid locator error somehow
     // const contMenu = await tab.openContextMenu()
-    // const menuItem = await contMenu.getItem("Load Test Script intto Environment")
+    // const menuItem = await contMenu.getItem("Load Test Script into Environment")
     // await menuItem.select()
 
     // Loading test script directly for now

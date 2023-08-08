@@ -306,34 +306,40 @@ describe("Text Completion", () => {
           data: 10,
         },
         {
-          label: "STRUCT_DTOR_ADDS_POINTER",
+          label: "STRUCT_BASE_CTOR_ADDS_POINTER",
           kind: 14,
           detail: "",
           data: 11,
         },
         {
-          label: "STRUCT_FIELD_CTOR_ADDS_POINTER",
+          label: "STRUCT_DTOR_ADDS_POINTER",
           kind: 14,
           detail: "",
           data: 12,
         },
         {
-          label: "STATIC_HEADER_FUNCS_IN_UUTS",
+          label: "STRUCT_FIELD_CTOR_ADDS_POINTER",
           kind: 14,
           detail: "",
           data: 13,
         },
         {
-          label: "UNDERSCORE_NULLPTR",
+          label: "STATIC_HEADER_FUNCS_IN_UUTS",
           kind: 14,
           detail: "",
           data: 14,
         },
         {
-          label: "VCAST_MAIN_NOT_RENAMED",
+          label: "UNDERSCORE_NULLPTR",
           kind: 14,
           detail: "",
           data: 15,
+        },
+        {
+          label: "VCAST_MAIN_NOT_RENAMED",
+          kind: 14,
+          detail: "",
+          data: 16,
         },
       ]);
     },
@@ -519,6 +525,12 @@ describe("Text Completion", () => {
           detail: "",
           data: 21,
         },
+        {
+          label: "COMPOUND_ONLY",
+          kind: 14,
+          detail: "",
+          data: 22,
+        }
       ]);
     },
     timeout

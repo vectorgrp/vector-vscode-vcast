@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-// some functions that are used across functional areas of the extentions
+// some functions that are used across functional areas of the extensions
 
 import { updateDisplayedCoverage } from "./coverage";
 import {
@@ -22,7 +22,7 @@ export function showSettings() {
 export function updateDataForEnvironment(enviroPath: string) {
   // this function does all of the "common" work when an environment is updated
   // sources of environment update are things like:
-  //   - opening the environent in the vcast gui
+  //   - opening the environment in the vcast gui
   //   - building a new environment
   //   - ...
 

@@ -42,7 +42,7 @@ export function runPythonScript(enviroName: string, paramString: string): any {
 
   // As an alternative to using a server, we call vpython each time we need some data
 
-  // NOTE: we cannot use executCommand() here because it is in the client only!
+  // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
   // RUN mode is a single shot mode where we run the python script and communicate with stdin/stdout and
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} CLI ${enviroName} "${paramString}"`;

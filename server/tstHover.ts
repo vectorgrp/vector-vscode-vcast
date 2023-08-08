@@ -4,8 +4,6 @@ import {
   getLineFragment,
   getLineText,
   getPieceAtColumn,
-  completionList,
-  convertKind,
 } from "./serverUtilities";
 
 import { TextDocuments, CompletionParams } from "vscode-languageserver";
@@ -30,7 +28,7 @@ export function getHoverString(
       const fullLine = getLineText(document, completionData.position.line);
 
       // generate a list of pieces ...
-      // this regex creates a set of dilimeters that are either . or : but NOT ::
+      // this regex creates a set of delimiters that are either . or : but NOT ::
       const pieces = fullLine.split(/(?<!:)[:\.](?!:)/);
 
       const upperCaseLine: string = fullLine.toUpperCase();

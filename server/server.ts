@@ -70,7 +70,7 @@ documents.onDidChangeContent((change) => {
   connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
 });
 
-// This handler gets called whenever "completion" is triggerd by
+// This handler gets called whenever "completion" is triggered by
 // the characters in the "triggerCharacters" array that onInitialize sets
 
 connection.onCompletion(

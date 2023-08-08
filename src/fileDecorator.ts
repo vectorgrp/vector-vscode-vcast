@@ -62,7 +62,7 @@ export class TreeFileDecorationProvider
     // this function will replace the existing decorations
     await this.removeAllCoverageDecorations();
 
-    // convienece function to update a list of files
+    // convenience function to update a list of files
     for (let filePath of fileList) {
       this.addCoverageDecorationToFile(filePath);
     }
@@ -81,7 +81,7 @@ export class TreeFileDecorationProvider
 
   async removeAllCoverageDecorations(): Promise<void> {
     // this will spin through the list of decorated files and remove them
-    // create a copy of the list so we can destoy the real list was we process each item
+    // create a copy of the list so we can destroy the real list was we process each item
     const listCopy = [...this.filesWithCoverage];
     for (let index = 0; index < listCopy.length; index++) {
       // remove the filePath from the real list

@@ -59,7 +59,7 @@ def setupArgs():
     parser.add_argument(
         "--path",
         required=True,
-        help="Path to Envionment Directory",
+        help="Path to Environment Directory",
     )
 
     parser.add_argument("--test", help="Test ID")
@@ -126,6 +126,8 @@ def generateTestInfo(test):
     testInfo = dict()
     testInfo["testName"] = test.name
     testInfo["notes"] = test.notes
+    # stored as 0 or 1
+    testInfo["compoundOnly"] = test.for_compound_only
     testInfo["time"] = getTime(test.start_time)
     testInfo["status"] = textStatus(test.status)
     testInfo["passfail"] = getPassFailString(test)
@@ -180,7 +182,7 @@ def getTestDataVCAST(enviroPath):
                 functionNode["name"] = function.vcast_name
                 functionNode["tests"] = list()
                 for test in function.testcases:
-                    if test.is_csv_map or test.for_compound_only:
+                    if test.is_csv_map:
                         pass
                     else:
                         testInfo = generateTestInfo(test)
@@ -264,7 +266,7 @@ def getCoverageData(sourceObject):
         # line is of type 'class SourceLine'
         checksum = sourceObject.checksum
 
-        # if iterate_coverrage crashes if the original
+        # if iterate_coverage crashes if the original
         # file path does not exist.
         if os.path.exists (sourceObject.path):
             for line in sourceObject.iterate_coverage():

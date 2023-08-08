@@ -9,7 +9,11 @@ import {
   vcastMessage,
   errorLevel,
 } from "./messagePane";
-import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+import { 
+  compoundOnlyString, 
+  getEnviroPathFromID, 
+  getTestNode, 
+  testNodeType } from "./testData";
 import {
   clicastCommandToUse,
   commandStatusType,
@@ -117,6 +121,7 @@ export interface testDataType {
   resultFilePath: string;
   notes: string;
   URI: vscode.Uri | undefined;
+  compoundOnly: boolean;
 }
 
 // This allows us to get diret access to the test nodes via the ID
@@ -575,7 +580,7 @@ function commonNewEnvironmentStuff(
     const filename = path.basename(firstFile);
     let enviroName = filename.split(".")[0].toUpperCase();
 
-    // if multiple files are in the list make the environame the hyphenated name of the first 2
+    // if multiple files are in the list make the enviroName the hyphenated name of the first 2
     if (fileList.length > 1) {
       enviroName += `-${path
         .basename(fileList[1])
@@ -619,7 +624,7 @@ function commonNewEnvironmentStuff(
   } else vectorMessage("No C/C++ source files found in selection ...");
 }
 
-// Improvement needed: get the language extensions automatcally, don't hard-code
+// Improvement needed: get the language extensions automatically, don't hard-code
 const extensionsOfInterest = ["c", "cpp", "cc", "cxx"];
 
 export function newEnvironment(URIlist: Uri[]) {
@@ -755,7 +760,7 @@ export function getClicastArgsFromTestNode(testNode: testNodeType) {
   // we need the quotes on the names to handle <<COMPOUND>> and <<INIT>>
   if (testNode.functionName.length > 0)
     returnString += ` -s"${testNode.functionName}"`;
-  if (testNode.testName.length > 0) returnString += ` -t"${testNode.testName}"`;
+  if (testNode.testName.length > 0) returnString += ` -t"${testNode.testName.replace (compoundOnlyString,"")}"`;
 
   return returnString;
 }

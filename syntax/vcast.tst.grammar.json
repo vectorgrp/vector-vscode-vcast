@@ -11,7 +11,7 @@
       "name": "comment.line"
     },
     {
-      "match": "^TEST\\.(?:NEW|REPLACE|ADD|END)(\\s|$)",
+      "match": "^TEST\\.(?:NEW|REPLACE|ADD|END|COMPOUND_ONLY)(\\s|$)",
       "name": "keyword"
     },
     {

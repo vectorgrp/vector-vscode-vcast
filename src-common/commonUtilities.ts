@@ -22,15 +22,15 @@ export function getEnviroNameFromScript(
   return enviroName;
 }
 
-// Initially I thought I needed to get multiple option, so I implmented this way to make that easy
-// but it turns out that I did not really need the SOURCE_EXTENSION ... but I am leaving this as an exmaple
+// Initially I thought I needed to get multiple option, so I implemented this way to make that easy
+// but it turns out that I did not really need the SOURCE_EXTENSION ... but I am leaving this as an example
 
 export interface cfgOptionType {
   C_DEBUG_CMD: string;
   SOURCE_EXTENSION: string;
 }
 
-// we keeep a cache so we don't have to do the parse if
+// we keep a cache so we don't have to do the parse if
 // we've seen this path before
 var cfgOptionCache: Map<string, cfgOptionType> = new Map();
 

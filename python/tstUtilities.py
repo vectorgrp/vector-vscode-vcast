@@ -224,7 +224,7 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
                 )
 
     elif typeClassification == "array":
-        # VS Code gives us the closing ] for freee ...
+        # VS Code gives us the closing ] for free ...
         # so we only need to recurse when we are past this
         if len(commandPieces) > currentIndex:
             # make sure that the string has an index expression ...
@@ -295,7 +295,7 @@ def getTestList (api, unitName, functionName):
 
 
 # choiceKindType should match the VS Code CompletionItemKind type
-# Suprisingly there is no "parameter" kind, so I just use Field for parameters
+# Surprisingly there is no "parameter" kind, so I just use Field for parameters
 class choiceKindType(str, Enum):
     Constant='Constant'
     Enum='Enum'
@@ -442,7 +442,7 @@ def processLine(enviroName, line):
     It will build the choice list for the "next" field
     based on the line the user has entered so far.
 
-    To make this simpler, I did not hande all the edge cases,
+    To make this simpler, I did not handle all the edge cases,
     for now I'm using the exception handler.
 
     Input examples:
@@ -467,7 +467,7 @@ def processLine(enviroName, line):
         # Intelligently split the line into its fields
         pieces = splitExistingLine(line)
 
-        # if the line ended in a delimeter than the last item in the
+        # if the line ended in a delimiter than the last item in the
         # list will be a zero length string, if not it will be a partial
         # field so we pop it and add a null string
         if len(pieces[-1]) == 0:
@@ -475,10 +475,10 @@ def processLine(enviroName, line):
         else:
             pieces.pop()
             pieces.append("")
-            # find all delimeters, regex cuz we might have :: in function names.
-            delimeterList = re.findall(r"(?<!:)[:\.\,](?!:)", line)
-            # the last delimter is the one we want
-            triggerCharacter = delimeterList[-1]
+            # find all delimiters, regex cuz we might have :: in function names.
+            delimiterList = re.findall(r"(?<!:)[:\.\,](?!:)", line)
+            # the last delimiter is the one we want
+            triggerCharacter = delimiterList[-1]
 
         # when we get here, the last element in the list of pieces will always be ""
 

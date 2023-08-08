@@ -27,7 +27,7 @@ export function getPieceAtColumn(pieces: string[], columnIndex: number) {
   let index: number;
   let endOfPieceIndex: number = 0;
   for (index = 0; index < pieces.length; index++) {
-    // +1 for the delimeter
+    // +1 for the delimiter
     endOfPieceIndex += pieces[index].length + 1;
     if (endOfPieceIndex > columnIndex) {
       return {
@@ -45,7 +45,7 @@ export function completionList(
   choiceKind: CompletionItemKind
 ): CompletionItem[] {
   // the format of what comes in here looks like a list of strings
-  // formated as textValue or textValue@extraInfo
+  // formatted as textValue or textValue@extraInfo
 
   let i;
   let returnList: CompletionItem[] = [];
@@ -205,6 +205,7 @@ export const testCommandList = [
   "END_EXPECTED_USER_CODE",
   "IMPORT_FAILURES",
   "END_IMPORT_FAILURES",
+  "COMPOUND_ONLY",
 ];
 
 export const scriptFeatureList = [
@@ -219,6 +220,7 @@ export const scriptFeatureList = [
   "MULTIPLE_UUT_SUPPORT",
   "OVERLOADED_CONST_SUPPORT",
   "STANDARD_SPACING_R2",
+  "STRUCT_BASE_CTOR_ADDS_POINTER",
   "STRUCT_DTOR_ADDS_POINTER",
   "STRUCT_FIELD_CTOR_ADDS_POINTER",
   "STATIC_HEADER_FUNCS_IN_UUTS",

@@ -29,7 +29,7 @@ const specialSubprogramNames = ["<<INIT>>", "<<COMPOUND>>"];
 
 export function validateTextDocument(textDocument: TextDocument) {
   // this function does the error checking for the test script
-  // and generates diagostics for any issues
+  // and generates diagnostics for any issues
 
   let diagnosticList: Diagnostic[] = [];
 
@@ -188,7 +188,7 @@ export function validateTextDocument(textDocument: TextDocument) {
               )
             );
           }
-        } else if (command == "SCRIPT_FEATURE") {
+        } else if (command == "SCRIPT_FEATURE" && pieces.length>2) {
           const featureName = pieces[2].trim();
           if (scriptFeatureList.indexOf(featureName) < 0) {
             diagnosticList.push(
@@ -232,8 +232,6 @@ export function validateTextDocument(textDocument: TextDocument) {
       diagnosticList.push(diagnostic(lineIndex, 0, 1000, message));
     }
 
-    // TBD The lsp example implemented some .relatedInfomration
-    // for the diagnostic object here ???
   } // end for loop
 
   return diagnosticList;
