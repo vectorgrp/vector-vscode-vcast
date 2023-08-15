@@ -34,14 +34,14 @@ export function initializeCodeCoverageFeatures(
     //color: 'white',
     //color: "red",
     //fontWeight: "bold",
-    gutterIconPath: context.asAbsolutePath("./images/no-gutter-icon-light.svg"),
+    gutterIconPath: context.asAbsolutePath("./images/light/no-gutter-icon-light.svg"),
   };
   coveredRenderOptions = {
     //backgroundColor: 'green',
     //color: 'white',
     //color: "green",
     //fontWeight: "bold",
-    gutterIconPath: context.asAbsolutePath("./images/gutter-icon-light.svg"),
+    gutterIconPath: context.asAbsolutePath("./images/light/gutter-icon-light.svg"),
   };
 }
 
