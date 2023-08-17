@@ -13,7 +13,13 @@ import {
   TestItemCollection,
   TestMessage,
 } from "vscode";
+
+
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
+
+import {
+  updateTestDecorator,
+} from "./editorDecorator";
 
 import { errorLevel, vectorMessage } from "./messagePane";
 import { viewResultsReport } from "./reporting";
@@ -345,8 +351,8 @@ function getEnvironmentList(baseDirectory: string): string[] {
   return returnList;
 }
 
-// This is intended to be used in the package.json to control the display of context menu items
-// Search for 'vectorcastTestExplorer.vcastEnviroList' in package.json to see where we reference
+// This is used in the package.json to control the display of context menu items
+// Search for 'vectorcastTestExplorer.vcastEnviroList' in package.json to see where we reference it
 // this list in a "when" clause
 export var vcastEnviroList: string[] = [];
 
@@ -447,8 +453,10 @@ export async function loadAllVCTests(
     } // for workspace folders
   } // if workspace folders
 
-  // once the data is loaded update the coverage for the active editor
+  // once the data is loaded update the coverage and test icons for the active editor
   updateDisplayedCoverage();
+  updateTestDecorator ();
+
 }
 
 export let pathToEnviroBeingDebugged: string =
@@ -577,6 +585,7 @@ function createEmptyLaunchConfigFile(
 
   fs.closeSync(fs.openSync(launchJsonPath, "w"));
 }
+
 function launchConfigExists(launchJsonPath: string): boolean {
   // this will check if launch.json has
   // the "VectorCAST Harness Debug" configuration defined

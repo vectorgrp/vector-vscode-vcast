@@ -2,6 +2,11 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
+
+import {
+  updateFunctionDataForFile,
+} from "./editorDecorator";
+
 import { showSettings, updateDataForEnvironment } from "./helper";
 import {
   openMessagePane,
@@ -20,6 +25,7 @@ import {
   executeClicastCommand,
   executeCommand,
   executeVPythonScript,
+  fixDriveLetterForPython,
   getChecksumCommand,
   getJsonDataFromTestInterface,
   testInterfaceCommand,
@@ -28,6 +34,7 @@ import { fileDecorator } from "./fileDecorator";
 
 const fs = require("fs");
 const path = require("path");
+
 
 export const vcastEnviroFile = "UNITDATA.VCD";
 
@@ -95,7 +102,7 @@ export function getEnviroDataFromPython(enviroPath: string): any {
   jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
 
   if (jsonData) {
-    updateCoverageDataForFiles(enviroPath, jsonData.unitData);
+    updateGlobalDataForFile(enviroPath, jsonData.unitData);
   }
 
   return jsonData;
@@ -228,14 +235,14 @@ export function getListOfFilesWithCoverage(): string[] {
 // key is enviroPath, value is a list of filePaths
 let enviroFileList: Map<string, string[]> = new Map();
 
-export function updateCoverageDataForFiles(
+function updateGlobalDataForFile(
   enviroPath: string,
   fileList: any[]
 ) {
   let filePathList: string[] = [];
 
   for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
-    let filePath = fileList[fileIndex].path;
+    let filePath = fixDriveLetterForPython (fileList[fileIndex].path);
 
     // Improvement needed: should make a function for this
 
@@ -283,6 +290,12 @@ export function updateCoverageDataForFiles(
           fileDecorator.addCoverageDecorationToFile(filePath);
         else fileDecorator.removeCoverageDecorationFromFile(filePath);
       }
+
+      // update the testable function icons for this file
+      updateFunctionDataForFile (
+        filePath,
+        fileList[fileIndex].functionList);
+
     }
   }
   enviroFileList.set(enviroPath, filePathList);
@@ -311,7 +324,7 @@ export function updateCoverageData(enviroPath: string) {
   // This global data is then used by updateCOVdecorations
 
   let jsonData = getCoverageDataFromPython(enviroPath);
-  if (jsonData) updateCoverageDataForFiles(enviroPath, jsonData);
+  if (jsonData) updateGlobalDataForFile(enviroPath, jsonData);
 }
 
 export function getResultFileForTest(testID: string) {

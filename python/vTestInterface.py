@@ -246,12 +246,27 @@ def getUnitData(enviroPath, kind):
             covered, uncovered, checksum = getCoverageData(sourceObject)
             unitInfo = dict()
             unitInfo["path"] = sourcePath
+            unitInfo["functionList"] = getFunctionData (sourceObject)
             unitInfo["cmcChecksum"] = checksum
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
             unitList.append(unitInfo)
 
     return unitList
+
+
+def getFunctionData (soruceObject):
+    """
+    This function will return info about the functions in a source file
+    """
+    functionList = list()
+    for function in soruceObject.functions:
+        functionInfo = dict()
+        functionInfo["name"] = function.name
+        functionInfo["startLine"] = function.start_line
+        functionList.append(functionInfo)
+
+    return functionList
 
 
 def getCoverageData(sourceObject):

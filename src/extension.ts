@@ -13,6 +13,10 @@ import {
   updateCOVdecorations,
 } from "./coverage";
 import {
+  initializeTestDecorator,
+  updateTestDecorator,
+} from "./editorDecorator";
+import {
   deleteEnvironmentCallback,
   updateDataForEnvironment,
   showSettings,
@@ -107,6 +111,9 @@ function activationLogic(context: vscode.ExtensionContext) {
   // initialize the test pane
   activateTestPane(context);
 
+  // initialize the gutter decorator for testable functions
+  initializeTestDecorator (context);
+
   // start the language server
   activateLanguageServerClient(context);
 }
@@ -148,6 +155,19 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(createTestScriptCommand);
+
+
+    // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
+    let createTestScriptForLineCommand = vscode.commands.registerCommand(
+      "vectorcastTestExplorer.createTestScriptForLine",
+      (args: any) => {
+        if (args) {
+          // TBD - TODAY - Convert args to what newTestScript wants
+          newTestScript(args.id);
+        }
+      }
+    );
+    context.subscriptions.push(createTestScriptForLineCommand);
 
   // Command: vectorcastTestExplorer.deleteTest ////////////////////////////////////////////////////////
   let deleteTestCommand = vscode.commands.registerCommand(
@@ -340,6 +360,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     (editor) => {
       if (editor) {
         updateDisplayedCoverage();
+        updateTestDecorator ();
       }
     },
     null,

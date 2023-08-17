@@ -123,6 +123,11 @@
         "command": "vectorcastTestExplorer.debugEnviroPath",
         "category": "VectorCAST Test Explorer",
         "title": "Path for environment containing test to be debugged"
+      },
+      {
+        "command": "vectorcastTestExplorer.createTestScriptForLine",
+        "category": "VectorCAST Test Explorer",
+        "title": "New VectorCAST Test"
       }
     ],
     "keybindings": [
@@ -231,6 +236,10 @@
         {
           "command": "vectorcastTestExplorer.debugEnviroPath",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.createTestScriptForLine",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -266,6 +275,13 @@
         {
           "command": "vectorcastTestExplorer.loadTestScript",
           "when": "vectorcastTestExplorer.configured && resourceExtname==.tst"
+        }
+      ],
+      "editor/lineNumber/context": [
+        {
+            "command": "vectorcastTestExplorer.createTestScriptForLine",
+            "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.testableLineList",
+            "group": "vcast"
         }
       ],
       "testing/item/context": [
