@@ -392,6 +392,7 @@ export function updateTestsForEnvironment(
         vcastEnviroList
       );
     }
+    controller.items.delete(enviroNode.id);
     controller.items.add(enviroNode);
   } else {
     vectorMessage(`Ignoring environment: ${enviroPath}\n`);
