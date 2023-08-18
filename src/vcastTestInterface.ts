@@ -293,6 +293,7 @@ function updateGlobalDataForFile(
 
       // update the testable function icons for this file
       updateFunctionDataForFile (
+        enviroPath,
         filePath,
         fileList[fileIndex].functionList);
 
@@ -735,12 +736,13 @@ function createScriptTemplate(testNode: testNodeType): string {
   return scriptTemplateLines.join("\n");
 }
 
-export async function newTestScript(nodeID: string) {
+
+
+export async function newTestScript(testNode: testNodeType) {
   // This can be called for any subprogram node other than an environment node
   //    'Environments-GCC/TUTORIAL-C++-4|manager.Manager::PlaceOrder'
   //    'Environments-GCC/TUTORIAL-C++-4|manager.Manager::PlaceOrder.Manager::PlaceOrder.001'
 
-  const testNode: testNodeType = getTestNode(nodeID);
   const contents = createScriptTemplate(testNode);
   const scriptPath = path.join(
     path.dirname(testNode.enviroPath),

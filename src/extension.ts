@@ -13,6 +13,7 @@ import {
   updateCOVdecorations,
 } from "./coverage";
 import {
+  buildTestNodeForFunction,
   initializeTestDecorator,
   updateTestDecorator,
 } from "./editorDecorator";
@@ -28,13 +29,18 @@ import {
   vectorMessage,
 } from "./messagePane";
 import { viewResultsReport } from "./reporting";
-import { getEnviroNameFromID, getEnviroPathFromID } from "./testData";
+import { 
+  getEnviroNameFromID, 
+  getEnviroPathFromID, 
+  getTestNode,
+  testNodeType
+} from "./testData";
 import {
   activateTestPane,
-  pathToEnviroBeingDebugged,
+  buildTestPaneContents,
   loadTestScript,
   openTestScript,
-  buildTestPaneContents,
+  pathToEnviroBeingDebugged,
 } from "./testPane";
 import {
   deleteTests,
@@ -150,7 +156,8 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.createTestScript",
     (args: any) => {
       if (args) {
-        newTestScript(args.id);
+        const testNode: testNodeType = getTestNode(args.id);
+        newTestScript(testNode);
       }
     }
   );
@@ -162,8 +169,13 @@ function configureExtension(context: vscode.ExtensionContext) {
       "vectorcastTestExplorer.createTestScriptForLine",
       (args: any) => {
         if (args) {
-          // TBD - TODAY - Convert args to what newTestScript wants
-          newTestScript(args.id);
+          const testNode = buildTestNodeForFunction (args);
+          if (testNode)
+            newTestScript(testNode);
+          else
+            vscode.window.showErrorMessage(
+              `Unable to create test script for line ${args.lineNumber}`
+            );
         }
       }
     );

@@ -7,8 +7,14 @@ import {
   } from "vscode";
 
 import {
+    testNodeType,
+} from "./testData";
+
+import {
     getRangeOption,
   } from "./utilities";
+
+const path = require("path");
   
 
 // This is used in the package.json to control the display of context menu items
@@ -16,65 +22,109 @@ import {
 export var testableLineList: number[] = [];
 
 var testableFunctionDecorationType: TextEditorDecorationType;
-var testableFunctioOptions: DecorationRenderOptions;
+var testableFunctionOptions: DecorationRenderOptions;
 var testableFunctionsDecorations:vscode.DecorationOptions[] = [];
 
 export function initializeTestDecorator(context:vscode.ExtensionContext) {
     
-    testableFunctioOptions = {
-        gutterIconPath: context.asAbsolutePath("./images/light/beaker-plus.svg")
+    testableFunctionOptions = {
+        light: {gutterIconPath: context.asAbsolutePath("./images/light/beaker-plus.svg")},
+        dark: {gutterIconPath: context.asAbsolutePath("./images/dark/beaker-plus.svg")}
     };
-    testableFunctionDecorationType = vscode.window.createTextEditorDecorationType(testableFunctioOptions);
+    testableFunctionDecorationType = vscode.window.createTextEditorDecorationType(testableFunctionOptions);
 }
 
-let unitAndFunctionMap: Map<string, any[]> = new Map();
+
+interface unitDataType {
+    enviroPath:string,
+    enviroName:string,
+    unitName:string,
+    lineMap:Map<number, string>,
+}
+
+let unitAndFunctionMap: Map<string, unitDataType> = new Map();
 
 export function updateFunctionDataForFile(
+    enviroPath:string,
     fileName: string,
     functionList: string[]) {
 
+    // TBD - TODAY - do we need to do some work to ensure we only have testable functions?
+
     // functionList is a list of json items with fields for "name" and "startLine"
+    let lineMap:Map<number, string> = new Map();
+    for (let i = 0; i < functionList.length; i++) {
+        const functionInfo:any = functionList[i];
+        let functionName = functionInfo.name;
+        let startLine = functionInfo.startLine;
+        lineMap.set (startLine, functionName);
+    }
 
-    // TBD - TODAY - do we need to do some work to ensure we only have testable function?
+    const enviroName = path.basename(enviroPath);
+    const unitName = path.basename(fileName).split(".")[0];
 
-    unitAndFunctionMap.set (fileName, functionList);
+    const unitData:unitDataType = {
+        enviroPath: enviroPath,
+        enviroName: enviroName,
+        unitName: unitName,
+        lineMap: lineMap,
+    }
+
+    unitAndFunctionMap.set (fileName, unitData);
 
 }
 
+export function buildTestNodeForFunction (args:any):testNodeType|undefined {
+    // this functon will take the file path and function index and return a test node
+    // with the correct data for the function
 
-function convertLineIndexToFunctionStart (lineIndex:number):number {
-    // Since VectorCAST only has the location of the opening curly brace for the 
-    // function, and since we want to put the icon on the line with the function name
-    // we will need to do a little massaging of the data when we create the decorations
+    // args comes from the call back and has the file URI and the line number
 
-    // TBD - TODAY - Convert to start of function name
-    return lineIndex-1;
+    const filename = args.uri.fsPath;
+    const unitData = unitAndFunctionMap.get (filename);
+    let testNode:testNodeType|undefined = undefined;
 
+    if (unitData) {
+        const functionName = unitData.lineMap.get (args.lineNumber);
+        if (functionName) {
+            testNode = {
+                enviroPath: unitData.enviroPath,
+                enviroName: unitData.enviroName,
+                unitName: unitData.unitName,
+                functionName: functionName,
+                testName: "",
+            }
+        }
+    }
+    return testNode;
 }
+
 
 export function updateTestDecorator() {
-
     // activeEditor will always exist when this is called
     // this will use the previously initialized file|function map to create 
     // the decorations for the currently active file
+
+    // Note: VectorCAST only has the location of the opening curly brace for the 
+    // function, so that's where the icon and right click menu will be
+
     let activeEditor = vscode.window.activeTextEditor;
     if (activeEditor) {
-        // 2 steps for debugging
-        const filename = activeEditor.document.fileName;
-        const functionsForFile = unitAndFunctionMap.get (filename);
 
         // toss the old data
         testableLineList = [];
         testableFunctionsDecorations = [];
 
-        if (functionsForFile) {
-            for (let i = 0; i < functionsForFile.length; i++) {
-                const functionInfo = functionsForFile[i];
-                let lineIndex = functionInfo["startLine"];
-                lineIndex = convertLineIndexToFunctionStart (lineIndex);
-                testableLineList.push (lineIndex);
-                testableFunctionsDecorations.push (getRangeOption(lineIndex));
-            }
+        // 2 steps for debugging
+        const filename = activeEditor.document.fileName;
+        const unitData = unitAndFunctionMap.get (filename);
+
+        if (unitData) {
+            unitData.lineMap.forEach((functionName, lineNumber) => {       
+                testableLineList.push (lineNumber);
+                // the range positions are 0 based
+                testableFunctionsDecorations.push (getRangeOption(lineNumber-1));
+            });
             // this is used by the package.json to control content (right click) menu choices
             vscode.commands.executeCommand(
                 "setContext",
