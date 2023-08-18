@@ -1,16 +1,16 @@
 # VectorCAST Test Explorer
 
 This extension supports interacting with VectorCAST/C++ test
-environments using the Test Explorer UI, as well as displaying code coverage
-as a margin decoration in C/C++ source editors.
+environments using the VS Code Test Explorer, as well as displaying code coverage
+as a gutter decoration in C/C++ source editors.
 
 ## Prerequisites
 
 You must have VectorCAST installed and licensed, and the installation directory
-must either be on the **system PATH**, set using the VECTORCAST_DIR environment variable
-or set using the extension option: **Vectorcast Installation Location**
+must be on the **system PATH**, set using the VECTORCAST_DIR environment variable
+or set using the extension option: **Vectorcast Installation Location**.
 During extension activation, the prerequisites will be checked, and any errors
-reported in the VectorCAST Test Explorer output pane.
+reported in the VectorCAST Test Explorer output panel.
 
 You can check if VectorCAST is on your path by:
 
@@ -24,23 +24,23 @@ You can check if VECTORCAST_DIR is set properly by:
 
 Additionally, if you are using a version of VectorCAST that is older than
 VectorCAST 23, you must manually add the crc32 utilities to your VectorCAST
-install directory from this GitHub repo: https://github.com/vectorgrp/vector-vcast-crc32
+install directory from this GitHub repo: https://github.com/vectorgrp/vector-vcast-crc32.
 
 ## Usage
 
 This extension extends the VS Code Test Explorer.
 
-To use the extension, just open a folder that contains one or more VectorCAST
+To use the extension, open a folder that contains one or more VectorCAST
 test environments, then click on the Test Explorer "Flask" icon in the activity bar.
 Within a few seconds a list of test environments will be displayed with a list
-of units and functions that have test cases.
+of units, functions, and tests for each environment.
 
 If you want to initialize a workspace or folder for VectorCAST testing, simply
 run the command: "VectorCAST Test Explorer: Configure" from the command palette
 (Use: ctrl-shift-p or View->Command Palette to access), or click on the "Flask"
-button, and then click "Configure VectorCAST Tests"
+icon in the activity bar, and then click "Configure VectorCAST Tests".
 
-Once the extension is configured, you will be able to use the following features
+Once the extension is configured, you will be able to use the following features:
 
 ## Features
 
@@ -50,22 +50,22 @@ The following sub-sections focus on features that are unique to the VectorCAST T
 ### Creating a New Test Environment
 
 To create a new test environment, simply select one or more C/C++ files (.c, .cpp, .cxx, .cc)
-from the File Explorer pane, right click, and select: Create VectorCAST Environment.
+from the File Explorer view, right click, and select: Create VectorCAST Environment.
 The new test environment will be created in the location set via the extension
 setting: "Unit Test Location". By default, this settings value is "./unitTests" which means
-the environment will be created in the "./unitTests" sub-directory of the directory
+that the environment will be created in the "./unitTests" sub-directory of the directory
 containing the source file.
 
-### Test Panel Icons
+### Test Explorer Icons
 
-- The Log icon will open the VectorCAST Test Explorer message pane
+- The Log icon will open the VectorCAST Test Explorer message panel
 - The Gear icon will open the VectorCAST Test Explorer settings
 
 ### The Test Tree
 
 The VectorCAST Test Tree contains a hierarchy of nodes for each VectorCAST Test Environment.
 The top-level node will indicate the relative path from the workspace root to the
-environment. The subsequent levels show units, functions, and then test cases.
+environment. The subsequent levels show units, functions, and test cases.
 
 ### Test Tree Context Menus
 
@@ -117,7 +117,7 @@ The LSE features make it quick and intuitive to create new VectorCAST test scrip
 ### Test Script Importing
 
 When editing a test script file, a "Load Test Script into Environment" right click menu item is available in the
-editor pane to load the test script into the VectorCAST test environment. If there are unsaved changes,
+editor window to load the test script into the VectorCAST test environment. If there are unsaved changes,
 the load command will also perform a save.
 
 ### Code Coverage Annotations
@@ -133,7 +133,7 @@ from the command palette, or using the shortcut ctrl-shift-c.
 The extension supports debugging VectorCAST tests via the right click Test Context menu or icon.
 Debugging requires a special launch configuration called: VectorCAST Harness Debug, which can be
 installed by right clicking on any existing launch.json file in your workspace,
-and choosing: "VectorCAST Add Launch Config"
+and choosing: "VectorCAST: Add Launch Config"
 
 When you select "debug" for a test, the extension will prepare the VectorCAST environment for debugging,
 open the VectorCAST version of the source file for the unit under test, and scroll the file to the
@@ -148,13 +148,13 @@ do so by right clicking on the settings.json for the workspace and choosing:
 'VectorCAST: Add Filter for Environment Files'. This will add the patterns for all of the
 temporary VectorCAST files to the 'files.exclude' list.
 
-To open and close the extension-specific message pane, use ctrl-shift-v
+To open and close the extension-specific message panel, use ctrl-shift-v
 
 ## Extension Commands
 
 This extension contributes the following settings:
 
-- "VectorCAST Test Explorer: View message pane" opens the VectorCAST Test Explorer output pane
+- "VectorCAST Test Explorer: View message panel" opens the VectorCAST Test Explorer output panel
 - "VectorCAST Test Explorer: Refresh tests" re-scans the workspace for Vector tests
 - "VectorCAST Test Explorer: Toggle coverage annotations" toggles the coverage annotations on/off (ctrl-shift-c)
 
@@ -166,18 +166,18 @@ This extension contributes the following settings:
 - "Show Report on Execute" will show the HTML test report in after each VectorCAST test run.
 - "Decorate Explorer Tree" will add a VC in the right margin of the file explorer tree for those files that have VectorCAST coverage.
 - "Unit Test Location" controls where the extension stores unit test new unit test artifacts.
-- "Verbose Logging" will add more detailed messages to the VectorCAST Test Explorer message pane
+- "Verbose Logging" will add more detailed messages to the VectorCAST Test Explorer message panel
 
 ## Known Issues
 
-- If a VectorCAST configuration file (CCAST\_.CFG) does not exist in the directory chosen
+- If a VectorCAST configuration file (CCAST_.CFG) does not exist in the directory chosen
   via the "Unit Test Location" extension option, we default to the GNU compiler.
   If you are not using GNU, you must use VectorCAST to create a configuration file,
   before building a new environment
 - Debugging is only supported for GNU compilers
 - LSE features for Class Instances have not yet been implemented
 - LSE features for TEST.FLOW have not been implemented
-- Deleting a test does not remove the TC annotations in the File Explorer pane
+- Deleting a test does not remove the TC annotations in the File Explorer view
 
 ## Contributing
 

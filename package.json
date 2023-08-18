@@ -56,7 +56,7 @@
       {
         "command": "vectorcastTestExplorer.toggleLog",
         "category": "VectorCAST Test Explorer",
-        "title": "View Message Pane",
+        "title": "View Message Panel",
         "icon": "$(output)"
       },
       {

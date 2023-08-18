@@ -243,7 +243,7 @@ describe("vTypeCheck VS Code Extension", () => {
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(false);
 
-    const buttonLabel = "View Message Pane (Ctrl+Shift+V)";
+    const buttonLabel = "View Message Panel (Ctrl+Shift+V)";
     await clickOnButtonInTestingHeader(buttonLabel);
     // See GH Issue #364, we need to click twice
     await clickOnButtonInTestingHeader(buttonLabel);
