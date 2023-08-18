@@ -1,5 +1,6 @@
 import fs = require("fs");
 import path = require("path");
+import { errorLevel } from "../src/messagePane";
 const execSync = require("child_process").execSync;
 
 let testEditorScriptPath: string | undefined = undefined;

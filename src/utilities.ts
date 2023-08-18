@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { openMessagePane, vectorMessage } from "./messagePane";
+import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 import { showSettings } from "./helper";
 
 const execSync = require("child_process").execSync;
@@ -347,6 +347,9 @@ export function executeCommand(
   cwd: string = "",
   printErrorDetails: boolean = true
 ): commandStatusType {
+
+  vectorMessage (`Running: ${commandToRun}`, errorLevel.trace);
+
   let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
   try {
     // commandOutput is a buffer: (Uint8Array)
