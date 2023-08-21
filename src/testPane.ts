@@ -392,6 +392,7 @@ export function updateTestsForEnvironment(
         vcastEnviroList
       );
     }
+    // starting with VS Code 1.81 the tree was not updating unless I added the delete
     controller.items.delete(enviroNode.id);
     controller.items.add(enviroNode);
   } else {
@@ -456,7 +457,7 @@ async function loadAllVCTests(
 
   // once the data is loaded update the coverage and test icons for the active editor
   updateDisplayedCoverage();
-  updateTestDecorator ();
+  updateTestDecorator();
 
 }
 

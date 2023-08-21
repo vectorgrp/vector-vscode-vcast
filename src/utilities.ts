@@ -539,25 +539,25 @@ export function checkIfInstallationIsOK() {
   return returnValue;
 }
 
-export function fixDriveLetterForPython(path?:string): string {
+export function fixDriveLetterForPython(path?: string): string {
 
-	// There is an issue with drive letter case between TS and Python
-	// On windows, the drive letter is always lower case here in TS
-	// but in python, the calls to abspath, and realpath force the 
-	// drive letter to be upper case.
+  // There is an issue with drive letter case between TS and Python
+  // On windows, the drive letter is always lower case here in TS
+  // but in python, the calls to abspath, and realpath force the 
+  // drive letter to be upper case.
 
-	if (path) {
-		const platform = os.platform();
-		if (platform == "win32") {
-			if (path.charAt(1) == ":") {
-				const driveLetter = path.charAt(0).toUpperCase();
-				return driveLetter + path.slice(1, path.length);
-			}
-		}
-		return path;
-		}
-	else
-		return ""
+  if (path) {
+    const platform = os.platform();
+    if (platform == "win32") {
+      if (path.charAt(1) == ":") {
+        const driveLetter = path.charAt(0).toUpperCase();
+        return driveLetter + path.slice(1, path.length);
+      }
+    }
+    return path;
+  }
+  else
+    return ""
 }
 
 export function getRangeOption (lineIndex: number):vscode.DecorationOptions 
