@@ -123,17 +123,17 @@ export function updateTestDecorator() {
                 // the range positions are 0 based
                 testableFunctionsDecorations.push (getRangeOption(lineNumber-1));
             });
-            // this is used by the package.json to control content (right click) menu choices
-            vscode.commands.executeCommand(
-                "setContext",
-                "vectorcastTestExplorer.testableLineList",
-                testableLineList
-            );
             activeEditor.setDecorations(
                 testableFunctionDecorationType,
                 testableFunctionsDecorations
               );
         }
+        // push the updated testableLineList to control content (right click) menu choices
+        vscode.commands.executeCommand(
+            "setContext",
+            "vectorcastTestExplorer.testableLineList",
+            testableLineList
+        );
     }
 
 }
