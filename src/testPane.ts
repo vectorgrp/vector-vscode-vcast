@@ -907,7 +907,7 @@ let globalController: vscode.TestController;
 export function activateTestPane(context: vscode.ExtensionContext) {
   globalController = vscode.tests.createTestController(
     "vector-test-controller",
-    "Vector Test Controller"
+    "VectorCAST Tests"
   );
   context.subscriptions.push(globalController);
 
