@@ -242,17 +242,8 @@ function updateGlobalDataForFile(
   let filePathList: string[] = [];
 
   for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
+    
     let filePath = fixDriveLetterForPython (fileList[fileIndex].path);
-
-    // Improvement needed: should make a function for this
-
-    // for some reason VC uses an upper case drive letter and
-    // VS Code use a lower case letter, so check if there is a drive
-    // letter and if so force it to lower case
-    if (filePath[1] == ":") {
-      filePath = filePath.charAt(0).toLowerCase() + filePath.slice(1);
-    }
-
     filePathList.push(filePath);
 
     const checksum = fileList[fileIndex].cmcChecksum;
