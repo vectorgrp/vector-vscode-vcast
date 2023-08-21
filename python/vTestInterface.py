@@ -255,12 +255,12 @@ def getUnitData(enviroPath, kind):
     return unitList
 
 
-def getFunctionData (soruceObject):
+def getFunctionData (sourceObject):
     """
     This function will return info about the functions in a source file
     """
     functionList = list()
-    for function in soruceObject.functions:
+    for function in sourceObject.functions:
         functionInfo = dict()
         functionInfo["name"] = function.name
         functionInfo["startLine"] = function.start_line

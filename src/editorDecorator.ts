@@ -53,8 +53,8 @@ export function updateFunctionDataForFile(
     let lineMap:Map<number, string> = new Map();
     for (let i = 0; i < functionList.length; i++) {
         const functionInfo:any = functionList[i];
-        let functionName = functionInfo.name;
-        let startLine = functionInfo.startLine;
+        const functionName = functionInfo.name;
+        const startLine = functionInfo.startLine;
         lineMap.set (startLine, functionName);
     }
 
