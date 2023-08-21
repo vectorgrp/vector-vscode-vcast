@@ -178,6 +178,7 @@ This extension contributes the following settings:
 - LSE features for Class Instances have not yet been implemented
 - LSE features for TEST.FLOW have not been implemented
 - Deleting a test does not remove the TC annotations in the File Explorer view
+- [Open issues from GitHub](https://github.com/vectorgrp/vector-vscode-vcast/issues)
 
 ## Contributing
 

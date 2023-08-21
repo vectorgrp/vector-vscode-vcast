@@ -127,7 +127,7 @@
       {
         "command": "vectorcastTestExplorer.createTestScriptForLine",
         "category": "VectorCAST Test Explorer",
-        "title": "New VectorCAST Test"
+        "title": "Add VectorCAST Test"
       }
     ],
     "keybindings": [
