@@ -49,8 +49,6 @@ export function updateFunctionDataForFile(
     fileName: string,
     functionList: string[]) {
 
-    // TBD - TODAY - do we need to do some work to ensure we only have testable functions?
-
     // functionList is a list of json items with fields for "name" and "startLine"
     let lineMap:Map<number, string> = new Map();
     for (let i = 0; i < functionList.length; i++) {
