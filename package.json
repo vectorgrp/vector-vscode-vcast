@@ -294,36 +294,37 @@
         {
           "command": "vectorcastTestExplorer.openVCAST",
           "group": "vcast@1",
-          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.rebuildEnviro",
           "group": "vcast@2",
-          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.deleteEnviro",
           "group": "vcast@3",
-          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.editTestScript",
-          "group": "vcast@4"
+          "group": "vcast@4",
+          "when": "testId =~ /^vcast:.*$/"
         },
         {
           "command": "vectorcastTestExplorer.createTestScript",
           "group": "vcast@5",
-          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.deleteTest",
           "group": "vcast@6",
-          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.viewResults",
           "group": "vcast@7",
-          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         }
       ]
     },

@@ -368,9 +368,9 @@ export function updateTestsForEnvironment(
   let jsonData = getEnviroDataFromPython(enviroPath);
 
   if (jsonData) {
-    let nodeID: string;
+    let nodeID: string = "vcast:"
     if (enviroRoot.length > 0)
-      nodeID = path.relative(enviroRoot, enviroPath).replaceAll("\\", "/");
+      nodeID += path.relative(enviroRoot, enviroPath).replaceAll("\\", "/");
     else nodeID = enviroPath;
 
     createTestNodeinCache(nodeID, enviroPath, path.basename(enviroPath));
@@ -404,7 +404,7 @@ export function removeEnvironmentFromTestPane(enviroID: string) {
   globalController.items.delete(enviroID);
 }
 
-export async function loadAllVCTests(
+async function loadAllVCTests(
   controller: TestController,
   progress: vscode.Progress<{ message?: string; increment?: number }>,
   token: vscode.CancellationToken
