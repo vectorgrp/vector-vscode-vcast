@@ -25,7 +25,7 @@ import {
   executeClicastCommand,
   executeCommand,
   executeVPythonScript,
-  fixDriveLetterForPython,
+  forceLowerCaseDriveLetter,
   getChecksumCommand,
   getJsonDataFromTestInterface,
   testInterfaceCommand,
@@ -243,7 +243,7 @@ function updateGlobalDataForFile(
 
   for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
     
-    let filePath = fixDriveLetterForPython (fileList[fileIndex].path);
+    let filePath = forceLowerCaseDriveLetter (fileList[fileIndex].path);
     filePathList.push(filePath);
 
     const checksum = fileList[fileIndex].cmcChecksum;

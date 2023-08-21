@@ -539,7 +539,7 @@ export function checkIfInstallationIsOK() {
   return returnValue;
 }
 
-export function fixDriveLetterForPython(path?: string): string {
+export function forceLowerCaseDriveLetter(path?: string): string {
 
   // There is an issue with drive letter case between TS and Python
   // On windows, the drive letter is always lower case here in TS
@@ -550,7 +550,7 @@ export function fixDriveLetterForPython(path?: string): string {
     const platform = os.platform();
     if (platform == "win32") {
       if (path.charAt(1) == ":") {
-        const driveLetter = path.charAt(0).toUpperCase();
+        const driveLetter = path.charAt(0).toLowerCase();
         return driveLetter + path.slice(1, path.length);
       }
     }
