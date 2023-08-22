@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import {
     DecorationRenderOptions,
     TextEditorDecorationType,
-  } from "vscode";
+} from "vscode";
 
 import {
     testNodeType,
@@ -12,7 +12,7 @@ import {
 
 import {
     getRangeOption,
-  } from "./utilities";
+} from "./utilities";
 
 import {
     checksumMatchesEnvironment,
@@ -20,7 +20,7 @@ import {
 
 
 const path = require("path");
-  
+
 
 // This is used in the package.json to control the display of context menu items
 // Search for 'vectorcastTestExplorer.testableLineList' in package.json to see where we reference it
@@ -28,67 +28,67 @@ export var testableLineList: number[] = [];
 
 var testableFunctionDecorationType: TextEditorDecorationType;
 var testableFunctionOptions: DecorationRenderOptions;
-var testableFunctionsDecorations:vscode.DecorationOptions[] = [];
+var testableFunctionsDecorations: vscode.DecorationOptions[] = [];
 
-export function initializeTestDecorator(context:vscode.ExtensionContext) {
-    
+export function initializeTestDecorator(context: vscode.ExtensionContext) {
+
     testableFunctionOptions = {
-        light: {gutterIconPath: context.asAbsolutePath("./images/light/beaker-plus.svg")},
-        dark: {gutterIconPath: context.asAbsolutePath("./images/dark/beaker-plus.svg")}
+        light: { gutterIconPath: context.asAbsolutePath("./images/light/beaker-plus.svg") },
+        dark: { gutterIconPath: context.asAbsolutePath("./images/dark/beaker-plus.svg") }
     };
     testableFunctionDecorationType = vscode.window.createTextEditorDecorationType(testableFunctionOptions);
 }
 
 
 interface unitDataType {
-    enviroPath:string,
-    enviroName:string,
-    unitName:string,
-    lineMap:Map<number, string>,
+    enviroPath: string,
+    enviroName: string,
+    unitName: string,
+    lineMap: Map<number, string>,
 }
 
 let unitAndFunctionMap: Map<string, unitDataType> = new Map();
 
 export function updateFunctionDataForFile(
-    enviroPath:string,
+    enviroPath: string,
     fileName: string,
     functionList: string[]) {
 
     // functionList is a list of json items with fields for "name" and "startLine"
-    let lineMap:Map<number, string> = new Map();
+    let lineMap: Map<number, string> = new Map();
     for (let i = 0; i < functionList.length; i++) {
-        const functionInfo:any = functionList[i];
+        const functionInfo: any = functionList[i];
         const functionName = functionInfo.name;
         const startLine = functionInfo.startLine;
-        lineMap.set (startLine, functionName);
+        lineMap.set(startLine, functionName);
     }
 
     const enviroName = path.basename(enviroPath);
     const unitName = path.basename(fileName).split(".")[0];
 
-    const unitData:unitDataType = {
+    const unitData: unitDataType = {
         enviroPath: enviroPath,
         enviroName: enviroName,
         unitName: unitName,
         lineMap: lineMap,
     }
 
-    unitAndFunctionMap.set (fileName, unitData);
+    unitAndFunctionMap.set(fileName, unitData);
 
 }
 
-export function buildTestNodeForFunction (args:any):testNodeType|undefined {
+export function buildTestNodeForFunction(args: any): testNodeType | undefined {
     // this functon will take the file path and function index and return a test node
     // with the correct data for the function
 
     // args comes from the call back and has the file URI and the line number
 
     const filename = args.uri.fsPath;
-    const unitData = unitAndFunctionMap.get (filename);
-    let testNode:testNodeType|undefined = undefined;
+    const unitData = unitAndFunctionMap.get(filename);
+    let testNode: testNodeType | undefined = undefined;
 
     if (unitData) {
-        const functionName = unitData.lineMap.get (args.lineNumber);
+        const functionName = unitData.lineMap.get(args.lineNumber);
         if (functionName) {
             testNode = {
                 enviroPath: unitData.enviroPath,
@@ -119,16 +119,16 @@ export function updateTestDecorator() {
         testableFunctionsDecorations = [];
 
         const filePath = activeEditor.document.fileName;
-        const unitData = unitAndFunctionMap.get (filePath);
+        const unitData = unitAndFunctionMap.get(filePath);
 
         if (unitData) {
             // We don't want to display the icon and context menu if the 
             // file has been edited.  This is the easiest way to check that
             if (checksumMatchesEnvironment(filePath, unitData.enviroPath)) {
-                unitData.lineMap.forEach((functionName, lineNumber) => {       
-                    testableLineList.push (lineNumber);
+                unitData.lineMap.forEach((functionName, lineNumber) => {
+                    testableLineList.push(lineNumber);
                     // the range positions are 0 based
-                    testableFunctionsDecorations.push (getRangeOption(lineNumber-1));
+                    testableFunctionsDecorations.push(getRangeOption(lineNumber - 1));
                 });
             }
         }
