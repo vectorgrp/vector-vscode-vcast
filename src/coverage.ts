@@ -9,6 +9,10 @@ import {
   getListOfFilesWithCoverage,
 } from "./vcastTestInterface";
 
+import {
+  getRangeOption,
+} from "./utilities";
+
 import { fileDecorator } from "./fileDecorator";
 
 // these are defined as globals so that the deactivate function has access
@@ -34,22 +38,15 @@ export function initializeCodeCoverageFeatures(
     //color: 'white',
     //color: "red",
     //fontWeight: "bold",
-    gutterIconPath: context.asAbsolutePath("./images/no-gutter-icon-light.svg"),
+    gutterIconPath: context.asAbsolutePath("./images/light/no-cover-icon.svg"),
   };
   coveredRenderOptions = {
     //backgroundColor: 'green',
     //color: 'white',
     //color: "green",
     //fontWeight: "bold",
-    gutterIconPath: context.asAbsolutePath("./images/gutter-icon-light.svg"),
+    gutterIconPath: context.asAbsolutePath("./images/light/cover-icon.svg"),
   };
-}
-
-function getDecoration(activeEditor: vscode.TextEditor, lineIndex: number) {
-  const startPos = new vscode.Position(lineIndex, 0);
-  const endPos = new vscode.Position(lineIndex, 0);
-  var decoration = { range: new vscode.Range(startPos, endPos) };
-  return decoration;
 }
 
 // global decoration arrays
@@ -67,9 +64,9 @@ function addDecorations(
 
   for (lineIndex = 0; lineIndex < lineCount; lineIndex++) {
     if (covered.includes(lineIndex + 1)) {
-      coveredDecorations.push(getDecoration(activeEditor, lineIndex));
+      coveredDecorations.push(getRangeOption(lineIndex));
     } else if (uncovered.includes(lineIndex + 1)) {
-      uncoveredDecorations.push(getDecoration(activeEditor, lineIndex));
+      uncoveredDecorations.push(getRangeOption(lineIndex));
     }
   }
 }

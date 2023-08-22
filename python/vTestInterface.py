@@ -246,12 +246,27 @@ def getUnitData(enviroPath, kind):
             covered, uncovered, checksum = getCoverageData(sourceObject)
             unitInfo = dict()
             unitInfo["path"] = sourcePath
+            unitInfo["functionList"] = getFunctionData (sourceObject)
             unitInfo["cmcChecksum"] = checksum
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
             unitList.append(unitInfo)
 
     return unitList
+
+
+def getFunctionData (sourceObject):
+    """
+    This function will return info about the functions in a source file
+    """
+    functionList = list()
+    for function in sourceObject.functions:
+        functionInfo = dict()
+        functionInfo["name"] = function.name
+        functionInfo["startLine"] = function.start_line
+        functionList.append(functionInfo)
+
+    return functionList
 
 
 def getCoverageData(sourceObject):
@@ -262,24 +277,25 @@ def getCoverageData(sourceObject):
     coveredString = ""
     uncoveredString = ""
     checksum = 0
-    if sourceObject and sourceObject.has_cover_data:
-        # line is of type 'class SourceLine'
+    if sourceObject:
         checksum = sourceObject.checksum
+        if sourceObject.has_cover_data:
+            # if iterate_coverage crashes if the original
+            # file path does not exist.
+            if os.path.exists (sourceObject.path):
+                for line in sourceObject.iterate_coverage():
+                    covLine = line._cov_line
+                    covChar = covLine.covered_char()
+                    if covChar in ["*", "A"]:
+                        coveredString += str(line.line_number) + ","
+                    elif covChar in [" ", "P", "a"]:
+                        uncoveredString += str(line.line_number) + ","
 
-        # if iterate_coverage crashes if the original
-        # file path does not exist.
-        if os.path.exists (sourceObject.path):
-            for line in sourceObject.iterate_coverage():
-                covLine = line._cov_line
-                covChar = covLine.covered_char()
-                if covChar in ["*", "A"]:
-                    coveredString += str(line.line_number) + ","
-                elif covChar in [" ", "P", "a"]:
-                    uncoveredString += str(line.line_number) + ","
+                # print, but drop the last colon
+                coveredString = coveredString[:-1]
+                uncoveredString = uncoveredString[:-1]
 
-            # print, but drop the last colon
-            coveredString = coveredString[:-1]
-            uncoveredString = uncoveredString[:-1]
+
 
     return coveredString, uncoveredString, checksum
 

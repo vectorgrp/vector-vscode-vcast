@@ -32,3 +32,15 @@ by the time clicast was called to load the script.
 This option is new for VectorCAST 23 sp2
 
 ### Fixed spelling errors / typos in source code comments
+
+
+## [1.0.4] - 2023-08-22
+
+### Allow creation of VectorCAST tests from test editors
+- A "flask" icon is displayed for each function or method that is testable. 
+- To create a new test, right click on the icon and choose: "Add VectorCAST Test"
+
+### Bug Fixes
+- Fixed issue: Auto completion not working properly in some cases #9
+- Fixed issue: VectorCAST context menu is incorrectly added to non VectorCAST nodes #11
+- Fixed test tree update issue: that caused the test tree to not update after a load or delete action.  Caused by the VS Code 1.81 release.

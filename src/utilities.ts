@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { openMessagePane, vectorMessage } from "./messagePane";
+import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 import { showSettings } from "./helper";
 
 const execSync = require("child_process").execSync;
@@ -347,6 +347,9 @@ export function executeCommand(
   cwd: string = "",
   printErrorDetails: boolean = true
 ): commandStatusType {
+
+  vectorMessage (`Running: ${commandToRun}`, errorLevel.trace);
+
   let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
   try {
     // commandOutput is a buffer: (Uint8Array)
@@ -534,4 +537,33 @@ export function checkIfInstallationIsOK() {
     openMessagePane();
   }
   return returnValue;
+}
+
+export function forceLowerCaseDriveLetter(path?: string): string {
+
+  // There is an issue with drive letter case between TS and Python
+  // On windows, the drive letter is always lower case here in TS
+  // but in python, the calls to abspath, and realpath force the 
+  // drive letter to be upper case.
+
+  if (path) {
+    const platform = os.platform();
+    if (platform == "win32") {
+      if (path.charAt(1) == ":") {
+        const driveLetter = path.charAt(0).toLowerCase();
+        return driveLetter + path.slice(1, path.length);
+      }
+    }
+    return path;
+  }
+  else
+    return ""
+}
+
+export function getRangeOption (lineIndex: number):vscode.DecorationOptions 
+{
+  // this function returns a single line range DecorationOption
+  const startPos = new vscode.Position(lineIndex, 0);
+  const endPos = new vscode.Position(lineIndex, 0);
+  return { range: new vscode.Range(startPos, endPos) };
 }

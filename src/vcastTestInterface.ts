@@ -2,6 +2,11 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
+
+import {
+  updateFunctionDataForFile,
+} from "./editorDecorator";
+
 import { showSettings, updateDataForEnvironment } from "./helper";
 import {
   openMessagePane,
@@ -20,6 +25,7 @@ import {
   executeClicastCommand,
   executeCommand,
   executeVPythonScript,
+  forceLowerCaseDriveLetter,
   getChecksumCommand,
   getJsonDataFromTestInterface,
   testInterfaceCommand,
@@ -28,6 +34,7 @@ import { fileDecorator } from "./fileDecorator";
 
 const fs = require("fs");
 const path = require("path");
+
 
 export const vcastEnviroFile = "UNITDATA.VCD";
 
@@ -51,7 +58,7 @@ export function getUnitTestLocationForPath(dirpath: string): string {
   return unitTestLocation;
 }
 
-export function getChecksum(filePath: string) {
+function getChecksum(filePath: string) {
   let returnValue = 0;
   const checksumCommand = getChecksumCommand();
   if (checksumCommand) {
@@ -95,7 +102,7 @@ export function getEnviroDataFromPython(enviroPath: string): any {
   jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
 
   if (jsonData) {
-    updateCoverageDataForFiles(enviroPath, jsonData.unitData);
+    updateGlobalDataForFile(enviroPath, jsonData.unitData);
   }
 
   return jsonData;
@@ -212,6 +219,26 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   return returnData;
 }
 
+export function checksumMatchesEnvironment(filePath: string, enviroPath: string): boolean {
+
+  // this will check if the current checksum of filePath matches the 
+  // checksum of that file from the provided environment.
+
+  let returnValue: boolean = false;
+  const checksum = getChecksum(filePath);
+  const dataForThisFile = globalCoverageData.get(filePath);
+
+  if (dataForThisFile) { 
+    const enviroData = dataForThisFile.enviroList.get (enviroPath);
+    if (enviroData) {
+        if (enviroData.crc32Checksum == checksum) {
+           returnValue = true;
+      }
+    }
+  }
+  return returnValue;
+}
+
 export function getListOfFilesWithCoverage(): string[] {
   let returnList: string[] = [];
 
@@ -228,62 +255,57 @@ export function getListOfFilesWithCoverage(): string[] {
 // key is enviroPath, value is a list of filePaths
 let enviroFileList: Map<string, string[]> = new Map();
 
-export function updateCoverageDataForFiles(
+function updateGlobalDataForFile(
   enviroPath: string,
   fileList: any[]
 ) {
   let filePathList: string[] = [];
 
   for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
-    let filePath = fileList[fileIndex].path;
-
-    // Improvement needed: should make a function for this
-
-    // for some reason VC uses an upper case drive letter and
-    // VS Code use a lower case letter, so check if there is a drive
-    // letter and if so force it to lower case
-    if (filePath[1] == ":") {
-      filePath = filePath.charAt(0).toLowerCase() + filePath.slice(1);
-    }
-
+    
+    let filePath = forceLowerCaseDriveLetter (fileList[fileIndex].path);
     filePathList.push(filePath);
 
+    let coveredList: number[] = [];
+    if (fileList[fileIndex].covered.length > 0)
+      coveredList = fileList[fileIndex].covered.split(",").map(Number);
+
+    let uncoveredList: number[] = [];
+    if (fileList[fileIndex].uncovered.length > 0)
+      uncoveredList = fileList[fileIndex].uncovered.split(",").map(Number);
+
     const checksum = fileList[fileIndex].cmcChecksum;
-    if (checksum > 0) {
-      let coveredList: number[] = [];
-      if (fileList[fileIndex].covered.length > 0)
-        coveredList = fileList[fileIndex].covered.split(",").map(Number);
+    let coverageData: coverageDataType = {
+      crc32Checksum: checksum,
+      covered: coveredList,
+      uncovered: uncoveredList,
+    };
 
-      let uncoveredList: number[] = [];
-      if (fileList[fileIndex].uncovered.length > 0)
-        uncoveredList = fileList[fileIndex].uncovered.split(",").map(Number);
+    let fileData: fileCoverageType | undefined =
+      globalCoverageData.get(filePath);
 
-      let coverageData: coverageDataType = {
-        crc32Checksum: checksum,
-        covered: coveredList,
-        uncovered: uncoveredList,
-      };
-
-      let fileData: fileCoverageType | undefined =
-        globalCoverageData.get(filePath);
-
-      // if there is not existing data for this file
-      if (!fileData) {
-        fileData = { hasCoverage: false, enviroList: new Map() };
-        globalCoverageData.set(filePath, fileData);
-      }
-
-      fileData.hasCoverage =
-        fileData.hasCoverage || coverageData.covered.length > 0;
-      fileData.enviroList.set(enviroPath, coverageData);
-
-      // if file decoration is active, update the decorations ...
-      if (fileDecorator) {
-        if (fileData.hasCoverage)
-          fileDecorator.addCoverageDecorationToFile(filePath);
-        else fileDecorator.removeCoverageDecorationFromFile(filePath);
-      }
+    // if there is not existing data for this file
+    if (!fileData) {
+      fileData = { hasCoverage: false, enviroList: new Map() };
+      globalCoverageData.set(filePath, fileData);
     }
+
+    fileData.hasCoverage =
+      fileData.hasCoverage || coverageData.covered.length > 0;
+    fileData.enviroList.set(enviroPath, coverageData);
+
+    // if we are displaying the file decoration in the explorer view
+    if (fileDecorator) {
+      if (fileData.hasCoverage)
+        fileDecorator.addCoverageDecorationToFile(filePath);
+      else fileDecorator.removeCoverageDecorationFromFile(filePath);
+    }
+    
+    // update the testable function icons for this file
+    updateFunctionDataForFile (
+      enviroPath,
+      filePath,
+      fileList[fileIndex].functionList);
   }
   enviroFileList.set(enviroPath, filePathList);
 }
@@ -308,10 +330,10 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
 export function updateCoverageData(enviroPath: string) {
   // This function loads the coverage data for one environment
   // from the vcast python interface, and then updates globalCoverageData
-  // This global data is then used by updateCOVdecorations
+  // This global data is then used by updateCOVdecorations, etc.
 
   let jsonData = getCoverageDataFromPython(enviroPath);
-  if (jsonData) updateCoverageDataForFiles(enviroPath, jsonData);
+  if (jsonData) updateGlobalDataForFile(enviroPath, jsonData);
 }
 
 export function getResultFileForTest(testID: string) {
@@ -722,12 +744,11 @@ function createScriptTemplate(testNode: testNodeType): string {
   return scriptTemplateLines.join("\n");
 }
 
-export async function newTestScript(nodeID: string) {
+export async function newTestScript(testNode: testNodeType) {
   // This can be called for any subprogram node other than an environment node
   //    'Environments-GCC/TUTORIAL-C++-4|manager.Manager::PlaceOrder'
   //    'Environments-GCC/TUTORIAL-C++-4|manager.Manager::PlaceOrder.Manager::PlaceOrder.001'
 
-  const testNode: testNodeType = getTestNode(nodeID);
   const contents = createScriptTemplate(testNode);
   const scriptPath = path.join(
     path.dirname(testNode.enviroPath),

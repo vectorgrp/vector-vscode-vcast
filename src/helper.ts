@@ -4,6 +4,9 @@ import * as vscode from "vscode";
 
 import { updateDisplayedCoverage } from "./coverage";
 import {
+  updateTestDecorator,
+} from "./editorDecorator";
+import {
   removeCoverageDataForEnviro,
   updateCoverageData,
 } from "./vcastTestInterface";
@@ -30,6 +33,8 @@ export function updateDataForEnvironment(enviroPath: string) {
   updateCoverageData(enviroPath);
   updateDisplayedCoverage();
   updateExploreDecorations();
+  updateTestDecorator ();
+
 }
 
 const fs = require("fs");
@@ -45,6 +50,7 @@ export function deleteEnvironmentCallback(enviroNodeID: string) {
   removeCoverageDataForEnviro(enviroPath);
   updateDisplayedCoverage();
   updateExploreDecorations();
+  updateTestDecorator ();
 
   // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
   const options = { cwd: path.dirname(enviroPath), absolute: true };

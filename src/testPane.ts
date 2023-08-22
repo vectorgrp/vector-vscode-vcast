@@ -13,7 +13,13 @@ import {
   TestItemCollection,
   TestMessage,
 } from "vscode";
+
+
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
+
+import {
+  updateTestDecorator,
+} from "./editorDecorator";
 
 import { errorLevel, vectorMessage } from "./messagePane";
 import { viewResultsReport } from "./reporting";
@@ -345,15 +351,15 @@ function getEnvironmentList(baseDirectory: string): string[] {
   return returnList;
 }
 
-// This is intended to be used in the package.json to control the display of context menu items
-// Search for 'vectorcastTestExplorer.vcastEnviroList' in package.json to see where we reference
+// This is used in the package.json to control the display of context menu items
+// Search for 'vectorcastTestExplorer.vcastEnviroList' in package.json to see where we reference it
 // this list in a "when" clause
 export var vcastEnviroList: string[] = [];
 
 export function updateTestsForEnvironment(
   controller: TestController,
   enviroPath: string,
-  enviroRoot: string
+  workspaceRoot: string
 ) {
   // this will add one environment node to the test pane
   // this includes all units, functions, and tests for that environment
@@ -362,30 +368,39 @@ export function updateTestsForEnvironment(
   let jsonData = getEnviroDataFromPython(enviroPath);
 
   if (jsonData) {
-    let nodeID: string;
-    if (enviroRoot.length > 0)
-      nodeID = path.relative(enviroRoot, enviroPath).replaceAll("\\", "/");
-    else nodeID = enviroPath;
+    let enviroDisplayName:string = "";
+    if (workspaceRoot.length > 0) {
+      enviroDisplayName = path.relative(workspaceRoot, enviroPath).replaceAll("\\", "/");
+    }
+    else {
+      enviroDisplayName = enviroPath.replaceAll ("\\", "/");
+    }
 
-    createTestNodeinCache(nodeID, enviroPath, path.basename(enviroPath));
+    // the vcast: prefix to allow package.json nodes to control
+    // when the VectorCAST context menu should be shown
+    const enviroNodeID: string = "vcast:" + enviroDisplayName;
+
+    createTestNodeinCache(enviroNodeID, enviroPath, path.basename(enviroPath));
 
     // crateTestItem, takes ID,Label, the ID must be unique, so
     // we add a _index-value to it ...
-    const enviroNode: vcastTestItem = controller.createTestItem(nodeID, nodeID);
+    const enviroNode: vcastTestItem = controller.createTestItem(enviroNodeID, enviroDisplayName);
     enviroNode.nodeKind = nodeKind.enviro;
 
     // if we have data
-    processVCtestData(controller, nodeID, enviroNode, jsonData);
+    processVCtestData(controller, enviroNodeID, enviroNode, jsonData);
 
     // this is used by the package.json to control content (right click) menu choices
-    if (!vcastEnviroList.includes(nodeID)) {
-      vcastEnviroList.push(nodeID);
+    if (!vcastEnviroList.includes(enviroNodeID)) {
+      vcastEnviroList.push(enviroNodeID);
       vscode.commands.executeCommand(
         "setContext",
         "vectorcastTestExplorer.vcastEnviroList",
         vcastEnviroList
       );
     }
+    // starting with VS Code 1.81 the tree was not updating unless I added the delete
+    controller.items.delete(enviroNode.id);
     controller.items.add(enviroNode);
   } else {
     vectorMessage(`Ignoring environment: ${enviroPath}\n`);
@@ -397,7 +412,7 @@ export function removeEnvironmentFromTestPane(enviroID: string) {
   globalController.items.delete(enviroID);
 }
 
-export async function loadAllVCTests(
+async function loadAllVCTests(
   controller: TestController,
   progress: vscode.Progress<{ message?: string; increment?: number }>,
   token: vscode.CancellationToken
@@ -447,8 +462,10 @@ export async function loadAllVCTests(
     } // for workspace folders
   } // if workspace folders
 
-  // once the data is loaded update the coverage for the active editor
+  // once the data is loaded update the coverage and test icons for the active editor
   updateDisplayedCoverage();
+  updateTestDecorator();
+
 }
 
 export let pathToEnviroBeingDebugged: string =
@@ -577,6 +594,7 @@ function createEmptyLaunchConfigFile(
 
   fs.closeSync(fs.openSync(launchJsonPath, "w"));
 }
+
 function launchConfigExists(launchJsonPath: string): boolean {
   // this will check if launch.json has
   // the "VectorCAST Harness Debug" configuration defined
@@ -897,7 +915,7 @@ let globalController: vscode.TestController;
 export function activateTestPane(context: vscode.ExtensionContext) {
   globalController = vscode.tests.createTestController(
     "vector-test-controller",
-    "Vector Test Controller"
+    "VectorCAST Tests"
   );
   context.subscriptions.push(globalController);
 
@@ -953,14 +971,14 @@ export function updateTestPane(enviroPath: string) {
   // this function updates what is displayed in the test tree
 
   // Need to find the workspace root for this environment
-  let enviroRoot: string = "";
+  let workspaceRoot : string = "";
   if (vscode.workspace) {
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(
       vscode.Uri.file(enviroPath)
     );
-    if (workspaceFolder) enviroRoot = workspaceFolder.uri.fsPath;
+    if (workspaceFolder) workspaceRoot = workspaceFolder.uri.fsPath;
   }
-  updateTestsForEnvironment(globalController, enviroPath, enviroRoot);
+  updateTestsForEnvironment(globalController, enviroPath, workspaceRoot);
 }
 
 // special is for compound and init

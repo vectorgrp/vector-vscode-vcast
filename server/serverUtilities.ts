@@ -133,33 +133,27 @@ export function getLineText(document: TextDocument, line: number) {
   return document.getText(rangeOfInterest).trim();
 }
 
-// to save us from parsing the scripts over and over again, we cache the enviroPath
-var enviroScriptToNameMap = new Map();
+
 export function getEnviroNameFromTestScript(testScriptPath: string) {
   let whatToReturn: string | undefined = undefined;
 
-  if (enviroScriptToNameMap.has(testScriptPath)) {
-    whatToReturn = enviroScriptToNameMap.get(testScriptPath);
-  } else {
-    // we have not seen this script before, so try to
-    // extract the enviroName from the script
-    let enviroName: string | undefined =
-      getEnviroNameFromScript(testScriptPath);
+  // extract the enviroName from the script
+  let enviroName: string | undefined =
+    getEnviroNameFromScript(testScriptPath);
 
-    // if we found a valid environment name, create a full path for it
-    if (enviroName) {
-      const enviroPath = path.join(path.dirname(testScriptPath), enviroName);
-      console.log(
-        "Environment path for script: " + testScriptPath + " is: " + enviroPath
-      );
-      enviroScriptToNameMap.set(testScriptPath, enviroPath);
-      whatToReturn = enviroPath;
-    } else {
-      console.log(
-        "Error: could not find environment name in script: " + testScriptPath
-      );
-    }
+  // if we found a valid environment name, create a full path for it
+  if (enviroName) {
+    const enviroPath = path.join(path.dirname(testScriptPath), enviroName);
+    console.log(
+      "Environment path for script: " + testScriptPath + " is: " + enviroPath
+    );
+    whatToReturn = enviroPath;
+  } else {
+    console.log(
+      "Error: could not find environment name in script: " + testScriptPath
+    );
   }
+
   return whatToReturn;
 }
 

@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "license": "See License in file: LICENSE",
   "repository": {
     "type": "git",
@@ -56,7 +56,7 @@
       {
         "command": "vectorcastTestExplorer.toggleLog",
         "category": "VectorCAST Test Explorer",
-        "title": "View Message Pane",
+        "title": "View Message Panel",
         "icon": "$(output)"
       },
       {
@@ -123,6 +123,11 @@
         "command": "vectorcastTestExplorer.debugEnviroPath",
         "category": "VectorCAST Test Explorer",
         "title": "Path for environment containing test to be debugged"
+      },
+      {
+        "command": "vectorcastTestExplorer.createTestScriptForLine",
+        "category": "VectorCAST Test Explorer",
+        "title": "Add VectorCAST Test"
       }
     ],
     "keybindings": [
@@ -231,6 +236,10 @@
         {
           "command": "vectorcastTestExplorer.debugEnviroPath",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.createTestScriptForLine",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -268,6 +277,13 @@
           "when": "vectorcastTestExplorer.configured && resourceExtname==.tst"
         }
       ],
+      "editor/lineNumber/context": [
+        {
+            "command": "vectorcastTestExplorer.createTestScriptForLine",
+            "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.testableLineList",
+            "group": "vcast"
+        }
+      ],
       "testing/item/context": [
         {
           "submenu": "vectorcastTestExplorer.vcastsubmenu",
@@ -278,36 +294,37 @@
         {
           "command": "vectorcastTestExplorer.openVCAST",
           "group": "vcast@1",
-          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.rebuildEnviro",
           "group": "vcast@2",
-          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.deleteEnviro",
           "group": "vcast@3",
-          "when": "testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.editTestScript",
-          "group": "vcast@4"
+          "group": "vcast@4",
+          "when": "testId =~ /^vcast:.*$/"
         },
         {
           "command": "vectorcastTestExplorer.createTestScript",
           "group": "vcast@5",
-          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.deleteTest",
           "group": "vcast@6",
-          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.viewResults",
           "group": "vcast@7",
-          "when": "testId not in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         }
       ]
     },

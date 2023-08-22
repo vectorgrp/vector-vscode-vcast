@@ -46,8 +46,11 @@ function displayMessage(prefix: string, msg: string, level: errorLevel) {
 export function vectorMessage(
   msg: string,
   level: errorLevel = errorLevel.info
-) {
-  displayMessage("test explorer", msg, level);
+) 
+{
+  if (level != errorLevel.trace || (level == errorLevel.trace && globalVerboseOn)) {
+    displayMessage("test explorer", msg, level);
+  }
 }
 
 export function vcastMessage(msg: string, level: errorLevel = errorLevel.info) {

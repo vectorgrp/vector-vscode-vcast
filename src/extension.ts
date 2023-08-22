@@ -13,6 +13,11 @@ import {
   updateCOVdecorations,
 } from "./coverage";
 import {
+  buildTestNodeForFunction,
+  initializeTestDecorator,
+  updateTestDecorator,
+} from "./editorDecorator";
+import {
   deleteEnvironmentCallback,
   updateDataForEnvironment,
   showSettings,
@@ -24,13 +29,18 @@ import {
   vectorMessage,
 } from "./messagePane";
 import { viewResultsReport } from "./reporting";
-import { getEnviroNameFromID, getEnviroPathFromID } from "./testData";
+import { 
+  getEnviroNameFromID, 
+  getEnviroPathFromID, 
+  getTestNode,
+  testNodeType
+} from "./testData";
 import {
   activateTestPane,
-  pathToEnviroBeingDebugged,
+  buildTestPaneContents,
   loadTestScript,
   openTestScript,
-  buildTestPaneContents,
+  pathToEnviroBeingDebugged,
 } from "./testPane";
 import {
   deleteTests,
@@ -107,6 +117,9 @@ function activationLogic(context: vscode.ExtensionContext) {
   // initialize the test pane
   activateTestPane(context);
 
+  // initialize the gutter decorator for testable functions
+  initializeTestDecorator (context);
+
   // start the language server
   activateLanguageServerClient(context);
 }
@@ -143,11 +156,30 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.createTestScript",
     (args: any) => {
       if (args) {
-        newTestScript(args.id);
+        const testNode: testNodeType = getTestNode(args.id);
+        newTestScript(testNode);
       }
     }
   );
   context.subscriptions.push(createTestScriptCommand);
+
+
+    // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
+    let createTestScriptForLineCommand = vscode.commands.registerCommand(
+      "vectorcastTestExplorer.createTestScriptForLine",
+      (args: any) => {
+        if (args) {
+          const testNode = buildTestNodeForFunction (args);
+          if (testNode)
+            newTestScript(testNode);
+          else
+            vscode.window.showErrorMessage(
+              `Unable to create test script for line ${args.lineNumber}`
+            );
+        }
+      }
+    );
+    context.subscriptions.push(createTestScriptForLineCommand);
 
   // Command: vectorcastTestExplorer.deleteTest ////////////////////////////////////////////////////////
   let deleteTestCommand = vscode.commands.registerCommand(
@@ -340,17 +372,27 @@ function configureExtension(context: vscode.ExtensionContext) {
     (editor) => {
       if (editor) {
         updateDisplayedCoverage();
+        updateTestDecorator ();
       }
     },
     null,
     context.subscriptions
   );
 
+  // This works nicely to remove the decorations when
+  // the user has auto-save ON, but not if they don't.
+  // There is another event called onDidChangeTextDocument
+  // that gets invoked when the user edits, but to determine
+  // if the file has changed we compute the checksum of the file
+  // and since the file on disk has not changed, we would keep the 
+  // decorations anyway.
   vscode.workspace.onDidSaveTextDocument(
     (editor) => {
-      // changing the file might invalidate the coverage
+      // changing the file will invalidate the 
+      // coverage and editor annotations
       if (editor) {
         updateCOVdecorations();
+        updateTestDecorator ();
       }
     },
     null,

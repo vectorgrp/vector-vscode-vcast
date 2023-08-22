@@ -267,13 +267,15 @@ def getFunctionList (api, unitName):
     """
     returnList = list()
     unitObject = getObjectFromName(api.Unit.all(), unitName)
-    functionList = unitObject.functions
-    returnList = getNameListFromObjectList(functionList)
-    # seems like a vcast dataAPI bug, that <<INIT>> is in this list
-    if "<<INIT>>" in returnList:
-        returnList.remove ("<<INIT>>")
-    if len(unitObject.globals) > 0:
-        returnList.append(tagForGlobals)
+    # unitName might be invalid ...
+    if unitObject:
+        functionList = unitObject.functions
+        returnList = getNameListFromObjectList(functionList)
+        # seems like a vcast dataAPI bug, that <<INIT>> is in this list
+        if "<<INIT>>" in returnList:
+            returnList.remove ("<<INIT>>")
+        if len(unitObject.globals) > 0:
+            returnList.append(tagForGlobals)
 
     return returnList
 
