@@ -266,49 +266,46 @@ function updateGlobalDataForFile(
     let filePath = forceLowerCaseDriveLetter (fileList[fileIndex].path);
     filePathList.push(filePath);
 
+    let coveredList: number[] = [];
+    if (fileList[fileIndex].covered.length > 0)
+      coveredList = fileList[fileIndex].covered.split(",").map(Number);
+
+    let uncoveredList: number[] = [];
+    if (fileList[fileIndex].uncovered.length > 0)
+      uncoveredList = fileList[fileIndex].uncovered.split(",").map(Number);
+
     const checksum = fileList[fileIndex].cmcChecksum;
-    if (checksum > 0) {
-      let coveredList: number[] = [];
-      if (fileList[fileIndex].covered.length > 0)
-        coveredList = fileList[fileIndex].covered.split(",").map(Number);
+    let coverageData: coverageDataType = {
+      crc32Checksum: checksum,
+      covered: coveredList,
+      uncovered: uncoveredList,
+    };
 
-      let uncoveredList: number[] = [];
-      if (fileList[fileIndex].uncovered.length > 0)
-        uncoveredList = fileList[fileIndex].uncovered.split(",").map(Number);
+    let fileData: fileCoverageType | undefined =
+      globalCoverageData.get(filePath);
 
-      let coverageData: coverageDataType = {
-        crc32Checksum: checksum,
-        covered: coveredList,
-        uncovered: uncoveredList,
-      };
-
-      let fileData: fileCoverageType | undefined =
-        globalCoverageData.get(filePath);
-
-      // if there is not existing data for this file
-      if (!fileData) {
-        fileData = { hasCoverage: false, enviroList: new Map() };
-        globalCoverageData.set(filePath, fileData);
-      }
-
-      fileData.hasCoverage =
-        fileData.hasCoverage || coverageData.covered.length > 0;
-      fileData.enviroList.set(enviroPath, coverageData);
-
-      // if file decoration is active, update the decorations ...
-      if (fileDecorator) {
-        if (fileData.hasCoverage)
-          fileDecorator.addCoverageDecorationToFile(filePath);
-        else fileDecorator.removeCoverageDecorationFromFile(filePath);
-      }
-
-      // update the testable function icons for this file
-      updateFunctionDataForFile (
-        enviroPath,
-        filePath,
-        fileList[fileIndex].functionList);
-
+    // if there is not existing data for this file
+    if (!fileData) {
+      fileData = { hasCoverage: false, enviroList: new Map() };
+      globalCoverageData.set(filePath, fileData);
     }
+
+    fileData.hasCoverage =
+      fileData.hasCoverage || coverageData.covered.length > 0;
+    fileData.enviroList.set(enviroPath, coverageData);
+
+    // if we are displaying the file decoration in the explorer view
+    if (fileDecorator) {
+      if (fileData.hasCoverage)
+        fileDecorator.addCoverageDecorationToFile(filePath);
+      else fileDecorator.removeCoverageDecorationFromFile(filePath);
+    }
+    
+    // update the testable function icons for this file
+    updateFunctionDataForFile (
+      enviroPath,
+      filePath,
+      fileList[fileIndex].functionList);
   }
   enviroFileList.set(enviroPath, filePathList);
 }

@@ -27,8 +27,8 @@
       "args": [
         "--mode=getEnviroData",
         "--kind=vcast",
-        "--clicast=C:/vcast/vc23/clicast.exe",
-        "--path=c:/RDS/SandBox/VectorCAST/vcastTutorial/examples/unitTests/STATIC"
+        "--clicast=C:/vcast/vc23sp2/clicast.exe",
+        "--path=c:/RDS/SandBox/VectorCAST/examples/unitTests/FOO"
       ],
       "console": "integratedTerminal"
     },
@@ -37,14 +37,15 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/SandBox/VCAST",
+      "cwd": "C:/RDS/SandBox/VectorCAST/examples",
       "env": {
         "PYTHONPATH": "C:/vcast/vc22sp7/python"
       },
       "args": [
         "--mode=getCoverageData",
         "--kind=vcast",
-        "--path=c:/RDS/SandBox/VCAST/sourceCode/cpp/unitTests/MANAGER"
+        "--clicast=C:/vcast/vc23sp2/clicast.exe",
+        "--path=c:/RDS/SandBox/VectorCAST/examples/unitTests/FOO"
       ],
       "console": "integratedTerminal"
     },
