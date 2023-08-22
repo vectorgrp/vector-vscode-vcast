@@ -379,11 +379,20 @@ function configureExtension(context: vscode.ExtensionContext) {
     context.subscriptions
   );
 
+  // This works nicely to remove the decorations when
+  // the user has auto-save ON, but not if they don't.
+  // There is another event called onDidChangeTextDocument
+  // that gets invoked when the user edits, but to determine
+  // if the file has changed we compute the checksum of the file
+  // and since the file on disk has not changed, we would keep the 
+  // decorations anyway.
   vscode.workspace.onDidSaveTextDocument(
     (editor) => {
-      // changing the file might invalidate the coverage
+      // changing the file will invalidate the 
+      // coverage and editor annotations
       if (editor) {
         updateCOVdecorations();
+        updateTestDecorator ();
       }
     },
     null,

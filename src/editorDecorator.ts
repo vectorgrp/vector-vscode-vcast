@@ -14,6 +14,11 @@ import {
     getRangeOption,
   } from "./utilities";
 
+import {
+    checksumMatchesEnvironment,
+} from "./vcastTestInterface";
+
+
 const path = require("path");
   
 
@@ -113,21 +118,25 @@ export function updateTestDecorator() {
         testableLineList = [];
         testableFunctionsDecorations = [];
 
-        // 2 steps for debugging
-        const filename = activeEditor.document.fileName;
-        const unitData = unitAndFunctionMap.get (filename);
+        const filePath = activeEditor.document.fileName;
+        const unitData = unitAndFunctionMap.get (filePath);
 
         if (unitData) {
-            unitData.lineMap.forEach((functionName, lineNumber) => {       
-                testableLineList.push (lineNumber);
-                // the range positions are 0 based
-                testableFunctionsDecorations.push (getRangeOption(lineNumber-1));
-            });
-            activeEditor.setDecorations(
-                testableFunctionDecorationType,
-                testableFunctionsDecorations
-              );
+            // We don't want to display the icon and context menu if the 
+            // file has been edited.  This is the easiest way to check that
+            if (checksumMatchesEnvironment(filePath, unitData.enviroPath)) {
+                unitData.lineMap.forEach((functionName, lineNumber) => {       
+                    testableLineList.push (lineNumber);
+                    // the range positions are 0 based
+                    testableFunctionsDecorations.push (getRangeOption(lineNumber-1));
+                });
+            }
         }
+        // update the flask icon decorations
+        activeEditor.setDecorations(
+            testableFunctionDecorationType,
+            testableFunctionsDecorations
+        );
         // push the updated testableLineList to control content (right click) menu choices
         vscode.commands.executeCommand(
             "setContext",

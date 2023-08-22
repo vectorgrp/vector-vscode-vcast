@@ -58,7 +58,7 @@ export function getUnitTestLocationForPath(dirpath: string): string {
   return unitTestLocation;
 }
 
-export function getChecksum(filePath: string) {
+function getChecksum(filePath: string) {
   let returnValue = 0;
   const checksumCommand = getChecksumCommand();
   if (checksumCommand) {
@@ -219,6 +219,26 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   return returnData;
 }
 
+export function checksumMatchesEnvironment(filePath: string, enviroPath: string): boolean {
+
+  // this will check if the current checksum of filePath matches the 
+  // checksum of that file from the provided environment.
+
+  let returnValue: boolean = false;
+  const checksum = getChecksum(filePath);
+  const dataForThisFile = globalCoverageData.get(filePath);
+
+  if (dataForThisFile) { 
+    const enviroData = dataForThisFile.enviroList.get (enviroPath);
+    if (enviroData) {
+        if (enviroData.crc32Checksum == checksum) {
+           returnValue = true;
+      }
+    }
+  }
+  return returnValue;
+}
+
 export function getListOfFilesWithCoverage(): string[] {
   let returnList: string[] = [];
 
@@ -313,7 +333,7 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
 export function updateCoverageData(enviroPath: string) {
   // This function loads the coverage data for one environment
   // from the vcast python interface, and then updates globalCoverageData
-  // This global data is then used by updateCOVdecorations
+  // This global data is then used by updateCOVdecorations, etc.
 
   let jsonData = getCoverageDataFromPython(enviroPath);
   if (jsonData) updateGlobalDataForFile(enviroPath, jsonData);
