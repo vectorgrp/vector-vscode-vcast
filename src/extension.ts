@@ -114,11 +114,11 @@ function activationLogic(context: vscode.ExtensionContext) {
   // setup the decorations for coverage
   initializeCodeCoverageFeatures(context);
 
+  // initialize the gutter decorator for testable functions
+  initializeTestDecorator(context);
+
   // initialize the test pane
   activateTestPane(context);
-
-  // initialize the gutter decorator for testable functions
-  initializeTestDecorator (context);
 
   // start the language server
   activateLanguageServerClient(context);
