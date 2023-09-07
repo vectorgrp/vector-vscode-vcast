@@ -72,7 +72,13 @@ def additionalTypeInfo(type):
     For some types, we want to give a hint about the kind ...
     """
     if type.kind == "REC_ORD":
-        return type.display_name + "(struct)"
+        if re.search("^__T[0-9]+$", type.display_name):
+            # We have a generated temporary or tag-name
+            # this happens for anon structures in C for example
+            # typedef struct {int a;} myType;
+            return type.typemark + "(struct)"
+        else:
+            return type.display_name + "(struct)"
     elif type.kind == "UNION":
         return type.display_name + "(union)"
     elif type.kind == "CLASS":

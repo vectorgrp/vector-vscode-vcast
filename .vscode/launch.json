@@ -54,14 +54,14 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/testEditorInterface.py",
-      "cwd": "C:/RDS/SandBox/VCAST-NEW/vcastTutorial/cpp/unitTests",
+      "cwd": "C:/RDS/SandBox/VectorCAST/examples/unitTests",
       "env": {
-        "PYTHONPATH": "C:/vcast/vc23/python"
+        "PYTHONPATH": "C:/vcast/vc23sp2/python"
       },
       "args": [
         "CLI",
-        "C:\\RDS\\SandBox\\VCAST-NEW\\vcastTutorial\\cpp\\unitTests\\MANAGER",
-        "TEST.VALUE:manager.Manager::PlaceOrder.Order.Entree:"
+        "C:\\RDS\\SandBox\\VectorCAST\\examples\\unitTests\\STRUCT",
+        "TEST.VALUE:struct.foo.x.f.f"
       ],
       "console": "integratedTerminal"
     },
