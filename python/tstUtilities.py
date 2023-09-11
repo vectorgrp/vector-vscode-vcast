@@ -66,21 +66,34 @@ def getObjectFromName(objectList, name):
     return None
 
 
+def getTypeDisplayName (type):
+    """
+    In some cases the "display_name" is a generated temporary or tag-name
+    this happens for anon structures in C for example
+    
+    typedef struct {
+        int a;
+        } myType;
+
+    In that case, use use the typemark vs display_name
+    """
+
+    # The anon names are always __T<address> so use regex
+    if re.search("^__T[0-9]+$", type.display_name):
+        return type.typemark
+    else:
+        return type.display_name
+
 
 def additionalTypeInfo(type):
     """
     For some types, we want to give a hint about the kind ...
     """
+
     if type.kind == "REC_ORD":
-        if re.search("^__T[0-9]+$", type.display_name):
-            # We have a generated temporary or tag-name
-            # this happens for anon structures in C for example
-            # typedef struct {int a;} myType;
-            return type.typemark + "(struct)"
-        else:
-            return type.display_name + "(struct)"
+        return getTypeDisplayName (type) + "(struct)"
     elif type.kind == "UNION":
-        return type.display_name + "(union)"
+        return getTypeDisplayName (type) +  "(union)"
     elif type.kind == "CLASS":
         return type.display_name + "(class)"
     elif type.kind in ["POINTER", "CLASS_PTR", "ACCE_SS"]:
