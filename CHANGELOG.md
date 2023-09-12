@@ -44,3 +44,11 @@ This option is new for VectorCAST 23 sp2
 - Fixed issue: Auto completion not working properly in some cases #9
 - Fixed issue: VectorCAST context menu is incorrectly added to non VectorCAST nodes #11
 - Fixed test tree update issue: that caused the test tree to not update after a load or delete action.  Caused by the VS Code 1.81 release.
+
+## [1.0.5] - 2023-09-14
+
+- Added "Programming Languages" to the "categories" in the manifest so that the extension will get suggested for .tst files.
+
+### Bug Fixes
+- Fixed issue: Hover over for anonymous structs and unions show internal type names #17
+- Fixed stack trace display when VectorCAST environment version is incompatible with VectorCAST installation
