@@ -16,7 +16,8 @@
   "publisher": "vectorgroup",
   "categories": [
     "Testing",
-    "Debuggers"
+    "Programming Languages",
+    "Snippets"
   ],
   "bugs": {
     "url": "https://github.com/vectorgrp/vector-vscode-vcast/issues"
@@ -338,7 +339,8 @@
       {
         "id": "vcast.tst",
         "aliases": [
-          "VectorCAST Test Script"
+          "TST",
+          "tst"
         ],
         "extensions": [
           ".tst"
