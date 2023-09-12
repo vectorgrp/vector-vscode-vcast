@@ -339,6 +339,7 @@
       {
         "id": "vcast.tst",
         "aliases": [
+          "VectorCAST Test Script",
           "TST",
           "tst"
         ],
