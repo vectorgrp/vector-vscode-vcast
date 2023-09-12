@@ -140,8 +140,13 @@ import inspect
 
 def getTestDataVCAST(enviroPath):
 
-    api = UnitTestApi(enviroPath)
-
+    # dataAPI throws if there is a tool/enviro missmatch
+    try:
+        api = UnitTestApi(enviroPath)
+    except Exception as err:
+        print (err)
+        raise Exception("INVALID_ENVIRO")
+    
     testList = list()
     sourceFiles = dict()
 
@@ -524,8 +529,14 @@ if __name__ == "__main__":
 
     except Exception as err:
         # for usage error we print the issue where we see it
-        if str(err) != "USAGE_ERROR":
+        if str(err) not in ["USAGE_ERROR", "INVALID_ENVIRO"]:
             traceBackText = traceback.format_exc()
             print(traceBackText)
-        # in all cases return error code != 0
-        sys.exit(1)
+
+        # We treat invalid enviro as a warning
+        if str(err) in ["INVALID_ENVIRO"]:
+
+            sys.exit (99)
+        else:
+            # in all other cases return error code 1
+            sys.exit(1)

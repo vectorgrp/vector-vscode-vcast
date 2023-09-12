@@ -28,7 +28,7 @@
         "--mode=getEnviroData",
         "--kind=vcast",
         "--clicast=C:/vcast/vc23sp2/clicast.exe",
-        "--path=c:/RDS/SandBox/VectorCAST/examples/unitTests/FOO"
+        "--path=c:/RDS/SandBox/VectorCAST/CodeBasedTests/unitTests/TEST"
       ],
       "console": "integratedTerminal"
     },
