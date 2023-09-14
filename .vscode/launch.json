@@ -28,7 +28,7 @@
         "--mode=getEnviroData",
         "--kind=vcast",
         "--clicast=C:/vcast/vc23sp2/clicast.exe",
-        "--path=c:/RDS/SandBox/VectorCAST/CodeBasedTests/unitTests/TEST"
+        "--path=c:/RDS/SandBox/VectorCAST/examples/unitTests/FOO"
       ],
       "console": "integratedTerminal"
     },
@@ -54,14 +54,14 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/testEditorInterface.py",
-      "cwd": "C:/RDS/SandBox/VectorCAST/examples/unitTests",
+      "cwd": "C:/RDS/SandBox/VCAST-NEW/vcastTutorial/cpp/unitTests",
       "env": {
-        "PYTHONPATH": "C:/vcast/vc23sp2/python"
+        "PYTHONPATH": "C:/vcast/vc23/python"
       },
       "args": [
         "CLI",
-        "C:\\RDS\\SandBox\\VectorCAST\\examples\\unitTests\\STRUCT",
-        "TEST.VALUE:struct.foo.x.f.f"
+        "C:\\RDS\\SandBox\\VCAST-NEW\\vcastTutorial\\cpp\\unitTests\\MANAGER",
+        "TEST.VALUE:manager.Manager::PlaceOrder.Order.Entree:"
       ],
       "console": "integratedTerminal"
     },
