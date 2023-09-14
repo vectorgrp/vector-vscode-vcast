@@ -26,6 +26,7 @@ from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
 
+
 class InvalidEnviro(Exception):
     pass
 
@@ -57,11 +58,7 @@ def setupArgs():
         help="Environment Kind",
     )
 
-    parser.add_argument(
-        "--clicast",
-        required=True,
-        help="Path to clicast to use"
-    )
+    parser.add_argument("--clicast", required=True, help="Path to clicast to use")
 
     parser.add_argument(
         "--path",
@@ -104,7 +101,6 @@ def getTime(time):
 
 
 def XofYString(numerator, denominator):
-
     if numerator == 0 or denominator == 0:
         return ""
     else:
@@ -146,14 +142,13 @@ import inspect
 
 
 def getTestDataVCAST(enviroPath):
-
     # dataAPI throws if there is a tool/enviro mismatch
     try:
         api = UnitTestApi(enviroPath)
     except Exception as err:
-        print (err)
+        print(err)
         raise InvalidEnviro()
-    
+
     testList = list()
     sourceFiles = dict()
 
@@ -189,7 +184,7 @@ def getTestDataVCAST(enviroPath):
         for function in unit.functions:
             functionNode = dict()
             # Seems like a vcast dataAPI bug with manager.cpp
-            if function.vcast_name!="<<INIT>>":
+            if function.vcast_name != "<<INIT>>":
                 # Note: the vcast_name has the parameterization only when there is an overload
                 functionNode["name"] = function.vcast_name
                 functionNode["tests"] = list()
@@ -202,11 +197,10 @@ def getTestDataVCAST(enviroPath):
 
                 unitNode["functions"].append(functionNode)
 
-        if len (unitNode["functions"])>0:
+        if len(unitNode["functions"]) > 0:
             testList.append(unitNode)
 
     return testList
-
 
 
 def printCoverageListing(enviroPath):
@@ -230,7 +224,7 @@ def printCoverageListing(enviroPath):
 
     sourceObjects = capi.SourceFile.all()
     for sourceObject in sourceObjects:
-        sys.stdout.write ("=" * 100 + "\n")
+        sys.stdout.write("=" * 100 + "\n")
         for line in sourceObject.iterate_coverage():
             sys.stdout.write(str(line.line_number).ljust(line_num_width))
             sys.stdout.write(line._cov_line.covered_char() + " | " + line.text + "\n")
@@ -250,7 +244,7 @@ def getUnitData(enviroPath, kind):
             raise UsageError()
 
         # For testing/debugging
-        #printCoverageListing (enviroPath)
+        # printCoverageListing (enviroPath)
 
         sourceObjects = capi.SourceFile.all()
         for sourceObject in sourceObjects:
@@ -258,7 +252,7 @@ def getUnitData(enviroPath, kind):
             covered, uncovered, checksum = getCoverageData(sourceObject)
             unitInfo = dict()
             unitInfo["path"] = sourcePath
-            unitInfo["functionList"] = getFunctionData (sourceObject)
+            unitInfo["functionList"] = getFunctionData(sourceObject)
             unitInfo["cmcChecksum"] = checksum
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
@@ -267,7 +261,7 @@ def getUnitData(enviroPath, kind):
     return unitList
 
 
-def getFunctionData (sourceObject):
+def getFunctionData(sourceObject):
     """
     This function will return info about the functions in a source file
     """
@@ -294,7 +288,7 @@ def getCoverageData(sourceObject):
         if sourceObject.has_cover_data:
             # if iterate_coverage crashes if the original
             # file path does not exist.
-            if os.path.exists (sourceObject.path):
+            if os.path.exists(sourceObject.path):
                 for line in sourceObject.iterate_coverage():
                     covLine = line._cov_line
                     covChar = covLine.covered_char()
@@ -307,14 +301,14 @@ def getCoverageData(sourceObject):
                 coveredString = coveredString[:-1]
                 uncoveredString = uncoveredString[:-1]
 
-
-
     return coveredString, uncoveredString, checksum
 
 
 commandFileName = "commands.cmd"
 
 globalClicastCommand = ""
+
+
 def runClicastScript(commandFileName):
     """
     The caller should create a correctly formatted clicast script
@@ -335,12 +329,11 @@ def runClicastScript(commandFileName):
 
 
 def getStandardArgsFromTestObject(testIDObject):
-
-    returnString = f'-e {testIDObject.enviroName}'
+    returnString = f"-e {testIDObject.enviroName}"
     if testIDObject.unitName != "not-used":
-        returnString += f' -u{testIDObject.unitName}'
-    returnString += f' -s{testIDObject.functionName}'
-    returnString += f' -t{testIDObject.testName}'
+        returnString += f" -u{testIDObject.unitName}"
+    returnString += f" -s{testIDObject.functionName}"
+    returnString += f" -t{testIDObject.testName}"
     return returnString
 
 
@@ -380,7 +373,6 @@ def runTestCommand(testIDObject, commandList):
 
 
 def executeVCtest(enviroPath, testIDObject):
-
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("execute")
@@ -404,7 +396,6 @@ def executeVCtest(enviroPath, testIDObject):
 
 
 def processVResults(filePath):
-
     if os.path.isfile(filePath):
         with open(filePath, "r") as file:
             lineList = file.readlines()
@@ -460,7 +451,6 @@ def executeCodeBasedTest(enviroPath, testID):
 
 
 def getResults(enviroPath, testIDObject):
-
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("results")
@@ -486,7 +476,6 @@ class testID:
 
 
 def main():
-
     global globalClicastCommand
 
     argParser = setupArgs()
@@ -499,7 +488,7 @@ def main():
     enviroPath = os.path.abspath(args.path)
 
     # See the comment in: executeVPythonScript()
-    print ("ACTUAL-DATA")
+    print("ACTUAL-DATA")
 
     if args.mode == "getEnviroData":
         topLevel = dict()
@@ -533,7 +522,6 @@ def main():
 
 
 if __name__ == "__main__":
-
     # Exit with 1 by default
     returnCode = 1
 
