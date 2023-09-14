@@ -535,13 +535,13 @@ def main():
 if __name__ == "__main__":
 
     # Exit with 1 by default
-    rc = 1
+    returnCode = 1
 
     try:
-        rc = main()
+        returnCode = main()
     except InvalidEnviro:
         # We treat invalid enviro as a warning
-        rc = 99
+        returnCode = 99
     except UsageError:
         # for usage error we print the issue where we see it
         pass
@@ -549,4 +549,4 @@ if __name__ == "__main__":
         traceBackText = traceback.format_exc()
         print(traceBackText)
 
-    sys.exit(rc)
+    sys.exit(returnCode)
