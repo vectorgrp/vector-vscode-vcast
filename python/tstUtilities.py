@@ -79,10 +79,11 @@ def getTypeDisplayName (type):
     """
 
     # The anon names are always __T<address> so use regex
-    if re.search("^__T[0-9]+$", type.display_name):
-        return type.typemark
-    else:
-        return type.display_name
+    returnValue = type.display_name
+    if re.match("__T[0-9]", returnValue):
+        returnValue = type.typemark
+    
+    return returnValue
 
 
 def additionalTypeInfo(type):
