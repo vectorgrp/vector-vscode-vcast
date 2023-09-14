@@ -147,7 +147,7 @@ import inspect
 
 def getTestDataVCAST(enviroPath):
 
-    # dataAPI throws if there is a tool/enviro missmatch
+    # dataAPI throws if there is a tool/enviro mismatch
     try:
         api = UnitTestApi(enviroPath)
     except Exception as err:

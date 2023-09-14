@@ -359,7 +359,7 @@ export function executeCommand(
         .trim();
     else commandStatus.stdout = execSync(commandToRun).toString().trim();
   } catch (error: any) {
-    // 99 is a warning, like a missmatch opening the environment
+    // 99 is a warning, like a mismatch opening the environment
     if (error && error.status == 99) {
       commandStatus.stdout = error.stdout.toString();
       commandStatus.errorCode = 0;
