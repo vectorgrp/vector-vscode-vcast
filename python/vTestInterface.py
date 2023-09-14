@@ -26,6 +26,13 @@ from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
 
+class InvalidEnviro(Exception):
+    pass
+
+
+class UsageError(Exception):
+    pass
+
 
 def setupArgs():
     """
@@ -145,7 +152,7 @@ def getTestDataVCAST(enviroPath):
         api = UnitTestApi(enviroPath)
     except Exception as err:
         print (err)
-        raise Exception("INVALID_ENVIRO")
+        raise InvalidEnviro()
     
     testList = list()
     sourceFiles = dict()
@@ -240,7 +247,7 @@ def getUnitData(enviroPath, kind):
             capi = CoverApi(enviroPath)
         except Exception as err:
             print(err)
-            raise Exception("USAGE_ERROR")
+            raise UsageError()
 
         # For testing/debugging
         #printCoverageListing (enviroPath)
@@ -521,22 +528,25 @@ def main():
         print("Unknown mode value: " + args.mode)
         print("Valid modes are: getEnviroData, getCoverageData, executeTest, results")
 
+    # Zero exit code
+    return 0
+
 
 if __name__ == "__main__":
+
+    # Exit with 1 by default
+    rc = 1
+
     try:
-        main()
-        sys.exit(0)
-
-    except Exception as err:
-        # for usage error we print the issue where we see it
-        if str(err) not in ["USAGE_ERROR", "INVALID_ENVIRO"]:
-            traceBackText = traceback.format_exc()
-            print(traceBackText)
-
+        rc = main()
+    except InvalidEnviro:
         # We treat invalid enviro as a warning
-        if str(err) in ["INVALID_ENVIRO"]:
+        rc = 99
+    except UsageError:
+        # for usage error we print the issue where we see it
+        pass
+    except Exception as err:
+        traceBackText = traceback.format_exc()
+        print(traceBackText)
 
-            sys.exit (99)
-        else:
-            # in all other cases return error code 1
-            sys.exit(1)
+    sys.exit(rc)
