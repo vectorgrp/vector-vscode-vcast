@@ -544,9 +544,10 @@ if __name__ == "__main__":
         returnCode = 99
     except UsageError:
         # for usage error we print the issue where we see it
-        pass
+        returnCode = 1
     except Exception:
         traceBackText = traceback.format_exc()
         print(traceBackText)
+        returnCode = 1
 
     sys.exit(returnCode)
