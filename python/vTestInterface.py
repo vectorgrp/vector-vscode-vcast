@@ -545,7 +545,7 @@ if __name__ == "__main__":
     except UsageError:
         # for usage error we print the issue where we see it
         pass
-    except Exception as err:
+    except Exception:
         traceBackText = traceback.format_exc()
         print(traceBackText)
 
