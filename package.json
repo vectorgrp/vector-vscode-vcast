@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "license": "See License in file: LICENSE",
   "repository": {
     "type": "git",
@@ -16,7 +16,8 @@
   "publisher": "vectorgroup",
   "categories": [
     "Testing",
-    "Debuggers"
+    "Programming Languages",
+    "Snippets"
   ],
   "bugs": {
     "url": "https://github.com/vectorgrp/vector-vscode-vcast/issues"
@@ -338,7 +339,9 @@
       {
         "id": "vcast.tst",
         "aliases": [
-          "VectorCAST Test Script"
+          "VectorCAST Test Script",
+          "TST",
+          "tst"
         ],
         "extensions": [
           ".tst"

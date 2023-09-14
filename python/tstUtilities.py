@@ -1,4 +1,3 @@
-
 """
 //////////////////////////////////////////////////////////////////////////////
 this started life as a duplicate of:  dataAPIInterface/tstUtilities.py
@@ -24,9 +23,9 @@ def getNameListFromObjectList(objectList):
     """
     returnList = list()
     for object in objectList:
-        if isinstance (object, Function):
+        if isinstance(object, Function):
             # vcast_name has the overloaded name if needed.
-            returnList.append (object.vcast_name)
+            returnList.append(object.vcast_name)
         else:
             returnList.append(object.name)
 
@@ -40,12 +39,12 @@ def getNameListFromItemList(paramOrObjectList):
     """
     returnList = list()
     for object in paramOrObjectList:
-        if isinstance (object, Global):
+        if isinstance(object, Global):
             # Improvement needed: need to handle class instance objects here
             listItem = object.name + "@" + additionalTypeInfo(object.type)
         else:
             typeInfo = additionalTypeInfo(object.type)
-            if typeInfo.endswith ("*") or typeInfo.endswith("]"):
+            if typeInfo.endswith("*") or typeInfo.endswith("]"):
                 listItem = object.name + "[0]@" + typeInfo
             else:
                 listItem = object.name + "@" + typeInfo
@@ -56,25 +55,44 @@ def getNameListFromItemList(paramOrObjectList):
 
 
 def getObjectFromName(objectList, name):
-
     for object in objectList:
         # function names might be overloaded
-        if isinstance (object, Function) and object.vcast_name == name:
+        if isinstance(object, Function) and object.vcast_name == name:
             return object
         elif object.name == name:
             return object
     return None
 
 
+def getTypeDisplayName(type):
+    """
+    In some cases the "display_name" is a generated temporary or tag-name
+    this happens for anon structures in C for example
+
+    typedef struct {
+        int a;
+        } myType;
+
+    In that case, use use the typemark vs display_name
+    """
+
+    # The anon names are always __T<address> so use regex
+    returnValue = type.display_name
+    if re.match("__T[0-9]", returnValue):
+        returnValue = type.typemark
+
+    return returnValue
+
 
 def additionalTypeInfo(type):
     """
     For some types, we want to give a hint about the kind ...
     """
+
     if type.kind == "REC_ORD":
-        return type.display_name + "(struct)"
+        return getTypeDisplayName(type) + "(struct)"
     elif type.kind == "UNION":
-        return type.display_name + "(union)"
+        return getTypeDisplayName(type) + "(union)"
     elif type.kind == "CLASS":
         return type.display_name + "(class)"
     elif type.kind in ["POINTER", "CLASS_PTR", "ACCE_SS"]:
@@ -187,14 +205,13 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
 
     elif typeClassification == "string":
         if triggerCharacter == ":":
-             returnData.choiceList.append("string")
-             returnData.choiceKind = choiceKindType.Constant
+            returnData.choiceList.append("string")
+            returnData.choiceKind = choiceKindType.Constant
 
     elif typeClassification == "char":
         if triggerCharacter == ":":
-             returnData.choiceList.append("scalar@character")
-             returnData.choiceKind = choiceKindType.Constant
-
+            returnData.choiceList.append("scalar@character")
+            returnData.choiceKind = choiceKindType.Constant
 
     elif typeClassification == "struct":
         fieldObjectList = list()
@@ -204,13 +221,13 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
             fieldObjectList.append(f)
             fieldNameList.append(f.name)
             typeInfo = additionalTypeInfo(f.type)
-            if typeInfo.endswith("*") or typeInfo.endswith ("]"):
+            if typeInfo.endswith("*") or typeInfo.endswith("]"):
                 choiceList.append(f.name + "[0]@" + typeInfo)
             else:
                 choiceList.append(f.name + "@" + typeInfo)
         if len(commandPieces) == currentIndex + 1:
-             returnData.choiceList = choiceList
-             returnData.choiceKind = choiceKindType.Field
+            returnData.choiceList = choiceList
+            returnData.choiceKind = choiceKindType.Field
 
         else:
             currentField = commandPieces[currentIndex].split("[")[0]
@@ -247,9 +264,8 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
 
     elif typeClassification in ["int", "float"]:
         if triggerCharacter == ":":
-             returnData.choiceList.append("scalar@number")
-             returnData.choiceKind = choiceKindType.Constant
-
+            returnData.choiceList.append("scalar@number")
+            returnData.choiceKind = choiceKindType.Constant
 
     else:  # "other" case
         globalOutputLog.append("processtype ignored type: " + type.kind)
@@ -260,8 +276,7 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
 tagForGlobals = "<<GLOBAL>>"
 
 
-
-def getFunctionList (api, unitName):
+def getFunctionList(api, unitName):
     """
     common code to generate list of functions ...
     """
@@ -273,24 +288,23 @@ def getFunctionList (api, unitName):
         returnList = getNameListFromObjectList(functionList)
         # seems like a vcast dataAPI bug, that <<INIT>> is in this list
         if "<<INIT>>" in returnList:
-            returnList.remove ("<<INIT>>")
+            returnList.remove("<<INIT>>")
         if len(unitObject.globals) > 0:
             returnList.append(tagForGlobals)
 
     return returnList
 
 
-def getTestList (api, unitName, functionName):
-
+def getTestList(api, unitName, functionName):
     returnList = list()
     unitObject = getObjectFromName(api.Unit.all(), unitName)
     if unitObject:
         functionObject = getObjectFromName(unitObject.functions, functionName)
         if functionObject:
             for testObject in functionObject.testcases:
-                returnList.append (testObject.name)
+                returnList.append(testObject.name)
 
-    if len (returnList)>0:
+    if len(returnList) > 0:
         return returnList
     else:
         return ["no test cases exist"]
@@ -299,34 +313,35 @@ def getTestList (api, unitName, functionName):
 # choiceKindType should match the VS Code CompletionItemKind type
 # Surprisingly there is no "parameter" kind, so I just use Field for parameters
 class choiceKindType(str, Enum):
-    Constant='Constant'
-    Enum='Enum'
-    Field='Field',
-    File='File',
-    Function='Function',
-    Keyword='Keyword',
-    Property='Property'
-    Value='Value'
-    Variable='Variable'
+    Constant = "Constant"
+    Enum = "Enum"
+    Field = ("Field",)
+    File = ("File",)
+    Function = ("Function",)
+    Keyword = ("Keyword",)
+    Property = "Property"
+    Value = "Value"
+    Variable = "Variable"
+
 
 class choiceDataType:
     choiceList = list()
     choiceKind = choiceKindType.Keyword
 
 
-def processSlotLines (api, pieces, triggerCharacter):
+def processSlotLines(api, pieces, triggerCharacter):
     """
     This function handles slot lines that look like this:
        TEST.SLOT: 1, manager, Manager::PlaceOrder, 1, Manager::PlaceOrder.001
     """
 
     global globalOutputLog
-    returnData = choiceDataType();
+    returnData = choiceDataType()
 
     lengthOfCommand = len(pieces)
 
     if lengthOfCommand == 2 and triggerCharacter == ":":  # Slot Number
-        returnData.choiceList.append ("<slot-number>")
+        returnData.choiceList.append("<slot-number>")
         returnData.choiceKind = choiceKindType.Constant
 
     elif lengthOfCommand == 3 and triggerCharacter == ",":  # Unit
@@ -334,27 +349,24 @@ def processSlotLines (api, pieces, triggerCharacter):
         returnData.choiceList = getNameListFromObjectList(objectList)
         returnData.choiceKind = choiceKindType.File
 
-
-    elif  lengthOfCommand == 4 and triggerCharacter == ",":  # function
-        returnData.choiceList = getFunctionList (api, pieces[2])
+    elif lengthOfCommand == 4 and triggerCharacter == ",":  # function
+        returnData.choiceList = getFunctionList(api, pieces[2])
         returnData.choiceKind = choiceKindType.Function
 
-
-    elif  lengthOfCommand == 5 and triggerCharacter == ",":  # iterations
-        returnData.choiceList.append ("<iteration-count>")
+    elif lengthOfCommand == 5 and triggerCharacter == ",":  # iterations
+        returnData.choiceList.append("<iteration-count>")
         returnData.choiceKind = choiceKindType.Constant
 
-    elif  lengthOfCommand == 6 and triggerCharacter == ",":  # test-case
+    elif lengthOfCommand == 6 and triggerCharacter == ",":  # test-case
         unitName = pieces[2]
         functionName = pieces[3]
-        returnData.choiceList = getTestList (api, unitName, functionName)
+        returnData.choiceList = getTestList(api, unitName, functionName)
         returnData.choiceKind = choiceKindType.Property
-
 
     return returnData
 
 
-def processStandardLines (api, pieces, triggerCharacter):
+def processStandardLines(api, pieces, triggerCharacter):
     """
     This function process everything except TEST.SLOT lines
     """
@@ -374,10 +386,12 @@ def processStandardLines (api, pieces, triggerCharacter):
         returnData.choiceKind = choiceKindType.File
 
     elif lengthOfCommand == 4 and triggerCharacter == ".":  # Function
-        returnData.choiceList = getFunctionList (api, pieces[2])
+        returnData.choiceList = getFunctionList(api, pieces[2])
         returnData.choiceKind = choiceKindType.Function
 
-    elif (lengthOfCommand == 5 and triggerCharacter == "."):  # parameters and global objects
+    elif (
+        lengthOfCommand == 5 and triggerCharacter == "."
+    ):  # parameters and global objects
         unitName = pieces[2]
         unitObject = getObjectFromName(api.Unit.all(), unitName)
         functionList = unitObject.functions
@@ -412,20 +426,20 @@ def processStandardLines (api, pieces, triggerCharacter):
             itemObject = getObjectFromName(paramList, paramName)
 
         # we pass index 5 to walk the parameter type
-        if (itemObject):
+        if itemObject:
             returnData = processType(itemObject.type, pieces, 5, triggerCharacter)
 
     return returnData
 
 
-def splitExistingLine (line):
+def splitExistingLine(line):
     """
-    We need to split the input line based on delimiters: '.' ':' ',' 
-    comma is only for slots so to support this and do the 
+    We need to split the input line based on delimiters: '.' ':' ','
+    comma is only for slots so to support this and do the
     right thing when there are overloaded functions we do this in parts
     """
 
-    if line.upper().startswith ("TEST.SLOT"):
+    if line.upper().startswith("TEST.SLOT"):
         # split by : and , but ignore , in ()
         pieces = re.split("(?<!:)[:\,](?!:)(?![^\(]*\))", line)
     else:
@@ -460,7 +474,6 @@ def processLine(enviroName, line):
     global globalOutputLog
 
     try:
-
         globalOutputLog.append("Processing: '" + line + "' ...")
 
         # open the environment ...
@@ -484,10 +497,10 @@ def processLine(enviroName, line):
 
         # when we get here, the last element in the list of pieces will always be ""
 
-        if line.upper().startswith ("TEST.SLOT"):
-            returnData = processSlotLines (api, pieces, triggerCharacter)
+        if line.upper().startswith("TEST.SLOT"):
+            returnData = processSlotLines(api, pieces, triggerCharacter)
         else:
-            returnData = processStandardLines (api, pieces, triggerCharacter)
+            returnData = processStandardLines(api, pieces, triggerCharacter)
 
         return returnData
 

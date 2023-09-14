@@ -1,4 +1,3 @@
-
 """
 //////////////////////////////////////////////////////////////////////////////
 this started life as a duplicate of:  dataAPIInterface/testEditorInterface.py
@@ -46,11 +45,11 @@ def main():
     outputDictionary = dict()
     outputDictionary["choiceKind"] = choiceData.choiceKind
     outputDictionary["choiceList"] = choiceData.choiceList
-    outputDictionary["messages"] = globalOutputLog 
+    outputDictionary["messages"] = globalOutputLog
 
     # See the comment in: runPythonScript()
-    print ("ACTUAL-DATA")
-    print (json.dumps (outputDictionary, indent=4))
+    print("ACTUAL-DATA")
+    print(json.dumps(outputDictionary, indent=4))
 
     sys.exit(0)
 
