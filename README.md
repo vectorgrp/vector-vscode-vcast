@@ -100,7 +100,7 @@ and choose: "Edit Test Script" from the VectorCAST right-click context menu
 
 ### Test Script Editing Features
 
-The extension provides Language Sensitive Editing (LSE) feature to support the VectorCAST Test Script syntax.
+The extension provides Language Sensitive Editing (LSE) features to support the VectorCAST Test Script syntax.
 The LSE features are activated, whenever the extension is active and a file with a '.tst' extension is opened in the editor.
 
 You can easily create the framework for a new test by using the 'vcast-test' snippet.
