@@ -506,6 +506,7 @@ function createVcastEnvironmentScript(
   });
   fs.writeFileSync(envFilePath, "ENVIRO.WHITE_BOX: YES\n", { flag: "a+" });
   fs.writeFileSync(envFilePath, "ENVIRO.COMPILER: CC\n", { flag: "a+" });
+  fs.writeFileSync(envFilePath, "ENVIRO.STUB: ALL_BY_PROTOTYPE\n", { flag: "a+" });
 
   searchList.forEach((item) =>
     fs.writeFileSync(envFilePath, `ENVIRO.SEARCH_LIST: ${item}\n`, {
