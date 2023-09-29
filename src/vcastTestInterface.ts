@@ -728,7 +728,8 @@ function createScriptTemplate(testNode: testNodeType): string {
   scriptTemplateLines.push(
     "TEST.SUBPROGRAM" + valueOrDefault(testNode.functionName)
   );
-  scriptTemplateLines.push("TEST.REPLACE");
+  // It's important to use TEST.NEW here, see Issue# 20
+  scriptTemplateLines.push("TEST.NEW");
   scriptTemplateLines.push(
     "TEST.NAME" + defaultTestName(testNode.functionName)
   );
