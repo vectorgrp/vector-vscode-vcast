@@ -69,19 +69,29 @@ export function testInterfaceCommand(
 ): any | undefined {
   // enviroPath is the absolute path to the environnement directory
   // testID is contains the string that uniquely identifies the node, something like:
-  //    'Environments-GCC/TUTORIAL-C++-4|manager.Manager::PlaceOrder.Manager::PlaceOrder.001'
+  //    vcast:TEST|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
+  //    vcast:unitTests/MANAGER|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
+  //
 
   if (globalTestInterfacePath && vPythonCommandToUse) {
     const command = `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${mode} --kind=vcast --clicast=${clicastCommandToUse} --path=${enviroPath}`;
-    let suffix = "";
+    let testArgument = "";
     if (testID.length > 0) {
       // we need to strip the "path part" of the environment directory from the test ID
-      const lastSlash = testID.lastIndexOf("/");
-      suffix =
-        " --test=" + '"' + testID.substring(lastSlash + 1, testID.length) + '"';
-    }
+      // which is the part before the '|' and after the ':'
+      const enviroPath = testID.split ("|")[0].split (":")[1];
 
-    return command + suffix;
+      // now the path to the environment might have a slash if the environment is nested or not
+      // so we need to handle that case, since we only want the environment name
+      let enviroName = enviroPath;
+      if (enviroName.includes ("/")) {
+          enviroName = enviroPath.substring(enviroPath.lastIndexOf("/") + 1, enviroPath.length);
+      }
+      // The -test arguments should be the enviro name along with everything after the |
+      testArgument = ` --test="${enviroName}|${testID.split ('|')[1]}`; 
+    }
+    return command + testArgument;
+
   } else
     vscode.window.showWarningMessage(
       "The VectorCAST Test Explorer could not find the vpython utility."
