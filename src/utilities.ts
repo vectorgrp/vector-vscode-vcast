@@ -88,7 +88,7 @@ export function testInterfaceCommand(
           enviroName = enviroPath.substring(enviroPath.lastIndexOf("/") + 1, enviroPath.length);
       }
       // The -test arguments should be the enviro name along with everything after the |
-      testArgument = ` --test="${enviroName}|${testID.split ('|')[1]}`; 
+      testArgument = ` --test="${enviroName}|${testID.split ('|')[1]}"`; 
     }
     return command + testArgument;
 
