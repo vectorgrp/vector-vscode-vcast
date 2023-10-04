@@ -491,7 +491,7 @@ describe("vTypeCheck VS Code Extension", () => {
     ).toBe(true);
     expect(
       outputViewText.includes(
-        "test explorer  [info]  Test summary for: cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myFirstTest",
+        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myFirstTest",
       ),
     ).toBe(true);
     expect(
@@ -548,8 +548,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     editorView = workbench.getEditorView();
     const tab = (await editorView.openEditor("manager.cpp")) as TextEditor;
-    const RED_GUTTER = "/no-gutter-icon";
-    const GREEN_GUTTER = "/gutter-icon";
+    const RED_GUTTER = "/no-cover-icon";
+    const GREEN_GUTTER = "/cover-icon";
     // moving cursor to make sure coverage indicators are in view
     await tab.moveCursor(10, 3);
     console.log(
@@ -786,7 +786,7 @@ describe("vTypeCheck VS Code Extension", () => {
     ).toBe(true);
     expect(
       outputViewText.includes(
-        "test explorer  [info]  Test summary for: cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.mySecondTest",
+        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.mySecondTest",
       ),
     ).toBe(true);
     expect(
@@ -1016,7 +1016,7 @@ describe("vTypeCheck VS Code Extension", () => {
     ).toBe(true);
     expect(
       outputViewText.includes(
-        "test explorer  [info]  Test summary for: cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest",
+        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest",
       ),
     ).toBe(true);
     expect(
