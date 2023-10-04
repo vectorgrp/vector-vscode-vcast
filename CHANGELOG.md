@@ -52,3 +52,11 @@ This option is new for VectorCAST 23 sp2
 ### Bug Fixes
 - Fixed issue: Hover over for anonymous structs and unions show internal type names #17
 - Fixed stack trace display when VectorCAST environment version is incompatible with VectorCAST installation
+
+
+## [1.0.6] - 2023-10-04
+
+### Bug Fixes
+- Fixed issue:  New test scripts should have TEST.NEW not TEST.REPLACE #20
+- Fixed issue:  Added ENVIRO.STUB: ALL_BY_PROTOTYPE to environment script #21
+- Fixed issue:  Execute error when enviro at root of workspace #22
