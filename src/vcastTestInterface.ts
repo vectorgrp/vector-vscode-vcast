@@ -545,12 +545,6 @@ function buildEnvironmentVCAST(
     fileList
   );
 
-  // we need to wait for this to complete, so we use executeCommand
-  executeCommand(
-    `${clicastCommandToUse} -lc template GNU_CPP_X`,
-    unitTestLocation
-  );
-
   // this call will run clicast in the background
   const clicastArgs = ["-lc", "env", "build", envFilePath];
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
