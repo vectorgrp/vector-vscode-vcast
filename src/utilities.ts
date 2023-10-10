@@ -344,7 +344,7 @@ export function executeClicastCommand(
       )}' returned exit code: ${code.toString()}`
     );
     vectorMessage("-".repeat(100));
-    if (callback && code == 0) callback(enviroPath);
+    if (callback) callback(enviroPath, code);
   });
 }
 

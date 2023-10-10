@@ -19,6 +19,7 @@ import {
 } from "./editorDecorator";
 import {
   deleteEnvironmentCallback,
+  rebuildEnvironmentCallback,
   updateDataForEnvironment,
   showSettings,
 } from "./helper";
@@ -315,7 +316,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       executeClicastCommand(
         vcastArgs,
         enclosingDirectory,
-        updateDataForEnvironment,
+        rebuildEnvironmentCallback,
         enviroPath
       );
     }

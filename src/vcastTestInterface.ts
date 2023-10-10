@@ -7,7 +7,11 @@ import {
   updateFunctionDataForFile,
 } from "./editorDecorator";
 
-import { showSettings, updateDataForEnvironment } from "./helper";
+import { 
+  buildEnvironmentCallback, 
+  showSettings, 
+  updateDataForEnvironment
+ } from "./helper";
 import {
   openMessagePane,
   vectorMessage,
@@ -552,7 +556,7 @@ function buildEnvironmentVCAST(
   executeClicastCommand(
     clicastArgs,
     unitTestLocation,
-    updateDataForEnvironment,
+    buildEnvironmentCallback,
     enviroPath
   );
 }
