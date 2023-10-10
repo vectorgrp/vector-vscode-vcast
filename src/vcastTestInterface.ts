@@ -25,6 +25,7 @@ import {
   testNodeType } from "./testData";
 import {
   clicastCommandToUse,
+  configFilename,
   commandStatusType,
   executeClicastCommand,
   executeCommand,
@@ -32,6 +33,7 @@ import {
   forceLowerCaseDriveLetter,
   getChecksumCommand,
   getJsonDataFromTestInterface,
+  initializeConfigurationFile,
   testInterfaceCommand,
 } from "./utilities";
 import { fileDecorator } from "./fileDecorator";
@@ -481,6 +483,33 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
   return testStatus.didNotRun;
 }
 
+
+function addSearchPathsFromConfigurationFile (cwd:string, searchList:string[]) {
+
+  const pathToConfigurationFile = path.join (cwd, configFilename);
+
+  // should always exist, but just to make sure
+  if (fs.existsSync (pathToConfigurationFile)) {
+
+    // open the file, and loop looking for "TESTABLE_SOURCE_DIR" lines,
+    const fileContents = fs.readFileSync(pathToConfigurationFile, "utf8");
+    const lineList = fileContents.split(/\r?\n/g);
+    for (let lineIndex = 0; lineIndex < lineList.length; lineIndex++) {
+      const line = lineList[lineIndex];
+      if (line.startsWith("TESTABLE_SOURCE_DIR")) {
+        const pieces = line.split("TESTABLE_SOURCE_DIR:",2);
+        if (pieces.length > 1) {
+          const searchPath = pieces[1].trim();
+          if (!searchList.includes(searchPath)) {
+            searchList.push(searchPath);
+          }
+        }
+      }
+    }
+  }
+}
+
+
 function createVcastEnvironmentScript(
   cwd: string,
   enviroName: string,
@@ -500,6 +529,8 @@ function createVcastEnvironmentScript(
       searchList.push(candidatePath);
     }
   }
+
+  addSearchPathsFromConfigurationFile (cwd, searchList);
 
   const envFilePath = path.join(cwd, enviroName + ".env");
 
@@ -541,24 +572,29 @@ function buildEnvironmentVCAST(
       fileList.length +
       " file(s) ..."
   );
+  
+  // It is important that this call be done before the creation of the .env
+  // Check that we have a valid configuration file, and create one if we don't
+  // This function will return True if there is a CFG when it is done.
+  if (initializeConfigurationFile (unitTestLocation)) {
+    const enviroPath = path.join(unitTestLocation, enviroName);
+    const envFilePath = createVcastEnvironmentScript(
+      unitTestLocation,
+      enviroName,
+      fileList
+    );
 
-  const enviroPath = path.join(unitTestLocation, enviroName);
-  const envFilePath = createVcastEnvironmentScript(
-    unitTestLocation,
-    enviroName,
-    fileList
-  );
-
-  // this call will run clicast in the background
-  const clicastArgs = ["-lc", "env", "build", envFilePath];
-  // This is long running commands so we open the message pane to give the user a sense of what is going on.
-  openMessagePane();
-  executeClicastCommand(
-    clicastArgs,
-    unitTestLocation,
-    buildEnvironmentCallback,
-    enviroPath
-  );
+    // this call will run clicast in the background
+    const clicastArgs = ["-lc", "env", "build", envFilePath];
+    // This is long running commands so we open the message pane to give the user a sense of what is going on.
+    openMessagePane();
+    executeClicastCommand(
+      clicastArgs,
+      unitTestLocation,
+      buildEnvironmentCallback,
+      enviroPath
+    );
+  }
 }
 
 function configureWorkspaceAndBuildEnviro(

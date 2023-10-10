@@ -53,6 +53,7 @@ import {
   addLaunchConfiguration,
   addSettingsFileFilter,
   checkIfInstallationIsOK,
+  configFilename,
   executeClicastCommand,
   initializeInstallerFiles,
   vcastCommandtoUse,
@@ -400,14 +401,38 @@ function configureExtension(context: vscode.ExtensionContext) {
     context.subscriptions
   );
 
+  const fs = require("fs");
+
   vscode.workspace.onDidChangeConfiguration((event) => {
     if (event.affectsConfiguration("vectorcastTestExplorer.decorateExplorer")) {
       updateExploreDecorations();
     }
-    if (event.affectsConfiguration("vectorcastTestExplorer.verboseLogging")) {
+    else if (event.affectsConfiguration("vectorcastTestExplorer.verboseLogging")) {
       adjustVerboseSetting();
     }
-    if (
+    else if (event.affectsConfiguration("vectorcastTestExplorer.configurationLocation")){
+      // need to check that we have a valid path to a config file
+      const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+      const currentConfiguration = settings.get("configurationLocation", "");
+
+      // empty is valid, and no processing is needed
+      if (currentConfiguration.length>0) {
+        if (!fs.existsSync (currentConfiguration)) {
+          vscode.window.showErrorMessage(`Provided file path: ${currentConfiguration} does not exist`);
+          // clear illegal value 
+          settings.update ("configurationLocation", "", vscode.ConfigurationTarget.Workspace);
+        } 
+        else if (!currentConfiguration.endsWith (configFilename)) {
+          vscode.window.showErrorMessage(`Provided file path: ${currentConfiguration} is invalid (path must end with ${configFilename})`);
+          // clear illegal value
+          settings.update ("configurationLocation", "", vscode.ConfigurationTarget.Workspace);
+        }
+        else {
+          vscode.window.showInformationMessage (`Default configuration file now set to: ${currentConfiguration})`);
+        }
+      }
+    }
+    else if (
       event.affectsConfiguration(
         "vectorcastTestExplorer.vectorcastInstallationLocation"
       )
