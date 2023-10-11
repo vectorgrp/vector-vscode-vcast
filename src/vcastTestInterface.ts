@@ -4,6 +4,11 @@ import { Uri } from "vscode";
 
 
 import {
+  configFilename,
+  initializeConfigurationFile,
+} from "./configuration";
+
+import {
   updateFunctionDataForFile,
 } from "./editorDecorator";
 
@@ -25,7 +30,6 @@ import {
   testNodeType } from "./testData";
 import {
   clicastCommandToUse,
-  configFilename,
   commandStatusType,
   executeClicastCommand,
   executeCommand,
@@ -33,7 +37,6 @@ import {
   forceLowerCaseDriveLetter,
   getChecksumCommand,
   getJsonDataFromTestInterface,
-  initializeConfigurationFile,
   testInterfaceCommand,
 } from "./utilities";
 import { fileDecorator } from "./fileDecorator";

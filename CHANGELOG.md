@@ -66,3 +66,9 @@ This option is new for VectorCAST 23 sp2
 ### Bug Fixes
 - Fixed issue: Do not overwrite an existing `CCAST_.CFG` if one exists #25
 
+## [1.0.8] - 2023-10-06
+
+### Bug Fixes
+- Fixed issue: Cleanup of temporary VectorCAST files #27
+- Fixed issue: Inconsistent activation of the extension #28
+

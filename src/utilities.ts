@@ -298,50 +298,6 @@ export function getJsonDataFromTestInterface(
 }
 
 
-export const configFilename = "CCAST_.CFG";
-
-export function initializeConfigurationFile (CWD:string):boolean {
-
-  // If CWD does not contains a CCAST_.CFG, this function will either  
-  //  -- copy the default configuration file to the CWD from the extension options, or
-  //  -- open the VectorCAST GUI in "option mode" to allow the user to create one
-
-  let returnValue = true;
-  let localConfigurationFilePath = path.join(CWD, configFilename);
-
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const defaultConfigurationPath = settings.get("configurationLocation", "");
-
-  if (fs.existsSync(localConfigurationFilePath)) {
-    vectorMessage ("Using the existing configuration file ...")
-  }
-  else if (defaultConfigurationPath.length > 0) {
-    // The option value gets validated in onDidChangeConfiguration()
-    // Improvement Needed: do we need to worry about the user editing settings.json manually?
-    // copy the file to the current directory
-    vectorMessage (`Using the default configuration file from the extension options ...`)
-    fs.copyFileSync(defaultConfigurationPath, localConfigurationFilePath);
-  }
-  else {
-    // open the VectorCAST GUI in "option mode"
-    vscode.window.showInformationMessage ("Opening the VectorCAST options editor.  Use the editor to create a VectorCAST configuration file that has the correct settings for your compiler.");
-
-    vectorMessage (`Opening the VectorCAST options editor ...`)
-    execSync(`${vcastCommandtoUse} -lc -o`, { cwd: CWD });
-
-    // if the user simply closes the options dialog, no CFG file will get created so we will abort ...
-    if (!fs.existsSync(localConfigurationFilePath)) {
-      vscode.window.showErrorMessage ("The VectorCAST options editor was closed without creating a configuration file, environment creation will be aborted.")
-      returnValue = false;      
-    }
-  }
-
-  return returnValue;
-
-}
-
-
-
 export function executeClicastCommand(
   argList: string[],
   CWD: string,
