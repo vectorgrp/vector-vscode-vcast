@@ -478,10 +478,13 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
 }
 
 function createVcastEnvironmentScript(
-  cwd: string,
+  unitTestLocation: string,
   enviroName: string,
-  fileList: string[]
-) {
+  fileList: string[]) {
+
+  // This will take a list of files and create the enviroName.env
+  // in the locaiton pointed to by unitTestLocation
+
   // compute the UUT and SEARCH_LIST lists
   // Improvement needed: Add source locations for include paths from cpp_properties
   let uutList: string[] = [];
@@ -497,7 +500,7 @@ function createVcastEnvironmentScript(
     }
   }
 
-  const envFilePath = path.join(cwd, enviroName + ".env");
+  const envFilePath = path.join(unitTestLocation, enviroName + ".env");
 
   fs.writeFileSync(envFilePath, `ENVIRO.NEW\n`, { flag: "w" });
   fs.writeFileSync(envFilePath, `ENVIRO.NAME: ${enviroName}\n`, { flag: "a+" });
@@ -519,14 +522,37 @@ function createVcastEnvironmentScript(
     })
   );
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
-  return envFilePath;
+}
+
+
+export function buildEnvironmentFromScript (
+  unitTestLocation: string,
+  enviroName: string) {
+  
+  // this function is separate and exported because it's used when we
+  // create environments from source files and from .env files
+
+  // this call runs clicast in the background
+  const enviroPath = path.join (unitTestLocation, enviroName);
+  const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
+  // This is long running commands so we open the message pane to give the user a sense of what is going on.
+  openMessagePane();
+  executeClicastCommand(
+    clicastArgs,
+    unitTestLocation,
+    updateDataForEnvironment,
+    enviroPath
+  );
+
 }
 
 function buildEnvironmentVCAST(
   fileList: string[],
   unitTestLocation: string,
-  enviroName: string
-) {
+  enviroName: string) {
+
+  // enviroName is the name of the enviro without the .env
+
   // use the first filename in the list as the environment name
 
   vectorMessage(new Array(101).join("-"));
@@ -538,23 +564,18 @@ function buildEnvironmentVCAST(
       " file(s) ..."
   );
 
-  const enviroPath = path.join(unitTestLocation, enviroName);
-  const envFilePath = createVcastEnvironmentScript(
+  createVcastEnvironmentScript(
     unitTestLocation,
     enviroName,
     fileList
   );
 
-  // this call will run clicast in the background
-  const clicastArgs = ["-lc", "env", "build", envFilePath];
-  // This is long running commands so we open the message pane to give the user a sense of what is going on.
-  openMessagePane();
-  executeClicastCommand(
-    clicastArgs,
+  buildEnvironmentFromScript (
     unitTestLocation,
-    updateDataForEnvironment,
-    enviroPath
+    enviroName
   );
+
+ 
 }
 
 function configureWorkspaceAndBuildEnviro(
