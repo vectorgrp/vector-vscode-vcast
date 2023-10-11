@@ -31,7 +31,6 @@
   ],
   "main": "out/extension.js",
   "activationEvents": [
-    "onCommand:vectorcastTestExplorer.configure",
     "workspaceContains:**/UNITDATA.VCD"
   ],
   "contributes": {
@@ -263,7 +262,7 @@
       "explorer/context": [
         {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
-          "when": "vectorcastTestExplorer.configured && resourceLangId == cpp || resourceLangId == c",
+          "when": "resourceLangId == cpp || resourceLangId == c",
           "group": "2_workspace"
         },
         {

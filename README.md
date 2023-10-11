@@ -31,16 +31,19 @@ install directory from this GitHub repo: https://github.com/vectorgrp/vector-vca
 This extension extends the VS Code Test Explorer.
 
 To use the extension, open a folder that contains one or more VectorCAST
-test environments, then click on the Test Explorer "Flask" icon in the activity bar.
-Within a few seconds a list of test environments will be displayed with a list
-of units, functions, and tests for each environment.
+test environments, and click on the Test Explorer "Flask" icon in the activity bar to
+open the VS Code Test Explorer pane.  Within a few seconds a list of VectorCAST test 
+environments will be displayed with a list of units, functions, and tests for each environment.
 
-If you want to initialize a workspace or folder for VectorCAST testing, simply
-run the command: "VectorCAST Test Explorer: Configure" from the command palette
-(Use: ctrl-shift-p or View->Command Palette to access), or click on the "Flask"
-icon in the activity bar, and then click "Configure VectorCAST Tests".
+If your workspace does not contain any VectorCAST test environments, you can start testing
+by right clicking on any C or C++ file in the explorer tree, and choosing "Create VectorCAST Environment".
+This action will automatically activate the extension, and start the environment build process.
 
-Once the extension is configured, you will be able to use the following features:
+A final option to manually activate the extension without building an environment, is to choose
+the "VectorCAST Test Explorer: Configure" from the command palette.
+(Use: ctrl-shift-p or View->Command Palette to access).
+
+Once the extension is activated, you will be able to use the following features:
 
 ## Features
 
