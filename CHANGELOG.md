@@ -69,6 +69,7 @@ This option is new for VectorCAST 23 sp2
 ## [1.0.8] - 2023-10-06
 
 ### Bug Fixes
+- Fixed issue: Add flexibility to environment creation #26
 - Fixed issue: Cleanup of temporary VectorCAST files #27
 - Fixed issue: Inconsistent activation of the extension #28
 
