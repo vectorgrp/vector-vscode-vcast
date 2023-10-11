@@ -362,6 +362,22 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(deleteEnviro);
 
+  // Command: vectorcastTestExplorer.setDefaultConfigFile////////////////////////////////////////////////////////
+  let selectDefaultConfigFile = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.setDefaultConfigFile",
+    (fileURI: any) => {
+      // we will only get here if the user has selected a CCAST_.CFG file
+      // all we do is replace the current value of the configurationLocation option
+      // no validity checking is needed.
+      if (fileURI) {
+          const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+          settings.update ("configurationLocation", fileURI.fsPath, vscode.ConfigurationTarget.Workspace);
+      }
+    }
+  );
+  context.subscriptions.push(selectDefaultConfigFile);
+
+
   vscode.workspace.onDidChangeWorkspaceFolders(
     (e) => {
       resetCoverageData();

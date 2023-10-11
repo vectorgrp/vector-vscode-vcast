@@ -127,6 +127,11 @@
         "command": "vectorcastTestExplorer.createTestScriptForLine",
         "category": "VectorCAST Test Explorer",
         "title": "Add VectorCAST Test"
+      },
+      {
+        "command": "vectorcastTestExplorer.setDefaultConfigFile",
+        "category": "VectorCAST Test Explorer",
+        "title": "Set as VectorCAST Configuration File"
       }
     ],
     "keybindings": [
@@ -245,6 +250,10 @@
         {
           "command": "vectorcastTestExplorer.createTestScriptForLine",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.setDefaultConfigFile",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -274,6 +283,11 @@
           "command": "vectorcastTestExplorer.addSettingsFileFilter",
           "when": "vectorcastTestExplorer.configured && resourceFilename==settings.json",
           "group": "7_modification"
+        },
+        {
+          "command": "vectorcastTestExplorer.setDefaultConfigFile",
+          "when": "vectorcastTestExplorer.configured && resourceFilename==CCAST_.CFG",
+          "group": "2_workspace"
         }
       ],
       "editor/context": [
