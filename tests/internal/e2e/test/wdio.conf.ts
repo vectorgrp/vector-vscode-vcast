@@ -147,7 +147,7 @@ export const config: Options.Testrunner = {
         proxyType: "manual",
         httpProxy: process.env["http_proxy"],
       },
-      browserVersion: "1.79.0",
+      browserVersion: "1.74.0",
       acceptInsecureCerts: true,
       "wdio:vscodeOptions": {
         extensionPath: path.join(process.env["INIT_CWD"], "test", "extension"),
