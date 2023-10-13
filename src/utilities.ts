@@ -297,6 +297,7 @@ export function getJsonDataFromTestInterface(
   return returnData;
 }
 
+
 export function executeClicastCommand(
   argList: string[],
   CWD: string,
@@ -308,11 +309,6 @@ export function executeClicastCommand(
 
   // it uses spawn to execute a clicast command, log the output to the
   // message pane, and update the test explorer when the command completes
-
-  // if the current directory does not have a CFG file, create one
-  if (!fs.existsSync(path.join(CWD, "CCAST_.CFG"))) {
-    executeCommand(`${clicastCommandToUse} -lc template GNU_CPP_X`, CWD);
-  }
 
   // To debug what's going on with vcast, you can add -dall to
   // argList, which will dump debug info for the clicast invocation
@@ -344,7 +340,7 @@ export function executeClicastCommand(
       )}' returned exit code: ${code.toString()}`
     );
     vectorMessage("-".repeat(100));
-    if (callback && code == 0) callback(enviroPath);
+    if (callback) callback(enviroPath, code);
   });
 }
 

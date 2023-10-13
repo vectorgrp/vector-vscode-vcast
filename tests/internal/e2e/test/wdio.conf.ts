@@ -147,7 +147,7 @@ export const config: Options.Testrunner = {
         proxyType: "manual",
         httpProxy: process.env["http_proxy"],
       },
-      browserVersion: "1.79.0",
+      browserVersion: "1.74.0",
       acceptInsecureCerts: true,
       "wdio:vscodeOptions": {
         extensionPath: path.join(process.env["INIT_CWD"], "test", "extension"),
@@ -392,6 +392,10 @@ export const config: Options.Testrunner = {
       createLaunchJson = `copy /b NUL ${launchJsonPath}`;
     else createLaunchJson = `touch ${launchJsonPath}`;
     await promisifiedExec(createLaunchJson);
+    
+    const CCAST_CFG_PATH = path.join(testInputVcastTutorial,"CCAST_.CFG")
+    const createCFG = "clicast -lc template GNU_CPP_X"
+    await promisifiedExec(createCFG);
 
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
     await mkdir(pathToTutorial, { recursive: true });
@@ -400,6 +404,7 @@ export const config: Options.Testrunner = {
 
     // copying didn't work with cp from fs
     if (process.platform == "win32") {
+      await promisifiedExec(`xcopy /s /i /y CCAST_.CFG ${testInputVcastTutorial} > NUL 2> NUL`,)
       await promisifiedExec(
         `xcopy /s /i /y ${cppFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`,
       );
@@ -414,6 +419,7 @@ export const config: Options.Testrunner = {
         )}`,
       );
     } else {
+      await promisifiedExec(`cp CCAST_.CFG ${testInputVcastTutorial}`);
       await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(

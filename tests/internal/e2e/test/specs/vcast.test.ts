@@ -96,6 +96,23 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
+  it("should set default config file", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+      "vcastTutorial",
+    );
+
+    const configFile = await workspaceFolderSection.findItem("CCAST_.CFG")
+    await configFile.openContextMenu()
+    await (await $("aria/Set as VectorCAST Configuration File")).click()
+  });
+
   it("should create VectorCAST environment", async () => {
     await updateTestID();
 
@@ -705,6 +722,8 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
+        if (!await subprogram.isExpanded())
+          await subprogram.expand()
         testHandle = await getTestHandle(
           subprogram,
           "Manager::PlaceOrder",

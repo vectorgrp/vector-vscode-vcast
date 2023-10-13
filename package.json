@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "license": "See License in file: LICENSE",
   "repository": {
     "type": "git",
@@ -31,7 +31,6 @@
   ],
   "main": "out/extension.js",
   "activationEvents": [
-    "onCommand:vectorcastTestExplorer.configure",
     "workspaceContains:**/UNITDATA.VCD"
   ],
   "contributes": {
@@ -138,6 +137,11 @@
         "command": "vectorcastTestExplorer.createTestScriptForLine",
         "category": "VectorCAST Test Explorer",
         "title": "Add VectorCAST Test"
+      },
+      {
+        "command": "vectorcastTestExplorer.setDefaultConfigFile",
+        "category": "VectorCAST Test Explorer",
+        "title": "Set as VectorCAST Configuration File"
       }
     ],
     "keybindings": [
@@ -166,21 +170,27 @@
           "default": "./unitTests",
           "description": "The folder path for storing unit tests, can be absolute or relative to the file location"
         },
+        "vectorcastTestExplorer.configurationLocation": {
+          "type": "string",
+          "order": 3,
+          "default": "",
+          "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
+        },
         "vectorcastTestExplorer.showReportOnExecute": {
           "type": "boolean",
-          "order": 3,
+          "order": 4,
           "default": true,
           "description": "Display the VectorCAST execution report after test run"
         },
         "vectorcastTestExplorer.decorateExplorer": {
           "type": "boolean",
-          "order": 4,
+          "order": 5,
           "default": true,
           "description": "Decorate files that have coverage in the File Explorer pane"
         },
         "vectorcastTestExplorer.verboseLogging": {
           "type": "boolean",
-          "order": 5,
+          "order": 6,
           "default": false,
           "description": "Log internal extension details"
         }
@@ -258,6 +268,10 @@
         {
           "command": "vectorcastTestExplorer.createTestScriptForLine",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.setDefaultConfigFile",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -275,7 +289,7 @@
       "explorer/context": [
         {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
-          "when": "vectorcastTestExplorer.configured && resourceLangId == cpp || resourceLangId == c",
+          "when": "resourceLangId == cpp || resourceLangId == c",
           "group": "2_workspace"
         },
         {
@@ -296,6 +310,11 @@
         {
           "command": "vectorcastTestExplorer.openVCASTFromVce",
           "when": "vectorcastTestExplorer.configured && resourceExtname==.vce",
+          "group": "2_workspace"
+        },
+        {
+          "command": "vectorcastTestExplorer.setDefaultConfigFile",
+          "when": "vectorcastTestExplorer.configured && resourceFilename==CCAST_.CFG",
           "group": "2_workspace"
         }
       ],
@@ -404,7 +423,7 @@
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
     "@types/node": "16.x",
-    "@types/vscode": "^1.73.1",
+    "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.59.0",
     "@typescript-eslint/parser": "^5.59.0",
     "@vscode/test-electron": "^1.6.2",
@@ -433,6 +452,6 @@
   },
   "extensionDependencies": [],
   "engines": {
-    "vscode": "^1.73.1"
+    "vscode": "^1.74.0"
   }
 }
