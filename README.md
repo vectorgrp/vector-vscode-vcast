@@ -31,21 +31,36 @@ install directory from this GitHub repo: https://github.com/vectorgrp/vector-vca
 This extension extends the VS Code Test Explorer.
 
 To use the extension, open a folder that contains one or more VectorCAST
-test environments, then click on the Test Explorer "Flask" icon in the activity bar.
-Within a few seconds a list of test environments will be displayed with a list
-of units, functions, and tests for each environment.
+test environments, and click on the Test Explorer "Flask" icon in the activity bar to
+open the VS Code Test Explorer pane.  Within a few seconds a list of VectorCAST test 
+environments will be displayed with a list of units, functions, and tests for each environment.
 
-If you want to initialize a workspace or folder for VectorCAST testing, simply
-run the command: "VectorCAST Test Explorer: Configure" from the command palette
-(Use: ctrl-shift-p or View->Command Palette to access), or click on the "Flask"
-icon in the activity bar, and then click "Configure VectorCAST Tests".
+If your workspace does not contain any VectorCAST test environments, you can start testing
+by right clicking on any C or C++ file in the explorer tree, and choosing "Create VectorCAST Environment".
+This action will automatically activate the extension, and start the environment build process.
 
-Once the extension is configured, you will be able to use the following features:
+A final option to manually activate the extension without building an environment, is to choose
+the "VectorCAST Test Explorer: Configure" from the command palette.
+(Use: ctrl-shift-p or View->Command Palette to access).
+
+Once the extension is activated, you will be able to use the following features:
 
 ## Features
 
 Many of the features implemented by this extension are common to the VS Code test explorer.
 The following sub-sections focus on features that are unique to the VectorCAST Test Explorer.
+
+
+### The VectorCAST Configuration File
+
+Before you can build a test environment, you must create a VectorCAST configuration file which allows
+you to choose the compiler you're using, default search directories, and many other tool options.
+The easiest way to do this is to set the extension option: "Configuration Location" to point to an existing 
+CCAST_.CFG file.  To make setting this value easier, you may right click on any existing CCAST_.CFG
+file and choose: "Set as VectorCAST Configuration File"
+
+If this option is not set, and you attempt to build an environment, the extension will automatically 
+open the VectorCASTgraphical option editor.
 
 ### Creating a New Test Environment
 
@@ -163,9 +178,10 @@ This extension contributes the following settings:
 This extension contributes the following settings:
 
 - "VectorCAST Installation Location" provides the path to the VectorCAST installation
+- "Unit Test Location" controls where the extension stores unit test new unit test artifacts.
+- "Configuration Location" control where the extension looks for the VectorCAST CCAST_.CFG file
 - "Show Report on Execute" will show the HTML test report in after each VectorCAST test run.
 - "Decorate Explorer Tree" will add a VC in the right margin of the file explorer tree for those files that have VectorCAST coverage.
-- "Unit Test Location" controls where the extension stores unit test new unit test artifacts.
 - "Verbose Logging" will add more detailed messages to the VectorCAST Test Explorer message panel
 
 ## Known Issues

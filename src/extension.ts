@@ -6,6 +6,9 @@ import {
   deactivateLanguageServerClient,
 } from "./client";
 import {
+  updateConfigurationOption
+} from "./configuration"
+import {
   initializeCodeCoverageFeatures,
   createCoverageStatusBar,
   toggleCoverageAction,
@@ -19,6 +22,7 @@ import {
 } from "./editorDecorator";
 import {
   deleteEnvironmentCallback,
+  rebuildEnvironmentCallback,
   updateDataForEnvironment,
   showSettings,
 } from "./helper";
@@ -315,7 +319,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       executeClicastCommand(
         vcastArgs,
         enclosingDirectory,
-        updateDataForEnvironment,
+        rebuildEnvironmentCallback,
         enviroPath
       );
     }
@@ -358,6 +362,22 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(deleteEnviro);
 
+  // Command: vectorcastTestExplorer.setDefaultConfigFile////////////////////////////////////////////////////////
+  let selectDefaultConfigFile = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.setDefaultConfigFile",
+    (fileURI: any) => {
+      // we will only get here if the user has selected a CCAST_.CFG file
+      // all we do is replace the current value of the configurationLocation option
+      // no validity checking is needed.
+      if (fileURI) {
+          const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+          settings.update ("configurationLocation", fileURI.fsPath, vscode.ConfigurationTarget.Workspace);
+      }
+    }
+  );
+  context.subscriptions.push(selectDefaultConfigFile);
+
+
   vscode.workspace.onDidChangeWorkspaceFolders(
     (e) => {
       resetCoverageData();
@@ -399,14 +419,22 @@ function configureExtension(context: vscode.ExtensionContext) {
     context.subscriptions
   );
 
+
   vscode.workspace.onDidChangeConfiguration((event) => {
+    // This function gets triggered when any option at any level (user, workspace, etc.)
+    // gets changed.  The event parameter does not indicate what level has been
+    // edited but you can use the 
+
     if (event.affectsConfiguration("vectorcastTestExplorer.decorateExplorer")) {
       updateExploreDecorations();
     }
-    if (event.affectsConfiguration("vectorcastTestExplorer.verboseLogging")) {
+    else if (event.affectsConfiguration("vectorcastTestExplorer.verboseLogging")) {
       adjustVerboseSetting();
     }
-    if (
+    else if (event.affectsConfiguration("vectorcastTestExplorer.configurationLocation")){
+      updateConfigurationOption (event);
+    }
+    else if (
       event.affectsConfiguration(
         "vectorcastTestExplorer.vectorcastInstallationLocation"
       )
