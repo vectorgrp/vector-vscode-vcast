@@ -15,7 +15,7 @@
       "name": "keyword"
     },
     {
-      "match": "^TEST\\.(?:UNIT|SUBPROGRAM|NAME|SCRIPT_FEATURE|STUB)(:|$)(.*)$",
+      "match": "^TEST\\.(?:UNIT|SUBPROGRAM|NAME|SCRIPT_FEATURE||REQUIREMENT_KEY)(:|$)(.*)$",
       "name": "keyword",
       "captures": {
         "1": {

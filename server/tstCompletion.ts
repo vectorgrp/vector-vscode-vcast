@@ -96,13 +96,14 @@ export function getTstCompletionData(
         );
       }
 
-      // this handles the everything on test.value and test.expected lines
+      // this handles the everything else
       else if (
         upperCaseLine.startsWith("TEST.EXPECTED:") ||
         upperCaseLine.startsWith("TEST.VALUE:") ||
         upperCaseLine.startsWith("TEST.VALUE_USER_CODE:") ||
         upperCaseLine.startsWith("TEST.EXPECTED_USER_CODE:") ||
-        upperCaseLine.startsWith("TEST.STUB:")
+        upperCaseLine.startsWith("TEST.STUB:") ||
+        upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")
       ) {
         // the current level, and returns the appropriate list for the next level.
         const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);

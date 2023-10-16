@@ -193,6 +193,7 @@ export const testCommandList = [
   "SLOT",
   "EXPECTED",
   "STUB",
+  "REQUIREMENT_KEY",
   "VALUE_USER_CODE",
   "END_VALUE_USER_CODE",
   "EXPECTED_USER_CODE",
