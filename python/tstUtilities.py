@@ -339,7 +339,7 @@ def processRequirementLines(api, pieces, triggerCharacter):
     requirements = api.environment.requirement_api.Requirement.all()
     for requirement in requirements:
         # the description can have multipl
-        returnData.choiceList.append(requirement.external_key + " | " + requirement.title)
+        returnData.choiceList.append(f'{requirement.external_key} ||| {requirement.title} ||| {requirement.description}') 
 
     return returnData
 
@@ -462,7 +462,7 @@ def splitExistingLine(line):
 
     # strip any extra white space
     return [x.strip() for x in pieces]
-
+ 
 
 def processLine(enviroName, line):
     """
