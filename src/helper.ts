@@ -17,10 +17,7 @@ import { vectorMessage } from "./messagePane";
 
 export function showSettings() {
   console.log("VectorCAST Test Explorer show settings called ...");
-  vscode.commands.executeCommand(
-    "workbench.action.openSettings",
-    "VectorCAST Test Explorer"
-  );
+  vscode.commands.executeCommand("workbench.action.openWorkspaceSettings", "VectorCAST Test Explorer");
 }
 
 
