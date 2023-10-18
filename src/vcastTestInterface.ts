@@ -605,13 +605,7 @@ function buildEnvironmentVCAST(
   // Check that we have a valid configuration file, and create one if we don't
   // This function will return True if there is a CFG when it is done.
   if (initializeConfigurationFile (unitTestLocation)) {
-    const enviroPath = path.join(unitTestLocation, enviroName);
-    createVcastEnvironmentScript(
-      unitTestLocation,
-      enviroName,
-      fileList
-    );
-
+    
     createVcastEnvironmentScript(
       unitTestLocation,
       enviroName,
@@ -623,16 +617,6 @@ function buildEnvironmentVCAST(
       enviroName
     );
 
-    // this call will run clicast in the background
-    const clicastArgs:string[] = ["-lc", "env", "build", enviroName];
-    // This is long running commands so we open the message pane to give the user a sense of what is going on.
-    openMessagePane();
-    executeClicastCommand(
-      clicastArgs,
-      unitTestLocation,
-      buildEnvironmentCallback,
-      enviroPath
-    );
   }
 }
 
