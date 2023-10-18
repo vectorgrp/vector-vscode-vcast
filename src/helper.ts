@@ -17,7 +17,10 @@ import { vectorMessage } from "./messagePane";
 
 export function showSettings() {
   console.log("VectorCAST Test Explorer show settings called ...");
-  vscode.commands.executeCommand("workbench.action.openWorkspaceSettings", "VectorCAST Test Explorer");
+  // previously, I was using: "VectorCAST Test Explorer" as the "filter" in this call, but 
+  // that resulted in a coupld of extra settings, and the wrong order being displayed
+  // through trial and error, I found that this gives what we want
+  vscode.commands.executeCommand("workbench.action.openWorkspaceSettings", "@ext:vectorgroup.vectorcasttestexplorer");
 }
 
 

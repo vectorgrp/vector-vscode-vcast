@@ -5,6 +5,7 @@
     "out": true
   },
   "search.exclude": {
-    "**/E2E-test":true
+    "**/E2E-test":true,
+    "**/out": true
   }
 }
