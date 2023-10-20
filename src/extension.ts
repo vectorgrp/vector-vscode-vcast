@@ -2,12 +2,6 @@ import * as vscode from "vscode";
 import { Uri } from "vscode";
 
 import {
-  executeClicastCommand,
-  openTestScript,
-  vcastCommandtoUse,
-} from "./vcastUtilities";
-
-import {
   activateLanguageServerClient,
   deactivateLanguageServerClient,
 } from "./client";
@@ -62,17 +56,24 @@ import {
 } from "./testPane";
 
 import {
+  addLaunchConfiguration,
+  addSettingsFileFilter,
+  checkIfInstallationIsOK,
+  initializeInstallerFiles,
+} from "./utilities";
+
+import {
   newEnvironment,
   newTestScript,
   resetCoverageData,
 } from "./vcastTestInterface";
 
 import {
-  addLaunchConfiguration,
-  addSettingsFileFilter,
-  checkIfInstallationIsOK,
-  initializeInstallerFiles,
-} from "./utilities";
+  executeClicastCommand,
+  openTestScript,
+  vcastCommandtoUse,
+} from "./vcastUtilities";
+
 
 import { updateExploreDecorations } from "./fileDecorator";
 
