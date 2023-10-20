@@ -4,6 +4,9 @@ import { Uri } from "vscode";
 
 
 import {
+  executeClicastCommand,
+} from "./clicast"
+import {
   configFilename,
   initializeConfigurationFile,
 } from "./configuration";
@@ -26,12 +29,8 @@ import {
 import { 
   compoundOnlyString, 
   getEnviroPathFromID, 
-  getTestNode, 
   testNodeType } from "./testData";
 import {
-  clicastCommandToUse,
-  commandStatusType,
-  executeClicastCommand,
   executeCommand,
   executeVPythonScript,
   forceLowerCaseDriveLetter,
@@ -825,26 +824,4 @@ export function getClicastArgsFromTestNode(testNode: testNodeType) {
   return returnString;
 }
 
-export async function deleteTests(nodeList: any[]) {
-  for (let node of nodeList) {
-    const nodeID = node.id;
-    const testNode: testNodeType = getTestNode(nodeID);
 
-    if (testNode.testName.length > 0) {
-      const commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-        testNode
-      )} test delete`;
-      let commandStatus: commandStatusType = executeCommand(
-        commandToRun,
-        path.dirname(testNode.enviroPath)
-      );
-      if (commandStatus.errorCode == 0) {
-        updateDataForEnvironment(getEnviroPathFromID(nodeID));
-      } else {
-        vectorMessage("Test delete failed ...");
-        vcastMessage(commandStatus.stdout);
-        openMessagePane();
-      }
-    }
-  }
-}

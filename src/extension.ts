@@ -2,6 +2,13 @@ import * as vscode from "vscode";
 import { Uri } from "vscode";
 
 import {
+  deleteTests,
+  executeClicastCommand,
+  loadTestScript,
+  openTestScript,
+  vcastCommandtoUse,
+} from "./clicast";
+import {
   activateLanguageServerClient,
   deactivateLanguageServerClient,
 } from "./client";
@@ -42,12 +49,10 @@ import {
 import {
   activateTestPane,
   buildTestPaneContents,
-  loadTestScript,
-  openTestScript,
+
   pathToEnviroBeingDebugged,
 } from "./testPane";
 import {
-  deleteTests,
   newEnvironment,
   newTestScript,
   resetCoverageData,
@@ -56,9 +61,7 @@ import {
   addLaunchConfiguration,
   addSettingsFileFilter,
   checkIfInstallationIsOK,
-  executeClicastCommand,
   initializeInstallerFiles,
-  vcastCommandtoUse,
 } from "./utilities";
 
 import { updateExploreDecorations } from "./fileDecorator";
