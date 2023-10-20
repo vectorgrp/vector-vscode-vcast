@@ -219,6 +219,10 @@ export async function deleteTests(nodeList: any[]) {
 
 export async function insertBasisPathTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
+  // In all caeses, we need to do the following:
+  //  - Call clicast <-e -s -t options> tool auto_test temp.tst  [creates tests]
+  //  - Call clicast <-e option> test script run temp.tst        [loads tests]
+  // Must use a temporary filename and ensure we deleted it.
     
   vectorMessage ("hello");
   
