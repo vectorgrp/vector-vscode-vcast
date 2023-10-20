@@ -860,6 +860,13 @@ export async function deleteTests(nodeList: any[]) {
   }
 }
 
+export async function insertBasisPathTests(testNode: testNodeType) {
+  // this will insert basis path tests for the given test node
+    
+  vectorMessage ("hello");
+  
+}
+
 
 const url = require("url");
 export async function loadTestScript() {

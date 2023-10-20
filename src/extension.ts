@@ -51,6 +51,7 @@ import {
   activateTestPane,
   buildTestPaneContents,
   deleteTests,
+  insertBasisPathTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
 } from "./testPane";
