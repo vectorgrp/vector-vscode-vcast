@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { clicastCommandToUse, initializeClicastUtilities } from "./clicast";
+import { clicastCommandToUse, initializeClicastUtilities } from "./vcastUtilities";
 import { showSettings } from "./helper";
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 

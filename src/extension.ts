@@ -2,20 +2,20 @@ import * as vscode from "vscode";
 import { Uri } from "vscode";
 
 import {
-  deleteTests,
   executeClicastCommand,
-  insertBasisPathTests,
-  loadTestScript,
   openTestScript,
   vcastCommandtoUse,
-} from "./clicast";
+} from "./vcastUtilities";
+
 import {
   activateLanguageServerClient,
   deactivateLanguageServerClient,
 } from "./client";
+
 import {
   updateConfigurationOption
 } from "./configuration"
+
 import {
   initializeCodeCoverageFeatures,
   createCoverageStatusBar,
@@ -23,41 +23,50 @@ import {
   updateDisplayedCoverage,
   updateCOVdecorations,
 } from "./coverage";
+
 import {
   buildTestNodeForFunction,
   initializeTestDecorator,
   updateTestDecorator,
 } from "./editorDecorator";
+
 import {
   deleteEnvironmentCallback,
   rebuildEnvironmentCallback,
   updateDataForEnvironment,
   showSettings,
 } from "./helper";
+
 import {
   openMessagePane,
   toggleMessageLog,
   adjustVerboseSetting,
   vectorMessage,
 } from "./messagePane";
+
 import { viewResultsReport } from "./reporting";
+
 import { 
   getEnviroNameFromID, 
   getEnviroPathFromID, 
   getTestNode,
   testNodeType
 } from "./testData";
+
 import {
   activateTestPane,
   buildTestPaneContents,
-
+  deleteTests,
+  loadTestScript,
   pathToEnviroBeingDebugged,
 } from "./testPane";
+
 import {
   newEnvironment,
   newTestScript,
   resetCoverageData,
 } from "./vcastTestInterface";
+
 import {
   addLaunchConfiguration,
   addSettingsFileFilter,

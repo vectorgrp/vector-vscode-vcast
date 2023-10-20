@@ -5,7 +5,7 @@ import { Uri } from "vscode";
 
 import {
   executeClicastCommand,
-} from "./clicast"
+} from "./vcastUtilities"
 import {
   configFilename,
   initializeConfigurationFile,

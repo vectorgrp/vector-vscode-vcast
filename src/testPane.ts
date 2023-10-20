@@ -14,16 +14,31 @@ import {
   TestMessage,
 } from "vscode";
 
+import { 
+  clicastCommandToUse,
+  loadScriptIntoEnvironment,
+} from "./vcastUtilities";
 
-import { clicastCommandToUse } from "./clicast";
-import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
+import { 
+  updateDisplayedCoverage, 
+  updateCOVdecorations,
+} from "./coverage";
 
 import {
   updateTestDecorator,
 } from "./editorDecorator";
 
-import { errorLevel, vectorMessage } from "./messagePane";
+import { updateDataForEnvironment } from "./helper"
+
+import { 
+  errorLevel, 
+  openMessagePane,
+  vcastMessage,
+  vectorMessage,
+} from "./messagePane";
+
 import { viewResultsReport } from "./reporting";
+
 import {
   addTestNodeToCache,
   clearTestNodeCache,
@@ -34,21 +49,26 @@ import {
   getFunctionNameFromID,
   getEnviroNameFromID,
   getTestNameFromID,
+  getTestNode,
   getUnitNameFromID,
   testNodeType,
 } from "./testData";
 
 import {
+  commandStatusType,
   executeCommand,
   loadLaunchFile,
   addLaunchConfiguration,
 } from "./utilities";
+
 import {
   cfgOptionType,
+  getEnviroNameFromScript,
   getVcastOptionValues,
 } from "../src-common/commonUtilities";
 
 import {
+  getClicastArgsFromTestNode,
   getEnviroDataFromPython,
   getResultFileForTest,
   globalTestStatusArray,
@@ -814,6 +834,63 @@ async function processRunRequest(
     runTests(controller, request, cancellation);
   }
 }
+
+
+export async function deleteTests(nodeList: any[]) {
+  for (let node of nodeList) {
+    const nodeID = node.id;
+    const testNode: testNodeType = getTestNode(nodeID);
+
+    if (testNode.testName.length > 0) {
+      const commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+        testNode
+      )} test delete`;
+      let commandStatus: commandStatusType = executeCommand(
+        commandToRun,
+        path.dirname(testNode.enviroPath)
+      );
+      if (commandStatus.errorCode == 0) {
+        updateDataForEnvironment(getEnviroPathFromID(nodeID));
+      } else {
+        vectorMessage("Test delete failed ...");
+        vcastMessage(commandStatus.stdout);
+        openMessagePane();
+      }
+    }
+  }
+}
+
+
+const url = require("url");
+export async function loadTestScript() {
+  // This gets called from the right-click editor context menu
+  // The convention is that the .tst file must be in the same directory
+  // as the environment, so we get the enviroName from parsing the
+  // .tst and get the working directory from its location
+
+  const activeEditor = vscode.window.activeTextEditor;
+  if (activeEditor) {
+    if (activeEditor.document.isDirty) {
+      // need to wait, otherwise we have a race condition with clicast
+      await activeEditor.document.save();
+    }
+
+    let scriptPath = url.fileURLToPath(activeEditor.document.uri.toString());
+    const enviroName = getEnviroNameFromScript(scriptPath);
+    if (enviroName) {
+      const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+
+      loadScriptIntoEnvironment (enviroName, scriptPath);
+
+      updateTestPane(enviroPath);
+    } else {
+      vscode.window.showErrorMessage(
+        `Could not determine environment name, required "-- Environment: <enviro-name> comment line is missing.`
+      );
+    }
+  }
+}
+
 
 // create the controller
 let globalController: vscode.TestController;
