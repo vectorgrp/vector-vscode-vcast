@@ -9,7 +9,6 @@ from enum import Enum
 import re
 import traceback
 
-
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
 
@@ -329,6 +328,21 @@ class choiceDataType:
     choiceKind = choiceKindType.Keyword
 
 
+def processRequirementLines(api, pieces, triggerCharacter):
+    """
+    This funciton will compute the list of possible requirement keys and return
+    a list of key | description pairs
+    """    
+    returnData = choiceDataType()
+    lengthOfCommand = len(pieces)
+
+    requirements = api.environment.requirement_api.Requirement.all()
+    for requirement in requirements:
+        # the description can have multipl
+        returnData.choiceList.append(f'{requirement.external_key} ||| {requirement.title} ||| {requirement.description}') 
+
+    return returnData
+
 def processSlotLines(api, pieces, triggerCharacter):
     """
     This function handles slot lines that look like this:
@@ -368,7 +382,7 @@ def processSlotLines(api, pieces, triggerCharacter):
 
 def processStandardLines(api, pieces, triggerCharacter):
     """
-    This function process everything except TEST.SLOT lines
+    This function process everything except TEST.SLOT and TEST.REQUIREMENT_KEY lines
     """
     global globalOutputLog
 
@@ -448,7 +462,7 @@ def splitExistingLine(line):
 
     # strip any extra white space
     return [x.strip() for x in pieces]
-
+ 
 
 def processLine(enviroName, line):
     """
@@ -499,6 +513,8 @@ def processLine(enviroName, line):
 
         if line.upper().startswith("TEST.SLOT"):
             returnData = processSlotLines(api, pieces, triggerCharacter)
+        elif line.upper().startswith("TEST.REQUIREMENT_KEY"):
+            returnData = processRequirementLines (api, pieces, triggerCharacter);
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)
 

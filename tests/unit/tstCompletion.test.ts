@@ -22,6 +22,12 @@ const unitTst = `
 TEST.UNIT:
 TEST.SUBPROGRAM:
 `;
+const reqTst = `
+-- Environment: TEST
+TEST.UNIT:
+TEST.SUBPROGRAM:
+TEST.REQUIREMENT_KEY:
+`;
 const compoundTst = `
 -- Environment: TEST
 TEST.SUBPROGRAM:<<COMPOUND>>
@@ -215,6 +221,126 @@ describe("Text Completion", () => {
           detail: "",
           data: 2,
         },
+      ]);
+    },
+    timeout
+  );
+
+  test(
+    "validate tst completion for TEST.REQUIREMENT_KEY:",
+    async () => {
+      const tstText = reqTst;
+      const lineToComplete = "TEST.REQUIREMENT_KEY:";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+
+      const generatedCompletionData = generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter
+      );
+
+      expect(generatedCompletionData).toEqual([
+        {
+          label: "FR11 | Number of tables",
+          kind: 14,
+          detail: "",
+          data: 0,
+        },
+        {
+          label: "FR12 | Number of seats per table",
+          kind: 14,
+          detail: "",
+          data: 1,
+        },
+        {
+          label: "FR13 | List of entrees",
+          kind: 14,
+          detail: "",
+          data: 2,
+        },
+        {
+          label: "FR14 | Placing an order updates occupied status",
+          kind: 14,
+          detail: "",
+          data: 3,
+        },
+        {
+          label: "FR15 | Placing an order updates number in party",
+          kind: 14,
+          detail: "",
+          data: 4,
+        },
+        {
+          label: "FR16 | Placing an order updates a seats order",
+          kind: 14,
+          detail: "",
+          data: 5,
+        },
+        {
+          label: "FR17 | Placing an order updates check total",
+          kind: 14,
+          detail: "",
+          data: 6,
+        },
+        {
+          label: "FR18 | Clearing a table resets occupied status",
+          kind: 14,
+          detail: "",
+          data: 7,
+        },
+        {
+          label: "FR19 | Clearing a table resets number in party",
+          kind: 14,
+          detail: "",
+          data: 8,
+        },
+        {
+          label: "FR20 | Clearing a table resets orders for all seats",
+          kind: 14,
+          detail: "",
+          data: 9,
+        },
+        {
+          label: "FR21 | Clearing a table resets check total",
+          kind: 14,
+          detail: "",
+          data: 10,
+        },
+        {
+          label: "FR22 | Obtaining check total",
+          kind: 14,
+          detail: "",
+          data: 11,
+        },
+        {
+          label: "FR23 | Size of waiting list",
+          kind: 14,
+          detail: "",
+          data: 12,
+        },
+        {
+          label: "FR24 | Adding a party to waiting list",
+          kind: 14,
+          detail: "",
+          data: 13,
+        },
+        {
+          label: "FR25 | Getting the head of the waiting list",
+          kind: 14,
+          detail: "",
+          data: 14,
+        },
+        {
+          label: "FR27 | Adding free dessert",
+          kind: 14,
+          detail: "",
+          data: 15,
+        },
+
       ]);
     },
     timeout
@@ -490,46 +616,52 @@ describe("Text Completion", () => {
           data: 15,
         },
         {
-          label: "VALUE_USER_CODE",
+          label: "REQUIREMENT_KEY",
           kind: 14,
           detail: "",
           data: 16,
         },
         {
-          label: "END_VALUE_USER_CODE",
+          label: "VALUE_USER_CODE",
           kind: 14,
           detail: "",
           data: 17,
         },
         {
-          label: "EXPECTED_USER_CODE",
+          label: "END_VALUE_USER_CODE",
           kind: 14,
           detail: "",
           data: 18,
         },
         {
-          label: "END_EXPECTED_USER_CODE",
+          label: "EXPECTED_USER_CODE",
           kind: 14,
           detail: "",
           data: 19,
         },
         {
-          label: "IMPORT_FAILURES",
+          label: "END_EXPECTED_USER_CODE",
           kind: 14,
           detail: "",
           data: 20,
         },
         {
-          label: "END_IMPORT_FAILURES",
+          label: "IMPORT_FAILURES",
           kind: 14,
           detail: "",
           data: 21,
         },
         {
-          label: "COMPOUND_ONLY",
+          label: "END_IMPORT_FAILURES",
           kind: 14,
           detail: "",
           data: 22,
+        },
+        {
+          label: "COMPOUND_ONLY",
+          kind: 14,
+          detail: "",
+          data: 23,
         }
       ]);
     },

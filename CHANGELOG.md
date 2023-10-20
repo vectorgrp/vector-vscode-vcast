@@ -74,4 +74,5 @@ Improved the open settings feature to filter properly and default to the 'Worksp
 - Fixed issue: Add flexibility to environment creation #26
 - Fixed issue: Cleanup of temporary VectorCAST files #27
 - Fixed issue: Inconsistent activation of the extension #28
+- Fixed issue: Add support for TEST.REQUIREMENT_KEY syntax
 

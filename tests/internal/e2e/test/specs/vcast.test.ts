@@ -271,6 +271,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Checking if the output opened in the bottom bar
     // with VectorCAST Test Explorer channel
+    await editorView.closeAllEditors()
     const selectBox = await $(".monaco-select-box");
     const selectedChannel = await selectBox.getValue();
     expect(selectedChannel).toBe("VectorCAST Test Explorer");
@@ -350,7 +351,28 @@ describe("vTypeCheck VS Code Extension", () => {
     await findWidget.setReplaceText("TEST.NAME:myFirstTest");
     await findWidget.replace();
     await browser.keys([Key.Escape]);
-    let currentLine = await tab.getLineOfText("TEST.VALUE");
+
+    let currentLine = await tab.getLineOfText("TEST.NAME:myFirstTest");
+    await tab.moveCursor(
+      currentLine,
+      "TEST.NAME:myFirstTest".length + 1,
+    );
+    await browser.keys([Key.Enter]);
+    currentLine += 1;
+    
+    await tab.setTextAtLine(
+      currentLine,
+      "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats",
+    );
+    
+    await tab.moveCursor(
+      currentLine,
+      "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats".length + 1,
+    );
+    await browser.keys([Key.Enter]);
+    
+
+    currentLine = await tab.getLineOfText("TEST.VALUE");
     await tab.typeTextAt(currentLine, "TEST.VALUE".length + 1, ":");
 
     // Really important to wait until content assist appears
@@ -426,6 +448,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.executeWorkbench((vscode) => {
       vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
     });
+
   });
 
   it("should run myFirstTest and check its report", async () => {
@@ -644,6 +667,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const tab = (await editorView.openEditor(
       "DATABASE-MANAGER.tst",
     )) as TextEditor;
+    let currentLine = await tab.getLineOfText("TEST.REQUIREMENT_KEY:FR20");
+    const reqTooltipText = await getGeneratedTooltipTextAt(currentLine, "TEST.REQUIREMENT_KEY:FR20".length - 1, tab);
+    console.log(reqTooltipText);
+    expect(reqTooltipText).toContain("Clearing a table resets orders for all seats");
+    expect(reqTooltipText).toContain("Clearing a table clears the orders for all seats of the table within the table database.");
+
     const findWidget = await tab.openFindWidget();
     await findWidget.setSearchText("TEST.NAME:myFirstTest");
     await findWidget.toggleReplace(true);
@@ -654,7 +683,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(false);
     const lastValueLineInPreviousTest =
       "TEST.VALUE:manager.Manager::PlaceOrder.Order.Entree:Steak";
-    let currentLine = await tab.getLineOfText(lastValueLineInPreviousTest);
+    currentLine = await tab.getLineOfText(lastValueLineInPreviousTest);
     await tab.moveCursor(currentLine, lastValueLineInPreviousTest.length + 1);
     await browser.keys(Key.Enter);
     await tab.save();
@@ -923,8 +952,12 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const expectedProblemText = 'Commands cannot be nested in a "NOTES" block';
     const problemsView = await bottomBar.openProblemsView();
+    await browser.waitUntil(
+      async () => (await problemsView.getAllMarkers()).length > 0,
+      { timeout: TIMEOUT },
+    );
     const problemMarkers = await problemsView.getAllMarkers();
-    console.log(await problemMarkers[0].getText());
+    // console.log(await problemMarkers[0].getText());
     // problem markers can appear for new features
     let nestedCommandProblemFound = false;
     for (const problem of problemMarkers[0].problems) {

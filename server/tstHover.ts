@@ -8,7 +8,7 @@ import {
 
 import { TextDocuments, CompletionParams } from "vscode-languageserver";
 
-import { getChoiceDataFromPython } from "./pythonUtilities";
+import { getChoiceDataFromPython, getHoverStringForRequirement } from "./pythonUtilities";
 
 export function getHoverString(
   documents: TextDocuments,
@@ -29,12 +29,30 @@ export function getHoverString(
 
       // generate a list of pieces ...
       // this regex creates a set of delimiters that are either . or : but NOT ::
-      const pieces = fullLine.split(/(?<!:)[:\.](?!:)/);
+      let pieces = fullLine.split(/(?<!:)[:\.](?!:)/);
 
       const upperCaseLine: string = fullLine.toUpperCase();
 
-      // only doing hover for TEST.VALUE and TEST.EXPECTED
-      if (
+      // doing hover for TEST.VALUE, TEST.EXPECTED, TEST.REQUIREMENT_KEY
+
+      if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
+        // if we have 3 pieces, then we have a requirement key
+        // the line should look like TEST.REQUIREMENT_KEY: <key>  or <key> | <title>
+        // IF the title is already there we don't need to do the hover-over
+        if (pieces.length >=3) {
+          let key:string = "";
+          if (pieces[2].includes("|")) {
+            key = pieces[2].split("|")[0].trim();
+          }
+          else {
+            key = pieces[2].trim();
+          }
+          // now find the title for this key, via a python call
+          hoverString = getHoverStringForRequirement(enviroPath, key);
+          console.log (hoverString);
+        }
+        
+      } else if (
         upperCaseLine.startsWith("TEST.EXPECTED:") ||
         upperCaseLine.startsWith("TEST.VALUE:")
       ) {

@@ -183,6 +183,41 @@ export async function openTestScript(nodeID: string) {
   }
 }
 
+
+
+async function adjustScriptContentsBeforeLoad (scriptPath:string) {
+
+  // There are some things that need updating before we can load the 
+  // script into VectorCAST:
+  //   - The requirement key lines need to be split into two lines
+  //     We insert lines like TEST.REQUIREMENT_KEY: key | description,
+  //     but VectorCAST only allows the key, so we turn the description
+  //     into a comment.
+  //
+  //   - <might be more things to do later>
+
+  let originalLines = fs.readFileSync(scriptPath).toString().split("\n");
+  let newLines: string[] = [];
+  for (let line of originalLines) {
+    if (line.startsWith("TEST.REQUIREMENT_KEY:")) {
+      const keyLineParts = line.split("|");
+      if (keyLineParts.length == 2) {
+        newLines.push("-- Requirement Title: " + keyLineParts[1]);
+        newLines.push(keyLineParts[0].trim());
+      }
+      else {
+        newLines.push(line);
+      }
+    }
+    else {
+      newLines.push(line);
+    }
+  }
+  fs.writeFileSync (scriptPath, newLines.join("\n"), "utf8");
+}
+
+
+
 const url = require("url");
 export async function loadTestScript() {
   // This gets called from the right-click editor context menu
@@ -198,7 +233,10 @@ export async function loadTestScript() {
       // need to wait, otherwise we have a race condition with clicast
       await activeEditor.document.save();
     }
+
     let scriptPath = url.fileURLToPath(activeEditor.document.uri.toString());
+    adjustScriptContentsBeforeLoad (scriptPath);
+
     const enviroName = getEnviroNameFromScript(scriptPath);
     if (enviroName) {
       const enviroArg = `-e${enviroName}`;
