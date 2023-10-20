@@ -116,7 +116,8 @@ export function validateTextDocument(textDocument: TextDocument) {
           command == "VALUE" ||
           command == "EXPECTED" ||
           command == "STUB" ||
-          command == "SLOT"
+          command == "SLOT" ||
+          command == "REQUIREMENT_KEY"
         ) {
           // TBD: we should validate in python
         } else if (command == "NAME") {

@@ -25,9 +25,8 @@ def main():
 
     # We get here when the user types a "." or ":"
 
-    # Mode choice is for future expansion (CLIENT and SERVER modes)
-    mode = sys.argv[1].upper()
-    if mode == "CLI":
+    mode = sys.argv[1]
+    if mode == "choiceList":
         # This is option will process one input line and
         # return one set of choices, using stdin/stdout for communication
 
