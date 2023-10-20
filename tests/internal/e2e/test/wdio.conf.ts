@@ -393,9 +393,38 @@ export const config: Options.Testrunner = {
     else createLaunchJson = `touch ${launchJsonPath}`;
     await promisifiedExec(createLaunchJson);
     
-    const CCAST_CFG_PATH = path.join(testInputVcastTutorial,"CCAST_.CFG")
-    const createCFG = "clicast -lc template GNU_CPP_X"
+    
+    const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`
     await promisifiedExec(createCFG);
+    
+  
+    const reqTutorialPath = path.join(vectorcastDir, "examples", "RequirementsGW", "CSV_Requirements_For_Tutorial.csv") 
+    const commandPrefix = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc`
+    const rgwPrepCommands = [
+      `${commandPrefix} option VCAST_REPOSITORY ${path.join(initialWorkdir, "test","vcastTutorial")}`,
+      `${commandPrefix} RGw INitialize`,
+      `${commandPrefix} Rgw Set Gateway CSV`,
+      `${commandPrefix} RGw Configure Set CSV csv_path ${reqTutorialPath}`,
+      `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
+      `${commandPrefix} RGw Configure Set CSV filter_attribute`, 
+      `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
+      `${commandPrefix} RGw Configure Set CSV id_attribute ID`,
+      `${commandPrefix} RGw Configure Set CSV key_attribute Key`,
+      `${commandPrefix} RGw Configure Set CSV title_attribute Title `,
+      `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
+      `${commandPrefix} RGw Import`
+    ]
+    for (const rgwPrepCommand of rgwPrepCommands) {
+      const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${rgwPrepCommand}`;
+      }
+      console.log(stdout);
+    }
+
+
+
 
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
     await mkdir(pathToTutorial, { recursive: true });
@@ -404,7 +433,6 @@ export const config: Options.Testrunner = {
 
     // copying didn't work with cp from fs
     if (process.platform == "win32") {
-      await promisifiedExec(`xcopy /s /i /y CCAST_.CFG ${testInputVcastTutorial} > NUL 2> NUL`,)
       await promisifiedExec(
         `xcopy /s /i /y ${cppFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`,
       );
@@ -419,7 +447,6 @@ export const config: Options.Testrunner = {
         )}`,
       );
     } else {
-      await promisifiedExec(`cp CCAST_.CFG ${testInputVcastTutorial}`);
       await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(
