@@ -171,22 +171,22 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(createTestScriptCommand);
 
 
-    // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
-    let createTestScriptForLineCommand = vscode.commands.registerCommand(
-      "vectorcastTestExplorer.createTestScriptForLine",
-      (args: any) => {
-        if (args) {
-          const testNode = buildTestNodeForFunction (args);
-          if (testNode)
-            newTestScript(testNode);
-          else
-            vscode.window.showErrorMessage(
-              `Unable to create test script for line ${args.lineNumber}`
-            );
-        }
+  // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
+  let createTestScriptForLineCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createTestScriptForLine",
+    (args: any) => {
+      if (args) {
+        const testNode = buildTestNodeForFunction (args);
+        if (testNode)
+          newTestScript(testNode);
+        else
+          vscode.window.showErrorMessage(
+            `Unable to create test script for line ${args.lineNumber}`
+          );
       }
-    );
-    context.subscriptions.push(createTestScriptForLineCommand);
+    }
+  );
+  context.subscriptions.push(createTestScriptForLineCommand);
 
   // Command: vectorcastTestExplorer.deleteTest ////////////////////////////////////////////////////////
   let deleteTestCommand = vscode.commands.registerCommand(

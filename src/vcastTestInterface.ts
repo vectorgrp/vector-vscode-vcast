@@ -784,8 +784,6 @@ function createScriptTemplate(testNode: testNodeType): string {
 
 export async function newTestScript(testNode: testNodeType) {
   // This can be called for any subprogram node other than an environment node
-  //    'Environments-GCC/TUTORIAL-C++-4|manager.Manager::PlaceOrder'
-  //    'Environments-GCC/TUTORIAL-C++-4|manager.Manager::PlaceOrder.Manager::PlaceOrder.001'
 
   const contents = createScriptTemplate(testNode);
   const scriptPath = path.join(
