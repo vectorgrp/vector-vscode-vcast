@@ -18,6 +18,15 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
+const reqTst = `TEST.NEW
+TEST.NAME:valueHover
+TEST.REQUIREMENT_KEY:FR20
+TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats
+TEST.VALUE:unit.bar.return:1
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
 const expTst = `TEST.NEW
 TEST.NAME:valueHover
 TEST.VALUE:unit.bar.return:1
@@ -68,6 +77,42 @@ describe("Hover Info Validator", () => {
       );
       const generatedHoverString = generateHoverData(tstText, hoverPosition);
       expect(generatedHoverString).toBe(expectedHoverString);
+    },
+    timeout
+  );
+  
+  test(
+    "validate hover over TEST.REQUIREMENT_KEY:FR20",
+    async () => {
+      const tstText = [initialTst, reqTst].join("\n");
+      const expectedFRTitle = "Clearing a table resets orders for all seats";
+      const expectedFRDesc = "Clearing a table clears the orders for all seats of the table within the table database.";
+      const hoverPosition = getHoverPositionForLine(
+        "TEST.REQUIREMENT_KEY:FR20",
+        tstText,
+        "KEY"
+      );
+      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      expect(generatedHoverString).toContain(expectedFRTitle)
+      expect(generatedHoverString).toContain(expectedFRDesc)
+    },
+    timeout
+  );
+  
+  test(
+    "validate hover over TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats",
+    async () => {
+      const tstText = [initialTst, reqTst].join("\n");
+      const expectedFRTitle = "Clearing a table resets orders for all seats";
+      const expectedFRDesc = "Clearing a table clears the orders for all seats of the table within the table database.";
+      const hoverPosition = getHoverPositionForLine(
+        "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats",
+        tstText,
+        "FR20"
+      );
+      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      expect(generatedHoverString).toContain(expectedFRTitle)
+      expect(generatedHoverString).toContain(expectedFRDesc)
     },
     timeout
   );
