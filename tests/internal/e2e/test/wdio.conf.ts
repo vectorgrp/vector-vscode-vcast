@@ -11,7 +11,7 @@ import {
   ProxyAgent,
 } from "undici";
 import { exec } from "child_process";
-import { mkdir, rm } from "fs/promises";
+import { mkdir, rm, writeFile } from "fs/promises";
 import { promisify } from "node:util";
 
 if (process.env["ALTERNATIVE_PROXY_HANDLING"] === "True") {
@@ -108,7 +108,7 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: ["./**/**/vcast.test.ts"],
+  specs: ["./**/**/*.test.ts"],
   // Patterns to exclude.
   // exclude:
   //
@@ -147,7 +147,7 @@ export const config: Options.Testrunner = {
         proxyType: "manual",
         httpProxy: process.env["http_proxy"],
       },
-      browserVersion: "1.74.0",
+      browserVersion: "1.79.2",
       acceptInsecureCerts: true,
       "wdio:vscodeOptions": {
         extensionPath: path.join(process.env["INIT_CWD"], "test", "extension"),
@@ -393,10 +393,20 @@ export const config: Options.Testrunner = {
     else createLaunchJson = `touch ${launchJsonPath}`;
     await promisifiedExec(createLaunchJson);
     
-    const CCAST_CFG_PATH = path.join(testInputVcastTutorial,"CCAST_.CFG")
-    const createCFG = "clicast -lc template GNU_CPP_X"
+    const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`
     await promisifiedExec(createCFG);
-
+    const envFile = `ENVIRO.NEW
+    ENVIRO.NAME: DATABASE-MANAGER-test
+    ENVIRO.COVERAGE_TYPE: Statement
+    ENVIRO.WHITE_BOX: YES
+    ENVIRO.COMPILER: CC
+    ENVIRO.STUB: ALL_BY_PROTOTYPE
+    ENVIRO.SEARCH_LIST: cpp
+    ENVIRO.STUB_BY_FUNCTION: database
+    ENVIRO.STUB_BY_FUNCTION: manager
+    ENVIRO.END
+    `;
+    await writeFile(path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"), envFile);
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
     await mkdir(pathToTutorial, { recursive: true });
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
@@ -404,7 +414,6 @@ export const config: Options.Testrunner = {
 
     // copying didn't work with cp from fs
     if (process.platform == "win32") {
-      await promisifiedExec(`xcopy /s /i /y CCAST_.CFG ${testInputVcastTutorial} > NUL 2> NUL`,)
       await promisifiedExec(
         `xcopy /s /i /y ${cppFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`,
       );
@@ -419,7 +428,6 @@ export const config: Options.Testrunner = {
         )}`,
       );
     } else {
-      await promisifiedExec(`cp CCAST_.CFG ${testInputVcastTutorial}`);
       await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(

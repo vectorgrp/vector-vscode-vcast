@@ -26,6 +26,9 @@ import {
   updateTestID,
 } from "../test_utils/vcast_utils";
 
+import { exec } from "child_process";
+import { promisify } from "node:util";
+const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
@@ -264,13 +267,16 @@ describe("vTypeCheck VS Code Extension", () => {
     await clickOnButtonInTestingHeader(buttonLabel);
     // See GH Issue #364, we need to click twice
     await clickOnButtonInTestingHeader(buttonLabel);
-
+   
     console.log(
       "Verifying that VectorCAST Test Explorer is open in the bottom bar",
     );
 
     // Checking if the output opened in the bottom bar
     // with VectorCAST Test Explorer channel
+
+    // closing all editors to avoid checking wrong select box
+    await editorView.closeAllEditors()
     const selectBox = await $(".monaco-select-box");
     const selectedChannel = await selectBox.getValue();
     expect(selectedChannel).toBe("VectorCAST Test Explorer");
@@ -298,21 +304,25 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should create New Test Script for myFirstTest", async () => {
     await updateTestID();
-
+ 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem = undefined;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      await vcastTestingViewSection.expand();
+      if (! await vcastTestingViewSection.isExpanded())
+        await vcastTestingViewSection.expand();
 
       for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+        console.log(await vcastTestingViewContentSection.getTitle());
+        await vcastTestingViewContentSection.expand()
         subprogram = await findSubprogram(
           "manager",
           vcastTestingViewContentSection,
         );
         if (subprogram) {
-          await subprogram.expand();
+          if (! await subprogram.isExpanded())
+            await subprogram.expand();
           break;
         }
       }
@@ -923,8 +933,11 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const expectedProblemText = 'Commands cannot be nested in a "NOTES" block';
     const problemsView = await bottomBar.openProblemsView();
+    await browser.waitUntil(
+      async () => (await problemsView.getAllMarkers()).length > 0,
+      { timeout: TIMEOUT },
+    );
     const problemMarkers = await problemsView.getAllMarkers();
-    console.log(await problemMarkers[0].getText());
     // problem markers can appear for new features
     let nestedCommandProblemFound = false;
     for (const problem of problemMarkers[0].problems) {
@@ -1428,6 +1441,7 @@ describe("vTypeCheck VS Code Extension", () => {
     let subprogram: TreeItem = undefined;
     let testHandle: TreeItem = undefined;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      await vcastTestingViewSection.expand()
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
         await subprogram.expand();
@@ -1458,8 +1472,8 @@ describe("vTypeCheck VS Code Extension", () => {
       subprogram,
       "Manager::PlaceOrder",
     );
-    if (!customSubprogramMethod.isExpanded()) {
-      await customSubprogramMethod.select();
+    if (!await customSubprogramMethod.isExpanded()) {
+      await customSubprogramMethod.expand()
     }
 
     console.log(`Waiting until ${"myThirdTest"} disappears from the test tree`);
@@ -1473,5 +1487,74 @@ describe("vTypeCheck VS Code Extension", () => {
         await (await (testHandle as CustomTreeItem).elem).getText(),
       ).not.toBe("myThirdTest");
     }
+  });
+
+  it("should build VectorCAST environment from .env", async () => {
+    await updateTestID();
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    await (await bottomBar.openOutputView()).clearText()
+    
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+      "vcastTutorial",
+    );
+    
+    await workspaceFolderSection.expand();
+    const vceFile = await workspaceFolderSection.findItem("DATABASE-MANAGER-test.env");
+    const vceMenu = await vceFile.openContextMenu()
+    await vceMenu.select("Build VectorCAST Environment")
+    await bottomBar.maximize()
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Environment built Successfully"),
+      { timeout: TIMEOUT },
+    );
+
+  });
+
+  it("should open VectorCAST from .vce", async () => {
+    await updateTestID();
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+      "vcastTutorial",
+    );
+
+    await workspaceFolderSection.expand();
+    const vceFile = await workspaceFolderSection.findItem("DATABASE-MANAGER.vce");
+    const vceMenu = await vceFile.openContextMenu()
+    await vceMenu.select("Open VectorCAST Environment")
+   
+    let checkVcastQtCmd = "ps -ef";
+    if (process.platform == "win32") checkVcastQtCmd = "tasklist";
+    
+    {
+      const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${checkVcastQtCmd}`;
+      }
+      expect(stdout).toContain("vcastqt")
+    }
+    
+    let stopVcastCmd = "pkill vcastqt"
+    if (process.platform == "win32") stopVcastCmd = `taskkill /IM "vcastqt.exe" /F`;
+    {
+      const { stdout, stderr } = await promisifiedExec(stopVcastCmd);
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${stopVcastCmd}`;
+      }
+      
+    }
+
   });
 });
