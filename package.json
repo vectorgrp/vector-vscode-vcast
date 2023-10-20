@@ -104,6 +104,11 @@
         "title": "New Test Script"
       },
       {
+        "command": "vectorcastTestExplorer.insertBasisPathTests",
+        "category": "VectorCAST Test Explorer",
+        "title": "Insert Basis Path Tests"
+      },
+      {
         "command": "vectorcastTestExplorer.deleteTest",
         "category": "VectorCAST Test Explorer",
         "title": "Delete Test"
@@ -232,6 +237,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.insertBasisPathTests",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.deleteTest",
           "when": "never"
         },
@@ -336,13 +345,18 @@
           "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         },
         {
-          "command": "vectorcastTestExplorer.deleteTest",
+          "command": "vectorcastTestExplorer.insertBasisPathTests",
           "group": "vcast@6",
+          "when": "testId =~ /^vcast:.*$/"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteTest",
+          "group": "vcast@7",
           "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.viewResults",
-          "group": "vcast@7",
+          "group": "vcast@8",
           "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         }
       ]

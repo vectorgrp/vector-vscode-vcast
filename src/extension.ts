@@ -4,6 +4,7 @@ import { Uri } from "vscode";
 import {
   deleteTests,
   executeClicastCommand,
+  insertBasisPathTests,
   loadTestScript,
   openTestScript,
   vcastCommandtoUse,
@@ -169,6 +170,18 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(createTestScriptCommand);
+
+  // Command: vectorcastTestExplorer.createTestScript////////////////////////////////////////////////////////
+  let insertBasisPathTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.insertBasisPathTests",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        insertBasisPathTests(testNode);
+      }
+    }
+  );
+  context.subscriptions.push(insertBasisPathTestsCommand);
 
 
   // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////

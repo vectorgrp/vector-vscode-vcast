@@ -217,6 +217,14 @@ export async function deleteTests(nodeList: any[]) {
 }
 
 
+export async function insertBasisPathTests(testNode: testNodeType) {
+  // This can be called for any node, including environment nodes
+    
+  vectorMessage ("hello");
+  
+}
+
+
 export function executeClicastCommand(
   argList: string[],
   CWD: string,
