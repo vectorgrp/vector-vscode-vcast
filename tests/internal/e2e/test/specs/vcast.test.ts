@@ -322,7 +322,7 @@ describe("vTypeCheck VS Code Extension", () => {
       throw "Subprogram 'manager' not found";
     }
 
-    let subprogramMethod = await findSubprogramMethod(
+    const subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Manager::PlaceOrder",
     );
@@ -335,7 +335,7 @@ describe("vTypeCheck VS Code Extension", () => {
     }
     await openTestScriptFor(subprogramMethod);
 
-    let tab = (await editorView.openEditor(
+    const tab = (await editorView.openEditor(
       "vcast-template.tst",
     )) as TextEditor;
     console.log("Getting content assist");
