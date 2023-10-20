@@ -15,11 +15,6 @@ import {
 } from "vscode";
 
 import { 
-  clicastCommandToUse,
-  loadScriptIntoEnvironment,
-} from "./vcastUtilities";
-
-import { 
   updateDisplayedCoverage, 
   updateCOVdecorations,
 } from "./coverage";
@@ -62,12 +57,6 @@ import {
 } from "./utilities";
 
 import {
-  cfgOptionType,
-  getEnviroNameFromScript,
-  getVcastOptionValues,
-} from "../src-common/commonUtilities";
-
-import {
   getClicastArgsFromTestNode,
   getEnviroDataFromPython,
   getResultFileForTest,
@@ -78,6 +67,17 @@ import {
   testStatus,
   vcastEnviroFile,
 } from "./vcastTestInterface";
+
+import { 
+  clicastCommandToUse,
+  loadScriptIntoEnvironment,
+} from "./vcastUtilities";
+
+import {
+  cfgOptionType,
+  getEnviroNameFromScript,
+  getVcastOptionValues,
+} from "../src-common/commonUtilities";
 
 const fs = require("fs");
 const path = require("path");
