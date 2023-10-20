@@ -1,26 +1,20 @@
 import * as vscode from "vscode";
 
 import {
-  updateDataForEnvironment,
-} from "./helper"
-import {
-  openMessagePane,
-  vcastMessage,
   vectorMessage,
 } from "./messagePane";
+
 import {
-  getEnviroPathFromID,
   getTestNode,
   testNodeType,
 } from "./testData";
-import { updateTestPane } from "./testPane";
+
 import {
-  commandStatusType,
   executeCommand,
   exeFilename,
 } from "./utilities";
+
 import { getClicastArgsFromTestNode } from "./vcastTestInterface";
-import { getEnviroNameFromScript } from "../src-common/commonUtilities";
 
 
 const fs = require("fs");
@@ -145,76 +139,27 @@ async function adjustScriptContentsBeforeLoad(scriptPath: string) {
 }
 
 
-const url = require("url");
-export async function loadTestScript() {
-  // This gets called from the right-click editor context menu
-  // The convention is that the .tst file must be in the same directory
-  // as the environment, so we get the enviroName from parsing the
-  // .tst and get the working directory from its location
+export async function loadScriptIntoEnvironment(enviroName:string, scriptPath:string, ) {
+ 
+    // this does the clicast call to laod the test script
 
-  // this returns the environment directory name without any nesting
-
-  const activeEditor = vscode.window.activeTextEditor;
-  if (activeEditor) {
-    if (activeEditor.document.isDirty) {
-      // need to wait, otherwise we have a race condition with clicast
-      await activeEditor.document.save();
-    }
-
-    let scriptPath = url.fileURLToPath(activeEditor.document.uri.toString());
     adjustScriptContentsBeforeLoad(scriptPath);
 
-    const enviroName = getEnviroNameFromScript(scriptPath);
-    if (enviroName) {
-      const enviroArg = `-e${enviroName}`;
-      const enviroPath = path.join(path.dirname(scriptPath), enviroName);
-      let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
-      const commandStatus = executeCommand(
-        commandToRun,
-        path.dirname(scriptPath)
-      );
-      // if the script load fails, executeCommand will open the message pane ...
-      // if the load passes, we want to give the user an indication that it worked
-      if (commandStatus.errorCode == 0) {
-        vectorMessage("Script loaded successfully ...");
-        // Maybe this will be annoying to users, but I think
-        // it's good to know when the load is complete.
-        vscode.window.showInformationMessage(`Test script loaded successfully`);
-      }
-
-      updateTestPane(enviroPath);
-    } else {
-      vscode.window.showErrorMessage(
-        `Could not determine environment name, required "-- Environment: <enviro-name> comment line is missing.`
-      );
+    const enviroArg = `-e${enviroName}`;
+    let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
+    const commandStatus = executeCommand(
+      commandToRun,
+      path.dirname(scriptPath)
+    );
+    // if the script load fails, executeCommand will open the message pane ...
+    // if the load passes, we want to give the user an indication that it worked
+    if (commandStatus.errorCode == 0) {
+      vectorMessage("Script loaded successfully ...");
+      // Maybe this will be annoying to users, but I think
+      // it's good to know when the load is complete.
+      vscode.window.showInformationMessage(`Test script loaded successfully`);
     }
   }
-}
-
-
-export async function deleteTests(nodeList: any[]) {
-  for (let node of nodeList) {
-    const nodeID = node.id;
-    const testNode: testNodeType = getTestNode(nodeID);
-
-    if (testNode.testName.length > 0) {
-      const commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-        testNode
-      )} test delete`;
-      let commandStatus: commandStatusType = executeCommand(
-        commandToRun,
-        path.dirname(testNode.enviroPath)
-      );
-      if (commandStatus.errorCode == 0) {
-        updateDataForEnvironment(getEnviroPathFromID(nodeID));
-      } else {
-        vectorMessage("Test delete failed ...");
-        vcastMessage(commandStatus.stdout);
-        openMessagePane();
-      }
-    }
-  }
-}
 
 
 export function executeClicastCommand(
