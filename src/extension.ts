@@ -7,7 +7,7 @@ import {
   loadTestScript,
   openTestScript,
   vcastCommandtoUse,
-} from "./clicast";
+} from "./vcastUtilities";
 import {
   activateLanguageServerClient,
   deactivateLanguageServerClient,

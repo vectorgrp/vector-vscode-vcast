@@ -15,7 +15,7 @@ import {
 } from "vscode";
 
 
-import { clicastCommandToUse } from "./clicast";
+import { clicastCommandToUse } from "./vcastUtilities";
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
 import {

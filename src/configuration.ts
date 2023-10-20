@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { vectorMessage } from "./messagePane";
 import {
     vcastCommandtoUse,
-} from "./clicast";
+} from "./vcastUtilities";
 
 const fs = require("fs");
 const path = require("path");
