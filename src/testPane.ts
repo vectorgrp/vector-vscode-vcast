@@ -70,7 +70,10 @@ import {
 
 import { 
   clicastCommandToUse,
+<<<<<<< HEAD
   generateAndLoadBasisPathTests,
+=======
+>>>>>>> main
   loadScriptIntoEnvironment,
 } from "./vcastUtilities";
 

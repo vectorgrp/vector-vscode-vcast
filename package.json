@@ -64,6 +64,11 @@
         "title": "Open Environment"
       },
       {
+        "command": "vectorcastTestExplorer.openVCASTFromVce",
+        "category": "VectorCAST Test Explorer",
+        "title": "Open VectorCAST Environment"
+      },
+      {
         "command": "vectorcastTestExplorer.rebuildEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Re-Build Environment"
@@ -77,6 +82,11 @@
         "command": "vectorcastTestExplorer.newEnviroVCAST",
         "category": "VectorCAST Test Explorer",
         "title": "Create VectorCAST Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.buildEnviroFromEnv",
+        "category": "VectorCAST Test Explorer",
+        "title": "Build VectorCAST Environment"
       },
       {
         "command": "vectorcastTestExplorer.addLaunchConfiguration",
@@ -205,6 +215,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.openVCASTFromVce",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.rebuildEnviro",
           "when": "never"
         },
@@ -214,6 +228,10 @@
         },
         {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.buildEnviroFromEnv",
           "when": "never"
         },
         {
@@ -292,6 +310,16 @@
           "command": "vectorcastTestExplorer.addSettingsFileFilter",
           "when": "vectorcastTestExplorer.configured && resourceFilename==settings.json",
           "group": "7_modification"
+        },
+        {
+          "command": "vectorcastTestExplorer.buildEnviroFromEnv",
+          "when": "vectorcastTestExplorer.configured && resourceExtname==.env",
+          "group": "2_workspace"
+        },
+        {
+          "command": "vectorcastTestExplorer.openVCASTFromVce",
+          "when": "vectorcastTestExplorer.configured && resourceExtname==.vce",
+          "group": "2_workspace"
         },
         {
           "command": "vectorcastTestExplorer.setDefaultConfigFile",

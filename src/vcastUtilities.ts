@@ -15,7 +15,6 @@ import {
 } from "./utilities";
 
 import { getClicastArgsFromTestNode } from "./vcastTestInterface";
-import { time } from "console";
 
 
 const fs = require("fs");
