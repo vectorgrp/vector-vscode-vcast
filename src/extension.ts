@@ -172,6 +172,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(viewResultsCommand);
 
   // Command: vectorcastTestExplorer.createTestScript////////////////////////////////////////////////////////
+  // This is the callback for the right clicks in the test explorer tree
   let createTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.createTestScript",
     (args: any) => {
@@ -183,7 +184,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(createTestScriptCommand);
 
-  // Command: vectorcastTestExplorer.createTestScript////////////////////////////////////////////////////////
+  // Command: vectorcastTestExplorer.insertBasisPathTests////////////////////////////////////////////////////////
   let insertBasisPathTestsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.insertBasisPathTests",
     (args: any) => {
@@ -197,6 +198,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
 
   // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
+  // This is the callback for clicks of the source editor flask+ icon
   let createTestScriptForLineCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.createTestScriptForLine",
     (args: any) => {
