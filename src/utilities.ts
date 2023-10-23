@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { clicastCommandToUse, initializeClicastUtilities } from "./vcastUtilities";
+import { clicastCommandToUse, initializeVcastUtilities } from "./vcastUtilities";
 import { showSettings } from "./helper";
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
@@ -17,9 +17,7 @@ export let vPythonCommandToUse: string | undefined = undefined;
 
 
 
-
-
-// The testInterface is delivered int the .vsix
+// The testInterface is delivered in the .vsix
 // in the sub-directory "python"
 
 // The VectorCAST extensions for settings and launch are delivered in the .vsix
@@ -417,7 +415,7 @@ function findVcastTools():boolean {
   if (vcastInstallationPath) {
 
     // do all of the setup required to use clicast
-    foundAllvcastTools = initializeClicastUtilities(vcastInstallationPath);
+    foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
 
     // check if we have access to a valid crc32 command - this is not fatal
     // must be called after initializeInstallerFiles()

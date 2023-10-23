@@ -29,8 +29,49 @@ export let clicastCommandToUse: string | undefined = undefined;
 const vcastqtName = "vcastqt";
 export let vcastCommandtoUse: string | undefined = undefined;
 
+const atgName = "atg";
+export let atgCommandToUse: string | undefined = undefined;
+export let atgAvailable:boolean = false;
 
-export function initializeClicastUtilities(vcastInstallationPath: string) {
+
+function checkForATG (vcastInstallationPath: string) {
+
+  // we only set atgCommandToUse if we find atg and it's licensed
+  const atgCommand = path.join(vcastInstallationPath, exeFilename(atgName));
+  let statusMessageText = "";
+  if (fs.existsSync(atgCommand)) {
+    statusMessageText = `   found '${atgName}' here: ${vcastInstallationPath}`;
+    const candidateCommand = atgCommand;
+
+    // now check if its licensed ... just atg --help and check the exit code
+    const commandToRun: string = `${candidateCommand} --help`;
+
+    // cwd="" printErrorDetails=false
+    const commandStatus = executeCommand(commandToRun, "", false);
+    if (commandStatus.errorCode == 0) {
+      statusMessageText += ", license is available";
+      atgCommandToUse = candidateCommand;
+    }
+    else {
+      statusMessageText += ", license is NOT available";
+    }
+    vectorMessage(statusMessageText);
+    atgAvailable = atgCommandToUse != undefined;
+
+    // this value controls the existance of the atg command in the context menu
+    vscode.commands.executeCommand(
+      "setContext",
+      "vectorcastTestExplorer.atgAvailable",
+      atgAvailable
+    );
+  }
+  else {
+    vectorMessage(`   could NOT find '${atgName}' here: ${vcastInstallationPath}`);
+  }
+}
+
+
+export function initializeVcastUtilities(vcastInstallationPath: string) {
 
   let toolsFound = false;
   clicastCommandToUse = (path.join(
@@ -45,7 +86,13 @@ export function initializeClicastUtilities(vcastInstallationPath: string) {
     );
     if (fs.existsSync(vcastCommandtoUse)) {
       vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
+
+      // we only set toolsFound if we find clicast AND vcadstqt 
       toolsFound = true;
+
+      // atg existing or being licensed does NOT affect toolsFound
+      checkForATG (vcastInstallationPath);
+
     }
     else {
       vectorMessage(`   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`);
@@ -164,26 +211,64 @@ export async function loadScriptIntoEnvironment(enviroName:string, scriptPath:st
 export function generateAndLoadBasisPathTests (testNode:testNodeType) {
   // This can be called for any node, including environment nodes
   // In all caeses, we need to do the following:
-  //  - Call clicast <-e -s -t options> tool auto_test temp.tst  [creates tests]
+  //  - Call clicast <-e -u -s options> tool auto_test temp.tst  [creates tests]
   //  - Call loadScriptIntoEnvironment() to do the actual load
-  // Must use a temporary filename and ensure we deleted it.
-
+  // 
+  // Other Points:
+  //   - Use a temporary filename and ensure we deleted it.
+   
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const timeStamp = Date.now().toString();
   const tempScriptPath = path.join (enclosingDirectory, `vcast-${timeStamp}.tst`);
 
   vectorMessage ("Generating basis path test cases to script file ...");
+  // ignore the testName (if any)
+  testNode.testName = "";
   let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-    testNode
-  )} tool auto_test ${tempScriptPath}`;
+    testNode)} tool auto_test ${tempScriptPath}`;
   const commandStatus = executeCommand(commandToRun, enclosingDirectory);
   if (commandStatus.errorCode == 0) {
     vectorMessage("Loading basis path tests into VectorCAST ...");
     loadScriptIntoEnvironment(testNode.enviroName, tempScriptPath);
     fs.unlinkSync(tempScriptPath);  
   }
+  else {
+    vscode.window.showInformationMessage(`Error generating basis path tests, see log for details`);
+    vectorMessage (commandStatus.stdout);
+  }
 }
 
+
+export function generateAndLoadATGTests (testNode:testNodeType) {
+  // This can be called for any node, including environment nodes
+  // In all caeses, we need to do the following:
+  //  - Call atg <-e -u -s options> temp.tst  [creates tests]
+  //  - Call loadScriptIntoEnvironment() to do the actual load
+  // Must use a temporary filename and ensure we deleted it.
+
+  // Other points:
+  //   - Use a temporary filename and ensure we deleted it.
+  //   - ATG can be slowish, so we need a status dialog
+
+  const enclosingDirectory = path.dirname(testNode.enviroPath);
+  const timeStamp = Date.now().toString();
+  const tempScriptPath = path.join (enclosingDirectory, `vcast-${timeStamp}.tst`);
+
+  vectorMessage ("Generating basis path test cases to script file ...");
+  // ignore the testName (if any)
+  testNode.testName = "";
+  let commandToRun: string = `${atgCommandToUse} ${getClicastArgsFromTestNode(testNode)}  ${tempScriptPath}`;
+  const commandStatus = executeCommand(commandToRun, enclosingDirectory);
+  if (commandStatus.errorCode == 0) {
+    vectorMessage("Loading basis ATG into VectorCAST ...");
+    loadScriptIntoEnvironment(testNode.enviroName, tempScriptPath);
+    fs.unlinkSync(tempScriptPath);  
+  }
+  else {
+    vscode.window.showInformationMessage(`Error generating ATG tests, see log for details`);
+    vectorMessage (commandStatus.stdout);
+  }
+}
 
 
 export function executeClicastCommand(

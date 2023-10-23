@@ -119,6 +119,11 @@
         "title": "Insert Basis Path Tests"
       },
       {
+        "command": "vectorcastTestExplorer.insertATGTests",
+        "category": "VectorCAST Test Explorer",
+        "title": "Insert ATG Tests"
+      },
+      {
         "command": "vectorcastTestExplorer.deleteTest",
         "category": "VectorCAST Test Explorer",
         "title": "Delete Test"
@@ -259,6 +264,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.insertATGTests",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.deleteTest",
           "when": "never"
         },
@@ -378,13 +387,18 @@
           "when": "testId =~ /^vcast:.*$/"
         },
         {
-          "command": "vectorcastTestExplorer.deleteTest",
+          "command": "vectorcastTestExplorer.insertATGTests",
           "group": "vcast@7",
+          "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteTest",
+          "group": "vcast@8",
           "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.viewResults",
-          "group": "vcast@8",
+          "group": "vcast@9",
           "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         }
       ]

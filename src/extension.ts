@@ -52,6 +52,7 @@ import {
   buildTestPaneContents,
   deleteTests,
   insertBasisPathTests,
+  insertATGTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
 } from "./testPane";
@@ -195,6 +196,18 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(insertBasisPathTestsCommand);
+
+  // Command: vectorcastTestExplorer.insertATGTests////////////////////////////////////////////////////////
+  let insertATGTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.insertATGTests",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        insertATGTests(testNode);
+      }
+    }
+  );
+  context.subscriptions.push(insertATGTestsCommand);
 
 
   // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
