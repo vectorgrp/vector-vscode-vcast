@@ -5,9 +5,11 @@ import {
   activateLanguageServerClient,
   deactivateLanguageServerClient,
 } from "./client";
+
 import {
   updateConfigurationOption
 } from "./configuration"
+
 import {
   initializeCodeCoverageFeatures,
   createCoverageStatusBar,
@@ -15,40 +17,46 @@ import {
   updateDisplayedCoverage,
   updateCOVdecorations,
 } from "./coverage";
+
 import {
   buildTestNodeForFunction,
   initializeTestDecorator,
   updateTestDecorator,
 } from "./editorDecorator";
+
 import {
   deleteEnvironmentCallback,
   rebuildEnvironmentCallback,
   updateDataForEnvironment,
   showSettings,
 } from "./helper";
+
 import {
   openMessagePane,
   toggleMessageLog,
   adjustVerboseSetting,
   vectorMessage,
 } from "./messagePane";
+
 import { viewResultsReport } from "./reporting";
+
 import { 
   getEnviroNameFromID, 
   getEnviroPathFromID, 
   getTestNode,
   testNodeType
 } from "./testData";
+
 import {
   activateTestPane,
   buildTestPaneContents,
+  deleteTests,
   loadTestScript,
-  openTestScript,
   pathToEnviroBeingDebugged,
 } from "./testPane";
+
 import {
   buildEnvironmentFromScript,
-  deleteTests,
   newEnvironment,
   newTestScript,
   resetCoverageData,
@@ -57,10 +65,15 @@ import {
   addLaunchConfiguration,
   addSettingsFileFilter,
   checkIfInstallationIsOK,
-  executeClicastCommand,
   initializeInstallerFiles,
-  vcastCommandtoUse,
 } from "./utilities";
+
+import {
+  executeClicastCommand,
+  openTestScript,
+  vcastCommandtoUse,
+} from "./vcastUtilities";
+
 
 import { updateExploreDecorations } from "./fileDecorator";
 
@@ -169,22 +182,22 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(createTestScriptCommand);
 
 
-    // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
-    let createTestScriptForLineCommand = vscode.commands.registerCommand(
-      "vectorcastTestExplorer.createTestScriptForLine",
-      (args: any) => {
-        if (args) {
-          const testNode = buildTestNodeForFunction (args);
-          if (testNode)
-            newTestScript(testNode);
-          else
-            vscode.window.showErrorMessage(
-              `Unable to create test script for line ${args.lineNumber}`
-            );
-        }
+  // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
+  let createTestScriptForLineCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createTestScriptForLine",
+    (args: any) => {
+      if (args) {
+        const testNode = buildTestNodeForFunction (args);
+        if (testNode)
+          newTestScript(testNode);
+        else
+          vscode.window.showErrorMessage(
+            `Unable to create test script for line ${args.lineNumber}`
+          );
       }
-    );
-    context.subscriptions.push(createTestScriptForLineCommand);
+    }
+  );
+  context.subscriptions.push(createTestScriptForLineCommand);
 
   // Command: vectorcastTestExplorer.deleteTest ////////////////////////////////////////////////////////
   let deleteTestCommand = vscode.commands.registerCommand(

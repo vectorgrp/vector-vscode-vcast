@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
+import { clicastCommandToUse, initializeClicastUtilities } from "./vcastUtilities";
 import { showSettings } from "./helper";
+import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
+
 
 const execSync = require("child_process").execSync;
-const spawn = require("child_process").spawn;
 const fs = require("fs");
 const path = require("path");
 const which = require ("which")
@@ -14,11 +15,9 @@ const vPythonName = "vpython";
 const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string | undefined = undefined;
 
-const clicastName = "clicast";
-export let clicastCommandToUse: string | undefined = undefined;
 
-const vcastqtName = "vcastqt";
-export let vcastCommandtoUse: string | undefined = undefined;
+
+
 
 // The testInterface is delivered int the .vsix
 // in the sub-directory "python"
@@ -30,15 +29,6 @@ export let globalTestInterfacePath: string | undefined = undefined;
 let globalCrc32Path: string | undefined = undefined;
 let globalPathToSupportFiles: string | undefined = undefined;
 
-export function setPaths(
-  _globalTestInterfacePath: string,
-  _vPythonCommandToUse: string,
-  _clicastCommandtoUse: string
-) {
-  globalTestInterfacePath = _globalTestInterfacePath;
-  vPythonCommandToUse = _vPythonCommandToUse;
-  clicastCommandToUse = _clicastCommandtoUse;
-}
 
 export function initializeInstallerFiles(context: vscode.ExtensionContext) {
   const pathToTestInterface = context.asAbsolutePath(
@@ -297,53 +287,6 @@ export function getJsonDataFromTestInterface(
   return returnData;
 }
 
-
-export function executeClicastCommand(
-  argList: string[],
-  CWD: string,
-  callback?: any,
-  enviroPath?: string
-) {
-  // this function is used to build and rebuild environments
-  // long running commands that where we want to show real-time output
-
-  // it uses spawn to execute a clicast command, log the output to the
-  // message pane, and update the test explorer when the command completes
-
-  // To debug what's going on with vcast, you can add -dall to
-  // argList, which will dump debug info for the clicast invocation
-  let clicast = spawn(clicastCommandToUse, argList, { cwd: CWD });
-  vectorMessage("-".repeat(100));
-
-  // maybe this is a hack, but after reading stackoverflow for a while I could
-  // not come up with anything better.  The issue is that the on ("exit") gets called
-  // before the stdout stream is closed so stdoutBuffer is incomplete at that point
-  // so we use on ("exit") to invoke the callback and on ("close") to dump the clicast stdout.
-
-  // I tried to only dump the output when the exit code was non 0 but we get a race
-  // condition because the exit might not have saved it when the close is seen.
-
-  vectorMessage("-".repeat(100));
-  clicast.stdout.on("data", function (data: any) {
-    vectorMessage(data.toString().replace(/[\n]/g, ""));
-  });
-
-  clicast.stdout.on("close", function (code: any) {
-    vectorMessage("-".repeat(100));
-  });
-
-  clicast.on("exit", function (code: any) {
-    vectorMessage("-".repeat(100));
-    vectorMessage(
-      `${clicastName}: '${argList.join(
-        " "
-      )}' returned exit code: ${code.toString()}`
-    );
-    vectorMessage("-".repeat(100));
-    if (callback) callback(enviroPath, code);
-  });
-}
-
 export interface commandStatusType {
   errorCode: number;
   stdout: string;
@@ -389,7 +332,7 @@ export function executeCommand(
 }
 
 const os = require("os");
-function exeFilename(basename: string): string {
+export function exeFilename(basename: string): string {
   if (os.platform() == "win32") return basename + ".exe";
   else return basename;
 }
@@ -473,28 +416,8 @@ function findVcastTools():boolean {
   // we assume the other executables are there too,  but we check anyway :)
   if (vcastInstallationPath) {
 
-      clicastCommandToUse = path.join(
-        vcastInstallationPath,
-        exeFilename(clicastName)
-      );
-
-      if (fs.existsSync (clicastCommandToUse)) {
-        vectorMessage(`   found '${clicastName}' here: ${vcastInstallationPath}`);
-        vcastCommandtoUse =  path.join(
-            vcastInstallationPath,
-            exeFilename(vcastqtName)
-          );
-        if (fs.existsSync (vcastCommandtoUse)) {
-            vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
-            foundAllvcastTools = true;
-          }
-        else {
-          vectorMessage(`   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`);
-          }
-        }
-      else {
-        vectorMessage(`   could NOT find '${clicastName}' here: ${vcastInstallationPath}`);
-      }
+    // do all of the setup required to use clicast
+    foundAllvcastTools = initializeClicastUtilities(vcastInstallationPath);
 
     // check if we have access to a valid crc32 command - this is not fatal
     // must be called after initializeInstallerFiles()
@@ -507,7 +430,6 @@ function findVcastTools():boolean {
       );
     }
   }
-
 
   return foundAllvcastTools;
 }
