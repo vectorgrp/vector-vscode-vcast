@@ -15,6 +15,7 @@ import {
 } from "./utilities";
 
 import { getClicastArgsFromTestNode } from "./vcastTestInterface";
+import { time } from "console";
 
 
 const fs = require("fs");
@@ -161,15 +162,29 @@ export async function loadScriptIntoEnvironment(enviroName:string, scriptPath:st
     }
   }
 
-export function generateAndLoadBasisPathTests () {
+export function generateAndLoadBasisPathTests (testNode:testNodeType) {
   // This can be called for any node, including environment nodes
   // In all caeses, we need to do the following:
   //  - Call clicast <-e -s -t options> tool auto_test temp.tst  [creates tests]
-  //  - Call clicast <-e option> test script run temp.tst        [loads tests]
+  //  - Call loadScriptIntoEnvironment() to do the actual load
   // Must use a temporary filename and ensure we deleted it.
-  ;
 
+  const enclosingDirectory = path.dirname(testNode.enviroPath);
+  const timeStamp = Date.now().toString();
+  const tempScriptPath = path.join (enclosingDirectory, `vcast-${timeStamp}.tst`);
+
+  vectorMessage ("Generating basis path test cases to script file ...");
+  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+    testNode
+  )} tool auto_test ${tempScriptPath}`;
+  const commandStatus = executeCommand(commandToRun, enclosingDirectory);
+  if (commandStatus.errorCode == 0) {
+    vectorMessage("Loading basis path tests into VectorCAST ...");
+    loadScriptIntoEnvironment(testNode.enviroName, tempScriptPath);
+    fs.unlinkSync(tempScriptPath);  
+  }
 }
+
 
 
 export function executeClicastCommand(

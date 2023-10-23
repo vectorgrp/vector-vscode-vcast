@@ -70,6 +70,7 @@ import {
 
 import { 
   clicastCommandToUse,
+  generateAndLoadBasisPathTests,
   loadScriptIntoEnvironment,
 } from "./vcastUtilities";
 
@@ -863,7 +864,8 @@ export async function deleteTests(nodeList: any[]) {
 export async function insertBasisPathTests(testNode: testNodeType) {
   // this will insert basis path tests for the given test node
     
-  vectorMessage ("hello");
+  generateAndLoadBasisPathTests (testNode);
+  updateTestPane(testNode.enviroPath);
   
 }
 
