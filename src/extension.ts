@@ -56,17 +56,17 @@ import {
 } from "./testPane";
 
 import {
+  buildEnvironmentFromScript,
+  newEnvironment,
+  newTestScript,
+  resetCoverageData,
+} from "./vcastTestInterface";
+import {
   addLaunchConfiguration,
   addSettingsFileFilter,
   checkIfInstallationIsOK,
   initializeInstallerFiles,
 } from "./utilities";
-
-import {
-  newEnvironment,
-  newTestScript,
-  resetCoverageData,
-} from "./vcastTestInterface";
 
 import {
   executeClicastCommand,
@@ -302,6 +302,34 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(openVCAST);
 
+
+    // Command: vectorcastTestExplorer.openVCASTFromVce  ////////////////////////////////////////////////////////
+    let openVCASTFromVce = vscode.commands.registerCommand(
+      "vectorcastTestExplorer.openVCASTFromVce",
+      (arg: any) => {
+        // split vceFile path into the CWD and the Environame
+        const vcePath = arg.fsPath;
+        const cwd = path.dirname (vcePath);
+        const enviroName = path.basename (vcePath);
+        let vcastArgs: string[] = ["-e " + enviroName];
+  
+        vectorMessage("Starting VectorCAST ...");
+  
+        const commandToRun = vcastCommandtoUse;
+        // we use spawn directly to control the detached and shell args
+        let vcast = spawn(commandToRun, vcastArgs, {
+          cwd: cwd,
+          detached: true,
+          shell: true,
+          windowsHide: true,
+        });
+        vcast.on("exit", function (code: any) {
+          updateDataForEnvironment(vcePath.split (".")[0]);
+        });
+      }
+    );
+    context.subscriptions.push(openVCASTFromVce);
+
   // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
   let newEnviroVCASTCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.newEnviroVCAST",
@@ -315,6 +343,19 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(newEnviroVCASTCommand);
+
+  // Command: vectorcastTestExplorer.buildEnviroFromEnv ////////////////////////////////////////////////////////
+  let buildEnviroVCASTCommand = vscode.commands.registerCommand("vectorcastTestExplorer.buildEnviroFromEnv",(arg: Uri) => {
+      // arg is the URI of the .env file that was clicked
+      if (arg) {
+        const envFilepath = arg.fsPath;
+        const directory = path.dirname(envFilepath);
+        const enviroName = path.basename(envFilepath);
+        buildEnvironmentFromScript (directory, enviroName.split (".")[0]);
+      }
+    });
+  context.subscriptions.push(buildEnviroVCASTCommand);
+
 
   // Command: vectorcastTestExplorer.rebuildEnviro  ////////////////////////////////////////////////////////
   let rebuildEnviro = vscode.commands.registerCommand(

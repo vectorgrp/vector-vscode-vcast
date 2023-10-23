@@ -11,7 +11,7 @@ import {
   ProxyAgent,
 } from "undici";
 import { exec } from "child_process";
-import { mkdir, rm } from "fs/promises";
+import { mkdir, rm, writeFile } from "fs/promises";
 import { promisify } from "node:util";
 
 if (process.env["ALTERNATIVE_PROXY_HANDLING"] === "True") {
@@ -108,7 +108,7 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: ["./**/**/vcast.test.ts"],
+  specs: ["./**/**/*.test.ts"],
   // Patterns to exclude.
   // exclude:
   //
@@ -393,6 +393,18 @@ export const config: Options.Testrunner = {
     else createLaunchJson = `touch ${launchJsonPath}`;
     await promisifiedExec(createLaunchJson);
     
+    const envFile = `ENVIRO.NEW
+    ENVIRO.NAME: DATABASE-MANAGER-test
+    ENVIRO.COVERAGE_TYPE: Statement
+    ENVIRO.WHITE_BOX: YES
+    ENVIRO.COMPILER: CC
+    ENVIRO.STUB: ALL_BY_PROTOTYPE
+    ENVIRO.SEARCH_LIST: cpp
+    ENVIRO.STUB_BY_FUNCTION: database
+    ENVIRO.STUB_BY_FUNCTION: manager
+    ENVIRO.END
+    `;
+    await writeFile(path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"), envFile);
     
     const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`
     await promisifiedExec(createCFG);
@@ -422,9 +434,6 @@ export const config: Options.Testrunner = {
       }
       console.log(stdout);
     }
-
-
-
 
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
     await mkdir(pathToTutorial, { recursive: true });
