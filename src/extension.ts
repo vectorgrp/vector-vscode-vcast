@@ -57,9 +57,6 @@ import {
 } from "./testPane";
 
 import {
-  buildEnvironmentFromScript,
-} from "./vcastTestInterface";
-import {
   addLaunchConfiguration,
   addSettingsFileFilter,
   checkIfInstallationIsOK,
@@ -67,6 +64,7 @@ import {
 } from "./utilities";
 
 import {
+  buildEnvironmentFromScript,
   newEnvironment,
   newTestScript,
   resetCoverageData,
