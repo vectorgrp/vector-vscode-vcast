@@ -198,7 +198,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
 
   // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
-  // This is the callback for clicks of the source editor flask+ icon
+  // This is the callback for right clicks of the source editor flask+ icon
   let createTestScriptForLineCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.createTestScriptForLine",
     (args: any) => {
