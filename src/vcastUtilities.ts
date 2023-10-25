@@ -330,7 +330,7 @@ export function generateAndLoadATGTests (testNode:testNodeType) {
   const messageFilter = /\[Subprogram:.*\]/;
 
   executeClicastWithProgress(
-    "",
+    "Generating ATG Tests: ",
     argList, 
     testNode.enviroName, 
     tempScriptPath, 

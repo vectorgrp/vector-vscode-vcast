@@ -136,7 +136,7 @@
       {
         "command": "vectorcastTestExplorer.deleteTest",
         "category": "VectorCAST Test Explorer",
-        "title": "Delete Test"
+        "title": "Delete Tests"
       },
       {
         "command": "vectorcastTestExplorer.editTestScript",
@@ -426,7 +426,7 @@
         {
           "command": "vectorcastTestExplorer.deleteTest",
           "group": "vcast@8",
-          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/"
         },
         {
           "command": "vectorcastTestExplorer.viewResults",

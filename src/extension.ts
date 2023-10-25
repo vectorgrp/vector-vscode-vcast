@@ -264,10 +264,25 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.deleteTest ////////////////////////////////////////////////////////
   let deleteTestCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteTest",
-    (...args: any) => {
-      // adding the ... to args, results in us getting a list of selected tests!
-      if (args) {
-        deleteTests(args);
+    (...nodeList: any) => {
+      // adding the ... to nodeList, results in us getting a list of selected tests!
+      if (nodeList) {
+        // add a confirmation step if the user has selected multiple tests, or
+        // has selected a container node, like an environment, unit, or subprogram
+        if (nodeList.length > 1 || nodeList[0].children.size > 0) {
+          const message =
+            "The selected tests will be deleted, and this action cannot be undone.";
+          vscode.window
+            .showWarningMessage(message, "Delete", "Cancel")
+            .then((answer) => {
+              if (answer === "Delete") {
+                deleteTests(nodeList);
+              }
+            });
+        }
+        else {
+          deleteTests(nodeList);
+        }
       }
     }
   );
