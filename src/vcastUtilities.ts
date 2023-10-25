@@ -45,11 +45,12 @@ export let atgAvailable:boolean = false;
 
 
 
-function vectorCASTSupportsATG (vcastInstallationPath:string):boolean {
+function vcastVersionGreaterThan (
+  vcastInstallationPath:string, 
+  version:number, 
+  servicePack:number):boolean {
 
-  // Version of VectorCAST between 23sp0 and 23sp3 had ATG but since
-  // we changed the ATG command line interface with 23sp5, we have decided
-  // to only support versions greater than that.
+  // A general purpose version checker, will be needed for Coded Tests, etc.
 
   let returnValue = false;
   const toolPath = path.join (vcastInstallationPath, "DATA", "tool_version.txt");
@@ -58,9 +59,9 @@ function vectorCASTSupportsATG (vcastInstallationPath:string):boolean {
   // extract version and service pack from toolVersion (23.sp2 date)
   const matched = toolVersion.match (/(\d+)\.sp(\d+).*/);
   if (matched) {
-    const version = parseInt (matched[1]);
-    const servicePack = parseInt (matched[2]);
-    if (version > 23 || (version == 23 && servicePack >= 5))
+    const tooVersion = parseInt (matched[1]);
+    const toolServicePack = parseInt (matched[2]);
+    if (tooVersion > version || (tooVersion == version && toolServicePack >= servicePack))
       returnValue = true;
   }
   // this allows us to work with development builds for internal testing
@@ -68,6 +69,17 @@ function vectorCASTSupportsATG (vcastInstallationPath:string):boolean {
     returnValue = true;
   }
   return returnValue
+}
+
+
+function vectorCASTSupportsATG (vcastInstallationPath:string):boolean {
+
+  // Versions of VectorCAST between 23sp0 and 23sp4 had ATG but since
+  // we changed the ATG command line interface with 23sp5, we have decided
+  // to only support versions greater than that.
+
+  return vcastVersionGreaterThan (vcastInstallationPath, 23, 5);
+
 }
 
 
