@@ -44,6 +44,33 @@ export let atgCommandToUse: string | undefined = undefined;
 export let atgAvailable:boolean = false;
 
 
+
+function vectorCASTSupportsATG (vcastInstallationPath:string):boolean {
+
+  // Version of VectorCAST between 23sp0 and 23sp3 had ATG but since
+  // we changed the ATG command line interface with 23sp4, we have decided
+  // to only support versions greater than that.
+
+  let returnValue = false;
+  const toolPath = path.join (vcastInstallationPath, "DATA", "tool_version.txt");
+  
+  const toolVersion = fs.readFileSync(toolPath).toString().trim();
+  // extract version and service pack from toolVersion (23.sp2 date)
+  const matched = toolVersion.match (/(\d+)\.sp(\d+).*/);
+  if (matched) {
+    const version = parseInt (matched[1]);
+    const servicePack = parseInt (matched[2]);
+    if (version > 23 || (version == 23 && servicePack >= 4))
+      returnValue = true;
+  }
+  // this allows us to work with development builds for internal testing
+  else if (toolVersion.includes (" revision ")) {
+    returnValue = true;
+  }
+  return returnValue
+}
+
+
 function checkForATG (vcastInstallationPath: string) {
 
   // we only set atgCommandToUse if we find atg and it's licensed
@@ -66,7 +93,7 @@ function checkForATG (vcastInstallationPath: string) {
       statusMessageText += ", license is NOT available";
     }
     vectorMessage(statusMessageText);
-    atgAvailable = atgCommandToUse != undefined;
+    atgAvailable = atgCommandToUse != undefined && vectorCASTSupportsATG(vcastInstallationPath);
 
     // this value controls the existance of the atg command in the context menu
     vscode.commands.executeCommand(
