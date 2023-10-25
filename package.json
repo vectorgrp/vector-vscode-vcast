@@ -124,6 +124,16 @@
         "title": "Insert ATG Tests"
       },
       {
+        "command": "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Basis Path Tests"
+      },
+      {
+        "command": "vectorcastTestExplorer.insertATGTestsFromEditor",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate ATG Tests"
+      },
+      {
         "command": "vectorcastTestExplorer.deleteTest",
         "category": "VectorCAST Test Explorer",
         "title": "Delete Test"
@@ -144,9 +154,9 @@
         "title": "Path for environment containing test to be debugged"
       },
       {
-        "command": "vectorcastTestExplorer.createTestScriptForLine",
+        "command": "vectorcastTestExplorer.createTestScriptFromEditor",
         "category": "VectorCAST Test Explorer",
-        "title": "Add VectorCAST Test"
+        "title": "New Test Script"
       },
       {
         "command": "vectorcastTestExplorer.setDefaultConfigFile",
@@ -268,6 +278,14 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.insertATGTestsFromEditor",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.deleteTest",
           "when": "never"
         },
@@ -284,7 +302,7 @@
           "when": "never"
         },
         {
-          "command": "vectorcastTestExplorer.createTestScriptForLine",
+          "command": "vectorcastTestExplorer.createTestScriptFromEditor",
           "when": "never"
         },
         {
@@ -344,7 +362,7 @@
       ],
       "editor/lineNumber/context": [
         {
-            "command": "vectorcastTestExplorer.createTestScriptForLine",
+            "submenu": "vectorcastTestExplorer.editorSubMenu",
             "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.testableLineList",
             "group": "vcast"
         }
@@ -353,6 +371,20 @@
         {
           "submenu": "vectorcastTestExplorer.vcastsubmenu",
           "group": "vcast"
+        }
+      ],
+      "vectorcastTestExplorer.editorSubMenu": [
+        {
+          "command": "vectorcastTestExplorer.createTestScriptFromEditor",
+          "group": "vcast@1"
+        },
+        {
+          "command": "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
+          "group": "vcast@2"
+        },
+        {
+          "command": "vectorcastTestExplorer.insertATGTestsFromEditor",
+          "group": "vcast@3"
         }
       ],
       "vectorcastTestExplorer.vcastsubmenu": [
@@ -384,12 +416,12 @@
         {
           "command": "vectorcastTestExplorer.insertBasisPathTests",
           "group": "vcast@6",
-          "when": "testId =~ /^vcast:.*$/"
+          "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/)"
         },
         {
           "command": "vectorcastTestExplorer.insertATGTests",
           "group": "vcast@7",
-          "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable"
+          "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/)"
         },
         {
           "command": "vectorcastTestExplorer.deleteTest",
@@ -407,6 +439,10 @@
       {
         "label": "VectorCAST",
         "id": "vectorcastTestExplorer.vcastsubmenu"
+      },
+      {
+        "label": "VectorCAST",
+        "id": "vectorcastTestExplorer.editorSubMenu"
       }
     ],
     "languages": [

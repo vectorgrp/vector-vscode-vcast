@@ -197,6 +197,23 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(insertBasisPathTestsCommand);
 
+  // Command: vectorcastTestExplorer.insertBasisPathTestsFromEditor////////////////////////////////////////////////////////
+  let insertBasisPathTestsFromEditorCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
+    (args: any) => {
+      if (args) {
+        const testNode = buildTestNodeForFunction (args);
+        if (testNode)
+          insertBasisPathTests(testNode);
+        else
+          vscode.window.showErrorMessage(
+            `Unable to create Basis Path Tests for function at line ${args.lineNumber}`
+          );
+      }
+    }
+  );
+  context.subscriptions.push(insertBasisPathTestsFromEditorCommand);
+
   // Command: vectorcastTestExplorer.insertATGTests////////////////////////////////////////////////////////
   let insertATGTestsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.insertATGTests",
@@ -209,11 +226,27 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(insertATGTestsCommand);
 
+  // Command: vectorcastTestExplorer.insertATGTestsFromEditor////////////////////////////////////////////////////////
+  let insertATGTestsFromEditorCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.insertATGTestsFromEditor",
+    (args: any) => {
+      if (args) {
+        const testNode = buildTestNodeForFunction (args);
+        if (testNode)
+          insertATGTests(testNode);
+        else
+          vscode.window.showErrorMessage(
+            `Unable to create ATG Tests for function at line ${args.lineNumber}`
+          );
+      }
+    }
+  );
+  context.subscriptions.push(insertATGTestsFromEditorCommand);
 
-  // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
+  // Command: vectorcastTestExplorer.createTestScriptFromEditor////////////////////////////////////////////////////////
   // This is the callback for right clicks of the source editor flask+ icon
-  let createTestScriptForLineCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.createTestScriptForLine",
+  let createTestScriptFromEditorCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createTestScriptFromEditor",
     (args: any) => {
       if (args) {
         const testNode = buildTestNodeForFunction (args);
@@ -221,12 +254,12 @@ function configureExtension(context: vscode.ExtensionContext) {
           newTestScript(testNode);
         else
           vscode.window.showErrorMessage(
-            `Unable to create test script for line ${args.lineNumber}`
+            `Unable to create test script for function at line ${args.lineNumber}`
           );
       }
     }
   );
-  context.subscriptions.push(createTestScriptForLineCommand);
+  context.subscriptions.push(createTestScriptFromEditorCommand);
 
   // Command: vectorcastTestExplorer.deleteTest ////////////////////////////////////////////////////////
   let deleteTestCommand = vscode.commands.registerCommand(

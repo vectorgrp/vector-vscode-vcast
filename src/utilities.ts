@@ -7,6 +7,7 @@ import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 
 const execSync = require("child_process").execSync;
+const spawn = require("child_process").spawn;
 const fs = require("fs");
 const path = require("path");
 const which = require ("which")
@@ -246,7 +247,7 @@ export function executeVPythonScript(
   let returnData = undefined;
 
   if (commandToRun) {
-    const commandStatus: commandStatusType = executeCommand(
+    const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
       whereToRun
     );
@@ -285,13 +286,51 @@ export function getJsonDataFromTestInterface(
   return returnData;
 }
 
+
 export interface commandStatusType {
   errorCode: number;
   stdout: string;
 }
-export function executeCommand(
+
+
+export function processExceptionFromExecuteCommand (
+  command:string, 
+  error:any, 
+  printErrorDetails:boolean
+  ):commandStatusType {
+
+  // created to make the excuteCommand logic easier to understand
+
+  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+
+  // 99 is a warning, like a mismatch opening the environment
+  if (error && error.status == 99) {
+    commandStatus.stdout = error.stdout.toString();
+    commandStatus.errorCode = 0;
+    vectorMessage(commandStatus.stdout);
+  }
+  else if (error && error.stdout) {
+    commandStatus.stdout = error.stdout.toString();
+    commandStatus.errorCode = error.status;
+    if (printErrorDetails) {
+      vectorMessage("Exception while running command:");
+      vectorMessage(command);
+      vectorMessage(commandStatus.stdout);
+      vectorMessage(error.stderr.toString());
+      openMessagePane();
+    }
+  } else {
+    ("Unexpected error in utilities/processExceptionFromExecuteCommand()");
+  }
+
+  return commandStatus;
+
+}
+
+
+export function executeCommandSync(
   commandToRun: string,
-  cwd: string = "",
+  cwd: string,
   printErrorDetails: boolean = true
 ): commandStatusType {
 
@@ -300,34 +339,20 @@ export function executeCommand(
   let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
   try {
     // commandOutput is a buffer: (Uint8Array)
-    if (cwd.length > 0)
-      commandStatus.stdout = execSync(commandToRun, { cwd: cwd })
-        .toString()
-        .trim();
-    else commandStatus.stdout = execSync(commandToRun).toString().trim();
-  } catch (error: any) {
-    // 99 is a warning, like a mismatch opening the environment
-    if (error && error.status == 99) {
-      commandStatus.stdout = error.stdout.toString();
-      commandStatus.errorCode = 0;
-      vectorMessage(commandStatus.stdout);
+    commandStatus.stdout = execSync(commandToRun, { cwd: cwd })
+      .toString()
+      .trim();
+    } 
+  catch (error: any) {
+    commandStatus = 
+      processExceptionFromExecuteCommand (
+        commandToRun,
+        error, 
+        printErrorDetails);
     }
-    else if (error && error.stdout) {
-      commandStatus.stdout = error.stdout.toString();
-      commandStatus.errorCode = error.status;
-      if (printErrorDetails) {
-        vectorMessage("Exception while running command:");
-        vectorMessage(commandToRun);
-        vectorMessage(commandStatus.stdout);
-        vectorMessage(error.stderr.toString());
-        openMessagePane();
-      }
-    } else {
-      ("Undefined error in utilities/executeCommand");
-    }
-  }
   return commandStatus;
 }
+
 
 const os = require("os");
 export function exeFilename(basename: string): string {
@@ -446,9 +471,9 @@ export function checkIfInstallationIsOK() {
   if (findVcastTools()) {
     // check if we have a valid license
     const commandToRun = `${clicastCommandToUse} tools has_license`;
-    let commandStatus: commandStatusType = executeCommand(
+    let commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
-      "",
+      process.cwd(),
       false
     );
     if (commandStatus.errorCode == 0) {

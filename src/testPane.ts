@@ -51,7 +51,7 @@ import {
 
 import {
   commandStatusType,
-  executeCommand,
+  executeCommandSync,
   loadLaunchFile,
   addLaunchConfiguration,
 } from "./utilities";
@@ -614,10 +614,10 @@ async function debugNode(
         pathToEnviroBeingDebugged = enviroPath;
 
         // disable coverage
-        // we need to wait for this to complete, so we use executeCommand
+        // we need to wait for this to complete, so we use executeCommandSync
         vectorMessage(`   - disabling coverage for environment ... `);
         const enviroArg = "-e " + getEnviroNameFromID(node.id);
-        executeCommand(
+        executeCommandSync(
           `${clicastCommandToUse} ${enviroArg} tools coverage disable `,
           path.dirname(enviroPath)
         );
@@ -664,7 +664,7 @@ async function debugNode(
         );
 
         // we need this because we don't want to leave cover disabled
-        executeCommand(
+        executeCommandSync(
           `${clicastCommandToUse} ${enviroArg} tools coverage enable`,
           path.dirname(enviroPath)
         );
@@ -847,7 +847,7 @@ export async function deleteTests(nodeList: any[]) {
       const commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
         testNode
       )} test delete`;
-      let commandStatus: commandStatusType = executeCommand(
+      let commandStatus: commandStatusType = executeCommandSync(
         commandToRun,
         path.dirname(testNode.enviroPath)
       );
@@ -866,7 +866,6 @@ export async function insertBasisPathTests(testNode: testNodeType) {
   // this will insert basis path tests for the given test node
     
   generateAndLoadBasisPathTests (testNode);
-  updateTestPane(testNode.enviroPath);
   
 }
 

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import {
+  openMessagePane,
   vectorMessage,
 } from "./messagePane";
 
@@ -10,11 +11,20 @@ import {
 } from "./testData";
 
 import {
-  executeCommand,
+  updateTestPane,
+} from "./testPane";
+
+import {
+  commandStatusType,
+  executeCommandSync,
   exeFilename,
+  processExceptionFromExecuteCommand,
 } from "./utilities";
 
-import { getClicastArgsFromTestNode } from "./vcastTestInterface";
+import { 
+  getClicastArgsFromTestNode,
+  getClicastArgsFromTestNodeAsList,
+} from "./vcastTestInterface";
 
 
 const fs = require("fs");
@@ -47,7 +57,7 @@ function checkForATG (vcastInstallationPath: string) {
     const commandToRun: string = `${candidateCommand} --help`;
 
     // cwd="" printErrorDetails=false
-    const commandStatus = executeCommand(commandToRun, "", false);
+    const commandStatus = executeCommandSync(commandToRun, process.cwd(), false);
     if (commandStatus.errorCode == 0) {
       statusMessageText += ", license is available";
       atgCommandToUse = candidateCommand;
@@ -123,6 +133,7 @@ function convertTestScriptContents(scriptPath: string) {
   fs.writeFileSync(scriptPath, modifiedContent, "utf8");
 }
 
+
 export async function openTestScript(nodeID: string) {
   // this can get called for a unit, environment, function, or test
 
@@ -134,7 +145,7 @@ export async function openTestScript(nodeID: string) {
   let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
     testNode
   )} test script create ${scriptPath}`;
-  const commandStatus = executeCommand(commandToRun, enclosingDirectory);
+  const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
   if (commandStatus.errorCode == 0) {
     // Improvement needed:
     // It would be nice if vcast generated the scripts with TEST.REPLACE, but for now
@@ -194,11 +205,11 @@ export async function loadScriptIntoEnvironment(enviroName:string, scriptPath:st
 
     const enviroArg = `-e${enviroName}`;
     let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
-    const commandStatus = executeCommand(
+    const commandStatus = executeCommandSync(
       commandToRun,
       path.dirname(scriptPath)
     );
-    // if the script load fails, executeCommand will open the message pane ...
+    // if the script load fails, executeCommandSync will open the message pane ...
     // if the load passes, we want to give the user an indication that it worked
     if (commandStatus.errorCode == 0) {
       vectorMessage("Script loaded successfully ...");
@@ -224,18 +235,25 @@ export function generateAndLoadBasisPathTests (testNode:testNodeType) {
   vectorMessage ("Generating basis path test cases to script file ...");
   // ignore the testName (if any)
   testNode.testName = "";
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-    testNode)} tool auto_test ${tempScriptPath}`;
-  const commandStatus = executeCommand(commandToRun, enclosingDirectory);
-  if (commandStatus.errorCode == 0) {
-    vectorMessage("Loading basis path tests into VectorCAST ...");
-    loadScriptIntoEnvironment(testNode.enviroName, tempScriptPath);
-    fs.unlinkSync(tempScriptPath);  
-  }
-  else {
-    vscode.window.showInformationMessage(`Error generating basis path tests, see log for details`);
-    vectorMessage (commandStatus.stdout);
-  }
+
+  // executeClicastWithProgress() uses spawn() which needs the args as a list
+  let argList: string[] = [];
+  argList.push (`${clicastCommandToUse}`);
+  argList = argList.concat (getClicastArgsFromTestNodeAsList(testNode));
+  argList = argList.concat (["tool", "auto_test", `${tempScriptPath}`]);
+
+  // Since it can be slow to generate basis path tests, we use a progress dialog
+  // and since we don't want to show all of the stdout messages, we use a 
+  // regex filter for what to show
+  const messageFilter = /.*Generating test cases for.*/;
+
+  executeClicastWithProgress(
+    "",
+    argList, 
+    testNode.enviroName, 
+    tempScriptPath, 
+    messageFilter, 
+    loadScriptCallBack);
 }
 
 
@@ -257,19 +275,46 @@ export function generateAndLoadATGTests (testNode:testNodeType) {
   vectorMessage ("Generating basis path test cases to script file ...");
   // ignore the testName (if any)
   testNode.testName = "";
-  let commandToRun: string = `${atgCommandToUse} ${getClicastArgsFromTestNode(testNode)}  ${tempScriptPath}`;
-  const commandStatus = executeCommand(commandToRun, enclosingDirectory);
+
+  // executeClicastWithProgress() uses spawn() which needs the args as a list
+  let argList: string[] = [];
+  argList.push (`${atgCommandToUse}`);
+  argList = argList.concat (getClicastArgsFromTestNodeAsList(testNode));
+  argList.push (`${tempScriptPath}`);
+
+  // Since it can be slow to generate ATG tests, we use a progress dialog
+  // and since we don't want to show all of the stdout messages, we use a 
+  // regex filter for what to show
+  const messageFilter = /\[Subprogram:.*\]/;
+
+  executeClicastWithProgress(
+    "",
+    argList, 
+    testNode.enviroName, 
+    tempScriptPath, 
+    messageFilter, 
+    loadScriptCallBack);
+
+  }
+
+
+export function loadScriptCallBack (commandStatus:commandStatusType, enviroName:string, scriptPath:string) {
+  // This is the callback that should be passed to executeClicastWithProgress() when
+  // we are computing basis path or ATG tests
+
   if (commandStatus.errorCode == 0) {
-    vectorMessage("Loading basis ATG into VectorCAST ...");
-    loadScriptIntoEnvironment(testNode.enviroName, tempScriptPath);
-    fs.unlinkSync(tempScriptPath);  
+    vectorMessage("Loading tests into VectorCAST ...");
+    loadScriptIntoEnvironment(enviroName, scriptPath);
+    const enviroPath = path.join (path.dirname (scriptPath), enviroName);
+    updateTestPane(enviroPath);
+    fs.unlinkSync(scriptPath);  
   }
   else {
-    vscode.window.showInformationMessage(`Error generating ATG tests, see log for details`);
+    vscode.window.showInformationMessage(`Error generating tests, see log for details`);
     vectorMessage (commandStatus.stdout);
+    openMessagePane();
   }
 }
-
 
 export function executeClicastCommand(
   argList: string[],
@@ -314,5 +359,90 @@ export function executeClicastCommand(
     );
     vectorMessage("-".repeat(100));
     if (callback) callback(enviroPath, code);
+  });
+}
+
+
+function customTrim (str:string):string {
+  // remove trailing \n if it exists.
+  // I know I could use a regex but this is more clear :)
+  if (str.endsWith ("\n"))
+    return str.slice (0, str.length-1);
+  else
+    return str;
+}
+
+
+export function executeClicastWithProgress (
+  title: string,
+  commandAndArgs: string[],
+  enviroName: string,
+  testScriptPath: string,
+  filter: RegExp,
+  callback: any
+  ) {
+
+  // very similar to the previous function, but adds a progress dialog,
+  // and a different callback structure.
+  // We use this for generating the basis path and ATG tests (for now)
+
+  vectorMessage (`Executing command: ${commandAndArgs.join (" ")}`);
+  let commandStatus:commandStatusType = { errorCode: 0, stdout: "" };
+
+  const cwd =  path.dirname(testScriptPath);
+  const command = commandAndArgs[0];
+  const args = commandAndArgs.slice(1,commandAndArgs.length);
+
+  vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: title,
+      cancellable: false,
+    },
+    async (progress) => {
+  
+      return new Promise (async (resolve, reject) => {
+
+        // shell is needed so that stdout is NOT buffered
+        const commandHandle = spawn(command, args, { cwd: cwd, shell: true });
+
+        commandHandle.stdout.on("data", async (data: any) => {
+          // convert to a string and remove any triling CR
+          const message = customTrim(data.toString());
+          vectorMessage(message);
+          // for the dialog, we want use the filter to decide what to show
+          // and this requires the message data to be split into single lines
+          const lineArray = message.split ("\n");
+          for (const line of lineArray) {
+            const matched = line.match (filter);
+            if (matched && matched.length > 0) {
+              progress.report({ message: matched[0], increment:10 });
+              // This is needed to allow the message window to update ...
+              await new Promise<void>((r) => setTimeout(r, 0));
+            }
+          }
+        });
+      
+        commandHandle.stderr.on("data", async (data: any) => {
+          // convert to a string and remove any trailing CR
+          const message = customTrim(data.toString(data));
+          vectorMessage(message);
+        });
+      
+        commandHandle.on("error", (error: any) => {
+          commandStatus = 
+            processExceptionFromExecuteCommand (
+              commandAndArgs.join (" "),
+              error, 
+              true);
+        });
+        commandHandle.on("close", (code: any) => {
+          commandStatus.errorCode = code;
+          resolve (code);
+          callback (commandStatus, enviroName, testScriptPath);
+        });
+      
+      }
+    );
   });
 }

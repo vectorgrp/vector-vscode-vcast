@@ -103,10 +103,25 @@ The right click menu for unit, function, and test nodes has a VectorCAST sub-men
 - Delete Test - deletes the selected test
 - View Test Results - displays the latest Test Execution Report
 
-### Creating a New Test
+### The "Flask+" icon
+
+Special "Flask+" icons are displayed in the margin of the text editor for all VectorCAST
+testable functions.  This right click menu provides the ability to create a new test script, or
+generate Basis Path or ATG tests for a single function.
+
+### Creating a New Test Script
 
 To create a new test, right click on a unit or function node and choose: "New Test Script"
-from the VectorCAST right-click context menu
+from the VectorCAST right-click context menu, or right clicking on the "flask+" icon, and 
+choose: "New Test Script"
+
+### Auto-generated Test Cases
+
+To insert Basis Path or ATG test cases for an environment, unit, or function, click on the 
+appropriate node, and choose: "Insert Basis Path Tests" or "Insert ATG Tests", or right click 
+the "flask+" icon and choose "Generate Basis Path Tests" or "Generate ATG Tests".
+
+In both cases, a progress dialog will be display as the test cases are computed.
 
 ### Editing an Existing Test
 
