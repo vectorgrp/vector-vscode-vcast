@@ -48,7 +48,7 @@ export let atgAvailable:boolean = false;
 function vectorCASTSupportsATG (vcastInstallationPath:string):boolean {
 
   // Version of VectorCAST between 23sp0 and 23sp3 had ATG but since
-  // we changed the ATG command line interface with 23sp4, we have decided
+  // we changed the ATG command line interface with 23sp5, we have decided
   // to only support versions greater than that.
 
   let returnValue = false;
@@ -60,7 +60,7 @@ function vectorCASTSupportsATG (vcastInstallationPath:string):boolean {
   if (matched) {
     const version = parseInt (matched[1]);
     const servicePack = parseInt (matched[2]);
-    if (version > 23 || (version == 23 && servicePack >= 4))
+    if (version > 23 || (version == 23 && servicePack >= 5))
       returnValue = true;
   }
   // this allows us to work with development builds for internal testing
