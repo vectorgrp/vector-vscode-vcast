@@ -255,6 +255,9 @@ export async function loadScriptIntoEnvironment(enviroName:string, scriptPath:st
       // Maybe this will be annoying to users, but I think
       // it's good to know when the load is complete.
       vscode.window.showInformationMessage(`Test script loaded successfully`);
+
+      // this API allows a timeout for the message, but I think its too subtle
+      //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
     }
   }
 
