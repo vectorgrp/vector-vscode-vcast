@@ -322,6 +322,15 @@ export function generateAndLoadATGTests (testNode:testNodeType) {
   let argList: string[] = [];
   argList.push (`${atgCommandToUse}`);
   argList = argList.concat (getClicastArgsFromTestNodeAsList(testNode));
+
+  // -F tells atg to NOT use regex for the -s (sub-program) option
+  // since we always use the "full" sub-program name, we always set -F
+  argList.push ("-F");
+
+  // if we are using over-loaded syntax, then we need to add the -P (parameterized) option
+  if (testNode.functionName.includes ("(")) {
+    argList.push ("-P");
+    }
   argList.push (`${tempScriptPath}`);
 
   // Since it can be slow to generate ATG tests, we use a progress dialog
@@ -338,7 +347,6 @@ export function generateAndLoadATGTests (testNode:testNodeType) {
     loadScriptCallBack);
 
   }
-
 
 export function loadScriptCallBack (commandStatus:commandStatusType, enviroName:string, scriptPath:string) {
   // This is the callback that should be passed to executeClicastWithProgress() when
