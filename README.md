@@ -123,7 +123,7 @@ the "flask+" icon and choose "Generate Basis Path Tests" or "Generate ATG Tests"
 
 In both cases, a progress dialog will be display as the test cases are computed.
 
-Note that the "ATG tests" menu is only available if you are using version of VectorCAST 23sp4 and higher.
+Note that the "ATG tests" menu is only available if you are using version of VectorCAST 23sp5 and higher.
 
 ### Editing an Existing Test
 
