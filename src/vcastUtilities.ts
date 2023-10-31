@@ -95,7 +95,7 @@ function checkForATG (vcastInstallationPath: string) {
     // now check if its licensed ... just atg --help and check the exit code
     const commandToRun: string = `${candidateCommand} --help`;
 
-    // cwd="" printErrorDetails=false
+    // cwd=working dir for this process /  printErrorDetails=false
     const commandStatus = executeCommandSync(commandToRun, process.cwd(), false);
     if (commandStatus.errorCode == 0) {
       statusMessageText += ", license is available";
@@ -107,7 +107,7 @@ function checkForATG (vcastInstallationPath: string) {
     vectorMessage(statusMessageText);
     atgAvailable = atgCommandToUse != undefined && vectorCASTSupportsATG(vcastInstallationPath);
 
-    // this value controls the existance of the atg command in the context menu
+    // atgAvailabel is used by package.json to control the existance of the atg command in the context menus
     vscode.commands.executeCommand(
       "setContext",
       "vectorcastTestExplorer.atgAvailable",
@@ -136,7 +136,7 @@ export function initializeVcastUtilities(vcastInstallationPath: string) {
     if (fs.existsSync(vcastCommandtoUse)) {
       vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
 
-      // we only set toolsFound if we find clicast AND vcadstqt 
+      // we only set toolsFound if we find clicast AND vcastqt 
       toolsFound = true;
 
       // atg existing or being licensed does NOT affect toolsFound
@@ -268,7 +268,7 @@ export function generateAndLoadBasisPathTests (testNode:testNodeType) {
   //  - Call loadScriptIntoEnvironment() to do the actual load
   // 
   // Other Points:
-  //   - Use a temporary filename and ensure we deleted it.
+  //   - Use a temporary filename and ensure we delete it
    
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const timeStamp = Date.now().toString();
@@ -304,10 +304,9 @@ export function generateAndLoadATGTests (testNode:testNodeType) {
   // In all caeses, we need to do the following:
   //  - Call atg <-e -u -s options> temp.tst  [creates tests]
   //  - Call loadScriptIntoEnvironment() to do the actual load
-  // Must use a temporary filename and ensure we deleted it.
 
   // Other points:
-  //   - Use a temporary filename and ensure we deleted it.
+  //   - Use a temporary filename and ensure we delete it.
   //   - ATG can be slowish, so we need a status dialog
 
   const enclosingDirectory = path.dirname(testNode.enviroPath);
