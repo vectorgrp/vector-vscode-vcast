@@ -231,6 +231,69 @@ import {
       await validateTestDeletionForEnv(envName)
       
     });
+
+    it("should generate tests by clicking on flask+ icon", async () => {
+      await updateTestID();
+      
+      const activityBar = workbench.getActivityBar();
+      const explorerView = await activityBar.getViewControl("Explorer");
+      const explorerSideBarView = await explorerView?.openView();
+
+      const workspaceFolderName = "vcastTutorial";
+      const workspaceFolderSection = await explorerSideBarView
+        .getContent()
+        .getSection(workspaceFolderName.toUpperCase());
+      console.log(await workspaceFolderSection.getTitle());
+      await workspaceFolderSection.expand();
+
+      const managerCpp = workspaceFolderSection.findItem("database.cpp");
+      await (await managerCpp).select();
+
+      editorView = workbench.getEditorView();
+      const tab = (await editorView.openEditor("database.cpp")) as TextEditor;
+      
+      await tab.moveCursor(10, 1);
+     
+      let lineNumberElement = await $(".line-numbers=10");
+      let flaskElement = await (
+        await lineNumberElement.parentElement()
+      ).$(".cgmr.codicon");
+      let backgroundImageCSS = await flaskElement.getCSSProperty(
+        "background-image",
+      );
+      let backgroundImageURL = backgroundImageCSS.value;
+      const BEAKER = "/beaker-plus"
+      expect(backgroundImageURL.includes(BEAKER)).toBe(true);
+      await flaskElement.click({button:2})
+
+      await (await $("aria/VectorCAST")).click();
+      await (await $("aria/Generate Basis Path Tests")).click();
+      
+
+    });
+
+    it("validate generated flask+ icon tests", async () => {
+      await updateTestID();
+      let subprogram: TreeItem = undefined;
+      const vcastTestingViewContent = await getViewContent("Testing");
+      const unitName = "database"
+      for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+        await vcastTestingViewSection.expand()
+        subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+        if (subprogram){
+          console.log(`found ${subprogram}`)
+          const testHandle = await getTestHandle(subprogram, "DataBase::GetTableRecord", "BASIS-PATH-001", 1)
+          expect(testHandle).not.toBe(undefined)
+          const expectedTestCode = expectedBasisPathTests["cpp/unitTests/DATABASE-MANAGER"].database["DataBase::GetTableRecord"]["BASIS-PATH-001"]
+          await validateGeneratedTest(testHandle, expectedTestCode)
+          break;
+        }
+      }
+      if (!subprogram){
+        throw `Subprogram ${unitName} not found`
+      }
+
+    });
     
   });
   

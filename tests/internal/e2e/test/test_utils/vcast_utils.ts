@@ -300,6 +300,8 @@ export async function validateGeneratedTest(testHandle:TreeItem, epxectedTestCod
     "DATABASE-MANAGER.tst",
   )) as TextEditor;
   
+  await browser.takeScreenshot()
+  await browser.saveScreenshot("new.png")
   const fullGenTstScript = await tab.getText();
   await editorView.closeAllEditors()
   const idx = fullGenTstScript.indexOf(epxectedTestCode)
@@ -358,15 +360,20 @@ export async function validateTestDeletionForEnv(envName:string){
         await subprogramGroup.expand()
         await expandAllSubprogramsFor(subprogramGroup);
         for (const unit of await subprogramGroup.getChildren()) {
+          console.log(`Unit: ${await unit.getTooltip()}`) 
           for (const method of await unit.getChildren()) {
-            console.log(await method.getTooltip()) 
-            await browser.waitUntil(
-              async () =>
-                (await method.getChildren()).length === 0,
-            ); 
+            const methodName = await method.getTooltip()
+            console.log(`Method: ${methodName}`) 
+            // this is flaky, it sometimes takes manager as Child element
+            if (methodName.includes("::")){
+              await browser.waitUntil(
+                async () =>
+                  (await method.getChildren()).length === 0,
+              ); 
+            }
           }
         }
-        break;
+        
       }
     }
 
