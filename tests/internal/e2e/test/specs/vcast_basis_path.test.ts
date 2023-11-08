@@ -183,20 +183,20 @@ import {
       
       const vcastTestingViewContent = await getViewContent("Testing");
 
-      for (const [env,subprograms] of Object.entries(expectedBasisPathTests)) {
-        for (const [subprogramName, units] of Object.entries(subprograms)) {
-          for (const [unitName,tests] of Object.entries(units)) {
+      for (const [env, units] of Object.entries(expectedBasisPathTests)) {
+        for (const [unitName, functions] of Object.entries(units)) {
+          for (const [functionName,tests] of Object.entries(functions)) {
             for (const [testName, expectedTestCode] of Object.entries(tests)) {
-              console.log(`Expected Test ${env}:${subprogramName}:${unitName}:${testName}`);
+              console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
               let subprogram: TreeItem = undefined;
               let testHandle: TreeItem = undefined;
               for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-                subprogram = await findSubprogram(subprogramName, vcastTestingViewSection);
+                subprogram = await findSubprogram(unitName, vcastTestingViewSection);
                 if (subprogram) {
                   await subprogram.expand();
                   testHandle = await getTestHandle(
                     subprogram,
-                    unitName,
+                    functionName,
                     testName,
                     Object.entries(tests).length,
                   );
@@ -204,13 +204,13 @@ import {
                     await validateGeneratedTest(testHandle, expectedTestCode)
                     break;
                   } else {
-                    throw `Test handle not found for ${env}:${subprogramName}:${unitName}:${testName}`;
+                    throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
                   }
                 }
               }
 
               if (!subprogram) {
-                throw `Subprogram ${subprogramName} not found`;
+                throw `Subprogram ${unitName} not found`;
               }
             }
           }
@@ -220,7 +220,6 @@ import {
       }
       
     });
-  
     
   });
   
