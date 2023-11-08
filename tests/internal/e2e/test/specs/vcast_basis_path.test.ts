@@ -27,7 +27,9 @@ import {
     expandAllSubprogramsFor,
     generateAllTestsForEnv,
     testGenMethod,
-    validateGeneratedTest
+    validateGeneratedTest,
+    deleteAllTestsForEnv,
+    validateTestDeletionForEnv
   } from "../test_utils/vcast_utils";
   
   import { exec } from "child_process";
@@ -218,6 +220,15 @@ import {
         }
         
       }
+      
+    });
+
+    it("should correctly delete all tests for the environment", async () => {
+      await updateTestID();
+      
+      const envName = "cpp/unitTests/DATABASE-MANAGER"
+      await deleteAllTestsForEnv(envName);
+      await validateTestDeletionForEnv(envName)
       
     });
     

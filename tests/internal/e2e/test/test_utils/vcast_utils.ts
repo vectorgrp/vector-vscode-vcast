@@ -253,7 +253,8 @@ export async function generateAllTestsForEnv(envName:string, testGenMethod:strin
   
       const subprogramGroup = visibleItem as CustomTreeItem;
       await expandAllSubprogramsFor(subprogramGroup);
-      if ((await subprogramGroup.getTooltip()).includes("cpp/unitTests/DATABASE-MANAGER")){
+      if ((await subprogramGroup.getTooltip()).includes(envName)){
+        await subprogramGroup.expand()
         const ctxMenu = await subprogramGroup.openContextMenu()
         await ctxMenu.select("VectorCAST")
         await (await $(`aria/${menuItemLabel}`)).click();
@@ -309,5 +310,65 @@ export async function validateGeneratedTest(testHandle:TreeItem, epxectedTestCod
   else{
     // we want to see the diff here
     expect(fullGenTstScript.trimEnd()).toBe(epxectedTestCode.trimEnd())
+  }
+}
+
+export async function deleteAllTestsForEnv(envName:string){
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+  
+      const subprogramGroup = visibleItem as CustomTreeItem;
+      if ( (await subprogramGroup.getTooltip()).includes(envName)){
+        await subprogramGroup.expand()
+        const menuItemLabel = "Delete Tests"
+        const ctxMenu = await subprogramGroup.openContextMenu()
+        await ctxMenu.select("VectorCAST")
+        await (await $(`aria/${menuItemLabel}`)).click();
+
+        const vcastNotifSourceElem = await $(
+          "aria/VectorCAST Test Explorer (Extension)",
+        );
+        const vcastNotification = await vcastNotifSourceElem.$("..");
+        await (await vcastNotification.$("aria/Delete")).click();
+
+        break
+      }
+      
+    }
+
+  }
+}
+
+export async function validateTestDeletionForEnv(envName:string){
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+      
+      const subprogramGroup = visibleItem as CustomTreeItem;
+   
+      if ((await subprogramGroup.getTooltip()).includes(envName)){
+        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+        await subprogramGroup.expand()
+        await expandAllSubprogramsFor(subprogramGroup);
+        for (const unit of await subprogramGroup.getChildren()) {
+          for (const method of await unit.getChildren()) {
+            console.log(await method.getTooltip()) 
+            await browser.waitUntil(
+              async () =>
+                (await method.getChildren()).length === 0,
+            ); 
+          }
+        }
+        break;
+      }
+    }
+
   }
 }
