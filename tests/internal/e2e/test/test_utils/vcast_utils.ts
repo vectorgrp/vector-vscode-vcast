@@ -236,3 +236,45 @@ export async function editTestScriptFor(
       testEnvironmentName + ".tst",
   );
 }
+
+export enum testGenMethod {
+  BasisPath = "Basis Path",
+  ATG = "ATG"
+};
+
+export async function generateAllTestsForEnv(envName:string, testGenMethod:string){
+  const menuItemLabel = `Insert ${testGenMethod} Tests`
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+  
+      const subprogramGroup = visibleItem as CustomTreeItem;
+      await expandAllSubprogramsFor(subprogramGroup);
+      if ((await subprogramGroup.getTooltip()).includes("cpp/unitTests/DATABASE-MANAGER")){
+        const ctxMenu = await subprogramGroup.openContextMenu()
+        await ctxMenu.select("VectorCAST")
+        await (await $(`aria/${menuItemLabel}`)).click();
+
+        const workbench = await browser.getWorkbench();
+        const bottomBar = workbench.getBottomBar()
+        await browser.waitUntil(async () =>
+          (await (await bottomBar.openOutputView()).getText()).includes(
+            "test explorer  [info]      Summary of automatic test case generation:",
+          ),
+        );
+
+        await browser.waitUntil(async () =>
+          (await (await bottomBar.openOutputView()).getText()).includes(
+            "test explorer  [info]  Script loaded successfully ...",
+          ),
+        );
+
+        break
+      }
+    }
+
+  }
+}

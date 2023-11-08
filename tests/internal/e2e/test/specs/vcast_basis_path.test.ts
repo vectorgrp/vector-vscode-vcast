@@ -24,7 +24,9 @@ import {
     editTestScriptFor,
     deleteTest,
     updateTestID,
-    expandAllSubprogramsFor
+    expandAllSubprogramsFor,
+    generateAllTestsForEnv,
+    testGenMethod
   } from "../test_utils/vcast_utils";
   
   import { exec } from "child_process";
@@ -174,32 +176,12 @@ import {
   
     it("should generate all tests for the environment", async () => {
       await updateTestID();
-      console.log("Opening Testing View");
-      const method = "Basis Path" // will be read from env var
-      const menuItemLabel = `Insert ${method} Tests`
+      
+      const envName = "cpp/unitTests/DATABASE-MANAGER"
+      await generateAllTestsForEnv(envName, testGenMethod.BasisPath)
+      
       const vcastTestingViewContent = await getViewContent("Testing");
-      
-      
-      // generate all tests for environment
-      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
-        
-        for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
-          await visibleItem.select();
-      
-          const subprogramGroup = visibleItem as CustomTreeItem;
-          await expandAllSubprogramsFor(subprogramGroup);
-          if ((await subprogramGroup.getTooltip()).includes("cpp/unitTests/DATABASE-MANAGER")){
-            const ctxMenu = await subprogramGroup.openContextMenu()
-            await ctxMenu.select("VectorCAST")
-            await (await $(`aria/${menuItemLabel}`)).click();
-            break
-          }
-        }
-  
-      }
 
-      let expectedTests = await JSON.parse((await fs.readFile("/home/igor/vscode_vcast/vector-vscode-vcast/tests/internal/e2e/test/basis_path_tests.json")).toString())
-      
       for (const [env,subprograms] of Object.entries(expectedBasisPathTests)) {
         for (const [subprogramName, units] of Object.entries(subprograms)) {
           for (const [unitName,tests] of Object.entries(units)) {
