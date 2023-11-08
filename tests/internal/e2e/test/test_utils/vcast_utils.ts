@@ -278,3 +278,36 @@ export async function generateAllTestsForEnv(envName:string, testGenMethod:strin
 
   }
 }
+
+export async function validateGeneratedTest(testHandle:TreeItem, epxectedTestCode: string){
+  await testHandle.select();
+  const ctxMenu = await testHandle.openContextMenu()
+  await browser.takeScreenshot()
+  await browser.saveScreenshot("context menu.png")
+  await ctxMenu.select("VectorCAST");
+  const menuElem = await $("aria/Edit Test Script");
+  await menuElem.click();
+
+  const workbench = await browser.getWorkbench();
+  const editorView = workbench.getEditorView();
+  await browser.waitUntil(
+    async () =>
+      (await (await editorView.getActiveTab()).getTitle()) ===
+      "DATABASE-MANAGER.tst",
+  );
+  const tab = (await editorView.openEditor(
+    "DATABASE-MANAGER.tst",
+  )) as TextEditor;
+  
+  const fullGenTstScript = await tab.getText();
+  await editorView.closeAllEditors()
+  const idx = fullGenTstScript.indexOf(epxectedTestCode)
+
+  if (idx > -1){
+    expect(fullGenTstScript.substring(idx).trimEnd()).toBe(epxectedTestCode.trimEnd())
+  }
+  else{
+    // we want to see the diff here
+    expect(fullGenTstScript.trimEnd()).toBe(epxectedTestCode.trimEnd())
+  }
+}

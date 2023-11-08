@@ -26,7 +26,8 @@ import {
     updateTestID,
     expandAllSubprogramsFor,
     generateAllTestsForEnv,
-    testGenMethod
+    testGenMethod,
+    validateGeneratedTest
   } from "../test_utils/vcast_utils";
   
   import { exec } from "child_process";
@@ -174,7 +175,7 @@ import {
       await (await $(".codicon-notifications-clear-all")).click();
     });
   
-    it("should generate all tests for the environment", async () => {
+    it("should correctly generate all tests for the environment", async () => {
       await updateTestID();
       
       const envName = "cpp/unitTests/DATABASE-MANAGER"
@@ -185,7 +186,8 @@ import {
       for (const [env,subprograms] of Object.entries(expectedBasisPathTests)) {
         for (const [subprogramName, units] of Object.entries(subprograms)) {
           for (const [unitName,tests] of Object.entries(units)) {
-            for (const [testName, testCode] of Object.entries(tests)) {
+            for (const [testName, expectedTestCode] of Object.entries(tests)) {
+              console.log(`Expected Test ${env}:${subprogramName}:${unitName}:${testName}`);
               let subprogram: TreeItem = undefined;
               let testHandle: TreeItem = undefined;
               for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
@@ -199,37 +201,7 @@ import {
                     Object.entries(tests).length,
                   );
                   if (testHandle) {
-                    await testHandle.select();
-                    const ctxMenu = await testHandle.openContextMenu()
-                    await browser.takeScreenshot()
-                    await browser.saveScreenshot("context menu.png")
-                    await ctxMenu.select("VectorCAST");
-                    const menuElem = await $("aria/Edit Test Script");
-                    await menuElem.click();
-                  
-                    const workbench = await browser.getWorkbench();
-                    const editorView = workbench.getEditorView();
-                    await browser.waitUntil(
-                      async () =>
-                        (await (await editorView.getActiveTab()).getTitle()) ===
-                        "DATABASE-MANAGER.tst",
-                    );
-                    const tab = (await editorView.openEditor(
-                      "DATABASE-MANAGER.tst",
-                    )) as TextEditor;
-                    
-                    console.log(`Test ${env}:${subprogramName}:${unitName}:${testName}`);
-                    const fullGenTstScript = await tab.getText();
-                    await editorView.closeAllEditors()
-                    const idx = fullGenTstScript.indexOf(testCode)
-
-                    if (idx > -1){
-                      expect(fullGenTstScript.substring(idx).trimEnd()).toBe(testCode.trimEnd())
-                    }
-                    else{
-                      // we want to see the diff here
-                      expect(fullGenTstScript.trimEnd()).toBe(testCode.trimEnd())
-                    }
+                    await validateGeneratedTest(testHandle, expectedTestCode)
                     break;
                   } else {
                     throw `Test handle not found for ${env}:${subprogramName}:${unitName}:${testName}`;
@@ -246,8 +218,6 @@ import {
         }
         
       }
-
-
       
     });
   
