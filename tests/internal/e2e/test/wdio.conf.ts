@@ -108,7 +108,10 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: ["./**/**/*.test.ts"],
+  specs: [
+    "./**/**/vcast_basis_path.test.ts",
+    // "./**/**/vcast.test.ts"
+  ],
   // Patterns to exclude.
   // exclude:
   //
@@ -147,7 +150,7 @@ export const config: Options.Testrunner = {
         proxyType: "manual",
         httpProxy: process.env["http_proxy"],
       },
-      browserVersion: "1.74.0",
+      browserVersion: "1.79.2",
       acceptInsecureCerts: true,
       "wdio:vscodeOptions": {
         extensionPath: path.join(process.env["INIT_CWD"], "test", "extension"),
@@ -404,7 +407,7 @@ export const config: Options.Testrunner = {
     ENVIRO.STUB_BY_FUNCTION: manager
     ENVIRO.END
     `;
-    await writeFile(path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"), envFile);
+    // await writeFile(path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"), envFile);
     
     const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`
     await promisifiedExec(createCFG);

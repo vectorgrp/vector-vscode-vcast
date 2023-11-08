@@ -429,7 +429,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await tab.moveCursor(
       currentLine,
-      "TEST.VALUE:manager.Manager::PlaceOrder.Seat:1".length,
+      "TEST.VALUE:manager.Manager::PlaceOrder.Seat:1".length + 1,
     );
     await browser.keys([Key.Enter]);
     currentLine += 1;
