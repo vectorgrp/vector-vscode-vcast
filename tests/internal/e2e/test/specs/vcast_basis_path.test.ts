@@ -27,9 +27,12 @@ import {
     expandAllSubprogramsFor,
     generateAllTestsForEnv,
     testGenMethod,
-    validateGeneratedTest,
+    validateGeneratedTestScriptContent,
     deleteAllTestsForEnv,
-    validateTestDeletionForEnv
+    validateTestDeletionForEnv,
+    generateAndValidateAllTestsFor,
+    generateFlaskIconTestsFor,
+    validateGeneratedTest
   } from "../test_utils/vcast_utils";
   
   import { exec } from "child_process";
@@ -37,6 +40,7 @@ import {
   import fs from 'fs/promises'
 
   import expectedBasisPathTests from "../basis_path_tests.json"
+import { env } from "process";
   const promisifiedExec = promisify(exec);
   describe("vTypeCheck VS Code Extension", () => {
     let bottomBar: BottomBarPanel;
@@ -177,123 +181,51 @@ import {
       await (await $(".codicon-notifications-clear-all")).click();
     });
   
-    it("should correctly generate all tests for the environment", async () => {
+    it("should correctly generate all BASIS PATH tests for the environment", async () => {
       await updateTestID();
-      
       const envName = "cpp/unitTests/DATABASE-MANAGER"
-      await generateAllTestsForEnv(envName, testGenMethod.BasisPath)
-      
-      const vcastTestingViewContent = await getViewContent("Testing");
-
-      for (const [env, units] of Object.entries(expectedBasisPathTests)) {
-        for (const [unitName, functions] of Object.entries(units)) {
-          for (const [functionName,tests] of Object.entries(functions)) {
-            for (const [testName, expectedTestCode] of Object.entries(tests)) {
-              console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
-              let subprogram: TreeItem = undefined;
-              let testHandle: TreeItem = undefined;
-              for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-                subprogram = await findSubprogram(unitName, vcastTestingViewSection);
-                if (subprogram) {
-                  await subprogram.expand();
-                  testHandle = await getTestHandle(
-                    subprogram,
-                    functionName,
-                    testName,
-                    Object.entries(tests).length,
-                  );
-                  if (testHandle) {
-                    await validateGeneratedTest(testHandle, expectedTestCode)
-                    break;
-                  } else {
-                    throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
-                  }
-                }
-              }
-
-              if (!subprogram) {
-                throw `Subprogram ${unitName} not found`;
-              }
-            }
-          }
-          
-        }
-        
-      }
-      
+      await generateAndValidateAllTestsFor(envName,testGenMethod.BasisPath)
+  
     });
 
-    it("should correctly delete all tests for the environment", async () => {
+    it("should correctly delete all BASIS PATH tests for the environment", async () => {
       await updateTestID();
       
       const envName = "cpp/unitTests/DATABASE-MANAGER"
       await deleteAllTestsForEnv(envName);
-      await validateTestDeletionForEnv(envName)
+      await validateTestDeletionForEnv(envName);
       
     });
 
-    it("should generate tests by clicking on flask+ icon", async () => {
+    it("should correctly generate all ATG tests for the environment", async () => {
+      await updateTestID();
+      const envName = "cpp/unitTests/DATABASE-MANAGER"
+      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
+        
+        await generateAndValidateAllTestsFor(envName,testGenMethod.ATG)
+      }
+      else{
+        console.log("Skipping ATG tests")
+      }
+      
+    });
+
+    it("should correctly delete all ATG tests for the environment", async () => {
       await updateTestID();
       
-      const activityBar = workbench.getActivityBar();
-      const explorerView = await activityBar.getViewControl("Explorer");
-      const explorerSideBarView = await explorerView?.openView();
-
-      const workspaceFolderName = "vcastTutorial";
-      const workspaceFolderSection = await explorerSideBarView
-        .getContent()
-        .getSection(workspaceFolderName.toUpperCase());
-      console.log(await workspaceFolderSection.getTitle());
-      await workspaceFolderSection.expand();
-
-      const managerCpp = workspaceFolderSection.findItem("database.cpp");
-      await (await managerCpp).select();
-
-      editorView = workbench.getEditorView();
-      const tab = (await editorView.openEditor("database.cpp")) as TextEditor;
+      const envName = "cpp/unitTests/DATABASE-MANAGER"
+      await deleteAllTestsForEnv(envName);
+      await validateTestDeletionForEnv(envName);
       
-      await tab.moveCursor(10, 1);
-     
-      let lineNumberElement = await $(".line-numbers=10");
-      let flaskElement = await (
-        await lineNumberElement.parentElement()
-      ).$(".cgmr.codicon");
-      let backgroundImageCSS = await flaskElement.getCSSProperty(
-        "background-image",
-      );
-      let backgroundImageURL = backgroundImageCSS.value;
-      const BEAKER = "/beaker-plus"
-      expect(backgroundImageURL.includes(BEAKER)).toBe(true);
-      await flaskElement.click({button:2})
-
-      await (await $("aria/VectorCAST")).click();
-      await (await $("aria/Generate Basis Path Tests")).click();
-      
-
     });
 
-    it("validate generated flask+ icon tests", async () => {
+    it("should correctly generate BASIS PATH tests by clicking on flask+ icon", async () => {
       await updateTestID();
-      let subprogram: TreeItem = undefined;
-      const vcastTestingViewContent = await getViewContent("Testing");
-      const unitName = "database"
-      for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-        await vcastTestingViewSection.expand()
-        subprogram = await findSubprogram(unitName, vcastTestingViewSection);
-        if (subprogram){
-          console.log(`found ${subprogram}`)
-          const testHandle = await getTestHandle(subprogram, "DataBase::GetTableRecord", "BASIS-PATH-001", 1)
-          expect(testHandle).not.toBe(undefined)
-          const expectedTestCode = expectedBasisPathTests["cpp/unitTests/DATABASE-MANAGER"].database["DataBase::GetTableRecord"]["BASIS-PATH-001"]
-          await validateGeneratedTest(testHandle, expectedTestCode)
-          break;
-        }
-      }
-      if (!subprogram){
-        throw `Subprogram ${unitName} not found`
-      }
-
+      await generateFlaskIconTestsFor(10, testGenMethod.BasisPath, "database.cpp")
+      await validateGeneratedTest(testGenMethod.BasisPath,"cpp/unitTests/DATABASE-MANAGER","database","DataBase::GetTableRecord","BASIS-PATH-001", 1)
+      
     });
+
     
   });
   
