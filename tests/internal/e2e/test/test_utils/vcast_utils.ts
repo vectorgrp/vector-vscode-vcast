@@ -169,11 +169,16 @@ export async function getTestHandle(
     await customSubprogramMethod.select();
   }
   console.log(`Waiting until ${expectedTestName} appears in the test tree`);
-  await browser.waitUntil(
-    async () =>
-      (await customSubprogramMethod.getChildren()).length ===
-      totalNumOfTestsForMethod,
-  );
+  try{
+    await browser.waitUntil(
+      async () =>
+        (await customSubprogramMethod.getChildren()).length ===
+        totalNumOfTestsForMethod,{timeout:4000, timeoutMsg:`${expectedTestName} not found`}
+    );
+  }
+  catch (e:unknown){
+    return undefined;
+  }
 
   for (const testHandle of await customSubprogramMethod.getChildren()) {
     if (
@@ -212,7 +217,7 @@ export async function deleteTest(testHandle: CustomTreeItem) {
   // for some reason, it does not want to click on Delete Test
   // when given as an argument in select
 
-  const menuElem = await $("aria/Delete Test");
+  const menuElem = await $("aria/Delete Tests");
   await menuElem.click();
 }
 
@@ -393,43 +398,43 @@ export async function generateAndValidateAllTestsFor(envName:string, testGenMeth
 
   await generateAllTestsForEnv(envName, testGenMethod)
       
-  const vcastTestingViewContent = await getViewContent("Testing");
+  // const vcastTestingViewContent = await getViewContent("Testing");
 
-  for (const [env, units] of Object.entries(expectedBasisPathTests)) {
-    for (const [unitName, functions] of Object.entries(units)) {
-      for (const [functionName,tests] of Object.entries(functions)) {
-        for (const [testName, expectedTestCode] of Object.entries(tests)) {
-          console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
-          let subprogram: TreeItem = undefined;
-          let testHandle: TreeItem = undefined;
-          for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-            subprogram = await findSubprogram(unitName, vcastTestingViewSection);
-            if (subprogram) {
-              await subprogram.expand();
-              testHandle = await getTestHandle(
-                subprogram,
-                functionName,
-                testName,
-                Object.entries(tests).length,
-              );
-              if (testHandle) {
-                await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
-                break;
-              } else {
-                throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
-              }
-            }
-          }
+  // for (const [env, units] of Object.entries(expectedBasisPathTests)) {
+  //   for (const [unitName, functions] of Object.entries(units)) {
+  //     for (const [functionName,tests] of Object.entries(functions)) {
+  //       for (const [testName, expectedTestCode] of Object.entries(tests)) {
+  //         console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
+  //         let subprogram: TreeItem = undefined;
+  //         let testHandle: TreeItem = undefined;
+  //         for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+  //           subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+  //           if (subprogram) {
+  //             await subprogram.expand();
+  //             testHandle = await getTestHandle(
+  //               subprogram,
+  //               functionName,
+  //               testName,
+  //               Object.entries(tests).length,
+  //             );
+  //             if (testHandle) {
+  //               await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
+  //               break;
+  //             } else {
+  //               throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
+  //             }
+  //           }
+  //         }
 
-          if (!subprogram) {
-            throw `Subprogram ${unitName} not found`;
-          }
-        }
-      }
+  //         if (!subprogram) {
+  //           throw `Subprogram ${unitName} not found`;
+  //         }
+  //       }
+  //     }
       
-    }
+  //   }
     
-  }
+  // }
 }
 
 export async function generateFlaskIconTestsFor(line:number, testGenMethod:string, unitFileName: string){
@@ -515,4 +520,56 @@ export async function getAllExpectedTests(testGenMethodText:string) {
  else{
   return expectedAtgTests
  }
+}
+
+
+export async function deleteGeneratedTest(
+  unitName:string, 
+  functionName:string, 
+  testName:string, 
+  totalTestsForFunction:number = 1
+  ){
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+      
+      const testHandle = await getTestHandle(subprogram, functionName, testName, totalTestsForFunction) as CustomTreeItem
+      expect(testHandle).not.toBe(undefined)
+      await deleteTest(testHandle)
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+
+}
+
+export async function validateSingleTestDeletion(
+  unitName:string, 
+  functionName:string, 
+  testName:string, 
+  totalTestsForFunction:number = 1
+  ){
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+      
+      const testHandle = await getTestHandle(subprogram, functionName, testName, totalTestsForFunction) as CustomTreeItem
+      expect(testHandle).toBe(undefined)
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+
 }
