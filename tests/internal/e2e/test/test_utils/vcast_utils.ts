@@ -9,6 +9,7 @@ import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json"
 import expectedAtgTests from "../atg_tests.json"
 import { TIMEOUT } from "node:dns";
+import { type } from "node:os";
 export async function updateTestID() {
   let testIDEnvVar = process.env["E2E_TEST_ID"];
   if (testIDEnvVar) {
@@ -385,7 +386,7 @@ export async function validateTestDeletionForEnv(envName:string){
           
           }
         }
-        // visible items literally gets the visible items, including leaves in the structure
+        // getVisibleItems() literally gets the visible items, including leaves in the structure
         // important to stop the loop here, otherwise wdio starts doing random things and hangs
         break;
       }
@@ -398,43 +399,43 @@ export async function generateAndValidateAllTestsFor(envName:string, testGenMeth
 
   await generateAllTestsForEnv(envName, testGenMethod)
       
-  // const vcastTestingViewContent = await getViewContent("Testing");
+  const vcastTestingViewContent = await getViewContent("Testing");
 
-  // for (const [env, units] of Object.entries(expectedBasisPathTests)) {
-  //   for (const [unitName, functions] of Object.entries(units)) {
-  //     for (const [functionName,tests] of Object.entries(functions)) {
-  //       for (const [testName, expectedTestCode] of Object.entries(tests)) {
-  //         console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
-  //         let subprogram: TreeItem = undefined;
-  //         let testHandle: TreeItem = undefined;
-  //         for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-  //           subprogram = await findSubprogram(unitName, vcastTestingViewSection);
-  //           if (subprogram) {
-  //             await subprogram.expand();
-  //             testHandle = await getTestHandle(
-  //               subprogram,
-  //               functionName,
-  //               testName,
-  //               Object.entries(tests).length,
-  //             );
-  //             if (testHandle) {
-  //               await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
-  //               break;
-  //             } else {
-  //               throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
-  //             }
-  //           }
-  //         }
+  for (const [env, units] of Object.entries(expectedBasisPathTests)) {
+    for (const [unitName, functions] of Object.entries(units)) {
+      for (const [functionName,tests] of Object.entries(functions)) {
+        for (const [testName, expectedTestCode] of Object.entries(tests)) {
+          console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
+          let subprogram: TreeItem = undefined;
+          let testHandle: TreeItem = undefined;
+          for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+            subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+            if (subprogram) {
+              await subprogram.expand();
+              testHandle = await getTestHandle(
+                subprogram,
+                functionName,
+                testName,
+                Object.entries(tests).length,
+              );
+              if (testHandle) {
+                await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
+                break;
+              } else {
+                throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
+              }
+            }
+          }
 
-  //         if (!subprogram) {
-  //           throw `Subprogram ${unitName} not found`;
-  //         }
-  //       }
-  //     }
+          if (!subprogram) {
+            throw `Subprogram ${unitName} not found`;
+          }
+        }
+      }
       
-  //   }
+    }
     
-  // }
+  }
 }
 
 export async function generateFlaskIconTestsFor(line:number, testGenMethod:string, unitFileName: string){
@@ -546,6 +547,57 @@ export async function deleteGeneratedTest(
   if (!subprogram){
     throw `Subprogram ${unitName} not found`
   }
+
+}
+
+export type vcastTest = {
+  envName:string;
+  unitName:string;
+  functionName:string;
+  testName:string;
+  numTestsForFunction:number;
+}
+
+
+export async function multiselectDeletion(tests:vcastTest[]){
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  let testHandles: CustomTreeItem[] = []
+
+  for (const vcastTest of tests) {
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      await vcastTestingViewSection.expand()
+      subprogram = await findSubprogram(vcastTest.unitName, vcastTestingViewSection);
+      if (subprogram){
+        
+        const testHandle = await getTestHandle(subprogram, vcastTest.functionName, vcastTest.testName, vcastTest.numTestsForFunction) as CustomTreeItem
+        expect(testHandle).not.toBe(undefined)
+        testHandles.push(testHandle)
+        break;
+      }
+    }
+    if (!subprogram){
+      throw `Subprogram ${vcastTest.unitName} not found`
+    }
+    
+  }
+
+  for (const testHandle of testHandles) {
+    await executeCtrlClickOn(testHandle)
+  }
+  await releaseCtrl();
+  const ctxMenu = await testHandles[0].openContextMenu()
+  await ctxMenu.select("VectorCAST")
+  const menuElem = await $("aria/Delete Tests");
+  await menuElem.click();
+
+  const vcastNotifSourceElem = await $(
+    "aria/VectorCAST Test Explorer (Extension)",
+  );
+  const vcastNotification = await vcastNotifSourceElem.$("..");
+  await (await vcastNotification.$("aria/Delete")).click();
+
 
 }
 

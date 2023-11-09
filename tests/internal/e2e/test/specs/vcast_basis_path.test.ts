@@ -34,7 +34,9 @@ import {
     generateFlaskIconTestsFor,
     validateGeneratedTest,
     deleteGeneratedTest,
-    validateSingleTestDeletion
+    validateSingleTestDeletion,
+    multiselectDeletion,
+    vcastTest
   } from "../test_utils/vcast_utils";
   
   import { exec } from "child_process";
@@ -190,6 +192,43 @@ import { env } from "process";
   
     });
 
+    it("should correctly perform multiselect delete on BASIS PATH tests", async () => {
+      await updateTestID();
+      
+      const envName = "cpp/unitTests/DATABASE-MANAGER"
+      const test1: vcastTest = {
+        envName:envName,
+        unitName:"database",
+        functionName:"DataBase::GetTableRecord",
+        testName:"BASIS-PATH-001",
+        numTestsForFunction:1
+      }
+      const test2: vcastTest = {
+        envName:envName,
+        unitName:"database",
+        functionName:"DataBase::UpdateTableRecord",
+        testName:"BASIS-PATH-001",
+        numTestsForFunction:1
+      }
+
+      const test3: vcastTest = {
+        envName:envName,
+        unitName:"manager",
+        functionName:"Manager::ClearTable",
+        testName:"BASIS-PATH-001",
+        numTestsForFunction:1
+      }
+      let vcastTests: vcastTest[] = [test1, test2, test3]
+
+      await multiselectDeletion(vcastTests)
+
+      for (const test of vcastTests) {
+        await validateSingleTestDeletion(test.unitName,test.functionName, test.testName, test.numTestsForFunction)
+
+      }
+
+    });
+
     it("should correctly delete all BASIS PATH tests for the environment", async () => {
       await updateTestID();
       
@@ -214,10 +253,12 @@ import { env } from "process";
 
     it("should correctly delete all ATG tests for the environment", async () => {
       await updateTestID();
-      
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      await deleteAllTestsForEnv(envName);
-      await validateTestDeletionForEnv(envName);
+
+      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
+        const envName = "cpp/unitTests/DATABASE-MANAGER"
+        await deleteAllTestsForEnv(envName);
+        await validateTestDeletionForEnv(envName);
+      }
       
     });
 
