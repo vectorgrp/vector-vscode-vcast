@@ -36,7 +36,9 @@ import {
     deleteGeneratedTest,
     validateSingleTestDeletion,
     multiselectDeletion,
-    vcastTest
+    vcastTest,
+    generateAllTestsForUnit,
+    validateGeneratedTestsForUnit
   } from "../test_utils/vcast_utils";
   
   import { exec } from "child_process";
@@ -261,6 +263,17 @@ import { env } from "process";
       }
       
     });
+
+    it("should correctly generate all BASIS PATH tests for unit", async () => {
+      await updateTestID();
+      console.log("GENERATING BASIS PATH TESTS FOR UNIT")
+      const envName = "cpp/unitTests/DATABASE-MANAGER"
+      await generateAllTestsForUnit("database",testGenMethod.BasisPath);
+      await validateGeneratedTestsForUnit(envName, "database", testGenMethod.BasisPath);
+      
+    });
+
+    // here delete the tests
 
     it("should correctly generate BASIS PATH tests by clicking on flask+ icon", async () => {
       await updateTestID();

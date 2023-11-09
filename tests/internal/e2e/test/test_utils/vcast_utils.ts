@@ -268,7 +268,7 @@ export async function generateAllTestsForEnv(envName:string, testGenMethod:strin
         await ctxMenu.select("VectorCAST")
         await (await $(`aria/${menuItemLabel}`)).click();
 
-        const workbench = await browser.getWorkbench();
+        const workbench = await browser.getWorkbench();        
         const bottomBar = workbench.getBottomBar()
         await browser.waitUntil(async () =>
           (await (await bottomBar.openOutputView()).getText()).includes(
@@ -512,6 +512,16 @@ export async function getExpectedTestCode(expectedTests:Object, envName:string, 
   if (unitName == "manager"){
     return expectedTests[envName].manager[functionName][testName]
   }
+  return undefined
+}
+
+export async function getExpectedUnitInfo(expectedTests:Object, envName:string, unitName:string) {
+  if (unitName == "database"){
+    return expectedTests[envName].database
+  }  
+  if (unitName == "manager"){
+    return expectedTests[envName].manager
+  }
 }
 
 export async function getAllExpectedTests(testGenMethodText:string) {
@@ -624,4 +634,63 @@ export async function validateSingleTestDeletion(
     throw `Subprogram ${unitName} not found`
   }
 
+}
+
+export async function generateAllTestsForUnit(unitName:string, testGenMethod:string){
+  const menuItemLabel = `Insert ${testGenMethod} Tests`
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+      const ctxMenu = await subprogram.openContextMenu()
+      await ctxMenu.select("VectorCAST")
+      await (await $(`aria/${menuItemLabel}`)).click();
+      
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+}
+
+export async function validateGeneratedTestsForUnit(envName: string, unitName: string, testGenMethod: string){
+  const allExpectedTests = await getAllExpectedTests(testGenMethod)
+  const expectedUnitInfo = await getExpectedUnitInfo(allExpectedTests, envName, unitName)
+  const vcastTestingViewContent = await getViewContent("Testing");
+
+  
+  
+  for (const [functionName,tests] of Object.entries(expectedUnitInfo)) {
+    for (const [testName, expectedTestCode] of Object.entries(tests)) {
+      console.log(`Expected Test ${envName}:${unitName}:${functionName}:${testName}`);
+      let subprogram: TreeItem = undefined;
+      let testHandle: TreeItem = undefined;
+      for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+        subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+        if (subprogram) {
+          await subprogram.expand();
+          testHandle = await getTestHandle(
+            subprogram,
+            functionName,
+            testName,
+            Object.entries(tests).length,
+          );
+          if (testHandle) {
+            await validateGeneratedTestScriptContent(testHandle, expectedTestCode.toString())
+            break;
+          } else {
+            throw `Test handle not found for ${envName}:${unitName}:${functionName}:${testName}`;
+          }
+        }
+      }
+
+      if (!subprogram) {
+        throw `Subprogram ${unitName} not found`;
+      }
+    }
+  }
+    
 }
