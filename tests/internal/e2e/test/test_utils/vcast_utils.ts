@@ -533,43 +533,43 @@ export async function generateAndValidateAllTestsFor(envName:string, testGenMeth
 
   await generateAllTestsForEnv(envName, testGenMethod)
       
-  // const vcastTestingViewContent = await getViewContent("Testing");
+  const vcastTestingViewContent = await getViewContent("Testing");
 
-  // for (const [env, units] of Object.entries(expectedBasisPathTests)) {
-  //   for (const [unitName, functions] of Object.entries(units)) {
-  //     for (const [functionName,tests] of Object.entries(functions)) {
-  //       for (const [testName, expectedTestCode] of Object.entries(tests)) {
-  //         console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
-  //         let subprogram: TreeItem = undefined;
-  //         let testHandle: TreeItem = undefined;
-  //         for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-  //           subprogram = await findSubprogram(unitName, vcastTestingViewSection);
-  //           if (subprogram) {
-  //             await subprogram.expand();
-  //             testHandle = await getTestHandle(
-  //               subprogram,
-  //               functionName,
-  //               testName,
-  //               Object.entries(tests).length,
-  //             );
-  //             if (testHandle) {
-  //               await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
-  //               break;
-  //             } else {
-  //               throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
-  //             }
-  //           }
-  //         }
+  for (const [env, units] of Object.entries(expectedBasisPathTests)) {
+    for (const [unitName, functions] of Object.entries(units)) {
+      for (const [functionName,tests] of Object.entries(functions)) {
+        for (const [testName, expectedTestCode] of Object.entries(tests)) {
+          console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
+          let subprogram: TreeItem = undefined;
+          let testHandle: TreeItem = undefined;
+          for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+            subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+            if (subprogram) {
+              await subprogram.expand();
+              testHandle = await getTestHandle(
+                subprogram,
+                functionName,
+                testName,
+                Object.entries(tests).length,
+              );
+              if (testHandle) {
+                await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
+                break;
+              } else {
+                throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
+              }
+            }
+          }
 
-  //         if (!subprogram) {
-  //           throw `Subprogram ${unitName} not found`;
-  //         }
-  //       }
-  //     }
+          if (!subprogram) {
+            throw `Subprogram ${unitName} not found`;
+          }
+        }
+      }
       
-  //   }
+    }
     
-  // }
+  }
 }
 
 export async function generateFlaskIconTestsFor(line:number, testGenMethod:string, unitFileName: string){
