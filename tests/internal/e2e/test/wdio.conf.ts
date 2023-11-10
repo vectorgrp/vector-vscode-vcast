@@ -109,7 +109,7 @@ export const config: Options.Testrunner = {
   // will be called from there.
   //
   specs: [
-    "./**/**/vcast_basis_path.test.ts",
+    "./**/**/vcast_testgen.test.ts",
     // "./**/**/vcast.test.ts"
   ],
   // Patterns to exclude.
