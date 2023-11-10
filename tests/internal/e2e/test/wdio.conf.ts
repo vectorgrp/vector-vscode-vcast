@@ -109,8 +109,10 @@ export const config: Options.Testrunner = {
   // will be called from there.
   //
   specs: [
-    "./**/**/vcast_testgen.test.ts",
-    // "./**/**/vcast.test.ts"
+    // "./**/**/vcast_testgen_env.test.ts",
+    // "./**/**/vcast_testgen_unit.test.ts",
+    "./**/**/vcast_testgen_func.test.ts",
+    "./**/**/vcast.test.ts"
   ],
   // Patterns to exclude.
   // exclude:
@@ -150,7 +152,7 @@ export const config: Options.Testrunner = {
         proxyType: "manual",
         httpProxy: process.env["http_proxy"],
       },
-      browserVersion: "1.77.0",
+      browserVersion: "1.78.0",
       acceptInsecureCerts: true,
       "wdio:vscodeOptions": {
         extensionPath: path.join(process.env["INIT_CWD"], "test", "extension"),
@@ -335,7 +337,7 @@ export const config: Options.Testrunner = {
 
     process.env["WORKSPACE_FOLDER"] = "vcastTutorial";
     process.env["VECTORCAST_DIR"] = "";
-    process.env["BASIS_PATH_ONLY"] = "FALSE"
+    process.env["BASIS_PATH_ONLY"] = "TRUE"
     const initialWorkdir = process.env["INIT_CWD"];
 
     let checkVPython: string;

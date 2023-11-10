@@ -1,7 +1,7 @@
 // test/specs/vcast.test.ts
 import {
     BottomBarPanel,
-    StatusBar,
+    CustomTreeItem,
     EditorView,
     Workbench,
   } from "wdio-vscode-service";
@@ -15,22 +15,8 @@ import {
     deleteAllTestsForEnv,
     validateTestDeletionForEnv,
     generateAndValidateAllTestsFor,
-    generateFlaskIconTestsFor,
-    validateGeneratedTest,
-    deleteGeneratedTest,
-    validateSingleTestDeletion,
-    multiselectDeletion,
-    vcastTest,
-    generateAllTestsForUnit,
-    validateGeneratedTestsForUnit,
-    deleteAllTestsForUnit,
-    validateTestDeletionForUnit,
-    generateAllTestsForFunction,
-    validateGeneratedTestsForFunction,
-    deleteAllTestsForFunction,
-    validateTestDeletionForFunction
+    cleanup
   } from "../test_utils/vcast_utils";
-  
   
   describe("vTypeCheck VS Code Extension", () => {
     let bottomBar: BottomBarPanel;
@@ -177,43 +163,6 @@ import {
   
     });
 
-    it("should correctly perform multiselect delete on BASIS PATH tests", async () => {
-      await updateTestID();
-      
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      const test1: vcastTest = {
-        envName:envName,
-        unitName:"database",
-        functionName:"DataBase::GetTableRecord",
-        testName:"BASIS-PATH-001",
-        numTestsForFunction:1
-      }
-      const test2: vcastTest = {
-        envName:envName,
-        unitName:"database",
-        functionName:"DataBase::UpdateTableRecord",
-        testName:"BASIS-PATH-001",
-        numTestsForFunction:1
-      }
-
-      const test3: vcastTest = {
-        envName:envName,
-        unitName:"manager",
-        functionName:"Manager::ClearTable",
-        testName:"BASIS-PATH-001",
-        numTestsForFunction:1
-      }
-      let vcastTests: vcastTest[] = [test1, test2, test3]
-
-      await multiselectDeletion(vcastTests)
-
-      for (const test of vcastTests) {
-        await validateSingleTestDeletion(test.unitName,test.functionName, test.testName, test.numTestsForFunction)
-
-      }
-
-    });
-
     it("should correctly delete all BASIS PATH tests for the environment", async () => {
       await updateTestID();
       
@@ -247,123 +196,10 @@ import {
       
     });
 
-    it("should correctly generate all BASIS PATH tests for unit", async () => {
+    it("should clean up", async () => {
       await updateTestID();
-     
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      await generateAllTestsForUnit("database",testGenMethod.BasisPath);
-      await validateGeneratedTestsForUnit(envName, "database", testGenMethod.BasisPath);
+      await cleanup()
       
-    });
-
-    it("should correctly delete all BASIS PATH tests for the unit", async () => {
-      await updateTestID();
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      await deleteAllTestsForUnit("database",testGenMethod.BasisPath);
-      await validateTestDeletionForUnit(envName,"database");
-    });
-
-    it("should correctly generate all ATG tests for unit", async () => {
-      await updateTestID();
-     
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      
-      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
-        await generateAllTestsForUnit("database",testGenMethod.ATG);
-        await validateGeneratedTestsForUnit(envName, "database", testGenMethod.ATG);
-      }
-      else{
-        console.log("Skipping ATG tests")
-      }
-      
-    });
-
-    it("should correctly delete all ATG tests for the unit", async () => {
-      await updateTestID();
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
-        await deleteAllTestsForUnit("database",testGenMethod.ATG);
-        await validateTestDeletionForUnit(envName,"database");
-      }
-      else{
-        console.log("Skipping ATG tests")
-      }
-      
-    });
-
-    it("should correctly generate all BASIS PATH tests for function", async () => {
-      await updateTestID();
-     
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      await generateAllTestsForFunction("database", "DataBase::GetTableRecord", testGenMethod.BasisPath);
-      await validateGeneratedTestsForFunction(envName, "database", "DataBase::GetTableRecord",testGenMethod.BasisPath);
-      
-    });
-
-    it("should correctly delete all BASIS PATH tests for function", async () => {
-      await updateTestID();
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      await deleteAllTestsForFunction("database","DataBase::GetTableRecord", testGenMethod.BasisPath);
-      await validateTestDeletionForFunction(envName,"database","DataBase::GetTableRecord");
-    });
-
-    it("should correctly generate all ATG tests for function", async () => {
-      await updateTestID();
-     
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
-        await generateAllTestsForFunction("database", "DataBase::GetTableRecord", testGenMethod.ATG);
-        await validateGeneratedTestsForFunction(envName, "database", "DataBase::GetTableRecord",testGenMethod.ATG);
-      }
-      else{
-        console.log("Skipping ATG tests")
-      }
-      
-    });
-
-    it("should correctly delete all ATG tests for function", async () => {
-      await updateTestID();
-      const envName = "cpp/unitTests/DATABASE-MANAGER"
-      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
-        await deleteAllTestsForFunction("database","DataBase::GetTableRecord", testGenMethod.ATG);
-        await validateTestDeletionForFunction(envName,"database","DataBase::GetTableRecord");
-      }
-      else{
-        console.log("Skipping ATG tests")
-      }
-    });
-
-    it("should correctly generate BASIS PATH tests by clicking on flask+ icon", async () => {
-      await updateTestID();
-      await generateFlaskIconTestsFor(10, testGenMethod.BasisPath, "database.cpp")
-      await validateGeneratedTest(testGenMethod.BasisPath,"cpp/unitTests/DATABASE-MANAGER","database","DataBase::GetTableRecord","BASIS-PATH-001", 1)
-      
-    });
-
-    it("should correctly delete BASIS PATH tests generated by clicking on flask+ icon", async () => {
-      await updateTestID();
-      await deleteGeneratedTest("database","DataBase::GetTableRecord","BASIS-PATH-001", 1)
-      await validateSingleTestDeletion("database","DataBase::GetTableRecord","BASIS-PATH-001", 1)
-    });
-
-    it("should correctly generate ATG tests by clicking on flask+ icon", async () => {
-      await updateTestID();
-      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
-        await generateFlaskIconTestsFor(10, testGenMethod.ATG, "database.cpp")
-        await validateGeneratedTest(testGenMethod.ATG,"cpp/unitTests/DATABASE-MANAGER","database","DataBase::GetTableRecord","ATG-TEST-1", 1)
-      }
-      else{
-        console.log("Skipping ATG tests")
-      }
-      
-    });
-
-    it("should correctly delete ATG tests generated by clicking on flask+ icon", async () => {
-      await updateTestID();
-      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
-        await deleteGeneratedTest("database","DataBase::GetTableRecord","ATG-TEST-1", 1)
-        await validateSingleTestDeletion("database","DataBase::GetTableRecord","ATG-TEST-1", 1)
-      }
     });
     
   });

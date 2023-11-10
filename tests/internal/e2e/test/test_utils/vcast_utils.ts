@@ -8,14 +8,69 @@ import {
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json"
 import expectedAtgTests from "../atg_tests.json"
-import { TIMEOUT } from "node:dns";
-import { type } from "node:os";
+
+import { promisify } from "node:util";
+import { exec } from "child_process";
+import path from "node:path";
+
+const promisifiedExec = promisify(exec);
 export async function updateTestID() {
   let testIDEnvVar = process.env["E2E_TEST_ID"];
   if (testIDEnvVar) {
     let testID = parseInt(testIDEnvVar) + 1;
     process.env["E2E_TEST_ID"] = testID.toString();
   }
+}
+
+
+export async function cleanup(){
+  const workbench = await browser.getWorkbench();
+  const bottomBar = workbench.getBottomBar()
+  const vcastTestingViewContent = await getViewContent("Testing");
+  await (await vcastTestingViewContent.elem).click();
+  const sections = await vcastTestingViewContent.getSections();
+  const testExplorerSection = sections[0];
+  const testEnvironments = await testExplorerSection.getVisibleItems();
+  const testEnvironment = testEnvironments[0];
+  const testEnvironmentContextMenu = await (
+    testEnvironment as CustomTreeItem
+  ).openContextMenu();
+  await testEnvironmentContextMenu.select("VectorCAST");
+  await (await $("aria/Delete Environment")).click();
+
+  const vcastNotifSourceElem = await $(
+    "aria/VectorCAST Test Explorer (Extension)",
+  );
+  const vcastNotification = await vcastNotifSourceElem.$("..");
+  await (await vcastNotification.$("aria/Delete")).click();
+
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Successful deletion of environment DATABASE-MANAGER"),
+    { timeout: 10000 },
+  )
+  
+  const initialWorkdir = process.env["INIT_CWD"];
+  const pathToTutorial = path.join(
+    initialWorkdir,
+    "test",
+    "vcastTutorial",
+    "cpp"
+  )
+  const unitTestsPath = path.join(pathToTutorial, "unitTests");
+  const qikPath = path.join(pathToTutorial, "VCAST.QIK");
+  let clearUnitTestsFolder: string = "";
+  
+  if (process.platform == "win32") clearUnitTestsFolder = `rmdir /s /q ${unitTestsPath}`;
+  else clearUnitTestsFolder = `rm -rf ${unitTestsPath}`;
+  await promisifiedExec(clearUnitTestsFolder);
+  
+  let clearQik: string = "";
+  if (process.platform == "win32") clearQik = `del ${qikPath}`;
+  else clearQik = `rm -rf ${qikPath}`;
+  await promisifiedExec(clearQik);
 }
 export async function getGeneratedTooltipTextAt(
   line: number,

@@ -7,7 +7,6 @@ import {
   CustomTreeItem,
   Workbench,
   TreeItem,
-  ViewItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -24,6 +23,7 @@ import {
   editTestScriptFor,
   deleteTest,
   updateTestID,
+  cleanup
 } from "../test_utils/vcast_utils";
 
 import { exec } from "child_process";
@@ -1590,5 +1590,11 @@ describe("vTypeCheck VS Code Extension", () => {
       
     }
 
+  });
+
+  it("should clean up", async () => {
+    await updateTestID();
+    await cleanup()
+    
   });
 });
