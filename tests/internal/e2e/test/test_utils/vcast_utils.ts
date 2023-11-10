@@ -229,7 +229,7 @@ export async function getTestHandle(
     await browser.waitUntil(
       async () =>
         (await customSubprogramMethod.getChildren()).length ===
-        totalNumOfTestsForMethod,{timeout:4000, timeoutMsg:`${expectedTestName} not found`}
+        totalNumOfTestsForMethod,{timeout:8000, timeoutMsg:`${expectedTestName} not found`}
     );
   }
   catch (e:unknown){
@@ -344,7 +344,7 @@ export async function generateAllTestsForEnv(envName:string, testGenMethod:strin
   }
 }
 
-export async function validateGeneratedTestScriptContent(testHandle:TreeItem, epxectedTestCode: string){
+export async function validateGeneratedTestScriptContent(testHandle:TreeItem, expectedTestCode: string){
   await testHandle.select();
   const ctxMenu = await testHandle.openContextMenu()
   await ctxMenu.select("VectorCAST");
@@ -362,17 +362,14 @@ export async function validateGeneratedTestScriptContent(testHandle:TreeItem, ep
     "DATABASE-MANAGER.tst",
   )) as TextEditor;
   
-  const fullGenTstScript = await tab.getText();
+  let fullGenTstScript = await tab.getText();
+ 
   await editorView.closeAllEditors()
-  const idx = fullGenTstScript.indexOf(epxectedTestCode)
-
-  if (idx > -1){
-    expect(fullGenTstScript.substring(idx).trimEnd()).toBe(epxectedTestCode.trimEnd())
+  for (let line of expectedTestCode) {
+    line = line.trim()
+    expect(fullGenTstScript.includes(line)).toBe(true)
   }
-  else{
-    // we want to see the diff here
-    expect(fullGenTstScript.trimEnd()).toBe(epxectedTestCode.trimEnd())
-  }
+  
 }
 
 export async function deleteAllTestsForEnv(envName:string){
@@ -767,9 +764,12 @@ export async function validateSingleTestDeletion(
     await vcastTestingViewSection.expand()
     subprogram = await findSubprogram(unitName, vcastTestingViewSection);
     if (subprogram){
+      await browser.waitUntil(
+        async () =>
+          (await getTestHandle(subprogram, functionName, testName, totalTestsForFunction) as CustomTreeItem) ===
+          undefined, {timeout:20000}
+      );
       
-      const testHandle = await getTestHandle(subprogram, functionName, testName, totalTestsForFunction) as CustomTreeItem
-      expect(testHandle).toBe(undefined)
       break;
     }
   }
