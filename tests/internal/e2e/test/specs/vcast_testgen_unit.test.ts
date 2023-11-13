@@ -178,7 +178,7 @@ import {
      
       const envName = "cpp/unitTests/DATABASE-MANAGER"
       
-      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
+      if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
         await generateAllTestsForUnit("database",testGenMethod.ATG);
         await validateGeneratedTestsForUnit(envName, "database", testGenMethod.ATG);
       }
@@ -191,7 +191,7 @@ import {
     it("should correctly delete all ATG tests for the unit", async () => {
       await updateTestID();
       const envName = "cpp/unitTests/DATABASE-MANAGER"
-      if (process.env["BASIS_PATH_ONLY"] === "FALSE"){
+      if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
         await deleteAllTestsForUnit("database",testGenMethod.ATG);
         await validateTestDeletionForUnit(envName,"database");
       }

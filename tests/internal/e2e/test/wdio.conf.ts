@@ -337,7 +337,7 @@ export const config: Options.Testrunner = {
 
     process.env["WORKSPACE_FOLDER"] = "vcastTutorial";
     process.env["VECTORCAST_DIR"] = "";
-    process.env["BASIS_PATH_ONLY"] = "TRUE"
+    process.env["ENABLE_ATG_FEATURE"] = "FALSE"
     const initialWorkdir = process.env["INIT_CWD"];
 
     let checkVPython: string;
