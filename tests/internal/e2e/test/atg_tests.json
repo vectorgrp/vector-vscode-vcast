@@ -1,4 +1,11 @@
 {
+    "cpp/unitTests/QUOTES_EXAMPLE":{
+        "quotes_example":{
+            "Moo::honk(int,int,int)":{
+                "ATG-TEST-1" :"\nTEST.END" 
+            }
+        }
+    },
     "cpp/unitTests/DATABASE-MANAGER":{
         "database":{
             "DataBase::~DataBase": {

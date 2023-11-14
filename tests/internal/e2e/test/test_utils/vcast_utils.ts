@@ -48,7 +48,7 @@ export async function cleanup(){
     async () =>
       (await (await bottomBar.openOutputView()).getText())
         .toString()
-        .includes("Successful deletion of environment DATABASE-MANAGER"),
+        .includes("Successful deletion of environment"),
     { timeout: 10000 },
   )
   
@@ -507,11 +507,12 @@ export async function validateTestDeletionForFunction(envName:string, unitName:s
               console.log(`Method: ${methodNameTooltip}`) 
               // this is flaky, it sometimes takes manager as Child element
               if (methodNameTooltip.includes(functionName)){
+
                 await browser.waitUntil(
                   async () =>
-                    (await method.hasChildren()) === false
+                    (await method.hasChildren()) === false, {timeout:8000}
                 ); 
-                break;
+                return;
               }
             }
           break;
@@ -531,43 +532,43 @@ export async function generateAndValidateAllTestsFor(envName:string, testGenMeth
   await generateAllTestsForEnv(envName, testGenMethod)
       
   const vcastTestingViewContent = await getViewContent("Testing");
-
-  for (const [env, units] of Object.entries(expectedBasisPathTests)) {
-    for (const [unitName, functions] of Object.entries(units)) {
-      for (const [functionName,tests] of Object.entries(functions)) {
-        for (const [testName, expectedTestCode] of Object.entries(tests)) {
-          console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
-          let subprogram: TreeItem = undefined;
-          let testHandle: TreeItem = undefined;
-          for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-            subprogram = await findSubprogram(unitName, vcastTestingViewSection);
-            if (subprogram) {
-              await subprogram.expand();
-              testHandle = await getTestHandle(
-                subprogram,
-                functionName,
-                testName,
-                Object.entries(tests).length,
-              );
-              if (testHandle) {
-                await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
-                break;
-              } else {
-                throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
-              }
+  const expectedTests = await getAllExpectedTests(testGenMethod)
+  for (const [unitName, functions] of Object.entries(expectedTests[envName])) {
+    for (const [functionName,tests] of Object.entries(functions)) {
+      for (const [testName, testCode] of Object.entries(tests)) {
+        console.log(`Expected Test ${envName}:${unitName}:${functionName}:${testName}`);
+        let subprogram: TreeItem = undefined;
+        let testHandle: TreeItem = undefined;
+        for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+          subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+          if (subprogram) {
+            await subprogram.expand();
+            testHandle = await getTestHandle(
+              subprogram,
+              functionName,
+              testName,
+              Object.entries(tests).length,
+            );
+            if (testHandle) {
+              const expectedTestCode = await getExpectedTestCode(expectedTests, envName, unitName, functionName, testName)
+              await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
+              break;
+            } else {
+              throw `Test handle not found for ${envName}:${unitName}:${functionName}:${testName}`;
             }
           }
+        }
 
-          if (!subprogram) {
-            throw `Subprogram ${unitName} not found`;
-          }
+        if (!subprogram) {
+          throw `Subprogram ${unitName} not found`;
         }
       }
-      
     }
     
   }
+    
 }
+
 
 export async function generateFlaskIconTestsFor(line:number, testGenMethod:string, unitFileName: string){
   const workbench = await browser.getWorkbench();
@@ -643,6 +644,9 @@ export async function getExpectedTestCode(expectedTests:Object, envName:string, 
   if (unitName == "manager"){
     return expectedTests[envName].manager[functionName][testName]
   }
+  if (unitName == "quotes_example"){
+    return expectedTests[envName].quotes_example[functionName][testName]
+  }
   return undefined
 }
 
@@ -653,6 +657,9 @@ export async function getExpectedUnitInfo(expectedTests:Object, envName:string, 
   if (unitName == "manager"){
     return expectedTests[envName].manager
   }
+  if (unitName == "quotes_example"){
+    return expectedTests[envName].quotes_example
+  }
 }
 
 export async function getExpectedFunctionInfo(expectedTests:Object, envName:string, unitName:string, functionName:string) {
@@ -661,6 +668,9 @@ export async function getExpectedFunctionInfo(expectedTests:Object, envName:stri
   }  
   if (unitName == "manager"){
     return expectedTests[envName].manager[functionName]
+  }
+  if (unitName == "quotes_example"){
+    return expectedTests[envName].quotes_example[functionName]
   }
 }
 

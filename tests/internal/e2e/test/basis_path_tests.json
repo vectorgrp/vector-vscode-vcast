@@ -1,4 +1,11 @@
 {
+    "cpp/unitTests/QUOTES_EXAMPLE":{
+        "quotes_example":{
+            "Moo::honk(int,int,int)":{
+                "BASIS-PATH-001" :"\nTEST.END" 
+            }
+        }
+    },
     "cpp/unitTests/DATABASE-MANAGER":{
         "database":{
             "DataBase::~DataBase": {
