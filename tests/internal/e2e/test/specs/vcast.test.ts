@@ -7,7 +7,6 @@ import {
   CustomTreeItem,
   Workbench,
   TreeItem,
-  ViewItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -24,6 +23,7 @@ import {
   editTestScriptFor,
   deleteTest,
   updateTestID,
+  cleanup
 } from "../test_utils/vcast_utils";
 
 import { exec } from "child_process";
@@ -429,7 +429,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await tab.moveCursor(
       currentLine,
-      "TEST.VALUE:manager.Manager::PlaceOrder.Seat:1".length,
+      "TEST.VALUE:manager.Manager::PlaceOrder.Seat:1".length + 1,
     );
     await browser.keys([Key.Enter]);
     currentLine += 1;
@@ -1572,10 +1572,15 @@ describe("vTypeCheck VS Code Extension", () => {
     
     {
       const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);
+      
       if (stderr) {
         console.log(stderr);
         throw `Error when running ${checkVcastQtCmd}`;
       }
+      await browser.waitUntil(
+        async () => (await promisifiedExec(checkVcastQtCmd)).stdout.includes("vcastqt") === true,
+        { timeout: TIMEOUT },
+      );
       expect(stdout).toContain("vcastqt")
     }
     
@@ -1591,4 +1596,5 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
   });
+
 });

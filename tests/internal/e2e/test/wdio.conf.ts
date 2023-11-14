@@ -108,7 +108,12 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: ["./**/**/*.test.ts"],
+  specs: [
+    "./**/**/vcast_testgen_env.test.ts",
+    "./**/**/vcast_testgen_unit.test.ts",
+    "./**/**/vcast_testgen_func.test.ts",
+    "./**/**/vcast.test.ts"
+  ],
   // Patterns to exclude.
   // exclude:
   //
@@ -147,7 +152,7 @@ export const config: Options.Testrunner = {
         proxyType: "manual",
         httpProxy: process.env["http_proxy"],
       },
-      browserVersion: "1.74.0",
+      browserVersion: "1.78.0",
       acceptInsecureCerts: true,
       "wdio:vscodeOptions": {
         extensionPath: path.join(process.env["INIT_CWD"], "test", "extension"),
@@ -232,10 +237,10 @@ export const config: Options.Testrunner = {
   //
   // Default timeout in milliseconds for request
   // if browser driver or grid doesn"t send response
-  connectionRetryTimeout: 220000,
+  connectionRetryTimeout: 22000,
   //
   // Default request retries count
-  connectionRetryCount: 10,
+  connectionRetryCount: 1,
   //
   // Test runner services
   // Services take over a specific job you don"t want to take care of. They enhance
@@ -332,7 +337,7 @@ export const config: Options.Testrunner = {
 
     process.env["WORKSPACE_FOLDER"] = "vcastTutorial";
     process.env["VECTORCAST_DIR"] = "";
-
+    process.env["ENABLE_ATG_FEATURE"] = "FALSE"
     const initialWorkdir = process.env["INIT_CWD"];
 
     let checkVPython: string;

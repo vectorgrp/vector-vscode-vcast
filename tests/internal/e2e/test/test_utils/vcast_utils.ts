@@ -6,13 +6,71 @@ import {
   TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
+import expectedBasisPathTests from "../basis_path_tests.json"
+import expectedAtgTests from "../atg_tests.json"
 
+import { promisify } from "node:util";
+import { exec } from "child_process";
+import path from "node:path";
+
+const promisifiedExec = promisify(exec);
 export async function updateTestID() {
   let testIDEnvVar = process.env["E2E_TEST_ID"];
   if (testIDEnvVar) {
     let testID = parseInt(testIDEnvVar) + 1;
     process.env["E2E_TEST_ID"] = testID.toString();
   }
+}
+
+
+export async function cleanup(){
+  const workbench = await browser.getWorkbench();
+  const bottomBar = workbench.getBottomBar()
+  const vcastTestingViewContent = await getViewContent("Testing");
+  await (await vcastTestingViewContent.elem).click();
+  const sections = await vcastTestingViewContent.getSections();
+  const testExplorerSection = sections[0];
+  const testEnvironments = await testExplorerSection.getVisibleItems();
+  const testEnvironment = testEnvironments[0];
+  const testEnvironmentContextMenu = await (
+    testEnvironment as CustomTreeItem
+  ).openContextMenu();
+  await testEnvironmentContextMenu.select("VectorCAST");
+  await (await $("aria/Delete Environment")).click();
+
+  const vcastNotifSourceElem = await $(
+    "aria/VectorCAST Test Explorer (Extension)",
+  );
+  const vcastNotification = await vcastNotifSourceElem.$("..");
+  await (await vcastNotification.$("aria/Delete")).click();
+
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Successful deletion of environment DATABASE-MANAGER"),
+    { timeout: 10000 },
+  )
+  
+  const initialWorkdir = process.env["INIT_CWD"];
+  const pathToTutorial = path.join(
+    initialWorkdir,
+    "test",
+    "vcastTutorial",
+    "cpp"
+  )
+  const unitTestsPath = path.join(pathToTutorial, "unitTests");
+  const qikPath = path.join(pathToTutorial, "VCAST.QIK");
+  let clearUnitTestsFolder: string = "";
+  
+  if (process.platform == "win32") clearUnitTestsFolder = `rmdir /s /q ${unitTestsPath}`;
+  else clearUnitTestsFolder = `rm -rf ${unitTestsPath}`;
+  await promisifiedExec(clearUnitTestsFolder);
+  
+  let clearQik: string = "";
+  if (process.platform == "win32") clearQik = `del ${qikPath}`;
+  else clearQik = `rm -rf ${qikPath}`;
+  await promisifiedExec(clearQik);
 }
 export async function getGeneratedTooltipTextAt(
   line: number,
@@ -167,11 +225,16 @@ export async function getTestHandle(
     await customSubprogramMethod.select();
   }
   console.log(`Waiting until ${expectedTestName} appears in the test tree`);
-  await browser.waitUntil(
-    async () =>
-      (await customSubprogramMethod.getChildren()).length ===
-      totalNumOfTestsForMethod,
-  );
+  try{
+    await browser.waitUntil(
+      async () =>
+        (await customSubprogramMethod.getChildren()).length ===
+        totalNumOfTestsForMethod,{timeout:8000, timeoutMsg:`${expectedTestName} not found`}
+    );
+  }
+  catch (e:unknown){
+    return undefined;
+  }
 
   for (const testHandle of await customSubprogramMethod.getChildren()) {
     if (
@@ -210,7 +273,7 @@ export async function deleteTest(testHandle: CustomTreeItem) {
   // for some reason, it does not want to click on Delete Test
   // when given as an argument in select
 
-  const menuElem = await $("aria/Delete Test");
+  const menuElem = await $("aria/Delete Tests");
   await menuElem.click();
 }
 
@@ -235,4 +298,658 @@ export async function editTestScriptFor(
       (await (await editorView.getActiveTab()).getTitle()) ===
       testEnvironmentName + ".tst",
   );
+}
+
+export enum testGenMethod {
+  BasisPath = "Basis Path",
+  ATG = "ATG"
+};
+
+export async function generateAllTestsForEnv(envName:string, testGenMethod:string){
+  const menuItemLabel = `Insert ${testGenMethod} Tests`
+  console.log(`Menu to click is ${menuItemLabel}`)
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+  
+      const subprogramGroup = visibleItem as CustomTreeItem;
+      await expandAllSubprogramsFor(subprogramGroup);
+      if ((await subprogramGroup.getTooltip()).includes(envName)){
+        await subprogramGroup.expand()
+        const ctxMenu = await subprogramGroup.openContextMenu()
+        await ctxMenu.select("VectorCAST")
+        await (await $(`aria/${menuItemLabel}`)).click();
+
+        const workbench = await browser.getWorkbench();        
+        const bottomBar = workbench.getBottomBar()
+        await browser.waitUntil(async () =>
+          (await (await bottomBar.openOutputView()).getText()).includes(
+            "test explorer  [info]      Summary of automatic test case generation:",
+          ),
+        );
+
+        await browser.waitUntil(async () =>
+          (await (await bottomBar.openOutputView()).getText()).includes(
+            "test explorer  [info]  Script loaded successfully ...",
+          ),
+        );
+
+        break
+      }
+    }
+
+  }
+}
+
+export async function validateGeneratedTestScriptContent(testHandle:TreeItem, expectedTestCode: string){
+  await testHandle.select();
+  const ctxMenu = await testHandle.openContextMenu()
+  await ctxMenu.select("VectorCAST");
+  const menuElem = await $("aria/Edit Test Script");
+  await menuElem.click();
+
+  const workbench = await browser.getWorkbench();
+  const editorView = workbench.getEditorView();
+  await browser.waitUntil(
+    async () =>
+      (await (await editorView.getActiveTab()).getTitle()) ===
+      "DATABASE-MANAGER.tst",
+  );
+  const tab = (await editorView.openEditor(
+    "DATABASE-MANAGER.tst",
+  )) as TextEditor;
+  
+  let fullGenTstScript = await tab.getText();
+ 
+  await editorView.closeAllEditors()
+  for (let line of expectedTestCode) {
+    line = line.trim()
+    expect(fullGenTstScript.includes(line)).toBe(true)
+  }
+  
+}
+
+export async function deleteAllTestsForEnv(envName:string){
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+  
+      const subprogramGroup = visibleItem as CustomTreeItem;
+      if ( (await subprogramGroup.getTooltip()).includes(envName)){
+        await subprogramGroup.expand()
+        const menuItemLabel = "Delete Tests"
+        const ctxMenu = await subprogramGroup.openContextMenu()
+        await ctxMenu.select("VectorCAST")
+        await (await $(`aria/${menuItemLabel}`)).click();
+
+        const vcastNotifSourceElem = await $(
+          "aria/VectorCAST Test Explorer (Extension)",
+        );
+        const vcastNotification = await vcastNotifSourceElem.$("..");
+        await (await vcastNotification.$("aria/Delete")).click();
+
+        break
+      }
+      
+    }
+
+  }
+}
+
+export async function validateTestDeletionForEnv(envName:string){
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+      
+      const subprogramGroup = visibleItem as CustomTreeItem;
+   
+      if ((await subprogramGroup.getTooltip()).includes(envName)){
+        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+
+        for (const unit of await subprogramGroup.getChildren()) {
+          const unitName = await unit.getTooltip()
+          console.log(`Unit: ${unitName}`)
+          
+          if (!(unitName.includes("Compound")) && !(unitName.includes("Initialization"))){
+            for (const method of await unit.getChildren()) {
+              const methodName = await method.getTooltip()
+              console.log(`Method: ${methodName}`) 
+              // this is flaky, it sometimes takes manager as Child element
+              if (methodName.includes("::")){
+                await browser.waitUntil(
+                  async () =>
+                    (await method.hasChildren()) === false
+                ); 
+              }
+            }
+          
+          }
+        }
+        // getVisibleItems() literally gets the visible items, including leaves in the structure
+        // important to stop the loop here, otherwise wdio starts doing random things and hangs
+        break;
+      }
+    }
+
+  }
+}
+
+export async function validateTestDeletionForUnit(envName:string, unitName:string){
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+      
+      const subprogramGroup = visibleItem as CustomTreeItem;
+   
+      if ((await subprogramGroup.getTooltip()).includes(envName)){
+        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+
+        for (const unit of await subprogramGroup.getChildren()) {
+          const unitNameTooltip = await unit.getTooltip()
+          console.log(`Unit: ${unitNameTooltip}`)
+          
+          if (unitNameTooltip.includes(unitName)){
+            for (const method of await unit.getChildren()) {
+              const methodName = await method.getTooltip()
+              console.log(`Method: ${methodName}`) 
+              // this is flaky, it sometimes takes manager as Child element
+              if (methodName.includes("::")){
+                await browser.waitUntil(
+                  async () =>
+                    (await method.hasChildren()) === false
+                ); 
+              }
+            }
+          break;
+          }
+        }
+        // getVisibleItems() literally gets the visible items, including leaves in the structure
+        // important to stop the loop here, otherwise wdio starts doing random things and hangs
+        break;
+      }
+    }
+
+  }
+}
+
+export async function validateTestDeletionForFunction(envName:string, unitName:string, functionName:string){
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+      
+      const subprogramGroup = visibleItem as CustomTreeItem;
+   
+      if ((await subprogramGroup.getTooltip()).includes(envName)){
+        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+
+        for (const unit of await subprogramGroup.getChildren()) {
+          const unitNameTooltip = await unit.getTooltip()
+          console.log(`Unit: ${unitNameTooltip}`)
+          
+          if (unitNameTooltip.includes(unitName)){
+            for (const method of await unit.getChildren()) {
+              const methodNameTooltip = await method.getTooltip()
+              console.log(`Method: ${methodNameTooltip}`) 
+              // this is flaky, it sometimes takes manager as Child element
+              if (methodNameTooltip.includes(functionName)){
+                await browser.waitUntil(
+                  async () =>
+                    (await method.hasChildren()) === false
+                ); 
+                break;
+              }
+            }
+          break;
+          }
+        }
+        // getVisibleItems() literally gets the visible items, including leaves in the structure
+        // important to stop the loop here, otherwise wdio starts doing random things and hangs
+        break;
+      }
+    }
+
+  }
+}
+
+export async function generateAndValidateAllTestsFor(envName:string, testGenMethod:string){
+
+  await generateAllTestsForEnv(envName, testGenMethod)
+      
+  const vcastTestingViewContent = await getViewContent("Testing");
+
+  for (const [env, units] of Object.entries(expectedBasisPathTests)) {
+    for (const [unitName, functions] of Object.entries(units)) {
+      for (const [functionName,tests] of Object.entries(functions)) {
+        for (const [testName, expectedTestCode] of Object.entries(tests)) {
+          console.log(`Expected Test ${env}:${unitName}:${functionName}:${testName}`);
+          let subprogram: TreeItem = undefined;
+          let testHandle: TreeItem = undefined;
+          for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+            subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+            if (subprogram) {
+              await subprogram.expand();
+              testHandle = await getTestHandle(
+                subprogram,
+                functionName,
+                testName,
+                Object.entries(tests).length,
+              );
+              if (testHandle) {
+                await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
+                break;
+              } else {
+                throw `Test handle not found for ${env}:${unitName}:${functionName}:${testName}`;
+              }
+            }
+          }
+
+          if (!subprogram) {
+            throw `Subprogram ${unitName} not found`;
+          }
+        }
+      }
+      
+    }
+    
+  }
+}
+
+export async function generateFlaskIconTestsFor(line:number, testGenMethod:string, unitFileName: string){
+  const workbench = await browser.getWorkbench();
+  const activityBar = workbench.getActivityBar();
+  const explorerView = await activityBar.getViewControl("Explorer");
+  const explorerSideBarView = await explorerView?.openView();
+
+  const workspaceFolderName = "vcastTutorial";
+  const workspaceFolderSection = await explorerSideBarView
+    .getContent()
+    .getSection(workspaceFolderName.toUpperCase());
+  console.log(await workspaceFolderSection.getTitle());
+  await workspaceFolderSection.expand();
+
+  const managerCpp = workspaceFolderSection.findItem(unitFileName);
+  await (await managerCpp).select();
+
+  const editorView = workbench.getEditorView();
+  const tab = (await editorView.openEditor(unitFileName)) as TextEditor;
+  
+  await tab.moveCursor(line, 1);
+  
+  let lineNumberElement = await $(`.line-numbers=${line}`);
+  let flaskElement = await (
+    await lineNumberElement.parentElement()
+  ).$(".cgmr.codicon");
+  let backgroundImageCSS = await flaskElement.getCSSProperty(
+    "background-image",
+  );
+  let backgroundImageURL = backgroundImageCSS.value;
+  const BEAKER = "/beaker-plus"
+  expect(backgroundImageURL.includes(BEAKER)).toBe(true);
+  await flaskElement.click({button:2})
+
+  await (await $("aria/VectorCAST")).click();
+  await (await $(`aria/Generate ${testGenMethod} Tests`)).click();
+}
+
+export async function validateGeneratedTest(
+  testGenMethod:string,
+  envName:string, 
+  unitName:string, 
+  functionName:string, 
+  testName:string, 
+  totalTestsForFunction:number = 1
+  ){
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+      
+      const testHandle = await getTestHandle(subprogram, functionName, testName, totalTestsForFunction)
+      expect(testHandle).not.toBe(undefined)
+      const allExpectedTests = await getAllExpectedTests(testGenMethod)
+      const expectedTestCode = await getExpectedTestCode(allExpectedTests, envName,unitName,functionName, testName)
+      await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+
+}
+
+export async function getExpectedTestCode(expectedTests:Object, envName:string, unitName:string, functionName:string, testName:string) {
+  if (unitName == "database"){
+    return expectedTests[envName].database[functionName][testName]
+  }  
+  if (unitName == "manager"){
+    return expectedTests[envName].manager[functionName][testName]
+  }
+  return undefined
+}
+
+export async function getExpectedUnitInfo(expectedTests:Object, envName:string, unitName:string) {
+  if (unitName == "database"){
+    return expectedTests[envName].database
+  }  
+  if (unitName == "manager"){
+    return expectedTests[envName].manager
+  }
+}
+
+export async function getExpectedFunctionInfo(expectedTests:Object, envName:string, unitName:string, functionName:string) {
+  if (unitName == "database"){
+    return expectedTests[envName].database[functionName]
+  }  
+  if (unitName == "manager"){
+    return expectedTests[envName].manager[functionName]
+  }
+}
+
+export async function getAllExpectedTests(testGenMethodText:string) {
+ if (testGenMethodText === testGenMethod.BasisPath){
+  return expectedBasisPathTests
+ } 
+ else{
+  return expectedAtgTests
+ }
+}
+
+
+export async function deleteGeneratedTest(
+  unitName:string, 
+  functionName:string, 
+  testName:string, 
+  totalTestsForFunction:number = 1
+  ){
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+      
+      const testHandle = await getTestHandle(subprogram, functionName, testName, totalTestsForFunction) as CustomTreeItem
+      expect(testHandle).not.toBe(undefined)
+      await deleteTest(testHandle)
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+
+}
+
+export type vcastTest = {
+  envName:string;
+  unitName:string;
+  functionName:string;
+  testName:string;
+  numTestsForFunction:number;
+}
+
+
+export async function multiselectDeletion(tests:vcastTest[]){
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  let testHandles: CustomTreeItem[] = []
+
+  for (const vcastTest of tests) {
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      await vcastTestingViewSection.expand()
+      subprogram = await findSubprogram(vcastTest.unitName, vcastTestingViewSection);
+      if (subprogram){
+        
+        const testHandle = await getTestHandle(subprogram, vcastTest.functionName, vcastTest.testName, vcastTest.numTestsForFunction) as CustomTreeItem
+        expect(testHandle).not.toBe(undefined)
+        testHandles.push(testHandle)
+        break;
+      }
+    }
+    if (!subprogram){
+      throw `Subprogram ${vcastTest.unitName} not found`
+    }
+    
+  }
+
+  for (const testHandle of testHandles) {
+    await executeCtrlClickOn(testHandle)
+  }
+  await releaseCtrl();
+  const ctxMenu = await testHandles[0].openContextMenu()
+  await ctxMenu.select("VectorCAST")
+  const menuElem = await $("aria/Delete Tests");
+  await menuElem.click();
+
+  const vcastNotifSourceElem = await $(
+    "aria/VectorCAST Test Explorer (Extension)",
+  );
+  const vcastNotification = await vcastNotifSourceElem.$("..");
+  await (await vcastNotification.$("aria/Delete")).click();
+
+
+}
+
+export async function validateSingleTestDeletion(
+  unitName:string, 
+  functionName:string, 
+  testName:string, 
+  totalTestsForFunction:number = 1
+  ){
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+      await browser.waitUntil(
+        async () =>
+          (await getTestHandle(subprogram, functionName, testName, totalTestsForFunction) as CustomTreeItem) ===
+          undefined, {timeout:20000}
+      );
+      
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+
+}
+
+export async function generateAllTestsForUnit(unitName:string, testGenMethod:string){
+  const menuItemLabel = `Insert ${testGenMethod} Tests`
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+      const ctxMenu = await subprogram.openContextMenu()
+      await ctxMenu.select("VectorCAST")
+      await (await $(`aria/${menuItemLabel}`)).click();
+      
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+}
+
+export async function generateAllTestsForFunction(unitName:string, functionName:string, testGenMethod:string){
+  const menuItemLabel = `Insert ${testGenMethod} Tests`
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+
+      const functionNode = await findSubprogramMethod(subprogram,functionName)
+
+      const ctxMenu = await functionNode.openContextMenu()
+      await ctxMenu.select("VectorCAST")
+      await (await $(`aria/${menuItemLabel}`)).click();
+      
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+}
+
+export async function deleteAllTestsForUnit(unitName:string, testGenMethod:string){
+  const menuItemLabel = `Insert ${testGenMethod} Tests`
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+      const menuItemLabel = "Delete Tests"
+      const ctxMenu = await subprogram.openContextMenu()
+      await ctxMenu.select("VectorCAST")
+      await (await $(`aria/${menuItemLabel}`)).click();
+
+      const vcastNotifSourceElem = await $(
+        "aria/VectorCAST Test Explorer (Extension)",
+      );
+      const vcastNotification = await vcastNotifSourceElem.$("..");
+      await (await vcastNotification.$("aria/Delete")).click();
+
+      break
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+}
+
+export async function deleteAllTestsForFunction(unitName:string, functionName:string, testGenMethod:string){
+  const menuItemLabel = `Insert ${testGenMethod} Tests`
+  let subprogram: TreeItem = undefined;
+  const vcastTestingViewContent = await getViewContent("Testing");
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    await vcastTestingViewSection.expand()
+    subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+    if (subprogram){
+
+      const functionNode = await findSubprogramMethod(subprogram, functionName);
+      const menuItemLabel = "Delete Tests"
+      const ctxMenu = await functionNode.openContextMenu();
+      await ctxMenu.select("VectorCAST")
+      await (await $(`aria/${menuItemLabel}`)).click();
+
+      const vcastNotifSourceElem = await $(
+        "aria/VectorCAST Test Explorer (Extension)",
+      );
+      const vcastNotification = await vcastNotifSourceElem.$("..");
+      await (await vcastNotification.$("aria/Delete")).click();
+
+      break;
+    }
+  }
+  if (!subprogram){
+    throw `Subprogram ${unitName} not found`
+  }
+}
+
+export async function validateGeneratedTestsForUnit(envName: string, unitName: string, testGenMethod: string){
+  const allExpectedTests = await getAllExpectedTests(testGenMethod)
+  const expectedUnitInfo = await getExpectedUnitInfo(allExpectedTests, envName, unitName)
+  const vcastTestingViewContent = await getViewContent("Testing");
+
+  
+  
+  for (const [functionName,tests] of Object.entries(expectedUnitInfo)) {
+    for (const [testName, expectedTestCode] of Object.entries(tests)) {
+      console.log(`Expected Test ${envName}:${unitName}:${functionName}:${testName}`);
+      let subprogram: TreeItem = undefined;
+      let testHandle: TreeItem = undefined;
+      for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+        subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+        if (subprogram) {
+          await subprogram.expand();
+          testHandle = await getTestHandle(
+            subprogram,
+            functionName,
+            testName,
+            Object.entries(tests).length,
+          );
+          if (testHandle) {
+            await validateGeneratedTestScriptContent(testHandle, expectedTestCode.toString())
+            break;
+          } else {
+            throw `Test handle not found for ${envName}:${unitName}:${functionName}:${testName}`;
+          }
+        }
+      }
+
+      if (!subprogram) {
+        throw `Subprogram ${unitName} not found`;
+      }
+    }
+  }
+    
+}
+
+export async function validateGeneratedTestsForFunction(envName: string, unitName: string, functionName: string, testGenMethod: string){
+  const allExpectedTests = await getAllExpectedTests(testGenMethod)
+  const expectedFunctionInfo = await getExpectedFunctionInfo(allExpectedTests, envName, unitName, functionName)
+  const vcastTestingViewContent = await getViewContent("Testing");
+
+  
+  for (const [testName, expectedTestCode] of Object.entries(expectedFunctionInfo)) {
+    console.log(`Expected Test ${functionName}:${testName}`);
+    let subprogram: TreeItem = undefined;
+    let testHandle: TreeItem = undefined;
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      subprogram = await findSubprogram(unitName, vcastTestingViewSection);
+      if (subprogram) {
+        await subprogram.expand();
+        testHandle = await getTestHandle(
+          subprogram,
+          functionName,
+          testName,
+          Object.entries(expectedFunctionInfo).length,
+        );
+        if (testHandle) {
+          await validateGeneratedTestScriptContent(testHandle, expectedTestCode.toString())
+          break;
+        } else {
+          throw `Test handle not found for ${functionName}:${testName}`;
+        }
+      }
+    }
+
+    if (!subprogram) {
+      throw `Subprogram ${unitName} not found`;
+    }
+  }
+  
+    
 }
