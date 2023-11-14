@@ -826,10 +826,15 @@ export async function newTestScript(testNode: testNodeType) {
 
 
 function quote (name:string){
-  // if name contains the <<COMPOUND>> or <<INIT>> strings
+  // if name contains <<COMPOUND>>, <<INIT>> or parenthesis
   // we need to quote the name so that the shell does not interpret it.
 
-  if (name.includes ("<") || name.includes (">")) {
+  if (
+    name.includes("<") ||
+    name.includes(">") ||
+    name.includes("(") ||
+    name.includes(")")
+  ) {
     return '"' + name + '"';
   }
   else 
@@ -845,7 +850,7 @@ export function getClicastArgsFromTestNodeAsList(testNode: testNodeType):string[
   if (testNode.unitName.length > 0 && testNode.unitName != "not-used")
     returnList.push (`-u${testNode.unitName}`);
 
-  // we need the quotes on the names to handle <<COMPOUND>> and <<INIT>>
+  // we need the quotes on the names to handle <<COMPOUND>>/<<INIT>>/parenthesis
   if (testNode.functionName.length > 0)
     returnList.push (`-s${quote (testNode.functionName)}`);
   if (testNode.testName.length > 0)  {
