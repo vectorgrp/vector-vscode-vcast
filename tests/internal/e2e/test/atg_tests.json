@@ -2,7 +2,7 @@
     "cpp/unitTests/QUOTES_EXAMPLE":{
         "quotes_example":{
             "Moo::honk(int,int,int)":{
-                "ATG-TEST-1" :"\nTEST.END" 
+                "ATG-TEST-1" :"-- Unit: quotes_example\n\n-- Subprogram: Moo::honk(int,int,int)\n\n-- Test Case: ATG-TEST-1\nTEST.UNIT:quotes_example\nTEST.SUBPROGRAM:Moo::honk(int,int,int)\nTEST.REPLACE\nTEST.NAME:ATG-TEST-1\nTEST.NOTES:\nThis is an automatically generated test case.\n   Test Path 1\nNo path constraints\n   Test Case Generation Notes:\n\nTEST.END_NOTES:\nTEST.VALUE:quotes_example.<<GLOBAL>>.(cl).Moo.Moo.<<constructor>>.Moo().<<call>>:0\nTEST.END"
             }
         }
     },

@@ -2,7 +2,7 @@
     "cpp/unitTests/QUOTES_EXAMPLE":{
         "quotes_example":{
             "Moo::honk(int,int,int)":{
-                "BASIS-PATH-001" :"\nTEST.END" 
+                "BASIS-PATH-001" :"-- Unit: quotes_example\n\n-- Subprogram: Moo::honk(int,int,int)\n\n-- Test Case: BASIS-PATH-001\nTEST.UNIT:quotes_example\nTEST.SUBPROGRAM:Moo::honk(int,int,int)\nTEST.REPLACE\nTEST.NAME:BASIS-PATH-001\nTEST.BASIS_PATH:1 of 1\nTEST.NOTES:\n   No branches in subprogram\nTEST.END_NOTES:\nTEST.VALUE:quotes_example.<<GLOBAL>>.(cl).Moo.Moo.<<constructor>>.Moo().<<call>>:0\nTEST.END" 
             }
         }
     },
