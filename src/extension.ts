@@ -51,9 +51,18 @@ import {
   activateTestPane,
   buildTestPaneContents,
   deleteTests,
+  insertBasisPathTests,
+  insertATGTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
 } from "./testPane";
+
+import {
+  addLaunchConfiguration,
+  addSettingsFileFilter,
+  checkIfInstallationIsOK,
+  initializeInstallerFiles,
+} from "./utilities";
 
 import {
   buildEnvironmentFromScript,
@@ -61,12 +70,6 @@ import {
   newTestScript,
   resetCoverageData,
 } from "./vcastTestInterface";
-import {
-  addLaunchConfiguration,
-  addSettingsFileFilter,
-  checkIfInstallationIsOK,
-  initializeInstallerFiles,
-} from "./utilities";
 
 import {
   executeClicastCommand,
@@ -170,6 +173,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(viewResultsCommand);
 
   // Command: vectorcastTestExplorer.createTestScript////////////////////////////////////////////////////////
+  // This is the callback for the right clicks in the test explorer tree
   let createTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.createTestScript",
     (args: any) => {
@@ -181,10 +185,68 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(createTestScriptCommand);
 
+  // Command: vectorcastTestExplorer.insertBasisPathTests////////////////////////////////////////////////////////
+  let insertBasisPathTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.insertBasisPathTests",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        insertBasisPathTests(testNode);
+      }
+    }
+  );
+  context.subscriptions.push(insertBasisPathTestsCommand);
 
-  // Command: vectorcastTestExplorer.createTestScriptForLine////////////////////////////////////////////////////////
-  let createTestScriptForLineCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.createTestScriptForLine",
+  // Command: vectorcastTestExplorer.insertBasisPathTestsFromEditor////////////////////////////////////////////////////////
+  let insertBasisPathTestsFromEditorCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
+    (args: any) => {
+      if (args) {
+        const testNode = buildTestNodeForFunction (args);
+        if (testNode)
+          insertBasisPathTests(testNode);
+        else
+          vscode.window.showErrorMessage(
+            `Unable to create Basis Path Tests for function at line ${args.lineNumber}`
+          );
+      }
+    }
+  );
+  context.subscriptions.push(insertBasisPathTestsFromEditorCommand);
+
+  // Command: vectorcastTestExplorer.insertATGTests////////////////////////////////////////////////////////
+  let insertATGTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.insertATGTests",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        insertATGTests(testNode);
+      }
+    }
+  );
+  context.subscriptions.push(insertATGTestsCommand);
+
+  // Command: vectorcastTestExplorer.insertATGTestsFromEditor////////////////////////////////////////////////////////
+  let insertATGTestsFromEditorCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.insertATGTestsFromEditor",
+    (args: any) => {
+      if (args) {
+        const testNode = buildTestNodeForFunction (args);
+        if (testNode)
+          insertATGTests(testNode);
+        else
+          vscode.window.showErrorMessage(
+            `Unable to create ATG Tests for function at line ${args.lineNumber}`
+          );
+      }
+    }
+  );
+  context.subscriptions.push(insertATGTestsFromEditorCommand);
+
+  // Command: vectorcastTestExplorer.createTestScriptFromEditor////////////////////////////////////////////////////////
+  // This is the callback for right clicks of the source editor flask+ icon
+  let createTestScriptFromEditorCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createTestScriptFromEditor",
     (args: any) => {
       if (args) {
         const testNode = buildTestNodeForFunction (args);
@@ -192,20 +254,35 @@ function configureExtension(context: vscode.ExtensionContext) {
           newTestScript(testNode);
         else
           vscode.window.showErrorMessage(
-            `Unable to create test script for line ${args.lineNumber}`
+            `Unable to create test script for function at line ${args.lineNumber}`
           );
       }
     }
   );
-  context.subscriptions.push(createTestScriptForLineCommand);
+  context.subscriptions.push(createTestScriptFromEditorCommand);
 
   // Command: vectorcastTestExplorer.deleteTest ////////////////////////////////////////////////////////
   let deleteTestCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteTest",
-    (...args: any) => {
-      // adding the ... to args, results in us getting a list of selected tests!
-      if (args) {
-        deleteTests(args);
+    (...nodeList: any) => {
+      // adding the ... to nodeList, results in us getting a list of selected tests!
+      if (nodeList) {
+        // add a confirmation step if the user has selected multiple tests, or
+        // has selected a container node, like an environment, unit, or subprogram
+        if (nodeList.length > 1 || nodeList[0].children.size > 0) {
+          const message =
+            "The selected tests will be deleted, and this action cannot be undone.";
+          vscode.window
+            .showWarningMessage(message, "Delete", "Cancel")
+            .then((answer) => {
+              if (answer === "Delete") {
+                deleteTests(nodeList);
+              }
+            });
+        }
+        else {
+          deleteTests(nodeList);
+        }
       }
     }
   );

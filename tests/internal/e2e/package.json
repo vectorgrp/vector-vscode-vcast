@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "test": "npx wdio run test/wdio.conf.ts --spec ./test/specs/vcast.test.ts"
+        "test": "npx wdio run test/wdio.conf.ts"
     },
     "devDependencies": {
         "@types/global-agent": "^2.1.1",

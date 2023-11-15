@@ -69,11 +69,13 @@ This option is new for VectorCAST 23 sp2
 ## [1.0.8] - 2023-10-06
 
 - Added new right click menu choices for .vce (open environment) and .env (build environment) files #30
-- Improved the open settings feature to filter properly and default to the 'Workspace' tab
+- Added new right click menu choice for test explorer tree to allow you to insert Basis Path and ATG tests #31
+    - Addded Generate ATG and Generate Basis Path choices to the "flask+" icons in the text editor
+- Added support for TEST.REQUIREMENT_KEY syntax, including a hover-over that displays the requirement text #34
+- Improved the 'open settings' feature to default to the 'Workspace' tab
 
 ### Bug Fixes
 - Fixed issue: Add flexibility to environment creation #26
 - Fixed issue: Cleanup of temporary VectorCAST files #27
 - Fixed issue: Inconsistent activation of the extension #28
-- Fixed issue: Add support for TEST.REQUIREMENT_KEY syntax
-
+- Fixed Issue: 'Delete Test' not working for environment, unit, and subprogram tree nodes #41

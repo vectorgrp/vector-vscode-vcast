@@ -51,7 +51,7 @@ import {
 
 import {
   commandStatusType,
-  executeCommand,
+  executeCommandSync,
   loadLaunchFile,
   addLaunchConfiguration,
 } from "./utilities";
@@ -70,6 +70,8 @@ import {
 
 import { 
   clicastCommandToUse,
+  generateAndLoadATGTests,
+  generateAndLoadBasisPathTests,
   loadScriptIntoEnvironment,
 } from "./vcastUtilities";
 
@@ -612,10 +614,10 @@ async function debugNode(
         pathToEnviroBeingDebugged = enviroPath;
 
         // disable coverage
-        // we need to wait for this to complete, so we use executeCommand
+        // we need to wait for this to complete, so we use executeCommandSync
         vectorMessage(`   - disabling coverage for environment ... `);
         const enviroArg = "-e " + getEnviroNameFromID(node.id);
-        executeCommand(
+        executeCommandSync(
           `${clicastCommandToUse} ${enviroArg} tools coverage disable `,
           path.dirname(enviroPath)
         );
@@ -662,7 +664,7 @@ async function debugNode(
         );
 
         // we need this because we don't want to leave cover disabled
-        executeCommand(
+        executeCommandSync(
           `${clicastCommandToUse} ${enviroArg} tools coverage enable`,
           path.dirname(enviroPath)
         );
@@ -837,27 +839,67 @@ async function processRunRequest(
 
 
 export async function deleteTests(nodeList: any[]) {
+
+  // nodeList might contain environment, unit, function or test nodes
+  // or a combination of all kinds.  The nice thing  is that clicast
+  // handles this all for us.  If we provide only a unit, it deletes
+  // all tests for that unit, only a unit and subprogram, it deletes
+  // all for that subprogram. 
+  // 
+  // The only special case is for environment-wide delete, see note below
+
+  let changedEnvironmentPathList:Set<string> = new Set();
+
   for (let node of nodeList) {
+    vectorMessage(`Deleting tests for node: ${node.id} ...`);
+
     const nodeID = node.id;
     const testNode: testNodeType = getTestNode(nodeID);
 
-    if (testNode.testName.length > 0) {
-      const commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-        testNode
-      )} test delete`;
-      let commandStatus: commandStatusType = executeCommand(
-        commandToRun,
-        path.dirname(testNode.enviroPath)
-      );
-      if (commandStatus.errorCode == 0) {
-        updateDataForEnvironment(getEnviroPathFromID(nodeID));
-      } else {
-        vectorMessage("Test delete failed ...");
-        vcastMessage(commandStatus.stdout);
-        openMessagePane();
-      }
+    let commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+      testNode
+    )} test delete`;
+
+    // special vcast case for delete ALL tests for the environment
+    // when no unit, subprogram or test is provided, you have to give YES to delete all
+    if (testNode.unitName.length==0 && testNode.functionName.length==0) {
+      commandToRun += " YES"
+    }
+
+    let commandStatus: commandStatusType = executeCommandSync(
+      commandToRun,
+      path.dirname(testNode.enviroPath)
+    );
+    if (commandStatus.errorCode == 0) {
+      changedEnvironmentPathList.add (getEnviroPathFromID(nodeID));
+    } else {
+      vectorMessage("Test delete failed ...");
+      vcastMessage(commandStatus.stdout);
+      openMessagePane();
     }
   }
+
+  // now update all of the environments that changed
+  for (let enviroPath of changedEnvironmentPathList) {
+    updateDataForEnvironment(enviroPath);
+  }
+
+
+}
+
+export async function insertBasisPathTests(testNode: testNodeType) {
+  // this will insert basis path tests for the given test node
+    
+  generateAndLoadBasisPathTests (testNode);
+  
+}
+
+export async function insertATGTests(testNode: testNodeType) {
+  // this will insert basis path tests for the given test node
+    
+  generateAndLoadATGTests (testNode);
+  updateTestPane(testNode.enviroPath);
+  
 }
 
 
