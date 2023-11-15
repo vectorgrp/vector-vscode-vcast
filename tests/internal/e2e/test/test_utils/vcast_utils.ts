@@ -344,7 +344,7 @@ export async function generateAllTestsForEnv(envName:string, testGenMethod:strin
   }
 }
 
-export async function validateGeneratedTestScriptContent(testHandle:TreeItem, expectedTestCode: string){
+export async function validateGeneratedTestScriptContent(testHandle:TreeItem, expectedTestCode: string, envName: string){
   await testHandle.select();
   const ctxMenu = await testHandle.openContextMenu()
   await ctxMenu.select("VectorCAST");
@@ -353,13 +353,14 @@ export async function validateGeneratedTestScriptContent(testHandle:TreeItem, ex
 
   const workbench = await browser.getWorkbench();
   const editorView = workbench.getEditorView();
+  const tstFilename = `${envName.split("/").at(-1)}.tst`
   await browser.waitUntil(
     async () =>
       (await (await editorView.getActiveTab()).getTitle()) ===
-      "DATABASE-MANAGER.tst",
+      tstFilename,
   );
   const tab = (await editorView.openEditor(
-    "DATABASE-MANAGER.tst",
+    tstFilename,
   )) as TextEditor;
   
   let fullGenTstScript = await tab.getText();
@@ -551,7 +552,7 @@ export async function generateAndValidateAllTestsFor(envName:string, testGenMeth
             );
             if (testHandle) {
               const expectedTestCode = await getExpectedTestCode(expectedTests, envName, unitName, functionName, testName)
-              await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
+              await validateGeneratedTestScriptContent(testHandle, expectedTestCode, envName)
               break;
             } else {
               throw `Test handle not found for ${envName}:${unitName}:${functionName}:${testName}`;
@@ -627,7 +628,7 @@ export async function validateGeneratedTest(
       expect(testHandle).not.toBe(undefined)
       const allExpectedTests = await getAllExpectedTests(testGenMethod)
       const expectedTestCode = await getExpectedTestCode(allExpectedTests, envName,unitName,functionName, testName)
-      await validateGeneratedTestScriptContent(testHandle, expectedTestCode)
+      await validateGeneratedTestScriptContent(testHandle, expectedTestCode, envName)
       break;
     }
   }
@@ -911,7 +912,7 @@ export async function validateGeneratedTestsForUnit(envName: string, unitName: s
             Object.entries(tests).length,
           );
           if (testHandle) {
-            await validateGeneratedTestScriptContent(testHandle, expectedTestCode.toString())
+            await validateGeneratedTestScriptContent(testHandle, expectedTestCode.toString(), envName)
             break;
           } else {
             throw `Test handle not found for ${envName}:${unitName}:${functionName}:${testName}`;
@@ -948,7 +949,7 @@ export async function validateGeneratedTestsForFunction(envName: string, unitNam
           Object.entries(expectedFunctionInfo).length,
         );
         if (testHandle) {
-          await validateGeneratedTestScriptContent(testHandle, expectedTestCode.toString())
+          await validateGeneratedTestScriptContent(testHandle, expectedTestCode.toString(), envName)
           break;
         } else {
           throw `Test handle not found for ${functionName}:${testName}`;
