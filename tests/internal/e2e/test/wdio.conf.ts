@@ -109,6 +109,7 @@ export const config: Options.Testrunner = {
   // will be called from there.
   //
   specs: [
+    "./**/**/vcast_testgen_bugs.test.ts",
     "./**/**/vcast_testgen_env.test.ts",
     "./**/**/vcast_testgen_unit.test.ts",
     "./**/**/vcast_testgen_func.test.ts",
@@ -445,8 +446,18 @@ export const config: Options.Testrunner = {
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
     const headerFilesToCopy = path.join(pathToTutorial, "*.h");
 
+    const examplesDir = path.join(
+      initialWorkdir,
+      "test",
+      "examples",
+    );
+    const examplesToCopy = path.join(examplesDir, "*.cpp")
+
     // copying didn't work with cp from fs
     if (process.platform == "win32") {
+      await promisifiedExec(
+        `xcopy /s /i /y ${examplesToCopy} ${testInputEnvPath} > NUL 2> NUL`,
+      );
       await promisifiedExec(
         `xcopy /s /i /y ${cppFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`,
       );
@@ -461,6 +472,7 @@ export const config: Options.Testrunner = {
         )}`,
       );
     } else {
+      await promisifiedExec(`cp ${examplesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(
