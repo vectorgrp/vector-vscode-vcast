@@ -58,9 +58,14 @@ export function updateFunctionDataForFile(
     let lineMap: Map<number, string> = new Map();
     for (let i = 0; i < functionList.length; i++) {
         const functionInfo: any = functionList[i];
-        const functionName = functionInfo.name;
-        const startLine = functionInfo.startLine;
-        lineMap.set(startLine, functionName);
+        // for now we only use the line to functionName map to insert
+        // the flask icon in the editor, so we simple drop functions
+        // with isTestable set to false
+        if (functionInfo.isTestable) {
+            const functionName = functionInfo.name;
+            const startLine = functionInfo.startLine;
+            lineMap.set(startLine, functionName);
+        }
     }
 
     const enviroName = path.basename(enviroPath);

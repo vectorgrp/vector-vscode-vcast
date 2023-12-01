@@ -167,8 +167,6 @@ function processVCtestData(
   for (let unitIndex = 0; unitIndex < unitList.length; unitIndex++) {
     const unitData = unitList[unitIndex];
 
-    if (unitData.name == "uut_prototype_stubs") continue;
-
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
     // add a cache node for the unit
