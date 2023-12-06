@@ -114,6 +114,7 @@ function getTestLocation(testFile: Uri, testName: string): vscode.Range {
 // 
 // Note that if you pass in a fileURI, then the test tree node will have
 // a "go to test" icon, and clicking on it will open the file at the test location
+// and double click on the test will open the test file.
 // 
 function addTestNodes(
   controller: TestController,
