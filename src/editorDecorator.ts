@@ -59,7 +59,7 @@ export function updateFunctionDataForFile(
     for (let i = 0; i < functionList.length; i++) {
         const functionInfo: any = functionList[i];
         // for now we only use the line to functionName map to insert
-        // the flask icon in the editor, so we simple drop functions
+        // the flask icon in the editor, so we simply drop functions
         // with isTestable set to false
         if (functionInfo.isTestable) {
             const functionName = functionInfo.name;
