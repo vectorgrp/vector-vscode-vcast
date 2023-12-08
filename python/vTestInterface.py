@@ -193,7 +193,7 @@ def getTestDataVCAST(enviroPath):
             for function in unit.functions:
                 functionNode = dict()
                 # Seems like a vcast dataAPI bug with manager.cpp
-                if function.vcast_name != "<<INIT>>":
+                if function.vcast_name != "<<INIT>>" and not function.is_non_testable_stub:
                     # Note: the vcast_name has the parameterization only when there is an overload
                     functionNode["name"] = function.vcast_name
                     functionNode["parameterizedName"] = function.long_name
