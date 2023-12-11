@@ -392,7 +392,15 @@ export function executeClicastCommand(
 
   vectorMessage("-".repeat(100));
   clicast.stdout.on("data", function (data: any) {
-    vectorMessage(data.toString().replace(/[\n]/g, ""));
+    // split raw message based on \n or \r because messages
+    // that come directly from the compiler are LF terminated
+    const rawString = data.toString();
+    const lineArray = rawString.split(/[\n\r?]/);
+    for (const line of lineArray) {
+      if (line.length>0) {
+        vectorMessage(line.replace (/\n/g, ""));
+      }
+    }
   });
 
   clicast.stdout.on("close", function (code: any) {
@@ -407,7 +415,9 @@ export function executeClicastCommand(
       )}' returned exit code: ${code.toString()}`
     );
     vectorMessage("-".repeat(100));
-    if (callback) callback(enviroPath, code);
+    if (callback) {
+      callback(enviroPath, code);
+    }
   });
 }
 

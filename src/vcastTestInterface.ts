@@ -16,6 +16,7 @@ import {
 } from "./editorDecorator";
 
 import { 
+  buildEnvironmentCallback,
   showSettings, 
   updateDataForEnvironment
  } from "./helper";
@@ -575,7 +576,7 @@ export function buildEnvironmentFromScript (
   executeClicastCommand(
     clicastArgs,
     unitTestLocation,
-    updateDataForEnvironment,
+    buildEnvironmentCallback,
     enviroPath
   );
 
