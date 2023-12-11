@@ -176,7 +176,7 @@ export function getNearest(
 
 
 // Improvement needed: Issue #52, support LSE for enviro scripts
-// This list has commands that is dumped by the script generator for a simple environment
+// This list has commands that are dumped by the script generator for a simple environment
 // * indicates that we use these commands in the auto-generated script
 export const commonEnviroCommandList = [
   "NEW",                       // *
@@ -188,9 +188,9 @@ export const commonEnviroCommandList = [
   "WHITEBOX",                  // * YES | NO
   "MAX_VARY_RANGE",            //   Integer
   "STUB",                      // * ALL_BY_PROTOTYPE, ALL, NONE
-  "SEARCH_LIST",               // * Directory path
+  "SEARCH_LIST",               // * Absolute path | $(BASE_DIRECTORY)/relative-path
   "TYPE_HANDLED_DIRS_ALLOWED", //  
-  "LIBRARY_STUBS",             // 
+  "LIBRARY_STUBS",             // a common separated list of names like fopen, malloc, etc.
   "END",
 ];
   
