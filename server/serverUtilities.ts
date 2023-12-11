@@ -174,6 +174,82 @@ export function getNearest(
   return unitName;
 }
 
+
+// Improvement needed: Issue #52, support LSE for enviro scripts
+// This list has commands that is dumped by the script generator for a simple environment
+// * indicates that we use these commands in the auto-generated script
+export const commonEnviroCommandList = [
+  "NEW",                       // *
+  "NAME",                      // * All caps enviro directory name
+  "BASE_DIRECTORY",            //   Variable:Path
+  "COVERAGE_TYPE",             // * Statement, Branch, MCDC, Funciton, Function+Function_call, Statement+Branch, Statement+MCDC
+  "INDUSTRY_MODE",             //   DO-178 B/C, ISO-26262, IEC-61508, EN-50128, IEC-62304
+  "STUB_BY_FUNCTION",          // * Name of UUT
+  "WHITEBOX",                  // * YES | NO
+  "MAX_VARY_RANGE",            //   Integer
+  "STUB",                      // * ALL_BY_PROTOTYPE, ALL, NONE
+  "SEARCH_LIST",               // * Directory path
+  "TYPE_HANDLED_DIRS_ALLOWED", //  
+  "LIBRARY_STUBS",             // 
+  "END",
+];
+  
+// Less commonly used commands, maybe handle these with ENVIRO.* to start?
+export const extendedEnviroCommandList = [
+  "UUT",
+  "DONT_STUB",
+  "COMPILER",                  // * Always CC for C/C++
+  "LIBRARY_INCLUDE_DIR",
+  "TEST_VALUES_DICTIONARY",
+  "TYPE_HANDLED_SOURCE_DIR",
+  "CLASS_OF_INTEREST",
+  "SUPPRESS_STUB",
+  "UNIT_COMPILATION_ARGUMENTS",
+  "UNIT_PREFIX_USER_CODE",
+  "UNIT_PREFIX_USER_CODE_FILE",
+  "END_UNIT_PREFIX_USER_CODE_FILE",
+  "END_UNIT_PREFIX_USER_CODE",
+  "UNIT_APPENDIX_USER_CODE",
+  "UNIT_APPENDIX_USER_CODE_FILE",
+  "END_UNIT_APPENDIX_USER_CODE_FILE",
+  "END_UNIT_APPENDIX_USER_CODE",
+  "DRIVER_PREFIX_USER_CODE",
+  "DRIVER_PREFIX_USER_CODE_FILE",
+  "END_DRIVER_PREFIX_USER_CODE_FILE",
+  "END_DRIVER_PREFIX_USER_CODE_FILE",
+  "USER_GLOBALS",
+  "END_USER_GLOBALS",
+  "USER_PARAMETERS",
+  "END_USER_PARAMETERS",
+  "USER_CODE_DEPENDENCIES",
+  "END_USER_CODE_DEPENDENCIES",
+  "USER_CODE_OBJECTS",
+  "END_USER_CODE_OBJECTS",
+  "USER_CODE_ONE_SHOT_INIT",
+  "END_USER_CODE_INITIALIZE",
+  "USER_CODE_CAPTURE",
+  "END_USER_CODE_CAPTURE",
+  "USER_CODE_ONE_SHOT_TERM",
+  "END_USER_CODE_ONE_SHOT_TERM",
+  "USER_CODE_STUB_PROCESSING",
+  "END_USER_CODE_STUB_PROCESSING",
+  "STUB_ENTRY_USER_CODE",
+  "END_STUB_ENTRY_USER_CODE",
+  "STUB_EXIT_USER_CODE",
+  "END_STUB_EXIT_USER_CODE",
+  "STUB_USER_CODE_FILE",
+  "END_STUB_USER_CODE_FILE",
+  "STUB_DEPEND_USER_CODE_FILE",
+  "END_STUB_DEPEND_USER_CODE_FILE",
+  "ADDITIONAL_UNIT_BODIES",
+  "END_ADDITIONAL_UNIT_BODIES",
+  "USER_CODE_TIMER_START",
+  "END_USER_CODE_TIMER_START",
+  "USER_CODE_TIMER_STOP",
+  "END_USER_CODE_TIMER_STOP",
+]
+
+
 export const testCommandList = [
   // global scope
   "SCRIPT_FEATURE",
