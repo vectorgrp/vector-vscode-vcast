@@ -111,6 +111,11 @@ function getTestLocation(testFile: Uri, testName: string): vscode.Range {
 
 // This function does the work of adding the actual tests
 // to whatever parent is passed in generally a function node
+// 
+// Note that if you pass in a fileURI, then the test tree node will have
+// a "go to test" icon, and clicking on it will open the file at the test location
+// and double click on the test will open the test file.
+// 
 function addTestNodes(
   controller: TestController,
   testList: any[],
@@ -166,8 +171,6 @@ function processVCtestData(
   const unitList = enviroData.testData;
   for (let unitIndex = 0; unitIndex < unitList.length; unitIndex++) {
     const unitData = unitList[unitIndex];
-
-    if (unitData.name == "uut_prototype_stubs") continue;
 
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 

@@ -7,6 +7,7 @@ this started life as a duplicate of:  instumentationLib/vTestInterface.py
 import argparse
 from datetime import datetime
 import hashlib
+import inspect
 import json
 import os
 import subprocess
@@ -138,10 +139,16 @@ def generateTestInfo(test):
     return testInfo
 
 
-import inspect
-
+# This list is created as we walk the dataAPI list of units->functions
+# in getTestDataVCAST(), and we use it to set the isTestable field when 
+# walk the coverage data in the getUnitData() function which has no
+# knowledge of "testabilty"
+globalListOfTestableFunctions = [];
 
 def getTestDataVCAST(enviroPath):
+
+    global globalListOfTestableFunctions
+
     # dataAPI throws if there is a tool/enviro mismatch
     try:
         api = UnitTestApi(enviroPath)
@@ -174,31 +181,35 @@ def getTestDataVCAST(enviroPath):
 
     # Now do normal tests
     for unit in api.Unit.all():
-        unitNode = dict()
-        unitNode["name"] = unit.name
-        try:
-            unitNode["path"] = unit.path
-        except:
-            pass
-        unitNode["functions"] = list()
-        for function in unit.functions:
-            functionNode = dict()
-            # Seems like a vcast dataAPI bug with manager.cpp
-            if function.vcast_name != "<<INIT>>":
-                # Note: the vcast_name has the parameterization only when there is an overload
-                functionNode["name"] = function.vcast_name
-                functionNode["tests"] = list()
-                for test in function.testcases:
-                    if test.is_csv_map:
-                        pass
-                    else:
-                        testInfo = generateTestInfo(test)
-                        functionNode["tests"].append(testInfo)
+        # we used to add these and throw them away in the typescript, nowe we don't add them
+        if unit.name != "uut_prototype_stubs":
+            unitNode = dict()
+            unitNode["name"] = unit.name
+            try:
+                unitNode["path"] = unit.path
+            except:
+                pass
+            unitNode["functions"] = list()
+            for function in unit.functions:
+                functionNode = dict()
+                # Seems like a vcast dataAPI bug with manager.cpp
+                if function.vcast_name != "<<INIT>>" and not function.is_non_testable_stub:
+                    # Note: the vcast_name has the parameterization only when there is an overload
+                    functionNode["name"] = function.vcast_name
+                    functionNode["parameterizedName"] = function.long_name
+                    globalListOfTestableFunctions.append (function.long_name)
+                    functionNode["tests"] = list()
+                    for test in function.testcases:
+                        if test.is_csv_map:
+                            pass
+                        else:
+                            testInfo = generateTestInfo(test)
+                            functionNode["tests"].append(testInfo)
 
-                unitNode["functions"].append(functionNode)
+                    unitNode["functions"].append(functionNode)
 
-        if len(unitNode["functions"]) > 0:
-            testList.append(unitNode)
+            if len(unitNode["functions"]) > 0:
+                testList.append(unitNode)
 
     return testList
 
@@ -270,6 +281,7 @@ def getFunctionData(sourceObject):
         functionInfo = dict()
         functionInfo["name"] = function.name
         functionInfo["startLine"] = function.start_line
+        functionInfo["isTestable"] = function.name in globalListOfTestableFunctions
         functionList.append(functionInfo)
 
     return functionList
@@ -492,12 +504,16 @@ def main():
 
     if args.mode == "getEnviroData":
         topLevel = dict()
-        topLevel["unitData"] = getUnitData(enviroPath, args.kind)
+        # it is important that getTetDataVCAST() is called first since it sets up
+        # the global list of tesable functoions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(enviroPath)
+        topLevel["unitData"] = getUnitData(enviroPath, args.kind)
 
         json.dump(topLevel, sys.stdout, indent=4)
 
     elif args.mode == "getCoverageData":
+        # need to call this function to set the global list of testable functions
+        getTestDataVCAST(enviroPath)
         unitData = getUnitData(enviroPath, args.kind)
         json.dump(unitData, sys.stdout, indent=4)
 
