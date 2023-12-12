@@ -16,6 +16,7 @@ import {
 } from "./editorDecorator";
 
 import { 
+  buildEnvironmentCallback,
   showSettings, 
   updateDataForEnvironment
  } from "./helper";
@@ -543,7 +544,6 @@ function createVcastEnvironmentScript(
     flag: "a+",
   });
   fs.writeFileSync(envFilePath, "ENVIRO.WHITE_BOX: YES\n", { flag: "a+" });
-  fs.writeFileSync(envFilePath, "ENVIRO.COMPILER: CC\n", { flag: "a+" });
   fs.writeFileSync(envFilePath, "ENVIRO.STUB: ALL_BY_PROTOTYPE\n", { flag: "a+" });
 
   searchList.forEach((item) =>
@@ -575,7 +575,7 @@ export function buildEnvironmentFromScript (
   executeClicastCommand(
     clicastArgs,
     unitTestLocation,
-    updateDataForEnvironment,
+    buildEnvironmentCallback,
     enviroPath
   );
 

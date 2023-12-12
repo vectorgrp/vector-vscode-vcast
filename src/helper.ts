@@ -63,11 +63,12 @@ export function buildEnvironmentCallback (enviroPath: string, code:number) {
   }
   else {
     try {
-      // remove the envionment directory, as well as the .vce|.env files
+      // remove the envionment directory, as well as the .vce file
       vectorMessage ("Environment build failed, removing artifacts ...");
       fs.rmSync (enviroPath, {recursive: true, force: true});
       fs.unlinkSync(enviroPath+".vce");
-      fs.unlinkSync(enviroPath+".env");
+      // Don't want to remove the .env, because leaving it allows the
+      // user to edit and then right click to try a re-build
     }
     catch {
       ; // ignore errors
