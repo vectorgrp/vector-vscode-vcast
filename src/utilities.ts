@@ -1,13 +1,12 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { clicastCommandToUse, initializeVcastUtilities } from "./vcastUtilities";
+import { clicastCommandToUse, initializeCodedTestSupport, initializeVcastUtilities } from "./vcastUtilities";
 import { showSettings } from "./helper";
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 
 const execSync = require("child_process").execSync;
-const spawn = require("child_process").spawn;
 const fs = require("fs");
 const path = require("path");
 const which = require ("which")
@@ -360,6 +359,7 @@ export function exeFilename(basename: string): string {
   else return basename;
 }
 
+
 function findVcastTools():boolean {
 
   // This function will set global paths to vpython, clicast and vcastqt
@@ -441,6 +441,9 @@ function findVcastTools():boolean {
 
     // do all of the setup required to use clicast
     foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
+
+    // setup coded-test stuff (new for vc24)
+    initializeCodedTestSupport (vcastInstallationPath)
 
     // check if we have access to a valid crc32 command - this is not fatal
     // must be called after initializeInstallerFiles()

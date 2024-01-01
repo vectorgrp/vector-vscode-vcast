@@ -43,6 +43,7 @@ const atgName = "atg";
 export let atgCommandToUse: string | undefined = undefined;
 export let atgAvailable:boolean = false;
 
+export let codedTestAvailable:boolean = false;
 
 
 function vcastVersionGreaterThan (
@@ -118,6 +119,75 @@ function checkForATG (vcastInstallationPath: string) {
     vectorMessage(`   could NOT find '${atgName}' here: ${vcastInstallationPath}`);
   }
 }
+
+function shouldPromptForIncludePath (includePath:string):boolean {
+
+  // So that we don't annoy users with the coded-test popup every time,
+  // we do our best to check if the include path is already in the project
+
+  let returnValue: boolean = true
+  if (fs.existsSync(includePath)) {
+    for (const workspace of (vscode.workspace.workspaceFolders || [])) {
+      const workspaceRoot = workspace.uri.fsPath;
+      const c_cpp_properties = path.join (workspaceRoot, ".vscode", "c_cpp_properties.json");
+      if (fs.existsSync(c_cpp_properties)) {
+        const c_cpp_properties_contents = fs.readFileSync(c_cpp_properties).toString();
+        if (c_cpp_properties_contents.includes(includePath)) {
+          returnValue = false;
+          break;
+          }
+        }
+      }
+    }
+  else {
+    // don't prompt if the include path is missing for some reason
+    returnValue = false;
+  }
+  return returnValue;
+}
+
+function addIncludePathToProject (includePath:string) {
+
+  // We'd like to make it easy for the user to add the include path
+  // for the VectorCAST vUnit/Include directory.  I looked at automating
+  // this via the vscode.workspace.getConfiguration() API,
+  // but there are so many edge cases, I decided to do check
+  // if the path exists and prompt the user to add if it doesn't
+
+  // swap backslashes to make paths consistent for windows users and
+  // so that they can copy paste from the pop-up to the .json
+  includePath = includePath.replace (/\\/g, "/");
+
+  if (shouldPromptForIncludePath (includePath)) {
+
+    vscode.window.showInformationMessage (
+      "To use VectorCAST Coded Tests, you'll need to add the following include path to your project.  " +
+      `Just copy this path: ${includePath}, and insert it into the appropriate c_cpp_properties.json file for your workspace.`);
+  }
+}
+
+
+export function initializeCodedTestSupport (vcastInstallationPath:string) {
+
+  // When we get here vcastInstallationPath will point to a 
+  // valid VectorCAST installation but we don't know if 
+  // this version has coded test support, so check for that
+  // and initialize global variables to support coded testing
+
+  const candidatePath = path.join(
+    vcastInstallationPath, "vunit");
+  if (fs.existsSync(candidatePath)) {
+    vectorMessage(`   found coded-test support, initializing ...`);
+    codedTestAvailable = true;
+
+    // need to add the include path to the settings so that
+    // the intellisense featues work for the coded test files
+    const includePath = path.join (candidatePath, "include");
+    addIncludePathToProject (includePath);
+
+  }
+}
+
 
 
 export function initializeVcastUtilities(vcastInstallationPath: string) {
