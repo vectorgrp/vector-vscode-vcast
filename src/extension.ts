@@ -66,8 +66,10 @@ import {
 
 import {
   buildEnvironmentFromScript,
+  newCodedTest,
   newEnvironment,
   newTestScript,
+  openCodedTest,
   resetCoverageData,
 } from "./vcastTestInterface";
 
@@ -185,6 +187,19 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(createTestScriptCommand);
 
+  // Command: vectorcastTestExplorer.createCodedTest////////////////////////////////////////////////////////
+  // This is the callback for the right clicks in the test explorer tree
+  let createCodedTestCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createCodedTest",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        newCodedTest(testNode);
+      }
+    }
+  );
+  context.subscriptions.push(createCodedTestCommand);
+
   // Command: vectorcastTestExplorer.insertBasisPathTests////////////////////////////////////////////////////////
   let insertBasisPathTestsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.insertBasisPathTests",
@@ -298,6 +313,17 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(editTestScriptCommand);
+
+  // Command: vectorcastTestExplorer.editCodedTest////////////////////////////////////////////////////////
+  let editCodedTestCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.editCodedTest",
+    (args: any) => {
+      if (args) {
+        openCodedTest(args.id);
+      }
+    }
+  );
+  context.subscriptions.push(editCodedTestCommand);
 
   // Command: vectorcastTestExplorer.loadTestScript////////////////////////////////////////////////////////
   let loadTestScriptCommand = vscode.commands.registerCommand(

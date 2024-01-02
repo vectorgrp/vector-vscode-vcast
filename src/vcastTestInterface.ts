@@ -825,6 +825,27 @@ export async function newTestScript(testNode: testNodeType) {
 }
 
 
+export async function newCodedTest (testNode: testNodeType) {
+
+  // This can be called for any "main" Coded Test node, but not
+  // for the children which are the actual coded tests.
+
+  console.log ("hello")
+
+}
+
+
+export async function openCodedTest(nodeID: string) {
+  // This can be called for any Coded Test or its children
+  // but the test file will always be the same
+
+  console.log ("hello")
+
+
+}
+
+
+
 function quote (name:string){
   // if name contains <<COMPOUND>>, <<INIT>> or parenthesis
   // we need to quote the name so that the shell does not interpret it.
