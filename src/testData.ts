@@ -6,6 +6,9 @@ export interface testNodeType {
   unitName: string;
   functionName: string;
   testName: string;
+  // initially will be used for coded-tests
+  testFile: string;
+  testStartLine: number;
 }
 // this is a lookup table for the nodes in the test tree
 // the key is the nodeID, the data is an testNodeType
@@ -17,7 +20,9 @@ export function createTestNodeinCache(
   enviroName: string,
   unitName: string = "",
   functionName: string = "",
-  testName: string = ""
+  testName: string = "",
+  testFile: string = "",
+  testStartLine: number = 0,
 ) {
   let testNode: testNodeType = {
     enviroPath: enviroPath,
@@ -25,6 +30,8 @@ export function createTestNodeinCache(
     unitName: unitName,
     functionName: functionName,
     testName: testName,
+    testFile: testFile,
+    testStartLine: testStartLine,
   };
   // set will over-write if nodeID exists
   testNodeCache.set(nodeID, testNode);

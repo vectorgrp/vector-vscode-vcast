@@ -187,18 +187,29 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(createTestScriptCommand);
 
-  // Command: vectorcastTestExplorer.createCodedTest////////////////////////////////////////////////////////
+  // Command: vectorcastTestExplorer.addCodedTests////////////////////////////////////////////////////////
   // This is the callback for the right clicks in the test explorer tree
-  let createCodedTestCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.createCodedTest",
+  let addCodedTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addCodedTests",
     (args: any) => {
       if (args) {
-        const testNode: testNodeType = getTestNode(args.id);
-        newCodedTest(testNode);
+        newCodedTest(args.id);
       }
     }
   );
-  context.subscriptions.push(createCodedTestCommand);
+  context.subscriptions.push(addCodedTestsCommand);
+
+  // Command: vectorcastTestExplorer.removeCodedTests////////////////////////////////////////////////////////
+  // This is the callback for the right clicks in the test explorer tree
+  let removeCodedTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.removeCodedTests",
+    (args: any) => {
+      if (args) {
+        deleteTests(args.id);
+      }
+    }
+  );
+  context.subscriptions.push(removeCodedTestsCommand);
 
   // Command: vectorcastTestExplorer.insertBasisPathTests////////////////////////////////////////////////////////
   let insertBasisPathTestsCommand = vscode.commands.registerCommand(
@@ -319,7 +330,8 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.editCodedTest",
     (args: any) => {
       if (args) {
-        openCodedTest(args.id);
+        const testNode: testNodeType = getTestNode(args.id);
+        openCodedTest(testNode);
       }
     }
   );

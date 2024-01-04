@@ -50,10 +50,11 @@ import {
 } from "./testData";
 
 import {
+  addLaunchConfiguration,
   commandStatusType,
   executeCommandSync,
   loadLaunchFile,
-  addLaunchConfiguration,
+  openFileWithLineSelected,
 } from "./utilities";
 
 import {
@@ -119,8 +120,9 @@ function getTestLocation(testFile: Uri, testName: string): vscode.Range {
 function addTestNodes(
   controller: TestController,
   testList: any[],
-  parentNode: TestItemCollection,
+  parentNode: vcastTestItem,
   parentNodeID: string,
+  parentNodeForCache: testNodeType,
   fileURI?: vscode.Uri
 ) {
   for (let testIndex = 0; testIndex < testList.length; testIndex++) {
@@ -133,6 +135,8 @@ function addTestNodes(
       resultFilePath: "",
       URI: fileURI,
       compoundOnly: testList[testIndex].compoundOnly,
+      testFile: testList[testIndex].codedTestFile || "",
+      testStartLine: testList[testIndex].codedTestLine || 0,
     };
 
     let testName = testList[testIndex].testName;
@@ -141,8 +145,10 @@ function addTestNodes(
     const testNodeID = parentNodeID + "." + testName;
 
     // add a cache node for the test
-    let testNodeForCache: testNodeType = duplicateTestNode(parentNodeID);
+    let testNodeForCache:testNodeType = duplicateTestNode(parentNodeID);
     testNodeForCache.testName = testName;
+    testNodeForCache.testFile = testList[testIndex].codedTestFile || "";
+    testNodeForCache.testStartLine = testList[testIndex].codedTestLine || 0;
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;
@@ -154,11 +160,34 @@ function addTestNodes(
     testNode.nodeKind = nodeKind.test;
     testNode.isCompoundOnly = testData.compoundOnly;
     if (fileURI) testNode.range = getTestLocation(fileURI, testName);
-    parentNode.add(testNode);
+    parentNode.children.add(testNode);
+    
   }
+
+  // Note: vcast currently only supports a single coded test file per uut,
+  // so when there are coded test children, we set the coded testFile
+  // for the function node to match the first child
+
+  // vcastHasCodedTestsList is used by the package.json to control context menu choices
+  if (testList.length>0 && testList[0].codedTestFile) {
+    parentNodeForCache.testFile = testList[0].codedTestFile;
+    vcastHasCodedTestsList.push(parentNodeID);
+  }
+  else {
+    vcastHasCodedTestsList = vcastHasCodedTestsList.filter(item => item !== parentNodeID);
+  }
+  vscode.commands.executeCommand(
+   "setContext",
+   "vectorcastTestExplorer.vcastHasCodedTestsList",
+   vcastHasCodedTestsList
+  );
+
+  addTestNodeToCache(parentNodeID, parentNodeForCache);
+
 }
 
-
+const codedTestFunctionName = "coded_tests_driver";
+const codedTestDisplayName = "Coded Tests";
 function processVCtestData(
   controller: TestController,
   enviroNodeID: string,
@@ -190,14 +219,9 @@ function processVCtestData(
       const functionList = unitData.functions;
       for (let fIndex = 0; fIndex < functionList.length; fIndex++) {
         let functionName: string = functionList[fIndex].name;
-
-        if (functionName == "coded_tests_driver") {
-          functionName = "Coded Tests";
-        }
-        else {
-          functionName.replace("::", "-");
-          functionName.replace("~", "-");
-        }
+    
+        functionName.replace("::", "-");
+        functionName.replace("~", "-");
 
         const testList = functionList[fIndex].tests;
         const functionNodeID = `${unitNodeID}.${functionName}`;
@@ -207,19 +231,23 @@ function processVCtestData(
         functionNodeForCache.functionName = functionName;
         addTestNodeToCache(functionNodeID, functionNodeForCache);
 
+        let displayName = functionName;
+        if (functionName == codedTestFunctionName) {
+          displayName = codedTestDisplayName;
+        }
         const functionNode: vcastTestItem = controller.createTestItem(
           functionNodeID,
-          functionName
+          displayName
         );
         functionNode.nodeKind = nodeKind.function;
 
         addTestNodes(
           controller,
           testList,
-          functionNode.children,
-          functionNodeID
+          functionNode,
+          functionNodeID,
+          functionNodeForCache,
         );
-
         unitNode.children.add(functionNode);
       }
     }
@@ -259,7 +287,13 @@ function processVCtestData(
       // we use sortText to force the compound and init nodes to the top of the tree
       specialNode.sortText = sortText;
 
-      addTestNodes(controller, testList, specialNode.children, specialNodeID);
+      addTestNodes(
+        controller, 
+        testList, 
+        specialNode, 
+        specialNodeID,
+        specialNodeForCache
+        );
 
       enviroNode.children.add(specialNode);
     }
@@ -288,10 +322,13 @@ function getEnvironmentList(baseDirectory: string): string[] {
   return returnList;
 }
 
-// This is used in the package.json to control the display of context menu items
-// Search for 'vectorcastTestExplorer.vcastEnviroList' in package.json to see where we reference it
+// These variables are used in the package.json to control the display of context menu items
+// Search for 'vectorcastTestExplorer.vcastEnviroList | vcastHasCodedTestsList' in package.json 
+// to see where we reference them
 // this list in a "when" clause
 export var vcastEnviroList: string[] = [];
+export var vcastHasCodedTestsList: string[] = [];
+
 
 export function updateTestsForEnvironment(
   controller: TestController,
@@ -638,6 +675,12 @@ async function debugNode(
         await runNode(node, run, true);
         run.end();
 
+        vectorMessage(
+          `   - opening VectorCAST version of file: ${getUnitNameFromID(
+            node.id
+          )} ... `
+        );
+
         // Improvement needed:
         // It would be nice if vcast saved away the function start location when building the _vcast file
         // open the sbf uut at the correct line for the function being tested
@@ -646,26 +689,8 @@ async function debugNode(
           sbfFilePath,
           functionUnderTest
         );
-        const functionLocation: vscode.Range = new Range(
-          new Position(functionStartLine, 0),
-          new Position(functionStartLine, 100)
-        );
-
-        vectorMessage(
-          `   - opening VectorCAST version of file: ${getUnitNameFromID(
-            node.id
-          )} ... `
-        );
-        var viewOptions: vscode.TextDocumentShowOptions = {
-          viewColumn: 1,
-          preserveFocus: false,
-          selection: functionLocation,
-        };
-        vscode.workspace
-          .openTextDocument(sbfFilePath)
-          .then((doc: vscode.TextDocument) => {
-            vscode.window.showTextDocument(doc, viewOptions);
-          });
+       
+        openFileWithLineSelected (sbfFilePath, functionStartLine);
 
         // Prompt the user for what to do next!
         vscode.window.showInformationMessage(
@@ -1037,4 +1062,5 @@ export interface vcastTestItem extends vscode.TestItem {
   // this is used for unit nodes to keep track of the
   // full path to the source file
   sourcePath?: string;
+
 }

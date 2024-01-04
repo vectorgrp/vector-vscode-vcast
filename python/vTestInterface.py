@@ -129,6 +129,12 @@ def generateTestInfo(test):
     """
     testInfo = dict()
     testInfo["testName"] = test.name
+
+    # New to support coded tests in vc24
+    if test.coded_tests_file:
+        testInfo["codedTestFile"] = test.coded_tests_file
+        testInfo["codedTestLine"] = test.coded_tests_line
+
     testInfo["notes"] = test.notes
     # stored as 0 or 1
     testInfo["compoundOnly"] = test.for_compound_only
@@ -206,6 +212,12 @@ def getTestDataVCAST(enviroPath):
                             testInfo = generateTestInfo(test)
                             functionNode["tests"].append(testInfo)
 
+                    # This is hack because the dataAPI has an extra node in the list of tests
+                    # that represents the filename that contains the tests.  As a result we 
+                    # have to throw away the first test node in this case.
+                    if function.vcast_name == "coded_tests_driver" and len(functionNode["tests"]) > 0:
+                        functionNode["tests"].pop(0)
+                    
                     unitNode["functions"].append(functionNode)
 
             if len(unitNode["functions"]) > 0:

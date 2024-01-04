@@ -527,3 +527,27 @@ export function getRangeOption (lineIndex: number):vscode.DecorationOptions
   const endPos = new vscode.Position(lineIndex, 0);
   return { range: new vscode.Range(startPos, endPos) };
 }
+
+
+export function openFileWithLineSelected (filePath:string, lineNumber:number) {
+
+  const functionLocation: vscode.Range = new vscode.Range(
+    new vscode.Position(lineNumber, 0),
+    new vscode.Position(lineNumber, 200)
+  );
+
+  var viewOptions: vscode.TextDocumentShowOptions = {
+    viewColumn: 1,
+    preserveFocus: false,
+    selection: functionLocation,
+  };
+  vscode.workspace
+    .openTextDocument(filePath)
+    .then((doc: vscode.TextDocument) => {
+      vscode.window.showTextDocument(doc, viewOptions);
+    },
+    (error: any) => {
+      vectorMessage(error.message, errorLevel.error);
+    });
+
+}

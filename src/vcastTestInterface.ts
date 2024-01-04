@@ -4,6 +4,7 @@ import { Uri } from "vscode";
 
 
 import {
+  clicastCommandToUse,
   executeClicastCommand,
 } from "./vcastUtilities"
 import {
@@ -29,15 +30,22 @@ import {
 import { 
   compoundOnlyString, 
   getEnviroPathFromID, 
-  testNodeType } from "./testData";
+  getTestNode,
+  testNodeType 
+} from "./testData";
+import {
+  updateTestPane,
+} from "./testPane";
 import {
   executeCommandSync,
   executeVPythonScript,
   forceLowerCaseDriveLetter,
   getChecksumCommand,
   getJsonDataFromTestInterface,
+  openFileWithLineSelected,
   testInterfaceCommand,
 } from "./utilities";
+
 import { fileDecorator } from "./fileDecorator";
 
 const fs = require("fs");
@@ -137,6 +145,8 @@ export interface testDataType {
   notes: string;
   URI: vscode.Uri | undefined;
   compoundOnly: boolean;
+  testFile: string;
+  testStartLine: string;
 }
 
 // This allows us to get diret access to the test nodes via the ID
@@ -825,25 +835,50 @@ export async function newTestScript(testNode: testNodeType) {
 }
 
 
-export async function newCodedTest (testNode: testNodeType) {
+export async function newCodedTest (testID: string) {
 
-  // This can be called for any "main" Coded Test node, but not
-  // for the children which are the actual coded tests.
+  // This can be called for any "main" Coded Test node that
+  // does not have children.  When we are loading the test data,
+  // we set the testFile field for the "Coded Test" node if 
+  // there are children, so check that to determine if we can add ...
 
-  console.log ("hello")
+  const testNode: testNodeType = getTestNode(testID);
 
+  if (testNode.testFile.length == 0) {
+    const option: vscode.OpenDialogOptions = { 
+      title: "Select Coded Test File",
+      filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
+    };
+    vscode.window.showOpenDialog(option).then(fileUri => {
+      if (fileUri) {
+        const UserFilePath:string = fileUri[0].fsPath;
+
+        const enviroPath = getEnviroPathFromID(testID);
+        const enclosingDirectory = path.dirname(enviroPath);
+
+        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+          testNode
+        )} test coded add ${UserFilePath}`;
+        const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+        updateTestPane(enviroPath);
+        if (commandStatus.errorCode == 0) {
+          vscode.window.showInformationMessage(`Coded Tests added successfully`);
+        }
+      }
+    });
+  }
 }
 
 
-export async function openCodedTest(nodeID: string) {
+export async function openCodedTest(testNode: testNodeType) {
   // This can be called for any Coded Test or its children
   // but the test file will always be the same
 
-  console.log ("hello")
-
-
+  // just to be sure ...
+  if (fs.existsSync(testNode.testFile)) {
+    openFileWithLineSelected (testNode.testFile, testNode.testStartLine-1);
+  }
 }
-
 
 
 function quote (name:string){
