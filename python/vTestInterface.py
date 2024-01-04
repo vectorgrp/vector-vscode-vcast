@@ -346,6 +346,7 @@ def runClicastScript(commandFileName):
             commandToRun, stderr=subprocess.STDOUT, shell=True
         )
     except subprocess.CalledProcessError as error:
+        # returnCode = error.returncode
         rawOutput = error.output
 
     os.remove(commandFileName)
