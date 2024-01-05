@@ -482,7 +482,7 @@ function okToDebug(
 
 let sourceCache: Map<string, string[]> = new Map();
 
-function findLineForFunction(filePath: string, functionName: string): number {
+function findStringInFile(filePath: string, stringToFind: string): number {
   // We know filePath exists when we get here
 
   let returnLineNumber = 0;
@@ -497,9 +497,8 @@ function findLineForFunction(filePath: string, functionName: string): number {
     sourceCache.set(filePath, fileContents);
   }
 
-  const functionNameWithoutParams = functionName.split("(")[0];
   for (const [index, line] of fileContents.entries()) {
-    if (line.includes(functionNameWithoutParams)) {
+    if (line.includes(stringToFind)) {
       returnLineNumber = index;
       break;
     }
@@ -587,6 +586,37 @@ function launchConfigExists(launchJsonPath: string): boolean {
   return returnValue;
 }
 
+
+function getFileToDebug (
+  node: vcastTestItem,
+  enviroPath:string,
+  uutName:string,
+  functionName:string
+  ):string
+{
+
+  // note: glob pattern is a regex
+  let globPattern: string;
+
+  // coded test
+  if (functionName==codedTestFunctionName)
+    globPattern = uutName + "_expanded_driver.*";
+
+  // compound or init test
+  else if (uutName == "not-used")
+    // Improvement needed: would be nice to figure out the uut for the first slot ...
+    globPattern = "S3_switch.*";
+
+  // regular test
+  else 
+    globPattern = uutName + "_vcast.*";
+
+  const globOptions = { cwd: enviroPath, absolute: true };
+  return glob.sync(globPattern, globOptions)[0];
+
+}
+
+
 async function debugNode(
   controller: vscode.TestController,
   request: vscode.TestRunRequest,
@@ -608,19 +638,12 @@ async function debugNode(
   pathToEnviroBeingDebugged = "No Environment is Being Debugged";
   const enviroPath = getEnviroPathFromID(node.id);
   const enviroOptions = getVcastOptionValues(enviroPath);
-
-  // for compound and init
-  let globPattern: string;
   const uutName = getUnitNameFromID(node.id);
-  if (uutName == "not-used")
-    // Improvement needed: would be nice to figure out the uut for the first slot ...
-    globPattern = "S3_switch.*";
-  else globPattern = uutName + "_vcast.*";
+  const functionUnderTest = getFunctionNameFromID (node.id);
 
-  const globOptions = { cwd: enviroPath, absolute: true };
-  const sbfFilePath = glob.sync(globPattern, globOptions)[0];
+  const fileToDebug:string = getFileToDebug(node, enviroPath, uutName, functionUnderTest);
 
-  if (okToDebug(node, sbfFilePath, enviroOptions)) {
+  if (okToDebug(node, fileToDebug, enviroOptions)) {
     let ourWorkspace = getWorkspacePath(enviroPath);
 
     if (ourWorkspace) {
@@ -675,22 +698,29 @@ async function debugNode(
         await runNode(node, run, true);
         run.end();
 
-        vectorMessage(
-          `   - opening VectorCAST version of file: ${getUnitNameFromID(
-            node.id
-          )} ... `
-        );
+        vectorMessage(`   - opening VectorCAST version of file: ${uutName} ... `);
 
         // Improvement needed:
         // It would be nice if vcast saved away the function start location when building the _vcast file
         // open the sbf uut at the correct line for the function being tested
-        const functionUnderTest = getFunctionNameFromID(node.id);
-        const functionStartLine = findLineForFunction(
-          sbfFilePath,
-          functionUnderTest
+
+        let searchString:string="";
+        if (functionUnderTest==codedTestFunctionName) {
+          // for coded tests, the test logic will be in something that 
+          // looks like: "class Test_managerTests_realTest"  class Test_<suite-name>_<test-name>
+          const testName = getTestNameFromID (node.id).replace (".", "_");
+          searchString = `class Test_${testName}`;
+        }
+        else {
+          searchString = functionUnderTest.split("(")[0];
+        }
+
+        const debugStartLine = findStringInFile(
+          fileToDebug,
+          searchString
         );
        
-        openFileWithLineSelected (sbfFilePath, functionStartLine);
+        openFileWithLineSelected (fileToDebug, debugStartLine);
 
         // Prompt the user for what to do next!
         vscode.window.showInformationMessage(
