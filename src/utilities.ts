@@ -5,6 +5,10 @@ import { clicastCommandToUse, initializeCodedTestSupport, initializeVcastUtiliti
 import { showSettings } from "./helper";
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
+import {
+  testNodeType,
+} from "./testData";
+
 
 const execSync = require("child_process").execSync;
 const fs = require("fs");
@@ -529,17 +533,17 @@ export function getRangeOption (lineIndex: number):vscode.DecorationOptions
 }
 
 
-export function openFileWithLineSelected (filePath:string, lineNumber:number) {
+export function openFileWithLineSelected (filePath:string, lineNumber:number, viewColumn:vscode.ViewColumn=vscode.ViewColumn.One) {
 
-  const functionLocation: vscode.Range = new vscode.Range(
+  const locationToHighlight : vscode.Range = new vscode.Range(
     new vscode.Position(lineNumber, 0),
     new vscode.Position(lineNumber, 200)
   );
 
   var viewOptions: vscode.TextDocumentShowOptions = {
-    viewColumn: 1,
+    viewColumn: viewColumn,
     preserveFocus: false,
-    selection: functionLocation,
+    selection: locationToHighlight,
   };
   vscode.workspace
     .openTextDocument(filePath)
@@ -549,5 +553,15 @@ export function openFileWithLineSelected (filePath:string, lineNumber:number) {
     (error: any) => {
       vectorMessage(error.message, errorLevel.error);
     });
+
+}
+
+
+export function openTestFileAndCompileErrors (testNode:testNodeType) {
+
+  const compileErrorFile = path.join (testNode.enviroPath, "ACOMPILE.LIS");
+
+  openFileWithLineSelected (testNode.testFile, testNode.testStartLine-1);
+  openFileWithLineSelected (compileErrorFile, 0, vscode.ViewColumn.Beside);
 
 }
