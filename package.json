@@ -211,21 +211,27 @@
           "default": "",
           "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
         },
-        "vectorcastTestExplorer.showReportOnExecute": {
+        "vectorcastTestExplorer.enableCodedTesting": {
           "type": "boolean",
           "order": 4,
+          "default": false,
+          "description": "nfiguration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
+        },
+        "vectorcastTestExplorer.showReportOnExecute": {
+          "type": "boolean",
+          "order": 5,
           "default": true,
           "description": "Display the VectorCAST execution report after test run"
         },
         "vectorcastTestExplorer.decorateExplorer": {
           "type": "boolean",
-          "order": 5,
+          "order": 6,
           "default": true,
           "description": "Decorate files that have coverage in the File Explorer pane"
         },
         "vectorcastTestExplorer.verboseLogging": {
           "type": "boolean",
-          "order": 6,
+          "order": 7,
           "default": false,
           "description": "Log internal extension details"
         }

@@ -566,6 +566,13 @@ function createVcastEnvironmentScript(
       flag: "a+",
     })
   );
+  let settings = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer"
+  );
+  if (settings.get("enableCodedTesting", false)) {
+    fs.writeFileSync(envFilePath, 'ENVIRO.CODED_TESTS_SUPPORT: YES\n', { flag: "a+" });
+  }
+
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
 }
 
