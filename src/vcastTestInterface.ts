@@ -571,6 +571,13 @@ function createVcastEnvironmentScript(
   );
   if (settings.get("enableCodedTesting", false)) {
     fs.writeFileSync(envFilePath, 'ENVIRO.CODED_TESTS_SUPPORT: YES\n', { flag: "a+" });
+
+    // Improvement needed: VectorCAST should check the value of this option and 
+    // force it to be TRUE if it is FALSE.  This is a workaround for that.
+    executeCommandSync(
+      `${clicastCommandToUse} option VCAST_WHITEBOX_SEARCH_DIRS_ONLY true`,
+      unitTestLocation);
+  
   }
 
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
