@@ -87,6 +87,8 @@ const path = require("path");
 
 // find test location in file
 function getTestLocation(testFile: Uri, testName: string): vscode.Range {
+
+  // Not currently used, was created for for an early version of coded tests
   // This function will find the location of the VTEST in the
   // testfile and return a position that starts at this line.
 
@@ -122,8 +124,7 @@ function addTestNodes(
   testList: any[],
   parentNode: vcastTestItem,
   parentNodeID: string,
-  parentNodeForCache: testNodeType,
-  fileURI?: vscode.Uri
+  parentNodeForCache: testNodeType
 ) {
   for (let testIndex = 0; testIndex < testList.length; testIndex++) {
     // we save the current test status to be used by updateStatusForNode
@@ -133,7 +134,6 @@ function addTestNodes(
       time: testList[testIndex].time,
       notes: testList[testIndex].notes,
       resultFilePath: "",
-      URI: fileURI,
       compoundOnly: testList[testIndex].compoundOnly,
       testFile: testList[testIndex].codedTestFile || "",
       testStartLine: testList[testIndex].codedTestLine || 0,
@@ -152,14 +152,25 @@ function addTestNodes(
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;
+
+    // currently we only use the Uri and Range for Coded Tests
+    let testURI: vscode.Uri | undefined = undefined;
+    let testRange: vscode.Range | undefined = undefined;
+    if (testList[testIndex].codedTestFile) {
+      testURI = vscode.Uri.file (testList[testIndex].codedTestFile);
+      const startLine = testList[testIndex].codedTestLine-1 || 0;
+      testRange = new Range(new Position(startLine, 0), new Position(startLine, 0));
+    }
+
     let testNode: vcastTestItem = controller.createTestItem(
       testNodeID,
       testName,
-      fileURI
+      testURI
     );
     testNode.nodeKind = nodeKind.test;
     testNode.isCompoundOnly = testData.compoundOnly;
-    if (fileURI) testNode.range = getTestLocation(fileURI, testName);
+    testNode.range = testRange;
+
     parentNode.children.add(testNode);
     
   }

@@ -143,7 +143,6 @@ export interface testDataType {
   time: string;
   resultFilePath: string;
   notes: string;
-  URI: vscode.Uri | undefined;
   compoundOnly: boolean;
   testFile: string;
   testStartLine: string;
