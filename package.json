@@ -215,7 +215,7 @@
           "type": "boolean",
           "order": 4,
           "default": false,
-          "description": "nfiguration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
+          "description": "When this option is set, new environments will be built with the coded testing option enabled"
         },
         "vectorcastTestExplorer.showReportOnExecute": {
           "type": "boolean",
