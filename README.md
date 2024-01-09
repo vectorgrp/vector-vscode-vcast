@@ -71,6 +71,11 @@ setting: "Unit Test Location". By default, this settings value is "./unitTests" 
 that the environment will be created in the "./unitTests" sub-directory of the directory
 containing the source file.
 
+### Code Based Testing Support
+
+IF you would like to use the Coded Tests feature (VectorCAST 24 and newer), you must 
+set the "Enable Coded Tests" extension option before building an environment.
+
 ### Test Explorer Icons
 
 - The Log icon will open the VectorCAST Test Explorer message panel
@@ -103,7 +108,19 @@ The right click menu for unit, function, and test nodes has a VectorCAST sub-men
 - Delete Test - deletes the selected test
 - View Test Results - displays the latest Test Execution Report
 
-### The "Flask+" icon
+#### Coded Test context menu
+
+If an environment was built with Coded Testing Support enabled (VectorCAST 24 and newer)
+The right click context menu for the Coded Test node has a VectorCAST sub-menu with the following commands:
+
+- For a Coded Tests node with no existing tests
+  - Add Coded Test - add an existing coded test source file to the node
+  - Create Coded Test - generate a new coded test source file for the node
+- For a coded Tests node with existing tests
+  - Remove Coded Tests - will remove the coded test file from the node.  The test file will NOT be deleted
+
+
+### The "Flask+" Icon
 
 Special "Flask+" icons are displayed in the margin of the text editor for all VectorCAST
 testable functions.  This right click menu provides the ability to create a new test script, or
@@ -125,7 +142,7 @@ In both cases, a progress dialog will be display as the test cases are computed.
 
 Note that the "ATG tests" menu is only available if you are using version of VectorCAST 23sp5 and higher.
 
-### Editing an Existing Test
+### Editing an Existing Test Script
 
 To edit an existing test script, right click on an environment, unit, function, or test node
 and choose: "Edit Test Script" from the VectorCAST right-click context menu
@@ -151,6 +168,26 @@ The LSE features make it quick and intuitive to create new VectorCAST test scrip
 When editing a test script file, a "Load Test Script into Environment" right click menu item is available in the
 editor window to load the test script into the VectorCAST test environment. If there are unsaved changes,
 the load command will also perform a save.
+
+### Editing a Coded Test 
+
+Double click on a test name under the Coded Tests node to open that test in the editor.  To allow Intellisense
+editing to work properly for coded test file, you must add an include path to the vUnit.h header file that is
+distributed with VectorCAST.  When you enable the VectorCAST test explorer, it will check for the existence of
+the vUnit.h include path in your project and prompt you to add the correct path if it is not found.  Include paths
+are added to the c_cpp_properties.json file for the workspace.  Here is an example of a correctly configured file:
+
+```
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/VectorCAST/vunit/include"
+            ],
+            ...
+```
 
 ### Code Coverage Annotations
 
