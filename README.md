@@ -111,7 +111,7 @@ The right click menu for unit, function, and test nodes has a VectorCAST sub-men
 #### Coded test context menu
 
 If an environment was built with Coded Testing Support enabled (VectorCAST 24 and newer)
-The right click context menu for the Coded Test node has a VectorCAST sub-menu with the following commands:
+The right click context menu for all Coded Test nodes will have a VectorCAST sub-menu with the following commands:
 
 - For a Coded Tests node with no existing tests
   - Add Coded Test - add an existing coded test source file to the node
