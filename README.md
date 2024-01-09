@@ -71,9 +71,9 @@ setting: "Unit Test Location". By default, this settings value is "./unitTests" 
 that the environment will be created in the "./unitTests" sub-directory of the directory
 containing the source file.
 
-### Code Based Testing Support
+### Coded Testing Support
 
-IF you would like to use the Coded Tests feature (VectorCAST 24 and newer), you must 
+If you would like to use the Coded Tests feature (VectorCAST 24 and newer), you must 
 set the "Enable Coded Tests" extension option before building an environment.
 
 ### Test Explorer Icons
@@ -108,7 +108,7 @@ The right click menu for unit, function, and test nodes has a VectorCAST sub-men
 - Delete Test - deletes the selected test
 - View Test Results - displays the latest Test Execution Report
 
-#### Coded Test context menu
+#### Coded test context menu
 
 If an environment was built with Coded Testing Support enabled (VectorCAST 24 and newer)
 The right click context menu for the Coded Test node has a VectorCAST sub-menu with the following commands:
@@ -171,11 +171,11 @@ the load command will also perform a save.
 
 ### Editing a Coded Test 
 
-Double click on a test name under the Coded Tests node to open that test in the editor.  To allow Intellisense
-editing to work properly for coded test file, you must add an include path to the vUnit.h header file that is
-distributed with VectorCAST.  When you enable the VectorCAST test explorer, it will check for the existence of
-the vUnit.h include path in your project and prompt you to add the correct path if it is not found.  Include paths
-are added to the c_cpp_properties.json file for the workspace.  Here is an example of a correctly configured file:
+To edit a coded test, double click on the test name to open the test in the source editor.  To allow Intellisense
+editing to work properly for a coded test file, you must add an include path to the c_cpp_properties.json file 
+for the workspace that points to the location of the vUnit.h header file that is distributed with VectorCAST.  
+When you enable the VectorCAST test explorer, it will check for the existence of the correct include path and 
+prompt you to add it if it is not found.  Here is an example a c_cpp_properties.json file with the vUnit include path added:
 
 ```
 {
@@ -234,6 +234,7 @@ This extension contributes the following settings:
 - "VectorCAST Installation Location" provides the path to the VectorCAST installation
 - "Unit Test Location" controls where the extension stores unit test new unit test artifacts.
 - "Configuration Location" control where the extension looks for the VectorCAST CCAST_.CFG file
+- "Enable Coded Tests" enables coded testing when new environments are built
 - "Show Report on Execute" will show the HTML test report in after each VectorCAST test run.
 - "Decorate Explorer Tree" will add a VC in the right margin of the file explorer tree for those files that have VectorCAST coverage.
 - "Verbose Logging" will add more detailed messages to the VectorCAST Test Explorer message panel
