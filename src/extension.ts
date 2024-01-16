@@ -201,11 +201,13 @@ function configureExtension(context: vscode.ExtensionContext) {
 
   // Command: vectorcastTestExplorer.removeCodedTests////////////////////////////////////////////////////////
   // This is the callback for the right clicks in the test explorer tree
+
+  // adding the ... to nodeList, results in us getting a list of selected tests!
   let removeCodedTestsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.removeCodedTests",
-    (args: any) => {
-      if (args) {
-        deleteTests(args.id);
+    (...nodeList: any) => {
+      if (nodeList) {
+        deleteTests(nodeList);
       }
     }
   );
