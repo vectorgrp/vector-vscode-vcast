@@ -1,0 +1,22 @@
+name: Vector Vscode Vcast Tests
+run-name: ${{ github.actor }} is testing Vector Vscode Vcast
+on: [push]
+jobs:
+  test:
+    runs-on: [self-hosted, vscode-vcast]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vscode_vcast/vscode_vcast_ubuntu_tests:latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Package with VSCE
+        run: vsce package
+
+      - name: Run tests
+        run: npm test
