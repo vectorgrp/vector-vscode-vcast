@@ -61,7 +61,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     npm set cafile /etc/ssl/certs/ca-certificates.crt &&  \
     npm set registry https://registry.npmjs.org/ && \
     npm i -g yo && \
-    npm install -g vsce && \
+    npm install -g @vscode/vsce@^2.15.04 && \
     npm install -g typescript && \
     npm install -g esbuild
 
