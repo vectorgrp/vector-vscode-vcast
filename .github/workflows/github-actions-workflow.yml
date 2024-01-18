@@ -7,6 +7,7 @@ jobs:
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base:latest
+      options: --user root
 
     steps:
       - name: Check out repository

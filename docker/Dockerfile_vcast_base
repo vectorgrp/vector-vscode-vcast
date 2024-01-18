@@ -100,5 +100,7 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/release \
     RUNNING_ON_SERVER=True \
     CPATH=/opt/rh/devtoolset-10/root/usr/include/c++/10:/opt/rh/devtoolset-10/root/usr/include/c++/10/x86_64-redhat-linux:/opt/rh/devtoolset-10/root/usr/include/c++/10/backward:/opt/rh/devtoolset-10/root/usr/lib/gcc/x86_64-redhat-linux/10/include:/opt/rh/devtoolset-10/root/usr/include:$CPATH
 
+RUN sudo mkdir -m 1777 /__w && sudo chown -R ${USER_UID}:${USER_GID} /__w
+
 SHELL ["/bin/bash", "--login", "-c"]
 WORKDIR /home/${USERNAME}
