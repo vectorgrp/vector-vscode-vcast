@@ -6,7 +6,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vscode_vcast/vscode_vcast_ubuntu_tests:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base:latest
 
     steps:
       - name: Check out repository

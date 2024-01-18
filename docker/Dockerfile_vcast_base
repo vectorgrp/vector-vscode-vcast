@@ -1,0 +1,104 @@
+FROM centos:7.5.1804
+
+ARG PROXY_URL=http://gateway.zscloud.net:10402
+ARG NO_PROXY="localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/"
+
+ENV http_proxy=${PROXY_URL} \
+    https_proxy=${PROXY_URL} \
+    HTTP_PROXY=${PROXY_URL} \
+    HTTPS_PROXY=${PROXY_URL} \
+    no_proxy=${NO_PROXY}
+
+# Install Vector certificates
+ADD https://vistradpart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Root_2.0.crt /etc/pki/ca-trust/source/anchors/vector_root.crt
+ADD https://vistradpart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Issuing_2.0.crt /etc/pki/ca-trust/source/anchors/vector_issuing.crt
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+RUN chmod 644 /etc/pki/ca-trust/source/anchors/* && \
+    update-ca-trust force-enable; update-ca-trust extract
+
+ARG USERNAME=vcast_user
+RUN groupadd --gid 1000 ${USERNAME}
+RUN adduser --uid 1000 --gid 1000 --shell /bin/bash ${USERNAME}
+RUN yum install -y sudo
+RUN touch /etc/sudoers.d/$USERNAME && \
+    echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME && \
+    chmod 0440 /etc/sudoers.d/$USERNAME
+
+USER $USERNAME
+RUN mkdir -p /home/${USERNAME}/.config && \
+    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.config && \
+    sudo chown ${USERNAME} /etc/ssl/certs/ca-certificates.crt
+
+RUN sudo yum install -y wget && \
+    sudo yum update -y \
+    && sudo yum install -y \
+    less curl unzip gnupg build-essential && \
+    sudo yum install -y mlocate && sudo updatedb && \
+    sudo yum install -y centos-release-scl && \
+    sudo yum install -y devtoolset-10-gcc* && \
+    sudo yum install -y which && \
+    sudo yum install -y gdb
+
+SHELL ["/bin/bash", "-c"]
+RUN echo "export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"  >> /home/${USERNAME}/.bashrc && \
+    echo "source /opt/rh/devtoolset-10/enable" >> /home/${USERNAME}/.bashrc
+
+SHELL ["/bin/bash", "--login", "-c"]
+# installing node
+RUN curl -sL https://rpm.nodesource.com/setup_16.x | sudo -E bash - && \
+    sudo yum install -y nodejs && \
+    mkdir ~/.npm-global && \
+    npm config set prefix '~/.npm-global'
+
+ENV PATH=~/.npm-global/bin:$PATH
+
+SHELL ["/bin/bash", "--login", "-c"]
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    sudo yum -y install python3 && \
+    sudo yum -y install libsecret-devel && \
+    sudo yum -y install make && \
+    npm set cafile /etc/ssl/certs/ca-certificates.crt &&  \
+    npm set registry https://registry.npmjs.org/ && \
+    npm i -g yo && \
+    npm install -g vsce && \
+    npm install -g typescript && \
+    npm install -g esbuild
+
+RUN sudo chmod 644 /etc/pki/ca-trust/source/anchors/* && \
+    sudo update-ca-trust force-enable; sudo update-ca-trust extract && \
+    sudo yum install -y xorg-x11-server-Xvfb && \
+    sudo yum install -y epel-release && \
+    sudo yum install -y chromium && \
+    mkdir -p ~/software
+
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST23.tar.gz /home/${USERNAME}/software/releaseVectorCAST23.tar.gz
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vector-DEMO.lic /home/${USERNAME}/software/vector-DEMO.lic
+RUN cd ~/software && \
+    sudo chown ${USERNAME} releaseVectorCAST23.tar.gz && \
+    sudo chown ${USERNAME} vector-DEMO.lic && \
+    tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz
+
+ENV VECTORCAST_DIR=/home/${USERNAME}/software/release \
+    LM_LICENSE_FILE=/home/${USERNAME}/software/vector-DEMO.lic \
+    VECTOR_LICENSE_FILE=/home/${USERNAME}/software/vector-DEMO.lic \
+    VCAST_TEST_PATH=/home/${USERNAME}/project/vscode-vcast/E2E-test \
+    VCAST_EXTENSION_PATH=/home/${USERNAME}/project/vscode-vcast \
+    RDS_REPO_PATH=/home/${USERNAME}/project \
+    SHARED_LIB_PATH=/home/${USERNAME}/project/sharedLib \
+    TESTING_IN_CONTAINER=True \
+    NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    GLOBAL_AGENT_HTTP_PROXY=http://gateway.zscloud.net:10402 \
+    http_proxy=http://gateway.zscloud.net:10402 \
+    GLOBAL_AGENT_HTTPS_PROXY=http://gateway.zscloud.net:10402 \
+    GLOBAL_AGENT_NO_PROXY=localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ \
+    HTTPS_PROXY=http://gateway.zscloud.net:10402 \
+    https_proxy=http://gateway.zscloud.net:10402 \
+    no_proxy=localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ \
+    HTTP_PROXY=http://gateway.zscloud.net:10402 \
+    RUNNING_ON_SERVER=True \
+    CPATH=/opt/rh/devtoolset-10/root/usr/include/c++/10:/opt/rh/devtoolset-10/root/usr/include/c++/10/x86_64-redhat-linux:/opt/rh/devtoolset-10/root/usr/include/c++/10/backward:/opt/rh/devtoolset-10/root/usr/lib/gcc/x86_64-redhat-linux/10/include:/opt/rh/devtoolset-10/root/usr/include:$CPATH
+
+SHELL ["/bin/bash", "--login", "-c"]
+WORKDIR /home/${USERNAME}
