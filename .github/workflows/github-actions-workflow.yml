@@ -10,6 +10,9 @@ jobs:
       options: --user vcast_user
 
     steps:
+      - name: Debugging
+        run: id && echo $PATH && echo $HOME && which vsce
+
       - name: Check out repository
         uses: actions/checkout@v3
 

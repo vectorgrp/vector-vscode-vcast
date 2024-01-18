@@ -17,8 +17,8 @@ RUN chmod 644 /etc/pki/ca-trust/source/anchors/* && \
     update-ca-trust force-enable; update-ca-trust extract
 
 ARG USERNAME=vcast_user
-RUN groupadd --gid 1000 ${USERNAME}
-RUN adduser --uid 1000 --gid 1000 --shell /bin/bash ${USERNAME}
+RUN groupadd --gid 1006 ${USERNAME}
+RUN adduser --uid 1006 --gid 1006 --shell /bin/bash ${USERNAME}
 RUN yum install -y sudo
 RUN touch /etc/sudoers.d/$USERNAME && \
     echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME && \
@@ -100,7 +100,7 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/release \
     RUNNING_ON_SERVER=True \
     CPATH=/opt/rh/devtoolset-10/root/usr/include/c++/10:/opt/rh/devtoolset-10/root/usr/include/c++/10/x86_64-redhat-linux:/opt/rh/devtoolset-10/root/usr/include/c++/10/backward:/opt/rh/devtoolset-10/root/usr/lib/gcc/x86_64-redhat-linux/10/include:/opt/rh/devtoolset-10/root/usr/include:$CPATH
 
-RUN sudo mkdir -m 1777 /__w && sudo chown -R ${USER_UID}:${USER_GID} /__w
+RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
 
 SHELL ["/bin/bash", "--login", "-c"]
 WORKDIR /home/${USERNAME}
