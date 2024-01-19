@@ -67,6 +67,7 @@ import {
 
 import {
   buildEnvironmentFromScript,
+  generateCodedTest,
   newCodedTest,
   newEnvironment,
   newTestScript,
@@ -199,6 +200,18 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(addCodedTestsCommand);
+
+  // Command: vectorcastTestExplorer.generateCodedTests////////////////////////////////////////////////////////
+  // This is the callback for the right clicks in the test explorer tree
+  let generateCodedTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.generateCodedTests",
+    (args: any) => {
+      if (args) {
+        generateCodedTest(args.id);
+      }
+    }
+  );
+  context.subscriptions.push(generateCodedTestsCommand);
 
   // Command: vectorcastTestExplorer.removeCodedTests////////////////////////////////////////////////////////
   // This is the callback for the right clicks in the test explorer tree

@@ -116,7 +116,12 @@
       {
         "command": "vectorcastTestExplorer.addCodedTests",
         "category": "VectorCAST Test Explorer",
-        "title": "Add Coded Tests"
+        "title": "Add Coded Test File"
+      },
+      {
+        "command": "vectorcastTestExplorer.generateCodedTests",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Coded Test File"
       },
       {
         "command": "vectorcastTestExplorer.removeCodedTests",
@@ -295,6 +300,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.generateCodedTests",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.removeCodedTests",
           "when": "never"
         },
@@ -452,13 +461,18 @@
           "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ &&  testId not in vectorcastTestExplorer.vcastHasCodedTestsList"
         },
         {
-          "command": "vectorcastTestExplorer.removeCodedTests",
+          "command": "vectorcastTestExplorer.generateCodedTests",
           "group": "vcast@5",
+          "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ &&  testId not in vectorcastTestExplorer.vcastHasCodedTestsList"
+        },
+        {
+          "command": "vectorcastTestExplorer.removeCodedTests",
+          "group": "vcast@6",
           "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ && testId in vectorcastTestExplorer.vcastHasCodedTestsList"
         },
         {
           "command": "vectorcastTestExplorer.editCodedTest",
-          "group": "vcast@5",
+          "group": "vcast@7",
           "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList && testId =~ /.*coded_tests_driver.+/"
         },
         {

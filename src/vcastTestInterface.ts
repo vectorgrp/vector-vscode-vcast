@@ -890,6 +890,41 @@ export async function newCodedTest (testID: string) {
   }
 }
 
+export async function generateCodedTest (testID: string) {
+
+  // This can be called for any "main" Coded Test node that
+  // does not have children.  When we are loading the test data,
+  // we set the testFile field for the "Coded Test" node if 
+  // there are children, so check that to determine if we can add ...
+
+  const testNode: testNodeType = getTestNode(testID);
+
+  if (testNode.testFile.length == 0) {
+    const option: vscode.SaveDialogOptions = { 
+      title: "Save Code Test File",
+      filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
+    };
+    vscode.window.showSaveDialog(option).then(fileUri => {
+      if (fileUri) {
+        const UserFilePath:string = fileUri.fsPath;
+
+        const enviroPath = getEnviroPathFromID(testID);
+        const enclosingDirectory = path.dirname(enviroPath);
+
+        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+          testNode
+        )} test coded new ${UserFilePath}`;
+        const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+        updateTestPane(enviroPath);
+        if (commandStatus.errorCode == 0) {
+          vscode.window.showInformationMessage(`Coded Tests generated successfully`);
+        }
+      }
+    });
+  }
+}
+
+
 
 export async function openCodedTest(testNode: testNodeType) {
   // This can be called for any Coded Test or its children
