@@ -47,10 +47,10 @@ SHELL ["/bin/bash", "--login", "-c"]
 # installing node
 RUN curl -sL https://rpm.nodesource.com/setup_16.x | sudo -E bash - && \
     sudo yum install -y nodejs && \
-    mkdir ~/.npm-global && \
-    npm config set prefix '~/.npm-global'
+    mkdir /home/${USERNAME}/.npm-global && \
+    npm config set prefix "/home/${USERNAME}/.npm-global"
 
-ENV PATH=~/.npm-global/bin:$PATH
+ENV PATH=/home/${USERNAME}/.npm-global/bin:$PATH
 
 SHELL ["/bin/bash", "--login", "-c"]
 
@@ -70,16 +70,17 @@ RUN sudo chmod 644 /etc/pki/ca-trust/source/anchors/* && \
     sudo yum install -y xorg-x11-server-Xvfb && \
     sudo yum install -y epel-release && \
     sudo yum install -y chromium && \
-    mkdir -p ~/software
+    mkdir -p /home/${USERNAME}/software
 
 ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST23.tar.gz /home/${USERNAME}/software/releaseVectorCAST23.tar.gz
 ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vector-DEMO.lic /home/${USERNAME}/software/vector-DEMO.lic
-RUN cd ~/software && \
+RUN cd /home/${USERNAME}/software && \
     sudo chown ${USERNAME} releaseVectorCAST23.tar.gz && \
     sudo chown ${USERNAME} vector-DEMO.lic && \
     tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz
 
 ENV VECTORCAST_DIR=/home/${USERNAME}/software/release \
+    PATH=/home/${USERNAME}/software/release:/opt/rh/devtoolset-10/root/usr/bin:$PATH \
     LM_LICENSE_FILE=/home/${USERNAME}/software/vector-DEMO.lic \
     VECTOR_LICENSE_FILE=/home/${USERNAME}/software/vector-DEMO.lic \
     VCAST_TEST_PATH=/home/${USERNAME}/project/vscode-vcast/E2E-test \
