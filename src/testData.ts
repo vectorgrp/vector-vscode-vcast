@@ -1,6 +1,7 @@
 export const compoundOnlyString = " [compound only]";
 
 export interface testNodeType {
+  enviroNodeID: string;
   enviroPath: string; // the full path including the enviro directory
   enviroName: string; // the directory name
   unitName: string;
@@ -15,16 +16,17 @@ export interface testNodeType {
 var testNodeCache = new Map();
 
 export function createTestNodeinCache(
-  nodeID: string,
+  enviroNodeID: string,
   enviroPath: string,
   enviroName: string,
   unitName: string = "",
   functionName: string = "",
   testName: string = "",
   testFile: string = "",
-  testStartLine: number = 0,
+  testStartLine: number = 1,
 ) {
   let testNode: testNodeType = {
+    enviroNodeID:enviroNodeID,
     enviroPath: enviroPath,
     enviroName: enviroName,
     unitName: unitName,
@@ -34,7 +36,7 @@ export function createTestNodeinCache(
     testStartLine: testStartLine,
   };
   // set will over-write if nodeID exists
-  testNodeCache.set(nodeID, testNode);
+  testNodeCache.set(enviroNodeID, testNode);
 }
 
 export function addTestNodeToCache(nodeID: string, testNode: testNodeType) {
@@ -50,12 +52,24 @@ export function duplicateTestNode(nodeID: string) {
   return JSON.parse(JSON.stringify(existingNode));
 }
 
+export function removeNodeFromCache (nodeID:string) {
+  testNodeCache.delete(nodeID);
+}
+
+export function nodeIsInCache (nodeID:string) {
+  return testNodeCache.has(nodeID);
+}
+
 export function clearTestNodeCache() {
   testNodeCache.clear;
 }
 
 export function getTestNode(nodeID: string): testNodeType {
   return testNodeCache.get(nodeID);
+}
+
+export function getEnviroNodeIDFromID(nodeID: string): string {
+  return testNodeCache.get(nodeID).enviroNodeID;
 }
 
 export function getEnviroPathFromID(nodeID: string): string {

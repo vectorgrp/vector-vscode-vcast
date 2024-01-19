@@ -10,8 +10,12 @@ import {
   removeCoverageDataForEnviro,
   updateCoverageData,
 } from "./vcastTestInterface";
-import { removeEnvironmentFromTestPane, updateTestPane } from "./testPane";
-import { getEnviroPathFromID } from "./testData";
+import { 
+  removeCBTfilesCacheForEnviro,
+  removeEnvironmentFromTestPane, 
+  updateTestPane 
+} from "./testPane";
+import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 import { updateExploreDecorations } from "./fileDecorator";
 import { vectorMessage } from "./messagePane";
 
@@ -36,6 +40,7 @@ function removeFilePattern (enviroPath: string, pattern: string) {
 
 
 export function updateDataForEnvironment(enviroPath: string) {
+  
   // this function does all of the "common" work when an environment is updated
   // sources of environment update are things like:
   //   - opening the environment in the vcast gui
@@ -104,12 +109,15 @@ export function deleteEnvironmentCallback(enviroNodeID: string, code:number) {
   // if the delete succeeded then we need to remove the environment from the test pane
   if (code==0) {
     removeEnvironmentFromTestPane(enviroNodeID);
+    removeCBTfilesCacheForEnviro(enviroNodeID);
 
     const enviroPath = getEnviroPathFromID(enviroNodeID);
     removeCoverageDataForEnviro(enviroPath);
     updateDisplayedCoverage();
     updateExploreDecorations();
     updateTestDecorator ();
+
+    removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
     removeFilePattern (enviroPath, ".*")

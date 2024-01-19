@@ -10,7 +10,6 @@ import {
   Range,
   Uri,
   TestController,
-  TestItemCollection,
   TestMessage,
 } from "vscode";
 
@@ -41,11 +40,13 @@ import {
   createTestNodeinCache,
   duplicateTestNode,
   getEnviroPathFromID,
+  getEnviroNodeIDFromID,
   getFunctionNameFromID,
   getEnviroNameFromID,
   getTestNameFromID,
   getTestNode,
   getUnitNameFromID,
+  nodeIsInCache,
   testNodeType,
 } from "./testData";
 
@@ -53,8 +54,11 @@ import {
   addLaunchConfiguration,
   commandStatusType,
   executeCommandSync,
+  forceLowerCaseDriveLetter,
+  getJsonDataFromTestInterface,
   loadLaunchFile,
   openFileWithLineSelected,
+  parseCBTCommand,
 } from "./utilities";
 
 import {
@@ -84,6 +88,8 @@ import {
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require('crypto');
+
 
 // find test location in file
 function getTestLocation(testFile: Uri, testName: string): vscode.Range {
@@ -136,8 +142,11 @@ function addTestNodes(
       resultFilePath: "",
       compoundOnly: testList[testIndex].compoundOnly,
       testFile: testList[testIndex].codedTestFile || "",
-      testStartLine: testList[testIndex].codedTestLine || 0,
+      testStartLine: testList[testIndex].codedTestLine || 1,
     };
+
+    testData.testFile = forceLowerCaseDriveLetter (path.normalize(testData.testFile));
+    parentNodeForCache.testFile = testData.testFile;
 
     let testName = testList[testIndex].testName;
     if (testData.compoundOnly)
@@ -147,8 +156,8 @@ function addTestNodes(
     // add a cache node for the test
     let testNodeForCache:testNodeType = duplicateTestNode(parentNodeID);
     testNodeForCache.testName = testName;
-    testNodeForCache.testFile = testList[testIndex].codedTestFile || "";
-    testNodeForCache.testStartLine = testList[testIndex].codedTestLine || 0;
+    testNodeForCache.testFile = testData.testFile;
+    testNodeForCache.testStartLine = testData.testStartLine;
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;
@@ -156,10 +165,10 @@ function addTestNodes(
     // currently we only use the Uri and Range for Coded Tests
     let testURI: vscode.Uri | undefined = undefined;
     let testRange: vscode.Range | undefined = undefined;
-    if (testList[testIndex].codedTestFile) {
-      testURI = vscode.Uri.file (testList[testIndex].codedTestFile);
-      const startLine = testList[testIndex].codedTestLine-1 || 0;
-      testRange = new Range(new Position(startLine, 0), new Position(startLine, 0));
+    if (testData.testFile.length>0) {
+      testURI = vscode.Uri.file (testData.testFile);
+      const startLine = testData.testStartLine
+      testRange = new Range(new Position(startLine-1, 0), new Position(startLine-1, 0));
     }
 
     let testNode: vcastTestItem = controller.createTestItem(
@@ -181,7 +190,6 @@ function addTestNodes(
 
   // vcastHasCodedTestsList is used by the package.json to control context menu choices
   if (testList.length>0 && testList[0].codedTestFile) {
-    parentNodeForCache.testFile = testList[0].codedTestFile;
     vcastHasCodedTestsList.push(parentNodeID);
   }
   else {
@@ -259,6 +267,13 @@ function processVCtestData(
           functionNodeID,
           functionNodeForCache,
         );
+
+        if (functionName == codedTestFunctionName &&  functionNodeForCache.testFile.length>0) {
+            addCodedTestfileToCache (
+              enviroNodeID,
+              functionNodeForCache);
+        }
+
         unitNode.children.add(functionNode);
       }
     }
@@ -923,7 +938,7 @@ export async function deleteTests(nodeList: any[]) {
   // 
   // The only special case is for environment-wide delete, see note below
 
-  let changedEnvironmentPathList:Set<string> = new Set();
+  let changedEnvironmentIDList:Set<string> = new Set();
 
   for (let node of nodeList) {
     vectorMessage(`Deleting tests for node: ${node.id} ...`);
@@ -946,7 +961,7 @@ export async function deleteTests(nodeList: any[]) {
       path.dirname(testNode.enviroPath)
     );
     if (commandStatus.errorCode == 0) {
-      changedEnvironmentPathList.add (getEnviroPathFromID(nodeID));
+      changedEnvironmentIDList.add (getEnviroNodeIDFromID(nodeID));
     } else {
       vectorMessage("Test delete failed ...");
       vcastMessage(commandStatus.stdout);
@@ -955,10 +970,12 @@ export async function deleteTests(nodeList: any[]) {
   }
 
   // now update all of the environments that changed
-  for (let enviroPath of changedEnvironmentPathList) {
-    updateDataForEnvironment(enviroPath);
+  for (let enviroNodeID of changedEnvironmentIDList) {
+    // remove any coded test files from the cache since
+    // they will be re-added by the update
+    removeCBTfilesCacheForEnviro(enviroNodeID); 
+    updateDataForEnvironment(getEnviroPathFromID(enviroNodeID));
   }
-
 
 }
 
@@ -1080,6 +1097,148 @@ export function updateTestPane(enviroPath: string) {
   }
   updateTestsForEnvironment(globalController, enviroPath, workspaceRoot);
 }
+
+interface codedTestFileDataType {
+  checksum:number;
+  enviroNodeIDSet:Set<string>;
+  testNames: any;
+}
+// This map is used to cache the list of tests within a single coded test file
+// we use this when we edit a file to know if the tests have changed
+// the key is the coded test file path, the value is a codedTestFileDataType
+let codedTestFileCache:Map<string, codedTestFileDataType> = new Map();
+
+
+// This map is used to cache the list of coded test file in an environment. 
+// we use this when we change an environment to know what cbt files are affected
+// the key is the enviroNodeID, the value is the list of cbt files
+let enviroToCBTfilesCache:Map<string, Set<string>> = new Map();
+
+
+
+export function removeCBTfilesCacheForEnviro (
+  enviroNodeID: string) {
+
+  // this function will remove the coded test file list from the cache 
+  // when we delete or are about to reload an environment
+  const existingList:Set<string>|undefined = enviroToCBTfilesCache.get (enviroNodeID);
+
+  for (let cbtFile of existingList || []) {
+    let cacheData = codedTestFileCache.get (cbtFile);
+    // remove this enviro from the list
+    cacheData?.enviroNodeIDSet.delete (enviroNodeID);
+    // if the list is empty remove the whole node
+    if (cacheData?.enviroNodeIDSet.size==0) {
+      codedTestFileCache.delete (cbtFile);
+    }
+  }
+  enviroToCBTfilesCache.delete (enviroNodeID);
+}
+
+
+function computeChecksum (filePath:string):number {
+
+  // used to compute a checksum for a coded test file so that
+  // we know if it has "really changed" when we get a write event
+
+  // read contents of testFile into a string
+  const content = fs.readFileSync( filePath);
+  // compute the checksum
+  return crypto.createHash('md5').update(content, 'utf8').digest('hex');
+
+}
+
+
+function getListOfTestsFromFile (filePath:string, enviroNodeID:string):any {
+
+  // this function calls the vTestInterface.py to get the list of tests from a cbt file
+
+  const commandToRun = parseCBTCommand (filePath);
+  const enviroPath = getEnviroPathFromID (enviroNodeID);
+  return getJsonDataFromTestInterface (commandToRun, enviroPath);
+}
+
+
+function addCodedTestfileToCache (
+  enviroNodeID: string,
+  functionNodeForCache: testNodeType) {
+
+  // this function will add a coded test file to the cache as we process the enviro data
+  let fileCacheData:codedTestFileDataType|undefined = codedTestFileCache.get (functionNodeForCache.testFile);
+
+  if (!fileCacheData) {
+    fileCacheData = {
+      checksum: computeChecksum (functionNodeForCache.testFile),
+      enviroNodeIDSet: new Set(),
+      testNames: getListOfTestsFromFile (functionNodeForCache.testFile, enviroNodeID)
+    }
+  }
+
+  // add this enviroID to the list for this test file ...
+  fileCacheData.enviroNodeIDSet.add (enviroNodeID);
+  codedTestFileCache.set (functionNodeForCache.testFile, fileCacheData);
+ 
+  // we also need to add this cbt file to the enviro cache
+  let enviroCacheData:Set<string>|undefined = enviroToCBTfilesCache.get (enviroNodeID);
+  if (enviroCacheData==undefined) {
+    enviroCacheData = new Set();
+  }
+  enviroCacheData.add (functionNodeForCache.testFile);
+  enviroToCBTfilesCache.set (enviroNodeID, enviroCacheData);
+
+}
+
+
+function testNamesAreTheSame (oldList:any, newList:any):boolean {
+
+  // We will return false if the list lengths don't match or
+  // if the order of the tests within the list have changed.
+  // This is ok because we are only trying to avoid the extra
+  // work of updating the environment when the changes are trivial
+
+  if (oldList.length != newList.length) return false;
+  for (let i=0; i<oldList.length; i++) {
+    if (oldList[i].testName != newList[i].testName) return false;
+  }
+  return true;
+}
+
+
+export function updateCodedTestCases (editor:any) {
+
+  // This function will compare the editor that was just saved against 
+  // the known coded test files in the workspace.  If there is a match, 
+  // and if the test cases in the file changed we will use clicast to 
+  // update the environment and then update the tree.  If the file changed
+  // but the tests did not change we will only ask clicast to re-load the file
+
+  // if this file is a coded test file for any enviornment in the workspace
+  const filePath = (editor.fileName);
+  const codedTestFileData:codedTestFileDataType | undefined = codedTestFileCache.get(filePath);
+  if (codedTestFileData) {
+    // then check if the file has changed (checksum is differnt)
+    // if it hasn't then we're done
+    const currentChecksum = computeChecksum (filePath);
+    if (currentChecksum!=codedTestFileData.checksum) {
+      
+      // it does not matter what environment we use here, we just need a place to run the command
+      const enviroIDForFirstEnviro:string = codedTestFileData.enviroNodeIDSet.values().next().value;
+      const enviroPathForFirstEnviro:string = getEnviroPathFromID (enviroIDForFirstEnviro);
+      const newTestNames = getListOfTestsFromFile (filePath, enviroIDForFirstEnviro);
+
+      // TBD: need a call to clicast to update the environment with the changed CBT file
+      // but we don't want to do this on every edit, so we update the list of test names
+      // in the tree and then when the user choose to run, we will update the environment
+
+      if (!testNamesAreTheSame (newTestNames, codedTestFileData.testNames)) {
+          const enviroPath = enviroPathForFirstEnviro;
+          updateDataForEnvironment (enviroPath)
+          codedTestFileData.testNames = newTestNames
+      }
+    }
+  }
+}
+
 
 // special is for compound and init
 export enum nodeKind {

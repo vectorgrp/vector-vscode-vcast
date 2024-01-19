@@ -26,6 +26,7 @@ This script must be run under vpython
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
+from vector.lib.coded_tests import Parser
 
 
 class InvalidEnviro(Exception):
@@ -43,7 +44,7 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
 
-    modeChoices = ["getEnviroData", "getCoverageData", "executeTest", "results"]
+    modeChoices = ["getEnviroData", "getCoverageData", "executeTest", "results", "parseCBT"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -59,16 +60,15 @@ def setupArgs():
         help="Environment Kind",
     )
 
-    parser.add_argument("--clicast", required=True, help="Path to clicast to use")
+    parser.add_argument("--clicast", help="Path to clicast to use")
 
     parser.add_argument(
         "--path",
-        required=True,
         help="Path to Environment Directory",
     )
 
     parser.add_argument("--test", help="Test ID")
-
+    
     return parser
 
 
@@ -130,17 +130,22 @@ def generateTestInfo(test):
     testInfo = dict()
     testInfo["testName"] = test.name
 
-    # New to support coded tests in vc24
-    if test.coded_tests_file:
-        testInfo["codedTestFile"] = test.coded_tests_file
-        testInfo["codedTestLine"] = test.coded_tests_line
-
     testInfo["notes"] = test.notes
     # stored as 0 or 1
     testInfo["compoundOnly"] = test.for_compound_only
     testInfo["time"] = getTime(test.start_time)
     testInfo["status"] = textStatus(test.status)
     testInfo["passfail"] = getPassFailString(test)
+
+    # New to support coded tests in vc24
+    if test.coded_tests_file:
+        # guard against the case where the coded test file has been renamed or deleted
+        # or dataAPI has a bad line nuumber for the test, and return None in this case.
+        if os.path.exists (test.coded_tests_file) and test.coded_tests_line>0:
+            testInfo["codedTestFile"] = test.coded_tests_file
+            testInfo["codedTestLine"] = test.coded_tests_line
+        else:
+            testInfo = None
 
     return testInfo
 
@@ -209,14 +214,12 @@ def getTestDataVCAST(enviroPath):
                         if test.is_csv_map:
                             pass
                         else:
+                            # A coded test file might have been renamed or deleted,
+                            # in which case generateTestInfo() will return None
                             testInfo = generateTestInfo(test)
-                            functionNode["tests"].append(testInfo)
+                            if testInfo:
+                                functionNode["tests"].append(testInfo)
 
-                    # This is hack because the dataAPI has an extra node in the list of tests
-                    # that represents the filename that contains the tests.  As a result we 
-                    # have to throw away the first test node in this case.
-                    if function.vcast_name == "coded_tests_driver" and len(functionNode["tests"]) > 0:
-                        functionNode["tests"].pop(0)
                     
                     unitNode["functions"].append(functionNode)
 
@@ -485,6 +488,33 @@ def getResults(enviroPath, testIDObject):
         print(commandOutput)
 
 
+def getCodeBasedTestNames (filePath):
+    """
+    This function will use the same file parser that the vcast
+    uses to extract the test names from the CBT file.  It will return
+    a list of dictionaries that contain the test name, the file path
+    and the starting line for he test
+    """
+
+    if os.path.isfile(filePath):
+
+        cbtParser = Parser()
+        with open(filePath, "r") as cbtFile:
+            fileData = cbtParser.parse (filePath)
+            outputList = []
+            for test in fileData:
+                outputNode = {
+                    "testName": f"{test.test_suite}.{test.test_case}",
+                    "codedTestFile": filePath,
+                    "codedTestLine": test.line
+                }
+                outputList.append (outputNode)
+            print (json.dumps (outputList, indent=4))
+    else:
+        print(f"{filePath} not found")
+
+
+
 class testID:
     def __init__(self, enviroPath, testIDString):
         self.enviroName, restOfString = testIDString.split("|")
@@ -542,6 +572,11 @@ def main():
             testIDObject = testID(enviroPath, args.test)
             getResults(enviroPath, testIDObject)
 
+    elif args.mode == "parseCBT":
+        # This is a special mode used by the unit test driver to parse the CBT
+        # file and generate the test list.
+        getCodeBasedTestNames (args.path)
+       
     else:
         print("Unknown mode value: " + args.mode)
         print("Valid modes are: getEnviroData, getCoverageData, executeTest, results")

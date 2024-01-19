@@ -55,6 +55,7 @@ import {
   insertATGTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
+  updateCodedTestCases,
 } from "./testPane";
 
 import {
@@ -583,6 +584,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       // changing the file will invalidate the 
       // coverage and editor annotations
       if (editor) {
+        updateCodedTestCases (editor);
         updateCOVdecorations();
         updateTestDecorator ();
       }

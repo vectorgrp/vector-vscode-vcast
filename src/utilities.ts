@@ -91,6 +91,14 @@ export function testInterfaceCommand(
   return undefined;
 }
 
+export function parseCBTCommand (filePath:string):string {
+  
+  // this command returns the list of tests that exist in a coded test source file
+
+   return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --kind=vcast --path=${filePath}`;
+}
+
+
 let globalCheckSumCommand: string | undefined = undefined;
 let crc32Name="crc32-win32.exe";
 if (process.platform == "linux") {

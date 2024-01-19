@@ -145,7 +145,7 @@ export interface testDataType {
   notes: string;
   compoundOnly: boolean;
   testFile: string;
-  testStartLine: string;
+  testStartLine: number;
 }
 
 // This allows us to get diret access to the test nodes via the ID
