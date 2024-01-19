@@ -26,7 +26,13 @@ This script must be run under vpython
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
-from vector.lib.coded_tests import Parser
+
+vpythonHasCodedTestSupport:bool = False
+try: 
+    from vector.lib.coded_tests import Parser
+    vpythonHasCodedTestSupport=True
+except:
+    pass
 
 
 class InvalidEnviro(Exception):
@@ -138,7 +144,7 @@ def generateTestInfo(test):
     testInfo["passfail"] = getPassFailString(test)
 
     # New to support coded tests in vc24
-    if test.coded_tests_file:
+    if vpythonHasCodedTestSupport and test.coded_tests_file:
         # guard against the case where the coded test file has been renamed or deleted
         # or dataAPI has a bad line nuumber for the test, and return None in this case.
         if os.path.exists (test.coded_tests_file) and test.coded_tests_line>0:
