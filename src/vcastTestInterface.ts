@@ -573,12 +573,6 @@ function createVcastEnvironmentScript(
     executeCommandSync(
       `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
       unitTestLocation);
-
-    // Improvement needed: VectorCAST should check the value of this option and 
-    // force it to be TRUE if it is FALSE.  This is a workaround for that.
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_WHITEBOX_SEARCH_DIRS_ONLY true`,
-      unitTestLocation);
   }
   else {
     // force the coded test option off
