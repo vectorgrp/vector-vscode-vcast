@@ -43,10 +43,12 @@ import {
   getChecksumCommand,
   getJsonDataFromTestInterface,
   openFileWithLineSelected,
+  openTestFileAndCompileErrors,
   testInterfaceCommand,
 } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
+import { get } from "http";
 
 const fs = require("fs");
 const path = require("path");
@@ -459,6 +461,7 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
   // RUN mode is a single shot mode where we run the python
   // script and communicate with stdin/stdout
 
+  let returnStatus: testStatus = testStatus.didNotRun;
   const commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
   const commandOutputText = executeVPythonScript(commandToRun, enviroPath);
 
@@ -466,11 +469,11 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
     if (commandOutputText.startsWith("FATAL")) {
       vectorMessage(commandOutputText.replace("FATAL", ""));
       openMessagePane();
-      return testStatus.didNotRun;
+      returnStatus = testStatus.didNotRun;
     } else if (commandOutputText.includes("Resolve Errors")) {
       vectorMessage(commandOutputText);
       openMessagePane();
-      return testStatus.didNotRun;
+      returnStatus = testStatus.didNotRun;
     } else {
       const decodedOutput = processExecutionOutput(commandOutputText);
       logTestResults(nodeID, commandOutputText, decodedOutput);
@@ -484,14 +487,24 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
 
         updateDataForEnvironment(enviroPath);
 
-        if (updatedStatusItem.status == "passed") return testStatus.passed;
-        else return testStatus.failed;
+        if (updatedStatusItem.status == "passed") {
+          returnStatus = testStatus.passed;
+        }
+        else {
+          returnStatus = testStatus.failed;
+        }
       } else {
-        return testStatus.didNotRun;
+        returnStatus = testStatus.didNotRun;
       }
     }
   }
-  return testStatus.didNotRun;
+  else {
+    returnStatus = testStatus.didNotRun;
+    const testNode = getTestNode(nodeID);
+    openTestFileAndCompileErrors (testNode)
+    
+  }
+  return returnStatus;
 }
 
 
@@ -857,8 +870,7 @@ export async function newCodedTest (testID: string) {
   // we set the testFile field for the "Coded Test" node if 
   // there are children, so check that to determine if we can add ...
 
-  const testNode: testNodeType = getTestNode(testID);
-
+  let testNode: testNodeType = getTestNode(testID);
   if (testNode.testFile.length == 0) {
     const option: vscode.OpenDialogOptions = { 
       title: "Select Coded Test File",
@@ -877,6 +889,11 @@ export async function newCodedTest (testID: string) {
         updateTestPane(enviroPath);
         if (commandStatus.errorCode == 0) {
           vscode.window.showInformationMessage(`Coded Tests added successfully`);
+        }
+        else {
+          // need to re-read to get the test file name
+          testNode = getTestNode(testID);
+          openTestFileAndCompileErrors (testNode)
         }
       }
     });

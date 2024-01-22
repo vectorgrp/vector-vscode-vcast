@@ -349,17 +349,18 @@ def runClicastScript(commandFileName):
     """
 
     # false at the end tells clicast to ignore errors in individual commands
-    commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
+    commandToRun = [f"{globalClicastCommand}", "-lc", "tools", "execute", f"{commandFileName}"]
     try:
-        rawOutput = subprocess.check_output(
-            commandToRun, stderr=subprocess.STDOUT, shell=True
-        )
+        result = subprocess.run(
+            commandToRun, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+        returnCode = result.returncode
+        rawOutput = result.stdout
     except subprocess.CalledProcessError as error:
-        # returnCode = error.returncode
-        rawOutput = error.output
+        returnCode = error.returncode
+        rawOutput = error.stdout
 
     os.remove(commandFileName)
-    return rawOutput.decode("utf-8", errors="ignore")
+    return returnCode, rawOutput.decode("utf-8", errors="ignore")
 
 
 def getStandardArgsFromTestObject(testIDObject):
@@ -411,7 +412,7 @@ def executeVCtest(enviroPath, testIDObject):
         commands = list()
         commands.append("execute")
         commands.append("results")
-        commandOutput = runTestCommand(testIDObject, commands)
+        returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         if "TEST RESULT: pass" in commandOutput:
             print("STATUS:passed")
@@ -427,6 +428,8 @@ def executeVCtest(enviroPath, testIDObject):
             print("TIME:" + getTime(testList[0].start_time))
 
         print(commandOutput)
+
+        return returnCode
 
 
 def processVResults(filePath):
@@ -488,7 +491,7 @@ def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("results")
-        commandOutput = runTestCommand(testIDObject, commands)
+        returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         print("REPORT:" + testIDObject.reportName + ".txt")
         print(commandOutput)
@@ -551,6 +554,8 @@ def main():
     # See the comment in: executeVPythonScript()
     print("ACTUAL-DATA")
 
+    returnCode = 0
+
     if args.mode == "getEnviroData":
         topLevel = dict()
         # it is important that getTetDataVCAST() is called first since it sets up
@@ -569,7 +574,7 @@ def main():
     elif args.mode == "executeTest":
         if args.kind == "vcast":
             testIDObject = testID(enviroPath, args.test)
-            executeVCtest(enviroPath, testIDObject)
+            returnCode = executeVCtest(enviroPath, testIDObject)
         else:
             executeCodeBasedTest(enviroPath, args.test)
 
@@ -587,8 +592,8 @@ def main():
         print("Unknown mode value: " + args.mode)
         print("Valid modes are: getEnviroData, getCoverageData, executeTest, results")
 
-    # Zero exit code
-    return 0
+    # only used for executeTest currently
+    return returnCode
 
 
 if __name__ == "__main__":
