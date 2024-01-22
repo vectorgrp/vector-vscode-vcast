@@ -877,9 +877,8 @@ export async function newCodedTest (testID: string) {
         const enviroPath = getEnviroPathFromID(testID);
         const enclosingDirectory = path.dirname(enviroPath);
 
-        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-          testNode
-        )} test coded add ${UserFilePath}`;
+        let commandToRun: string = 
+          `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded add ${UserFilePath}`;
         const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
         updateTestPane(enviroPath);
         if (commandStatus.errorCode == 0) {
@@ -911,9 +910,8 @@ export async function generateCodedTest (testID: string) {
         const enviroPath = getEnviroPathFromID(testID);
         const enclosingDirectory = path.dirname(enviroPath);
 
-        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-          testNode
-        )} test coded new ${UserFilePath}`;
+        let commandToRun: string = 
+          `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded new ${UserFilePath}`;
         const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
         updateTestPane(enviroPath);
         if (commandStatus.errorCode == 0) {

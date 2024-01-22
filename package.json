@@ -116,12 +116,12 @@
       {
         "command": "vectorcastTestExplorer.addCodedTests",
         "category": "VectorCAST Test Explorer",
-        "title": "Add Coded Test File"
+        "title": "Add Existing Coded Test File"
       },
       {
         "command": "vectorcastTestExplorer.generateCodedTests",
         "category": "VectorCAST Test Explorer",
-        "title": "Generate Coded Test File"
+        "title": "Generate New Coded Test File"
       },
       {
         "command": "vectorcastTestExplorer.removeCodedTests",

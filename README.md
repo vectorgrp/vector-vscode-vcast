@@ -114,8 +114,8 @@ If an environment was built with Coded Testing Support enabled (VectorCAST 24 an
 The right click context menu for all Coded Test nodes will have a VectorCAST sub-menu with the following commands:
 
 - For a Coded Tests node with no existing tests
-  - Add Coded Test File - add an existing coded test source file to the node
-  - Generate Coded Test File - generate a new coded test source file for the node
+  - Add Existing Coded Test File - add an existing coded test source file to the node
+  - Generate New Coded Test File - generate a new coded test source file for the node
 - For a coded Tests node with existing tests
   - Remove Coded Tests - will remove the coded test file from the node.  The test file will NOT be deleted
 

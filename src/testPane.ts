@@ -46,7 +46,6 @@ import {
   getTestNameFromID,
   getTestNode,
   getUnitNameFromID,
-  nodeIsInCache,
   testNodeType,
 } from "./testData";
 
@@ -1221,20 +1220,32 @@ export function updateCodedTestCases (editor:any) {
     const currentChecksum = computeChecksum (filePath);
     if (currentChecksum!=codedTestFileData.checksum) {
       
-      // it does not matter what environment we use here, we just need a place to run the command
-      const enviroIDForFirstEnviro:string = codedTestFileData.enviroNodeIDSet.values().next().value;
-      const enviroPathForFirstEnviro:string = getEnviroPathFromID (enviroIDForFirstEnviro);
-      const newTestNames = getListOfTestsFromFile (filePath, enviroIDForFirstEnviro);
+      // we need to do a refresh for every enviro node that uses this file
+      // and then if the test names changed, also update the test pane
+      let newTestNames:string[]|undefined;
+      for (let enviroNodeID of codedTestFileData.enviroNodeIDSet.values()) {
+        const enviroPath:string = getEnviroPathFromID (enviroNodeID);
+        // update newTestNames if we have not yet computed them ...
+        if (!newTestNames) newTestNames = getListOfTestsFromFile (filePath, enviroNodeID);
+        const testNode = getTestNode (enviroNodeID);
+        const enclosingDirectory = path.dirname(enviroPath);
 
-      // TBD: need a call to clicast to update the environment with the changed CBT file
-      // but we don't want to do this on every edit, so we update the list of test names
-      // in the tree and then when the user choose to run, we will update the environment
-
-      if (!testNamesAreTheSame (newTestNames, codedTestFileData.testNames)) {
-          const enviroPath = enviroPathForFirstEnviro;
-          updateDataForEnvironment (enviroPath)
-          codedTestFileData.testNames = newTestNames
+        // refresh the coded test file for this environment
+        // note: the same file should never be associated with more than one unit
+        let commandToRun: string = 
+          `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded refresh`;
+        const refreshCommandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+      
+        // if the refresh worked, and the test names changed, then update test pane
+        if (refreshCommandStatus.errorCode == 0) {
+          if (!testNamesAreTheSame (newTestNames, codedTestFileData.testNames)) {
+            updateTestPane(enviroPath);
+          }
+        }
       }
+      // update the test names and checksum in all cases, rather than checking for diffs again
+      codedTestFileData.testNames = newTestNames
+      codedTestFileData.checksum = currentChecksum;
     }
   }
 }
