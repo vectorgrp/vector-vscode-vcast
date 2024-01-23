@@ -342,6 +342,22 @@ commandFileName = "commands.cmd"
 globalClicastCommand = ""
 
 
+def runClicastCommand (argList):
+    """
+    A wrapper for the subprocess.run() function
+    """
+    try:
+        result = subprocess.run(
+            argList, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+        returnCode = result.returncode
+        rawOutput = result.stdout
+    except subprocess.CalledProcessError as error:
+        returnCode = error.returncode
+        rawOutput = error.stdout
+
+    return returnCode, rawOutput.decode("utf-8", errors="ignore")
+
+
 def runClicastScript(commandFileName):
     """
     The caller should create a correctly formatted clicast script
@@ -349,22 +365,15 @@ def runClicastScript(commandFileName):
     """
 
     # false at the end tells clicast to ignore errors in individual commands
-    commandToRun = [f"{globalClicastCommand}", "-lc", "tools", "execute", f"{commandFileName}"]
-    try:
-        result = subprocess.run(
-            commandToRun, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-        returnCode = result.returncode
-        rawOutput = result.stdout
-    except subprocess.CalledProcessError as error:
-        returnCode = error.returncode
-        rawOutput = error.stdout
+    commandToRun = [f"{globalClicastCommand}", "-lc", "tools", "execute", f"{commandFileName}", "false"]
+    returnCode, stdoutString = runClicastCommand (commandToRun)
 
     os.remove(commandFileName)
-    return returnCode, rawOutput.decode("utf-8", errors="ignore")
+    return returnCode, stdoutString
 
 
 def getStandardArgsFromTestObject(testIDObject):
-    returnString = f"-e {testIDObject.enviroName}"
+    returnString = f"-e{testIDObject.enviroName}"
     if testIDObject.unitName != "not-used":
         returnString += f" -u{testIDObject.unitName}"
     returnString += f" -s{testIDObject.functionName}"
@@ -383,12 +392,26 @@ def runTestCommand(testIDObject, commandList):
 
     """
 
-    # We build a clicast command script to run the test and generate the execution report
-    with open(commandFileName, "w") as commandFile:
-        standardArgs = getStandardArgsFromTestObject(testIDObject)
-        if "execute" in commandList:
-            commandFile.write(standardArgs + " execute run\n")
-        if "results" in commandList:
+    executeReturnCode = 0
+    stdoutText = ""
+    standardArgs = getStandardArgsFromTestObject(testIDObject)
+    if "execute" in commandList:
+        # we cannot include the execute command in the command script that we use for
+        # results because we need the return code from the execute command separately
+        commandToRun = [f"{globalClicastCommand}", "-lc"] +  standardArgs.split(' ')  + ["execute", "run"]
+        executeReturnCode, stdoutText = runClicastCommand (commandToRun)
+
+        # currently clicast returns the same error code for a failed coded test compile or 
+        # a failed coded test execution.  We need to distinguish between these two cases
+        # so we are using this hack until vcast changes the return code for a failed coded test compile
+        if testIDObject.functionName=="coded_tests_driver" and executeReturnCode!=0:
+            if "TEST RESULT:" not in stdoutText:
+                executeReturnCode = 98
+
+    if "results" in commandList:
+        # We build a clicast command script to generate the execution report
+        # since we need multiple commands
+        with open(commandFileName, "w") as commandFile:
             commandFile.write(
                 standardArgs
                 + " report custom actual "
@@ -403,8 +426,9 @@ def runTestCommand(testIDObject, commandList):
                 + ".txt\n"
             )
             commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
+        runClicastScript(commandFileName)
 
-    return runClicastScript(commandFileName)
+    return executeReturnCode, stdoutText
 
 
 def executeVCtest(enviroPath, testIDObject):

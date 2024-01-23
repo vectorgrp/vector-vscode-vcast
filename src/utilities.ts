@@ -115,7 +115,7 @@ function pyCrc32IsAvailable(): boolean {
   const commandOutputText = executeVPythonScript(
     `${vPythonCommandToUse} ${globalCrc32Path}`,
     process.cwd()
-  );
+  ).stdout;
   const outputLinesAsArray = commandOutputText.split("\n");
   const lastOutputLine = outputLinesAsArray[outputLinesAsArray.length - 1];
   return lastOutputLine == "AVAILABLE";
@@ -247,48 +247,35 @@ export function addSettingsFileFilter(fileUri: Uri) {
 
 export function executeVPythonScript(
   commandToRun: string,
-  whereToRun: string
-): any {
+  whereToRun: string): commandStatusType {
   // we use this common function to run the vpython and process the output because
   // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
   // Since this happens before our script even starts so we cannot suppress it.
   // We could send the json data to a temp file, but the create/open file operations
   // have overhead.
 
-  let returnData = undefined;
-
+  let returnData:commandStatusType = { errorCode: 0, stdout: "" };
   if (commandToRun) {
     const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
       whereToRun
     );
-    if (commandStatus.errorCode == 0) {
-      if (
-        commandStatus.stdout[0] == "{" ||
-        commandStatus.stdout.includes("FATAL")
-      ) {
-        returnData = commandStatus.stdout;
-      } else {
-        // to make debugging easier
-        if (commandStatus.stdout) {
-          const pieces = commandStatus.stdout.split("ACTUAL-DATA", 2);
-          returnData = pieces[1].trim();
-        }
-      }
+    const pieces = commandStatus.stdout.split("ACTUAL-DATA", 2);
+    returnData.stdout = pieces[1].trim();
+    returnData.errorCode = commandStatus.errorCode;
     }
-  }
   return returnData;
 }
 
 export function getJsonDataFromTestInterface(
   commandToRun: string,
-  enviroPath: string
-): any {
+  enviroPath: string): any {
+
   // A wrapper for executeVPythonScript when we know the output is JSON
 
   let returnData = undefined;
 
-  let jsonText = executeVPythonScript(commandToRun, enviroPath);
+  let jsonText = executeVPythonScript(commandToRun, enviroPath).stdout;
   try {
     returnData = JSON.parse(jsonText);
   } catch {

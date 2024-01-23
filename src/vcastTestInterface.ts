@@ -19,7 +19,6 @@ import {
 import { 
   buildEnvironmentCallback,
   showSettings, 
-  updateDataForEnvironment
  } from "./helper";
 import {
   openMessagePane,
@@ -48,7 +47,6 @@ import {
 } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
-import { get } from "http";
 
 const fs = require("fs");
 const path = require("path");
@@ -85,7 +83,7 @@ function getChecksum(filePath: string) {
       commandOutputString = executeVPythonScript(
         `${checksumCommand} ${filePath}`,
         path.dirname(filePath)
-      );
+      ).stdout;
     else
       commandOutputString = executeCommandSync(
         `${checksumCommand} ${filePath}`,
@@ -356,6 +354,7 @@ export function updateCoverageData(enviroPath: string) {
 }
 
 export function getResultFileForTest(testID: string) {
+
   // This function will return the path to the result file if it is already saved
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
@@ -462,10 +461,19 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
   // script and communicate with stdin/stdout
 
   let returnStatus: testStatus = testStatus.didNotRun;
+  // The executeTest command will run the test AND generate the execution report
   const commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
-  const commandOutputText = executeVPythonScript(commandToRun, enviroPath);
+  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
+  const commandOutputText = commandStatus.stdout;
 
-  if (commandOutputText) {
+  // errorCode 98 is for a compile error for the coded test source file
+  // this is hard-coded in runTestCommand() in the python interface
+  if (commandStatus.errorCode==98) {
+    returnStatus = testStatus.didNotRun;
+    const testNode = getTestNode(nodeID);
+    openTestFileAndCompileErrors (testNode)
+  }
+  else {
     if (commandOutputText.startsWith("FATAL")) {
       vectorMessage(commandOutputText.replace("FATAL", ""));
       openMessagePane();
@@ -485,8 +493,6 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
         updatedStatusItem.resultFilePath = decodedOutput.resultsFilePath;
         globalTestStatusArray[nodeID] = updatedStatusItem;
 
-        updateDataForEnvironment(enviroPath);
-
         if (updatedStatusItem.status == "passed") {
           returnStatus = testStatus.passed;
         }
@@ -498,12 +504,7 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
       }
     }
   }
-  else {
-    returnStatus = testStatus.didNotRun;
-    const testNode = getTestNode(nodeID);
-    openTestFileAndCompileErrors (testNode)
-    
-  }
+
   return returnStatus;
 }
 

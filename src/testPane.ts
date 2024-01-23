@@ -800,7 +800,9 @@ export async function runNode(
     if (status == testStatus.didNotRun) {
       run.skipped(node);
     } else {
-      if (status == testStatus.passed) run.passed(node);
+      if (status == testStatus.passed) {
+        run.passed(node);
+      }
       else if (status == testStatus.failed) {
         const textFilePath = getResultFileForTest(node.id);
         let failures = "";
