@@ -449,6 +449,7 @@ function logTestResults(
 
 export enum testStatus {
   didNotRun,
+  compileError,
   passed,
   failed,
 }
@@ -469,7 +470,7 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
   // errorCode 98 is for a compile error for the coded test source file
   // this is hard-coded in runTestCommand() in the python interface
   if (commandStatus.errorCode==98) {
-    returnStatus = testStatus.didNotRun;
+    returnStatus = testStatus.compileError;
     const testNode = getTestNode(nodeID);
     openTestFileAndCompileErrors (testNode)
   }

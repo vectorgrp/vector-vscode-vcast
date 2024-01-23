@@ -799,24 +799,29 @@ export async function runNode(
   runVCTest(enviroPath, node.id).then((status) => {
     if (status == testStatus.didNotRun) {
       run.skipped(node);
+    } else if (status == testStatus.compileError) {
+      const failMessage:TestMessage = new TestMessage("Coded Test compile error - see details in file: ACOMPILE.LIS");
+      run.errored(node,failMessage);
+
     } else {
       if (status == testStatus.passed) {
         run.passed(node);
       }
       else if (status == testStatus.failed) {
         const textFilePath = getResultFileForTest(node.id);
-        let failures = "";
-        if (fs.existsSync(textFilePath)) {
-          const contentsList = fs
-            .readFileSync(textFilePath)
-            .toString()
-            .split("\n");
-          for (var i = 0; i < contentsList.length; i++) {
-            if (contentsList[i].includes("FAIL:"))
-              failures += contentsList[i] + "\n";
+
+        // find the summary line that starts with "Expected Results", and add to testMessage
+        const lines = fs.readFileSync(textFilePath, "utf-8").split("\n");
+        let failMessage:TestMessage = new TestMessage("");
+        for (let line of lines) {
+          // start of line, any number of spaces, search text ...
+          if (/^\s*Expected Results matched.*/.test (line)) {
+            // remove the EOL and squash multiple spaces into 1
+            failMessage = new TestMessage (line.trimEnd().replace(/\s+/g, ' '));
+            break;
           }
         }
-        run.failed(node, new TestMessage(failures));
+        run.failed(node, failMessage);
       }
 
       if (!preDebugMode) {
