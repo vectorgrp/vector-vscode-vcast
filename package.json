@@ -95,6 +95,11 @@
         "title": "VectorCAST: Add Launch Configuration"
       },
       {
+        "command": "vectorcastTestExplorer.addIncludePath",
+        "category": "VectorCAST Test Explorer",
+        "title": "VectorCAST: Add Coded Test Include Path"
+      },
+      {
         "command": "vectorcastTestExplorer.addSettingsFileFilter",
         "category": "VectorCAST Test Explorer",
         "title": "VectorCAST: Add Filter for Environment Files"
@@ -281,6 +286,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.addIncludePath",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.addSettingsFileFilter",
           "when": "never"
         },
@@ -374,6 +383,11 @@
         {
           "command": "vectorcastTestExplorer.addLaunchConfiguration",
           "when": "vectorcastTestExplorer.configured && resourceFilename==launch.json",
+          "group": "7_modification"
+        },
+        {
+          "command": "vectorcastTestExplorer.addIncludePath",
+          "when": "vectorcastTestExplorer.codedTestingAvailable && resourceFilename==c_cpp_properties.json",
           "group": "7_modification"
         },
         {

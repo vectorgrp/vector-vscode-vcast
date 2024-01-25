@@ -171,11 +171,17 @@ the load command will also perform a save.
 
 ### Editing a Coded Test 
 
-To edit a coded test, double click on the test name to open the test in the source editor.  To allow Intellisense
-editing to work properly for a coded test file, you must add an include path to the c_cpp_properties.json file 
-for the workspace that points to the location of the vUnit.h header file that is distributed with VectorCAST.  
-When you enable the VectorCAST test explorer, it will check for the existence of the correct include path and 
-prompt you to add it if it is not found.  Here is an example a c_cpp_properties.json file with the vUnit include path added:
+Coded test files require an include like this: #include <vunit/vunit.h> so for IntelliSense editing to 
+work nicely for coded test files, you must add an include path to for this file to your workspace.
+IntelliSense include paths can most easily be added to the approrpritate c_cpp_properties.json file.
+
+If you enable the VectorCAST test explorer and configure it with a VectorCAST version that supports coded testing, 
+the extension will check for the existence of the correct include path and prompt you to add it if it is not found.  
+
+You can create a new c_cpp_properties file, by using the: 'C/C++: Edit Configurations (JSON)' command, and can 
+easily add the required include path, by right clicking on a new or existing file, and choosing: "VectorCAST: Add Coded Test Include Path"
+
+Here is an example a c_cpp_properties.json file with the vUnit include path added:
 
 ```
 {

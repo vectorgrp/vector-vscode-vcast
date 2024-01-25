@@ -25,6 +25,7 @@ import {
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
 } from "./vcastTestInterface";
+import { writeFileSync } from "fs";
 
 
 const fs = require("fs");
@@ -120,10 +121,11 @@ function checkForATG (vcastInstallationPath: string) {
   }
 }
 
+
 function shouldPromptForIncludePath (includePath:string):boolean {
 
   // So that we don't annoy users with the coded-test popup every time,
-  // we do our best to check if the include path is already in the project
+  // we do our best to check if the include path is already in the workspace
 
   let returnValue: boolean = true
   if (fs.existsSync(includePath)) {
@@ -146,24 +148,58 @@ function shouldPromptForIncludePath (includePath:string):boolean {
   return returnValue;
 }
 
-function addIncludePathToProject (includePath:string) {
 
-  // We'd like to make it easy for the user to add the include path
-  // for the VectorCAST vUnit/Include directory.  I looked at automating
-  // this via the vscode.workspace.getConfiguration() API,
-  // but there are so many edge cases, I decided to do check
-  // if the path exists and prompt the user to add if it doesn't
+let globalIncludePath:string|undefined = undefined;
+let globalCodedTestingAvailable:boolean = false;
+export function addIncludePath (fileUri: vscode.Uri) {
 
-  // swap backslashes to make paths consistent for windows users and
-  // so that they can copy paste from the pop-up to the .json
-  includePath = includePath.replace (/\\/g, "/");
+  // I'm handling a few error cases here without going crazy
+  let statusMessages:string[] = [];
 
-  if (shouldPromptForIncludePath (includePath)) {
-
-    vscode.window.showInformationMessage (
-      "To use VectorCAST Coded Tests, you'll need to add the following include path to your project.  " +
-      `Just copy this path: ${includePath}, and insert it into the appropriate c_cpp_properties.json file for your workspace.`);
+  // read the existing file contents
+  let existingJSON: any;
+  try {
+    existingJSON = JSON.parse(fs.readFileSync(fileUri.fsPath));
+    if (existingJSON.configurations.length == 0) {
+      statusMessages.push (`c_cpp_properties.json file has no existing configurations, creating a 'vcast' configuraiton.  `); 
+      existingJSON.configurations.push ({name: "vcast", includePath: []});
+    }
+  } catch {
+    // if there is some sort of parse error with the existing file don't change it
+    vscode.window.showErrorMessage("Exception parning c_cpp_properties.json file, no changes made.  Check for syntax errors.  ");
+    return;
   }
+
+  // when we get here we should always have a configurations array
+  // but we might now have an includePath, so add it if its missing
+  
+  let configName = existingJSON.configurations[0].name;
+  if (existingJSON.configurations[0].includePath == undefined) {
+    statusMessages.push (`Configuration: "${configName}" is missing an includePath list, adding.  `); 
+    existingJSON.configurations[0].includePath = [];
+  }
+
+  let includePath = existingJSON.configurations[0].includePath;
+  if (includePath.includes(globalIncludePath)) {
+    statusMessages.push (`Configuration: "${configName}" already contains the correct include path.  `); 
+  }
+  else {
+    // if the user updated versions of VectorCAST, we might have an "old" include path that needs to be removed
+    const indexToRemove = includePath.findIndex ( (element:string) => element.includes("/vunit/include"));
+    if (indexToRemove >= 0) {
+      const oldPath = includePath[indexToRemove];
+      includePath.splice (indexToRemove, 1);
+      statusMessages.push (`Removed: ${oldPath} from configuration: "${configName}".  `);
+    }
+    includePath.push (globalIncludePath)
+    statusMessages.push (`Added: ${globalIncludePath} to configuration: "${configName}".  `); 
+  }
+
+  vscode.window.showInformationMessage(statusMessages.join ("\n"));
+
+  // we unconditionally write rather than tracking if we changed anything
+  writeFileSync (fileUri.fsPath, JSON.stringify(existingJSON, null, 4));
+
 }
 
 
@@ -174,20 +210,46 @@ export function initializeCodedTestSupport (vcastInstallationPath:string) {
   // this version has coded test support, so check for that
   // and initialize global variables to support coded testing
 
-  const candidatePath = path.join(
-    vcastInstallationPath, "vunit");
+  const candidatePath = path.join(vcastInstallationPath, "vunit", "include");
   if (fs.existsSync(candidatePath)) {
     vectorMessage(`   found coded-test support, initializing ...`);
-    codedTestAvailable = true;
-
-    // need to add the include path to the settings so that
-    // the intellisense featues work for the coded test files
-    const includePath = path.join (candidatePath, "include");
-    addIncludePathToProject (includePath);
-
+    globalCodedTestingAvailable = true;
+    checkWorkspaceForIncludePath (candidatePath);
+  } 
+  else {
+    globalCodedTestingAvailable = false;
   }
+  // this controls the availability of the Add Coded Test Include Path context menu item
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.codedTestingAvailable",
+    globalCodedTestingAvailable
+  );
 }
 
+
+function checkWorkspaceForIncludePath (includePath:string) {
+
+  // We'd like to make it easy for the user to add the include path
+  // for the VectorCAST vUnit/Include directory.  I looked at automating
+  // this via the vscode.workspace.getConfiguration() API,
+  // but there are too many edge cases, I decided to do check
+  // if the path exists, in any of the c_cpp_properties.json files
+  // and prompt the user to add if it doesn't
+
+  // swap backslashes to make paths consistent for windows users and
+  // so that they can copy paste from the pop-up to the .json
+  globalIncludePath = includePath.replace (/\\/g, "/");
+
+  if (shouldPromptForIncludePath (globalIncludePath)) {
+
+    vscode.window.showInformationMessage (
+      "The include path for VectorCAST Coded Testing was not found in your workspace, you should add the " +
+      "include path by right clicking on the appropriate c_cpp_properties.json file, " +
+      "and choosing 'VectorCAST: Add Coded Test Include Path`  "
+      );
+  }
+}
 
 
 export function initializeVcastUtilities(vcastInstallationPath: string) {

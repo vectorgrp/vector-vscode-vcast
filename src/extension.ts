@@ -77,6 +77,7 @@ import {
 } from "./vcastTestInterface";
 
 import {
+  addIncludePath,
   executeClicastCommand,
   openTestScript,
   vcastCommandtoUse,
@@ -397,6 +398,20 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(addLaunchConfigurationCommand);
+
+    // Command: vectorcastTestExplorer.addIncludePath ////////////////////////////////////////////////////////
+    let addIncludePathCommand = vscode.commands.registerCommand(
+      "vectorcastTestExplorer.addIncludePath",
+      (args: Uri, argList: Uri[]) => {
+        // arg is the actual item that the right click happened on, argList is the list
+        // of all items if this is a multi-select.  Since argList is always valid, even for a single
+        // selection, we just use this here.
+        if (argList) {
+          addIncludePath(argList[0]);
+        }
+      }
+    );
+    context.subscriptions.push(addIncludePathCommand);
 
   // Command: vectorcastTestExplorer.addSettingsFileFilter ////////////////////////////////////////////////////////
   let addSettingsTFileFilterCommand = vscode.commands.registerCommand(
