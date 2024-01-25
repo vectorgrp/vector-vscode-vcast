@@ -342,13 +342,14 @@ commandFileName = "commands.cmd"
 globalClicastCommand = ""
 
 
-def runClicastCommand (argList):
+def runClicastCommand (commandToRun):
     """
     A wrapper for the subprocess.run() function
     """
     try:
+        # note: shell=true, requires commandToRun to be a string
         result = subprocess.run(
-            argList, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+            commandToRun, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         returnCode = result.returncode
         rawOutput = result.stdout
     except subprocess.CalledProcessError as error:
@@ -365,7 +366,7 @@ def runClicastScript(commandFileName):
     """
 
     # false at the end tells clicast to ignore errors in individual commands
-    commandToRun = [f"{globalClicastCommand}", "-lc", "tools", "execute", f"{commandFileName}", "false"]
+    commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
     returnCode, stdoutString = runClicastCommand (commandToRun)
 
     os.remove(commandFileName)
@@ -398,7 +399,7 @@ def runTestCommand(testIDObject, commandList):
     if "execute" in commandList:
         # we cannot include the execute command in the command script that we use for
         # results because we need the return code from the execute command separately
-        commandToRun = [f"{globalClicastCommand}", "-lc"] +  standardArgs.split(' ')  + ["execute", "run"]
+        commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
         executeReturnCode, stdoutText = runClicastCommand (commandToRun)
 
         # currently clicast returns the same error code for a failed coded test compile or 
