@@ -411,6 +411,7 @@ export function removeEnvironmentFromTestPane(enviroID: string) {
   globalController.items.delete(enviroID);
 }
 
+export let vcastEnvironmentsFound:boolean = false;
 async function loadAllVCTests(
   controller: TestController,
   progress: vscode.Progress<{ message?: string; increment?: number }>,
@@ -430,6 +431,9 @@ async function loadAllVCTests(
     for (const workspace of vscode.workspace.workspaceFolders) {
       const workspaceRoot = workspace.uri.fsPath;
       let environmentList = getEnvironmentList(workspaceRoot);
+      
+      // used in the activation processing
+      if (environmentList.length>0) vcastEnvironmentsFound=true;
 
       // increment is added to the progress bar by each call to progress.report
       // this is not perfect because we don't know how many environments will exist in each workspace

@@ -56,6 +56,7 @@ import {
   loadTestScript,
   pathToEnviroBeingDebugged,
   updateCodedTestCases,
+  vcastEnvironmentsFound,
 } from "./testPane";
 
 import {
@@ -147,6 +148,11 @@ function activationLogic(context: vscode.ExtensionContext) {
 
   // start the language server
   activateLanguageServerClient(context);
+
+  // if no vectorcast environments are found, open the settings dialog
+  if (!vcastEnvironmentsFound) {
+    showSettings();
+  }
 }
 
 function configureExtension(context: vscode.ExtensionContext) {

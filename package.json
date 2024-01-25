@@ -3,7 +3,7 @@
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
   "version": "1.0.10",
-  "license": "See License in file: LICENSE",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/vectorgrp/vector-vscode-vcast"
@@ -26,6 +26,7 @@
     "vectorcast",
     "vector",
     "unittesting",
+    "c++",
     "test",
     "testing"
   ],
