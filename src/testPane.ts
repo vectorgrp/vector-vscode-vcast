@@ -473,6 +473,8 @@ async function loadAllVCTests(
 
 export let pathToEnviroBeingDebugged: string =
   "No Environment is Being Debugged";
+export let pathToProgramBeingDebugged: string =
+  "No Program is Being Debugged";
 
 function okToDebug(
   node: vcastTestItem,
@@ -616,11 +618,38 @@ function launchConfigExists(launchJsonPath: string): boolean {
 }
 
 
+const coverageExeFilename="UUT_INST";
+const normalExeFilename="UUT_INTE";
+
+function getNameOfHarnessExecutable (enviroPath:string):string {
+
+  // the executable being debugged will either be UUT_INTE or UUT_INST 
+  // depending on whether coverage is on.
+  // Could not find a dataAPI call to determine coverage on/off so 
+  // I'm using this brute force approach
+
+  // if windows the executable will have an .exe extension
+  let extension = "";
+  if (process.platform === "win32") {
+    extension = ".EXE";
+  }
+
+  let harnessName = coverageExeFilename + extension;
+  if (!fs.existsSync(path.join(enviroPath, harnessName))) {
+    harnessName = normalExeFilename + extension;
+  }
+  return harnessName;
+
+}
+
+
+
 function getFileToDebug (
   node: vcastTestItem,
   enviroPath:string,
   uutName:string,
-  functionName:string
+  functionName:string,
+  fileToDebug:string,
   ):string
 {
 
@@ -628,20 +657,33 @@ function getFileToDebug (
   let globPattern: string;
 
   // coded test
-  if (functionName==codedTestFunctionName)
-    globPattern = uutName + "_expanded_driver.*";
-
-  // compound or init test
-  else if (uutName == "not-used")
+  if (functionName==codedTestFunctionName) {
+    if (fileToDebug.startsWith (coverageExeFilename)){
+      globPattern = uutName + "_exp_inst_driver.c*";
+    }
+    else {
+      globPattern = uutName + "_expanded_driver.c*";
+    }
+  }
+  // compound or init
+  else if (uutName == "not-used") {
     // Improvement needed: would be nice to figure out the uut for the first slot ...
     globPattern = "S3_switch.*";
-
+  }
   // regular test
-  else 
-    globPattern = uutName + "_vcast.*";
+  else {
+    if (fileToDebug.startsWith (coverageExeFilename)){
+       globPattern = uutName + "_inst.c*";
+    }
+    else {
+      globPattern = uutName + "_vcast.c*";
+    }
+  }
 
   const globOptions = { cwd: enviroPath, absolute: true };
-  return glob.sync(globPattern, globOptions)[0];
+  // two steps for debugging ...
+  const globResult = glob.sync(globPattern, globOptions);
+  return globResult[0];
 
 }
 
@@ -670,7 +712,10 @@ async function debugNode(
   const uutName = getUnitNameFromID(node.id);
   const functionUnderTest = getFunctionNameFromID (node.id);
 
-  const fileToDebug:string = getFileToDebug(node, enviroPath, uutName, functionUnderTest);
+  const executableFilename = getNameOfHarnessExecutable(enviroPath)
+
+  const fileToDebug:string = getFileToDebug(
+    node, enviroPath, uutName, functionUnderTest, executableFilename);
 
   if (okToDebug(node, fileToDebug, enviroOptions)) {
     let ourWorkspace = getWorkspacePath(enviroPath);
@@ -708,8 +753,9 @@ async function debugNode(
 
         // ok to debug, let's go!
 
-        // this is the global that the launch.json links to ...
+        // these are the globals that the launch.json links to ...
         pathToEnviroBeingDebugged = enviroPath;
+        pathToProgramBeingDebugged = path.join (enviroPath, executableFilename);
 
         // disable coverage
         // we need to wait for this to complete, so we use executeCommandSync

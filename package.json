@@ -177,7 +177,12 @@
       {
         "command": "vectorcastTestExplorer.debugEnviroPath",
         "category": "VectorCAST Test Explorer",
-        "title": "Path for environment containing test to be debugged"
+        "title": "Path for environment containing test being debugged"
+      },
+      {
+        "command": "vectorcastTestExplorer.debugProgramPath",
+        "category": "VectorCAST Test Explorer",
+        "title": "Path to executable being debugged"
       },
       {
         "command": "vectorcastTestExplorer.createTestScriptFromEditor",
@@ -351,6 +356,10 @@
         },
         {
           "command": "vectorcastTestExplorer.debugEnviroPath",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.debugProgramPath",
           "when": "never"
         },
         {

@@ -55,8 +55,8 @@ import {
   insertATGTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
+  pathToProgramBeingDebugged,
   updateCodedTestCases,
-  vcastEnvironmentsFound,
 } from "./testPane";
 
 import {
@@ -382,6 +382,17 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(debugEnviroPathCommand);
+
+  // Command: vectorcastTestExplorer.debugProgramPath ////////////////////////////////////////////////////////
+  // this command is used to return the path to the environment being debugged via
+  // the variable: vectorcastTestExplorer.debugProgramPath that is used in launch.json
+  let debugProgramPathCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.debugProgramPath",
+    () => {
+      return pathToProgramBeingDebugged;
+    }
+  );
+  context.subscriptions.push(debugProgramPathCommand);
 
   // Command: vectorcastTestExplorer.showSettings
   vscode.commands.registerCommand("vectorcastTestExplorer.showSettings", () =>

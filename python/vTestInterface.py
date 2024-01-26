@@ -172,6 +172,11 @@ def getTestDataVCAST(enviroPath):
     except Exception as err:
         print(err)
         raise InvalidEnviro()
+    
+    # Not currently used.
+    # returns "None" if coverage is not initialized, kind otherwise
+    # does not change based on coverage enabled/disabled
+    coverageType = api.environment.coverage_type_text
 
     testList = list()
     sourceFiles = dict()
