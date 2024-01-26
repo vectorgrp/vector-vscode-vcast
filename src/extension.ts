@@ -96,17 +96,24 @@ export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
 export async function activate(context: vscode.ExtensionContext) {
-  // activation gets called when vectorcastTestExplorer.configure is called
-  // currently from the ctrl-p menu,
+  // activation gets called when:
+  //  -- VectorCAST environment exists in the workspace
+  //  -- "Create VectorCAST Environment" from the Explorer context menu
+  //  -- "VectorCAST Test Explorer: Configure" from the command palette (cntl-shift-p)
 
-  // dummy command to be used for activation
+  // Handler for "VectorCAST Test Explorer: Configure"
   vscode.commands.registerCommand("vectorcastTestExplorer.configure", () => {
-    checkPrerequisites(context);
+    configureCommandCalled(context);
   });
   vscode.commands.registerCommand("vectorcastTestExplorer.toggleLog", () =>
     toggleMessageLog()
   );
   checkPrerequisites(context);
+}
+
+export function configureCommandCalled (context: vscode.ExtensionContext) {
+  // open the extension settings if the user has explicitly called configure
+  showSettings();
 }
 
 let alreadyConfigured: boolean = false;
@@ -150,10 +157,6 @@ function activationLogic(context: vscode.ExtensionContext) {
   // start the language server
   activateLanguageServerClient(context);
 
-  // if no vectorcast environments are found, open the settings dialog
-  if (!vcastEnvironmentsFound) {
-    showSettings();
-  }
 }
 
 function configureExtension(context: vscode.ExtensionContext) {
