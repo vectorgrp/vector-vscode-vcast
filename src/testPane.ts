@@ -882,6 +882,7 @@ export async function runNode(
         if (!doingAMultiTestExecution && showReport) {
           viewResultsReport(node.id);
         }
+        updateDataForEnvironment (enviroPath);
         updateDisplayedCoverage();
       }
     }

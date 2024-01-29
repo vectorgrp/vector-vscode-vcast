@@ -18,7 +18,7 @@ import {
 
 import { 
   buildEnvironmentCallback,
-  showSettings, 
+  showSettings,
  } from "./helper";
 import {
   openMessagePane,
