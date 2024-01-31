@@ -36,6 +36,7 @@ import {
   updateTestPane,
 } from "./testPane";
 import {
+  commandStatusType,
   executeCommandSync,
   executeVPythonScript,
   forceLowerCaseDriveLetter,
@@ -362,10 +363,10 @@ export function getResultFileForTest(testID: string) {
     let cwd = getEnviroPathFromID(testID);
 
     const commandToRun = testInterfaceCommand("results", cwd, testID);
-    const commandOutputText = executeVPythonScript(commandToRun, cwd);
+    const commandStatus:commandStatusType = executeVPythonScript(commandToRun, cwd);
 
-    if (commandOutputText) {
-      const firstLineOfOutput: string = commandOutputText.split(EOL, 1)[0];
+    if (commandStatus.errorCode == 0) {
+      const firstLineOfOutput: string = commandStatus.stdout.split(EOL, 1)[0];
       resultFile = firstLineOfOutput.replace("REPORT:", "");
 
       if (!fs.existsSync(resultFile)) {
@@ -374,7 +375,7 @@ export function getResultFileForTest(testID: string) {
         );
         vectorMessage(`Results report: '${resultFile}' does not exist`);
         vectorMessage(commandToRun);
-        vectorMessage(commandOutputText);
+        vectorMessage(commandStatus.stdout);
       }
 
       globalTestStatusArray[testID].resultFilePath = resultFile;
