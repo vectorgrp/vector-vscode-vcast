@@ -98,17 +98,28 @@ export function getMessagePane(): vscode.OutputChannel {
 export async function activate(context: vscode.ExtensionContext) {
   // activation gets called when:
   //  -- VectorCAST environment exists in the workspace
-  //  -- "Create VectorCAST Environment" from the Explorer context menu
-  //  -- "VectorCAST Test Explorer: Configure" from the command palette (cntl-shift-p)
+  //  -- "Create VectorCAST Environment" is selected from the Explorer context menu
+  //  -- "VectorCAST Test Explorer: Configure" is selected from the command palette (ctrl-shift-p)
 
   // Handler for "VectorCAST Test Explorer: Configure"
+  // The first use of configure will trigger this activate function
+  // subsequent uses will trigger configureCommandCalled()
   vscode.commands.registerCommand("vectorcastTestExplorer.configure", () => {
     configureCommandCalled(context);
   });
   vscode.commands.registerCommand("vectorcastTestExplorer.toggleLog", () =>
     toggleMessageLog()
   );
+
+  // we need to install some event handlers so that the user can "fix"
+  // a "bad" vcast installation by providing a valid path see logic 
+  // and comments in this function
+  installPreActivationEventHandlers (context);
+
+  // this checks the vcast installation, 
+  // and if its ok will proceed with full activation
   checkPrerequisites(context);
+
 }
 
 export function configureCommandCalled (context: vscode.ExtensionContext) {
@@ -117,11 +128,21 @@ export function configureCommandCalled (context: vscode.ExtensionContext) {
 }
 
 let alreadyConfigured: boolean = false;
-export function checkPrerequisites(context: vscode.ExtensionContext) {
+let installationFilesInitialized: boolean = false;
+function checkPrerequisites(context: vscode.ExtensionContext) {
+
+  // this function is called from the activate function, and also from the
+  // event handler for changes to the vcast installation location.  So in the 
+  // case that the VectorCAST installation is not found initially, we will get
+  // here multiple times
+
   if (!alreadyConfigured) {
     
     // setup the location of vTestInterface.py and other utilities
-    initializeInstallerFiles(context);
+    if (!installationFilesInitialized) {
+      initializeInstallerFiles(context);
+      installationFilesInitialized = true;
+    }
 
     if (checkIfInstallationIsOK()) {
       activationLogic(context);
@@ -473,7 +494,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     let openVCASTFromVce = vscode.commands.registerCommand(
       "vectorcastTestExplorer.openVCASTFromVce",
       (arg: any) => {
-        // split vceFile path into the CWD and the Environame
+        // split vceFile path into the CWD and the Environment
         const vcePath = arg.fsPath;
         const cwd = path.dirname (vcePath);
         const enviroName = path.basename (vcePath);
@@ -495,20 +516,6 @@ function configureExtension(context: vscode.ExtensionContext) {
       }
     );
     context.subscriptions.push(openVCASTFromVce);
-
-  // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
-  let newEnviroVCASTCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.newEnviroVCAST",
-    (args: Uri, argList: Uri[]) => {
-      // arg is the actual item that the right click happened on, argList is the list
-      // of all items if this is a multi-select.  Since argList is always valid, even for a single
-      // selection, we just use this here.
-      if (argList) {
-        newEnvironment(argList);
-      }
-    }
-  );
-  context.subscriptions.push(newEnviroVCASTCommand);
 
   // Command: vectorcastTestExplorer.buildEnviroFromEnv ////////////////////////////////////////////////////////
   let buildEnviroVCASTCommand = vscode.commands.registerCommand("vectorcastTestExplorer.buildEnviroFromEnv",(arg: Uri) => {
@@ -641,36 +648,78 @@ function configureExtension(context: vscode.ExtensionContext) {
     context.subscriptions
   );
 
+}
 
+
+function installPreActivationEventHandlers (context: vscode.ExtensionContext) {
+
+  // this is separate from configureExtension() because we want to 
+  // handle some actions before the configuration of the extension is complete
+  // Specifically for the case where the user does a create environment action 
+  // and vcast installation is invalid.
+  
   vscode.workspace.onDidChangeConfiguration((event) => {
-    // This function gets triggered when any option at any level (user, workspace, etc.)
-    // gets changed.  The event parameter does not indicate what level has been
-    // edited but you can use the 
 
-    if (event.affectsConfiguration("vectorcastTestExplorer.decorateExplorer")) {
-      updateExploreDecorations();
+    // post configuration, we handle changes to all options ...
+    if (alreadyConfigured) {
+      // This function gets triggered when any option at any level (user, workspace, etc.)
+      // gets changed.  The event parameter does not indicate what level has been
+      // edited but you can use the 
+
+      if (event.affectsConfiguration("vectorcastTestExplorer.decorateExplorer")) {
+        updateExploreDecorations();
+      }
+      else if (event.affectsConfiguration("vectorcastTestExplorer.verboseLogging")) {
+        adjustVerboseSetting();
+      }
+      else if (event.affectsConfiguration("vectorcastTestExplorer.configurationLocation")){
+        updateConfigurationOption (event);
+      }
+      else if (
+        event.affectsConfiguration(
+          "vectorcastTestExplorer.vectorcastInstallationLocation"
+        )
+      ) {
+        // if the user changes the path to vcast, we need to reset the values
+        // for clicast and vpython path etc.
+        if (checkIfInstallationIsOK()) {
+          resetCoverageData();
+          buildTestPaneContents();
+          updateCOVdecorations();
+        }
+      }
     }
-    else if (event.affectsConfiguration("vectorcastTestExplorer.verboseLogging")) {
-      adjustVerboseSetting();
-    }
-    else if (event.affectsConfiguration("vectorcastTestExplorer.configurationLocation")){
-      updateConfigurationOption (event);
-    }
-    else if (
-      event.affectsConfiguration(
-        "vectorcastTestExplorer.vectorcastInstallationLocation"
-      )
-    ) {
-      // if the user changes the path to vcast, we need to reset the values
-      // for clicast and vpython path etc.
-      if (checkIfInstallationIsOK()) {
-        resetCoverageData();
-        buildTestPaneContents();
-        updateCOVdecorations();
+    // pre-configuration, we only handle changes to the vcast installation location
+    else {
+      if (event.affectsConfiguration("vectorcastTestExplorer.vectorcastInstallationLocation")) {
+        // this call will check if the new value is valid, 
+        // and if so, perform extension activation
+        checkPrerequisites (context)
       }
     }
   });
+
+  // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
+  let newEnviroVCASTCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.newEnviroVCAST",
+    (args: Uri, argList: Uri[]) => {
+
+      // contains a check for already configured, so no work will be done in that case
+      checkPrerequisites(context)
+      if (alreadyConfigured) {
+        // arg is the actual item that the right click happened on, argList is the list
+        // of all items if this is a multi-select.  Since argList is always valid, even for a single
+        // selection, we just use this here.
+        if (argList) {
+          newEnvironment(argList);
+        }
+      }
+    }
+  );
+  context.subscriptions.push(newEnviroVCASTCommand);
+
 }
+
 
 // this method is called when your extension is deactivated
 export function deactivate() {
