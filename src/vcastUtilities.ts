@@ -33,6 +33,8 @@ const os = require("os");
 const path = require("path");
 const spawn = require("child_process").spawn;
 
+export const configurationFile = "c_cpp_properties.json";
+export const launchFile = "launch.json";
 
 const clicastName = "clicast";
 export let clicastCommandToUse: string | undefined = undefined;
@@ -131,7 +133,7 @@ function shouldPromptForIncludePath (includePath:string):boolean {
   if (fs.existsSync(includePath)) {
     for (const workspace of (vscode.workspace.workspaceFolders || [])) {
       const workspaceRoot = workspace.uri.fsPath;
-      const c_cpp_properties = path.join (workspaceRoot, ".vscode", "c_cpp_properties.json");
+      const c_cpp_properties = path.join (workspaceRoot, ".vscode", configurationFile);
       if (fs.existsSync(c_cpp_properties)) {
         const c_cpp_properties_contents = fs.readFileSync(c_cpp_properties).toString();
         if (c_cpp_properties_contents.includes(includePath)) {
@@ -161,12 +163,12 @@ export function addIncludePath (fileUri: vscode.Uri) {
   try {
     existingJSON = JSON.parse(fs.readFileSync(fileUri.fsPath));
     if (existingJSON.configurations.length == 0) {
-      statusMessages.push (`c_cpp_properties.json file has no existing configurations, creating a 'vcast' configuraiton.  `); 
+      statusMessages.push (`{configurationFile} file has no existing configurations, creating a 'vcast' configuraiton.  `); 
       existingJSON.configurations.push ({name: "vcast", includePath: []});
     }
   } catch {
     // if there is some sort of parse error with the existing file don't change it
-    vscode.window.showErrorMessage("Exception parning c_cpp_properties.json file, no changes made.  Check for syntax errors.  ");
+    vscode.window.showErrorMessage(`Exception parsing {configurationFile} file, no changes made.  Check for syntax errors.  `);
     return;
   }
 
@@ -245,7 +247,7 @@ function checkWorkspaceForIncludePath (includePath:string) {
 
     vscode.window.showInformationMessage (
       "The include path for VectorCAST Coded Testing was not found in your workspace, you should add the " +
-      "include path by right clicking on the appropriate c_cpp_properties.json file, " +
+      `include path by right clicking on the appropriate ${configurationFile} file, ` +
       "and choosing 'VectorCAST: Add Coded Test Include Path`  "
       );
   }

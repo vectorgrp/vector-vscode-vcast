@@ -424,6 +424,14 @@
         {
           "command": "vectorcastTestExplorer.loadTestScript",
           "when": "vectorcastTestExplorer.configured && resourceExtname==.tst"
+        },
+        {
+          "command": "vectorcastTestExplorer.addLaunchConfiguration",
+          "when": "vectorcastTestExplorer.configured && resourceFilename==launch.json"
+        },
+        {
+          "command": "vectorcastTestExplorer.addIncludePath",
+          "when": "vectorcastTestExplorer.codedTestingAvailable && resourceFilename==c_cpp_properties.json"
         }
       ],
       "editor/lineNumber/context": [

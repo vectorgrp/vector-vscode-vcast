@@ -42,7 +42,6 @@ import {
   getEnviroPathFromID,
   getEnviroNodeIDFromID,
   getFunctionNameFromID,
-  getEnviroNameFromID,
   getTestNameFromID,
   getTestNode,
   getUnitNameFromID,
@@ -76,6 +75,7 @@ import {
   clicastCommandToUse,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
+  launchFile,
   loadScriptIntoEnvironment,
 } from "./vcastUtilities";
 
@@ -575,7 +575,7 @@ function getWorkspacePath(enviroPath: string): string | undefined {
 }
 
 function getLaunchJsonPath(workspacePath: string): string {
-  const jsonPath = path.join(workspacePath, ".vscode", "launch.json");
+  const jsonPath = path.join(workspacePath, ".vscode", launchFile);
   return jsonPath;
 }
 
@@ -726,12 +726,12 @@ async function debugNode(
 
       if (!launchFileExists(launchJsonPath)) {
         vectorMessage(
-          `launch.json not found in ${launchJsonPath}.` +
+          `${launchFile}| not found in ${launchJsonPath}.` +
             ` Generating \"VectorCAST Harness Debug\" configuration from template`
         );
 
         vscode.window.showWarningMessage(
-          "launch.json not found.\n" +
+          `${launchFile} not found.\n` +
             'Generating "VectorCAST Harness Debug" configuration from template'
         );
 

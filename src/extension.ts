@@ -78,7 +78,9 @@ import {
 
 import {
   addIncludePath,
+  configurationFile,
   executeClicastCommand,
+  launchFile,
   openTestScript,
   vcastCommandtoUse,
 } from "./vcastUtilities";
@@ -91,6 +93,7 @@ const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
+
 
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
@@ -428,12 +431,27 @@ function configureExtension(context: vscode.ExtensionContext) {
       // of all items if this is a multi-select.  Since argList is always valid, even for a single
       // selection, we just use this here.
       if (argList) {
-        addLaunchConfiguration(argList[0]);
+        // find the list item that contains launch.json
+        for (let i = 0; i < argList.length; i++) {
+          if (argList[i].fsPath.includes(launchFile))  {
+            addLaunchConfiguration(argList[i]);
+          }
+        }
+      }
+      else {
+        // if the arglist is undefined, this might be a right click action in the editor
+        let activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+          const filePath = activeEditor.document.uri.toString();
+          if (filePath.endsWith(launchFile)) {
+            addLaunchConfiguration(activeEditor.document.uri);
+          }
+        }
       }
     }
   );
   context.subscriptions.push(addLaunchConfigurationCommand);
-
+    
     // Command: vectorcastTestExplorer.addIncludePath ////////////////////////////////////////////////////////
     let addIncludePathCommand = vscode.commands.registerCommand(
       "vectorcastTestExplorer.addIncludePath",
@@ -442,7 +460,22 @@ function configureExtension(context: vscode.ExtensionContext) {
         // of all items if this is a multi-select.  Since argList is always valid, even for a single
         // selection, we just use this here.
         if (argList) {
-          addIncludePath(argList[0]);
+          // find the list item that contains c_cpp_properties.json
+          for (let i = 0; i < argList.length; i++) {
+            if (argList[i].fsPath.includes(configurationFile))  {
+              addIncludePath(argList[i]);
+            }
+          }
+        }
+        else {
+          // if the arglist is undefined, this might be a right click action in the editor
+          let activeEditor = vscode.window.activeTextEditor;
+          if (activeEditor) {
+            const filePath = activeEditor.document.uri.toString();
+            if (filePath.endsWith(configurationFile)) {
+              addIncludePath(activeEditor.document.uri);
+            }
+          }
         }
       }
     );
