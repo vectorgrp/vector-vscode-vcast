@@ -643,7 +643,6 @@ function getNameOfHarnessExecutable (enviroPath:string):string {
 }
 
 
-
 function getFileToDebug (
   node: vcastTestItem,
   enviroPath:string,
@@ -757,56 +756,46 @@ async function debugNode(
         pathToEnviroBeingDebugged = enviroPath;
         pathToProgramBeingDebugged = path.join (enviroPath, executableFilename);
 
-        // disable coverage
-        // we need to wait for this to complete, so we use executeCommandSync
-        vectorMessage(`   - disabling coverage for environment ... `);
-        const enviroArg = "-e " + getEnviroNameFromID(node.id);
-        executeCommandSync(
-          `${clicastCommandToUse} ${enviroArg} tools coverage disable `,
-          path.dirname(enviroPath)
-        );
-
         // run the test first without debug to setup the inputs
         // it's important that we wait for this to finish
         vectorMessage(`   - initializing test case inputs ... `);
         const run = controller.createTestRun(request);
-        await runNode(node, run, true);
-        run.end();
+        runNode(node, run, true).then (async (status) => {
+          run.end();
 
-        vectorMessage(`   - opening VectorCAST version of file: ${uutName} ... `);
+          if (status == testStatus.didNotRun || status == testStatus.compileError) {
+            return;
+          }
+          else {
+            vectorMessage(`   - opening VectorCAST version of file: ${uutName} ... `);
 
-        // Improvement needed:
-        // It would be nice if vcast saved away the function start location when building the _vcast file
-        // open the sbf uut at the correct line for the function being tested
+            // Improvement needed:
+            // It would be nice if vcast saved away the function start location when building the _vcast file
+            // open the sbf uut at the correct line for the function being tested
 
-        let searchString:string="";
-        if (functionUnderTest==codedTestFunctionName) {
-          // for coded tests, the test logic will be in something that 
-          // looks like: "class Test_managerTests_realTest"  class Test_<suite-name>_<test-name>
-          const testName = getTestNameFromID (node.id).replace (".", "_");
-          searchString = `class Test_${testName}`;
-        }
-        else {
-          searchString = functionUnderTest.split("(")[0];
-        }
+            let searchString:string="";
+            if (functionUnderTest==codedTestFunctionName) {
+              // for coded tests, the test logic will be in something that 
+              // looks like: "class Test_managerTests_realTest"  class Test_<suite-name>_<test-name>
+              const testName = getTestNameFromID (node.id).replace (".", "_");
+              searchString = `class Test_${testName}`;
+            }
+            else {
+              searchString = functionUnderTest.split("(")[0];
+            }
 
-        const debugStartLine = findStringInFile(
-          fileToDebug,
-          searchString
-        );
-       
-        openFileWithLineSelected (fileToDebug, debugStartLine);
+            const debugStartLine = findStringInFile(
+              fileToDebug,
+              searchString
+            );
+            openFileWithLineSelected (fileToDebug, debugStartLine);
 
-        // Prompt the user for what to do next!
-        vscode.window.showInformationMessage(
-          `Ready for debugging, choose launch configuration: "${vectorcastLaunchConfigName}" ... `
-        );
-
-        // we need this because we don't want to leave cover disabled
-        executeCommandSync(
-          `${clicastCommandToUse} ${enviroArg} tools coverage enable`,
-          path.dirname(enviroPath)
-        );
+            // Prompt the user for what to do next!
+            vscode.window.showInformationMessage(
+              `Ready for debugging, choose launch configuration: "${vectorcastLaunchConfigName}" ... `
+            );
+          }
+        });
       } else {
         const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
           launchJsonUri
@@ -828,7 +817,7 @@ async function debugNode(
       );
     }
   } else {
-    // just do a normal test execute
+    // cannot debug so just do a normal test execute
     const run = controller.createTestRun(request);
     await runNode(node, run);
     run.end();
@@ -840,15 +829,16 @@ export async function runNode(
   node: vcastTestItem,
   run: vscode.TestRun,
   preDebugMode: boolean = false
-): Promise<void> {
+): Promise<testStatus> {
   vectorMessage("Starting execution of test: " + node.label + " ...");
   run.started(node);
 
   // this does the actual work of running the test
   const enviroPath = getEnviroPathFromID(node.id);
-  runVCTest(enviroPath, node.id).then((status) => {
+  return runVCTest(enviroPath, node.id).then((status) => {
     if (status == testStatus.didNotRun) {
       run.skipped(node);
+
     } else if (status == testStatus.compileError) {
       const failMessage:TestMessage = new TestMessage("Coded Test compile error - see details in file: ACOMPILE.LIS");
       run.errored(node,failMessage);
@@ -886,6 +876,7 @@ export async function runNode(
         updateDisplayedCoverage();
       }
     }
+    return status;
   });
 }
 
@@ -936,9 +927,15 @@ async function runTests(
   // this does the actual execution of the full test list
   const run = controller.createTestRun(request);
   for (const test of testList) {
-    if (cancellation.isCancellationRequested) run.skipped(test);
-    else if (test.isCompoundOnly) run.skipped(test);
-    else await runNode(test, run);
+    if (cancellation.isCancellationRequested) {
+      run.skipped(test);
+    }
+    else if (test.isCompoundOnly) {
+      run.skipped(test);
+    }
+    else {
+      await runNode(test, run);
+    }
     // used to allow the message window to display properly
     await new Promise<void>((r) => setTimeout(r, 0));
   }
