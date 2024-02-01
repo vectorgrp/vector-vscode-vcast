@@ -557,6 +557,9 @@ export function openTestFileAndCompileErrors (testNode:testNodeType) {
   // used to show the coded test source file and associated compiole errors
   // when a test compile or coded test execution fails.
 
+  // I would like to automatically close the ACOMPILE.LIS on the next
+  // run, but I could not find a way to do this.
+
   const compileErrorFile = path.join (testNode.enviroPath, "ACOMPILE.LIS");
 
   openFileWithLineSelected (testNode.testFile, testNode.testStartLine-1);
