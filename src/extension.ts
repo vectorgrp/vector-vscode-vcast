@@ -7,7 +7,8 @@ import {
 } from "./client";
 
 import {
-  updateConfigurationOption
+  updateConfigurationOption,
+  updateUnitTestLocationOption,
 } from "./configuration"
 
 import {
@@ -590,13 +591,15 @@ function installPreActivationEventHandlers (context: vscode.ExtensionContext) {
         adjustVerboseSetting();
       }
       else if (event.affectsConfiguration("vectorcastTestExplorer.configurationLocation")){
-        updateConfigurationOption (event);
+        updateConfigurationOption ();
+      }
+      else if (event.affectsConfiguration(
+        "vectorcastTestExplorer.unitTestLocation")) {
+        updateUnitTestLocationOption ();
       }
       else if (
         event.affectsConfiguration(
-          "vectorcastTestExplorer.vectorcastInstallationLocation"
-        )
-      ) {
+          "vectorcastTestExplorer.vectorcastInstallationLocation")) {
         // if the user changes the path to vcast, we need to reset the values
         // for clicast and vpython path etc.
         if (checkIfInstallationIsOK()) {
