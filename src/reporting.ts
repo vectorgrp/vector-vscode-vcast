@@ -53,8 +53,8 @@ tr:hover {
     overflow: scroll;
 }
 
-.danger {
-    background-color: var(--vscode-testing-iconFailed);
+.danger, .bg-danger {
+    background-color: var(--vscode-minimap-errorHighlight);
     color: black;
     font-weight: bold
 }
