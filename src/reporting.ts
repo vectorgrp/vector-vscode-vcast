@@ -59,8 +59,8 @@ tr:hover {
     font-weight: bold
 }
 
-.danger:hover {
-    background-color: var(--vscode-testing-iconFailed) !important;
+.danger:hover, .bg-danger:hover {
+    background-color: var(--vscode-minimap-errorHighlight) !important;
 }
 
 .success, .bg-success {
