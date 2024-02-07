@@ -760,7 +760,7 @@ async function debugNode(
         // it's important that we wait for this to finish
         vectorMessage(`   - initializing test case inputs ... `);
         const run = controller.createTestRun(request);
-        runNode(node, run, true).then (async (status) => {
+        runNode(node, run, false).then (async (status) => {
           run.end();
 
           if (status == testStatus.didNotRun || status == testStatus.compileError) {
@@ -819,23 +819,22 @@ async function debugNode(
   } else {
     // cannot debug so just do a normal test execute
     const run = controller.createTestRun(request);
-    await runNode(node, run);
+    await runNode(node, run, false);
     run.end();
   }
 }
 
-let doingAMultiTestExecution = false;
 export async function runNode(
   node: vcastTestItem,
   run: vscode.TestRun,
-  preDebugMode: boolean = false
+  generateReport:boolean,
 ): Promise<testStatus> {
   vectorMessage("Starting execution of test: " + node.label + " ...");
   run.started(node);
 
   // this does the actual work of running the test
   const enviroPath = getEnviroPathFromID(node.id);
-  return runVCTest(enviroPath, node.id).then((status) => {
+  return runVCTest(enviroPath, node.id, generateReport).then((status) => {
     if (status == testStatus.didNotRun) {
       run.skipped(node);
 
@@ -864,16 +863,8 @@ export async function runNode(
         run.failed(node, failMessage);
       }
 
-      if (!preDebugMode) {
-        let settings = vscode.workspace.getConfiguration(
-          "vectorcastTestExplorer"
-        );
-        const showReport: boolean = settings.get("showReportOnExecute", false);
-        if (!doingAMultiTestExecution && showReport) {
-          viewResultsReport(node.id);
-        }
-        updateDataForEnvironment (enviroPath);
-        updateDisplayedCoverage();
+      if (generateReport) {
+        viewResultsReport(node.id);
       }
     }
     return status;
@@ -903,6 +894,16 @@ function getTestNodes(
   return returnQueue;
 }
 
+function shouldGenerateExecutionReport (testList: vcastTestItem[]):boolean {
+
+  // a helper function for determining if we should show the report
+
+  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const showReport: boolean = settings.get("showReportOnExecute", false);
+  return (testList.length == 1 && showReport);
+
+}
+
 // this does the actual work of running the tests
 async function runTests(
   controller: vscode.TestController,
@@ -922,10 +923,13 @@ async function runTests(
   }
 
   const testList: vcastTestItem[] = getTestNodes(request, nodeList);
-  doingAMultiTestExecution = testList.length > 1;
 
   // this does the actual execution of the full test list
   const run = controller.createTestRun(request);
+  // added this for performance tuning - but interesting to leave in
+  const startTime:number = performance.now();
+  const generateReport:boolean = shouldGenerateExecutionReport (testList);
+  let enviroPathList:Set<string> = new Set();
   for (const test of testList) {
     if (cancellation.isCancellationRequested) {
       run.skipped(test);
@@ -934,11 +938,21 @@ async function runTests(
       run.skipped(test);
     }
     else {
-      await runNode(test, run);
+      const enviroPath = getEnviroPathFromID(test.id);
+      enviroPathList.add(enviroPath);
+      await runNode(test, run, generateReport);
     }
     // used to allow the message window to display properly
     await new Promise<void>((r) => setTimeout(r, 0));
   }
+  const endTime:number = performance.now();
+  const deltaString:string = ((endTime-startTime)/1000).toFixed(2)
+  vectorMessage (`Execution event took: ${deltaString} seconds`);
+
+  for (let enviroPath of enviroPathList) {
+    updateDataForEnvironment (enviroPath);
+  }
+  updateDisplayedCoverage();
   run.end();
 }
 

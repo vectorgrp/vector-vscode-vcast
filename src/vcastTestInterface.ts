@@ -448,13 +448,14 @@ function logTestResults(
   vectorMessage("-".repeat(100));
 }
 
+const { performance } = require('perf_hooks');
 export enum testStatus {
   didNotRun,
   compileError,
   passed,
   failed,
 }
-export async function runVCTest(enviroPath: string, nodeID: string) {
+export async function runVCTest(enviroPath: string, nodeID: string, generateReport:boolean) {
   // Initially, I called clicast directly here, but I switched to the python binding to give
   // more flexibility for things like: running, and generating the execution report in one action
 
@@ -464,8 +465,21 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
 
   let returnStatus: testStatus = testStatus.didNotRun;
   // The executeTest command will run the test AND generate the execution report
-  const commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
+  let commandToRun:string = "";
+  if (generateReport) {
+    commandToRun = testInterfaceCommand("executeTestReport", enviroPath, nodeID);
+  }
+  else {
+    commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
+  }
+  const startTime:number = performance.now();
   const commandStatus = executeVPythonScript(commandToRun, enviroPath);
+
+  // added this timing info to help with performance tuning - interesting to leave in
+  const endTime:number = performance.now();
+  const deltaString:string = ((endTime-startTime)/1000).toFixed(2)
+  vectorMessage (`Execution via vPython took: ${deltaString} seconds`);
+
   const commandOutputText = commandStatus.stdout;
 
   // errorCode 98 is for a compile error for the coded test source file
@@ -506,7 +520,6 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
       }
     }
   }
-
   return returnStatus;
 }
 

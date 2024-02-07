@@ -49,8 +49,8 @@ def setupArgs():
     """
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
-
-    modeChoices = ["getEnviroData", "getCoverageData", "executeTest", "results", "parseCBT"]
+   
+    modeChoices = ["getEnviroData", "getCoverageData", "executeTest", "executeTestReport", "results", "parseCBT"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -437,11 +437,12 @@ def runTestCommand(testIDObject, commandList):
     return executeReturnCode, stdoutText
 
 
-def executeVCtest(enviroPath, testIDObject):
+def executeVCtest(enviroPath, testIDObject, generateReport):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("execute")
-        commands.append("results")
+        if generateReport:
+            commands.append("results")
         returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         if "TEST RESULT: pass" in commandOutput:
@@ -601,10 +602,10 @@ def main():
         unitData = getUnitData(enviroPath, args.kind)
         json.dump(unitData, sys.stdout, indent=4)
 
-    elif args.mode == "executeTest":
+    elif args.mode.startswith("executeTest"):
         if args.kind == "vcast":
             testIDObject = testID(enviroPath, args.test)
-            returnCode = executeVCtest(enviroPath, testIDObject)
+            returnCode = executeVCtest(enviroPath, testIDObject, args.mode=="executeTestReport")
         else:
             executeCodeBasedTest(enviroPath, args.test)
 
@@ -618,9 +619,6 @@ def main():
         # file and generate the test list.
         getCodeBasedTestNames (args.path)
        
-    else:
-        print("Unknown mode value: " + args.mode)
-        print("Valid modes are: getEnviroData, getCoverageData, executeTest, results")
 
     # only used for executeTest currently
     return returnCode
