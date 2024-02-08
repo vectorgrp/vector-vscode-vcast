@@ -604,14 +604,22 @@ def main():
 
     elif args.mode.startswith("executeTest"):
         if args.kind == "vcast":
-            testIDObject = testID(enviroPath, args.test)
+            try:
+                testIDObject = testID(enviroPath, args.test)
+            except:
+                print ("Invalid test ID, provide a valid --test argument")
+                raise UsageError()
             returnCode = executeVCtest(enviroPath, testIDObject, args.mode=="executeTestReport")
         else:
             executeCodeBasedTest(enviroPath, args.test)
 
     elif args.mode == "results":
         if args.kind == "vcast":
-            testIDObject = testID(enviroPath, args.test)
+            try:
+                testIDObject = testID(enviroPath, args.test)
+            except:
+                print ("Invalid test ID, provide a valid --test argument")
+                raise UsageError()
             getResults(enviroPath, testIDObject)
 
     elif args.mode == "parseCBT":
