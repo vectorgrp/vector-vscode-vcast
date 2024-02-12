@@ -67,7 +67,6 @@ import {
   resetCoverageData,
   runVCTest,
   testDataType,
-  testStatus,
   vcastEnviroFile,
 } from "./vcastTestInterface";
 
@@ -77,6 +76,7 @@ import {
   generateAndLoadBasisPathTests,
   launchFile,
   loadScriptIntoEnvironment,
+  testStatus,
 } from "./vcastUtilities";
 
 import {
@@ -763,7 +763,7 @@ async function debugNode(
         runNode(node, run, false).then (async (status) => {
           run.end();
 
-          if (status == testStatus.didNotRun || status == testStatus.compileError) {
+          if (status == testStatus.didNotRun || status == testStatus.compileError || status == testStatus.linkError) {
             return;
           }
           else {
@@ -840,6 +840,10 @@ export async function runNode(
 
     } else if (status == testStatus.compileError) {
       const failMessage:TestMessage = new TestMessage("Coded Test compile error - see details in file: ACOMPILE.LIS");
+      run.errored(node,failMessage);
+
+    } else if (status == testStatus.linkError) {
+      const failMessage:TestMessage = new TestMessage("Coded Test link error - see details in file: AALINKER.LIS");
       run.errored(node,failMessage);
 
     } else {

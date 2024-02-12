@@ -18,6 +18,7 @@ import {
   commandStatusType,
   executeCommandSync,
   exeFilename,
+  openFileWithLineSelected,
   processExceptionFromExecuteCommand,
 } from "./utilities";
 
@@ -638,4 +639,48 @@ export function executeClicastWithProgress (
       }
     );
   });
+}
+
+export enum testStatus {
+  didNotRun,
+  compileError,
+  linkError,
+  passed,
+  failed,
+}
+
+export function openTestFileAndErrors (testNode:testNodeType):testStatus {
+
+  // used to show the coded test source file and associated 
+  // compile or link errors when a coded test "add" or execution fails.
+
+  // because vcast does not give us a unique error code for coded test
+  // compile or link errors, we need to check the timestamps of the
+  // the ACOMPILE.LIS and AALINKER.LIS to figure out which one is newer
+
+  let returnStatus:testStatus = testStatus.compileError;
+  
+  const compileErrorFile = path.join (testNode.enviroPath, "ACOMPILE.LIS");
+  const linkErrorFile = path.join (testNode.enviroPath, "AALINKER.LIS");
+
+  let compileModTime = 0;
+  if (fs.existsSync (compileErrorFile)) {
+    compileModTime = fs.statSync(compileErrorFile).mtime.getTime();
+  }
+  let linkModTime = 0;
+  if (fs.existsSync (linkErrorFile)) {
+    linkModTime = fs.statSync(linkErrorFile).mtime.getTime();
+  }
+
+  let fileToDisplay = compileErrorFile;
+  if (compileModTime<linkModTime) {
+    fileToDisplay = linkErrorFile;
+    returnStatus = testStatus.linkError;
+  }
+
+  openFileWithLineSelected (testNode.testFile, testNode.testStartLine-1);
+  openFileWithLineSelected (fileToDisplay, 0, vscode.ViewColumn.Beside);
+
+  return returnStatus;
+
 }

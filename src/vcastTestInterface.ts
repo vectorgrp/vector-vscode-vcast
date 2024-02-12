@@ -3,10 +3,7 @@ import * as vscode from "vscode";
 import { Uri } from "vscode";
 
 
-import {
-  clicastCommandToUse,
-  executeClicastCommand,
-} from "./vcastUtilities"
+
 import {
   configFilename,
   getUnitTestLocationForPath,
@@ -44,9 +41,16 @@ import {
   getChecksumCommand,
   getJsonDataFromTestInterface,
   openFileWithLineSelected,
-  openTestFileAndCompileErrors,
   testInterfaceCommand,
 } from "./utilities";
+
+import {
+  clicastCommandToUse,
+  executeClicastCommand,
+  openTestFileAndErrors,
+  testStatus,
+} from "./vcastUtilities"
+
 
 import { fileDecorator } from "./fileDecorator";
 
@@ -430,12 +434,7 @@ function logTestResults(
 }
 
 const { performance } = require('perf_hooks');
-export enum testStatus {
-  didNotRun,
-  compileError,
-  passed,
-  failed,
-}
+
 export async function runVCTest(enviroPath: string, nodeID: string, generateReport:boolean) {
   // Initially, I called clicast directly here, but I switched to the python binding to give
   // more flexibility for things like: running, and generating the execution report in one action
@@ -466,9 +465,8 @@ export async function runVCTest(enviroPath: string, nodeID: string, generateRepo
   // errorCode 98 is for a compile error for the coded test source file
   // this is hard-coded in runTestCommand() in the python interface
   if (commandStatus.errorCode==98) {
-    returnStatus = testStatus.compileError;
     const testNode = getTestNode(nodeID);
-    openTestFileAndCompileErrors (testNode)
+    returnStatus = openTestFileAndErrors (testNode)
   }
   else {
     if (commandOutputText.startsWith("FATAL")) {
@@ -890,7 +888,7 @@ export async function newCodedTest (testID: string) {
         else {
           // need to re-read to get the test file name
           testNode = getTestNode(testID);
-          openTestFileAndCompileErrors (testNode)
+          openTestFileAndErrors (testNode)
         }
       }
     });
