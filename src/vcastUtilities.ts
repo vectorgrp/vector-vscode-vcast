@@ -684,3 +684,18 @@ export function openTestFileAndErrors (testNode:testNodeType):testStatus {
   return returnStatus;
 
 }
+
+
+export async function closeAnyOpenErrorFiles () {
+  
+  // this function will close any left over ACOMPILE.LIS or AALINKER.LIS files 
+  // from the last test execution.
+  for (let editor of vscode.window.visibleTextEditors) {
+    if (editor.document.fileName.endsWith ("ACOMPILE.LIS") || editor.document.fileName.endsWith ("AALINKER.LIS")) {
+      await vscode.window.showTextDocument(editor.document.uri, 
+        { preview: false, viewColumn: editor.viewColumn, });     
+      await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    }
+  }
+}
+

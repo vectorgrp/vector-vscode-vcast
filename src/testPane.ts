@@ -72,6 +72,7 @@ import {
 
 import { 
   clicastCommandToUse,
+  closeAnyOpenErrorFiles,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
   launchFile,
@@ -978,6 +979,9 @@ async function processRunRequest(
   cancellation: vscode.CancellationToken,
   isDebug: boolean = false
 ) {
+
+  // check if there are any vcast error files open, and close them
+  await closeAnyOpenErrorFiles ()
 
   // Debug is only valid for a single test node
   // requests.include will be null if the request is for all tests

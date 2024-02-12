@@ -46,6 +46,7 @@ import {
 
 import {
   clicastCommandToUse,
+  closeAnyOpenErrorFiles,
   executeClicastCommand,
   openTestFileAndErrors,
   testStatus,
@@ -864,6 +865,9 @@ export async function newCodedTest (testID: string) {
   // does not have children.  When we are loading the test data,
   // we set the testFile field for the "Coded Test" node if 
   // there are children, so check that to determine if we can add ...
+
+  // check if there are any vcast error files open, and close them
+  await closeAnyOpenErrorFiles ();
 
   let testNode: testNodeType = getTestNode(testID);
   if (testNode.testFile.length == 0) {

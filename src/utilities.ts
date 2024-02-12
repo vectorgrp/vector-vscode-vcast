@@ -524,7 +524,10 @@ export function getRangeOption (lineIndex: number):vscode.DecorationOptions
 }
 
 
-export function openFileWithLineSelected (filePath:string, lineNumber:number, viewColumn:vscode.ViewColumn=vscode.ViewColumn.One) {
+export function openFileWithLineSelected (
+  filePath:string, 
+  lineNumber:number, 
+  viewColumn:vscode.ViewColumn=vscode.ViewColumn.One) {
 
   const locationToHighlight : vscode.Range = new vscode.Range(
     new vscode.Position(lineNumber, 0),
@@ -544,6 +547,5 @@ export function openFileWithLineSelected (filePath:string, lineNumber:number, vi
     (error: any) => {
       vectorMessage(error.message, errorLevel.error);
     });
-
 }
 
