@@ -9,6 +9,7 @@ import {
 } from "./vcastUtilities"
 import {
   configFilename,
+  getUnitTestLocationForPath,
   initializeConfigurationFile,
 } from "./configuration";
 
@@ -54,26 +55,6 @@ const path = require("path");
 
 
 export const vcastEnviroFile = "UNITDATA.VCD";
-
-const defaultUTlocation = "./unitTests";
-export function getUnitTestLocationForPath(dirpath: string): string {
-  // path points to the place where we want to create a UT folder
-
-  // By default the unit tests get created in the "unitTests" directory
-  // but this can be controlled with an option
-
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  let unitTestLocation: string = settings.get(
-    "unitTestLocation",
-    defaultUTlocation
-  );
-
-  if (unitTestLocation.startsWith(".")) {
-    unitTestLocation = path.join(dirpath, unitTestLocation);
-  }
-
-  return unitTestLocation;
-}
 
 function getChecksum(filePath: string) {
   let returnValue = 0;

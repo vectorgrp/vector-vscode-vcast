@@ -55,40 +55,87 @@ export function initializeConfigurationFile (CWD:string):boolean {
 
 }
 
-export function updateConfigurationOption (event:any) {
-    // There are some nuances to handling the configuration documented here
-    // In general, there are user settings, and workspace settings
-    // If user=abc, and workspace=xyz, then the value from get() is xyz
-    // and we do not get an indication of which one the user is actively changing,
-    // however the inspect() method lets us see the values from all levels
 
-    // This makes it tricky to handle validity checking for values, since 
-    // an illegal user value will be "hidden" by a legal workspace value.
-    // or cause us to insert "" as the workspace value leaving the user value
+// There are some nuances to handling the options.
+// In general, there are user settings, and workspace settings
+// If user=abc, and workspace=xyz, then the value from get() is xyz
+// and we do not get an indication of which one the user is actively changing,
+// however the inspect() method lets us see the values from all levels
 
+// This makes it tricky to handle validity checking for values, since 
+// an illegal user value will be "hidden" by a legal workspace value,
+// or cause us to insert a valid value at the workspace level leaving the
+// user level with an illegal value.
+
+export function updateConfigurationOption () {
 
     // get the current option value 
     const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-    const currentConfiguration = settings.get("configurationLocation", "");
+    const currentValue = settings.get("configurationLocation", "");
 
     // empty is valid, and no processing is needed
-    if (currentConfiguration.length>0) {
-    if (!fs.existsSync (currentConfiguration)) {
-        vscode.window.showErrorMessage(`Provided file path: ${currentConfiguration} does not exist`);
-        // clear illegal value at the workspace level for now
-        // Improvement Needed: use inspect() to determine where the illegal value comes from
-        settings.update ("configurationLocation", "", vscode.ConfigurationTarget.Workspace);
-    } 
-    else if (!currentConfiguration.endsWith (configFilename)) {
-        vscode.window.showErrorMessage(`Provided file path: ${currentConfiguration} is invalid (path must end with ${configFilename})`);
-        // clear illegal value at the workspace level for now
-        // Improvement Needed: use inspect() to determine where the illegal value comes from
-        settings.update ("configurationLocation", "", vscode.ConfigurationTarget.Workspace);
+    if (currentValue.length>0) {
+      if (!fs.existsSync (currentValue)) {
+          vscode.window.showErrorMessage(`Provided file path: ${currentValue} does not exist`);
+          // clear illegal value at the workspace level for now
+          // Improvement Needed: use inspect() to determine where the illegal value comes from
+          settings.update ("configurationLocation", "", vscode.ConfigurationTarget.Workspace);
+      }  
+      else if (!currentValue.endsWith (configFilename)) {
+          vscode.window.showErrorMessage(`Provided file path: ${currentValue} is invalid (path must end with ${configFilename})`);
+          // clear illegal value at the workspace level for now
+          // Improvement Needed: use inspect() to determine where the illegal value comes from
+          settings.update ("configurationLocation", "", vscode.ConfigurationTarget.Workspace);
+      }
+      else {
+          vscode.window.showInformationMessage (`Default configuration file now set to: ${currentValue})`);
+      }
     }
-    else {
-        vscode.window.showInformationMessage (`Default configuration file now set to: ${currentConfiguration})`);
-    }
-    }
+}
 
 
+const defaultUTlocation = "./unitTests";
+export function updateUnitTestLocationOption () {
+
+  // get the current option value 
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const currentValue = settings.get("unitTestLocation", "");
+
+  if (currentValue.length==0) {
+    vscode.window.showErrorMessage(`The unit test location may not be empty, resetting to default`);
+    settings.update ("unitTestLocation", defaultUTlocation, vscode.ConfigurationTarget.Workspace);
+  }
+  else if (currentValue.length>0) {
+    // if the value starts with "./" then it is a relative path
+    // and is valid in all cases
+    if (!currentValue.startsWith("./")) {
+      // otherwise we need to check if the path exists
+      if (!fs.existsSync(currentValue)) {
+        vscode.window.showErrorMessage(`Provided directory path: ${currentValue} does not exist, resetting to default`);
+        // clear illegal value at the workspace level for now
+        // Improvement Needed: use inspect() to determine where the illegal value comes from
+        settings.update ("unitTestLocation", defaultUTlocation, vscode.ConfigurationTarget.Workspace);
+      }
+    }
+  }
+}
+
+
+export function getUnitTestLocationForPath(dirpath: string): string {
+  // path points to the place where we want to create a UT folder
+
+  // By default the unit tests get created in the "unitTests" directory
+  // but this can be controlled with an option
+
+  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  let unitTestLocation: string = settings.get(
+    "unitTestLocation",
+    defaultUTlocation
+  );
+
+  if (unitTestLocation.startsWith(".")) {
+    unitTestLocation = path.join(dirpath, unitTestLocation);
+  }
+
+  return unitTestLocation;
 }
