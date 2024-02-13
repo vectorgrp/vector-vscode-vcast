@@ -1315,9 +1315,7 @@ export function updateCodedTestCases (editor:any) {
       
         // if the refresh worked, and the test names changed, then update test pane
         if (refreshCommandStatus.errorCode == 0) {
-          if (!testNamesAreTheSame (newTestNames, codedTestFileData.testNames)) {
-            updateTestPane(enviroPath);
-          }
+           updateTestPane(enviroPath);
         }
       }
       // update the test names and checksum in all cases, rather than checking for diffs again
