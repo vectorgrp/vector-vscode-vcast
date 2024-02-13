@@ -274,7 +274,7 @@ export function generateAndLoadBasisPathTests (testNode:testNodeType) {
   const timeStamp = Date.now().toString();
   const tempScriptPath = path.join (enclosingDirectory, `vcast-${timeStamp}.tst`);
 
-  vectorMessage ("Generating basis path test cases to script file ...");
+  vectorMessage ("Generating Basis Path script file ...");
   // ignore the testName (if any)
   testNode.testName = "";
 
@@ -313,7 +313,7 @@ export function generateAndLoadATGTests (testNode:testNodeType) {
   const timeStamp = Date.now().toString();
   const tempScriptPath = path.join (enclosingDirectory, `vcast-${timeStamp}.tst`);
 
-  vectorMessage ("Generating basis path test cases to script file ...");
+  vectorMessage ("Generating ATG script file ...");
   // ignore the testName (if any)
   testNode.testName = "";
 
