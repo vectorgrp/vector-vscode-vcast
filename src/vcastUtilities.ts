@@ -274,7 +274,7 @@ export function generateAndLoadBasisPathTests (testNode:testNodeType) {
   const timeStamp = Date.now().toString();
   const tempScriptPath = path.join (enclosingDirectory, `vcast-${timeStamp}.tst`);
 
-  vectorMessage ("Generating basis path test cases to script file ...");
+  vectorMessage ("Generating Basis Path script file ...");
   // ignore the testName (if any)
   testNode.testName = "";
 
@@ -313,7 +313,7 @@ export function generateAndLoadATGTests (testNode:testNodeType) {
   const timeStamp = Date.now().toString();
   const tempScriptPath = path.join (enclosingDirectory, `vcast-${timeStamp}.tst`);
 
-  vectorMessage ("Generating basis path test cases to script file ...");
+  vectorMessage ("Generating ATG script file ...");
   // ignore the testName (if any)
   testNode.testName = "";
 
@@ -335,7 +335,7 @@ export function generateAndLoadATGTests (testNode:testNodeType) {
   // Since it can be slow to generate ATG tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a 
   // regex filter for what to show
-  const messageFilter = /\[Subprogram:.*\]/;
+  const messageFilter = /Subprogram:.*/;
 
   executeClicastWithProgress(
     "Generating ATG Tests: ",
@@ -352,9 +352,10 @@ export function loadScriptCallBack (commandStatus:commandStatusType, enviroName:
   // we are computing basis path or ATG tests
 
   if (commandStatus.errorCode == 0) {
-    vectorMessage("Loading tests into VectorCAST ...");
+    vectorMessage("Loading tests into VectorCAST environment ...");
     loadScriptIntoEnvironment(enviroName, scriptPath);
     const enviroPath = path.join (path.dirname (scriptPath), enviroName);
+    vectorMessage( `Deleteting script file: ${path.basename (scriptPath)}`);
     updateTestPane(enviroPath);
     fs.unlinkSync(scriptPath);  
   }
@@ -421,14 +422,37 @@ export function executeClicastCommand(
   });
 }
 
+interface statusMessageType {
+  fullLines: string;
+  remainderText: string;
+}
+function processCommandOutput (
+  remainderTextFromLastCall: string, 
+  newTextFromThisCall: string): statusMessageType {
 
-function customTrim (str:string):string {
-  // remove trailing \n if it exists.
-  // I know I could use a regex but this is more clear :)
-  if (str.endsWith ("\n"))
-    return str.slice (0, str.length-1);
-  else
-    return str;
+  // The purpose of this function is to process the raw text that comes
+  // from the spawned process and to split it into full lines and a "remainder"
+  // The caller will keep the remainder around until the next data comes in
+  // and then pass that in with the new text.
+
+  let returnObject:statusMessageType = { fullLines: "", remainderText: "" };
+  const candidateString = remainderTextFromLastCall + newTextFromThisCall;
+
+  if (candidateString.endsWith ("\n"))
+    // if we got all full lines, there is no remainder
+    returnObject.fullLines = candidateString.slice (0, candidateString.length-1);
+  else if (candidateString.includes ("\n")) {
+    // if there is at least one \n then we have full lines and a remainder
+    const whereToSplit = candidateString.lastIndexOf("\n");
+    returnObject.fullLines = candidateString.substring(0,whereToSplit);
+    returnObject.remainderText = candidateString.substring(whereToSplit+1,candidateString.length);
+  }
+  else {
+    // otherwise we have only a remainder
+    returnObject.remainderText = candidateString;
+  }
+  
+  return returnObject;
 }
 
 
@@ -441,7 +465,7 @@ export function executeClicastWithProgress (
   callback: any
   ) {
 
-  // very similar to the previous function, but adds a progress dialog,
+  // Very similar to the executeClicastCommand(), but adds a progress dialog,
   // and a different callback structure.
   // We use this for generating the basis path and ATG tests (for now)
 
@@ -465,27 +489,42 @@ export function executeClicastWithProgress (
         // shell is needed so that stdout is NOT buffered
         const commandHandle = spawn(command, args, { cwd: cwd, shell: true });
 
+        // each time we get an entry here, we need to check if we have a 
+        // partial message if so we print the part up the the 
+        // final \n and buffer the rest, see comment above
+        let remainderTextFromLastCall = "";
+
         commandHandle.stdout.on("data", async (data: any) => {
-          // convert to a string and remove any triling CR
-          const message = customTrim(data.toString());
-          vectorMessage(message);
-          // for the dialog, we want use the filter to decide what to show
-          // and this requires the message data to be split into single lines
-          const lineArray = message.split ("\n");
-          for (const line of lineArray) {
-            const matched = line.match (filter);
-            if (matched && matched.length > 0) {
-              progress.report({ message: matched[0], increment:10 });
-              // This is needed to allow the message window to update ...
-              await new Promise<void>((r) => setTimeout(r, 0));
+        
+          const message:statusMessageType = 
+            processCommandOutput (remainderTextFromLastCall, data.toString());
+          remainderTextFromLastCall = message.remainderText;
+          
+          if (message.fullLines.length > 0) {
+            vectorMessage(message.fullLines);
+
+            // for the dialog, we want use the filter to decide what to show
+            // and this requires the message data to be split into single lines
+            const lineArray = message.fullLines.split ("\n");
+            for (const line of lineArray) {
+              const matched = line.match (filter);
+              if (matched && matched.length > 0) {
+                progress.report({ message: matched[0], increment:10 });
+                // This is needed to allow the message window to update ...
+                await new Promise<void>((r) => setTimeout(r, 0));
+              }
             }
           }
         });
       
         commandHandle.stderr.on("data", async (data: any) => {
-          // convert to a string and remove any trailing CR
-          const message = customTrim(data.toString(data));
-          vectorMessage(message);
+          const message:statusMessageType = 
+            processCommandOutput (remainderTextFromLastCall, data.toString(data));
+          remainderTextFromLastCall = message.remainderText;
+          
+          if (message.fullLines.length > 0) {
+            vectorMessage(message.fullLines);
+          }
         });
       
         commandHandle.on("error", (error: any) => {
@@ -496,6 +535,10 @@ export function executeClicastWithProgress (
               true);
         });
         commandHandle.on("close", (code: any) => {
+          // display any remaining text ...
+          if (remainderTextFromLastCall.length > 0) {
+            vectorMessage (remainderTextFromLastCall);
+          }
           commandStatus.errorCode = code;
           resolve (code);
           callback (commandStatus, enviroName, testScriptPath);

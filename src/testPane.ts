@@ -924,9 +924,7 @@ export async function loadTestScript() {
     const enviroName = getEnviroNameFromScript(scriptPath);
     if (enviroName) {
       const enviroPath = path.join(path.dirname(scriptPath), enviroName);
-
       loadScriptIntoEnvironment (enviroName, scriptPath);
-
       updateTestPane(enviroPath);
     } else {
       vscode.window.showErrorMessage(
