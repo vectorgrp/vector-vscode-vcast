@@ -82,6 +82,7 @@ import {
   configurationFile,
   executeClicastCommand,
   launchFile,
+  getEnviroNameFromFile,
   openTestScript,
   vcastCommandtoUse,
 } from "./vcastUtilities";
@@ -90,6 +91,7 @@ import {
 import { updateExploreDecorations } from "./fileDecorator";
 
 const spawn = require("child_process").spawn;
+import fs = require("fs");
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
@@ -556,9 +558,20 @@ function configureExtension(context: vscode.ExtensionContext) {
       // arg is the URI of the .env file that was clicked
       if (arg) {
         const envFilepath = arg.fsPath;
-        const directory = path.dirname(envFilepath);
-        const enviroName = path.basename(envFilepath);
-        buildEnvironmentFromScript (directory, enviroName.split (".")[0]);
+        const buildDirectory = path.dirname(envFilepath);
+        const enviroFilename = path.basename(envFilepath);
+        const enviroName = getEnviroNameFromFile (envFilepath);
+        if (enviroName) {
+          if (!fs.existsSync (path.join (buildDirectory, enviroName))) {
+            buildEnvironmentFromScript (buildDirectory, enviroFilename.split(".")[0]);
+          }
+          else {
+            vscode.window.showErrorMessage (`Environment: ${enviroName} already exists`);
+          }
+        }
+        else {
+            vscode.window.showErrorMessage (`Unable to determine environment name from file: ${envFilepath}`);
+        }
       }
     });
   context.subscriptions.push(buildEnviroVCASTCommand);

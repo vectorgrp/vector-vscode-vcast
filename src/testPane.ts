@@ -1264,22 +1264,6 @@ function addCodedTestfileToCache (
 
 }
 
-
-function testNamesAreTheSame (oldList:any, newList:any):boolean {
-
-  // We will return false if the list lengths don't match or
-  // if the order of the tests within the list have changed.
-  // This is ok because we are only trying to avoid the extra
-  // work of updating the environment when the changes are trivial
-
-  if (oldList.length != newList.length) return false;
-  for (let i=0; i<oldList.length; i++) {
-    if (oldList[i].testName != newList[i].testName) return false;
-  }
-  return true;
-}
-
-
 export function updateCodedTestCases (editor:any) {
 
   // This function will compare the editor that was just saved against 

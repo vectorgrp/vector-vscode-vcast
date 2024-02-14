@@ -699,3 +699,23 @@ export async function closeAnyOpenErrorFiles () {
   }
 }
 
+
+export function getEnviroNameFromFile (filePath:string):string|undefined {
+  // This funciton will extract the enviro name from 
+  // the ENVIRO.NAME: <name> line of the provided file
+
+  let enviroName: string|undefined = undefined;
+
+  // load the contents of filePath, find the ENVIRO.NAME: line
+  // and return the value after the colon
+  const fileContents = fs.readFileSync(filePath).toString();
+  const lines = fileContents.split("\n");
+  for (let line of lines) {
+    if (line.startsWith("ENVIRO.NAME:")) {
+      enviroName = line.split(":")[1].trim();
+      break;
+    }
+  }
+
+  return enviroName;
+}

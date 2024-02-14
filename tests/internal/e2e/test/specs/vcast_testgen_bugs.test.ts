@@ -157,6 +157,43 @@ import {
       // clearing all notifications
       await (await $(".codicon-notifications-clear-all")).click();
     });
+
+    it("should not delete existing VectorCAST environment when building from .env", async () => {
+      await updateTestID();
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      await (await bottomBar.openOutputView()).clearText()
+      
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+  
+      const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+        "vcastTutorial",
+      );
+      
+      await workspaceFolderSection.expand()
+      const unitTestsFolder = await workspaceFolderSection.findItem("unitTests")
+      await unitTestsFolder.select()
+      const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
+      const vceMenu = await vceFile.openContextMenu()
+      console.log("Executing env build for an existing environment");
+      await vceMenu.select("Build VectorCAST Environment")
+      
+      // making sure notification is shown
+
+      const notifications = await workbench.getNotifications()
+      const expectedMessage = "Environment: QUOTES_EXAMPLE already exists"
+      let message = "";
+      for (const notif of notifications) {
+        message = await notif.getMessage()
+        if (message === expectedMessage)
+          break;
+      }
+      expect(message).toBe(expectedMessage)
+      console.log("Making sure existing environment folder is not deleted");
+      const envFolder = await workspaceFolderSection.findItem("QUOTES_EXAMPLE");
+      expect(envFolder).not.toBe(undefined)
+    });
   
     it("should correctly generate all BASIS PATH tests for function", async () => {
       await updateTestID(); 
