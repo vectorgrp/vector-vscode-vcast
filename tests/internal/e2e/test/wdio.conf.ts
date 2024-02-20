@@ -403,6 +403,29 @@ export const config: Options.Testrunner = {
     else createLaunchJson = `touch ${launchJsonPath}`;
     await promisifiedExec(createLaunchJson);
     
+    const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include")
+    const c_cpp_properties = {
+      configurations: [
+          {
+              "name": "Linux",
+              "includePath": [
+                  "${workspaceFolder}/**",
+                  `${pathTovUnitInclude}`  
+              ],
+              "defines": [],
+              "compilerPath": "/usr/bin/clang",
+              "cStandard": "c17",
+              "cppStandard": "c++14",
+              "intelliSenseMode": "linux-clang-x64"
+          }
+      ],
+      version: 4
+    }
+
+    const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
+    const c_cpp_properties_JSONPath = path.join(vscodeSettingsPath, "c_cpp_properties.json");
+    await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
+
     const envFile = `ENVIRO.NEW
     ENVIRO.NAME: DATABASE-MANAGER-test
     ENVIRO.COVERAGE_TYPE: Statement
