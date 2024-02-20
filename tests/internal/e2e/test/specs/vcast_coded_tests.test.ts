@@ -374,7 +374,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Showing generated debug configuration")
     await debugButton.elem.click()
 
-
+    const editorView = workbench.getEditorView()
     console.log("Validating that debug launch configuration got generated");
     const debugConfigTab = (await editorView.openEditor(
       "launch.json",
@@ -406,6 +406,71 @@ describe("vTypeCheck VS Code Extension", () => {
     const selectedText = await activeTabTextEditor.getSelectedText()
     console.log(selectedText)
     expect(selectedText).toHaveTextContaining("class Test_managerTests_realTest")
+    await editorView.closeAllEditors()
+  });
+
+  it("should delete Coded Tests", async () => {
+    await updateTestID();
+
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let subprogram: TreeItem = undefined;
+
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      if (! await vcastTestingViewSection.isExpanded())
+        await vcastTestingViewSection.expand();
+
+      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+        console.log(await vcastTestingViewContentSection.getTitle());
+        await vcastTestingViewContentSection.expand()
+        subprogram = await findSubprogram(
+          "manager",
+          vcastTestingViewContentSection,
+        );
+        if (subprogram) {
+          if (! await subprogram.isExpanded())
+            await subprogram.expand();
+          break;
+        }
+      }
+    }
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    let subprogramMethod = await findSubprogramMethod(
+      subprogram,
+      "Coded Tests",
+    );
+    if (!subprogramMethod) {
+      throw "Subprogram method 'Coded Tests' not found";
+    }
+
+    if (!subprogramMethod.isExpanded()) {
+      await subprogramMethod.select();
+    }
+    
+    let ctxMenu = await subprogramMethod.openContextMenu()
+
+    await ctxMenu.select("VectorCAST");
+    let menuElem = await $("aria/Remove Coded Tests");
+    await menuElem.click();
+
+    const bottomBar = workbench.getBottomBar()
+    const outputView = await bottomBar.openOutputView()
+    
+    await browser.waitUntil(
+      async () => ((await outputView.getText()).toString().includes("Deleting tests for node")),
+      { timeout: TIMEOUT },
+    );
+    const outputText = (await outputView.getText()).toString()
+    console.log(outputText)
+    expect(outputText.includes("Deleting tests for node:")).toBe(true)
+    
+    await browser.waitUntil(
+      async () => (((await outputView.getText()).at(-1)).toString().includes("Processing environment data for:")),
+      { timeout: TIMEOUT },
+    );
+    await outputView.clearText()
   });
 
 });
