@@ -116,6 +116,23 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as VectorCAST Configuration File")).click()
   });
 
+  it("should enable coded testing", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const settingsEditor = await workbench.openSettings();
+    await settingsEditor.findSetting(
+      "vectorcastTestExplorer.enableCodedTesting",
+    );
+    // only one setting in search results, so the current way of clicking is correct
+    await (await settingsEditor.checkboxSetting$).click();
+    await browser.takeScreenshot();
+    await browser.saveScreenshot(
+      "info_enabled_code_testing.png",
+    );
+    await workbench.getEditorView().closeAllEditors()
+  });
+
   it("should create VectorCAST environment", async () => {
     await updateTestID();
 
@@ -238,7 +255,7 @@ describe("vTypeCheck VS Code Extension", () => {
     let menuElem = await $("aria/Generate New Coded Test File");
     await menuElem.click();
 
-    await $("aria/Save Code Test File")
+    await (await $("aria/Save Code Test File")).click()
     for (const character of "TestFiles/manager-template.cpp") {
       await browser.keys(character);
     }
