@@ -171,7 +171,7 @@ export const config: Options.Testrunner = {
         userSettings: {
           "editor.fontSize": 18,
           "terminal.integrated.fontSize": 18,
-          "window.zoomLevel": -3,
+          "window.zoomLevel": -4,
         },
         vscodeProxyOptions: {
           /**
@@ -480,6 +480,7 @@ export const config: Options.Testrunner = {
     );
     const examplesToCopy = path.join(examplesDir, "*.cpp")
 
+    const codedTestsExamplesToCopy = path.join(examplesDir, "coded_tests", "*.cpp")
     // copying didn't work with cp from fs
     if (process.platform == "win32") {
       await promisifiedExec(
@@ -492,6 +493,9 @@ export const config: Options.Testrunner = {
         `xcopy /s /i /y ${headerFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`,
       );
       await promisifiedExec(
+        `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`,
+      );
+      await promisifiedExec(
         `xcopy /s /i /y ${testInputVcastTutorial} ${path.join(
           initialWorkdir,
           "test",
@@ -502,6 +506,7 @@ export const config: Options.Testrunner = {
       await promisifiedExec(`cp ${examplesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
+      await promisifiedExec(`cp ${codedTestsExamplesToCopy} ${codedTestsPath}`);
       await promisifiedExec(
         `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`,
       );

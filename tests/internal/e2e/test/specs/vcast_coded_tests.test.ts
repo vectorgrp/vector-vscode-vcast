@@ -261,15 +261,7 @@ describe("vTypeCheck VS Code Extension", () => {
     }
     
     await browser.keys(Key.Enter);
-    // const okButton = await $("aria/OK");
-    // await okButton.click();
-    // subprogramMethod = await findSubprogramMethod(
-    //   subprogram,
-    //   "Coded Tests",
-    // );
-    // if (!subprogramMethod.isExpanded()) {
-    //   await subprogramMethod.select();
-    // }
+    
     await bottomBar.openOutputView()
     await browser.takeScreenshot()
     await browser.saveScreenshot("after_menu.png")
@@ -407,6 +399,18 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(selectedText)
     expect(selectedText).toHaveTextContaining("class Test_managerTests_realTest")
     await editorView.closeAllEditors()
+
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+      "vcastTutorial",
+    );
+
+    let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    await managerCpp.select()
+    
   });
 
   it("should delete Coded Tests", async () => {
@@ -473,4 +477,349 @@ describe("vTypeCheck VS Code Extension", () => {
     await outputView.clearText()
   });
 
+  it("should add a coded test file with a compile error", async () => {
+    await updateTestID();
+
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let subprogram: TreeItem = undefined;
+
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      if (! await vcastTestingViewSection.isExpanded())
+        await vcastTestingViewSection.expand();
+
+      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+        console.log(await vcastTestingViewContentSection.getTitle());
+        await vcastTestingViewContentSection.expand()
+        subprogram = await findSubprogram(
+          "manager",
+          vcastTestingViewContentSection,
+        );
+        if (subprogram) {
+          if (! await subprogram.isExpanded())
+            await subprogram.expand();
+          break;
+        }
+      }
+    }
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    let subprogramMethod = await findSubprogramMethod(
+      subprogram,
+      "Coded Tests",
+    );
+    if (!subprogramMethod) {
+      throw "Subprogram method 'Coded Tests' not found";
+    }
+
+    if (!subprogramMethod.isExpanded()) {
+      await subprogramMethod.select();
+    }
+    
+    let ctxMenu = await subprogramMethod.openContextMenu()
+
+    await ctxMenu.select("VectorCAST");
+    let menuElem = await $("aria/Add Existing Coded Test File");
+    await menuElem.click();
+
+
+    await (await $("aria/Select Coded Test File")).click()
+    for (const character of "TestFiles/manager-Tests.cpp") {
+      await browser.keys(character);
+    }
+    
+    await browser.keys(Key.Enter);
+    
+    await bottomBar.openOutputView()
+    await browser.takeScreenshot()
+    await browser.saveScreenshot("after_menu_existing.png")
+
+    let currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.ExampleFixtureTestCase",
+      5,
+    );
+    expect(currentTestHandle).not.toBe(undefined)
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.ExampleTestCase",
+      5,
+    );
+    
+    expect(currentTestHandle).not.toBe(undefined)
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.realTest",
+      5,
+    );
+    
+    expect(currentTestHandle).not.toBe(undefined)
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.fakeTest",
+      5,
+    );
+    
+    expect(currentTestHandle).not.toBe(undefined)
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.compileErrorTest",
+      5,
+    );
+    expect(currentTestHandle).not.toBe(undefined)
+
+    const editorView = workbench.getEditorView()
+    const openTabs = await editorView.getOpenTabs()
+    let titles: string[] = []
+    for (const tab of openTabs) {
+      titles.push(await tab.getTitle())
+    }
+    const expectedOpenTabTitles: string[] = ["manager-Tests.cpp", "ACOMPILE.LIS"]
+    for (const expectedTitle of expectedOpenTabTitles) {
+      expect(expectedOpenTabTitles.includes(expectedTitle)).toBe(true)
+    }
+
+    const sourceFileTab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
+    const line = await sourceFileTab.getLineOfText("compile-error-here")
+    await sourceFileTab.setTextAtLine(line, "")
+    await sourceFileTab.save()
+    // await editorView.closeAllEditors()
+  });
+
+
+  it("should delete Coded Tests", async () => {
+    await updateTestID();
+
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let subprogram: TreeItem = undefined;
+
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      if (! await vcastTestingViewSection.isExpanded())
+        await vcastTestingViewSection.expand();
+
+      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+        console.log(await vcastTestingViewContentSection.getTitle());
+        await vcastTestingViewContentSection.expand()
+        subprogram = await findSubprogram(
+          "manager",
+          vcastTestingViewContentSection,
+        );
+        if (subprogram) {
+          if (! await subprogram.isExpanded())
+            await subprogram.expand();
+          break;
+        }
+      }
+    }
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    let subprogramMethod = await findSubprogramMethod(
+      subprogram,
+      "Coded Tests",
+    );
+    if (!subprogramMethod) {
+      throw "Subprogram method 'Coded Tests' not found";
+    }
+
+    if (!subprogramMethod.isExpanded()) {
+      await subprogramMethod.select();
+    }
+    
+    let ctxMenu = await subprogramMethod.openContextMenu()
+
+    await ctxMenu.select("VectorCAST");
+    let menuElem = await $("aria/Remove Coded Tests");
+    await menuElem.click();
+
+    const bottomBar = workbench.getBottomBar()
+    const outputView = await bottomBar.openOutputView()
+    
+    await browser.waitUntil(
+      async () => ((await outputView.getText()).toString().includes("Deleting tests for node")),
+      { timeout: TIMEOUT },
+    );
+    const outputText = (await outputView.getText()).toString()
+    console.log(outputText)
+    expect(outputText.includes("Deleting tests for node:")).toBe(true)
+    
+    await browser.waitUntil(
+      async () => (((await outputView.getText()).at(-1)).toString().includes("Processing environment data for:")),
+      { timeout: TIMEOUT },
+    );
+    await outputView.clearText()
+  });
+
+  it("should add a coded test file without the compile error", async () => {
+    await updateTestID();
+
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let subprogram: TreeItem = undefined;
+
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      if (! await vcastTestingViewSection.isExpanded())
+        await vcastTestingViewSection.expand();
+
+      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+        console.log(await vcastTestingViewContentSection.getTitle());
+        await vcastTestingViewContentSection.expand()
+        subprogram = await findSubprogram(
+          "manager",
+          vcastTestingViewContentSection,
+        );
+        if (subprogram) {
+          if (! await subprogram.isExpanded())
+            await subprogram.expand();
+          break;
+        }
+      }
+    }
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    let subprogramMethod = await findSubprogramMethod(
+      subprogram,
+      "Coded Tests",
+    );
+    if (!subprogramMethod) {
+      throw "Subprogram method 'Coded Tests' not found";
+    }
+
+    if (!subprogramMethod.isExpanded()) {
+      await subprogramMethod.select();
+    }
+    
+    let ctxMenu = await subprogramMethod.openContextMenu()
+
+    await ctxMenu.select("VectorCAST");
+    let menuElem = await $("aria/Add Existing Coded Test File");
+    await menuElem.click();
+
+
+    // await (await $("aria/Select Coded Test File")).click()
+    const textbox = await $("aria/Select Coded Test File")
+    await textbox.click()
+    // console.log(await textbox.getText())
+    await browser.keys(Key.End)
+    for (const character of "manager-Tests.cpp") {
+      await browser.keys(character);
+    }
+    
+    await browser.keys(Key.Enter);
+    
+    await bottomBar.openOutputView()
+    await browser.takeScreenshot()
+    await browser.saveScreenshot("after_menu_existing.png")
+
+    let currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.ExampleFixtureTestCase",
+      5,
+    );
+    expect(currentTestHandle).not.toBe(undefined)
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.ExampleTestCase",
+      5,
+    );
+    
+    expect(currentTestHandle).not.toBe(undefined)
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.fakeTest",
+      5,
+    );
+    
+    expect(currentTestHandle).not.toBe(undefined)
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.compileErrorTest",
+      5,
+    );
+    expect(currentTestHandle).not.toBe(undefined)
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.realTest",
+      5,
+    );
+    
+    expect(currentTestHandle).not.toBe(undefined)
+
+    const editorView = workbench.getEditorView()
+    const openTabs = await editorView.getOpenTabs()
+    let titles: string[] = []
+    for (const tab of openTabs) {
+      const tabTitle = await tab.getTitle()
+      expect(tabTitle).not.toBe("ACOMPILE.LIS")
+      titles.push(tabTitle)
+
+    }
+    const expectedOpenTabTitles: string[] = ["manager-Tests.cpp"]
+    for (const expectedTitle of expectedOpenTabTitles) {
+      expect(expectedOpenTabTitles.includes(expectedTitle)).toBe(true)
+    }
+
+    const runButton = await currentTestHandle.getActionButton("Run Test")
+    await runButton.elem.click()
+    
+    // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT },
+    );
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+
+    await webview.open();
+
+    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
+      "Execution Results (FAIL)",
+    );
+   
+    await webview.close()
+    await editorView.closeAllEditors()
+  });
+
+  it("should verify coverage percentage shown on the Status Bar", async () => {
+    await updateTestID();
+    await workbench.getBottomBar().toggle(false)
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+      "vcastTutorial",
+    );
+
+    let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    await managerCpp.select()
+    statusBar = workbench.getStatusBar();
+    await browser.waitUntil(
+      async () => ((await statusBar.getItems()).includes("Coverage: 20/41 (49%)")),
+      { timeout: TIMEOUT },
+    );
+  
+  });
 });
