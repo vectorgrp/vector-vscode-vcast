@@ -390,7 +390,7 @@ export const config: Options.Testrunner = {
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
     await mkdir(testInputEnvPath, { recursive: true });
     
-    const codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestsPath");
+    const codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
     await mkdir(codedTestsPath , { recursive: true });
 
     const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");

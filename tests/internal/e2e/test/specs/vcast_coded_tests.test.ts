@@ -276,6 +276,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await menuElem.click();
     await browser.takeScreenshot()
     await browser.saveScreenshot("after_edit.png")
+
+    const editorView = workbench.getEditorView()
     await browser.waitUntil(
       async () =>
         (await (await editorView.getActiveTab()).getTitle()) ===
@@ -288,10 +290,105 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const runButton = await testHandle.getActionButton("Run Test")
     await runButton.elem.click()
-    await browser.pause(10000)
+    
+    // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT },
+    );
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+
+    await webview.open();
+
+    await expect($("h4*=Execution Results (PASS)")).toHaveText(
+      "Execution Results (PASS)",
+    );
+    await expect($(".event*=Event 1")).toHaveText(
+      "Event 1 - Calling coded_tests_driver",
+    );
+
+    await expect($(".event*=Event 2")).toHaveText(
+      "Event 2 - Returned from coded_tests_driver",
+    );
+    await webview.close()
+
+    
+    await editorView.closeAllEditors()
     
   });
 
-  
+  it("should check the debug prep", async () => {
+    await updateTestID();
+    
+    const vcastTestingViewContent = await getViewContent("Testing");
+    console.log("Expanding all test groups");
+    let subprogram: TreeItem = undefined;
+    let testHandle: TreeItem = undefined;
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      subprogram = await findSubprogram("manager", vcastTestingViewSection);
+      if (subprogram) {
+        if (!await subprogram.isExpanded())
+          await subprogram.expand()
+          console.log("Getting test handle")
+          testHandle = await getTestHandle(
+            subprogram,
+            "Coded Tests",
+            "managerTests.ExampleTestCase",
+            2,
+          );
+        if (testHandle) {
+          break;
+        } else {
+          throw "Test handle not found for managerTests.ExampleTestCase";
+        }
+      }
+    }
+
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    console.log("Running debug prep");
+    await testHandle.select();
+
+    const debugButton = await testHandle.getActionButton("Debug Test")
+    console.log("Showing generated debug configuration")
+    await debugButton.elem.click()
+
+
+    console.log("Validating that debug launch configuration got generated");
+    const debugConfigTab = (await editorView.openEditor(
+      "launch.json",
+    )) as TextEditor;
+
+    await browser.waitUntil(
+      async () => (await debugConfigTab.getText()) !== "",
+      { timeout: TIMEOUT },
+    );
+
+    const allTextFromDebugConfig = await debugConfigTab.getText();
+    expect(allTextFromDebugConfig.includes("configurations")).toBe(true);
+    expect(allTextFromDebugConfig.includes("VectorCAST Harness Debug"));
+
+    console.log("Showing instrumented file")
+    await debugButton.elem.click()
+    await browser.waitUntil(
+      async () =>
+        (await (await editorView.getActiveTab()).getTitle()) ===
+        "manager_exp_inst_driver.c",
+      { timeout: TIMEOUT },
+    );
+    const activeTab = await editorView.getActiveTab();
+    const activeTabTitle = await activeTab.getTitle();
+    console.log(activeTabTitle);
+    expect(activeTabTitle).toBe("manager_exp_inst_driver.c");
+    
+    const activeTabTextEditor = await editorView.openEditor("manager_exp_inst_driver.c") as TextEditor
+    const selectedText = await activeTabTextEditor.getSelectedText()
+    console.log(selectedText)
+    expect(selectedText).toHaveTextContaining("class Test_managerTests_realTest")
+  });
 
 });
