@@ -822,4 +822,166 @@ describe("vTypeCheck VS Code Extension", () => {
     );
   
   });
+
+  it("should run compileErrorTest and check report", async () => {
+    await updateTestID();
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let subprogram: TreeItem = undefined;
+
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      if (! await vcastTestingViewSection.isExpanded())
+        await vcastTestingViewSection.expand();
+
+      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+        console.log(await vcastTestingViewContentSection.getTitle());
+        await vcastTestingViewContentSection.expand()
+        subprogram = await findSubprogram(
+          "manager",
+          vcastTestingViewContentSection,
+        );
+        if (subprogram) {
+          if (! await subprogram.isExpanded())
+            await subprogram.expand();
+          break;
+        }
+      }
+    }
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    let currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.compileErrorTest",
+      5,
+    );
+    expect(currentTestHandle).not.toBe(undefined)
+      
+    let ctxMenu = await currentTestHandle.openContextMenu()
+
+    await ctxMenu.select("VectorCAST");
+    let menuElem = await $("aria/Edit Coded Test");
+    await menuElem.click();
+
+    const editorView = workbench.getEditorView()
+    let tab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
+    expect(await tab.getSelectedText()).toBe("VTEST(managerTests, compileErrorTest) {")
+    
+    let line = 54
+    await tab.moveCursor(line, 1);
+    await browser.keys(Key.Escape)
+    for (let index = 0; index < 6; index++) {
+      await browser.keys(Key.Enter)
+    }
+    await tab.setTextAtLine(line + 1, "VTEST(managerTests, myTest) {")
+    await tab.setTextAtLine(line + 2, "")
+    await tab.setTextAtLine(line + 3, "      VASSERT_EQ(10, 20);")
+    await tab.setTextAtLine(line + 4, "      VASSERT_EQ(10, 10);")
+    await tab.setTextAtLine(line + 5, "}")
+  
+    await tab.save()
+
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.myTest",
+      6,
+    );
+    expect(currentTestHandle).not.toBe(undefined)
+    
+    const bottomBar = workbench.getBottomBar()
+    await bottomBar.toggle(true)
+    const outputView =await bottomBar.openOutputView()
+    await outputView.clearText()
+    await (await tab.elem).click()
+    line = await tab.getLineOfText("VTEST(managerTests, myTest) {")
+    await tab.moveCursor(line, 1);
+    let lineNumberElement = await $(`.line-numbers=${line}`);
+    let runArrowElement = await (
+      await lineNumberElement.parentElement()
+    ).$(".cgmr.codicon");
+
+    await runArrowElement.click({button:1})
+    
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT },
+    );
+    
+
+    await browser.waitUntil(
+      async () => ((await outputView.getText()).toString().includes("[  FAIL  ] manager.coded_tests_driver - managerTests.myTest")),
+      { timeout: TIMEOUT },
+    );
+    
+    let outputTextFlat = (await outputView.getText()).toString()
+    expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
+    expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
+    expect(outputTextFlat.includes("TEST RESULT: fail"))
+
+    let webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    let webview = webviews[0];
+
+    await webview.open();
+
+    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
+      "Execution Results (FAIL)",
+    );
+   
+    await webview.close()
+    await editorView.closeAllEditors()
+      
+    ctxMenu = await currentTestHandle.openContextMenu()
+    await ctxMenu.select("VectorCAST");
+    menuElem = await $("aria/Edit Coded Test");
+    await menuElem.click();
+
+    tab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
+    const selectedText = await tab.getSelectedText()
+    console.log(selectedText)
+    expect(selectedText.includes("VTEST(managerTests, myTest) {"))
+    expect(selectedText.includes("Expected Results matched 0%"))
+    await tab.setTextAtLine(57,"      VASSERT_EQ(10, 10);")
+    await tab.save()
+    
+    line = await tab.getLineOfText("VTEST(managerTests, myTest) {")
+    await tab.moveCursor(line, 1);
+    lineNumberElement = await $(`.line-numbers=${line}`);
+    runArrowElement = await (
+      await lineNumberElement.parentElement()
+    ).$(".cgmr.codicon");
+
+    await runArrowElement.click({button:1})
+
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT },
+    );
+    
+    await browser.waitUntil(
+      async () => ((await outputView.getText()).toString().includes("Status: passed")),
+      { timeout: TIMEOUT },
+    );
+    
+    outputTextFlat = (await outputView.getText()).toString()
+    expect(outputTextFlat.includes("Status: passed"))
+    expect(outputTextFlat.includes("Values: 2/2 (100.00)"))
+
+    webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    webview = webviews[0];
+
+    await webview.open();
+
+    await expect($("h4*=Execution Results (PASS)")).toHaveText(
+      "Execution Results (PASS)",
+    );
+   
+    await browser.takeScreenshot()
+    await browser.saveScreenshot("assertion.png")
+    await webview.close()
+    await editorView.closeAllEditors()
+  });
 });
