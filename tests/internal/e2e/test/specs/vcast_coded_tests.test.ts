@@ -984,4 +984,164 @@ describe("vTypeCheck VS Code Extension", () => {
     await webview.close()
     await editorView.closeAllEditors()
   });
+
+  it("test behavior for when a Compile Error is introduced in Coded Test", async () => {
+    await updateTestID();
+   
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let subprogram: TreeItem = undefined;
+
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      if (! await vcastTestingViewSection.isExpanded())
+        await vcastTestingViewSection.expand();
+
+      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+        console.log(await vcastTestingViewContentSection.getTitle());
+        await vcastTestingViewContentSection.expand()
+        subprogram = await findSubprogram(
+          "manager",
+          vcastTestingViewContentSection,
+        );
+        if (subprogram) {
+          if (! await subprogram.isExpanded())
+            await subprogram.expand();
+          break;
+        }
+      }
+    }
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    let currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.compileErrorTest",
+      6,
+    );
+    expect(currentTestHandle).not.toBe(undefined)
+      
+    let ctxMenu = await currentTestHandle.openContextMenu()
+
+    await ctxMenu.select("VectorCAST");
+    let menuElem = await $("aria/Edit Coded Test");
+    await menuElem.click();
+
+    const editorView = workbench.getEditorView()
+    let tab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
+    expect(await tab.getSelectedText()).toBe("VTEST(managerTests, compileErrorTest) {")
+    await browser.keys(Key.Escape)
+    let line = await tab.getLineOfText("VTEST(managerTests, compileErrorTest) {")
+    await tab.moveCursor(line, "VTEST(managerTests, compileErrorTest) {".length + 1);
+    await browser.keys(Key.Enter)
+    await tab.setTextAtLine(line + 1, "nonsense text")
+    await tab.save()
+    
+    await tab.moveCursor(line, 1);
+    let lineNumberElement = await $(`.line-numbers=${line}`);
+    let runArrowElement = await (
+      await lineNumberElement.parentElement()
+    ).$(".cgmr.codicon");
+
+    await runArrowElement.click({button:1})
+    
+    // checking opened tabs
+    const openTabs = await editorView.getOpenTabs()
+    let titles: string[] = []
+    for (const tab of openTabs) {
+      titles.push(await tab.getTitle())
+    }
+    const expectedOpenTabTitles: string[] = ["manager-Tests.cpp", "ACOMPILE.LIS"]
+    for (const expectedTitle of expectedOpenTabTitles) {
+      expect(expectedOpenTabTitles.includes(expectedTitle)).toBe(true)
+    }
+
+    const expectedErrorText = "Coded Test compile error - see details in file: ACOMPILE.LIS"
+    const textWithError = await $(`aria/${expectedErrorText}`).getText();
+    console.log(`text with error: ${textWithError}`)
+    expect(
+      textWithError
+      .includes("Coded Test compile error - see details in file: ACOMPILE.LIS"))
+      .toBe(true)
+    // need to close tabs, otherwise can't interact with tab content properly
+    await browser.keys(Key.Escape)
+    await editorView.closeAllEditors()
+    currentTestHandle = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.compileErrorTest",
+      6,
+    );
+    ctxMenu = await currentTestHandle.openContextMenu()
+    await ctxMenu.select("VectorCAST");
+    menuElem = await $("aria/Edit Coded Test");
+    await menuElem.click();
+
+
+    tab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
+    await tab.elem.click()
+    await browser.keys(Key.Escape)
+    const errorLine = await tab.getLineOfText("nonsense text")
+    const messageLine = errorLine - 1
+    await tab.moveCursor(messageLine, 1);
+    
+    
+    
+
+    let sourceFileTab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
+    
+    await sourceFileTab.setTextAtLine(errorLine, "")
+    await sourceFileTab.save()
+
+    const bottomBar = workbench.getBottomBar()
+    await bottomBar.toggle(true)
+    const outputView = await bottomBar.openOutputView()
+    await outputView.clearText()
+    
+    await editorView.closeAllEditors()
+
+
+    ctxMenu = await currentTestHandle.openContextMenu()
+    await ctxMenu.select("VectorCAST");
+    menuElem = await $("aria/Edit Coded Test");
+    await menuElem.click();
+    sourceFileTab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
+    await(await sourceFileTab.elem).click()
+    // closing the squiggle
+    await browser.keys(Key.Escape);
+    await(await sourceFileTab.elem).click()
+
+    // const runButton = await currentTestHandle.getActionButton("Run Test")
+    // await (await runButton.elem).click()
+    await sourceFileTab.moveCursor(messageLine, 1);
+    lineNumberElement = await $(`.line-numbers=${messageLine}`);
+    runArrowElement = await (
+      await lineNumberElement.parentElement()
+    ).$(".cgmr.codicon");
+
+    await runArrowElement.click({button:1})
+    
+    await browser.waitUntil(
+      async () => ((await outputView.getText()).toString().includes("[        ]   Testcase User Code Mismatch:")),
+      { timeout: TIMEOUT },
+    );
+
+    const outputTextFlat = (await outputView.getText()).toString()
+    expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
+    expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
+    expect(outputTextFlat.includes("TEST RESULT: fail"))
+
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+
+    await webview.open();
+
+    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
+      "Execution Results (FAIL)",
+    );
+   
+    await webview.close()
+    await editorView.closeAllEditors()
+  });
 });
