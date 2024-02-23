@@ -382,8 +382,9 @@ def getStandardArgsFromTestObject(testIDObject):
     returnString = f"-e{testIDObject.enviroName}"
     if testIDObject.unitName != "not-used":
         returnString += f" -u{testIDObject.unitName}"
-    returnString += f" -s{testIDObject.functionName}"
-    returnString += f" -t{testIDObject.testName}"
+    # Need to quote the strings here because of names that have << >> 
+    returnString += f" -s\"{testIDObject.functionName}\""
+    returnString += f" -t\"{testIDObject.testName}\""
     return returnString
 
 
