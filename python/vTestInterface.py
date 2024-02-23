@@ -378,13 +378,23 @@ def runClicastScript(commandFileName):
     return returnCode, stdoutString
 
 
-def getStandardArgsFromTestObject(testIDObject):
+def getStandardArgsFromTestObject(testIDObject, quoteParameters):
     returnString = f"-e{testIDObject.enviroName}"
     if testIDObject.unitName != "not-used":
         returnString += f" -u{testIDObject.unitName}"
-    # Need to quote the strings here because of names that have << >> 
-    returnString += f" -s\"{testIDObject.functionName}\""
-    returnString += f" -t\"{testIDObject.testName}\""
+
+    # I did not do something clever with the quote insertion 
+    # to make the code easier to read
+    if quoteParameters:
+        # when we call clicast from the command line, we need
+        # Need to quote the strings because of names that have << >> 
+        returnString += f" -s\"{testIDObject.functionName}\""
+        returnString += f" -t\"{testIDObject.testName}\""
+    else:
+        # when we insert commands in the command file we cannot use quotes
+        returnString += f" -s{testIDObject.functionName}"
+        returnString += f" -t{testIDObject.testName}"
+
     return returnString
 
 
@@ -401,8 +411,8 @@ def runTestCommand(testIDObject, commandList):
 
     executeReturnCode = 0
     stdoutText = ""
-    standardArgs = getStandardArgsFromTestObject(testIDObject)
     if "execute" in commandList:
+        standardArgs = getStandardArgsFromTestObject(testIDObject, True)
         # we cannot include the execute command in the command script that we use for
         # results because we need the return code from the execute command separately
         commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
@@ -416,6 +426,7 @@ def runTestCommand(testIDObject, commandList):
                 executeReturnCode = 98
 
     if "results" in commandList:
+        standardArgs = getStandardArgsFromTestObject(testIDObject, False)
         # We build a clicast command script to generate the execution report
         # since we need multiple commands
         with open(commandFileName, "w") as commandFile:
