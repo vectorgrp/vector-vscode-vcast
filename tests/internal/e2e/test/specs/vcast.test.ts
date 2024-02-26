@@ -1394,18 +1394,18 @@ describe("vTypeCheck VS Code Extension", () => {
     // this will timeout if debugger is not ready and/or debugger notification text is not shown
     await $(debugNotificationText);
 
-    console.log("Waiting for manager_vcast.cpp to be open");
+    console.log("Waiting for manager_inst.cpp to be open");
     // this times out if manager_vcast.cpp is not ready
     await browser.waitUntil(
       async () =>
         (await (await editorView.getActiveTab()).getTitle()) ===
-        "manager_vcast.cpp",
+        "manager_inst.cpp",
       { timeout: TIMEOUT },
     );
     const activeTab = await editorView.getActiveTab();
     const activeTabTitle = await activeTab.getTitle();
     console.log(activeTabTitle);
-    expect(activeTabTitle).toBe("manager_vcast.cpp");
+    expect(activeTabTitle).toBe("manager_inst.cpp");
 
     console.log("Finished creating debug configuration");
   });

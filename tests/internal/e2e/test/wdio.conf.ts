@@ -109,11 +109,11 @@ export const config: Options.Testrunner = {
   // will be called from there.
   //
   specs: [
-    // "./**/**/vcast_testgen_bugs.test.ts",
-    // "./**/**/vcast_testgen_env.test.ts",
-    // "./**/**/vcast_testgen_unit.test.ts",
-    // "./**/**/vcast_testgen_func.test.ts",
-    // "./**/**/vcast.test.ts",
+    "./**/**/vcast_testgen_bugs.test.ts",
+    "./**/**/vcast_testgen_env.test.ts",
+    "./**/**/vcast_testgen_unit.test.ts",
+    "./**/**/vcast_testgen_func.test.ts",
+    "./**/**/vcast.test.ts",
     "./**/**/vcast_coded_tests.test.ts"
   ],
   // Patterns to exclude.
