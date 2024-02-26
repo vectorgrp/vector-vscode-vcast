@@ -1319,7 +1319,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("VectorCAST Report", 1);
   });
 
-  it("should prepare for debugging", async () => {
+  it("should prepare for debugging with coverage turned ON", async () => {
     await updateTestID();
 
     const activityBar = workbench.getActivityBar();
@@ -1408,6 +1408,119 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(activeTabTitle).toBe("manager_inst.cpp");
 
     console.log("Finished creating debug configuration");
+  });
+
+  it("should prepare for debugging with coverage turned OFF", async () => {
+    await updateTestID();
+    console.log("Turning off coverage")
+    {
+      const turnOffCoverageCmd = "cd test/vcastTutorial/cpp/unitTests && clicast -e DATABASE-MANAGER tools coverage disable"
+      const { stdout, stderr } = await promisifiedExec(turnOffCoverageCmd);
+        
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${turnOffCoverageCmd}`;
+      }
+      console.log(stdout)
+    }
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    const explorerSideBarView = await explorerView?.openView();
+
+    const workspaceFolderName = "vcastTutorial";
+    const workspaceFolderSection = await explorerSideBarView
+      .getContent()
+      .getSection(workspaceFolderName.toUpperCase());
+    console.log(await workspaceFolderSection.getTitle());
+    await workspaceFolderSection.expand();
+
+    const cppFolder = workspaceFolderSection.findItem(".vscode");
+    await (await cppFolder).select();
+
+    const launchConfig = workspaceFolderSection.findItem("launch.json");
+    await (await (await launchConfig).elem).click();
+    await (await launchConfig).openContextMenu();
+    await (await $("aria/VectorCAST: Add Launch Configuration")).click();
+
+    console.log("Validating that debug launch configuration got generated");
+    const debugConfigTab = (await editorView.openEditor(
+      "launch.json",
+    )) as TextEditor;
+
+    await browser.waitUntil(
+      async () => (await debugConfigTab.getText()) !== "",
+      { timeout: TIMEOUT },
+    );
+
+    const allTextFromDebugConfig = await debugConfigTab.getText();
+    expect(allTextFromDebugConfig.includes("configurations")).toBe(true);
+    expect(allTextFromDebugConfig.includes("VectorCAST Harness Debug"));
+
+    console.log("Looking for Manager::PlaceOrder in the test tree");
+    const vcastTestingViewContent = await getViewContent("Testing");
+
+    console.log("Expanding all test groups");
+    let subprogram: TreeItem = undefined;
+    let testHandle: TreeItem = undefined;
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      subprogram = await findSubprogram("manager", vcastTestingViewSection);
+      if (subprogram) {
+        await subprogram.expand();
+        testHandle = await getTestHandle(
+          subprogram,
+          "Manager::PlaceOrder",
+          "myFirstTest",
+          3,
+        );
+        if (testHandle) {
+          break;
+        } else {
+          throw "Test handle not found for myFirstTest";
+        }
+      }
+    }
+
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    console.log("Debugging myFirstTest");
+    console.log("Clicking on Debug Test button");
+    await testHandle.select();
+    await (await (await testHandle.getActionButton("Debug Test")).elem).click();
+    console.log("Validating debug notifications");
+
+    const debugNotificationText =
+      "aria/Ready for debugging, choose launch configuration: &quot;VectorCAST Harness Debug&quot; ...";
+    // this will timeout if debugger is not ready and/or debugger notification text is not shown
+    await $(debugNotificationText);
+
+    console.log("Waiting for manager_inst.cpp to be open");
+    // this times out if manager_vcast.cpp is not ready
+    await browser.waitUntil(
+      async () =>
+        (await (await editorView.getActiveTab()).getTitle()) ===
+        "manager_inst.cpp",
+      { timeout: TIMEOUT },
+    );
+    const activeTab = await editorView.getActiveTab();
+    const activeTabTitle = await activeTab.getTitle();
+    console.log(activeTabTitle);
+    expect(activeTabTitle).toBe("manager_vcast.cpp");
+
+    console.log("Finished creating debug configuration");
+    console.log("Turning coverage back on")
+    {
+      const turnOffCoverageCmd = "cd test/vcastTutorial/cpp/unitTests && clicast -e DATABASE-MANAGER tools coverage enable"
+      const { stdout, stderr } = await promisifiedExec(turnOffCoverageCmd);
+        
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${turnOffCoverageCmd}`;
+      }
+      console.log(stdout)
+    }
+
   });
 
   it("Verifies that gutter decorations dissapear when we edit manager.cpp", async () => {
