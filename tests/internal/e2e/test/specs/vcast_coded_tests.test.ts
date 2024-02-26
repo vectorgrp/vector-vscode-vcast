@@ -1,10 +1,9 @@
-// test/specs/vcast.test.ts
+// test/specs/vcast_coded_tests.test.ts
 import {
   BottomBarPanel,
   StatusBar,
   TextEditor,
   EditorView,
-  CustomTreeItem,
   Workbench,
   TreeItem,
 } from "wdio-vscode-service";
@@ -14,21 +13,13 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   clickOnButtonInTestingHeader,
-  getGeneratedTooltipTextAt,
   getViewContent,
   findSubprogram,
   getTestHandle,
   findSubprogramMethod,
-  openTestScriptFor,
-  editTestScriptFor,
-  deleteTest,
   updateTestID,
-  cleanup
 } from "../test_utils/vcast_utils";
 
-import { exec } from "child_process";
-import { promisify } from "node:util";
-const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
@@ -121,15 +112,13 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const workbench = await browser.getWorkbench();
     const settingsEditor = await workbench.openSettings();
+    console.log("Looking for coded tests settings")
     await settingsEditor.findSetting(
       "vectorcastTestExplorer.enableCodedTesting",
     );
     // only one setting in search results, so the current way of clicking is correct
+    console.log("Enabling coded tests")
     await (await settingsEditor.checkboxSetting$).click();
-    await browser.takeScreenshot();
-    await browser.saveScreenshot(
-      "info_enabled_code_testing.png",
-    );
     await workbench.getEditorView().closeAllEditors()
   });
 
@@ -200,8 +189,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Verifying that VectorCAST Settings is opened");
     const activeTab = await editorView.getActiveTab();
     expect(await activeTab.getTitle()).toBe("Settings");
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("settings_screen.png")
+
     await $(
       ".setting-item-description*=Decorate files that have coverage in the File Explorer pane",
     );
@@ -236,7 +224,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
-
+    console.log("Looking for coded tests")
     let subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests",
@@ -250,7 +238,7 @@ describe("vTypeCheck VS Code Extension", () => {
     }
     
     let ctxMenu = await subprogramMethod.openContextMenu()
-
+    console.log("Generating template test");
     await ctxMenu.select("VectorCAST");
     let menuElem = await $("aria/Generate New Coded Test File");
     await menuElem.click();
@@ -259,32 +247,30 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "TestFiles/manager-template.cpp") {
       await browser.keys(character);
     }
-    
     await browser.keys(Key.Enter);
     
     await bottomBar.openOutputView()
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("after_menu.png")
-    await getTestHandle(
+    console.log("Checking that tests got generated");
+    let testHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
       "managerTests.ExampleFixtureTestCase",
       2,
     );
+    expect(testHandle).not.toBe(undefined);
 
-    const testHandle = await getTestHandle(
+    testHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
       "managerTests.ExampleTestCase",
       2,
     );
+    expect(testHandle).not.toBe(undefined);
 
     ctxMenu = await testHandle.openContextMenu()
     await ctxMenu.select("VectorCAST");
     menuElem = await $("aria/Edit Coded Test");
     await menuElem.click();
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("after_edit.png")
 
     const editorView = workbench.getEditorView()
     await browser.waitUntil(
@@ -292,14 +278,16 @@ describe("vTypeCheck VS Code Extension", () => {
         (await (await editorView.getActiveTab()).getTitle()) ===
         "manager-template.cpp",
     );
-
+    console.log("Checking that there are no problem markers");
     const problemsView = await bottomBar.openProblemsView()
     const problemMarkers = await problemsView.getAllMarkers()
     expect(problemMarkers.length).toBe(0)
-
+    
+    console.log("Running template test managerTests.ExampleTestCase");
     const runButton = await testHandle.getActionButton("Run Test")
     await runButton.elem.click()
     
+    console.log("Checking the test report");
     // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length > 0,
@@ -322,8 +310,6 @@ describe("vTypeCheck VS Code Extension", () => {
       "Event 2 - Returned from coded_tests_driver",
     );
     await webview.close()
-
-    
     await editorView.closeAllEditors()
     
   });
@@ -333,6 +319,7 @@ describe("vTypeCheck VS Code Extension", () => {
     
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
+    console.log("Looking for managerTests.ExampleTestCase")
     let subprogram: TreeItem = undefined;
     let testHandle: TreeItem = undefined;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
@@ -440,7 +427,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
-
+    console.log("Looking for coded tests");
     let subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests",
@@ -454,7 +441,7 @@ describe("vTypeCheck VS Code Extension", () => {
     }
     
     let ctxMenu = await subprogramMethod.openContextMenu()
-
+    console.log("Deleting coded tests");
     await ctxMenu.select("VectorCAST");
     let menuElem = await $("aria/Remove Coded Tests");
     await menuElem.click();
@@ -504,7 +491,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
-
+    console.log("Looking for coded tests")
     let subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests",
@@ -516,7 +503,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogramMethod.isExpanded()) {
       await subprogramMethod.select();
     }
-    
+    console.log("Adding existing coded tests file")
     let ctxMenu = await subprogramMethod.openContextMenu()
 
     await ctxMenu.select("VectorCAST");
@@ -528,13 +515,10 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "TestFiles/manager-Tests.cpp") {
       await browser.keys(character);
     }
-    
     await browser.keys(Key.Enter);
     
     await bottomBar.openOutputView()
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("after_menu_existing.png")
-
+    console.log("Checking that all tests appear")
     let currentTestHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
@@ -577,7 +561,7 @@ describe("vTypeCheck VS Code Extension", () => {
       5,
     );
     expect(currentTestHandle).not.toBe(undefined)
-
+    console.log("Checking that manager-Tests.cpp and ACOMPILE.LIS tabs are opened")
     const editorView = workbench.getEditorView()
     const openTabs = await editorView.getOpenTabs()
     let titles: string[] = []
@@ -593,7 +577,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const line = await sourceFileTab.getLineOfText("compile-error-here")
     await sourceFileTab.setTextAtLine(line, "")
     await sourceFileTab.save()
-    // await editorView.closeAllEditors()
   });
 
 
@@ -624,7 +607,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
-
+    console.log("Looking for coded tests")
     let subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests",
@@ -638,7 +621,7 @@ describe("vTypeCheck VS Code Extension", () => {
     }
     
     let ctxMenu = await subprogramMethod.openContextMenu()
-
+    console.log("Deleting coded tests")
     await ctxMenu.select("VectorCAST");
     let menuElem = await $("aria/Remove Coded Tests");
     await menuElem.click();
@@ -688,7 +671,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
-
+    console.log("Looking for Coded Tests")
     let subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests",
@@ -702,27 +685,21 @@ describe("vTypeCheck VS Code Extension", () => {
     }
     
     let ctxMenu = await subprogramMethod.openContextMenu()
-
+    console.log("Adding existing coded tests file")
     await ctxMenu.select("VectorCAST");
     let menuElem = await $("aria/Add Existing Coded Test File");
     await menuElem.click();
 
-
-    // await (await $("aria/Select Coded Test File")).click()
     const textbox = await $("aria/Select Coded Test File")
     await textbox.click()
-    // console.log(await textbox.getText())
     await browser.keys(Key.End)
     for (const character of "manager-Tests.cpp") {
       await browser.keys(character);
     }
-    
     await browser.keys(Key.Enter);
     
     await bottomBar.openOutputView()
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("after_menu_existing.png")
-
+    console.log("Checking that all tests appear")
     let currentTestHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
@@ -765,7 +742,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     
     expect(currentTestHandle).not.toBe(undefined)
-
+    console.log("Checking that only manager-Tests.cpp tab is opened, no compile errors")
     const editorView = workbench.getEditorView()
     const openTabs = await editorView.getOpenTabs()
     let titles: string[] = []
@@ -779,10 +756,11 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const expectedTitle of expectedOpenTabTitles) {
       expect(expectedOpenTabTitles.includes(expectedTitle)).toBe(true)
     }
-
+    console.log("Running managerTests.realTest")
     const runButton = await currentTestHandle.getActionButton("Run Test")
     await runButton.elem.click()
     
+    console.log("Checking test report")
     // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length > 0,
@@ -816,6 +794,7 @@ describe("vTypeCheck VS Code Extension", () => {
     let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
     await managerCpp.select()
     statusBar = workbench.getStatusBar();
+    console.log("Getting coverage percentage from Status Bar")
     await browser.waitUntil(
       async () => ((await statusBar.getItems()).includes("Coverage: 20/41 (49%)")),
       { timeout: TIMEOUT },
@@ -849,7 +828,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
-
+    console.log("Looking for compileErrorTest")
     let currentTestHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
@@ -866,8 +845,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const editorView = workbench.getEditorView()
     let tab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
+    console.log("Checking that VTEST(managerTests, compileErrorTest) { is selected")
     expect(await tab.getSelectedText()).toBe("VTEST(managerTests, compileErrorTest) {")
     
+    console.log("Adding managerTest.myTest to the test script")
     let line = 54
     await tab.moveCursor(line, 1);
     await browser.keys(Key.Escape)
@@ -879,9 +860,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.setTextAtLine(line + 3, "      VASSERT_EQ(10, 20);")
     await tab.setTextAtLine(line + 4, "      VASSERT_EQ(10, 10);")
     await tab.setTextAtLine(line + 5, "}")
-  
     await tab.save()
-
+    
+    console.log("Verifying that managerTests.myTest appears in the test explorer")
     currentTestHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
@@ -895,6 +876,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const outputView =await bottomBar.openOutputView()
     await outputView.clearText()
     await (await tab.elem).click()
+
+    console.log("Running managerTests.myTest using the button inside the test script")
     line = await tab.getLineOfText("VTEST(managerTests, myTest) {")
     await tab.moveCursor(line, 1);
     let lineNumberElement = await $(`.line-numbers=${line}`);
@@ -909,7 +892,7 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT },
     );
     
-
+    console.log("Verifying test output")
     await browser.waitUntil(
       async () => ((await outputView.getText()).toString().includes("[  FAIL  ] manager.coded_tests_driver - managerTests.myTest")),
       { timeout: TIMEOUT },
@@ -919,7 +902,8 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
     expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
     expect(outputTextFlat.includes("TEST RESULT: fail"))
-
+    
+    console.log("Checking test report")
     let webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
     let webview = webviews[0];
@@ -940,9 +924,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     tab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
     const selectedText = await tab.getSelectedText()
-    console.log(selectedText)
+    console.log("Verifying that Expected Results matched 0% appears next to the test")
     expect(selectedText.includes("VTEST(managerTests, myTest) {"))
     expect(selectedText.includes("Expected Results matched 0%"))
+    console.log("Adapting expected values")
     await tab.setTextAtLine(57,"      VASSERT_EQ(10, 10);")
     await tab.save()
     
@@ -952,14 +937,14 @@ describe("vTypeCheck VS Code Extension", () => {
     runArrowElement = await (
       await lineNumberElement.parentElement()
     ).$(".cgmr.codicon");
-
+    console.log("Running adapted test")
     await runArrowElement.click({button:1})
 
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length > 0,
       { timeout: TIMEOUT },
     );
-    
+    console.log("Verifying test status")
     await browser.waitUntil(
       async () => ((await outputView.getText()).toString().includes("Status: passed")),
       { timeout: TIMEOUT },
@@ -968,19 +953,16 @@ describe("vTypeCheck VS Code Extension", () => {
     outputTextFlat = (await outputView.getText()).toString()
     expect(outputTextFlat.includes("Status: passed"))
     expect(outputTextFlat.includes("Values: 2/2 (100.00)"))
-
+    console.log("Checking test reports")
     webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
     webview = webviews[0];
-
     await webview.open();
 
     await expect($("h4*=Execution Results (PASS)")).toHaveText(
       "Execution Results (PASS)",
     );
-   
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("assertion.png")
+
     await webview.close()
     await editorView.closeAllEditors()
   });
@@ -1012,7 +994,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
-
+    console.log("Looking for managerTests.compileErrorTest")
     let currentTestHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
@@ -1027,6 +1009,7 @@ describe("vTypeCheck VS Code Extension", () => {
     let menuElem = await $("aria/Edit Coded Test");
     await menuElem.click();
 
+    console.log("Introducing compile error in managerTests.compileErrorTest")
     const editorView = workbench.getEditorView()
     let tab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
     expect(await tab.getSelectedText()).toBe("VTEST(managerTests, compileErrorTest) {")
@@ -1042,10 +1025,11 @@ describe("vTypeCheck VS Code Extension", () => {
     let runArrowElement = await (
       await lineNumberElement.parentElement()
     ).$(".cgmr.codicon");
-
+    console.log("Running managerTests.compileErrorTest")
     await runArrowElement.click({button:1})
     
     // checking opened tabs
+    console.log("Checking both manager-Tests.cpp and ACOMPILE.LIS tabs are opened")
     const openTabs = await editorView.getOpenTabs()
     let titles: string[] = []
     for (const tab of openTabs) {
@@ -1055,7 +1039,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const expectedTitle of expectedOpenTabTitles) {
       expect(expectedOpenTabTitles.includes(expectedTitle)).toBe(true)
     }
-
+    console.log("Checking that compile error text squiggle appears")
     const expectedErrorText = "Coded Test compile error - see details in file: ACOMPILE.LIS"
     const textWithError = await $(`aria/${expectedErrorText}`).getText();
     console.log(`text with error: ${textWithError}`)
@@ -1077,7 +1061,7 @@ describe("vTypeCheck VS Code Extension", () => {
     menuElem = await $("aria/Edit Coded Test");
     await menuElem.click();
 
-
+    console.log("Correcting compile error")
     tab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
     await tab.elem.click()
     await browser.keys(Key.Escape)
@@ -1085,11 +1069,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const messageLine = errorLine - 1
     await tab.moveCursor(messageLine, 1);
     
-    
-    
-
     let sourceFileTab = await editorView.openEditor("manager-Tests.cpp") as TextEditor
-    
     await sourceFileTab.setTextAtLine(errorLine, "")
     await sourceFileTab.save()
 
@@ -1111,21 +1091,19 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Escape);
     await(await sourceFileTab.elem).click()
 
-    // const runButton = await currentTestHandle.getActionButton("Run Test")
-    // await (await runButton.elem).click()
     await sourceFileTab.moveCursor(messageLine, 1);
     lineNumberElement = await $(`.line-numbers=${messageLine}`);
     runArrowElement = await (
       await lineNumberElement.parentElement()
     ).$(".cgmr.codicon");
-
+    console.log("Running corrected test")
     await runArrowElement.click({button:1})
     
     await browser.waitUntil(
       async () => ((await outputView.getText()).toString().includes("[        ]   Testcase User Code Mismatch:")),
       { timeout: TIMEOUT },
     );
-
+    console.log("Verifying test output")
     const outputTextFlat = (await outputView.getText()).toString()
     expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
     expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
@@ -1134,9 +1112,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
     const webview = webviews[0];
-
     await webview.open();
-
+    console.log("Checking test report")
     await expect($("h4*=Execution Results (FAIL)")).toHaveText(
       "Execution Results (FAIL)",
     );
