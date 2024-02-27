@@ -639,21 +639,24 @@ function getNameOfHarnessExecutable (enviroPath:string):string {
   if (isCoverageTurnedOn(enviroPath)) {
     harnessName = coverageExeFilename + extension;
   }
+
   return harnessName;
 
 }
 
 function isCoverageTurnedOn(enviroPath:string): boolean {
   const commonDBpath = path.join(enviroPath, "COMMONDB.VCD")
-  const lines = fs.readFileSync(commonDBpath, "utf-8").split("\n");
+  const lines = fs.readFileSync(commonDBpath, "utf-8").split(/\r?\n/);
   let coverageON = false;
   let currentLine = "";
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     currentLine = lines[lineIdx];
-    if (currentLine.trim() === "COVERAGE_ON_OFF_HDR")
-      coverageON = lines[lineIdx + 1].trim() === "TRUE"
-      break
+    if (currentLine.trim() === "COVERAGE_ON_OFF_HDR"){
+      coverageON = lines[lineIdx + 1].trim() === "TRUE";
+      break;
+    }
   }
+  
   return coverageON
 }
 function getFileToDebug (
@@ -694,6 +697,7 @@ function getFileToDebug (
   const globOptions = { cwd: enviroPath, absolute: true };
   // two steps for debugging ...
   const globResult = glob.sync(globPattern, globOptions);
+
   return globResult[0];
 
 }

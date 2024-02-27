@@ -204,6 +204,7 @@ export function addLaunchConfiguration(fileUri: Uri) {
   } else {
     existingJSON.configurations.push(vectorConfiguration);
     fs.writeFileSync(jsonPath, JSON.stringify(existingJSON, null, "\t"));
+  
   }
 }
 

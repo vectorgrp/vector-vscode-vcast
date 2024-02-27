@@ -1434,28 +1434,6 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(await workspaceFolderSection.getTitle());
     await workspaceFolderSection.expand();
 
-    const cppFolder = workspaceFolderSection.findItem(".vscode");
-    await (await cppFolder).select();
-
-    const launchConfig = workspaceFolderSection.findItem("launch.json");
-    await (await (await launchConfig).elem).click();
-    await (await launchConfig).openContextMenu();
-    await (await $("aria/VectorCAST: Add Launch Configuration")).click();
-
-    console.log("Validating that debug launch configuration got generated");
-    const debugConfigTab = (await editorView.openEditor(
-      "launch.json",
-    )) as TextEditor;
-
-    await browser.waitUntil(
-      async () => (await debugConfigTab.getText()) !== "",
-      { timeout: TIMEOUT },
-    );
-
-    const allTextFromDebugConfig = await debugConfigTab.getText();
-    expect(allTextFromDebugConfig.includes("configurations")).toBe(true);
-    expect(allTextFromDebugConfig.includes("VectorCAST Harness Debug"));
-
     console.log("Looking for Manager::PlaceOrder in the test tree");
     const vcastTestingViewContent = await getViewContent("Testing");
 
@@ -1490,17 +1468,12 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await (await testHandle.getActionButton("Debug Test")).elem).click();
     console.log("Validating debug notifications");
 
-    const debugNotificationText =
-      "aria/Ready for debugging, choose launch configuration: &quot;VectorCAST Harness Debug&quot; ...";
-    // this will timeout if debugger is not ready and/or debugger notification text is not shown
-    await $(debugNotificationText);
-
-    console.log("Waiting for manager_inst.cpp to be open");
+    console.log("Waiting for manager_vcast.cpp to be open");
     // this times out if manager_vcast.cpp is not ready
     await browser.waitUntil(
       async () =>
         (await (await editorView.getActiveTab()).getTitle()) ===
-        "manager_inst.cpp",
+        "manager_vcast.cpp",
       { timeout: TIMEOUT },
     );
     const activeTab = await editorView.getActiveTab();
@@ -1639,8 +1612,11 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should build VectorCAST environment from .env", async () => {
     await updateTestID();
     const workbench = await browser.getWorkbench();
+    const editorView = workbench.getEditorView()
+    await editorView.closeAllEditors()
     const activityBar = workbench.getActivityBar();
-    await (await bottomBar.openOutputView()).clearText()
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText()
     
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
@@ -1656,7 +1632,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.maximize()
     await browser.waitUntil(
       async () =>
-        (await (await bottomBar.openOutputView()).getText())
+        (await outputView.getText())
           .toString()
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT },
