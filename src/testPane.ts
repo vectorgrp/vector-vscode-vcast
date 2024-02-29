@@ -417,16 +417,7 @@ function okToDebug(
       `Debug is only available for test nodes, ${stockSuffix}`
     );
     returnValue = false;
-  } else if (enviroOptions.C_DEBUG_CMD.length == 0) {
-    vscode.window.showInformationMessage(
-      `Debug command could not be found in the VectorCAST configuration file for this environment. ${stockSuffix}`
-    );
-    returnValue = false;
-  } else if (!enviroOptions.C_DEBUG_CMD.startsWith("gdb")) {
-    vscode.window.showInformationMessage(
-      `Debugger '${enviroOptions.C_DEBUG_CMD}' is not supported, ${stockSuffix}`
-    );
-    returnValue = false;
+ 
   } else if (!fs.existsSync(uutFilePath)) {
     vscode.window.showInformationMessage(
       `Could not find UUT source file: '${uutFilePath}', ${stockSuffix}`
