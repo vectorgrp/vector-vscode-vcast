@@ -18,8 +18,11 @@ import {
   getTestHandle,
   findSubprogramMethod,
   updateTestID,
+  cleanup
 } from "../test_utils/vcast_utils";
-
+import { exec } from "child_process";
+import { promisify } from "node:util";
+const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
@@ -314,9 +317,111 @@ describe("vTypeCheck VS Code Extension", () => {
     
   });
 
-  it("should check the debug prep", async () => {
+  it("should check the debug prep with coverage turned ON", async () => {
     await updateTestID();
+    const bottomBar = workbench.getBottomBar()
+    await bottomBar.toggle(true)
+    const outputView = await bottomBar.openOutputView()
+    const vcastTestingViewContent = await getViewContent("Testing");
+    console.log("Expanding all test groups");
+    console.log("Looking for managerTests.ExampleTestCase")
+    let subprogram: TreeItem = undefined;
+    let testHandle: TreeItem = undefined;
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      subprogram = await findSubprogram("manager", vcastTestingViewSection);
+      if (subprogram) {
+        if (!await subprogram.isExpanded())
+          await subprogram.expand()
+          console.log("Getting test handle")
+          testHandle = await getTestHandle(
+            subprogram,
+            "Coded Tests",
+            "managerTests.ExampleTestCase",
+            2,
+          );
+        if (testHandle) {
+          break;
+        } else {
+          throw "Test handle not found for managerTests.ExampleTestCase";
+        }
+      }
+    }
+
+    if (!subprogram) {
+      throw "Subprogram 'manager' not found";
+    }
+
+    console.log("Running debug prep");
+    await testHandle.select();
+
+    const debugButton = await testHandle.getActionButton("Debug Test")
+    console.log("Showing generated debug configuration")
+    await debugButton.elem.click()
+    console.log(await outputView.getText())
+    const editorView = workbench.getEditorView()
+    console.log("Validating that debug launch configuration got generated");
+    const debugConfigTab = (await editorView.openEditor(
+      "launch.json",
+    )) as TextEditor;
+
+    await browser.waitUntil(
+      async () => (await debugConfigTab.getText()) !== "",
+      { timeout: TIMEOUT },
+    );
+
+    const allTextFromDebugConfig = await debugConfigTab.getText();
+    expect(allTextFromDebugConfig.includes("configurations")).toBe(true);
+    expect(allTextFromDebugConfig.includes("VectorCAST Harness Debug"));
+
+    console.log("Showing instrumented file")
+    await debugButton.elem.click()
+    await browser.waitUntil(
+      async () =>
+        (await (await editorView.getActiveTab()).getTitle()) ===
+        "manager_exp_inst_driver.c",
+      { timeout: TIMEOUT },
+    );
+    const activeTab = await editorView.getActiveTab();
+    const activeTabTitle = await activeTab.getTitle();
+    console.log(activeTabTitle);
+    expect(activeTabTitle).toBe("manager_exp_inst_driver.c");
     
+    const activeTabTextEditor = await editorView.openEditor("manager_exp_inst_driver.c") as TextEditor
+    const selectedText = await activeTabTextEditor.getSelectedText()
+    console.log(selectedText)
+    expect(selectedText).toHaveTextContaining("class Test_managerTests_realTest")
+    
+    await editorView.closeAllEditors()
+
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+      "vcastTutorial",
+    );
+
+    let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    await managerCpp.select()
+    
+  });
+  it("should check the debug prep with coverage turned OFF", async () => {
+    await updateTestID();
+    const bottomBar = workbench.getBottomBar()
+    await bottomBar.toggle(true)
+    const outputView = await bottomBar.openOutputView()
+    console.log("Turning off coverage")
+    {
+      const turnOffCoverageCmd = "cd test/vcastTutorial/cpp/unitTests && clicast -e DATABASE-MANAGER tools coverage disable"
+      const { stdout, stderr } = await promisifiedExec(turnOffCoverageCmd);
+        
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${turnOffCoverageCmd}`;
+      }
+      console.log(stdout)
+    }
+
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
     console.log("Looking for managerTests.ExampleTestCase")
@@ -355,37 +460,38 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const editorView = workbench.getEditorView()
     console.log("Validating that debug launch configuration got generated");
-    const debugConfigTab = (await editorView.openEditor(
-      "launch.json",
-    )) as TextEditor;
-
-    await browser.waitUntil(
-      async () => (await debugConfigTab.getText()) !== "",
-      { timeout: TIMEOUT },
-    );
-
-    const allTextFromDebugConfig = await debugConfigTab.getText();
-    expect(allTextFromDebugConfig.includes("configurations")).toBe(true);
-    expect(allTextFromDebugConfig.includes("VectorCAST Harness Debug"));
-
-    console.log("Showing instrumented file")
+    console.log(await outputView.getText())
+    
+    console.log("Showing non-instrumented file")
     await debugButton.elem.click()
     await browser.waitUntil(
       async () =>
         (await (await editorView.getActiveTab()).getTitle()) ===
-        "manager_exp_inst_driver.c",
+        "manager_expanded_driver.c",
       { timeout: TIMEOUT },
     );
     const activeTab = await editorView.getActiveTab();
     const activeTabTitle = await activeTab.getTitle();
     console.log(activeTabTitle);
-    expect(activeTabTitle).toBe("manager_exp_inst_driver.c");
+    expect(activeTabTitle).toBe("manager_expanded_driver.c");
     
-    const activeTabTextEditor = await editorView.openEditor("manager_exp_inst_driver.c") as TextEditor
+    const activeTabTextEditor = await editorView.openEditor("manager_expanded_driver.c") as TextEditor
     const selectedText = await activeTabTextEditor.getSelectedText()
     console.log(selectedText)
     expect(selectedText).toHaveTextContaining("class Test_managerTests_realTest")
     await editorView.closeAllEditors()
+    
+    console.log("Turning coverage back on")
+    {
+      const turnOffCoverageCmd = "cd test/vcastTutorial/cpp/unitTests && clicast -e DATABASE-MANAGER tools coverage enable"
+      const { stdout, stderr } = await promisifiedExec(turnOffCoverageCmd);
+        
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${turnOffCoverageCmd}`;
+      }
+      console.log(stdout)
+    }
 
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
@@ -394,7 +500,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
       "vcastTutorial",
     );
-
+    await bottomBar.toggle(false)
     let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
     await managerCpp.select()
     
@@ -691,7 +797,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await menuElem.click();
 
     const textbox = await $("aria/Select Coded Test File")
-    await textbox.click()
     await browser.keys(Key.End)
     for (const character of "manager-Tests.cpp") {
       await browser.keys(character);
@@ -1120,5 +1225,11 @@ describe("vTypeCheck VS Code Extension", () => {
    
     await webview.close()
     await editorView.closeAllEditors()
+  });
+
+  it("should clean up", async () => {
+    await updateTestID();
+    await cleanup()
+    
   });
 });
