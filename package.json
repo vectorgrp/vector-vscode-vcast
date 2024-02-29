@@ -2,8 +2,8 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.9",
-  "license": "See License in file: LICENSE",
+  "version": "1.0.10",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/vectorgrp/vector-vscode-vcast"
@@ -26,6 +26,7 @@
     "vectorcast",
     "vector",
     "unittesting",
+    "c++",
     "test",
     "testing"
   ],
@@ -94,6 +95,11 @@
         "title": "VectorCAST: Add Launch Configuration"
       },
       {
+        "command": "vectorcastTestExplorer.addIncludePath",
+        "category": "VectorCAST Test Explorer",
+        "title": "VectorCAST: Add Coded Test Include Path"
+      },
+      {
         "command": "vectorcastTestExplorer.addSettingsFileFilter",
         "category": "VectorCAST Test Explorer",
         "title": "VectorCAST: Add Filter for Environment Files"
@@ -112,6 +118,21 @@
         "command": "vectorcastTestExplorer.createTestScript",
         "category": "VectorCAST Test Explorer",
         "title": "New Test Script"
+      },
+      {
+        "command": "vectorcastTestExplorer.addCodedTests",
+        "category": "VectorCAST Test Explorer",
+        "title": "Add Existing Coded Test File"
+      },
+      {
+        "command": "vectorcastTestExplorer.generateCodedTests",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate New Coded Test File"
+      },
+      {
+        "command": "vectorcastTestExplorer.removeCodedTests",
+        "category": "VectorCAST Test Explorer",
+        "title": "Remove Coded Tests"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
@@ -144,6 +165,11 @@
         "title": "Edit Test Script"
       },
       {
+        "command": "vectorcastTestExplorer.editCodedTest",
+        "category": "VectorCAST Test Explorer",
+        "title": "Edit Coded Test"
+      },
+      {
         "command": "vectorcastTestExplorer.loadTestScript",
         "category": "VectorCAST Test Explorer",
         "title": "Load Test Script into Environment"
@@ -151,7 +177,12 @@
       {
         "command": "vectorcastTestExplorer.debugEnviroPath",
         "category": "VectorCAST Test Explorer",
-        "title": "Path for environment containing test to be debugged"
+        "title": "Path for environment containing test being debugged"
+      },
+      {
+        "command": "vectorcastTestExplorer.debugProgramPath",
+        "category": "VectorCAST Test Explorer",
+        "title": "Path to executable being debugged"
       },
       {
         "command": "vectorcastTestExplorer.createTestScriptFromEditor",
@@ -196,21 +227,27 @@
           "default": "",
           "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
         },
-        "vectorcastTestExplorer.showReportOnExecute": {
+        "vectorcastTestExplorer.enableCodedTesting": {
           "type": "boolean",
           "order": 4,
+          "default": false,
+          "description": "When this option is set, new environments will be built with the coded testing option enabled"
+        },
+        "vectorcastTestExplorer.showReportOnExecute": {
+          "type": "boolean",
+          "order": 5,
           "default": true,
           "description": "Display the VectorCAST execution report after test run"
         },
         "vectorcastTestExplorer.decorateExplorer": {
           "type": "boolean",
-          "order": 5,
+          "order": 6,
           "default": true,
           "description": "Decorate files that have coverage in the File Explorer pane"
         },
         "vectorcastTestExplorer.verboseLogging": {
           "type": "boolean",
-          "order": 6,
+          "order": 7,
           "default": false,
           "description": "Log internal extension details"
         }
@@ -254,6 +291,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.addIncludePath",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.addSettingsFileFilter",
           "when": "never"
         },
@@ -267,6 +308,18 @@
         },
         {
           "command": "vectorcastTestExplorer.createTestScript",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.addCodedTests",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.generateCodedTests",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.removeCodedTests",
           "when": "never"
         },
         {
@@ -294,11 +347,19 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.editCodedTest",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.loadTestScript",
           "when": "never"
         },
         {
           "command": "vectorcastTestExplorer.debugEnviroPath",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.debugProgramPath",
           "when": "never"
         },
         {
@@ -334,6 +395,11 @@
           "group": "7_modification"
         },
         {
+          "command": "vectorcastTestExplorer.addIncludePath",
+          "when": "vectorcastTestExplorer.codedTestingAvailable && resourceFilename==c_cpp_properties.json",
+          "group": "7_modification"
+        },
+        {
           "command": "vectorcastTestExplorer.addSettingsFileFilter",
           "when": "vectorcastTestExplorer.configured && resourceFilename==settings.json",
           "group": "7_modification"
@@ -358,6 +424,14 @@
         {
           "command": "vectorcastTestExplorer.loadTestScript",
           "when": "vectorcastTestExplorer.configured && resourceExtname==.tst"
+        },
+        {
+          "command": "vectorcastTestExplorer.addLaunchConfiguration",
+          "when": "vectorcastTestExplorer.configured && resourceFilename==launch.json"
+        },
+        {
+          "command": "vectorcastTestExplorer.addIncludePath",
+          "when": "vectorcastTestExplorer.codedTestingAvailable && resourceFilename==c_cpp_properties.json"
         }
       ],
       "editor/lineNumber/context": [
@@ -406,27 +480,47 @@
         {
           "command": "vectorcastTestExplorer.editTestScript",
           "group": "vcast@4",
-          "when": "testId =~ /^vcast:.*$/"
+          "when": "testId =~ /^vcast:.*$/ && !(testId =~ /.*coded_tests_driver.*/)"
         },
         {
           "command": "vectorcastTestExplorer.createTestScript",
           "group": "vcast@5",
-          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList && !(testId =~ /.*coded_tests_driver.*/)"
+        },
+        {
+          "command": "vectorcastTestExplorer.addCodedTests",
+          "group": "vcast@4",
+          "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ &&  testId not in vectorcastTestExplorer.vcastHasCodedTestsList"
+        },
+        {
+          "command": "vectorcastTestExplorer.generateCodedTests",
+          "group": "vcast@5",
+          "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ &&  testId not in vectorcastTestExplorer.vcastHasCodedTestsList"
+        },
+        {
+          "command": "vectorcastTestExplorer.removeCodedTests",
+          "group": "vcast@6",
+          "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ && testId in vectorcastTestExplorer.vcastHasCodedTestsList"
+        },
+        {
+          "command": "vectorcastTestExplorer.editCodedTest",
+          "group": "vcast@7",
+          "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList && testId =~ /.*coded_tests_driver.+/"
         },
         {
           "command": "vectorcastTestExplorer.insertBasisPathTests",
           "group": "vcast@6",
-          "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/)"
+          "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/)"
         },
         {
           "command": "vectorcastTestExplorer.insertATGTests",
           "group": "vcast@7",
-          "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/)"
+          "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/)"
         },
         {
           "command": "vectorcastTestExplorer.deleteTest",
           "group": "vcast@8",
-          "when": "testId =~ /^vcast:.*$/"
+          "when": "testId =~ /^vcast:.*$/ && !(testId =~ /.*coded_tests_driver.*/)"
         },
         {
           "command": "vectorcastTestExplorer.viewResults",

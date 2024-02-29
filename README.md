@@ -71,6 +71,11 @@ setting: "Unit Test Location". By default, this settings value is "./unitTests" 
 that the environment will be created in the "./unitTests" sub-directory of the directory
 containing the source file.
 
+### Coded Testing Support
+
+If you would like to use the Coded Tests feature (VectorCAST 24 and newer), you must 
+set the "Enable Coded Tests" extension option before building an environment.
+
 ### Test Explorer Icons
 
 - The Log icon will open the VectorCAST Test Explorer message panel
@@ -103,7 +108,19 @@ The right click menu for unit, function, and test nodes has a VectorCAST sub-men
 - Delete Test - deletes the selected test
 - View Test Results - displays the latest Test Execution Report
 
-### The "Flask+" icon
+#### Coded test context menu
+
+If an environment was built with Coded Testing Support enabled (VectorCAST 24 and newer)
+The right click context menu for all Coded Test nodes will have a VectorCAST sub-menu with the following commands:
+
+- For a Coded Tests node with no existing tests
+  - Add Existing Coded Test File - add an existing coded test source file to the node
+  - Generate New Coded Test File - generate a new coded test source file for the node
+- For a coded Tests node with existing tests
+  - Remove Coded Tests - will remove the coded test file from the node.  The test file will NOT be deleted
+
+
+### The "Flask+" Icon
 
 Special "Flask+" icons are displayed in the margin of the text editor for all VectorCAST
 testable functions.  This right click menu provides the ability to create a new test script, or
@@ -125,7 +142,7 @@ In both cases, a progress dialog will be display as the test cases are computed.
 
 Note that the "ATG tests" menu is only available if you are using version of VectorCAST 23sp5 and higher.
 
-### Editing an Existing Test
+### Editing an Existing Test Script
 
 To edit an existing test script, right click on an environment, unit, function, or test node
 and choose: "Edit Test Script" from the VectorCAST right-click context menu
@@ -151,6 +168,32 @@ The LSE features make it quick and intuitive to create new VectorCAST test scrip
 When editing a test script file, a "Load Test Script into Environment" right click menu item is available in the
 editor window to load the test script into the VectorCAST test environment. If there are unsaved changes,
 the load command will also perform a save.
+
+### Editing a Coded Test 
+
+Coded test files require an include like this: #include <vunit/vunit.h> so for IntelliSense editing to 
+work nicely for coded test files, you must add an include path to for this file to your workspace.
+IntelliSense include paths can most easily be added to the approrpritate c_cpp_properties.json file.
+
+If you enable the VectorCAST test explorer and configure it with a VectorCAST version that supports coded testing, 
+the extension will check for the existence of the correct include path and prompt you to add it if it is not found.  
+
+You can create a new c_cpp_properties file, by using the: 'C/C++: Edit Configurations (JSON)' command, and can 
+easily add the required include path, by right clicking on a new or existing file, and choosing: "VectorCAST: Add Coded Test Include Path"
+
+Here is an example a c_cpp_properties.json file with the vUnit include path added:
+
+```
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/VectorCAST/vunit/include"
+            ],
+            ...
+```
 
 ### Code Coverage Annotations
 
@@ -197,6 +240,7 @@ This extension contributes the following settings:
 - "VectorCAST Installation Location" provides the path to the VectorCAST installation
 - "Unit Test Location" controls where the extension stores unit test new unit test artifacts.
 - "Configuration Location" control where the extension looks for the VectorCAST CCAST_.CFG file
+- "Enable Coded Tests" enables coded testing when new environments are built
 - "Show Report on Execute" will show the HTML test report in after each VectorCAST test run.
 - "Decorate Explorer Tree" will add a VC in the right margin of the file explorer tree for those files that have VectorCAST coverage.
 - "Verbose Logging" will add more detailed messages to the VectorCAST Test Explorer message panel

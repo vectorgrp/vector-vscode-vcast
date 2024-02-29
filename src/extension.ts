@@ -56,6 +56,8 @@ import {
   insertATGTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
+  pathToProgramBeingDebugged,
+  updateCodedTestCases,
 } from "./testPane";
 
 import {
@@ -67,13 +69,19 @@ import {
 
 import {
   buildEnvironmentFromScript,
+  generateCodedTest,
+  newCodedTest,
   newEnvironment,
   newTestScript,
+  openCodedTest,
   resetCoverageData,
 } from "./vcastTestInterface";
 
 import {
+  addIncludePath,
+  configurationFile,
   executeClicastCommand,
+  launchFile,
   getEnviroNameFromFile,
   openTestScript,
   vcastCommandtoUse,
@@ -88,6 +96,7 @@ const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
+
 
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
@@ -119,7 +128,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 }
 
-function configureCommandCalled (context: vscode.ExtensionContext) {
+export function configureCommandCalled (context: vscode.ExtensionContext) {
   // open the extension settings if the user has explicitly called configure
   showSettings();
 }
@@ -174,6 +183,7 @@ function activationLogic(context: vscode.ExtensionContext) {
 
   // start the language server
   activateLanguageServerClient(context);
+
 }
 
 function configureExtension(context: vscode.ExtensionContext) {
@@ -215,6 +225,44 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(createTestScriptCommand);
+
+  // Command: vectorcastTestExplorer.addCodedTests////////////////////////////////////////////////////////
+  // This is the callback for the right clicks in the test explorer tree
+  let addCodedTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addCodedTests",
+    (args: any) => {
+      if (args) {
+        newCodedTest(args.id);
+      }
+    }
+  );
+  context.subscriptions.push(addCodedTestsCommand);
+
+  // Command: vectorcastTestExplorer.generateCodedTests////////////////////////////////////////////////////////
+  // This is the callback for the right clicks in the test explorer tree
+  let generateCodedTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.generateCodedTests",
+    (args: any) => {
+      if (args) {
+        generateCodedTest(args.id);
+      }
+    }
+  );
+  context.subscriptions.push(generateCodedTestsCommand);
+
+  // Command: vectorcastTestExplorer.removeCodedTests////////////////////////////////////////////////////////
+  // This is the callback for the right clicks in the test explorer tree
+
+  // adding the ... to nodeList, results in us getting a list of selected tests!
+  let removeCodedTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.removeCodedTests",
+    (...nodeList: any) => {
+      if (nodeList) {
+        deleteTests(nodeList);
+      }
+    }
+  );
+  context.subscriptions.push(removeCodedTestsCommand);
 
   // Command: vectorcastTestExplorer.insertBasisPathTests////////////////////////////////////////////////////////
   let insertBasisPathTestsCommand = vscode.commands.registerCommand(
@@ -330,6 +378,18 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(editTestScriptCommand);
 
+  // Command: vectorcastTestExplorer.editCodedTest////////////////////////////////////////////////////////
+  let editCodedTestCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.editCodedTest",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        openCodedTest(testNode);
+      }
+    }
+  );
+  context.subscriptions.push(editCodedTestCommand);
+
   // Command: vectorcastTestExplorer.loadTestScript////////////////////////////////////////////////////////
   let loadTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.loadTestScript",
@@ -350,6 +410,17 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(debugEnviroPathCommand);
 
+  // Command: vectorcastTestExplorer.debugProgramPath ////////////////////////////////////////////////////////
+  // this command is used to return the path to the environment being debugged via
+  // the variable: vectorcastTestExplorer.debugProgramPath that is used in launch.json
+  let debugProgramPathCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.debugProgramPath",
+    () => {
+      return pathToProgramBeingDebugged;
+    }
+  );
+  context.subscriptions.push(debugProgramPathCommand);
+
   // Command: vectorcastTestExplorer.showSettings
   vscode.commands.registerCommand("vectorcastTestExplorer.showSettings", () =>
     showSettings()
@@ -363,11 +434,55 @@ function configureExtension(context: vscode.ExtensionContext) {
       // of all items if this is a multi-select.  Since argList is always valid, even for a single
       // selection, we just use this here.
       if (argList) {
-        addLaunchConfiguration(argList[0]);
+        // find the list item that contains launch.json
+        for (let i = 0; i < argList.length; i++) {
+          if (argList[i].fsPath.includes(launchFile))  {
+            addLaunchConfiguration(argList[i]);
+          }
+        }
+      }
+      else {
+        // if the arglist is undefined, this might be a right click action in the editor
+        let activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+          const filePath = activeEditor.document.uri.toString();
+          if (filePath.endsWith(launchFile)) {
+            addLaunchConfiguration(activeEditor.document.uri);
+          }
+        }
       }
     }
   );
   context.subscriptions.push(addLaunchConfigurationCommand);
+    
+    // Command: vectorcastTestExplorer.addIncludePath ////////////////////////////////////////////////////////
+    let addIncludePathCommand = vscode.commands.registerCommand(
+      "vectorcastTestExplorer.addIncludePath",
+      (args: Uri, argList: Uri[]) => {
+        // arg is the actual item that the right click happened on, argList is the list
+        // of all items if this is a multi-select.  Since argList is always valid, even for a single
+        // selection, we just use this here.
+        if (argList) {
+          // find the list item that contains c_cpp_properties.json
+          for (let i = 0; i < argList.length; i++) {
+            if (argList[i].fsPath.includes(configurationFile))  {
+              addIncludePath(argList[i]);
+            }
+          }
+        }
+        else {
+          // if the arglist is undefined, this might be a right click action in the editor
+          let activeEditor = vscode.window.activeTextEditor;
+          if (activeEditor) {
+            const filePath = activeEditor.document.uri.toString();
+            if (filePath.endsWith(configurationFile)) {
+              addIncludePath(activeEditor.document.uri);
+            }
+          }
+        }
+      }
+    );
+    context.subscriptions.push(addIncludePathCommand);
 
   // Command: vectorcastTestExplorer.addSettingsFileFilter ////////////////////////////////////////////////////////
   let addSettingsTFileFilterCommand = vscode.commands.registerCommand(
@@ -571,6 +686,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       // changing the file will invalidate the 
       // coverage and editor annotations
       if (editor) {
+        updateCodedTestCases (editor);
         updateCOVdecorations();
         updateTestDecorator ();
       }
