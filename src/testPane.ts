@@ -635,21 +635,35 @@ function getNameOfHarnessExecutable (enviroPath:string):string {
     extension = ".EXE";
   }
 
-  let harnessName = coverageExeFilename + extension;
-  if (!fs.existsSync(path.join(enviroPath, harnessName))) {
-    harnessName = normalExeFilename + extension;
+  let harnessName = normalExeFilename + extension;
+  if (isCoverageTurnedOn(enviroPath)) {
+    harnessName = coverageExeFilename + extension;
   }
+
   return harnessName;
 
 }
 
-
+function isCoverageTurnedOn(enviroPath:string): boolean {
+  const commonDBpath = path.join(enviroPath, "COMMONDB.VCD")
+  const lines = fs.readFileSync(commonDBpath, "utf-8").split(/\r?\n/);
+  let coverageON = false;
+  let currentLine = "";
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    currentLine = lines[lineIdx];
+    if (currentLine.trim() === "COVERAGE_ON_OFF_HDR"){
+      coverageON = lines[lineIdx + 1].trim() === "TRUE";
+      break;
+    }
+  }
+  
+  return coverageON
+}
 function getFileToDebug (
-  node: vcastTestItem,
   enviroPath:string,
   uutName:string,
   functionName:string,
-  fileToDebug:string,
+  executableFilename:string,
   ):string
 {
 
@@ -658,7 +672,7 @@ function getFileToDebug (
 
   // coded test
   if (functionName==codedTestFunctionName) {
-    if (fileToDebug.startsWith (coverageExeFilename)){
+    if (executableFilename.startsWith (coverageExeFilename)){
       globPattern = uutName + "_exp_inst_driver.c*";
     }
     else {
@@ -672,7 +686,7 @@ function getFileToDebug (
   }
   // regular test
   else {
-    if (fileToDebug.startsWith (coverageExeFilename)){
+    if (executableFilename.startsWith (coverageExeFilename)){
        globPattern = uutName + "_inst.c*";
     }
     else {
@@ -683,6 +697,7 @@ function getFileToDebug (
   const globOptions = { cwd: enviroPath, absolute: true };
   // two steps for debugging ...
   const globResult = glob.sync(globPattern, globOptions);
+
   return globResult[0];
 
 }
@@ -715,7 +730,7 @@ async function debugNode(
   const executableFilename = getNameOfHarnessExecutable(enviroPath)
 
   const fileToDebug:string = getFileToDebug(
-    node, enviroPath, uutName, functionUnderTest, executableFilename);
+    enviroPath, uutName, functionUnderTest, executableFilename);
 
   if (okToDebug(node, fileToDebug, enviroOptions)) {
     let ourWorkspace = getWorkspacePath(enviroPath);
