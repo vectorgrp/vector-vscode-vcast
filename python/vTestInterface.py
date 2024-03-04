@@ -50,7 +50,7 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
    
-    modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "results", "parseCBT"]
+    modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -425,7 +425,7 @@ def runTestCommand(testIDObject, commandList):
             if "TEST RESULT:" not in stdoutText:
                 executeReturnCode = 98
 
-    if "results" in commandList:
+    if "report" in commandList:
         standardArgs = getStandardArgsFromTestObject(testIDObject, False)
         # We build a clicast command script to generate the execution report
         # since we need multiple commands
@@ -454,7 +454,7 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         commands = list()
         commands.append("execute")
         if generateReport:
-            commands.append("results")
+            commands.append("report")
         returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         if "TEST RESULT: pass" in commandOutput:
@@ -533,7 +533,7 @@ def executeCodeBasedTest(enviroPath, testID):
 def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
-        commands.append("results")
+        commands.append("report")
         returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         print("REPORT:" + testIDObject.reportName + ".txt")
@@ -619,7 +619,7 @@ def main():
         else:
             executeCodeBasedTest(enviroPath, args.test)
 
-    elif args.mode == "results":
+    elif args.mode == "report":
         if args.kind == "vcast":
             try:
                 testIDObject = testID(enviroPath, args.test)

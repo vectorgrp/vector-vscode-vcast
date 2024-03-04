@@ -330,7 +330,7 @@ export function getResultFileForTest(testID: string) {
   if (!fs.existsSync(resultFile)) {
     let cwd = getEnviroPathFromID(testID);
 
-    const commandToRun = testInterfaceCommand("results", cwd, testID);
+    const commandToRun = testInterfaceCommand("report", cwd, testID);
     const commandStatus:commandStatusType = executeVPythonScript(commandToRun, cwd);
 
     if (commandStatus.errorCode == 0) {
