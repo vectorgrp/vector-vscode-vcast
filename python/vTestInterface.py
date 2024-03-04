@@ -50,7 +50,7 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
    
-    modeChoices = ["getEnviroData", "getCoverageData", "executeTest", "executeTestReport", "results", "parseCBT"]
+    modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "results", "parseCBT"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -607,12 +607,6 @@ def main():
         topLevel["unitData"] = getUnitData(enviroPath, args.kind)
 
         json.dump(topLevel, sys.stdout, indent=4)
-
-    elif args.mode == "getCoverageData":
-        # need to call this function to set the global list of testable functions
-        getTestDataVCAST(enviroPath)
-        unitData = getUnitData(enviroPath, args.kind)
-        json.dump(unitData, sys.stdout, indent=4)
 
     elif args.mode.startswith("executeTest"):
         if args.kind == "vcast":

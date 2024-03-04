@@ -111,16 +111,6 @@ export function getEnviroDataFromPython(enviroPath: string): any {
   return jsonData;
 }
 
-function getCoverageDataFromPython(enviroPath: string): any {
-  // This function calls the python interface to get the coverage data for one environment
-  // what we get back is a JSON formatted string (if the command works)
-
-  let jsonData: any;
-
-  const commandToRun = testInterfaceCommand("getCoverageData", enviroPath);
-  jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
-  return jsonData;
-}
 
 // we save the some key data, indexed into by test.id
 // at the time that we build the test tree
@@ -331,14 +321,6 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
   }
 }
 
-export function updateCoverageData(enviroPath: string) {
-  // This function loads the coverage data for one environment
-  // from the vcast python interface, and then updates globalCoverageData
-  // This global data is then used by updateCOVdecorations, etc.
-
-  let jsonData = getCoverageDataFromPython(enviroPath);
-  if (jsonData) updateGlobalDataForFile(enviroPath, jsonData);
-}
 
 export function getResultFileForTest(testID: string) {
 

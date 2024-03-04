@@ -399,6 +399,7 @@ export function updateTestsForEnvironment(
   } else {
     vectorMessage(`Ignoring environment: ${enviroPath}\n`);
   }
+
 }
 
 export function removeEnvironmentFromTestPane(enviroID: string) {
@@ -1164,6 +1165,7 @@ export function buildTestPaneContents() {
 }
 
 export function updateTestPane(enviroPath: string) {
+
   // this function updates what is displayed in the test tree
 
   // Need to find the workspace root for this environment

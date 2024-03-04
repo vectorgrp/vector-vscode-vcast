@@ -8,7 +8,6 @@ import {
 } from "./editorDecorator";
 import {
   removeCoverageDataForEnviro,
-  updateCoverageData,
 } from "./vcastTestInterface";
 import { 
   removeCBTfilesCacheForEnviro,
@@ -48,7 +47,6 @@ export function updateDataForEnvironment(enviroPath: string) {
   //   - ...
 
   updateTestPane(enviroPath);
-  updateCoverageData(enviroPath);
   updateDisplayedCoverage();
   updateExploreDecorations();
   updateTestDecorator ();
