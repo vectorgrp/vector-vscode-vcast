@@ -492,16 +492,7 @@ function okToDebug(
       `Debug is only available for test nodes, ${stockSuffix}`
     );
     returnValue = false;
-  } else if (enviroOptions.C_DEBUG_CMD.length == 0) {
-    vscode.window.showInformationMessage(
-      `Debug command could not be found in the VectorCAST configuration file for this environment. ${stockSuffix}`
-    );
-    returnValue = false;
-  } else if (!enviroOptions.C_DEBUG_CMD.startsWith("gdb")) {
-    vscode.window.showInformationMessage(
-      `Debugger '${enviroOptions.C_DEBUG_CMD}' is not supported, ${stockSuffix}`
-    );
-    returnValue = false;
+
   } else if (!fs.existsSync(uutFilePath)) {
     vscode.window.showInformationMessage(
       `Could not find UUT source file: '${uutFilePath}', ${stockSuffix}`
@@ -738,27 +729,20 @@ async function debugNode(
     if (ourWorkspace) {
       let debugConfigurationFound = false;
       const launchJsonPath = getLaunchJsonPath(ourWorkspace);
-      const launchJsonUri = Uri.file(launchJsonPath);
 
-      if (!launchFileExists(launchJsonPath)) {
-        vectorMessage(
-          `${launchFile}| not found in ${launchJsonPath}.` +
-            ` Generating \"VectorCAST Harness Debug\" configuration from template`
-        );
-
-        vscode.window.showWarningMessage(
-          `${launchFile} not found.\n` +
-            'Generating "VectorCAST Harness Debug" configuration from template'
-        );
-
-        createEmptyLaunchConfigFile(ourWorkspace, launchJsonPath);
-        addLaunchConfiguration(launchJsonUri);
-      } else {
-        debugConfigurationFound = launchConfigExists(launchJsonPath);
-        if (!debugConfigurationFound) addLaunchConfiguration(launchJsonUri);
-      }
-
+      debugConfigurationFound = fs.existsSync(launchJsonPath);
       if (debugConfigurationFound) {
+        const launchJsonUri = Uri.file(launchJsonPath);
+        const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
+          launchJsonUri
+        );
+        vscode.window.showTextDocument(debugFileAsTextDoc, { preview: false });
+        // Prompt the user for what to do next!
+        vscode.window.showWarningMessage(
+          "Please review your debug configuration.\n" +
+            'Execute "Debug Test" again to start the debugger'
+        );
+
         vectorMessage(
           `Preparing to debug test ${getTestNameFromID(node.id)} ... `
         );
@@ -813,13 +797,9 @@ async function debugNode(
           }
         });
       } else {
-        const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
-          launchJsonUri
-        );
-        vscode.window.showTextDocument(debugFileAsTextDoc, { preview: false });
         // Prompt the user for what to do next!
         vscode.window.showWarningMessage(
-          "Please review the generated debug configuration.\n" +
+          "Please create a debug configuration.\n" +
             'Execute "Debug Test" again to start the debugger'
         );
       }
