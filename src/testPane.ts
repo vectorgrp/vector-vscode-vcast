@@ -91,33 +91,6 @@ const path = require("path");
 const crypto = require('crypto');
 
 
-// find test location in file
-function getTestLocation(testFile: Uri, testName: string): vscode.Range {
-
-  // Not currently used, was created for for an early version of coded tests
-  // This function will find the location of the VTEST in the
-  // testfile and return a position that starts at this line.
-
-  const filePath: string = testFile.fsPath;
-  let startLine: number = 1;
-
-  if (fs.existsSync(filePath)) {
-    // I tried doing split on os.EOL, but this did not handle LF terminated lines on windows.
-    const lines = fs
-      .readFileSync(filePath, "utf-8")
-      .replace("\r", "")
-      .split("\n");
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-      const lineText = lines[lineIndex];
-      if (lineText.startsWith("VTEST") && lineText.includes(testName)) {
-        startLine = lineIndex + 1;
-        break;
-      }
-    }
-  }
-  return new Range(new Position(startLine - 1, 0), new Position(startLine, 0));
-}
-
 // This function does the work of adding the actual tests
 // to whatever parent is passed in generally a function node
 // 

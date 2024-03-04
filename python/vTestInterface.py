@@ -58,14 +58,6 @@ def setupArgs():
         help="Test Explorer Mode",
     )
 
-    kindChoices = ["vcast", "codebased"]
-    parser.add_argument(
-        "--kind",
-        choices=kindChoices,
-        required=True,
-        help="Environment Kind",
-    )
-
     parser.add_argument("--clicast", help="Path to clicast to use")
 
     parser.add_argument(
@@ -267,33 +259,32 @@ def printCoverageListing(enviroPath):
             sys.stdout.write(line._cov_line.covered_char() + " | " + line.text + "\n")
 
 
-def getUnitData(enviroPath, kind):
+def getUnitData(enviroPath):
     """
     This function will return info about the units in an environment
     """
     unitList = list()
-    if kind == "vcast":
-        try:
-            # this can throw an error of the coverDB is too old!
-            capi = CoverApi(enviroPath)
-        except Exception as err:
-            print(err)
-            raise UsageError()
+    try:
+        # this can throw an error of the coverDB is too old!
+        capi = CoverApi(enviroPath)
+    except Exception as err:
+        print(err)
+        raise UsageError()
 
-        # For testing/debugging
-        # printCoverageListing (enviroPath)
+    # For testing/debugging
+    # printCoverageListing (enviroPath)
 
-        sourceObjects = capi.SourceFile.all()
-        for sourceObject in sourceObjects:
-            sourcePath = sourceObject.display_path
-            covered, uncovered, checksum = getCoverageData(sourceObject)
-            unitInfo = dict()
-            unitInfo["path"] = sourcePath
-            unitInfo["functionList"] = getFunctionData(sourceObject)
-            unitInfo["cmcChecksum"] = checksum
-            unitInfo["covered"] = covered
-            unitInfo["uncovered"] = uncovered
-            unitList.append(unitInfo)
+    sourceObjects = capi.SourceFile.all()
+    for sourceObject in sourceObjects:
+        sourcePath = sourceObject.display_path
+        covered, uncovered, checksum = getCoverageData(sourceObject)
+        unitInfo = dict()
+        unitInfo["path"] = sourcePath
+        unitInfo["functionList"] = getFunctionData(sourceObject)
+        unitInfo["cmcChecksum"] = checksum
+        unitInfo["covered"] = covered
+        unitInfo["uncovered"] = uncovered
+        unitList.append(unitInfo)
 
     return unitList
 
@@ -496,40 +487,6 @@ def processVResults(filePath):
         print(f"{filePath} not found")
 
 
-def executeCodeBasedTest(enviroPath, testID):
-    """
-    testID looks like: EXAMPLE.CBT.mySuite.byPointer
-    So we just need to split the mySuite.byPointer part
-    off and pass that to the driver.
-    """
-
-    with cd(enviroPath):
-        nameOfDriver = os.path.basename(enviroPath).lower()
-
-        if shutil.which(nameOfDriver):
-            testString = testID.split("|")[1]
-            commandToRun = [nameOfDriver, testString]
-            try:
-                rawOutput = subprocess.check_output(
-                    commandToRun, stderr=subprocess.STDOUT, shell=True
-                )
-                print(rawOutput.decode("utf-8", errors="ignore"))
-            except subprocess.CalledProcessError as error:
-                rawOutput = error.output
-
-            print("TIME:" + getTime(datetime.now()))
-            reportName = os.path.join(enviroPath, testString) + ".vresults"
-            processVResults(reportName)
-            print("REPORT:" + reportName)
-        else:
-            print("FATAL")
-            print(f"The executable file: '{nameOfDriver}' does not exist")
-            print(
-                "Ensure that you've added: 'add_subdirectory(unitTests)' to the CMakeLists.txt file\n"
-                + "   that builds the file being tested, and that there are not any CMake errors reported."
-            )
-
-
 def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
@@ -604,35 +561,32 @@ def main():
         # it is important that getTetDataVCAST() is called first since it sets up
         # the global list of tesable functoions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(enviroPath)
-        topLevel["unitData"] = getUnitData(enviroPath, args.kind)
+        topLevel["unitData"] = getUnitData(enviroPath)
 
         json.dump(topLevel, sys.stdout, indent=4)
 
     elif args.mode == "getCoverageData":
         # need to call this function to set the global list of testable functions
         getTestDataVCAST(enviroPath)
-        unitData = getUnitData(enviroPath, args.kind)
+        unitData = getUnitData(enviroPath)
         json.dump(unitData, sys.stdout, indent=4)
 
     elif args.mode.startswith("executeTest"):
-        if args.kind == "vcast":
-            try:
-                testIDObject = testID(enviroPath, args.test)
-            except:
-                print ("Invalid test ID, provide a valid --test argument")
-                raise UsageError()
-            returnCode = executeVCtest(enviroPath, testIDObject, args.mode=="executeTestReport")
-        else:
-            executeCodeBasedTest(enviroPath, args.test)
+        try:
+            testIDObject = testID(enviroPath, args.test)
+        except:
+            print ("Invalid test ID, provide a valid --test argument")
+            raise UsageError()
+        returnCode = executeVCtest(enviroPath, testIDObject, args.mode=="executeTestReport")
+
 
     elif args.mode == "results":
-        if args.kind == "vcast":
-            try:
-                testIDObject = testID(enviroPath, args.test)
-            except:
-                print ("Invalid test ID, provide a valid --test argument")
-                raise UsageError()
-            getResults(enviroPath, testIDObject)
+        try:
+            testIDObject = testID(enviroPath, args.test)
+        except:
+            print ("Invalid test ID, provide a valid --test argument")
+            raise UsageError()
+        getResults(enviroPath, testIDObject)
 
     elif args.mode == "parseCBT":
         # This is a special mode used by the unit test driver to parse the CBT
