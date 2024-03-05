@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 // TBD TODAY - import
-import * as jsonc from "jsonc-parser"
+//import * as jsonc from "jsonc-parser"
 
 import { Uri } from "vscode";
 
@@ -19,7 +19,8 @@ const vPythonName = "vpython";
 const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string | undefined = undefined;
 
-export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
+// TBD TODAY - parseOptions
+//export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
 
 
 // The testInterface is delivered in the .vsix

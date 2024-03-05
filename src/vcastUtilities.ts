@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 // TBD TODAY - import
-import * as jsonc from "jsonc-parser";
+// import * as jsonc from "jsonc-parser";
 
 import {
   openMessagePane,
@@ -21,7 +21,8 @@ import {
   commandStatusType,
   executeCommandSync,
   exeFilename,
-  jsoncParseOptions,
+// TBD TODAY
+//  jsoncParseOptions,
   openFileWithLineSelected,
   processExceptionFromExecuteCommand,
 } from "./utilities";
