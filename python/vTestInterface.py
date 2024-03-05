@@ -50,7 +50,7 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
    
-    modeChoices = ["getEnviroData", "getCoverageData", "executeTest", "executeTestReport", "results", "parseCBT"]
+    modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -166,7 +166,7 @@ def getTestDataVCAST(enviroPath):
         raise InvalidEnviro()
     
     # Not currently used.
-    # returns "None" if coverage is not initialized, kind otherwise
+    # returns "None" if coverage is not initialized,
     # does not change based on coverage enabled/disabled
     coverageType = api.environment.coverage_type_text
 
@@ -416,7 +416,7 @@ def runTestCommand(testIDObject, commandList):
             if "TEST RESULT:" not in stdoutText:
                 executeReturnCode = 98
 
-    if "results" in commandList:
+    if "report" in commandList:
         standardArgs = getStandardArgsFromTestObject(testIDObject, False)
         # We build a clicast command script to generate the execution report
         # since we need multiple commands
@@ -445,7 +445,7 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         commands = list()
         commands.append("execute")
         if generateReport:
-            commands.append("results")
+            commands.append("report")
         returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         if "TEST RESULT: pass" in commandOutput:
@@ -490,7 +490,7 @@ def processVResults(filePath):
 def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
-        commands.append("results")
+        commands.append("report")
         returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         print("REPORT:" + testIDObject.reportName + ".txt")
@@ -565,12 +565,6 @@ def main():
 
         json.dump(topLevel, sys.stdout, indent=4)
 
-    elif args.mode == "getCoverageData":
-        # need to call this function to set the global list of testable functions
-        getTestDataVCAST(enviroPath)
-        unitData = getUnitData(enviroPath)
-        json.dump(unitData, sys.stdout, indent=4)
-
     elif args.mode.startswith("executeTest"):
         try:
             testIDObject = testID(enviroPath, args.test)
@@ -580,7 +574,7 @@ def main():
         returnCode = executeVCtest(enviroPath, testIDObject, args.mode=="executeTestReport")
 
 
-    elif args.mode == "results":
+    elif args.mode == "report":
         try:
             testIDObject = testID(enviroPath, args.test)
         except:
