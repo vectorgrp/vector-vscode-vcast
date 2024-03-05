@@ -1,5 +1,8 @@
 import * as vscode from "vscode";
 
+// TBD TODAY - import
+import * as jsonc from "jsonc-parser";
+
 import {
   openMessagePane,
   vectorMessage,
@@ -18,6 +21,7 @@ import {
   commandStatusType,
   executeCommandSync,
   exeFilename,
+  jsoncParseOptions,
   openFileWithLineSelected,
   processExceptionFromExecuteCommand,
 } from "./utilities";
@@ -162,7 +166,9 @@ export function addIncludePath (fileUri: vscode.Uri) {
   // read the existing file contents
   let existingJSON: any;
   try {
-    existingJSON = JSON.parse(fs.readFileSync(fileUri.fsPath));
+    // TBD TODAY - Requires json-c parsing to handle comments etc.
+    // existingJSON = jsonc.parse(fs.readFileSync(fileUri.fsPath), [], jsoncParseOptions);
+    existingJSON = JSON.parse(fs.readFileSync(fileUri.fsPath).toString());
     if (existingJSON.configurations.length == 0) {
       statusMessages.push (`{configurationFile} file has no existing configurations, creating a 'vcast' configuraiton.  `); 
       existingJSON.configurations.push ({name: "vcast", includePath: []});
@@ -201,6 +207,7 @@ export function addIncludePath (fileUri: vscode.Uri) {
   vscode.window.showInformationMessage(statusMessages.join ("\n"));
 
   // we unconditionally write rather than tracking if we changed anything
+  // TBD TODAY - Need to replace with the json-c editing stuff
   writeFileSync (fileUri.fsPath, JSON.stringify(existingJSON, null, 4));
 
 }

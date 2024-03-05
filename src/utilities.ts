@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+
+// TBD TODAY - import
+import * as jsonc from "jsonc-parser"
+
 import { Uri } from "vscode";
 
 import { clicastCommandToUse, initializeCodedTestSupport, initializeVcastUtilities } from "./vcastUtilities";
@@ -15,6 +19,7 @@ const vPythonName = "vpython";
 const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string | undefined = undefined;
 
+export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
 
 
 // The testInterface is delivered in the .vsix
@@ -158,7 +163,9 @@ export function loadLaunchFile(jsonPath: string): any {
   // if we cannot read the file
   let existingJSON: any;
   try {
-    existingJSON = JSON.parse(fs.readFileSync(jsonPath));
+    // TBD TODAY - Requires json-c parsing to handle comments etc.
+    // existingJSON = jsonc.parse(fs.readFileSync(jsonPath), [], jsoncParseOptions);
+    existingJSON = JSON.parse(fs.readFileSync(jsonPath).toString());
   } catch {
     // if file is empty ...
     existingJSON = { configurations: [] };
@@ -203,6 +210,7 @@ export function addLaunchConfiguration(fileUri: Uri) {
     );
   } else {
     existingJSON.configurations.push(vectorConfiguration);
+    // TBD TODAY - Need to replace with the json-c editing stuff
     fs.writeFileSync(jsonPath, JSON.stringify(existingJSON, null, "\t"));
   
   }
@@ -212,6 +220,8 @@ export function addSettingsFileFilter(fileUri: Uri) {
   const filePath = fileUri.fsPath;
   let existingJSON;
   try {
+    // TBD TODAY - Requires json-c parsing to handle comments etc.
+    // existingJSON = jsonc.parse(fs.readFileSync(filePath), [], jsoncParseOptions);
     existingJSON = JSON.parse(fs.readFileSync(filePath));
   } catch {
     // if the file is empty ...
@@ -223,7 +233,7 @@ export function addSettingsFileFilter(fileUri: Uri) {
     existingJSON["files.exclude"] = {};
   }
 
-  // REmember that the vectorJSON data has the "configurations" level which is an array
+  // Remember that the vectorJSON data has the "configurations" level which is an array
   const vectorJSON = JSON.parse(
     fs.readFileSync(path.join(globalPathToSupportFiles, "vcastSettings.json"))
   );
@@ -238,6 +248,7 @@ export function addSettingsFileFilter(fileUri: Uri) {
       existingJSON["files.exclude"],
       vectorJSON["files.exclude"]
     );
+    // TBD TODAY - Need to replace with the json-c editing stuff
     fs.writeFileSync(filePath, JSON.stringify(existingJSON, null, "\t"));
   }
 }
