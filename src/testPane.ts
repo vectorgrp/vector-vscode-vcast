@@ -9,7 +9,6 @@ import {
   Position,
   Range,
   Uri,
-  TestController,
   TestMessage,
 } from "vscode";
 
@@ -126,7 +125,6 @@ function getTestLocation(testFile: Uri, testName: string): vscode.Range {
 // and double click on the test will open the test file.
 // 
 function addTestNodes(
-  controller: TestController,
   testList: any[],
   parentNode: vcastTestItem,
   parentNodeID: string,
@@ -171,7 +169,7 @@ function addTestNodes(
       testRange = new Range(new Position(startLine-1, 0), new Position(startLine-1, 0));
     }
 
-    let testNode: vcastTestItem = controller.createTestItem(
+    let testNode: vcastTestItem = globalController.createTestItem(
       testNodeID,
       testName,
       testURI
@@ -208,7 +206,6 @@ function addTestNodes(
 const codedTestFunctionName = "coded_tests_driver";
 const codedTestDisplayName = "Coded Tests";
 function processVCtestData(
-  controller: TestController,
   enviroNodeID: string,
   enviroNode: vcastTestItem,
   enviroData: any
@@ -227,7 +224,7 @@ function processVCtestData(
     unitNodeForCache.unitName = unitData.name;
     addTestNodeToCache(unitNodeID, unitNodeForCache);
 
-    let unitNode: vcastTestItem = controller.createTestItem(
+    let unitNode: vcastTestItem = globalController.createTestItem(
       unitNodeID,
       unitData.name
     );
@@ -254,14 +251,13 @@ function processVCtestData(
         if (functionName == codedTestFunctionName) {
           displayName = codedTestDisplayName;
         }
-        const functionNode: vcastTestItem = controller.createTestItem(
+        const functionNode: vcastTestItem = globalController.createTestItem(
           functionNodeID,
           displayName
         );
         functionNode.nodeKind = nodeKind.function;
 
         addTestNodes(
-          controller,
           testList,
           functionNode,
           functionNodeID,
@@ -305,7 +301,7 @@ function processVCtestData(
       specialNodeForCache.functionName = nodeIdName;
       addTestNodeToCache(specialNodeID, specialNodeForCache);
 
-      const specialNode: vcastTestItem = controller.createTestItem(
+      const specialNode: vcastTestItem = globalController.createTestItem(
         specialNodeID,
         nodeName
       );
@@ -314,7 +310,6 @@ function processVCtestData(
       specialNode.sortText = sortText;
 
       addTestNodes(
-        controller, 
         testList, 
         specialNode, 
         specialNodeID,
@@ -357,7 +352,6 @@ export var vcastHasCodedTestsList: string[] = [];
 
 
 export function updateTestsForEnvironment(
-  controller: TestController,
   enviroPath: string,
   workspaceRoot: string
 ) {
@@ -384,11 +378,11 @@ export function updateTestsForEnvironment(
 
     // crateTestItem, takes ID,Label, the ID must be unique, so
     // we add a _index-value to it ...
-    const enviroNode: vcastTestItem = controller.createTestItem(enviroNodeID, enviroDisplayName);
+    const enviroNode: vcastTestItem = globalController.createTestItem(enviroNodeID, enviroDisplayName);
     enviroNode.nodeKind = nodeKind.enviro;
 
     // if we have data
-    processVCtestData(controller, enviroNodeID, enviroNode, jsonData);
+    processVCtestData(enviroNodeID, enviroNode, jsonData);
 
     // this is used by the package.json to control content (right click) menu choices
     if (!vcastEnviroList.includes(enviroNodeID)) {
@@ -400,11 +394,12 @@ export function updateTestsForEnvironment(
       );
     }
     // starting with VS Code 1.81 the tree was not updating unless I added the delete
-    controller.items.delete(enviroNode.id);
-    controller.items.add(enviroNode);
+    globalController.items.delete(enviroNode.id);
+    globalController.items.add(enviroNode);
   } else {
     vectorMessage(`Ignoring environment: ${enviroPath}\n`);
   }
+
 }
 
 export function removeEnvironmentFromTestPane(enviroID: string) {
@@ -414,14 +409,13 @@ export function removeEnvironmentFromTestPane(enviroID: string) {
 
 export let vcastEnvironmentsFound:boolean = false;
 async function loadAllVCTests(
-  controller: TestController,
   progress: vscode.Progress<{ message?: string; increment?: number }>,
   token: vscode.CancellationToken
 ) {
   // loads all vcast test environemnts found in the workspace
 
   // throw away the existing items
-  controller.items.replace([]);
+  globalController.items.replace([]);
   vcastEnviroList = [];
   clearTestNodeCache();
 
@@ -458,7 +452,7 @@ async function loadAllVCTests(
         if (cancelled) {
           break;
         }
-        updateTestsForEnvironment(controller, enviroPath, workspaceRoot);
+        updateTestsForEnvironment(enviroPath, workspaceRoot);
       } // for each enviropath
       if (cancelled) {
         break;
@@ -704,7 +698,6 @@ function getFileToDebug (
 
 
 async function debugNode(
-  controller: vscode.TestController,
   request: vscode.TestRunRequest,
   node: vcastTestItem
 ) {
@@ -775,7 +768,7 @@ async function debugNode(
         // run the test first without debug to setup the inputs
         // it's important that we wait for this to finish
         vectorMessage(`   - initializing test case inputs ... `);
-        const run = controller.createTestRun(request);
+        const run = globalController.createTestRun(request);
         runNode(node, run, false).then (async (status) => {
           run.end();
 
@@ -834,7 +827,7 @@ async function debugNode(
     }
   } else {
     // cannot debug so just do a normal test execute
-    const run = controller.createTestRun(request);
+    const run = globalController.createTestRun(request);
     await runNode(node, run, false);
     run.end();
   }
@@ -926,7 +919,6 @@ function shouldGenerateExecutionReport (testList: vcastTestItem[]):boolean {
 
 // this does the actual work of running the tests
 async function runTests(
-  controller: vscode.TestController,
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken
 ) {
@@ -939,13 +931,13 @@ async function runTests(
     request.include.forEach((test) => nodeList.push(test));
   } else {
     // all known tests
-    controller.items.forEach((test) => nodeList.push(test));
+    globalController.items.forEach((test) => nodeList.push(test));
   }
 
   const testList: vcastTestItem[] = getTestNodes(request, nodeList);
 
   // this does the actual execution of the full test list
-  const run = controller.createTestRun(request);
+  const run = globalController.createTestRun(request);
   // added this for performance tuning - but interesting to leave in
   const startTime:number = performance.now();
   const generateReport:boolean = shouldGenerateExecutionReport (testList);
@@ -989,7 +981,6 @@ function isSingleTestNode(request: vscode.TestRunRequest): boolean {
 }
 
 async function processRunRequest(
-  controller: vscode.TestController,
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken,
   isDebug: boolean = false
@@ -1005,7 +996,7 @@ async function processRunRequest(
   // not a unit, function, ...
   if (isDebug && request.include && isSingleTestNode(request)) {
     const node = request.include[0];
-    debugNode(controller, request, node);
+    debugNode(request, node);
   }
   else {
     // tell user that we are doing a normal run ...
@@ -1014,7 +1005,7 @@ async function processRunRequest(
         `Debug is only available for single test selections nodes, performing normal test execution.`
       );
     }
-    runTests(controller, request, cancellation);
+    runTests(request, cancellation);
   }
 }
 
@@ -1144,14 +1135,14 @@ export function activateTestPane(context: vscode.ExtensionContext) {
     "Run",
     vscode.TestRunProfileKind.Run,
     (request, cancellation) =>
-      processRunRequest(globalController, request, cancellation),
+      processRunRequest(request, cancellation),
     true
   );
   globalController.createRunProfile(
     "Debug",
     vscode.TestRunProfileKind.Debug,
     (request, cancellation) =>
-      processRunRequest(globalController, request, cancellation, true),
+      processRunRequest(request, cancellation, true),
     true
   );
 }
@@ -1168,12 +1159,13 @@ export function buildTestPaneContents() {
       // to find VectorCAST environments
       //
       // key is to wait for this to finish
-      await loadAllVCTests(globalController, progress, token);
+      await loadAllVCTests(progress, token);
     }
   );
 }
 
 export function updateTestPane(enviroPath: string) {
+
   // this function updates what is displayed in the test tree
 
   // Need to find the workspace root for this environment
@@ -1184,7 +1176,7 @@ export function updateTestPane(enviroPath: string) {
     );
     if (workspaceFolder) workspaceRoot = workspaceFolder.uri.fsPath;
   }
-  updateTestsForEnvironment(globalController, enviroPath, workspaceRoot);
+  updateTestsForEnvironment(enviroPath, workspaceRoot);
 }
 
 interface codedTestFileDataType {
