@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-// TBD TODAY - import
+// needed for parsing json files with comments
 import * as jsonc from "jsonc-parser";
 
 import {
