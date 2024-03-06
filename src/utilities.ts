@@ -19,9 +19,8 @@ const vPythonName = "vpython";
 const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string | undefined = undefined;
 
-// TBD TODAY - parseOptions
+// options used for reading json-c files
 export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
-
 
 // The testInterface is delivered in the .vsix
 // in the sub-directory "python"
@@ -164,12 +163,13 @@ export function loadLaunchFile(jsonPath: string): any {
   // if we cannot read the file
   let existingJSON: any;
   try {
-    // TBD TODAY - Requires json-c parsing to handle comments etc.
-    // existingJSON = jsonc.parse(fs.readFileSync(jsonPath), [], jsoncParseOptions);
-    existingJSON = jsonc.parse('{"version": "1.0" // hello}', [], jsoncParseOptions);
-    existingJSON = JSON.parse(fs.readFileSync(jsonPath).toString());
+    // Requires json-c parsing to handle comments etc.
+    const existingContents = fs.readFileSync (jsonPath).toString();
+    var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
+    existingJSON = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
   } catch {
-    // if file is empty ...
+    // if any error occurs on reading, don't changne the file?
+    vscode.window.showErrorMessage(`Could not load the existing ${path.basename (jsonPath)}, check for syntax errors`);
     existingJSON = { configurations: [] };
   }
   return existingJSON;
@@ -222,12 +222,12 @@ export function addSettingsFileFilter(fileUri: Uri) {
   const filePath = fileUri.fsPath;
   let existingJSON;
   try {
-    // TBD TODAY - Requires json-c parsing to handle comments etc.
-    // existingJSON = jsonc.parse(fs.readFileSync(filePath), [], jsoncParseOptions);
-    existingJSON = jsonc.parse('{"version": "1.0" // hello}', [], jsoncParseOptions);
-    existingJSON = JSON.parse(fs.readFileSync(filePath));
+    // Requires json-c parsing to handle comments etc.
+    const existingContents = fs.readFileSync (filePath).toString();
+    var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
+    existingJSON = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
   } catch {
-    // if the file is empty ...
+    vscode.window.showErrorMessage(`Could not load the existing ${path.basename (filePath)}, check for syntax errors`);
     existingJSON = {};
   }
 
