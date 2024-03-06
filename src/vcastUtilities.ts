@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 // TBD TODAY - import
-// import * as jsonc from "jsonc-parser";
+import * as jsonc from "jsonc-parser";
 
 import {
   openMessagePane,
@@ -21,8 +21,7 @@ import {
   commandStatusType,
   executeCommandSync,
   exeFilename,
-// TBD TODAY
-//  jsoncParseOptions,
+  jsoncParseOptions,
   openFileWithLineSelected,
   processExceptionFromExecuteCommand,
 } from "./utilities";
@@ -169,6 +168,7 @@ export function addIncludePath (fileUri: vscode.Uri) {
   try {
     // TBD TODAY - Requires json-c parsing to handle comments etc.
     // existingJSON = jsonc.parse(fs.readFileSync(fileUri.fsPath), [], jsoncParseOptions);
+    existingJSON = jsonc.parse('{"version": "1.0" // hello}', [], jsoncParseOptions);
     existingJSON = JSON.parse(fs.readFileSync(fileUri.fsPath).toString());
     if (existingJSON.configurations.length == 0) {
       statusMessages.push (`{configurationFile} file has no existing configurations, creating a 'vcast' configuraiton.  `); 

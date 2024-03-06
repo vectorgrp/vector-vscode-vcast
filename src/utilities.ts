@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 // TBD TODAY - import
-//import * as jsonc from "jsonc-parser"
+import * as jsonc from "jsonc-parser"
 
 import { Uri } from "vscode";
 
@@ -20,7 +20,7 @@ const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string | undefined = undefined;
 
 // TBD TODAY - parseOptions
-//export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
+export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
 
 
 // The testInterface is delivered in the .vsix
@@ -166,6 +166,7 @@ export function loadLaunchFile(jsonPath: string): any {
   try {
     // TBD TODAY - Requires json-c parsing to handle comments etc.
     // existingJSON = jsonc.parse(fs.readFileSync(jsonPath), [], jsoncParseOptions);
+    existingJSON = jsonc.parse('{"version": "1.0" // hello}', [], jsoncParseOptions);
     existingJSON = JSON.parse(fs.readFileSync(jsonPath).toString());
   } catch {
     // if file is empty ...
@@ -223,6 +224,7 @@ export function addSettingsFileFilter(fileUri: Uri) {
   try {
     // TBD TODAY - Requires json-c parsing to handle comments etc.
     // existingJSON = jsonc.parse(fs.readFileSync(filePath), [], jsoncParseOptions);
+    existingJSON = jsonc.parse('{"version": "1.0" // hello}', [], jsoncParseOptions);
     existingJSON = JSON.parse(fs.readFileSync(filePath));
   } catch {
     // if the file is empty ...
