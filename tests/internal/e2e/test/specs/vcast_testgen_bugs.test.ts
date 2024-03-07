@@ -106,7 +106,25 @@ import {
       await configFile.openContextMenu()
       await (await $("aria/Set as VectorCAST Configuration File")).click()
     });
+    
+    it("should set nested unitTest location", async () => {
+      await updateTestID();
   
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+  
+      let settingsEditor = await workbench.openSettings();
+      let unitTestLocationSetting = await settingsEditor.findSetting(
+        "Unit Test Location","Vectorcast Test Explorer"
+      );
+      await unitTestLocationSetting.setValue("./unittests/a/b/c")
+    
+      await (await workbench.openNotificationsCenter()).clearAllNotifications()
+     
+    });
+
     it("should create VectorCAST environment", async () => {
       await updateTestID();
   
@@ -132,15 +150,16 @@ import {
       await (await $("aria/Notifications")).click();
   
       // this will timeout if VectorCAST notification does not appear, resulting in a failed test
-      const vcastNotifSourceElem = await $(
+      let vcastNotifSourceElem = await $(
         "aria/VectorCAST Test Explorer (Extension)",
       );
-      const vcastNotification = await vcastNotifSourceElem.$("..");
+      let vcastNotification = await vcastNotifSourceElem.$("..");
       await (await vcastNotification.$("aria/Yes")).click();
   
       console.log(
         "Waiting for clicast and waiting for environment to get processed",
       );
+     
       await browser.waitUntil(
         async () =>
           (await (await bottomBar.openOutputView()).getText())
@@ -154,8 +173,7 @@ import {
       await browser.saveScreenshot(
         "info_finished_creating_vcast_environment.png",
       );
-      // clearing all notifications
-      await (await $(".codicon-notifications-clear-all")).click();
+     
     });
 
     it("should not delete existing VectorCAST environment when building from .env", async () => {
@@ -172,7 +190,7 @@ import {
       );
       
       await workspaceFolderSection.expand()
-      const unitTestsFolder = await workspaceFolderSection.findItem("unitTests")
+      let unitTestsFolder = await workspaceFolderSection.findItem("unittests")
       await unitTestsFolder.select()
       const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
       const vceMenu = await vceFile.openContextMenu()
