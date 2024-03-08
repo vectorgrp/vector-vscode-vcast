@@ -150,10 +150,10 @@ import {
       await (await $("aria/Notifications")).click();
   
       // this will timeout if VectorCAST notification does not appear, resulting in a failed test
-      let vcastNotifSourceElem = await $(
+      const vcastNotifSourceElem = await $(
         "aria/VectorCAST Test Explorer (Extension)",
       );
-      let vcastNotification = await vcastNotifSourceElem.$("..");
+      const vcastNotification = await vcastNotifSourceElem.$("..");
       await (await vcastNotification.$("aria/Yes")).click();
   
       console.log(
@@ -190,7 +190,7 @@ import {
       );
       
       await workspaceFolderSection.expand()
-      let unitTestsFolder = await workspaceFolderSection.findItem("unittests")
+      const unitTestsFolder = await workspaceFolderSection.findItem("unittests")
       await unitTestsFolder.select()
       const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
       const vceMenu = await vceFile.openContextMenu()
