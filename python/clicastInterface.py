@@ -11,6 +11,8 @@ here to enable us to prototype clicast server mode.  I've kept the
 interface the same for now, this can be optimized later.
 """
 
+from vTestUtilities import logMessage
+
 
 globalClicastCommand = ""
 enviroNameRegex = "-e([^\s]*)"
@@ -19,15 +21,6 @@ USE_SERVER=False
 # Key is the path to the environment, value is the clicast instance for that environment
 clicastInstances = {}
 
-
-logFileHandle = sys.stdout
-def logMessage(message):
-    """
-    This function will send server side messages to the file
-    opened by the server, and client side messages to stdout
-    """
-    logFileHandle.write(message + "\n")
-    logFileHandle.flush()
 
 
 def runClicastServerCommand (enviroPath, commandString):
@@ -60,8 +53,9 @@ def runClicastServerCommand (enviroPath, commandString):
     responseLine = ""
     returnText = ""
     while not responseLine.startswith ("clicast-server-command-done"):
-        responseLine = process.stdout.readline()
         returnText += responseLine
+        responseLine = process.stdout.readline()
+
     statusText = responseLine.split(":")[1].strip()
     return statusText!="SUCCESS", returnText
     

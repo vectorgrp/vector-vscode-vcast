@@ -44,7 +44,7 @@ class InvalidEnviro(Exception):
 class UsageError(Exception):
     pass
 
-
+modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
 def setupArgs():
     """
     Add Command Line Args
@@ -52,7 +52,6 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
    
-    modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -383,7 +382,8 @@ def runTestCommand(testIDObject, commandList):
     executeReturnCode = 0
     stdoutText = ""
     if "execute" in commandList:
-        standardArgs = getStandardArgsFromTestObject(testIDObject, True)
+        shouldQuoteParameters = True and not clicastInterface.USE_SERVER
+        standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
         # we cannot include the execute command in the command script that we use for
         # results because we need the return code from the execute command separately
         commandToRun = f"{clicastInterface.globalClicastCommand} -lc {standardArgs} execute run"
@@ -531,7 +531,9 @@ def validateClicastCommand (command, mode):
         if command is None or len (command) == 0:
             print (f"Arg --clicast is requird for mode: {mode}")
             raise UsageError()
-        elif not os.path.isfile (command):
+        elif os.path.isfile (command) or (sys.platform == "win32" and os.path.isfile (command + ".exe")):
+            pass
+        else:
             print (f"Invalid value for --clicast: {command}")
             raise UsageError()
         
@@ -572,7 +574,7 @@ def processCommand (mode, clicast, pathToUse, testString="") -> dict:
         except:
             print ("Invalid test ID, provide a valid --test argument")
             raise UsageError()
-            returnObject = {"text": getResults(pathToUse, testIDObject).split ("\n")}
+        returnObject = {"text": getResults(pathToUse, testIDObject).split ("\n")}
 
     elif mode == "parseCBT":
         # This is a special mode used by the unit test driver to parse the CBT
