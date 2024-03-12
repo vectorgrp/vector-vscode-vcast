@@ -62,7 +62,7 @@ export function testInterfaceCommand(
   //
 
   if (globalTestInterfacePath && vPythonCommandToUse) {
-    const command = `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${mode} --kind=vcast --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+    const command = `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${mode} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
     let testArgument = "";
     if (testID.length > 0) {
       // we need to strip the "path part" of the environment directory from the test ID
@@ -91,7 +91,7 @@ export function parseCBTCommand (filePath:string):string {
   
   // this command returns the list of tests that exist in a coded test source file
 
-   return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --kind=vcast --path=${filePath}`;
+   return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --path=${filePath}`;
 }
 
 
