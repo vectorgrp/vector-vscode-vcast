@@ -653,8 +653,16 @@ function configureWorkspaceAndBuildEnviro(
       .showInformationMessage(message, "Yes", "No")
       .then((answer) => {
         if (answer === "Yes") {
-          fs.mkdirSync(unitTestLocation);
-          commonNewEnvironmentStuff(fileList, unitTestLocation);
+          try {
+            fs.mkdirSync(unitTestLocation, { recursive: true });
+            commonNewEnvironmentStuff(fileList, unitTestLocation);
+          } catch (error:any) {
+            vscode.window.showErrorMessage(
+              `Error creating directory: ${unitTestLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
+            );
+            vectorMessage("Error creating directory: " + unitTestLocation);
+            showSettings();
+          }
         } else {
           vscode.window.showWarningMessage(
             `Please create the unit test directory: '${unitTestLocation}', or update the 'Unit Test Location' option`
