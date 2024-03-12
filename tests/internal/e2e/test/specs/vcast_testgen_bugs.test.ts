@@ -176,6 +176,31 @@ import {
      
     });
 
+    it("should explicitly check that ./unittests/a/b/c is created and contains the .env file", async () => {
+      await updateTestID();
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      await (await bottomBar.openOutputView()).clearText()
+      
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+  
+      const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+        "vcastTutorial",
+      );
+      await workspaceFolderSection.expand()
+      let resultingFolder = await workspaceFolderSection.findItem("unittests")
+      expect(resultingFolder).not.toBe(undefined)
+      // this will auto-expand all the way to c as there are no other nested folders in unittests
+      await resultingFolder.select()
+    
+      resultingFolder = await workspaceFolderSection.findItem("c")
+      expect(resultingFolder).not.toBe(undefined)
+ 
+      const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
+      expect(vceFile).not.toBe(undefined)
+    });
+
     it("should not delete existing VectorCAST environment when building from .env", async () => {
       await updateTestID();
       const workbench = await browser.getWorkbench();
@@ -190,8 +215,7 @@ import {
       );
       
       await workspaceFolderSection.expand()
-      const unitTestsFolder = await workspaceFolderSection.findItem("unittests")
-      await unitTestsFolder.select()
+  
       const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
       const vceMenu = await vceFile.openContextMenu()
       console.log("Executing env build for an existing environment");
