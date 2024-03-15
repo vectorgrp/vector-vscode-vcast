@@ -300,7 +300,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
   // This function will find all of the VectorCAST and vTest
   // environments downstream of the current workspace
 
-  const options = { cwd: baseDirectory, absolute: true };
+  const options = { cwd: baseDirectory, absolute: true, strict: false };
   let fileList = glob.sync("**/" + vcastEnviroFile, options);
 
   // now we have a list of the UNITDATA.VCD files downstream of us
@@ -661,7 +661,7 @@ function getFileToDebug (
     }
   }
 
-  const globOptions = { cwd: enviroPath, absolute: true };
+  const globOptions = { cwd: enviroPath, absolute: true, strict: false };
   // two steps for debugging ...
   const globResult = glob.sync(globPattern, globOptions);
 
@@ -1273,8 +1273,8 @@ export function updateCodedTestCases (editor:any) {
         // note: the same file should never be associated with more than one unit
         let commandToRun: string = 
           `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded refresh`;
+        vectorMessage (`Refreshing coded test file: ${filePath} for environment: ${enviroPath}`);
         const refreshCommandStatus = executeCommandSync(commandToRun, enclosingDirectory);
-      
         // if the refresh worked, and the test names changed, then update test pane
         if (refreshCommandStatus.errorCode == 0) {
            updateTestPane(enviroPath);

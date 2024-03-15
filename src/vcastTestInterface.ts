@@ -874,6 +874,7 @@ export async function newCodedTest (testID: string) {
 
         let commandToRun: string = 
           `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded add ${UserFilePath}`;
+        vectorMessage (`Adding coded test file: ${UserFilePath} for environment: ${enviroPath}`);
         const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
         updateTestPane(enviroPath);
         if (commandStatus.errorCode == 0) {
@@ -912,6 +913,7 @@ export async function generateCodedTest (testID: string) {
 
         let commandToRun: string = 
           `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded new ${UserFilePath}`;
+        vectorMessage (`Creating new coded test file: for environment: ${enviroPath}`);
         const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
         updateTestPane(enviroPath);
         if (commandStatus.errorCode == 0) {
