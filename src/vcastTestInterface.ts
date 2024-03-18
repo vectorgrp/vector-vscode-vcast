@@ -3,11 +3,10 @@ import * as vscode from "vscode";
 import { Uri } from "vscode";
 
 
-import {
-  executeClicastCommand,
-} from "./vcastUtilities"
+
 import {
   configFilename,
+  getUnitTestLocationForPath,
   initializeConfigurationFile,
 } from "./configuration";
 
@@ -17,8 +16,7 @@ import {
 
 import { 
   buildEnvironmentCallback,
-  showSettings, 
-  updateDataForEnvironment
+  showSettings,
  } from "./helper";
 import {
   openMessagePane,
@@ -29,15 +27,32 @@ import {
 import { 
   compoundOnlyString, 
   getEnviroPathFromID, 
-  testNodeType } from "./testData";
+  getTestNode,
+  testNodeType 
+} from "./testData";
 import {
+  updateTestPane,
+} from "./testPane";
+import {
+  commandStatusType,
   executeCommandSync,
   executeVPythonScript,
   forceLowerCaseDriveLetter,
   getChecksumCommand,
   getJsonDataFromTestInterface,
+  openFileWithLineSelected,
   testInterfaceCommand,
 } from "./utilities";
+
+import {
+  clicastCommandToUse,
+  closeAnyOpenErrorFiles,
+  executeClicastCommand,
+  openTestFileAndErrors,
+  testStatus,
+} from "./vcastUtilities"
+
+
 import { fileDecorator } from "./fileDecorator";
 
 const fs = require("fs");
@@ -45,26 +60,6 @@ const path = require("path");
 
 
 export const vcastEnviroFile = "UNITDATA.VCD";
-
-const defaultUTlocation = "./unitTests";
-export function getUnitTestLocationForPath(dirpath: string): string {
-  // path points to the place where we want to create a UT folder
-
-  // By default the unit tests get created in the "unitTests" directory
-  // but this can be controlled with an option
-
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  let unitTestLocation: string = settings.get(
-    "unitTestLocation",
-    defaultUTlocation
-  );
-
-  if (unitTestLocation.startsWith(".")) {
-    unitTestLocation = path.join(dirpath, unitTestLocation);
-  }
-
-  return unitTestLocation;
-}
 
 function getChecksum(filePath: string) {
   let returnValue = 0;
@@ -75,7 +70,7 @@ function getChecksum(filePath: string) {
       commandOutputString = executeVPythonScript(
         `${checksumCommand} ${filePath}`,
         path.dirname(filePath)
-      );
+      ).stdout;
     else
       commandOutputString = executeCommandSync(
         `${checksumCommand} ${filePath}`,
@@ -116,16 +111,6 @@ export function getEnviroDataFromPython(enviroPath: string): any {
   return jsonData;
 }
 
-function getCoverageDataFromPython(enviroPath: string): any {
-  // This function calls the python interface to get the coverage data for one environment
-  // what we get back is a JSON formatted string (if the command works)
-
-  let jsonData: any;
-
-  const commandToRun = testInterfaceCommand("getCoverageData", enviroPath);
-  jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
-  return jsonData;
-}
 
 // we save the some key data, indexed into by test.id
 // at the time that we build the test tree
@@ -135,8 +120,9 @@ export interface testDataType {
   time: string;
   resultFilePath: string;
   notes: string;
-  URI: vscode.Uri | undefined;
   compoundOnly: boolean;
+  testFile: string;
+  testStartLine: number;
 }
 
 // This allows us to get diret access to the test nodes via the ID
@@ -335,27 +321,20 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
   }
 }
 
-export function updateCoverageData(enviroPath: string) {
-  // This function loads the coverage data for one environment
-  // from the vcast python interface, and then updates globalCoverageData
-  // This global data is then used by updateCOVdecorations, etc.
-
-  let jsonData = getCoverageDataFromPython(enviroPath);
-  if (jsonData) updateGlobalDataForFile(enviroPath, jsonData);
-}
 
 export function getResultFileForTest(testID: string) {
+
   // This function will return the path to the result file if it is already saved
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
   if (!fs.existsSync(resultFile)) {
     let cwd = getEnviroPathFromID(testID);
 
-    const commandToRun = testInterfaceCommand("results", cwd, testID);
-    const commandOutputText = executeVPythonScript(commandToRun, cwd);
+    const commandToRun = testInterfaceCommand("report", cwd, testID);
+    const commandStatus:commandStatusType = executeVPythonScript(commandToRun, cwd);
 
-    if (commandOutputText) {
-      const firstLineOfOutput: string = commandOutputText.split(EOL, 1)[0];
+    if (commandStatus.errorCode == 0) {
+      const firstLineOfOutput: string = commandStatus.stdout.split(EOL, 1)[0];
       resultFile = firstLineOfOutput.replace("REPORT:", "");
 
       if (!fs.existsSync(resultFile)) {
@@ -364,7 +343,7 @@ export function getResultFileForTest(testID: string) {
         );
         vectorMessage(`Results report: '${resultFile}' does not exist`);
         vectorMessage(commandToRun);
-        vectorMessage(commandOutputText);
+        vectorMessage(commandStatus.stdout);
       }
 
       globalTestStatusArray[testID].resultFilePath = resultFile;
@@ -437,12 +416,9 @@ function logTestResults(
   vectorMessage("-".repeat(100));
 }
 
-export enum testStatus {
-  didNotRun,
-  passed,
-  failed,
-}
-export async function runVCTest(enviroPath: string, nodeID: string) {
+const { performance } = require('perf_hooks');
+
+export async function runVCTest(enviroPath: string, nodeID: string, generateReport:boolean) {
   // Initially, I called clicast directly here, but I switched to the python binding to give
   // more flexibility for things like: running, and generating the execution report in one action
 
@@ -450,18 +426,40 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
   // RUN mode is a single shot mode where we run the python
   // script and communicate with stdin/stdout
 
-  const commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
-  const commandOutputText = executeVPythonScript(commandToRun, enviroPath);
+  let returnStatus: testStatus = testStatus.didNotRun;
+  // The executeTest command will run the test AND generate the execution report
+  let commandToRun:string = "";
+  if (generateReport) {
+    commandToRun = testInterfaceCommand("executeTestReport", enviroPath, nodeID);
+  }
+  else {
+    commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
+  }
+  const startTime:number = performance.now();
+  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
 
-  if (commandOutputText) {
+  // added this timing info to help with performance tuning - interesting to leave in
+  const endTime:number = performance.now();
+  const deltaString:string = ((endTime-startTime)/1000).toFixed(2)
+  vectorMessage (`Execution via vPython took: ${deltaString} seconds`);
+
+  const commandOutputText = commandStatus.stdout;
+
+  // errorCode 98 is for a compile error for the coded test source file
+  // this is hard-coded in runTestCommand() in the python interface
+  if (commandStatus.errorCode==98) {
+    const testNode = getTestNode(nodeID);
+    returnStatus = openTestFileAndErrors (testNode)
+  }
+  else {
     if (commandOutputText.startsWith("FATAL")) {
       vectorMessage(commandOutputText.replace("FATAL", ""));
       openMessagePane();
-      return testStatus.didNotRun;
+      returnStatus = testStatus.didNotRun;
     } else if (commandOutputText.includes("Resolve Errors")) {
       vectorMessage(commandOutputText);
       openMessagePane();
-      return testStatus.didNotRun;
+      returnStatus = testStatus.didNotRun;
     } else {
       const decodedOutput = processExecutionOutput(commandOutputText);
       logTestResults(nodeID, commandOutputText, decodedOutput);
@@ -473,16 +471,18 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
         updatedStatusItem.resultFilePath = decodedOutput.resultsFilePath;
         globalTestStatusArray[nodeID] = updatedStatusItem;
 
-        updateDataForEnvironment(enviroPath);
-
-        if (updatedStatusItem.status == "passed") return testStatus.passed;
-        else return testStatus.failed;
+        if (updatedStatusItem.status == "passed") {
+          returnStatus = testStatus.passed;
+        }
+        else {
+          returnStatus = testStatus.failed;
+        }
       } else {
-        return testStatus.didNotRun;
+        returnStatus = testStatus.didNotRun;
       }
     }
   }
-  return testStatus.didNotRun;
+  return returnStatus;
 }
 
 
@@ -556,6 +556,22 @@ function createVcastEnvironmentScript(
       flag: "a+",
     })
   );
+  let settings = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer"
+  );
+  if (settings.get("enableCodedTesting", false)) {
+    // force the coded test option on
+    executeCommandSync(
+      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
+      unitTestLocation);
+  }
+  else {
+    // force the coded test option off
+    executeCommandSync(
+      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT false`,
+      unitTestLocation);
+  }
+
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
 }
 
@@ -637,8 +653,16 @@ function configureWorkspaceAndBuildEnviro(
       .showInformationMessage(message, "Yes", "No")
       .then((answer) => {
         if (answer === "Yes") {
-          fs.mkdirSync(unitTestLocation);
-          commonNewEnvironmentStuff(fileList, unitTestLocation);
+          try {
+            fs.mkdirSync(unitTestLocation, { recursive: true });
+            commonNewEnvironmentStuff(fileList, unitTestLocation);
+          } catch (error:any) {
+            vscode.window.showErrorMessage(
+              `Error creating directory: ${unitTestLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
+            );
+            vectorMessage("Error creating directory: " + unitTestLocation);
+            showSettings();
+          }
         } else {
           vscode.window.showWarningMessage(
             `Please create the unit test directory: '${unitTestLocation}', or update the 'Unit Test Location' option`
@@ -822,6 +846,92 @@ export async function newTestScript(testNode: testNodeType) {
       vectorMessage(error.message, errorLevel.error);
     }
   );
+}
+
+
+export async function newCodedTest (testID: string) {
+
+  // This can be called for any "main" Coded Test node that
+  // does not have children.  When we are loading the test data,
+  // we set the testFile field for the "Coded Test" node if 
+  // there are children, so check that to determine if we can add ...
+
+  // check if there are any vcast error files open, and close them
+  await closeAnyOpenErrorFiles ();
+
+  let testNode: testNodeType = getTestNode(testID);
+  if (testNode.testFile.length == 0) {
+    const option: vscode.OpenDialogOptions = { 
+      title: "Select Coded Test File",
+      filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
+    };
+    vscode.window.showOpenDialog(option).then(fileUri => {
+      if (fileUri) {
+        const UserFilePath:string = fileUri[0].fsPath;
+
+        const enviroPath = getEnviroPathFromID(testID);
+        const enclosingDirectory = path.dirname(enviroPath);
+
+        let commandToRun: string = 
+          `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded add ${UserFilePath}`;
+        const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+        updateTestPane(enviroPath);
+        if (commandStatus.errorCode == 0) {
+          vscode.window.showInformationMessage(`Coded Tests added successfully`);
+        }
+        else {
+          // need to re-read to get the test file name
+          testNode = getTestNode(testID);
+          openTestFileAndErrors (testNode)
+        }
+      }
+    });
+  }
+}
+
+export async function generateCodedTest (testID: string) {
+
+  // This can be called for any "main" Coded Test node that
+  // does not have children.  When we are loading the test data,
+  // we set the testFile field for the "Coded Test" node if 
+  // there are children, so check that to determine if we can add ...
+
+  const testNode: testNodeType = getTestNode(testID);
+
+  if (testNode.testFile.length == 0) {
+    const option: vscode.SaveDialogOptions = { 
+      title: "Save Code Test File",
+      filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
+    };
+    vscode.window.showSaveDialog(option).then(fileUri => {
+      if (fileUri) {
+        const UserFilePath:string = fileUri.fsPath;
+
+        const enviroPath = getEnviroPathFromID(testID);
+        const enclosingDirectory = path.dirname(enviroPath);
+
+        let commandToRun: string = 
+          `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded new ${UserFilePath}`;
+        const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+        updateTestPane(enviroPath);
+        if (commandStatus.errorCode == 0) {
+          vscode.window.showInformationMessage(`Coded Tests generated successfully`);
+        }
+      }
+    });
+  }
+}
+
+
+
+export async function openCodedTest(testNode: testNodeType) {
+  // This can be called for any Coded Test or its children
+  // but the test file will always be the same
+
+  // just to be sure ...
+  if (fs.existsSync(testNode.testFile)) {
+    openFileWithLineSelected (testNode.testFile, testNode.testStartLine-1);
+  }
 }
 
 

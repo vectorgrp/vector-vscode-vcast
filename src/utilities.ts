@@ -1,13 +1,12 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { clicastCommandToUse, initializeVcastUtilities } from "./vcastUtilities";
+import { clicastCommandToUse, initializeCodedTestSupport, initializeVcastUtilities } from "./vcastUtilities";
 import { showSettings } from "./helper";
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 
 const execSync = require("child_process").execSync;
-const spawn = require("child_process").spawn;
 const fs = require("fs");
 const path = require("path");
 const which = require ("which")
@@ -63,7 +62,7 @@ export function testInterfaceCommand(
   //
 
   if (globalTestInterfacePath && vPythonCommandToUse) {
-    const command = `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${mode} --kind=vcast --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+    const command = `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${mode} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
     let testArgument = "";
     if (testID.length > 0) {
       // we need to strip the "path part" of the environment directory from the test ID
@@ -88,6 +87,14 @@ export function testInterfaceCommand(
   return undefined;
 }
 
+export function parseCBTCommand (filePath:string):string {
+  
+  // this command returns the list of tests that exist in a coded test source file
+
+   return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --path=${filePath}`;
+}
+
+
 let globalCheckSumCommand: string | undefined = undefined;
 let crc32Name="crc32-win32.exe";
 if (process.platform == "linux") {
@@ -104,7 +111,7 @@ function pyCrc32IsAvailable(): boolean {
   const commandOutputText = executeVPythonScript(
     `${vPythonCommandToUse} ${globalCrc32Path}`,
     process.cwd()
-  );
+  ).stdout;
   const outputLinesAsArray = commandOutputText.split("\n");
   const lastOutputLine = outputLinesAsArray[outputLinesAsArray.length - 1];
   return lastOutputLine == "AVAILABLE";
@@ -197,6 +204,7 @@ export function addLaunchConfiguration(fileUri: Uri) {
   } else {
     existingJSON.configurations.push(vectorConfiguration);
     fs.writeFileSync(jsonPath, JSON.stringify(existingJSON, null, "\t"));
+  
   }
 }
 
@@ -236,48 +244,35 @@ export function addSettingsFileFilter(fileUri: Uri) {
 
 export function executeVPythonScript(
   commandToRun: string,
-  whereToRun: string
-): any {
+  whereToRun: string): commandStatusType {
   // we use this common function to run the vpython and process the output because
   // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
   // Since this happens before our script even starts so we cannot suppress it.
   // We could send the json data to a temp file, but the create/open file operations
   // have overhead.
 
-  let returnData = undefined;
-
+  let returnData:commandStatusType = { errorCode: 0, stdout: "" };
   if (commandToRun) {
     const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
       whereToRun
     );
-    if (commandStatus.errorCode == 0) {
-      if (
-        commandStatus.stdout[0] == "{" ||
-        commandStatus.stdout.includes("FATAL")
-      ) {
-        returnData = commandStatus.stdout;
-      } else {
-        // to make debugging easier
-        if (commandStatus.stdout) {
-          const pieces = commandStatus.stdout.split("ACTUAL-DATA", 2);
-          returnData = pieces[1].trim();
-        }
-      }
+    const pieces = commandStatus.stdout.split("ACTUAL-DATA", 2);
+    returnData.stdout = pieces[1].trim();
+    returnData.errorCode = commandStatus.errorCode;
     }
-  }
   return returnData;
 }
 
 export function getJsonDataFromTestInterface(
   commandToRun: string,
-  enviroPath: string
-): any {
+  enviroPath: string): any {
+
   // A wrapper for executeVPythonScript when we know the output is JSON
 
   let returnData = undefined;
 
-  let jsonText = executeVPythonScript(commandToRun, enviroPath);
+  let jsonText = executeVPythonScript(commandToRun, enviroPath).stdout;
   try {
     returnData = JSON.parse(jsonText);
   } catch {
@@ -359,6 +354,7 @@ export function exeFilename(basename: string): string {
   if (os.platform() == "win32") return basename + ".exe";
   else return basename;
 }
+
 
 function findVcastTools():boolean {
 
@@ -442,6 +438,9 @@ function findVcastTools():boolean {
     // do all of the setup required to use clicast
     foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
 
+    // setup coded-test stuff (new for vc24)
+    initializeCodedTestSupport (vcastInstallationPath)
+
     // check if we have access to a valid crc32 command - this is not fatal
     // must be called after initializeInstallerFiles()
 
@@ -524,3 +523,30 @@ export function getRangeOption (lineIndex: number):vscode.DecorationOptions
   const endPos = new vscode.Position(lineIndex, 0);
   return { range: new vscode.Range(startPos, endPos) };
 }
+
+
+export function openFileWithLineSelected (
+  filePath:string, 
+  lineNumber:number, 
+  viewColumn:vscode.ViewColumn=vscode.ViewColumn.One) {
+
+  const locationToHighlight : vscode.Range = new vscode.Range(
+    new vscode.Position(lineNumber, 0),
+    new vscode.Position(lineNumber, 200)
+  );
+
+  var viewOptions: vscode.TextDocumentShowOptions = {
+    viewColumn: viewColumn,
+    preserveFocus: false,
+    selection: locationToHighlight,
+  };
+  vscode.workspace
+    .openTextDocument(filePath)
+    .then((doc: vscode.TextDocument) => {
+      vscode.window.showTextDocument(doc, viewOptions);
+    },
+    (error: any) => {
+      vectorMessage(error.message, errorLevel.error);
+    });
+}
+

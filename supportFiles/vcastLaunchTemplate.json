@@ -4,7 +4,7 @@
       "name": "VectorCAST Harness Debug",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${command:vectorcastTestExplorer.debugEnviroPath}/UUT_INTE",
+      "program": "${command:vectorcastTestExplorer.debugProgramPath}",
       "cwd": "${command:vectorcastTestExplorer.debugEnviroPath}",
       "stopAtEntry": false,
       "args": [],

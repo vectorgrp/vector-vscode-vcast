@@ -27,6 +27,13 @@ from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
 
+vpythonHasCodedTestSupport:bool = False
+try: 
+    from vector.lib.coded_tests import Parser
+    vpythonHasCodedTestSupport=True
+except:
+    pass
+
 
 class InvalidEnviro(Exception):
     pass
@@ -42,8 +49,8 @@ def setupArgs():
     """
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
-
-    modeChoices = ["getEnviroData", "getCoverageData", "executeTest", "results"]
+   
+    modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -51,24 +58,15 @@ def setupArgs():
         help="Test Explorer Mode",
     )
 
-    kindChoices = ["vcast", "codebased"]
-    parser.add_argument(
-        "--kind",
-        choices=kindChoices,
-        required=True,
-        help="Environment Kind",
-    )
-
-    parser.add_argument("--clicast", required=True, help="Path to clicast to use")
+    parser.add_argument("--clicast", help="Path to clicast to use")
 
     parser.add_argument(
         "--path",
-        required=True,
         help="Path to Environment Directory",
     )
 
     parser.add_argument("--test", help="Test ID")
-
+    
     return parser
 
 
@@ -129,12 +127,23 @@ def generateTestInfo(test):
     """
     testInfo = dict()
     testInfo["testName"] = test.name
+
     testInfo["notes"] = test.notes
     # stored as 0 or 1
     testInfo["compoundOnly"] = test.for_compound_only
     testInfo["time"] = getTime(test.start_time)
     testInfo["status"] = textStatus(test.status)
     testInfo["passfail"] = getPassFailString(test)
+
+    # New to support coded tests in vc24
+    if vpythonHasCodedTestSupport and test.coded_tests_file:
+        # guard against the case where the coded test file has been renamed or deleted
+        # or dataAPI has a bad line nuumber for the test, and return None in this case.
+        if os.path.exists (test.coded_tests_file) and test.coded_tests_line>0:
+            testInfo["codedTestFile"] = test.coded_tests_file
+            testInfo["codedTestLine"] = test.coded_tests_line
+        else:
+            testInfo = None
 
     return testInfo
 
@@ -155,6 +164,11 @@ def getTestDataVCAST(enviroPath):
     except Exception as err:
         print(err)
         raise InvalidEnviro()
+    
+    # Not currently used.
+    # returns "None" if coverage is not initialized,
+    # does not change based on coverage enabled/disabled
+    coverageType = api.environment.coverage_type_text
 
     testList = list()
     sourceFiles = dict()
@@ -203,9 +217,13 @@ def getTestDataVCAST(enviroPath):
                         if test.is_csv_map:
                             pass
                         else:
+                            # A coded test file might have been renamed or deleted,
+                            # in which case generateTestInfo() will return None
                             testInfo = generateTestInfo(test)
-                            functionNode["tests"].append(testInfo)
+                            if testInfo:
+                                functionNode["tests"].append(testInfo)
 
+                    
                     unitNode["functions"].append(functionNode)
 
             if len(unitNode["functions"]) > 0:
@@ -241,33 +259,32 @@ def printCoverageListing(enviroPath):
             sys.stdout.write(line._cov_line.covered_char() + " | " + line.text + "\n")
 
 
-def getUnitData(enviroPath, kind):
+def getUnitData(enviroPath):
     """
     This function will return info about the units in an environment
     """
     unitList = list()
-    if kind == "vcast":
-        try:
-            # this can throw an error of the coverDB is too old!
-            capi = CoverApi(enviroPath)
-        except Exception as err:
-            print(err)
-            raise UsageError()
+    try:
+        # this can throw an error of the coverDB is too old!
+        capi = CoverApi(enviroPath)
+    except Exception as err:
+        print(err)
+        raise UsageError()
 
-        # For testing/debugging
-        # printCoverageListing (enviroPath)
+    # For testing/debugging
+    # printCoverageListing (enviroPath)
 
-        sourceObjects = capi.SourceFile.all()
-        for sourceObject in sourceObjects:
-            sourcePath = sourceObject.display_path
-            covered, uncovered, checksum = getCoverageData(sourceObject)
-            unitInfo = dict()
-            unitInfo["path"] = sourcePath
-            unitInfo["functionList"] = getFunctionData(sourceObject)
-            unitInfo["cmcChecksum"] = checksum
-            unitInfo["covered"] = covered
-            unitInfo["uncovered"] = uncovered
-            unitList.append(unitInfo)
+    sourceObjects = capi.SourceFile.all()
+    for sourceObject in sourceObjects:
+        sourcePath = sourceObject.display_path
+        covered, uncovered, checksum = getCoverageData(sourceObject)
+        unitInfo = dict()
+        unitInfo["path"] = sourcePath
+        unitInfo["functionList"] = getFunctionData(sourceObject)
+        unitInfo["cmcChecksum"] = checksum
+        unitInfo["covered"] = covered
+        unitInfo["uncovered"] = uncovered
+        unitList.append(unitInfo)
 
     return unitList
 
@@ -321,6 +338,23 @@ commandFileName = "commands.cmd"
 globalClicastCommand = ""
 
 
+def runClicastCommand (commandToRun):
+    """
+    A wrapper for the subprocess.run() function
+    """
+    try:
+        # note: shell=true, requires commandToRun to be a string
+        result = subprocess.run(
+            commandToRun, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+        returnCode = result.returncode
+        rawOutput = result.stdout
+    except subprocess.CalledProcessError as error:
+        returnCode = error.returncode
+        rawOutput = error.stdout
+
+    return returnCode, rawOutput.decode("utf-8", errors="ignore")
+
+
 def runClicastScript(commandFileName):
     """
     The caller should create a correctly formatted clicast script
@@ -329,23 +363,29 @@ def runClicastScript(commandFileName):
 
     # false at the end tells clicast to ignore errors in individual commands
     commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
-    try:
-        rawOutput = subprocess.check_output(
-            commandToRun, stderr=subprocess.STDOUT, shell=True
-        )
-    except subprocess.CalledProcessError as error:
-        rawOutput = error.output
+    returnCode, stdoutString = runClicastCommand (commandToRun)
 
     os.remove(commandFileName)
-    return rawOutput.decode("utf-8", errors="ignore")
+    return returnCode, stdoutString
 
 
-def getStandardArgsFromTestObject(testIDObject):
-    returnString = f"-e {testIDObject.enviroName}"
+def getStandardArgsFromTestObject(testIDObject, quoteParameters):
+    returnString = f"-e{testIDObject.enviroName}"
     if testIDObject.unitName != "not-used":
         returnString += f" -u{testIDObject.unitName}"
-    returnString += f" -s{testIDObject.functionName}"
-    returnString += f" -t{testIDObject.testName}"
+
+    # I did not do something clever with the quote insertion 
+    # to make the code easier to read
+    if quoteParameters:
+        # when we call clicast from the command line, we need
+        # Need to quote the strings because of names that have << >> 
+        returnString += f" -s\"{testIDObject.functionName}\""
+        returnString += f" -t\"{testIDObject.testName}\""
+    else:
+        # when we insert commands in the command file we cannot use quotes
+        returnString += f" -s{testIDObject.functionName}"
+        returnString += f" -t{testIDObject.testName}"
+
     return returnString
 
 
@@ -360,12 +400,27 @@ def runTestCommand(testIDObject, commandList):
 
     """
 
-    # We build a clicast command script to run the test and generate the execution report
-    with open(commandFileName, "w") as commandFile:
-        standardArgs = getStandardArgsFromTestObject(testIDObject)
-        if "execute" in commandList:
-            commandFile.write(standardArgs + " execute run\n")
-        if "results" in commandList:
+    executeReturnCode = 0
+    stdoutText = ""
+    if "execute" in commandList:
+        standardArgs = getStandardArgsFromTestObject(testIDObject, True)
+        # we cannot include the execute command in the command script that we use for
+        # results because we need the return code from the execute command separately
+        commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
+        executeReturnCode, stdoutText = runClicastCommand (commandToRun)
+
+        # currently clicast returns the same error code for a failed coded test compile or 
+        # a failed coded test execution.  We need to distinguish between these two cases
+        # so we are using this hack until vcast changes the return code for a failed coded test compile
+        if testIDObject.functionName=="coded_tests_driver" and executeReturnCode!=0:
+            if "TEST RESULT:" not in stdoutText:
+                executeReturnCode = 98
+
+    if "report" in commandList:
+        standardArgs = getStandardArgsFromTestObject(testIDObject, False)
+        # We build a clicast command script to generate the execution report
+        # since we need multiple commands
+        with open(commandFileName, "w") as commandFile:
             commandFile.write(
                 standardArgs
                 + " report custom actual "
@@ -380,16 +435,18 @@ def runTestCommand(testIDObject, commandList):
                 + ".txt\n"
             )
             commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
+        runClicastScript(commandFileName)
 
-    return runClicastScript(commandFileName)
+    return executeReturnCode, stdoutText
 
 
-def executeVCtest(enviroPath, testIDObject):
+def executeVCtest(enviroPath, testIDObject, generateReport):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("execute")
-        commands.append("results")
-        commandOutput = runTestCommand(testIDObject, commands)
+        if generateReport:
+            commands.append("report")
+        returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         if "TEST RESULT: pass" in commandOutput:
             print("STATUS:passed")
@@ -405,6 +462,8 @@ def executeVCtest(enviroPath, testIDObject):
             print("TIME:" + getTime(testList[0].start_time))
 
         print(commandOutput)
+
+        return returnCode
 
 
 def processVResults(filePath):
@@ -428,48 +487,41 @@ def processVResults(filePath):
         print(f"{filePath} not found")
 
 
-def executeCodeBasedTest(enviroPath, testID):
-    """
-    testID looks like: EXAMPLE.CBT.mySuite.byPointer
-    So we just need to split the mySuite.byPointer part
-    off and pass that to the driver.
-    """
-
-    with cd(enviroPath):
-        nameOfDriver = os.path.basename(enviroPath).lower()
-
-        if shutil.which(nameOfDriver):
-            testString = testID.split("|")[1]
-            commandToRun = [nameOfDriver, testString]
-            try:
-                rawOutput = subprocess.check_output(
-                    commandToRun, stderr=subprocess.STDOUT, shell=True
-                )
-                print(rawOutput.decode("utf-8", errors="ignore"))
-            except subprocess.CalledProcessError as error:
-                rawOutput = error.output
-
-            print("TIME:" + getTime(datetime.now()))
-            reportName = os.path.join(enviroPath, testString) + ".vresults"
-            processVResults(reportName)
-            print("REPORT:" + reportName)
-        else:
-            print("FATAL")
-            print(f"The executable file: '{nameOfDriver}' does not exist")
-            print(
-                "Ensure that you've added: 'add_subdirectory(unitTests)' to the CMakeLists.txt file\n"
-                + "   that builds the file being tested, and that there are not any CMake errors reported."
-            )
-
-
 def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
-        commands.append("results")
-        commandOutput = runTestCommand(testIDObject, commands)
+        commands.append("report")
+        returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         print("REPORT:" + testIDObject.reportName + ".txt")
         print(commandOutput)
+
+
+def getCodeBasedTestNames (filePath):
+    """
+    This function will use the same file parser that the vcast
+    uses to extract the test names from the CBT file.  It will return
+    a list of dictionaries that contain the test name, the file path
+    and the starting line for he test
+    """
+
+    if os.path.isfile(filePath):
+
+        cbtParser = Parser()
+        with open(filePath, "r") as cbtFile:
+            fileData = cbtParser.parse (filePath)
+            outputList = []
+            for test in fileData:
+                outputNode = {
+                    "testName": f"{test.test_suite}.{test.test_case}",
+                    "codedTestFile": filePath,
+                    "codedTestLine": test.line
+                }
+                outputList.append (outputNode)
+            print (json.dumps (outputList, indent=4))
+    else:
+        print(f"{filePath} not found")
+
 
 
 class testID:
@@ -502,39 +554,42 @@ def main():
     # See the comment in: executeVPythonScript()
     print("ACTUAL-DATA")
 
+    returnCode = 0
+
     if args.mode == "getEnviroData":
         topLevel = dict()
         # it is important that getTetDataVCAST() is called first since it sets up
         # the global list of tesable functoions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(enviroPath)
-        topLevel["unitData"] = getUnitData(enviroPath, args.kind)
+        topLevel["unitData"] = getUnitData(enviroPath)
 
         json.dump(topLevel, sys.stdout, indent=4)
 
-    elif args.mode == "getCoverageData":
-        # need to call this function to set the global list of testable functions
-        getTestDataVCAST(enviroPath)
-        unitData = getUnitData(enviroPath, args.kind)
-        json.dump(unitData, sys.stdout, indent=4)
-
-    elif args.mode == "executeTest":
-        if args.kind == "vcast":
+    elif args.mode.startswith("executeTest"):
+        try:
             testIDObject = testID(enviroPath, args.test)
-            executeVCtest(enviroPath, testIDObject)
-        else:
-            executeCodeBasedTest(enviroPath, args.test)
+        except:
+            print ("Invalid test ID, provide a valid --test argument")
+            raise UsageError()
+        returnCode = executeVCtest(enviroPath, testIDObject, args.mode=="executeTestReport")
 
-    elif args.mode == "results":
-        if args.kind == "vcast":
+
+    elif args.mode == "report":
+        try:
             testIDObject = testID(enviroPath, args.test)
-            getResults(enviroPath, testIDObject)
+        except:
+            print ("Invalid test ID, provide a valid --test argument")
+            raise UsageError()
+        getResults(enviroPath, testIDObject)
 
-    else:
-        print("Unknown mode value: " + args.mode)
-        print("Valid modes are: getEnviroData, getCoverageData, executeTest, results")
+    elif args.mode == "parseCBT":
+        # This is a special mode used by the unit test driver to parse the CBT
+        # file and generate the test list.
+        getCodeBasedTestNames (args.path)
+       
 
-    # Zero exit code
-    return 0
+    # only used for executeTest currently
+    return returnCode
 
 
 if __name__ == "__main__":

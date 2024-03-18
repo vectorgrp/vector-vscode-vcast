@@ -106,7 +106,25 @@ import {
       await configFile.openContextMenu()
       await (await $("aria/Set as VectorCAST Configuration File")).click()
     });
+    
+    it("should set nested unitTest location", async () => {
+      await updateTestID();
   
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+  
+      let settingsEditor = await workbench.openSettings();
+      let unitTestLocationSetting = await settingsEditor.findSetting(
+        "Unit Test Location","Vectorcast Test Explorer"
+      );
+      await unitTestLocationSetting.setValue("./unittests/a/b/c")
+    
+      await (await workbench.openNotificationsCenter()).clearAllNotifications()
+     
+    });
+
     it("should create VectorCAST environment", async () => {
       await updateTestID();
   
@@ -141,6 +159,7 @@ import {
       console.log(
         "Waiting for clicast and waiting for environment to get processed",
       );
+     
       await browser.waitUntil(
         async () =>
           (await (await bottomBar.openOutputView()).getText())
@@ -154,8 +173,68 @@ import {
       await browser.saveScreenshot(
         "info_finished_creating_vcast_environment.png",
       );
-      // clearing all notifications
-      await (await $(".codicon-notifications-clear-all")).click();
+     
+    });
+
+    it("should explicitly check that ./unittests/a/b/c is created and contains the .env file", async () => {
+      await updateTestID();
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      await (await bottomBar.openOutputView()).clearText()
+      
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+  
+      const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+        "vcastTutorial",
+      );
+      await workspaceFolderSection.expand()
+      let resultingFolder = await workspaceFolderSection.findItem("unittests")
+      expect(resultingFolder).not.toBe(undefined)
+      // this will auto-expand all the way to c as there are no other nested folders in unittests
+      await resultingFolder.select()
+    
+      resultingFolder = await workspaceFolderSection.findItem("c")
+      expect(resultingFolder).not.toBe(undefined)
+ 
+      const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
+      expect(vceFile).not.toBe(undefined)
+    });
+
+    it("should not delete existing VectorCAST environment when building from .env", async () => {
+      await updateTestID();
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      await (await bottomBar.openOutputView()).clearText()
+      
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+  
+      const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
+        "vcastTutorial",
+      );
+      
+      await workspaceFolderSection.expand()
+  
+      const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
+      const vceMenu = await vceFile.openContextMenu()
+      console.log("Executing env build for an existing environment");
+      await vceMenu.select("Build VectorCAST Environment")
+      
+      // making sure notification is shown
+
+      const notifications = await workbench.getNotifications()
+      const expectedMessage = "Environment: QUOTES_EXAMPLE already exists"
+      let message = "";
+      for (const notif of notifications) {
+        message = await notif.getMessage()
+        if (message === expectedMessage)
+          break;
+      }
+      expect(message).toBe(expectedMessage)
+      console.log("Making sure existing environment folder is not deleted");
+      const envFolder = await workspaceFolderSection.findItem("QUOTES_EXAMPLE");
+      expect(envFolder).not.toBe(undefined)
     });
   
     it("should correctly generate all BASIS PATH tests for function", async () => {

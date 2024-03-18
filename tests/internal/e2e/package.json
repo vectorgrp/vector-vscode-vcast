@@ -10,7 +10,7 @@
         "@wdio/mocha-framework": "^8.6.1",
         "@wdio/spec-reporter": "^8.4.0",
         "child_process": "^1.0.2",
-        "chromedriver": "^107.0.3",
+        "chromedriver": "^119.0.1",
         "create-wdio": "^8.2.2",
         "csv-parse": "^5.3.4",
         "global-agent": "^2.2.0",
