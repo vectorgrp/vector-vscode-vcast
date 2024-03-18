@@ -865,7 +865,7 @@ export async function newCodedTest (testID: string) {
       title: "Select Coded Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showOpenDialog(option).then(fileUri => {
+    vscode.window.showOpenDialog(option).then(async fileUri => {
       if (fileUri) {
         const UserFilePath:string = fileUri[0].fsPath;
 
@@ -874,7 +874,7 @@ export async function newCodedTest (testID: string) {
 
         let commandToRun: string = 
           `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded add ${UserFilePath}`;
-        vectorMessage (`Adding coded test file: ${UserFilePath} for environment: ${enviroPath}`);
+        await vectorMessage (`Adding coded test file: ${UserFilePath} for environment: ${enviroPath}`);
         const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
         updateTestPane(enviroPath);
         if (commandStatus.errorCode == 0) {
@@ -904,7 +904,7 @@ export async function generateCodedTest (testID: string) {
       title: "Save Code Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showSaveDialog(option).then(fileUri => {
+    vscode.window.showSaveDialog(option).then(async fileUri => {
       if (fileUri) {
         const UserFilePath:string = fileUri.fsPath;
 
@@ -913,7 +913,7 @@ export async function generateCodedTest (testID: string) {
 
         let commandToRun: string = 
           `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded new ${UserFilePath}`;
-        vectorMessage (`Creating new coded test file: for environment: ${enviroPath}`);
+        await vectorMessage (`Creating new coded test file: for environment: ${enviroPath}`);
         const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
         updateTestPane(enviroPath);
         if (commandStatus.errorCode == 0) {

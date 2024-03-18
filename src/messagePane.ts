@@ -29,7 +29,7 @@ function formattedLine(
   return returnString;
 }
 
-function displayMessage(prefix: string, msg: string, level: errorLevel) {
+async function displayMessage(prefix: string, msg: string, level: errorLevel) {
   const messagePane = getMessagePane();
   let stringList = msg.split("\n");
   // for errorLevel.error, we show the first line of the msg in a popup
@@ -43,7 +43,7 @@ function displayMessage(prefix: string, msg: string, level: errorLevel) {
 
 // duplicated from VTC ////////////////////////
 
-export function vectorMessage(
+export async function vectorMessage(
   msg: string,
   level: errorLevel = errorLevel.info
 ) 

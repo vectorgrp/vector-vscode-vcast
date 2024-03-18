@@ -996,7 +996,7 @@ export async function deleteTests(nodeList: any[]) {
   let changedEnvironmentIDList:Set<string> = new Set();
 
   for (let node of nodeList) {
-    vectorMessage(`Deleting tests for node: ${node.id} ...`);
+    await vectorMessage(`Deleting tests for node: ${node.id} ...`);
 
     const nodeID = node.id;
     const testNode: testNodeType = getTestNode(nodeID);
