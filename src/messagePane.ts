@@ -43,11 +43,15 @@ async function displayMessage(prefix: string, msg: string, level: errorLevel) {
 
 // duplicated from VTC ////////////////////////
 
+// Note that this is an aysnc function so to if you are using to display
+// a message before a long-running process, use await in the caller.
 export async function vectorMessage(
   msg: string,
   level: errorLevel = errorLevel.info
 ) 
 {
+
+
   if (level != errorLevel.trace || (level == errorLevel.trace && globalVerboseOn)) {
     displayMessage("test explorer", msg, level);
   }
