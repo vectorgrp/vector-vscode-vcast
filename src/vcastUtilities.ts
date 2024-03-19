@@ -169,6 +169,7 @@ export function addIncludePath (fileUri: vscode.Uri) {
     // Requires json-c parsing to handle comments etc.
     const existingContents = fs.readFileSync (fileUri.fsPath).toString();
     var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
+    // note that jsonc.parse returns "real json" without the comments
     existingJSON = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
     if (existingJSON.configurations.length == 0) {
       statusMessages.push (`{configurationFile} file has no existing configurations, creating a 'vcast' configuraiton.  `); 

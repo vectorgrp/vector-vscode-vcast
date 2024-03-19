@@ -166,6 +166,7 @@ export function loadLaunchFile(jsonPath: string): any {
     // Requires json-c parsing to handle comments etc.
     const existingContents = fs.readFileSync (jsonPath).toString();
     var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
+    // note that jsonc.parse returns "real json" without the comments
     existingJSON = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
   } catch {
     // if any error occurs on reading, don't changne the file?
@@ -225,6 +226,7 @@ export function addSettingsFileFilter(fileUri: Uri) {
     // Requires json-c parsing to handle comments etc.
     const existingContents = fs.readFileSync (filePath).toString();
     var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
+    // note that jsonc.parse returns "real json" without the comments
     existingJSON = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
   } catch {
     vscode.window.showErrorMessage(`Could not load the existing ${path.basename (filePath)}, check for syntax errors`);
