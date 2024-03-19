@@ -27,7 +27,7 @@ export function getCodedTestCompletionData(
 
     if (document) {
 
-      const lineSoFar = getLineFragment(document, completionData.position);
+      const lineSoFar = agetLineFragment(document, completionData.position).trim();
       if (lineSoFar.startsWith ("VSTUB")) {
          const context = completionData.context;
          const trigger =  getTriggerFromContext(context);
