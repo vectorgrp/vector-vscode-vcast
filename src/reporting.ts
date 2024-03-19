@@ -82,6 +82,12 @@ tr:hover {
 .warning:hover, .bg-warning:hover {
     background-color: var(--vscode-testing-iconQueued) !important;
 }
+
+pre {
+  border:1px solid var(--vscode-editorGroup-border);
+  background-color:var(--vscode-editorGroup-border);
+  color: var(--vscode-foreground);
+}
 </style>`;
         returnText += line;
         skipping = false;
