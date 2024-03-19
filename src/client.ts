@@ -41,8 +41,15 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   };
 
   // Options to control the language client
+  // we register for .tsts and c|cpp files, and do the right thing in the callback 
+  // depending on the extension of the file
   let clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", pattern: "**/*.tst" }],
+    documentSelector: [
+      { scheme: "file", pattern: "**/*.tst" },
+      { scheme: 'file', language: 'c' },
+      { scheme: 'file', language: 'cpp' },
+      { scheme: 'file', language: 'cuda-cpp' }
+    ],
     synchronize: {
       // Notify the server about file changes to '.clientrc files contained in the workspace
       fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),

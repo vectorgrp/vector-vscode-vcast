@@ -9,8 +9,8 @@ import {
 } from "vscode-languageserver";
 import { Hover } from "vscode-languageserver-types";
 
+import { getCodedTestCompletionData } from "./ctCompletions"
 import { validateTextDocument } from "./tstValidation";
-
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
 
@@ -34,7 +34,7 @@ connection.onInitialize((params: InitializeParams) => {
       // Tell the client that the server supports code completion
       completionProvider: {
         resolveProvider: true,
-        triggerCharacters: ["\n", ":", ".", ","],
+        triggerCharacters: ["\n", ":", ".", ",", "("],
       },
     },
   };
@@ -65,9 +65,11 @@ connection.onDidChangeWatchedFiles((_change) => {
 documents.onDidChangeContent((change) => {
   // Improvement needed:  Is it ok if this is called before the previous validation is complete?
 
-  let diagnostics = validateTextDocument(change.document);
-  // Send the computed diagnostics to VSCode.
-  connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
+  if (change.document.uri.endsWith(".tst")) {
+    let diagnostics = validateTextDocument(change.document);
+    // Send the computed diagnostics to VSCode.
+    connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
+  }
 });
 
 // This handler gets called whenever "completion" is triggered by
@@ -75,7 +77,12 @@ documents.onDidChangeContent((change) => {
 
 connection.onCompletion(
   (completionData: CompletionParams): CompletionItem[] => {
-    return getTstCompletionData(documents, completionData);
+     if (completionData.textDocument.uri.endsWith(".tst")) {
+      return getTstCompletionData(documents, completionData);
+     }
+     else {
+      return getCodedTestCompletionData(documents, completionData);
+    }
   }
 );
 
@@ -87,11 +94,16 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
 });
 
 connection.onHover((completionData: CompletionParams): Hover | undefined => {
-  // This function gets called when the user hovers over a line section
-  const hoverString = getHoverString(documents, completionData);
 
-  var hover: Hover = { contents: hoverString };
-  return hover;
+  // This function gets called when the user hovers over a line section
+  if (completionData.textDocument.uri.endsWith(".tst")) {
+    const hoverString = getHoverString(documents, completionData);
+    var hover: Hover = { contents: hoverString };
+    return hover;
+  }
+  else {
+    return undefined;
+  }
 });
 
 // Make the text document manager listen on the connection
