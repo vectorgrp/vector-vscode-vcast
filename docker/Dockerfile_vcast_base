@@ -55,34 +55,52 @@ ENV PATH=/home/${USERNAME}/.npm-global/bin:$PATH
 SHELL ["/bin/bash", "--login", "-c"]
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
-    sudo yum -y install python3 && \
-    sudo yum -y install libsecret-devel && \
-    sudo yum -y install make && \
+    sudo yum -y install epel-release && \
+    sudo yum -y groupinstall "Development Tools" && \
+    sudo yum -y install openssl11 openssl11-devel bzip2-devel libffi-devel xz-devel libsecret-devel make && \
     npm set cafile /etc/ssl/certs/ca-certificates.crt &&  \
+    npm set noproxy localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ &&  \
+    npm set proxy http://gateway.zscloud.net:10402 &&  \
+    npm set https-proxy http://gateway.zscloud.net:10402 &&  \
     npm set registry https://registry.npmjs.org/ && \
     npm i -g yo && \
     npm install -g @vscode/vsce@^2.15.04 && \
     npm install -g typescript && \
     npm install -g esbuild
+RUN sudo alternatives --install /usr/bin/openssl openssl /usr/bin/openssl11 1
+
+WORKDIR /home/${USERNAME}
+# python
+ARG PY_VERSION=3.8.18
+RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tgz && \
+    tar xvf Python-${PY_VERSION}.tgz && cd Python-${PY_VERSION} && sed -i 's/PKG_CONFIG openssl /PKG_CONFIG openssl11 /g' configure && \
+    ./configure --enable-optimizations && sudo make altinstall && cd .. && sudo rm -rf Python-${PY_VERSION}*
+RUN sudo alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1
+RUN mkdir ".pip"
+RUN echo -e '[global]\ntrusted-host = pypi.org\n               pypi.python.org\n               files.pythonhosted.org' >> .pip/pip.conf
+ENV PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
+
 
 RUN sudo chmod 644 /etc/pki/ca-trust/source/anchors/* && \
     sudo update-ca-trust force-enable; sudo update-ca-trust extract && \
     sudo yum install -y xorg-x11-server-Xvfb && \
-    sudo yum install -y epel-release && \
     sudo yum install -y chromium && \
-    mkdir -p /home/${USERNAME}/software
+    mkdir -p /home/${USERNAME}/software/vcast/
 
-ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST23.tar.gz /home/${USERNAME}/software/releaseVectorCAST23.tar.gz
-ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vector-DEMO.lic /home/${USERNAME}/software/vector-DEMO.lic
-RUN cd /home/${USERNAME}/software && \
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST23.tar.gz /home/${USERNAME}/software/vcast/releaseVectorCAST23.tar.gz
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST24.tar.gz /home/${USERNAME}/software/vcast/releaseVectorCAST24.tar.gz
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vector-DEMO-24.lic /home/${USERNAME}/software/vcast/vector-DEMO-24.lic
+RUN cd /home/${USERNAME}/software/vcast && \
     sudo chown ${USERNAME} releaseVectorCAST23.tar.gz && \
-    sudo chown ${USERNAME} vector-DEMO.lic && \
-    tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz
+    sudo chown ${USERNAME} releaseVectorCAST24.tar.gz && \
+    sudo chown ${USERNAME} vector-DEMO-24.lic && \
+    tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz && mv release release23 && \
+    tar -xvzf releaseVectorCAST24.tar.gz && rm releaseVectorCAST24.tar.gz && mv release release24
 
-ENV VECTORCAST_DIR=/home/${USERNAME}/software/release \
-    PATH=/home/${USERNAME}/software/release:/opt/rh/devtoolset-10/root/usr/bin:$PATH \
-    LM_LICENSE_FILE=/home/${USERNAME}/software/vector-DEMO.lic \
-    VECTOR_LICENSE_FILE=/home/${USERNAME}/software/vector-DEMO.lic \
+ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
+    PATH=/home/${USERNAME}/software/vcast/release23:/opt/rh/devtoolset-10/root/usr/bin:$PATH \
+    LM_LICENSE_FILE=/home/${USERNAME}/software/vcast/vector-DEMO-24.lic \
+    VECTOR_LICENSE_FILE=/home/${USERNAME}/software/vcast/vector-DEMO-24.lic \
     VCAST_TEST_PATH=/home/${USERNAME}/project/vscode-vcast/E2E-test \
     VCAST_EXTENSION_PATH=/home/${USERNAME}/project/vscode-vcast \
     RDS_REPO_PATH=/home/${USERNAME}/project \
@@ -90,6 +108,10 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/release \
     TESTING_IN_CONTAINER=True \
     NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    SSL_CERT_DIR=/etc/ssl/certs \
+    CA_BUNDLE_PATH=/etc/ssl/certs/ca-certificates.crt \
+    CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
     GLOBAL_AGENT_HTTP_PROXY=http://gateway.zscloud.net:10402 \
     http_proxy=http://gateway.zscloud.net:10402 \
     GLOBAL_AGENT_HTTPS_PROXY=http://gateway.zscloud.net:10402 \
@@ -98,10 +120,10 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/release \
     https_proxy=http://gateway.zscloud.net:10402 \
     no_proxy=localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ \
     HTTP_PROXY=http://gateway.zscloud.net:10402 \
-    RUNNING_ON_SERVER=True \
+    RUNNING_ON_SERVER=False \
     CPATH=/opt/rh/devtoolset-10/root/usr/include/c++/10:/opt/rh/devtoolset-10/root/usr/include/c++/10/x86_64-redhat-linux:/opt/rh/devtoolset-10/root/usr/include/c++/10/backward:/opt/rh/devtoolset-10/root/usr/lib/gcc/x86_64-redhat-linux/10/include:/opt/rh/devtoolset-10/root/usr/include:$CPATH
-
 RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
 
+RUN sudo yum clean all && sudo rm -rf /var/cache/yum
+
 SHELL ["/bin/bash", "--login", "-c"]
-WORKDIR /home/${USERNAME}

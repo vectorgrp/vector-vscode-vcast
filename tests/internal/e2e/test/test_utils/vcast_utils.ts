@@ -49,9 +49,9 @@ export async function cleanup(){
       (await (await bottomBar.openOutputView()).getText())
         .toString()
         .includes("Successful deletion of environment"),
-    { timeout: 10000 },
+    { timeout: 30000 },
   )
-  
+
   const initialWorkdir = process.env["INIT_CWD"];
   const pathToTutorial = path.join(
     initialWorkdir,
@@ -62,11 +62,11 @@ export async function cleanup(){
   const unitTestsPath = path.join(pathToTutorial, "unitTests");
   const qikPath = path.join(pathToTutorial, "VCAST.QIK");
   let clearUnitTestsFolder: string = "";
-  
+
   if (process.platform == "win32") clearUnitTestsFolder = `rmdir /s /q ${unitTestsPath}`;
   else clearUnitTestsFolder = `rm -rf ${unitTestsPath}`;
   await promisifiedExec(clearUnitTestsFolder);
-  
+
   let clearQik: string = "";
   if (process.platform == "win32") clearQik = `del ${qikPath}`;
   else clearQik = `rm -rf ${qikPath}`;

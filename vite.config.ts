@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     globalSetup: "./tests/unit/setupUnitTest.ts",
     coverage: {
-      reporter: ["text", "json", "html"],
+      reporter: ["text", "json", "html", "clover", "lcov"],
     },
     exclude: [...configDefaults.exclude, "tests/internal/e2e/test/specs/*"],
   },

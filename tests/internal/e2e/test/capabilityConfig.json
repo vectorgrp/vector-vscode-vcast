@@ -1,0 +1,25 @@
+{
+    "maxInstances": 1,
+    "browserName": "vscode",
+    "browserVersion": "1.78.0",
+    "acceptInsecureCerts": true,
+    "wdio:vscodeOptions": {
+        "vscodeArgs": {
+          "disableExtensions" : true,
+          "extensionsDir" : "",
+          "local-history.enabled": false
+        },
+        "verboseLogging": true,
+        "userSettings": {
+            "editor.fontSize": 12,
+            "terminal.integrated.fontSize": 12,
+            "window.zoomLevel" : -3
+        },
+        "vscodeProxyOptions":{
+            "enable": true,
+            "port": 5678,
+            "connectionTimeout": 30000,
+            "commandTimeout": 30000
+        }
+    }
+}
