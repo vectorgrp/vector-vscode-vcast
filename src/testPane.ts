@@ -571,9 +571,9 @@ function launchConfigExists(launchJsonPath: string): boolean {
   // this will check if launch.json has
   // the "VectorCAST Harness Debug" configuration defined
   let returnValue = false;
-  const existingJSON: any = loadLaunchFile(launchJsonPath);
-  if (existingJSON.configurations) {
-    for (const existingConfig of existingJSON.configurations) {
+  const existingJSONdata: any = loadLaunchFile(launchJsonPath);
+  if (existingJSONdata) {
+    for (const existingConfig of existingJSONdata.jsonData.configurations) {
       if (existingConfig.name === vectorcastLaunchConfigName) {
         returnValue = true;
         launchFilesWithVectorCASTConfig.set(launchJsonPath, true);
@@ -719,11 +719,16 @@ async function debugNode(
 
         createEmptyLaunchConfigFile(ourWorkspace, launchJsonPath);
         addLaunchConfiguration(launchJsonUri);
-      } else {
+      } 
+      else {
         debugConfigurationFound = launchConfigExists(launchJsonPath);
-        if (!debugConfigurationFound) addLaunchConfiguration(launchJsonUri);
+        if (!debugConfigurationFound) {
+          addLaunchConfiguration(launchJsonUri);
+        }
       }
 
+      // this flag means that the launch file already had a vectorcast debug configuration
+      // if we just added it we want to give the user a chance to review before we debug
       if (debugConfigurationFound) {
         vectorMessage(
           `Preparing to debug test ${getTestNameFromID(node.id)} ... `

@@ -157,23 +157,28 @@ export function getChecksumCommand() {
   return globalCheckSumCommand;
 }
 
-export function loadLaunchFile(jsonPath: string): any {
+export interface jsonDataType {
+  jsonData:any;
+  jsonDataAsString:string;
+}
+
+export function loadLaunchFile(jsonPath: string): jsonDataType|undefined {
+
   // this function takes the path to a launch.json
   // and returns the contents, or an empty list of configurations
   // if we cannot read the file
-  let existingJSON: any;
-  try {
-    // Requires json-c parsing to handle comments etc.
-    const existingContents = fs.readFileSync (jsonPath).toString();
-    var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
-    // note that jsonc.parse returns "real json" without the comments
-    existingJSON = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
-  } catch {
-    // if any error occurs on reading, don't changne the file?
-    vscode.window.showErrorMessage(`Could not load the existing ${path.basename (jsonPath)}, check for syntax errors`);
-    existingJSON = { configurations: [] };
+  let returnValue:jsonDataType|undefined = undefined;
+  
+  // Requires json-c parsing to handle comments etc.
+  const existingContents = fs.readFileSync (jsonPath).toString();
+  var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
+  // note that jsonc.parse returns "real json" without the comments
+  const existingJSONdata = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
+  
+  if (existingJSONdata) {
+    returnValue = { jsonData:existingJSONdata , jsonDataAsString: existingContents };
   }
-  return existingJSON;
+  return returnValue;
 }
 
 export function addLaunchConfiguration(fileUri: Uri) {
@@ -181,61 +186,76 @@ export function addLaunchConfiguration(fileUri: Uri) {
   // launch.json file that the user right clicks on
 
   const jsonPath = fileUri.fsPath;
-  const existingJSON: any = loadLaunchFile(jsonPath);
-
-  // Remember that the vectorJSON data has the "configurations" level which is an array
+  const existingLaunchData:jsonDataType|undefined = loadLaunchFile(jsonPath);
+  
   const vectorJSON = JSON.parse(
     fs.readFileSync(
       path.join(globalPathToSupportFiles, "vcastLaunchTemplate.json")
     )
   );
 
-  const vectorConfiguration = vectorJSON.configurations[0];
+  // if we have a well formatted launch file with an array of configurations ...
+  if (existingLaunchData && existingLaunchData.jsonData.configurations && existingLaunchData.jsonData.configurations.length > 0) {
 
-  // now loop through launch.json to make sure it does not already have the vector config
-  let existingConfigFound = false;
+      // Remember that the vectorJSON data has the "configurations" level which is an array
+    const vectorConfiguration = vectorJSON.configurations[0];
 
-  if (existingJSON.configurations)
-    for (const existingConfig of existingJSON.configurations) {
+    // now loop through launch.json to make sure it does not already have the vector config
+    let needToAddVectorLaunchConfig = true;
+
+    for (const existingConfig of existingLaunchData.jsonData.configurations) {
       if (existingConfig.name == vectorConfiguration.name) {
-        existingConfigFound = true;
+        vscode.window.showInformationMessage(
+          `File: ${jsonPath}, already contains a ${vectorConfiguration.name} configuration`
+        );
+        needToAddVectorLaunchConfig = false;
         break;
       }
     }
-  else {
-    // if file does not have "configuration" section ...
-    existingJSON.configurations = [];
+    if (needToAddVectorLaunchConfig) {
+      const whereToInsert = existingLaunchData.jsonData.configurations.length;
+      let jsonDataAsString = existingLaunchData.jsonDataAsString;
+      const jsoncEdits  = 
+        jsonc.modify(
+            jsonDataAsString, 
+            ["configurations", whereToInsert], 
+            vectorConfiguration, 
+            { formattingOptions: { tabSize: 4, insertSpaces: true }, isArrayInsertion:true });
+      jsonDataAsString = jsonc.applyEdits (jsonDataAsString, jsoncEdits);
+      fs.writeFileSync(jsonPath, jsonDataAsString);
+    }
   }
-
-  if (existingConfigFound) {
-    vscode.window.showInformationMessage(
-      `File: ${jsonPath}, already contains a ${vectorConfiguration.name} configuration`
-    );
-  } else {
-    existingJSON.configurations.push(vectorConfiguration);
-    // TBD TODAY - Need to replace with the json-c editing stuff
-    fs.writeFileSync(jsonPath, JSON.stringify(existingJSON, null, "\t"));
-  
+  else {
+    // if the existing file is emty or does not contain a "configurations" section, 
+    // simply insert the vector config.  This allows the user to start with an empty file
+    fs.writeFileSync (jsonPath, JSON.stringify(vectorJSON, null, 4));
   }
 }
 
+const filesExcludeString = "files.exclude";
 export function addSettingsFileFilter(fileUri: Uri) {
+
   const filePath = fileUri.fsPath;
   let existingJSON;
+  let existingJSONasString:string;
+
   try {
     // Requires json-c parsing to handle comments etc.
-    const existingContents = fs.readFileSync (filePath).toString();
+    existingJSONasString = fs.readFileSync (filePath).toString();
     var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
     // note that jsonc.parse returns "real json" without the comments
-    existingJSON = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
-  } catch {
+    existingJSON = jsonc.parse(existingJSONasString, parseErrors, jsoncParseOptions);
+  } 
+  catch {
     vscode.window.showErrorMessage(`Could not load the existing ${path.basename (filePath)}, check for syntax errors`);
-    existingJSON = {};
+    return;
   }
 
-  // if the file is missing the files.exclude section
-  if (!existingJSON.hasOwnProperty("files.exclude")) {
-    existingJSON["files.exclude"] = {};
+  // if the file does not have a "files.exclude" section, add one
+  if (!existingJSON.hasOwnProperty(filesExcludeString)) {
+    // we don't need to modify the existing jsonAsString 
+    // because it will do the insert of a new section for us
+    existingJSON[filesExcludeString] = {};
   }
 
   // Remember that the vectorJSON data has the "configurations" level which is an array
@@ -244,17 +264,24 @@ export function addSettingsFileFilter(fileUri: Uri) {
   );
 
   // now check if the vector filters are already in the files.exclude object
-  if (existingJSON["files.exclude"].hasOwnProperty("vectorcast-filter-start")) {
+  if (existingJSON[filesExcludeString].hasOwnProperty("vectorcast-filter-start")) {
     vscode.window.showInformationMessage(
       `File: ${filePath}, already contains the VectorCAST exclude patterns`
     );
-  } else {
-    existingJSON["files.exclude"] = Object.assign(
+  } 
+  else {
+    const mergedExcludeList = Object.assign(
       existingJSON["files.exclude"],
-      vectorJSON["files.exclude"]
-    );
-    // TBD TODAY - Need to replace with the json-c editing stuff
-    fs.writeFileSync(filePath, JSON.stringify(existingJSON, null, "\t"));
+      vectorJSON["files.exclude"]);
+    const jsoncEdits = 
+      jsonc.modify(
+        existingJSONasString, 
+        [filesExcludeString], 
+        mergedExcludeList,
+        { formattingOptions: { tabSize: 4, insertSpaces: true } });
+    existingJSONasString = jsonc.applyEdits (existingJSONasString, jsoncEdits);
+
+    fs.writeFileSync(filePath, existingJSONasString);
   }
 }
 
