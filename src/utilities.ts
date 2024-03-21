@@ -226,7 +226,7 @@ export function addLaunchConfiguration(fileUri: Uri) {
     }
   }
   else {
-    // if the existing file is emty or does not contain a "configurations" section, 
+    // if the existing file is empty or does not contain a "configurations" section, 
     // simply insert the vector config.  This allows the user to start with an empty file
     fs.writeFileSync (jsonPath, JSON.stringify(vectorJSON, null, 4));
   }
