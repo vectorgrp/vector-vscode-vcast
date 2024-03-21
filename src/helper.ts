@@ -18,6 +18,7 @@ import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 import { updateExploreDecorations } from "./fileDecorator";
 import { vectorMessage } from "./messagePane";
 
+
 export function showSettings() {
   console.log("VectorCAST Test Explorer show settings called ...");
   // previously, I was using: "VectorCAST Test Explorer" as the "filter" in this call, but 
@@ -29,13 +30,12 @@ export function showSettings() {
 
 function removeFilePattern (enviroPath: string, pattern: string) {
 
-  const options = { cwd: path.dirname(enviroPath), absolute: true };
+  const options = { cwd: path.dirname(enviroPath), absolute: true, strict: false };
   let fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
   for (let filePath of fileList) {
     fs.unlinkSync(filePath);
   }
 }
-
 
 
 export function updateDataForEnvironment(enviroPath: string) {
