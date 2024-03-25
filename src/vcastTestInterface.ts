@@ -567,7 +567,7 @@ function createVcastEnvironmentScript(
     })
   );
 
-  if (settings.get("enableCodedTesting", false)) {
+  if (settings.get("build.enableCodedTesting", false)) {
     // force the coded test option on
     executeCommandSync(
       `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
