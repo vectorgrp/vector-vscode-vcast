@@ -538,11 +538,21 @@ function createVcastEnvironmentScript(
   addSearchPathsFromConfigurationFile (unitTestLocation, searchList);
   const envFilePath = path.join(unitTestLocation, enviroName + ".env");
 
+  // read the settings that affect enviro build
+  let settings = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer"
+  );
+
   fs.writeFileSync(envFilePath, `ENVIRO.NEW\n`, { flag: "w" });
   fs.writeFileSync(envFilePath, `ENVIRO.NAME: ${enviroName}\n`, { flag: "a+" });
-  fs.writeFileSync(envFilePath, "ENVIRO.COVERAGE_TYPE: Statement\n", {
-    flag: "a+",
-  });
+
+  const coverageKind = settings.get("build.coverageKind", "None");
+  if (coverageKind != "None") {
+    fs.writeFileSync(envFilePath, `ENVIRO.COVERAGE_TYPE: ${coverageKind}\n`, {
+      flag: "a+",
+    });
+  }
+
   fs.writeFileSync(envFilePath, "ENVIRO.WHITE_BOX: YES\n", { flag: "a+" });
   fs.writeFileSync(envFilePath, "ENVIRO.STUB: ALL_BY_PROTOTYPE\n", { flag: "a+" });
 
@@ -556,9 +566,7 @@ function createVcastEnvironmentScript(
       flag: "a+",
     })
   );
-  let settings = vscode.workspace.getConfiguration(
-    "vectorcastTestExplorer"
-  );
+
   if (settings.get("enableCodedTesting", false)) {
     // force the coded test option on
     executeCommandSync(
