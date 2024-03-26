@@ -553,7 +553,7 @@ def validateClicastCommand (command, mode):
     """
     if mode.startswith("executeTest") or mode == "rebuild":
         if command is None or len (command) == 0:
-            print (f"Arg --clicast is requird for mode: {mode}")
+            print (f"Arg --clicast is required for mode: {mode}")
             raise UsageError()
         elif os.path.isfile (command) or (sys.platform == "win32" and os.path.isfile (command + ".exe")):
             pass
