@@ -529,7 +529,6 @@ def getCodeBasedTestNames (filePath):
     return returnObject
 
 
-
 class testID:
     def __init__(self, enviroPath, testIDString):
         self.enviroName, restOfString = testIDString.split("|")
@@ -562,11 +561,23 @@ def validateClicastCommand (command, mode):
             raise UsageError()
         
 
+def cleanClicastStdOut (stdOut):
+    """
+    VectorCAST puts out this annoying text about VECTORCAST_DIR not pointing
+    at the same install as the executable ... previously we we're using
+    ACTUAL_DATA to strip this in the typescript, now starting to strip here
+    in some cases like updateEnvironment
+    """
+    splitString = "VectorCAST Copyright (C)"
+    return splitString + stdOut.split (splitString, 1)[1]
+
+
 def updatedEnvironment (enviroPath, jsonOptions):
     """
     pathToUse is the full path to the environment directory
     jsonOptions has the new values of ENVIRO.* commands for the enviro script
-    e.g.  ENVIRO.COVERAGE_TYPE: "Statement
+    e.g.  ENVIRO.COVERAGE_TYPE: Statement
+
     We overwrite any matching ENVIRO commands with the new values befoe rebuild
     """
 
@@ -582,42 +593,58 @@ def updatedEnvironment (enviroPath, jsonOptions):
             commandFile.write(f"-e{enviroName} enviro script create {tempEnviroScript}\n")
             commandFile.write(f"-e{enviroName} test script create {tempTestScript}\n")
         exitCode, stdOutput = runClicastScript(commandFileName)
-        returnString = stdOutput
+        returnString = "-"*100 + "\n"
+        returnString += cleanClicastStdOut (stdOutput)
 
+        # Read the enviro script into a list of strings
         with open (tempEnviroScript, "r") as enviroFile:
             enviroLines = enviroFile.readlines()
 
+        # Re-write the enviro script replacing the value of commands
+        # that exist in the jsonOptions
         with open (tempEnviroScript, "w") as enviroFile:
             for line in enviroLines:
                 whatToWrite = line
                 if line.startswith ("ENVIRO.END"):
-                    # if we got to the end of the script and 
-                    # we have some options that have not been seen
-                    # then write those
-                    if len (jsonOptions) > 0:
-                        for key, value in jsonOptions.items():
-                            enviroFile.write (f"{key}: {value}\n")
+                    # if we have some un-used options then 
+                    # write these before the ENVIRO.END
+                    for key, value in jsonOptions.items():
+                        enviroFile.write (f"{key}: {value}\n")
+
                 elif line.startswith ("ENVIRO.") and ":" in line:
+                    # for all other commands, see if the command matches
+                    # a command from the jsonOptions dict
                     enviroCommand, enviroValue = line.split (":",1)
                     enviroCommand = enviroCommand.strip()
                     enviroValue = enviroValue.strip()
+                    # if so replace the existing value ...
                     if enviroCommand in jsonOptions:
                         whatToWrite =  (f"{enviroCommand}: {jsonOptions[enviroCommand]}\n")
                         jsonOptions.pop (enviroCommand)
+
+                # write the orignal or updated line
                 enviroFile.write (whatToWrite)
 
+        # Finally delelete and re-build the environment using the updated script
+        # and load the existing tests -> which duplicates what enviro rebuild does.
         with open(commandFileName, "w") as commandFile:
-            commandFile.write(f"-e{enviroName} enviro delete\n")
+            # Improvement needed: vcast bug: 100924
+            shutil.rmtree (enviroName)
+            #commandFile.write(f"-e{enviroName} enviro delete\n")
             commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
             commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
         exitCode, stdOutput = runClicastScript(commandFileName)
-        returnString += stdOutput
+        returnString += "\n" + "-"*100 + "\n"
+        returnString += cleanClicastStdOut (stdOutput)
 
         return returnString
 
 
 def rebuildEnvironment (enviroPath):
-
+    """
+    This dowes a "normal" rebuild environment, when there are no
+    edits to be made to the enviro script
+    """
     with cd(os.path.dirname(enviroPath)):
         enviroName = os.path.basename(enviroPath)
         commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro rebuild"
