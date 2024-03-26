@@ -44,7 +44,7 @@ class InvalidEnviro(Exception):
 class UsageError(Exception):
     pass
 
-modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
+modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT", "rebuild"]
 def setupArgs():
     """
     Add Command Line Args
@@ -67,6 +67,8 @@ def setupArgs():
     )
 
     parser.add_argument("--test", help="Test ID")
+
+    parser.add_argument("--options", help="Serialized JSON object containing other option values")
     
     return parser
 
@@ -549,7 +551,7 @@ def validateClicastCommand (command, mode):
     The --clicast arg is only required for a sub-set of modes, so we do
     those checks here, and throw usage error if there is a probelem
     """
-    if mode.startswith("executeTest"):
+    if mode.startswith("executeTest") or mode == "rebuild":
         if command is None or len (command) == 0:
             print (f"Arg --clicast is requird for mode: {mode}")
             raise UsageError()
@@ -560,7 +562,86 @@ def validateClicastCommand (command, mode):
             raise UsageError()
         
 
-def processCommand (mode, clicast, pathToUse, testString="") -> dict:
+def updatedEnvironment (enviroPath, jsonOptions):
+    """
+    pathToUse is the full path to the environment directory
+    jsonOptions has the new values of ENVIRO.* commands for the enviro script
+    e.g.  ENVIRO.COVERAGE_TYPE: "Statement
+    We overwrite any matching ENVIRO commands with the new values befoe rebuild
+    """
+
+    tempEnviroScript  = "rebuild.env"
+    tempTestScript = "rebuild.tst"
+
+    with cd(os.path.dirname(enviroPath)):
+
+        # first we generate a .env and .tst for the existing environment
+        # we do this using a clicast script
+        enviroName = os.path.basename(enviroPath)
+        with open(commandFileName, "w") as commandFile:
+            commandFile.write(f"-e{enviroName} enviro script create {tempEnviroScript}\n")
+            commandFile.write(f"-e{enviroName} test script create {tempTestScript}\n")
+        exitCode, stdOutput = runClicastScript(commandFileName)
+        returnString = stdOutput
+
+        with open (tempEnviroScript, "r") as enviroFile:
+            enviroLines = enviroFile.readlines()
+
+        with open (tempEnviroScript, "w") as enviroFile:
+            for line in enviroLines:
+                whatToWrite = line
+                if line.startswith ("ENVIRO.END"):
+                    # if we got to the end of the script and 
+                    # we have some options that have not been seen
+                    # then write those
+                    if len (jsonOptions) > 0:
+                        for key, value in jsonOptions.items():
+                            enviroFile.write (f"{key}: {value}\n")
+                elif line.startswith ("ENVIRO.") and ":" in line:
+                    enviroCommand, enviroValue = line.split (":",1)
+                    enviroCommand = enviroCommand.strip()
+                    enviroValue = enviroValue.strip()
+                    if enviroCommand in jsonOptions:
+                        whatToWrite =  (f"{enviroCommand}: {jsonOptions[enviroCommand]}\n")
+                        jsonOptions.pop (enviroCommand)
+                enviroFile.write (whatToWrite)
+
+        with open(commandFileName, "w") as commandFile:
+            commandFile.write(f"-e{enviroName} enviro delete\n")
+            commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
+            commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
+        exitCode, stdOutput = runClicastScript(commandFileName)
+        returnString += stdOutput
+
+        return returnString
+
+
+def rebuildEnvironment (enviroPath):
+
+    with cd(os.path.dirname(enviroPath)):
+        enviroName = os.path.basename(enviroPath)
+        commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro rebuild"
+        returnCode, commandOutput = runClicastCommand (commandToRun)
+        return commandOutput
+
+
+def processOptions (optionString):
+    """
+    This function will take the options string and return a dictionary
+    """
+    returnObject = None
+    if optionString and len (optionString) > 0:
+        try:
+            returnObject = {}
+            returnObject = json.loads(optionString)
+        except:
+            print ("Invalid --options argument, value not JSON formatted")
+            raise UsageError()
+    return returnObject
+
+
+
+def processCommand (mode, clicast, pathToUse, testString="", options="") -> dict:
     """
     This function does the actual work of processing a vTestInterface command, 
     it will return a dictionary with the results of the command
@@ -574,6 +655,8 @@ def processCommand (mode, clicast, pathToUse, testString="") -> dict:
     # no need to pass this all around
     validateClicastCommand (clicast, mode)
     globalClicastCommand = clicast
+
+    jsonOptions = processOptions (options)
 
     if mode == "getEnviroData":
         topLevel = dict()
@@ -604,7 +687,17 @@ def processCommand (mode, clicast, pathToUse, testString="") -> dict:
         # This is a special mode used by the unit test driver to parse the CBT
         # file and generate the test list.
         returnObject = getCodeBasedTestNames (pathToUse)
-       
+
+    elif mode == "rebuild":
+        # Rebuild environment has some special processing because we want
+        # to incorporate any changed build settings, like coverageKind
+
+        if jsonOptions:
+            returnText = updatedEnvironment (pathToUse, jsonOptions)
+            returnObject = {"text": returnText.split ("\n")}
+        else:
+            returnText = rebuildEnvironment (pathToUse)
+            returnObject = {"text": returnText.split ("\n")}
 
     # only used for executeTest currently
     return returnCode, returnObject
@@ -621,7 +714,7 @@ def main():
     # See the comment in: executeVPythonScript()
     print("ACTUAL-DATA")
 
-    returnCode, returnObject  = processCommand (args.mode, args.clicast, pathToUse, args.test )
+    returnCode, returnObject  = processCommand (args.mode, args.clicast, pathToUse, args.test, args.options )
     if returnObject:
         if "text" in returnObject:
             returnText = "\n".join(returnObject["text"])
