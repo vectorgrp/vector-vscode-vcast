@@ -23,6 +23,8 @@ This script must be run under vpython
 ///////////////////////////////////////////////////////////////////////////////////////////
 """
 
+
+
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
@@ -42,7 +44,7 @@ class InvalidEnviro(Exception):
 class UsageError(Exception):
     pass
 
-
+modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
 def setupArgs():
     """
     Add Command Line Args
@@ -50,7 +52,6 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
    
-    modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -403,7 +404,8 @@ def runTestCommand(testIDObject, commandList):
     executeReturnCode = 0
     stdoutText = ""
     if "execute" in commandList:
-        standardArgs = getStandardArgsFromTestObject(testIDObject, True)
+        shouldQuoteParameters = True
+        standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
         # we cannot include the execute command in the command script that we use for
         # results because we need the return code from the execute command separately
         commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
@@ -442,6 +444,7 @@ def runTestCommand(testIDObject, commandList):
 
 def executeVCtest(enviroPath, testIDObject, generateReport):
     with cd(os.path.dirname(enviroPath)):
+        returnText = ""
         commands = list()
         commands.append("execute")
         if generateReport:
@@ -449,21 +452,21 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         if "TEST RESULT: pass" in commandOutput:
-            print("STATUS:passed")
+            returnText += ("STATUS:passed\n")
         else:
-            print("STATUS:failed")
-        print("REPORT:" + testIDObject.reportName + ".txt")
+            returnText += ("STATUS:failed\n")
+        returnText += (f"REPORT:{testIDObject.reportName}.txt\n")
 
         # Retrieve the expected value x/y and the
         api = UnitTestApi(enviroPath)
         testList = api.TestCase.filter(name=testIDObject.testName)
         if len(testList) > 0:
-            print("PASSFAIL:" + getPassFailString(testList[0]))
-            print("TIME:" + getTime(testList[0].start_time))
+            returnText += f"PASSFAIL:" + getPassFailString(testList[0])
+            returnText += f"TIME:{getTime(testList[0].start_time)}\n" 
 
-        print(commandOutput)
+        returnText += commandOutput
 
-        return returnCode
+        return returnCode, returnText
 
 
 def processVResults(filePath):
@@ -493,8 +496,9 @@ def getResults(enviroPath, testIDObject):
         commands.append("report")
         returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
-        print("REPORT:" + testIDObject.reportName + ".txt")
-        print(commandOutput)
+        returnText = f"REPORT:{testIDObject.reportName}.txt\n"
+        returnText += commandOutput
+        return returnText
 
 
 def getCodeBasedTestNames (filePath):
@@ -505,6 +509,7 @@ def getCodeBasedTestNames (filePath):
     and the starting line for he test
     """
 
+    returnObject = None
     if os.path.isfile(filePath):
 
         cbtParser = Parser()
@@ -518,9 +523,8 @@ def getCodeBasedTestNames (filePath):
                     "codedTestLine": test.line
                 }
                 outputList.append (outputNode)
-            print (json.dumps (outputList, indent=4))
-    else:
-        print(f"{filePath} not found")
+            returnObject = {"tests": outputList}
+    return returnObject
 
 
 
@@ -539,54 +543,92 @@ class testID:
         self.reportName = os.path.join(enviroPath, hashString)
 
 
-def main():
+def validateClicastCommand (command, mode):
+
+    """
+    The --clicast arg is only required for a sub-set of modes, so we do
+    those checks here, and throw usage error if there is a probelem
+    """
+    if mode.startswith("executeTest"):
+        if command is None or len (command) == 0:
+            print (f"Arg --clicast is requird for mode: {mode}")
+            raise UsageError()
+        elif os.path.isfile (command) or (sys.platform == "win32" and os.path.isfile (command + ".exe")):
+            pass
+        else:
+            print (f"Invalid value for --clicast: {command}")
+            raise UsageError()
+        
+
+def processCommand (mode, clicast, pathToUse, testString="") -> dict:
+    """
+    This function does the actual work of processing a vTestInterface command, 
+    it will return a dictionary with the results of the command
+    """
+    
     global globalClicastCommand
+
+    returnCode = 0
+    returnObject = None
+
+    # no need to pass this all around
+    validateClicastCommand (clicast, mode)
+    globalClicastCommand = clicast
+
+    if mode == "getEnviroData":
+        topLevel = dict()
+        # it is important that getTetDataVCAST() is called first since it sets up
+        # the global list of tesable functoions that getUnitData() needs
+        topLevel["testData"] = getTestDataVCAST(pathToUse)
+        topLevel["unitData"] = getUnitData(pathToUse)
+        returnObject = topLevel
+
+    elif mode.startswith("executeTest"):
+        try:
+            testIDObject = testID(pathToUse, testString)
+        except:
+            print ("Invalid test ID, provide a valid --test argument")
+            raise UsageError()
+        returnCode, returnText = executeVCtest(pathToUse, testIDObject, mode=="executeTestReport")
+        returnObject = {"text": returnText.split ("\n")}
+
+    elif mode == "report":
+        try:
+            testIDObject = testID(pathToUse, testString)
+        except:
+            print ("Invalid test ID, provide a valid --test argument")
+            raise UsageError()
+        returnObject = {"text": getResults(pathToUse, testIDObject).split ("\n")}
+
+    elif mode == "parseCBT":
+        # This is a special mode used by the unit test driver to parse the CBT
+        # file and generate the test list.
+        returnObject = getCodeBasedTestNames (pathToUse)
+       
+
+    # only used for executeTest currently
+    return returnCode, returnObject
+
+
+def main():
 
     argParser = setupArgs()
     args, restOfArgs = argParser.parse_known_args()
 
-    # no need to pass this all around
-    globalClicastCommand = args.clicast
-
-    # enviroPath is the full path to the vce file
-    enviroPath = os.path.abspath(args.path)
+    # path is the path to the enviro directory or cbt file
+    pathToUse = os.path.abspath(args.path)
 
     # See the comment in: executeVPythonScript()
     print("ACTUAL-DATA")
 
-    returnCode = 0
-
-    if args.mode == "getEnviroData":
-        topLevel = dict()
-        # it is important that getTetDataVCAST() is called first since it sets up
-        # the global list of tesable functoions that getUnitData() needs
-        topLevel["testData"] = getTestDataVCAST(enviroPath)
-        topLevel["unitData"] = getUnitData(enviroPath)
-
-        json.dump(topLevel, sys.stdout, indent=4)
-
-    elif args.mode.startswith("executeTest"):
-        try:
-            testIDObject = testID(enviroPath, args.test)
-        except:
-            print ("Invalid test ID, provide a valid --test argument")
-            raise UsageError()
-        returnCode = executeVCtest(enviroPath, testIDObject, args.mode=="executeTestReport")
-
-
-    elif args.mode == "report":
-        try:
-            testIDObject = testID(enviroPath, args.test)
-        except:
-            print ("Invalid test ID, provide a valid --test argument")
-            raise UsageError()
-        getResults(enviroPath, testIDObject)
-
-    elif args.mode == "parseCBT":
-        # This is a special mode used by the unit test driver to parse the CBT
-        # file and generate the test list.
-        getCodeBasedTestNames (args.path)
-       
+    returnCode, returnObject  = processCommand (args.mode, args.clicast, pathToUse, args.test )
+    if returnObject:
+        if "text" in returnObject:
+            returnText = "\n".join(returnObject["text"])
+            print (returnText)
+        else:
+            returnText = json.dumps(returnObject, indent=4)
+            print (returnText)
 
     # only used for executeTest currently
     return returnCode
