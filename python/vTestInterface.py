@@ -637,6 +637,9 @@ def updatedEnvironment (enviroPath, jsonOptions):
         returnString += "\n" + "-"*100 + "\n"
         returnString += cleanClicastStdOut (stdOutput)
 
+        os.remove (tempEnviroScript)
+        os.remove (tempTestScript)
+
         return returnString
 
 
