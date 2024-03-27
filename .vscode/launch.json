@@ -46,39 +46,6 @@
         "--test=\"DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest\""
       ],
       "console": "integratedTerminal"
-    },
-    {
-      "name": "runTest",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/SandBox/VCAST/sourceCode/cpp/unitTests",
-      "env": {
-        "PYTHONPATH": "C:/vcast/vc22sp7/python"
-      },
-      "args": [
-        "--mode=executeTest",
-        "--path=c:/RDS/SandBox/VCAST-NEW/vcastTutorial/cpp/unitTests/DATABASE-MANAGER",
-        "--test=\"DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest\""
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "rebuild",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
-      "env": {
-        "PYTHONPATH": "C:/vcast/vc22sp7/python"
-      },
-      "args": [
-        "--mode=rebuild",
-        "--clicast=C:/vcast/vc24/clicast.exe",
-        "--path=C:/RDS/VectorCAST/FOO/unitTests/FOO",
-        "--options={\"ENVIRO.COVERAGE_TYPE\": \"Statement\"}"
-      ],
-      "console": "internalConsole"
     }
   ]
 }
