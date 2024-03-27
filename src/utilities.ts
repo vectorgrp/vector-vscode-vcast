@@ -21,6 +21,7 @@ export let vPythonCommandToUse: string | undefined = undefined;
 
 // options used for reading json-c files
 export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
+export const jsoncModificationOptions:jsonc.ModificationOptions = { formattingOptions: { tabSize: 4, insertSpaces: true } };
 
 // The testInterface is delivered in the .vsix
 // in the sub-directory "python"
@@ -220,7 +221,8 @@ export function addLaunchConfiguration(fileUri: Uri) {
             jsonDataAsString, 
             ["configurations", whereToInsert], 
             vectorConfiguration, 
-            { formattingOptions: { tabSize: 4, insertSpaces: true }, isArrayInsertion:true });
+            jsoncModificationOptions,
+            );
       jsonDataAsString = jsonc.applyEdits (jsonDataAsString, jsoncEdits);
       fs.writeFileSync(jsonPath, jsonDataAsString);
     }
@@ -278,7 +280,8 @@ export function addSettingsFileFilter(fileUri: Uri) {
         existingJSONasString, 
         [filesExcludeString], 
         mergedExcludeList,
-        { formattingOptions: { tabSize: 4, insertSpaces: true } });
+        jsoncModificationOptions,
+        );
     existingJSONasString = jsonc.applyEdits (existingJSONasString, jsoncEdits);
 
     fs.writeFileSync(filePath, existingJSONasString);

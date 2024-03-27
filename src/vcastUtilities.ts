@@ -21,6 +21,7 @@ import {
   commandStatusType,
   executeCommandSync,
   exeFilename,
+  jsoncModificationOptions,
   jsoncParseOptions,
   openFileWithLineSelected,
   processExceptionFromExecuteCommand,
@@ -205,7 +206,8 @@ export function addIncludePath (fileUri: vscode.Uri) {
           existingJSONasString, 
           ["configurations",0,"includePath",indexToRemove], 
           undefined, 
-          { formattingOptions: { tabSize: 4, insertSpaces: true } });
+          jsoncModificationOptions,
+          );
       existingJSONasString = jsonc.applyEdits (existingJSONasString, jsoncEdits);
       statusMessages.push (`Removed: ${oldPath} from configuration: "${configName}".  `);
     }
@@ -215,7 +217,8 @@ export function addIncludePath (fileUri: vscode.Uri) {
         existingJSONasString, 
         ["configurations",0,"includePath",whereToInsert],
         globalIncludePath,
-        { formattingOptions: { tabSize: 4, insertSpaces: true } });
+        jsoncModificationOptions,
+        );
     existingJSONasString = jsonc.applyEdits (existingJSONasString, jsoncEdits);
     statusMessages.push (`Added: ${globalIncludePath} to configuration: "${configName}".  `); 
   }
