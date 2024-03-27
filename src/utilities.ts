@@ -13,7 +13,7 @@ const which = require ("which")
 
 const vPythonName = "vpython";
 const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
-export let vPythonCommandToUse: string | undefined = undefined;
+export let vPythonCommandToUse: string;
 
 
 
@@ -87,11 +87,25 @@ export function testInterfaceCommand(
   return undefined;
 }
 
-export function parseCBTCommand (filePath:string):string {
-  
-  // this command returns the list of tests that exist in a coded test source file
 
+export function parseCBTCommand (filePath:string):string {
+  // this command returns the list of tests that exist in a coded test source file
    return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --path=${filePath}`;
+}
+
+
+export function rebuildEnvironmentCommand (filePath:string):string {
+
+  // this command performs the environment rebuild, including the update of the .env file
+
+  // read the settings that affect enviro build
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  var optionsDict: { [command : string]: string|boolean} = {};
+  optionsDict ["ENVIRO.COVERAGE_TYPE"] = settings.get("build.coverageKind", "None");
+
+  const jsonOptions:string = JSON.stringify(optionsDict);
+  return `${vPythonCommandToUse} ${globalTestInterfacePath} --clicast=${clicastCommandToUse} --mode=rebuild --path=${filePath} --options=${jsonOptions}`;
+
 }
 
 

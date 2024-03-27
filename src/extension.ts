@@ -65,6 +65,7 @@ import {
   addSettingsFileFilter,
   checkIfInstallationIsOK,
   initializeInstallerFiles,
+  rebuildEnvironmentCommand,
 } from "./utilities";
 
 import {
@@ -75,16 +76,18 @@ import {
   newTestScript,
   openCodedTest,
   resetCoverageData,
+  setCodedTestOption,
 } from "./vcastTestInterface";
 
 import {
   addIncludePath,
   configurationFile,
-  executeClicastCommand,
+  executeWithRealTimeEcho,
   launchFile,
   getEnviroNameFromFile,
   openTestScript,
   vcastCommandtoUse,
+  clicastCommandToUse,
 } from "./vcastUtilities";
 
 
@@ -581,24 +584,28 @@ function configureExtension(context: vscode.ExtensionContext) {
   let rebuildEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.rebuildEnviro",
     (enviroNode: any) => {
+      
       // this returns the full path to the environment directory
       const enviroPath = getEnviroPathFromID(enviroNode.id);
-      const enclosingDirectory = path.dirname(enviroPath);
 
-      // this returns the environment directory name without any nesting
-      let vcastArgs: string[] = ["-e" + getEnviroNameFromID(enviroNode.id)];
-      vcastArgs.push("enviro");
-      vcastArgs.push("re_build");
-      // This is long running commands so we open the message pane to give the user a sense of what is going on.
+      const fullCommand = rebuildEnvironmentCommand(enviroPath)
+      let commandPieces = fullCommand.split (" ");
+      const commandVerb = commandPieces[0];
+      commandPieces.shift();
+
+      const unitTestLocation = path.dirname (enviroPath);
+      setCodedTestOption (unitTestLocation);
+
+      // This is a long running command so we open the message pane to give the user a sense of what is going on.
       openMessagePane();
-      executeClicastCommand(
-        vcastArgs,
-        enclosingDirectory,
+      executeWithRealTimeEcho(
+        commandVerb,
+        commandPieces,
+        unitTestLocation,
         rebuildEnvironmentCallback,
         enviroPath
       );
-    }
-  );
+    });
   context.subscriptions.push(rebuildEnviro);
 
   // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
@@ -625,7 +632,8 @@ function configureExtension(context: vscode.ExtensionContext) {
             ];
             vcastArgs.push("enviro");
             vcastArgs.push("delete");
-            executeClicastCommand(
+            executeWithRealTimeEcho(
+              clicastCommandToUse,
               vcastArgs,
               enclosingDirectory,
               deleteEnvironmentCallback,

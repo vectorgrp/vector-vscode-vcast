@@ -341,6 +341,21 @@ commandFileName = "commands.cmd"
 globalClicastCommand = ""
 
 
+def runClicastCommandWithEcho (commandToRun):
+    """
+    Similar to runClicastCommand but with real-time echo of output
+    """
+    stdoutString = ""
+    process = subprocess.Popen (commandToRun.split (" "), stdout=subprocess.PIPE, text=True)
+    while process.poll() is None:
+        line = process.stdout.readline ().rstrip()
+        if len (line)>0:
+            stdoutString += line + "\n"
+            print (line, flush=True)
+
+    return process.returncode, stdoutString
+
+
 def runClicastCommand (commandToRun):
     """
     A wrapper for the subprocess.run() function
@@ -358,7 +373,7 @@ def runClicastCommand (commandToRun):
     return returnCode, rawOutput.decode("utf-8", errors="ignore")
 
 
-def runClicastScript(commandFileName):
+def runClicastScript(commandFileName, echoToStdout=False):
     """
     The caller should create a correctly formatted clicast script
     and then call this with the name of that script
@@ -366,7 +381,11 @@ def runClicastScript(commandFileName):
 
     # false at the end tells clicast to ignore errors in individual commands
     commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
-    returnCode, stdoutString = runClicastCommand (commandToRun)
+
+    if echoToStdout:
+        returnCode, stdoutString = runClicastCommandWithEcho (commandToRun)
+    else:
+        returnCode, stdoutString = runClicastCommand (commandToRun)
 
     os.remove(commandFileName)
     return returnCode, stdoutString
@@ -561,17 +580,6 @@ def validateClicastCommand (command, mode):
             raise UsageError()
         
 
-def cleanClicastStdOut (stdOut):
-    """
-    VectorCAST puts out this annoying text about VECTORCAST_DIR not pointing
-    at the same install as the executable ... previously we we're using
-    ACTUAL_DATA to strip this in the typescript, now starting to strip here
-    in some cases like updateEnvironment
-    """
-    splitString = "VectorCAST Copyright (C)"
-    return splitString + stdOut.split (splitString, 1)[1]
-
-
 def updatedEnvironment (enviroPath, jsonOptions):
     """
     pathToUse is the full path to the environment directory
@@ -592,9 +600,8 @@ def updatedEnvironment (enviroPath, jsonOptions):
         with open(commandFileName, "w") as commandFile:
             commandFile.write(f"-e{enviroName} enviro script create {tempEnviroScript}\n")
             commandFile.write(f"-e{enviroName} test script create {tempTestScript}\n")
-        exitCode, stdOutput = runClicastScript(commandFileName)
-        returnString = "-"*100 + "\n"
-        returnString += cleanClicastStdOut (stdOutput)
+        exitCode, stdOutput = runClicastScript(commandFileName, True)
+
 
         # Read the enviro script into a list of strings
         with open (tempEnviroScript, "r") as enviroFile:
@@ -633,14 +640,10 @@ def updatedEnvironment (enviroPath, jsonOptions):
             #commandFile.write(f"-e{enviroName} enviro delete\n")
             commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
             commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
-        exitCode, stdOutput = runClicastScript(commandFileName)
-        returnString += "\n" + "-"*100 + "\n"
-        returnString += cleanClicastStdOut (stdOutput)
+        exitCode, stdOutput = runClicastScript(commandFileName, True)
 
         os.remove (tempEnviroScript)
         os.remove (tempTestScript)
-
-        return returnString
 
 
 def rebuildEnvironment (enviroPath):
@@ -650,9 +653,8 @@ def rebuildEnvironment (enviroPath):
     """
     with cd(os.path.dirname(enviroPath)):
         enviroName = os.path.basename(enviroPath)
-        commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro rebuild"
-        returnCode, commandOutput = runClicastCommand (commandToRun)
-        return commandOutput
+        commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro re_build"
+        returnCode, commandOutput = runClicastCommandWithEcho (commandToRun)
 
 
 def processOptions (optionString):
@@ -668,7 +670,6 @@ def processOptions (optionString):
             print ("Invalid --options argument, value not JSON formatted")
             raise UsageError()
     return returnObject
-
 
 
 def processCommand (mode, clicast, pathToUse, testString="", options="") -> dict:
@@ -722,12 +723,11 @@ def processCommand (mode, clicast, pathToUse, testString="", options="") -> dict
         # Rebuild environment has some special processing because we want
         # to incorporate any changed build settings, like coverageKind
 
+        # we don't set the return object for rebuild, because we echo in real-time
         if jsonOptions:
-            returnText = updatedEnvironment (pathToUse, jsonOptions)
-            returnObject = {"text": returnText.split ("\n")}
+            updatedEnvironment (pathToUse, jsonOptions)
         else:
-            returnText = rebuildEnvironment (pathToUse)
-            returnObject = {"text": returnText.split ("\n")}
+            rebuildEnvironment (pathToUse)
 
     # only used for executeTest currently
     return returnCode, returnObject
