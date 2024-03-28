@@ -1345,12 +1345,16 @@ describe("vTypeCheck VS Code Extension", () => {
     const debugConfigTab = (await editorView.openEditor(
       "launch.json",
     )) as TextEditor;
-
+    
     await browser.waitUntil(
       async () => (await debugConfigTab.getText()) !== "",
       { timeout: TIMEOUT },
     );
-
+    await debugConfigTab.moveCursor(1,2)
+    await browser.keys(Key.Enter)
+    await debugConfigTab.setTextAtLine(2, " // This is a comment")
+    await debugConfigTab.save()
+    
     const allTextFromDebugConfig = await debugConfigTab.getText();
     expect(allTextFromDebugConfig.includes("configurations")).toBe(true);
     expect(allTextFromDebugConfig.includes("VectorCAST Harness Debug"));
