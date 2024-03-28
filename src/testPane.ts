@@ -572,7 +572,7 @@ function launchConfigExists(launchJsonPath: string): boolean {
   // the "VectorCAST Harness Debug" configuration defined
   let returnValue = false;
   const existingJSONdata: any = loadLaunchFile(launchJsonPath);
-  if (existingJSONdata) {
+  if (existingJSONdata && existingJSONdata.jsonData.configurations) {
     for (const existingConfig of existingJSONdata.jsonData.configurations) {
       if (existingConfig.name === vectorcastLaunchConfigName) {
         returnValue = true;
