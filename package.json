@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.12",
+  "version": "1.0.11",
   "license": "MIT",
   "repository": {
     "type": "git",
