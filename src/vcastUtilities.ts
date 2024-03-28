@@ -22,6 +22,7 @@ import {
   executeCommandSync,
   exeFilename,
   jsoncModificationOptions,
+  jsoncParseErrors,
   jsoncParseOptions,
   openFileWithLineSelected,
   processExceptionFromExecuteCommand,
@@ -167,9 +168,8 @@ export function addIncludePath (fileUri: vscode.Uri) {
   
   // Requires json-c parsing to handle comments etc.
   existingJSONasString  = fs.readFileSync (fileUri.fsPath).toString();
-  var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
   // note that jsonc.parse returns "real json" without the comments
-  existingJSON = jsonc.parse(existingJSONasString, parseErrors, jsoncParseOptions);
+  existingJSON = jsonc.parse(existingJSONasString, jsoncParseErrors, jsoncParseOptions);
 
   if (existingJSON && existingJSON.configurations && existingJSON.configurations.length > 0) {
     const numberOfCofigurations = existingJSON.configurations.length;

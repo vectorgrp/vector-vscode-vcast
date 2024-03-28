@@ -21,6 +21,8 @@ export let vPythonCommandToUse: string;
 
 // options used for reading json-c files
 export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
+// note: we don't use this programmatically but it is useful for debugging
+export var jsoncParseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
 export const jsoncModificationOptions:jsonc.ModificationOptions = { formattingOptions: { tabSize: 4, insertSpaces: true } };
 
 // The testInterface is delivered in the .vsix
@@ -186,9 +188,8 @@ export function loadLaunchFile(jsonPath: string): jsonDataType|undefined {
   
   // Requires json-c parsing to handle comments etc.
   const existingContents = fs.readFileSync (jsonPath).toString();
-  var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
   // note that jsonc.parse returns "real json" without the comments
-  const existingJSONdata = jsonc.parse(existingContents, parseErrors, jsoncParseOptions);
+  const existingJSONdata = jsonc.parse(existingContents, jsoncParseErrors, jsoncParseOptions);
   
   if (existingJSONdata) {
     returnValue = { jsonData:existingJSONdata , jsonDataAsString: existingContents };
@@ -258,9 +259,8 @@ export function addSettingsFileFilter(fileUri: Uri) {
   try {
     // Requires json-c parsing to handle comments etc.
     existingJSONasString = fs.readFileSync (filePath).toString();
-    var parseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
     // note that jsonc.parse returns "real json" without the comments
-    existingJSON = jsonc.parse(existingJSONasString, parseErrors, jsoncParseOptions);
+    existingJSON = jsonc.parse(existingJSONasString, jsoncParseErrors, jsoncParseOptions);
   } 
   catch {
     vscode.window.showErrorMessage(`Could not load the existing ${path.basename (filePath)}, check for syntax errors`);
