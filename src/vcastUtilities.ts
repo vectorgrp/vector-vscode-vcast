@@ -41,7 +41,7 @@ export const configurationFile = "c_cpp_properties.json";
 export const launchFile = "launch.json";
 
 const clicastName = "clicast";
-export let clicastCommandToUse: string | undefined = undefined;
+export let clicastCommandToUse: string;
 
 const vcastqtName = "vcastqt";
 export let vcastCommandtoUse: string | undefined = undefined;
@@ -526,12 +526,14 @@ export function loadScriptCallBack (commandStatus:commandStatusType, enviroName:
   }
 }
 
-export function executeClicastCommand(
+export function executeWithRealTimeEcho(
+  command: string,
   argList: string[],
   CWD: string,
   callback?: any,
   enviroPath?: string
 ) {
+
   // this function is used to build and rebuild environments
   // long running commands that where we want to show real-time output
 
@@ -540,7 +542,7 @@ export function executeClicastCommand(
 
   // To debug what's going on with vcast, you can add -dall to
   // argList, which will dump debug info for the clicast invocation
-  let clicast = spawn(clicastCommandToUse, argList, { cwd: CWD });
+  let clicast = spawn(command, argList, { cwd: CWD });
   vectorMessage("-".repeat(100));
 
   // maybe this is a hack, but after reading stackoverflow for a while I could
@@ -625,7 +627,7 @@ export function executeClicastWithProgress (
   callback: any
   ) {
 
-  // Very similar to the executeClicastCommand(), but adds a progress dialog,
+  // Very similar to the executeWithRealTimeEcho(), but adds a progress dialog,
   // and a different callback structure.
   // We use this for generating the basis path and ATG tests (for now)
 

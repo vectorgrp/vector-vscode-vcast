@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -206,53 +206,81 @@
         "key": "shift+ctrl+v"
       }
     ],
-    "configuration": {
-      "type": "object",
-      "title": "VectorCAST Test Explorer",
-      "properties": {
-        "vectorcastTestExplorer.vectorcastInstallationLocation": {
-          "order": 1,
-          "type": "string",
-          "description": "Path to the VectorCAST installation, used if VectorCAST is not found on the system PATH"
-        },
-        "vectorcastTestExplorer.unitTestLocation": {
-          "type": "string",
-          "order": 2,
-          "default": "./unitTests",
-          "description": "The folder path for storing unit tests, can be absolute or relative to the file location"
-        },
-        "vectorcastTestExplorer.configurationLocation": {
-          "type": "string",
-          "order": 3,
-          "default": "",
-          "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
-        },
-        "vectorcastTestExplorer.enableCodedTesting": {
-          "type": "boolean",
-          "order": 4,
-          "default": false,
-          "description": "When this option is set, new environments will be built with the coded testing option enabled"
-        },
-        "vectorcastTestExplorer.showReportOnExecute": {
-          "type": "boolean",
-          "order": 5,
-          "default": true,
-          "description": "Display the VectorCAST execution report after test run"
-        },
-        "vectorcastTestExplorer.decorateExplorer": {
-          "type": "boolean",
-          "order": 6,
-          "default": true,
-          "description": "Decorate files that have coverage in the File Explorer pane"
-        },
-        "vectorcastTestExplorer.verboseLogging": {
-          "type": "boolean",
-          "order": 7,
-          "default": false,
-          "description": "Log internal extension details"
+    "configuration": [
+      {
+        "id": "general",
+        "title": "General",
+        "order": 1,
+        "properties": {
+          "vectorcastTestExplorer.vectorcastInstallationLocation": {
+            "order": 1,
+            "type": "string",
+            "description": "Path to the VectorCAST installation, used if VectorCAST is not found on the system PATH"
+          },
+          "vectorcastTestExplorer.unitTestLocation": {
+            "type": "string",
+            "order": 2,
+            "default": "./unitTests",
+            "description": "The folder path for storing unit tests, can be absolute or relative to the file location"
+          },
+          "vectorcastTestExplorer.configurationLocation": {
+            "type": "string",
+            "order": 3,
+            "default": "",
+            "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
+          },
+          "vectorcastTestExplorer.showReportOnExecute": {
+            "type": "boolean",
+            "order": 4,
+            "default": true,
+            "description": "Display the VectorCAST execution report after test run"
+          },
+          "vectorcastTestExplorer.decorateExplorer": {
+            "type": "boolean",
+            "order": 5,
+            "default": true,
+            "description": "Decorate files that have coverage in the File Explorer pane"
+          },
+          "vectorcastTestExplorer.verboseLogging": {
+            "type": "boolean",
+            "order": 6,
+            "default": false,
+            "description": "Log internal extension details"
+          }
+        }
+      },
+      {
+        "id": "build",
+        "title": "Environment Build",
+        "order": 2,
+        "properties": {
+          "vectorcastTestExplorer.build.coverageKind": {
+            "type": "string",
+            "enum": [
+              "None",
+              "Statement",
+              "Statement+Branch",
+              "Statement+MCDC"
+            ],
+            "enumDescriptions": [
+              "Coverage disabled",
+              "Statement coverage",
+              "Statement and branch coverage",
+              "Statement and MC/DC coverage"
+            ],
+            "order": 1,
+            "default": "Statement",
+            "description": "Sets the coveage kind when building a new environments"
+          },
+          "vectorcastTestExplorer.build.enableCodedTesting": {
+            "type": "boolean",
+            "order": 2,
+            "default": false,
+            "description": "Enables coded testing when building a new environment"
+          }
         }
       }
-    },
+    ],
     "menus": {
       "commandPalette": [
         {
