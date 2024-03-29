@@ -8,6 +8,15 @@ activate_24_release () {
   echo "Vcast 24 is activated"
 }
 
+set_forward_proxy () {
+  echo "Setting forward proxy..."
+
+  sudo /usr/sbin/squid
+
+  NEW_PROXY="http://$(hostname --ip-address):3128"
+  export HTTP_PROXY=$NEW_PROXY HTTPS_PROXY=$NEW_PROXY http_proxy=$NEW_PROXY https_proxy=$NEW_PROXY GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY
+}
+
 cd $ROOT
 if [ ! -d "node_modules" ]; then
   npm install
@@ -21,6 +30,7 @@ if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
     if [ "$GITHUB_ACTIONS" = "true" ] ; then
       source /home/vcast_user/.bashrc
     fi
+    set_forward_proxy
     if [ "$(pidof /usr/bin/Xvfb)" == "" ]; then
         echo "Starting xvfb..."
         Xvfb :99 -screen 0 1920x1080x24 &
