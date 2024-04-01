@@ -66,10 +66,11 @@ def runClicastServerCommand (enviroPath, commandString):
 def terminateClicastProcess (enviroPath):
     """
     This function will terminate any clicast process that exists for enviroPath
-    It is used before thinks like delete and re-build environment, since we need 
-    to delete the environment directory, and the running process will have it locked.
+    It is used before things like delete and re-build environment, since we need 
+    to delete the environment directory, and the running process will have it locked
+    if we are in server mode
     """
-    if enviroPath in clicastInstances:
+    if USE_SERVER and enviroPath in clicastInstances:
         logMessage (f"  terminating clicast instance for environment: {enviroPath}")
         process = clicastInstances[enviroPath]
         process.stdin.write("clicast-server-shutdown\n")
@@ -247,7 +248,7 @@ def updateEnvironment (enviroPath, jsonOptions):
         os.remove (tempTestScript)
 
 
-def rebuildEnvironmentUsingClicast (enviroPath):
+def rebuildEnvironmentUsingClicastReBuild (enviroPath):
     """
     This dowes a "normal" rebuild environment, when there are no
     edits to be made to the enviro script
@@ -264,16 +265,13 @@ def rebuildEnvironmentUsingClicast (enviroPath):
 def rebuildEnvironment (enviroPath, jsonOptions):
     """
     Note: rebuild environment cannot use server mode 
-    since we are delteing and recreating the environment
-
-    So the first thing we need to do is shutdown the clicast process for this enviro
+    since we are deleteing and recreating the environment
     """
-
-    terminateClicastProcess (enviroPath)
+    
     if jsonOptions:
         updateEnvironment (enviroPath, jsonOptions)
     else:
-        rebuildEnvironmentUsingClicast (enviroPath)
+        rebuildEnvironmentUsingClicastReBuild (enviroPath)
 
 
 
