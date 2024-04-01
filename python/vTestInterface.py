@@ -232,6 +232,7 @@ def getTestDataVCAST(enviroPath):
             if len(unitNode["functions"]) > 0:
                 testList.append(unitNode)
 
+    api.close ()
     return testList
 
 
@@ -260,6 +261,7 @@ def printCoverageListing(enviroPath):
         for line in sourceObject.iterate_coverage():
             sys.stdout.write(str(line.line_number).ljust(line_num_width))
             sys.stdout.write(line._cov_line.covered_char() + " | " + line.text + "\n")
+    capi.close()
 
 
 def getUnitData(enviroPath):
@@ -289,6 +291,7 @@ def getUnitData(enviroPath):
         unitInfo["uncovered"] = uncovered
         unitList.append(unitInfo)
 
+    capi.close()
     return unitList
 
 
@@ -430,9 +433,9 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         if len(testList) > 0:
             returnText += f"PASSFAIL:" + getPassFailString(testList[0])
             returnText += f"TIME:{getTime(testList[0].start_time)}\n" 
+        api.close ()
 
         returnText += commandOutput
-
         return returnCode, returnText
 
 

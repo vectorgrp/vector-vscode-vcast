@@ -72,7 +72,7 @@ def terminateClicastProcess (enviroPath):
     if enviroPath in clicastInstances:
         logMessage (f"  terminating clicast instance for environment: {enviroPath}")
         process = clicastInstances[enviroPath]
-        process.stdin.write("exit\n")
+        process.stdin.write("clicast-server-shutdown\n")
         process.stdin.flush()
         process.wait()
         del clicastInstances[enviroPath]
