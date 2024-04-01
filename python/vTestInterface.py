@@ -44,7 +44,7 @@ class InvalidEnviro(Exception):
 class UsageError(Exception):
     pass
 
-modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT"]
+modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT", "rebuild"]
 def setupArgs():
     """
     Add Command Line Args
@@ -67,6 +67,8 @@ def setupArgs():
     )
 
     parser.add_argument("--test", help="Test ID")
+
+    parser.add_argument("--options", help="Serialized JSON object containing other option values")
     
     return parser
 
@@ -334,19 +336,6 @@ def getCoverageData(sourceObject):
     return coveredString, uncoveredString, checksum
 
 
-commandFileName = "commands.cmd"
-
-
-
-        # note: shell=true, requires commandToRun to be a string
-
-
-
-
-    # false at the end tells clicast to ignore errors in individual commands
-
-
-
 def getStandardArgsFromTestObject(testIDObject, quoteParameters):
     
     returnString = f"-e{testIDObject.enviroName}"
@@ -400,7 +389,7 @@ def runTestCommand(testIDObject, commandList):
         standardArgs = getStandardArgsFromTestObject(testIDObject, False)
         # We build a clicast command script to generate the execution report
         # since we need multiple commands
-        with open(commandFileName, "w") as commandFile:
+        with open(clicastInterface.commandFileName, "w") as commandFile:
             commandFile.write(
                 standardArgs
                 + " report custom actual "
@@ -415,7 +404,7 @@ def runTestCommand(testIDObject, commandList):
                 + ".txt\n"
             )
             commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
-        clicastInterface.runClicastScript(commandFileName)
+        clicastInterface.runClicastScript(clicastInterface.commandFileName)
 
     return executeReturnCode, stdoutText
 
@@ -505,7 +494,6 @@ def getCodeBasedTestNames (filePath):
     return returnObject
 
 
-
 class testID:
     def __init__(self, enviroPath, testIDString):
         self.enviroName, restOfString = testIDString.split("|")
@@ -527,9 +515,9 @@ def validateClicastCommand (command, mode):
     The --clicast arg is only required for a sub-set of modes, so we do
     those checks here, and throw usage error if there is a probelem
     """
-    if mode.startswith("executeTest"):
+    if mode.startswith("executeTest") or mode == "rebuild":
         if command is None or len (command) == 0:
-            print (f"Arg --clicast is requird for mode: {mode}")
+            print (f"Arg --clicast is required for mode: {mode}")
             raise UsageError()
         elif os.path.isfile (command) or (sys.platform == "win32" and os.path.isfile (command + ".exe")):
             pass
@@ -538,7 +526,24 @@ def validateClicastCommand (command, mode):
             raise UsageError()
         
 
-def processCommand (mode, clicast, pathToUse, testString="") -> dict:
+def processOptions (optionString):
+    """
+    This function will take the options string and return a dictionary
+    """
+    returnObject = None
+    if optionString and len (optionString) > 0:
+        try:
+            returnObject = {}
+            returnObject = json.loads(optionString)
+        except:
+            print ("Invalid --options argument, value not JSON formatted")
+            raise UsageError()
+    return returnObject
+
+
+        
+
+def processCommand (mode, clicast, pathToUse, testString="", options="") -> dict:
     """
     This function does the actual work of processing a vTestInterface command, 
     it will return a dictionary with the results of the command
@@ -580,6 +585,14 @@ def processCommand (mode, clicast, pathToUse, testString="") -> dict:
         # This is a special mode used by the unit test driver to parse the CBT
         # file and generate the test list.
         returnObject = getCodeBasedTestNames (pathToUse)
+
+    elif mode == "rebuild":
+        # Rebuild environment has some special processing because we want
+        # to incorporate any changed build settings, like coverageKind
+
+        # we don't set the return object for rebuild, because we echo in real-time
+        jsonOptions = processOptions (options)
+        clicastInterface.rebuildEnvironment (pathToUse, jsonOptions)
        
 
     # only used for executeTest currently
@@ -597,7 +610,7 @@ def main():
     # See the comment in: executeVPythonScript()
     print("ACTUAL-DATA")
 
-    returnCode, returnObject  = processCommand (args.mode, args.clicast, pathToUse, args.test )
+    returnCode, returnObject  = processCommand (args.mode, args.clicast, pathToUse, args.test, args.options )
     if returnObject:
         if "text" in returnObject:
             returnText = "\n".join(returnObject["text"])

@@ -47,7 +47,7 @@ import {
 import {
   clicastCommandToUse,
   closeAnyOpenErrorFiles,
-  executeClicastCommand,
+  executeWithRealTimeEcho,
   openTestFileAndErrors,
   testStatus,
 } from "./vcastUtilities"
@@ -538,11 +538,21 @@ function createVcastEnvironmentScript(
   addSearchPathsFromConfigurationFile (unitTestLocation, searchList);
   const envFilePath = path.join(unitTestLocation, enviroName + ".env");
 
+  // read the settings that affect enviro build
+  let settings = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer"
+  );
+
   fs.writeFileSync(envFilePath, `ENVIRO.NEW\n`, { flag: "w" });
   fs.writeFileSync(envFilePath, `ENVIRO.NAME: ${enviroName}\n`, { flag: "a+" });
-  fs.writeFileSync(envFilePath, "ENVIRO.COVERAGE_TYPE: Statement\n", {
-    flag: "a+",
-  });
+
+  const coverageKind = settings.get("build.coverageKind", "None");
+  if (coverageKind != "None") {
+    fs.writeFileSync(envFilePath, `ENVIRO.COVERAGE_TYPE: ${coverageKind}\n`, {
+      flag: "a+",
+    });
+  }
+
   fs.writeFileSync(envFilePath, "ENVIRO.WHITE_BOX: YES\n", { flag: "a+" });
   fs.writeFileSync(envFilePath, "ENVIRO.STUB: ALL_BY_PROTOTYPE\n", { flag: "a+" });
 
@@ -556,21 +566,6 @@ function createVcastEnvironmentScript(
       flag: "a+",
     })
   );
-  let settings = vscode.workspace.getConfiguration(
-    "vectorcastTestExplorer"
-  );
-  if (settings.get("enableCodedTesting", false)) {
-    // force the coded test option on
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
-      unitTestLocation);
-  }
-  else {
-    // force the coded test option off
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT false`,
-      unitTestLocation);
-  }
 
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
 }
@@ -588,7 +583,8 @@ export function buildEnvironmentFromScript (
   const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
   openMessagePane();
-  executeClicastCommand(
+  executeWithRealTimeEcho(
+    clicastCommandToUse,
     clicastArgs,
     unitTestLocation,
     buildEnvironmentCallback,
@@ -596,6 +592,30 @@ export function buildEnvironmentFromScript (
   );
 
 }
+
+
+export function setCodedTestOption (unitTestLocation:string) {
+
+  // This gets called before every build and rebuild environment
+  // to make sure that the CFG file has the right value for coded testing.
+  // This is easier than keeping track of n CFG files and their values
+  // and I think that the coded test option will be removed soon.
+
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  if (settings.get("build.enableCodedTesting", false)) {
+    // force the coded test option on
+    executeCommandSync(
+      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
+      unitTestLocation);
+  }
+  else {
+    // force the coded test option off
+    executeCommandSync(
+      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT false`,
+      unitTestLocation);
+  }
+}
+
 
 function buildEnvironmentVCAST(
   fileList: string[],
@@ -619,6 +639,8 @@ function buildEnvironmentVCAST(
   // Check that we have a valid configuration file, and create one if we don't
   // This function will return True if there is a CFG when it is done.
   if (initializeConfigurationFile (unitTestLocation)) {
+    
+    setCodedTestOption (unitTestLocation);
     
     createVcastEnvironmentScript(
       unitTestLocation,

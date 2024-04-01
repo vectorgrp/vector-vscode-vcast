@@ -1,6 +1,7 @@
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -13,6 +14,9 @@ interface the same for now, this can be optimized later.
 
 from vTestUtilities import logMessage
 
+from vector.lib.core.system import cd
+
+commandFileName = "commands.cmd"
 
 globalClicastCommand = ""
 enviroNameRegex = "-e([^\s]*)"
@@ -20,7 +24,6 @@ USE_SERVER=False
 
 # Key is the path to the environment, value is the clicast instance for that environment
 clicastInstances = {}
-
 
 
 def runClicastServerCommand (enviroPath, commandString):
@@ -58,6 +61,21 @@ def runClicastServerCommand (enviroPath, commandString):
 
     statusText = responseLine.split(":")[1].strip()
     return statusText!="SUCCESS", returnText
+
+
+def terminateClicastProcess (enviroPath):
+    """
+    This function will terminate any clicast process that exists for enviroPath
+    It is used before thinks like delete and re-build environment, since we need 
+    to delete the environment directory, and the running process will have it locked.
+    """
+    if enviroPath in clicastInstances:
+        logMessage (f"  terminating clicast instance for environment: {enviroPath}")
+        process = clicastInstances[enviroPath]
+        process.stdin.write("exit\n")
+        process.stdin.flush()
+        process.wait()
+        del clicastInstances[enviroPath]
     
 
 def getEnviroPathFromCommand (command):
@@ -71,7 +89,7 @@ def getEnviroPathFromCommand (command):
     return enviroPath
 
 
-def runClicastCommandServer (commandToRun):
+def runClicastCommandUsingServer (commandToRun):
 
     enviroPath = getEnviroPathFromCommand (commandToRun)
 
@@ -97,14 +115,30 @@ def runClicastCommandCommandLine (commandToRun):
     return returnCode, rawOutput.decode("utf-8", errors="ignore")
 
 
+def runClicastCommandWithEcho (commandToRun):
+    """
+    Similar to runClicastCommand but with real-time echo of output
+    """
+    stdoutString = ""
+    process = subprocess.Popen (commandToRun.split (" "), stdout=subprocess.PIPE, text=True)
+    while process.poll() is None:
+        line = process.stdout.readline ().rstrip()
+        if len (line)>0:
+            stdoutString += line + "\n"
+            print (line, flush=True)
+
+    return process.returncode, stdoutString
+
+
 def runClicastCommand (commandToRun):
     if USE_SERVER:
-        return runClicastCommandServer (commandToRun)
+        return runClicastCommandUsingServer (commandToRun)
     else:
         return runClicastCommandCommandLine (commandToRun)
 
 
-def runClicastScriptServer (commandFileName):
+# TBD TODAY do we need something special for echoToStdout?
+def runClicastScriptUsingServer (commandFileName, echoToStdout):
     
     # read commandFile into a list
     with open (commandFileName, "r") as f:
@@ -119,7 +153,7 @@ def runClicastScriptServer (commandFileName):
     return 0, returnText
 
 
-def runClicastScriptCommandLine (commandFileName):
+def runClicastScriptCommandLine (commandFileName, echoToStdout):
     """
     The caller should create a correctly formatted clicast script
     and then call this with the name of that script
@@ -127,17 +161,121 @@ def runClicastScriptCommandLine (commandFileName):
 
     # false at the end tells clicast to ignore errors in individual commands
     commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
-    returnCode, stdoutString = runClicastCommand (commandToRun)
+
+    if echoToStdout:
+        returnCode, stdoutString = runClicastCommandWithEcho (commandToRun)
+    else:
+        returnCode, stdoutString = runClicastCommand (commandToRun)
 
     os.remove(commandFileName)
     return returnCode, stdoutString
 
 
-def runClicastScript (commandFileName):
-    if USE_SERVER:
-        return runClicastScriptServer (commandFileName)
+def runClicastScript (commandFileName, echoToStdout=False, noServer=False):
+
+    # noServer allows the caller to specify that we should run clicast directly
+
+    if USE_SERVER and not noServer:
+        return runClicastScriptUsingServer (commandFileName, echoToStdout)
     else:
-        return runClicastScriptCommandLine (commandFileName)
+        return runClicastScriptCommandLine (commandFileName, echoToStdout)
+    
+
+def updatedEnvironment (enviroPath, jsonOptions):
+    """
+    pathToUse is the full path to the environment directory
+    jsonOptions has the new values of ENVIRO.* commands for the enviro script
+    e.g.  ENVIRO.COVERAGE_TYPE: Statement
+
+    We overwrite any matching ENVIRO commands with the new values befoe rebuild
+    """
+
+    tempEnviroScript  = "rebuild.env"
+    tempTestScript = "rebuild.tst"
+
+    with cd(os.path.dirname(enviroPath)):
+
+        # first we generate a .env and .tst for the existing environment
+        # we do this using a clicast script
+        enviroName = os.path.basename(enviroPath)
+        with open(commandFileName, "w") as commandFile:
+            commandFile.write(f"-e{enviroName} enviro script create {tempEnviroScript}\n")
+            commandFile.write(f"-e{enviroName} test script create {tempTestScript}\n")
+        exitCode, stdOutput = runClicastScript(commandFileName, echoToStdout=True, noServer=True)
+
+
+        # Read the enviro script into a list of strings
+        with open (tempEnviroScript, "r") as enviroFile:
+            enviroLines = enviroFile.readlines()
+
+        # Re-write the enviro script replacing the value of commands
+        # that exist in the jsonOptions
+        with open (tempEnviroScript, "w") as enviroFile:
+            for line in enviroLines:
+                whatToWrite = line
+                if line.startswith ("ENVIRO.END"):
+                    # if we have some un-used options then 
+                    # write these before the ENVIRO.END
+                    for key, value in jsonOptions.items():
+                        enviroFile.write (f"{key}: {value}\n")
+
+                elif line.startswith ("ENVIRO.") and ":" in line:
+                    # for all other commands, see if the command matches
+                    # a command from the jsonOptions dict
+                    enviroCommand, enviroValue = line.split (":",1)
+                    enviroCommand = enviroCommand.strip()
+                    enviroValue = enviroValue.strip()
+                    # if so replace the existing value ...
+                    if enviroCommand in jsonOptions:
+                        whatToWrite =  (f"{enviroCommand}: {jsonOptions[enviroCommand]}\n")
+                        jsonOptions.pop (enviroCommand)
+
+                # write the orignal or updated line
+                enviroFile.write (whatToWrite)
+
+        # Finally delete and re-build the environment using the updated script
+        # and load the existing tests -> which duplicates what enviro rebuild does.
+        with open(commandFileName, "w") as commandFile:
+            # Improvement needed: vcast bug: 100924
+            shutil.rmtree (enviroName)
+            #commandFile.write(f"-e{enviroName} enviro delete\n")
+            commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
+            commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
+        exitCode, stdOutput = runClicastScript(commandFileName, echoToStdout=True, noServer=True)
+
+        os.remove (tempEnviroScript)
+        os.remove (tempTestScript)
+
+
+def rebuildEnvironmentUsingClicast (enviroPath):
+    """
+    This dowes a "normal" rebuild environment, when there are no
+    edits to be made to the enviro script
+    """
+    with cd(os.path.dirname(enviroPath)):
+        enviroName = os.path.basename(enviroPath)
+        commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro re_build"
+        returnCode, commandOutput = runClicastCommandWithEcho (commandToRun)
+
+
+""" ---------------------------------------------------------------------------------------
+    These are the clicast commands that are called from the core of the extension
+""" ---------------------------------------------------------------------------------------
+
+def rebuildEnvironment (enviroPath, jsonOptions):
+    """
+    Note: rebuild environment cannot use server mode 
+    since we are delteing and recreating the environment
+
+    So the first thing we need to do is shutdown the clicast process for this enviro
+    """
+
+    terminateClicastProcess (enviroPath)
+    if jsonOptions:
+        updatedEnvironment (enviroPath, jsonOptions)
+    else:
+        rebuildEnvironmentUsingClicast (enviroPath)
+
 
 
 if __name__ == "__main__":
