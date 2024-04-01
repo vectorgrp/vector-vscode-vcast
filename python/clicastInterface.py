@@ -181,7 +181,7 @@ def runClicastScript (commandFileName, echoToStdout=False, noServer=False):
         return runClicastScriptCommandLine (commandFileName, echoToStdout)
     
 
-def updatedEnvironment (enviroPath, jsonOptions):
+def updateEnvironment (enviroPath, jsonOptions):
     """
     pathToUse is the full path to the environment directory
     jsonOptions has the new values of ENVIRO.* commands for the enviro script
@@ -271,7 +271,7 @@ def rebuildEnvironment (enviroPath, jsonOptions):
 
     terminateClicastProcess (enviroPath)
     if jsonOptions:
-        updatedEnvironment (enviroPath, jsonOptions)
+        updateEnvironment (enviroPath, jsonOptions)
     else:
         rebuildEnvironmentUsingClicast (enviroPath)
 
