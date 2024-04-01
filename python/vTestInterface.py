@@ -539,9 +539,7 @@ def processOptions (optionString):
             print ("Invalid --options argument, value not JSON formatted")
             raise UsageError()
     return returnObject
-
-
-        
+  
 
 def processCommand (mode, clicast, pathToUse, testString="", options="") -> dict:
     """

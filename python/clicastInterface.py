@@ -130,8 +130,8 @@ def runClicastCommandWithEcho (commandToRun):
     return process.returncode, stdoutString
 
 
-def runClicastCommand (commandToRun):
-    if USE_SERVER:
+def runClicastCommand (commandToRun, noServer=False):
+    if USE_SERVER and not noServer:
         return runClicastCommandUsingServer (commandToRun)
     else:
         return runClicastCommandCommandLine (commandToRun)
@@ -258,9 +258,8 @@ def rebuildEnvironmentUsingClicast (enviroPath):
         returnCode, commandOutput = runClicastCommandWithEcho (commandToRun)
 
 
-""" ---------------------------------------------------------------------------------------
-    These are the clicast commands that are called from the core of the extension
-""" ---------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 
 def rebuildEnvironment (enviroPath, jsonOptions):
     """
