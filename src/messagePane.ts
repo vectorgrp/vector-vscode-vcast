@@ -48,11 +48,11 @@ async function displayMessage(prefix: string, msg: string, level: errorLevel) {
 export async function vectorMessage(
   msg: string,
   level: errorLevel = errorLevel.info
-) 
-{
-
-
-  if (level != errorLevel.trace || (level == errorLevel.trace && globalVerboseOn)) {
+) {
+  if (
+    level != errorLevel.trace ||
+    (level == errorLevel.trace && globalVerboseOn)
+  ) {
     displayMessage("test explorer", msg, level);
   }
 }

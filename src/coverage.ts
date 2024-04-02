@@ -9,9 +9,7 @@ import {
   getListOfFilesWithCoverage,
 } from "./vcastTestInterface";
 
-import {
-  getRangeOption,
-} from "./utilities";
+import { getRangeOption } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 

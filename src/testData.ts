@@ -23,10 +23,10 @@ export function createTestNodeinCache(
   functionName: string = "",
   testName: string = "",
   testFile: string = "",
-  testStartLine: number = 1,
+  testStartLine: number = 1
 ) {
   let testNode: testNodeType = {
-    enviroNodeID:enviroNodeID,
+    enviroNodeID: enviroNodeID,
     enviroPath: enviroPath,
     enviroName: enviroName,
     unitName: unitName,
@@ -52,11 +52,11 @@ export function duplicateTestNode(nodeID: string) {
   return JSON.parse(JSON.stringify(existingNode));
 }
 
-export function removeNodeFromCache (nodeID:string) {
+export function removeNodeFromCache(nodeID: string) {
   testNodeCache.delete(nodeID);
 }
 
-export function nodeIsInCache (nodeID:string) {
+export function nodeIsInCache(nodeID: string) {
   return testNodeCache.has(nodeID);
 }
 
@@ -89,6 +89,6 @@ export function getFunctionNameFromID(nodeID: string): string {
 }
 
 export function getTestNameFromID(nodeID: string): string {
-  const testName =  testNodeCache.get(nodeID).testName;
-  return testName.replace (compoundOnlyString,"");
+  const testName = testNodeCache.get(nodeID).testName;
+  return testName.replace(compoundOnlyString, "");
 }
