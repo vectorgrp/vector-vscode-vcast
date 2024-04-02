@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.12",
+  "version": "1.0.11",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -597,7 +597,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-server -- --minify",
-    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main",
     "esbuild-server": "esbuild ./server/server.ts --bundle --outfile=out/server.js --external:vscode --format=cjs --platform=node",
     "esbuild-watch": "npm-run-all --parallel esbuild-base esbuild-server -- --sourcemap --watch",
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-server -- --sourcemap",
@@ -634,7 +634,8 @@
     "npm-run-all": "^4.1.5",
     "tslib": "^1.9.3",
     "vscode-languageclient": "^5.2.1",
-    "vscode-languageserver": "^5.2.1"
+    "vscode-languageserver": "^5.2.1",
+    "jsonc-parser": "^3.2.1"
   },
   "extensionDependencies": [],
   "engines": {
