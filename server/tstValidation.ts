@@ -232,7 +232,6 @@ export function validateTextDocument(textDocument: TextDocument) {
       let message = "Illegal line, comments must start with -- or //";
       diagnosticList.push(diagnostic(lineIndex, 0, 1000, message));
     }
-
   } // end for loop
 
   return diagnosticList;

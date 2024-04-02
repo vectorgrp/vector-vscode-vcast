@@ -3,19 +3,11 @@ import * as vscode from "vscode";
 // needed for parsing json files with comments
 import * as jsonc from "jsonc-parser";
 
-import {
-  openMessagePane,
-  vectorMessage,
-} from "./messagePane";
+import { openMessagePane, vectorMessage } from "./messagePane";
 
-import {
-  getTestNode,
-  testNodeType,
-} from "./testData";
+import { getTestNode, testNodeType } from "./testData";
 
-import {
-  updateTestPane,
-} from "./testPane";
+import { updateTestPane } from "./testPane";
 
 import {
   commandStatusType,
@@ -53,12 +45,11 @@ export let atgAvailable: boolean = false;
 
 export let codedTestAvailable: boolean = false;
 
-
 function vcastVersionGreaterThan(
   vcastInstallationPath: string,
   version: number,
-  servicePack: number): boolean {
-
+  servicePack: number
+): boolean {
   // A general purpose version checker, will be needed for Coded Tests, etc.
 
   let returnValue = false;
@@ -70,30 +61,28 @@ function vcastVersionGreaterThan(
   if (matched) {
     const tooVersion = parseInt(matched[1]);
     const toolServicePack = parseInt(matched[2]);
-    if (tooVersion > version || (tooVersion == version && toolServicePack >= servicePack))
+    if (
+      tooVersion > version ||
+      (tooVersion == version && toolServicePack >= servicePack)
+    )
       returnValue = true;
   }
   // this allows us to work with development builds for internal testing
   else if (toolVersion.includes(" revision ")) {
     returnValue = true;
   }
-  return returnValue
+  return returnValue;
 }
 
-
 function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
-
   // Versions of VectorCAST between 23sp0 and 23sp4 had ATG but since
   // we changed the ATG command line interface with 23sp5, we have decided
   // to only support versions greater than that.
 
   return vcastVersionGreaterThan(vcastInstallationPath, 23, 5);
-
 }
 
-
 function checkForATG(vcastInstallationPath: string) {
-
   // we only set atgCommandToUse if we find atg and it's licensed
   const atgCommand = path.join(vcastInstallationPath, exeFilename(atgName));
   let statusMessageText = "";
@@ -105,16 +94,21 @@ function checkForATG(vcastInstallationPath: string) {
     const commandToRun: string = `${candidateCommand} --help`;
 
     // cwd=working dir for this process /  printErrorDetails=false
-    const commandStatus = executeCommandSync(commandToRun, process.cwd(), false);
+    const commandStatus = executeCommandSync(
+      commandToRun,
+      process.cwd(),
+      false
+    );
     if (commandStatus.errorCode == 0) {
       statusMessageText += ", license is available";
       atgCommandToUse = candidateCommand;
-    }
-    else {
+    } else {
       statusMessageText += ", license is NOT available";
     }
     vectorMessage(statusMessageText);
-    atgAvailable = atgCommandToUse != undefined && vectorCASTSupportsATG(vcastInstallationPath);
+    atgAvailable =
+      atgCommandToUse != undefined &&
+      vectorCASTSupportsATG(vcastInstallationPath);
 
     // atgAvailabel is used by package.json to control the existance of the atg command in the context menus
     vscode.commands.executeCommand(
@@ -122,44 +116,46 @@ function checkForATG(vcastInstallationPath: string) {
       "vectorcastTestExplorer.atgAvailable",
       atgAvailable
     );
-  }
-  else {
-    vectorMessage(`   could NOT find '${atgName}' here: ${vcastInstallationPath}`);
+  } else {
+    vectorMessage(
+      `   could NOT find '${atgName}' here: ${vcastInstallationPath}`
+    );
   }
 }
 
-
 function shouldPromptForIncludePath(includePath: string): boolean {
-
   // So that we don't annoy users with the coded-test popup every time,
   // we do our best to check if the include path is already in the workspace
 
-  let returnValue: boolean = true
+  let returnValue: boolean = true;
   if (fs.existsSync(includePath)) {
-    for (const workspace of (vscode.workspace.workspaceFolders || [])) {
+    for (const workspace of vscode.workspace.workspaceFolders || []) {
       const workspaceRoot = workspace.uri.fsPath;
-      const c_cpp_properties = path.join(workspaceRoot, ".vscode", configurationFile);
+      const c_cpp_properties = path.join(
+        workspaceRoot,
+        ".vscode",
+        configurationFile
+      );
       if (fs.existsSync(c_cpp_properties)) {
-        const c_cpp_properties_contents = fs.readFileSync(c_cpp_properties).toString();
+        const c_cpp_properties_contents = fs
+          .readFileSync(c_cpp_properties)
+          .toString();
         if (c_cpp_properties_contents.includes(includePath)) {
           returnValue = false;
           break;
         }
       }
     }
-  }
-  else {
+  } else {
     // don't prompt if the include path is missing for some reason
     returnValue = false;
   }
   return returnValue;
 }
 
-
 let globalIncludePath: string | undefined = undefined;
 let globalCodedTestingAvailable: boolean = false;
 export function addIncludePath(fileUri: vscode.Uri) {
-
   // I'm handling a few error cases here without going crazy
   let statusMessages: string[] = [];
 
@@ -169,14 +165,25 @@ export function addIncludePath(fileUri: vscode.Uri) {
   // Requires json-c parsing to handle comments etc.
   existingJSONasString = fs.readFileSync(fileUri.fsPath).toString();
   // note that jsonc.parse returns "real json" without the comments
-  existingJSON = jsonc.parse(existingJSONasString, jsoncParseErrors, jsoncParseOptions);
+  existingJSON = jsonc.parse(
+    existingJSONasString,
+    jsoncParseErrors,
+    jsoncParseOptions
+  );
 
-  if (existingJSON && existingJSON.configurations && existingJSON.configurations.length > 0) {
+  if (
+    existingJSON &&
+    existingJSON.configurations &&
+    existingJSON.configurations.length > 0
+  ) {
     const numberOfCofigurations = existingJSON.configurations.length;
-    statusMessages.push(`{configurationFile} file has ${numberOfCofigurations} configurations ... `);
-  }
-  else {
-    statusMessages.push(`{configurationFile} file has no existing configurations, please add a configuration.   `);
+    statusMessages.push(
+      `{configurationFile} file has ${numberOfCofigurations} configurations ... `
+    );
+  } else {
+    statusMessages.push(
+      `{configurationFile} file has no existing configurations, please add a configuration.   `
+    );
     vscode.window.showErrorMessage(statusMessages.join("\n"));
     return;
   }
@@ -186,7 +193,9 @@ export function addIncludePath(fileUri: vscode.Uri) {
 
   let configName = existingJSON.configurations[0].name;
   if (existingJSON.configurations[0].includePath == undefined) {
-    statusMessages.push(`Configuration: "${configName}" is missing an includePath list, adding.  `);
+    statusMessages.push(
+      `Configuration: "${configName}" is missing an includePath list, adding.  `
+    );
     // we keep the existing JSON up to date to make the logic below simpler
     existingJSON.configurations[0].includePath = [];
   }
@@ -194,47 +203,49 @@ export function addIncludePath(fileUri: vscode.Uri) {
   let includePathList = existingJSON.configurations[0].includePath;
   let whereToInsert = existingJSON.configurations[0].includePath.length;
   if (includePathList.includes(globalIncludePath)) {
-    statusMessages.push(`Configuration: "${configName}" already contains the correct include path.  `);
-  }
-  else {
+    statusMessages.push(
+      `Configuration: "${configName}" already contains the correct include path.  `
+    );
+  } else {
     // if the user updated versions of VectorCAST, we might have an "old" include path that needs to be removed
-    const indexToRemove = includePathList.findIndex((element: string) => element.includes("/vunit/include"));
+    const indexToRemove = includePathList.findIndex((element: string) =>
+      element.includes("/vunit/include")
+    );
     if (indexToRemove >= 0) {
       const oldPath = includePathList[indexToRemove];
-      const jsoncEdits =
-        jsonc.modify(
-          existingJSONasString,
-          ["configurations", 0, "includePath", indexToRemove],
-          undefined,
-          jsoncModificationOptions,
-        );
+      const jsoncEdits = jsonc.modify(
+        existingJSONasString,
+        ["configurations", 0, "includePath", indexToRemove],
+        undefined,
+        jsoncModificationOptions
+      );
       existingJSONasString = jsonc.applyEdits(existingJSONasString, jsoncEdits);
-      statusMessages.push(`Removed: ${oldPath} from configuration: "${configName}".  `);
+      statusMessages.push(
+        `Removed: ${oldPath} from configuration: "${configName}".  `
+      );
     }
 
-    const jsoncEdits =
-      jsonc.modify(
-        existingJSONasString,
-        ["configurations", 0, "includePath", whereToInsert],
-        globalIncludePath,
-        jsoncModificationOptions,
-      );
+    const jsoncEdits = jsonc.modify(
+      existingJSONasString,
+      ["configurations", 0, "includePath", whereToInsert],
+      globalIncludePath,
+      jsoncModificationOptions
+    );
     existingJSONasString = jsonc.applyEdits(existingJSONasString, jsoncEdits);
-    statusMessages.push(`Added: ${globalIncludePath} to configuration: "${configName}".  `);
+    statusMessages.push(
+      `Added: ${globalIncludePath} to configuration: "${configName}".  `
+    );
   }
 
   vscode.window.showInformationMessage(statusMessages.join("\n"));
 
   // we unconditionally write rather than tracking if we changed anything
   fs.writeFileSync(fileUri.fsPath, existingJSONasString);
-
 }
 
-
 export function initializeCodedTestSupport(vcastInstallationPath: string) {
-
-  // When we get here vcastInstallationPath will point to a 
-  // valid VectorCAST installation but we don't know if 
+  // When we get here vcastInstallationPath will point to a
+  // valid VectorCAST installation but we don't know if
   // this version has coded test support, so check for that
   // and initialize global variables to support coded testing
 
@@ -243,8 +254,7 @@ export function initializeCodedTestSupport(vcastInstallationPath: string) {
     vectorMessage(`   found coded-test support, initializing ...`);
     globalCodedTestingAvailable = true;
     checkWorkspaceForIncludePath(candidatePath);
-  }
-  else {
+  } else {
     globalCodedTestingAvailable = false;
   }
   // this controls the availability of the Add Coded Test Include Path context menu item
@@ -255,9 +265,7 @@ export function initializeCodedTestSupport(vcastInstallationPath: string) {
   );
 }
 
-
 function checkWorkspaceForIncludePath(includePath: string) {
-
   // We'd like to make it easy for the user to add the include path
   // for the VectorCAST vUnit/Include directory.  I looked at automating
   // this via the vscode.workspace.getConfiguration() API,
@@ -270,22 +278,20 @@ function checkWorkspaceForIncludePath(includePath: string) {
   globalIncludePath = includePath.replace(/\\/g, "/");
 
   if (shouldPromptForIncludePath(globalIncludePath)) {
-
     vscode.window.showInformationMessage(
       "The include path for VectorCAST Coded Testing was not found in your workspace, you should add the " +
-      `include path by right clicking on the appropriate ${configurationFile} file, ` +
-      "and choosing 'VectorCAST: Add Coded Test Include Path`  "
+        `include path by right clicking on the appropriate ${configurationFile} file, ` +
+        "and choosing 'VectorCAST: Add Coded Test Include Path`  "
     );
   }
 }
 
-
 export function initializeVcastUtilities(vcastInstallationPath: string) {
-
   let toolsFound = false;
-  clicastCommandToUse = (path.join(
+  clicastCommandToUse = path.join(
     vcastInstallationPath,
-    exeFilename(clicastName)));
+    exeFilename(clicastName)
+  );
 
   if (fs.existsSync(clicastCommandToUse)) {
     vectorMessage(`   found '${clicastName}' here: ${vcastInstallationPath}`);
@@ -296,23 +302,23 @@ export function initializeVcastUtilities(vcastInstallationPath: string) {
     if (fs.existsSync(vcastCommandtoUse)) {
       vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
 
-      // we only set toolsFound if we find clicast AND vcastqt 
+      // we only set toolsFound if we find clicast AND vcastqt
       toolsFound = true;
 
       // atg existing or being licensed does NOT affect toolsFound
       checkForATG(vcastInstallationPath);
-
+    } else {
+      vectorMessage(
+        `   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`
+      );
     }
-    else {
-      vectorMessage(`   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`);
-    }
-  }
-  else {
-    vectorMessage(`   could NOT find '${clicastName}' here: ${vcastInstallationPath}`);
+  } else {
+    vectorMessage(
+      `   could NOT find '${clicastName}' here: ${vcastInstallationPath}`
+    );
   }
   return toolsFound;
 }
-
 
 function convertTestScriptContents(scriptPath: string) {
   // Read the file
@@ -331,7 +337,6 @@ function convertTestScriptContents(scriptPath: string) {
   // Write the modified content back to the file
   fs.writeFileSync(scriptPath, modifiedContent, "utf8");
 }
-
 
 export async function openTestScript(nodeID: string) {
   // this can get called for a unit, environment, function, or test
@@ -363,10 +368,8 @@ export async function openTestScript(nodeID: string) {
   }
 }
 
-
 async function adjustScriptContentsBeforeLoad(scriptPath: string) {
-
-  // There are some things that need updating before we can load the 
+  // There are some things that need updating before we can load the
   // script into VectorCAST:
   //   - The requirement key lines need to be split into two lines
   //     We insert lines like TEST.REQUIREMENT_KEY: key | description,
@@ -383,21 +386,20 @@ async function adjustScriptContentsBeforeLoad(scriptPath: string) {
       if (keyLineParts.length == 2) {
         newLines.push("-- Requirement Title: " + keyLineParts[1]);
         newLines.push(keyLineParts[0].trim());
-      }
-      else {
+      } else {
         newLines.push(line);
       }
-    }
-    else {
+    } else {
       newLines.push(line);
     }
   }
   fs.writeFileSync(scriptPath, newLines.join("\n"), "utf8");
 }
 
-
-export async function loadScriptIntoEnvironment(enviroName: string, scriptPath: string,) {
-
+export async function loadScriptIntoEnvironment(
+  enviroName: string,
+  scriptPath: string
+) {
   // this does the clicast call to laod the test script
 
   adjustScriptContentsBeforeLoad(scriptPath);
@@ -426,13 +428,16 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   // In all caeses, we need to do the following:
   //  - Call clicast <-e -u -s options> tool auto_test temp.tst  [creates tests]
   //  - Call loadScriptIntoEnvironment() to do the actual load
-  // 
+  //
   // Other Points:
   //   - Use a temporary filename and ensure we delete it
 
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const timeStamp = Date.now().toString();
-  const tempScriptPath = path.join(enclosingDirectory, `vcast-${timeStamp}.tst`);
+  const tempScriptPath = path.join(
+    enclosingDirectory,
+    `vcast-${timeStamp}.tst`
+  );
 
   vectorMessage("Generating Basis Path script file ...");
   // ignore the testName (if any)
@@ -445,7 +450,7 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   argList = argList.concat(["tool", "auto_test", `${tempScriptPath}`]);
 
   // Since it can be slow to generate basis path tests, we use a progress dialog
-  // and since we don't want to show all of the stdout messages, we use a 
+  // and since we don't want to show all of the stdout messages, we use a
   // regex filter for what to show
   const messageFilter = /.*Generating test cases for.*/;
 
@@ -455,9 +460,9 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
     testNode.enviroName,
     tempScriptPath,
     messageFilter,
-    loadScriptCallBack);
+    loadScriptCallBack
+  );
 }
-
 
 export function generateAndLoadATGTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
@@ -471,7 +476,10 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
 
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const timeStamp = Date.now().toString();
-  const tempScriptPath = path.join(enclosingDirectory, `vcast-${timeStamp}.tst`);
+  const tempScriptPath = path.join(
+    enclosingDirectory,
+    `vcast-${timeStamp}.tst`
+  );
 
   vectorMessage("Generating ATG script file ...");
   // ignore the testName (if any)
@@ -493,7 +501,7 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
   argList.push(`${tempScriptPath}`);
 
   // Since it can be slow to generate ATG tests, we use a progress dialog
-  // and since we don't want to show all of the stdout messages, we use a 
+  // and since we don't want to show all of the stdout messages, we use a
   // regex filter for what to show
   const messageFilter = /Subprogram:.*/;
 
@@ -503,11 +511,15 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
     testNode.enviroName,
     tempScriptPath,
     messageFilter,
-    loadScriptCallBack);
-
+    loadScriptCallBack
+  );
 }
 
-export function loadScriptCallBack(commandStatus: commandStatusType, enviroName: string, scriptPath: string) {
+export function loadScriptCallBack(
+  commandStatus: commandStatusType,
+  enviroName: string,
+  scriptPath: string
+) {
   // This is the callback that should be passed to executeClicastWithProgress() when
   // we are computing basis path or ATG tests
 
@@ -518,9 +530,10 @@ export function loadScriptCallBack(commandStatus: commandStatusType, enviroName:
     vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
     updateTestPane(enviroPath);
     fs.unlinkSync(scriptPath);
-  }
-  else {
-    vscode.window.showInformationMessage(`Error generating tests, see log for details`);
+  } else {
+    vscode.window.showInformationMessage(
+      `Error generating tests, see log for details`
+    );
     vectorMessage(commandStatus.stdout);
     openMessagePane();
   }
@@ -533,7 +546,6 @@ export function executeWithRealTimeEcho(
   callback?: any,
   enviroPath?: string
 ) {
-
   // this function is used to build and rebuild environments
   // long running commands that where we want to show real-time output
 
@@ -590,8 +602,8 @@ interface statusMessageType {
 }
 function processCommandOutput(
   remainderTextFromLastCall: string,
-  newTextFromThisCall: string): statusMessageType {
-
+  newTextFromThisCall: string
+): statusMessageType {
   // The purpose of this function is to process the raw text that comes
   // from the spawned process and to split it into full lines and a "remainder"
   // The caller will keep the remainder around until the next data comes in
@@ -602,21 +614,25 @@ function processCommandOutput(
 
   if (candidateString.endsWith("\n"))
     // if we got all full lines, there is no remainder
-    returnObject.fullLines = candidateString.slice(0, candidateString.length - 1);
+    returnObject.fullLines = candidateString.slice(
+      0,
+      candidateString.length - 1
+    );
   else if (candidateString.includes("\n")) {
     // if there is at least one \n then we have full lines and a remainder
     const whereToSplit = candidateString.lastIndexOf("\n");
     returnObject.fullLines = candidateString.substring(0, whereToSplit);
-    returnObject.remainderText = candidateString.substring(whereToSplit + 1, candidateString.length);
-  }
-  else {
+    returnObject.remainderText = candidateString.substring(
+      whereToSplit + 1,
+      candidateString.length
+    );
+  } else {
     // otherwise we have only a remainder
     returnObject.remainderText = candidateString;
   }
 
   return returnObject;
 }
-
 
 export function executeClicastWithProgress(
   title: string,
@@ -626,7 +642,6 @@ export function executeClicastWithProgress(
   filter: RegExp,
   callback: any
 ) {
-
   // Very similar to the executeWithRealTimeEcho(), but adds a progress dialog,
   // and a different callback structure.
   // We use this for generating the basis path and ATG tests (for now)
@@ -645,21 +660,20 @@ export function executeClicastWithProgress(
       cancellable: false,
     },
     async (progress) => {
-
       return new Promise(async (resolve, reject) => {
-
         // shell is needed so that stdout is NOT buffered
         const commandHandle = spawn(command, args, { cwd: cwd, shell: true });
 
-        // each time we get an entry here, we need to check if we have a 
-        // partial message if so we print the part up the the 
+        // each time we get an entry here, we need to check if we have a
+        // partial message if so we print the part up the the
         // final \n and buffer the rest, see comment above
         let remainderTextFromLastCall = "";
 
         commandHandle.stdout.on("data", async (data: any) => {
-
-          const message: statusMessageType =
-            processCommandOutput(remainderTextFromLastCall, data.toString());
+          const message: statusMessageType = processCommandOutput(
+            remainderTextFromLastCall,
+            data.toString()
+          );
           remainderTextFromLastCall = message.remainderText;
 
           if (message.fullLines.length > 0) {
@@ -680,8 +694,10 @@ export function executeClicastWithProgress(
         });
 
         commandHandle.stderr.on("data", async (data: any) => {
-          const message: statusMessageType =
-            processCommandOutput(remainderTextFromLastCall, data.toString(data));
+          const message: statusMessageType = processCommandOutput(
+            remainderTextFromLastCall,
+            data.toString(data)
+          );
           remainderTextFromLastCall = message.remainderText;
 
           if (message.fullLines.length > 0) {
@@ -690,11 +706,11 @@ export function executeClicastWithProgress(
         });
 
         commandHandle.on("error", (error: any) => {
-          commandStatus =
-            processExceptionFromExecuteCommand(
-              commandAndArgs.join(" "),
-              error,
-              true);
+          commandStatus = processExceptionFromExecuteCommand(
+            commandAndArgs.join(" "),
+            error,
+            true
+          );
         });
         commandHandle.on("close", (code: any) => {
           // display any remaining text ...
@@ -705,10 +721,9 @@ export function executeClicastWithProgress(
           resolve(code);
           callback(commandStatus, enviroName, testScriptPath);
         });
-
-      }
-      );
-    });
+      });
+    }
+  );
 }
 
 export enum testStatus {
@@ -720,8 +735,7 @@ export enum testStatus {
 }
 
 export function openTestFileAndErrors(testNode: testNodeType): testStatus {
-
-  // used to show the coded test source file and associated 
+  // used to show the coded test source file and associated
   // compile or link errors when a coded test "add" or execution fails.
 
   // because vcast does not give us a unique error code for coded test
@@ -752,26 +766,29 @@ export function openTestFileAndErrors(testNode: testNodeType): testStatus {
   openFileWithLineSelected(fileToDisplay, 0, vscode.ViewColumn.Beside);
 
   return returnStatus;
-
 }
 
-
 export async function closeAnyOpenErrorFiles() {
-
-  // this function will close any left over ACOMPILE.LIS or AALINKER.LIS files 
+  // this function will close any left over ACOMPILE.LIS or AALINKER.LIS files
   // from the last test execution.
   for (let editor of vscode.window.visibleTextEditors) {
-    if (editor.document.fileName.endsWith("ACOMPILE.LIS") || editor.document.fileName.endsWith("AALINKER.LIS")) {
-      await vscode.window.showTextDocument(editor.document.uri,
-        { preview: false, viewColumn: editor.viewColumn, });
-      await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    if (
+      editor.document.fileName.endsWith("ACOMPILE.LIS") ||
+      editor.document.fileName.endsWith("AALINKER.LIS")
+    ) {
+      await vscode.window.showTextDocument(editor.document.uri, {
+        preview: false,
+        viewColumn: editor.viewColumn,
+      });
+      await vscode.commands.executeCommand(
+        "workbench.action.closeActiveEditor"
+      );
     }
   }
 }
 
-
 export function getEnviroNameFromFile(filePath: string): string | undefined {
-  // This funciton will extract the enviro name from 
+  // This funciton will extract the enviro name from
   // the ENVIRO.NAME: <name> line of the provided file
 
   let enviroName: string | undefined = undefined;

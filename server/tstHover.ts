@@ -8,7 +8,10 @@ import {
 
 import { TextDocuments, CompletionParams } from "vscode-languageserver";
 
-import { getChoiceDataFromPython, getHoverStringForRequirement } from "./pythonUtilities";
+import {
+  getChoiceDataFromPython,
+  getHoverStringForRequirement,
+} from "./pythonUtilities";
 
 export function getHoverString(
   documents: TextDocuments,
@@ -43,15 +46,13 @@ export function getHoverString(
           let key: string = "";
           if (pieces[2].includes("|")) {
             key = pieces[2].split("|")[0].trim();
-          }
-          else {
+          } else {
             key = pieces[2].trim();
           }
           // now find the title for this key, via a python call
           hoverString = getHoverStringForRequirement(enviroPath, key);
           console.log(hoverString);
         }
-
       } else if (
         upperCaseLine.startsWith("TEST.EXPECTED:") ||
         upperCaseLine.startsWith("TEST.VALUE:")

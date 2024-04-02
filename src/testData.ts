@@ -23,7 +23,7 @@ export function createTestNodeinCache(
   functionName: string = "",
   testName: string = "",
   testFile: string = "",
-  testStartLine: number = 1,
+  testStartLine: number = 1
 ) {
   let testNode: testNodeType = {
     enviroNodeID: enviroNodeID,

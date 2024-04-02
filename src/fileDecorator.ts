@@ -29,7 +29,8 @@ export function updateExploreDecorations() {
 
 // from here: https://stackoverflow.com/questions/74449432/how-to-add-and-select-color-for-nodes-tree-view-items-in-explorer-view-in-my-vsc
 export class TreeFileDecorationProvider
-  implements vscode.FileDecorationProvider {
+  implements vscode.FileDecorationProvider
+{
   private disposables: Array<vscode.Disposable> = [];
   private filesWithCoverage: string[] = [];
 
