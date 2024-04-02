@@ -133,13 +133,11 @@ export function getLineText(document: TextDocument, line: number) {
   return document.getText(rangeOfInterest).trim();
 }
 
-
 export function getEnviroNameFromTestScript(testScriptPath: string) {
   let whatToReturn: string | undefined = undefined;
 
   // extract the enviroName from the script
-  let enviroName: string | undefined =
-    getEnviroNameFromScript(testScriptPath);
+  let enviroName: string | undefined = getEnviroNameFromScript(testScriptPath);
 
   // if we found a valid environment name, create a full path for it
   if (enviroName) {
@@ -174,31 +172,30 @@ export function getNearest(
   return unitName;
 }
 
-
 // Improvement needed: Issue #52, support LSE for enviro scripts
 // This list has commands that are dumped by the script generator for a simple environment
 // * indicates that we use these commands in the auto-generated script
 export const commonEnviroCommandList = [
-  "NEW",                       // *
-  "NAME",                      // * All caps enviro directory name
-  "BASE_DIRECTORY",            //   Variable:Path
-  "COVERAGE_TYPE",             // * Statement, Branch, MCDC, Funciton, Function+Function_call, Statement+Branch, Statement+MCDC
-  "INDUSTRY_MODE",             //   DO-178 B/C, ISO-26262, IEC-61508, EN-50128, IEC-62304
-  "STUB_BY_FUNCTION",          // * Name of UUT
-  "WHITEBOX",                  // * YES | NO
-  "MAX_VARY_RANGE",            //   Integer
-  "STUB",                      // * ALL_BY_PROTOTYPE, ALL, NONE
-  "SEARCH_LIST",               // * Absolute path | $(BASE_DIRECTORY)/relative-path
-  "TYPE_HANDLED_DIRS_ALLOWED", //  
-  "LIBRARY_STUBS",             // a common separated list of names like fopen, malloc, etc.
+  "NEW", // *
+  "NAME", // * All caps enviro directory name
+  "BASE_DIRECTORY", //   Variable:Path
+  "COVERAGE_TYPE", // * Statement, Branch, MCDC, Funciton, Function+Function_call, Statement+Branch, Statement+MCDC
+  "INDUSTRY_MODE", //   DO-178 B/C, ISO-26262, IEC-61508, EN-50128, IEC-62304
+  "STUB_BY_FUNCTION", // * Name of UUT
+  "WHITEBOX", // * YES | NO
+  "MAX_VARY_RANGE", //   Integer
+  "STUB", // * ALL_BY_PROTOTYPE, ALL, NONE
+  "SEARCH_LIST", // * Absolute path | $(BASE_DIRECTORY)/relative-path
+  "TYPE_HANDLED_DIRS_ALLOWED", //
+  "LIBRARY_STUBS", // a common separated list of names like fopen, malloc, etc.
   "END",
 ];
-  
+
 // Less commonly used commands, maybe handle these with ENVIRO.* to start?
 export const extendedEnviroCommandList = [
   "UUT",
   "DONT_STUB",
-  "COMPILER",                  // * Always CC for C/C++
+  "COMPILER", // * Always CC for C/C++
   "LIBRARY_INCLUDE_DIR",
   "TEST_VALUES_DICTIONARY",
   "TYPE_HANDLED_SOURCE_DIR",
@@ -247,8 +244,7 @@ export const extendedEnviroCommandList = [
   "END_USER_CODE_TIMER_START",
   "USER_CODE_TIMER_STOP",
   "END_USER_CODE_TIMER_STOP",
-]
-
+];
 
 export const testCommandList = [
   // global scope

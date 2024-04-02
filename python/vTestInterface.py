@@ -24,15 +24,15 @@ This script must be run under vpython
 """
 
 
-
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
 
-vpythonHasCodedTestSupport:bool = False
-try: 
+vpythonHasCodedTestSupport: bool = False
+try:
     from vector.lib.coded_tests import Parser
-    vpythonHasCodedTestSupport=True
+
+    vpythonHasCodedTestSupport = True
 except:
     pass
 
@@ -44,14 +44,24 @@ class InvalidEnviro(Exception):
 class UsageError(Exception):
     pass
 
-modeChoices = ["getEnviroData", "executeTest", "executeTestReport", "report", "parseCBT", "rebuild"]
+
+modeChoices = [
+    "getEnviroData",
+    "executeTest",
+    "executeTestReport",
+    "report",
+    "parseCBT",
+    "rebuild",
+]
+
+
 def setupArgs():
     """
     Add Command Line Args
     """
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
-   
+
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -68,8 +78,10 @@ def setupArgs():
 
     parser.add_argument("--test", help="Test ID")
 
-    parser.add_argument("--options", help="Serialized JSON object containing other option values")
-    
+    parser.add_argument(
+        "--options", help="Serialized JSON object containing other option values"
+    )
+
     return parser
 
 
@@ -142,7 +154,7 @@ def generateTestInfo(test):
     if vpythonHasCodedTestSupport and test.coded_tests_file:
         # guard against the case where the coded test file has been renamed or deleted
         # or dataAPI has a bad line nuumber for the test, and return None in this case.
-        if os.path.exists (test.coded_tests_file) and test.coded_tests_line>0:
+        if os.path.exists(test.coded_tests_file) and test.coded_tests_line > 0:
             testInfo["codedTestFile"] = test.coded_tests_file
             testInfo["codedTestLine"] = test.coded_tests_line
         else:
@@ -152,10 +164,11 @@ def generateTestInfo(test):
 
 
 # This list is created as we walk the dataAPI list of units->functions
-# in getTestDataVCAST(), and we use it to set the isTestable field when 
+# in getTestDataVCAST(), and we use it to set the isTestable field when
 # walk the coverage data in the getUnitData() function which has no
 # knowledge of "testabilty"
-globalListOfTestableFunctions = [];
+globalListOfTestableFunctions = []
+
 
 def getTestDataVCAST(enviroPath):
 
@@ -167,7 +180,7 @@ def getTestDataVCAST(enviroPath):
     except Exception as err:
         print(err)
         raise InvalidEnviro()
-    
+
     # Not currently used.
     # returns "None" if coverage is not initialized,
     # does not change based on coverage enabled/disabled
@@ -210,11 +223,14 @@ def getTestDataVCAST(enviroPath):
             for function in unit.functions:
                 functionNode = dict()
                 # Seems like a vcast dataAPI bug with manager.cpp
-                if function.vcast_name != "<<INIT>>" and not function.is_non_testable_stub:
+                if (
+                    function.vcast_name != "<<INIT>>"
+                    and not function.is_non_testable_stub
+                ):
                     # Note: the vcast_name has the parameterization only when there is an overload
                     functionNode["name"] = function.vcast_name
                     functionNode["parameterizedName"] = function.long_name
-                    globalListOfTestableFunctions.append (function.long_name)
+                    globalListOfTestableFunctions.append(function.long_name)
                     functionNode["tests"] = list()
                     for test in function.testcases:
                         if test.is_csv_map:
@@ -226,7 +242,6 @@ def getTestDataVCAST(enviroPath):
                             if testInfo:
                                 functionNode["tests"].append(testInfo)
 
-                    
                     unitNode["functions"].append(functionNode)
 
             if len(unitNode["functions"]) > 0:
@@ -341,29 +356,36 @@ commandFileName = "commands.cmd"
 globalClicastCommand = ""
 
 
-def runClicastCommandWithEcho (commandToRun):
+def runClicastCommandWithEcho(commandToRun):
     """
     Similar to runClicastCommand but with real-time echo of output
     """
     stdoutString = ""
-    process = subprocess.Popen (commandToRun.split (" "), stdout=subprocess.PIPE, text=True)
+    process = subprocess.Popen(
+        commandToRun.split(" "), stdout=subprocess.PIPE, text=True
+    )
     while process.poll() is None:
-        line = process.stdout.readline ().rstrip()
-        if len (line)>0:
+        line = process.stdout.readline().rstrip()
+        if len(line) > 0:
             stdoutString += line + "\n"
-            print (line, flush=True)
+            print(line, flush=True)
 
     return process.returncode, stdoutString
 
 
-def runClicastCommand (commandToRun):
+def runClicastCommand(commandToRun):
     """
     A wrapper for the subprocess.run() function
     """
     try:
         # note: shell=true, requires commandToRun to be a string
         result = subprocess.run(
-            commandToRun, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+            commandToRun,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=True,
+        )
         returnCode = result.returncode
         rawOutput = result.stdout
     except subprocess.CalledProcessError as error:
@@ -383,9 +405,9 @@ def runClicastScript(commandFileName, echoToStdout=False):
     commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
 
     if echoToStdout:
-        returnCode, stdoutString = runClicastCommandWithEcho (commandToRun)
+        returnCode, stdoutString = runClicastCommandWithEcho(commandToRun)
     else:
-        returnCode, stdoutString = runClicastCommand (commandToRun)
+        returnCode, stdoutString = runClicastCommand(commandToRun)
 
     os.remove(commandFileName)
     return returnCode, stdoutString
@@ -396,13 +418,13 @@ def getStandardArgsFromTestObject(testIDObject, quoteParameters):
     if testIDObject.unitName != "not-used":
         returnString += f" -u{testIDObject.unitName}"
 
-    # I did not do something clever with the quote insertion 
+    # I did not do something clever with the quote insertion
     # to make the code easier to read
     if quoteParameters:
         # when we call clicast from the command line, we need
-        # Need to quote the strings because of names that have << >> 
-        returnString += f" -s\"{testIDObject.functionName}\""
-        returnString += f" -t\"{testIDObject.testName}\""
+        # Need to quote the strings because of names that have << >>
+        returnString += f' -s"{testIDObject.functionName}"'
+        returnString += f' -t"{testIDObject.testName}"'
     else:
         # when we insert commands in the command file we cannot use quotes
         returnString += f" -s{testIDObject.functionName}"
@@ -426,16 +448,18 @@ def runTestCommand(testIDObject, commandList):
     stdoutText = ""
     if "execute" in commandList:
         shouldQuoteParameters = True
-        standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
+        standardArgs = getStandardArgsFromTestObject(
+            testIDObject, shouldQuoteParameters
+        )
         # we cannot include the execute command in the command script that we use for
         # results because we need the return code from the execute command separately
         commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
-        executeReturnCode, stdoutText = runClicastCommand (commandToRun)
+        executeReturnCode, stdoutText = runClicastCommand(commandToRun)
 
-        # currently clicast returns the same error code for a failed coded test compile or 
+        # currently clicast returns the same error code for a failed coded test compile or
         # a failed coded test execution.  We need to distinguish between these two cases
         # so we are using this hack until vcast changes the return code for a failed coded test compile
-        if testIDObject.functionName=="coded_tests_driver" and executeReturnCode!=0:
+        if testIDObject.functionName == "coded_tests_driver" and executeReturnCode != 0:
             if "TEST RESULT:" not in stdoutText:
                 executeReturnCode = 98
 
@@ -473,17 +497,17 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         returnCode, commandOutput = runTestCommand(testIDObject, commands)
 
         if "TEST RESULT: pass" in commandOutput:
-            returnText += ("STATUS:passed\n")
+            returnText += "STATUS:passed\n"
         else:
-            returnText += ("STATUS:failed\n")
-        returnText += (f"REPORT:{testIDObject.reportName}.txt\n")
+            returnText += "STATUS:failed\n"
+        returnText += f"REPORT:{testIDObject.reportName}.txt\n"
 
         # Retrieve the expected value x/y and the
         api = UnitTestApi(enviroPath)
         testList = api.TestCase.filter(name=testIDObject.testName)
         if len(testList) > 0:
             returnText += f"PASSFAIL:" + getPassFailString(testList[0])
-            returnText += f"TIME:{getTime(testList[0].start_time)}\n" 
+            returnText += f"TIME:{getTime(testList[0].start_time)}\n"
 
         returnText += commandOutput
 
@@ -522,7 +546,7 @@ def getResults(enviroPath, testIDObject):
         return returnText
 
 
-def getCodeBasedTestNames (filePath):
+def getCodeBasedTestNames(filePath):
     """
     This function will use the same file parser that the vcast
     uses to extract the test names from the CBT file.  It will return
@@ -535,15 +559,15 @@ def getCodeBasedTestNames (filePath):
 
         cbtParser = Parser()
         with open(filePath, "r") as cbtFile:
-            fileData = cbtParser.parse (filePath)
+            fileData = cbtParser.parse(filePath)
             outputList = []
             for test in fileData:
                 outputNode = {
                     "testName": f"{test.test_suite}.{test.test_case}",
                     "codedTestFile": filePath,
-                    "codedTestLine": test.line
+                    "codedTestLine": test.line,
                 }
-                outputList.append (outputNode)
+                outputList.append(outputNode)
             returnObject = {"tests": outputList}
     return returnObject
 
@@ -563,24 +587,25 @@ class testID:
         self.reportName = os.path.join(enviroPath, hashString)
 
 
-def validateClicastCommand (command, mode):
-
+def validateClicastCommand(command, mode):
     """
     The --clicast arg is only required for a sub-set of modes, so we do
     those checks here, and throw usage error if there is a probelem
     """
     if mode.startswith("executeTest") or mode == "rebuild":
-        if command is None or len (command) == 0:
-            print (f"Arg --clicast is required for mode: {mode}")
+        if command is None or len(command) == 0:
+            print(f"Arg --clicast is required for mode: {mode}")
             raise UsageError()
-        elif os.path.isfile (command) or (sys.platform == "win32" and os.path.isfile (command + ".exe")):
+        elif os.path.isfile(command) or (
+            sys.platform == "win32" and os.path.isfile(command + ".exe")
+        ):
             pass
         else:
-            print (f"Invalid value for --clicast: {command}")
+            print(f"Invalid value for --clicast: {command}")
             raise UsageError()
-        
 
-def updatedEnvironment (enviroPath, jsonOptions):
+
+def updatedEnvironment(enviroPath, jsonOptions):
     """
     pathToUse is the full path to the environment directory
     jsonOptions has the new values of ENVIRO.* commands for the enviro script
@@ -589,7 +614,7 @@ def updatedEnvironment (enviroPath, jsonOptions):
     We overwrite any matching ENVIRO commands with the new values befoe rebuild
     """
 
-    tempEnviroScript  = "rebuild.env"
+    tempEnviroScript = "rebuild.env"
     tempTestScript = "rebuild.tst"
 
     with cd(os.path.dirname(enviroPath)):
@@ -598,55 +623,56 @@ def updatedEnvironment (enviroPath, jsonOptions):
         # we do this using a clicast script
         enviroName = os.path.basename(enviroPath)
         with open(commandFileName, "w") as commandFile:
-            commandFile.write(f"-e{enviroName} enviro script create {tempEnviroScript}\n")
+            commandFile.write(
+                f"-e{enviroName} enviro script create {tempEnviroScript}\n"
+            )
             commandFile.write(f"-e{enviroName} test script create {tempTestScript}\n")
         exitCode, stdOutput = runClicastScript(commandFileName, True)
 
-
         # Read the enviro script into a list of strings
-        with open (tempEnviroScript, "r") as enviroFile:
+        with open(tempEnviroScript, "r") as enviroFile:
             enviroLines = enviroFile.readlines()
 
         # Re-write the enviro script replacing the value of commands
         # that exist in the jsonOptions
-        with open (tempEnviroScript, "w") as enviroFile:
+        with open(tempEnviroScript, "w") as enviroFile:
             for line in enviroLines:
                 whatToWrite = line
-                if line.startswith ("ENVIRO.END"):
-                    # if we have some un-used options then 
+                if line.startswith("ENVIRO.END"):
+                    # if we have some un-used options then
                     # write these before the ENVIRO.END
                     for key, value in jsonOptions.items():
-                        enviroFile.write (f"{key}: {value}\n")
+                        enviroFile.write(f"{key}: {value}\n")
 
-                elif line.startswith ("ENVIRO.") and ":" in line:
+                elif line.startswith("ENVIRO.") and ":" in line:
                     # for all other commands, see if the command matches
                     # a command from the jsonOptions dict
-                    enviroCommand, enviroValue = line.split (":",1)
+                    enviroCommand, enviroValue = line.split(":", 1)
                     enviroCommand = enviroCommand.strip()
                     enviroValue = enviroValue.strip()
                     # if so replace the existing value ...
                     if enviroCommand in jsonOptions:
-                        whatToWrite =  (f"{enviroCommand}: {jsonOptions[enviroCommand]}\n")
-                        jsonOptions.pop (enviroCommand)
+                        whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
+                        jsonOptions.pop(enviroCommand)
 
                 # write the orignal or updated line
-                enviroFile.write (whatToWrite)
+                enviroFile.write(whatToWrite)
 
         # Finally delelete and re-build the environment using the updated script
         # and load the existing tests -> which duplicates what enviro rebuild does.
         with open(commandFileName, "w") as commandFile:
             # Improvement needed: vcast bug: 100924
-            shutil.rmtree (enviroName)
-            #commandFile.write(f"-e{enviroName} enviro delete\n")
+            shutil.rmtree(enviroName)
+            # commandFile.write(f"-e{enviroName} enviro delete\n")
             commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
             commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
         exitCode, stdOutput = runClicastScript(commandFileName, True)
 
-        os.remove (tempEnviroScript)
-        os.remove (tempTestScript)
+        os.remove(tempEnviroScript)
+        os.remove(tempTestScript)
 
 
-def rebuildEnvironment (enviroPath):
+def rebuildEnvironment(enviroPath):
     """
     This dowes a "normal" rebuild environment, when there are no
     edits to be made to the enviro script
@@ -654,40 +680,40 @@ def rebuildEnvironment (enviroPath):
     with cd(os.path.dirname(enviroPath)):
         enviroName = os.path.basename(enviroPath)
         commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro re_build"
-        returnCode, commandOutput = runClicastCommandWithEcho (commandToRun)
+        returnCode, commandOutput = runClicastCommandWithEcho(commandToRun)
 
 
-def processOptions (optionString):
+def processOptions(optionString):
     """
     This function will take the options string and return a dictionary
     """
     returnObject = None
-    if optionString and len (optionString) > 0:
+    if optionString and len(optionString) > 0:
         try:
             returnObject = {}
             returnObject = json.loads(optionString)
         except:
-            print ("Invalid --options argument, value not JSON formatted")
+            print("Invalid --options argument, value not JSON formatted")
             raise UsageError()
     return returnObject
 
 
-def processCommand (mode, clicast, pathToUse, testString="", options="") -> dict:
+def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
     """
-    This function does the actual work of processing a vTestInterface command, 
+    This function does the actual work of processing a vTestInterface command,
     it will return a dictionary with the results of the command
     """
-    
+
     global globalClicastCommand
 
     returnCode = 0
     returnObject = None
 
     # no need to pass this all around
-    validateClicastCommand (clicast, mode)
+    validateClicastCommand(clicast, mode)
     globalClicastCommand = clicast
 
-    jsonOptions = processOptions (options)
+    jsonOptions = processOptions(options)
 
     if mode == "getEnviroData":
         topLevel = dict()
@@ -701,23 +727,25 @@ def processCommand (mode, clicast, pathToUse, testString="", options="") -> dict
         try:
             testIDObject = testID(pathToUse, testString)
         except:
-            print ("Invalid test ID, provide a valid --test argument")
+            print("Invalid test ID, provide a valid --test argument")
             raise UsageError()
-        returnCode, returnText = executeVCtest(pathToUse, testIDObject, mode=="executeTestReport")
-        returnObject = {"text": returnText.split ("\n")}
+        returnCode, returnText = executeVCtest(
+            pathToUse, testIDObject, mode == "executeTestReport"
+        )
+        returnObject = {"text": returnText.split("\n")}
 
     elif mode == "report":
         try:
             testIDObject = testID(pathToUse, testString)
         except:
-            print ("Invalid test ID, provide a valid --test argument")
+            print("Invalid test ID, provide a valid --test argument")
             raise UsageError()
-        returnObject = {"text": getResults(pathToUse, testIDObject).split ("\n")}
+        returnObject = {"text": getResults(pathToUse, testIDObject).split("\n")}
 
     elif mode == "parseCBT":
         # This is a special mode used by the unit test driver to parse the CBT
         # file and generate the test list.
-        returnObject = getCodeBasedTestNames (pathToUse)
+        returnObject = getCodeBasedTestNames(pathToUse)
 
     elif mode == "rebuild":
         # Rebuild environment has some special processing because we want
@@ -725,9 +753,9 @@ def processCommand (mode, clicast, pathToUse, testString="", options="") -> dict
 
         # we don't set the return object for rebuild, because we echo in real-time
         if jsonOptions:
-            updatedEnvironment (pathToUse, jsonOptions)
+            updatedEnvironment(pathToUse, jsonOptions)
         else:
-            rebuildEnvironment (pathToUse)
+            rebuildEnvironment(pathToUse)
 
     # only used for executeTest currently
     return returnCode, returnObject
@@ -744,14 +772,16 @@ def main():
     # See the comment in: executeVPythonScript()
     print("ACTUAL-DATA")
 
-    returnCode, returnObject  = processCommand (args.mode, args.clicast, pathToUse, args.test, args.options )
+    returnCode, returnObject = processCommand(
+        args.mode, args.clicast, pathToUse, args.test, args.options
+    )
     if returnObject:
         if "text" in returnObject:
             returnText = "\n".join(returnObject["text"])
-            print (returnText)
+            print(returnText)
         else:
             returnText = json.dumps(returnObject, indent=4)
-            print (returnText)
+            print(returnText)
 
     # only used for executeTest currently
     return returnCode
