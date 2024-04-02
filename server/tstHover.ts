@@ -39,8 +39,8 @@ export function getHoverString(
         // if we have 3 pieces, then we have a requirement key
         // the line should look like TEST.REQUIREMENT_KEY: <key>  or <key> | <title>
         // IF the title is already there we don't need to do the hover-over
-        if (pieces.length >=3) {
-          let key:string = "";
+        if (pieces.length >= 3) {
+          let key: string = "";
           if (pieces[2].includes("|")) {
             key = pieces[2].split("|")[0].trim();
           }
@@ -49,9 +49,9 @@ export function getHoverString(
           }
           // now find the title for this key, via a python call
           hoverString = getHoverStringForRequirement(enviroPath, key);
-          console.log (hoverString);
+          console.log(hoverString);
         }
-        
+
       } else if (
         upperCaseLine.startsWith("TEST.EXPECTED:") ||
         upperCaseLine.startsWith("TEST.VALUE:")

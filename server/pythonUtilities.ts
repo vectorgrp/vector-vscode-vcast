@@ -34,7 +34,7 @@ function initializeScriptPath() {
   }
 }
 
-export function runPythonScript(enviroName: string, action:string, payload: string): any {
+export function runPythonScript(enviroName: string, action: string, payload: string): any {
   // this is currently not used as the actual server mode is unused
   if (testEditorScriptPath == undefined) {
     initializeScriptPath();
@@ -70,12 +70,12 @@ export function getChoiceDataFromPython(
 }
 
 
-export function getHoverStringForRequirement (
+export function getHoverStringForRequirement(
   enviroName: string,
   requirementKey: string): any {
 
 
-  let returnValue:string = "";
+  let returnValue: string = "";
   const jsonData = runPythonScript(enviroName, "choiceList", "TEST.REQUIREMENT_KEY:");
   for (const msg of jsonData.messages) {
     console.log(msg);

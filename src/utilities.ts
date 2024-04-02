@@ -13,17 +13,17 @@ import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 const execSync = require("child_process").execSync;
 const fs = require("fs");
 const path = require("path");
-const which = require ("which")
+const which = require("which")
 
 const vPythonName = "vpython";
 const vpythonFromPath = which.sync(vPythonName, { nothrow: true })
 export let vPythonCommandToUse: string;
 
 // options used for reading json-c files
-export const jsoncParseOptions:jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent:false };
+export const jsoncParseOptions: jsonc.ParseOptions = { allowTrailingComma: true, disallowComments: false, allowEmptyContent: false };
 // note: we don't use this programmatically but it is useful for debugging
 export var jsoncParseErrors: jsonc.ParseError[] = [];  // not using programatically, for debug only
-export const jsoncModificationOptions:jsonc.ModificationOptions = { formattingOptions: { tabSize: 4, insertSpaces: true } };
+export const jsoncModificationOptions: jsonc.ModificationOptions = { formattingOptions: { tabSize: 4, insertSpaces: true } };
 
 // The testInterface is delivered in the .vsix
 // in the sub-directory "python"
@@ -75,16 +75,16 @@ export function testInterfaceCommand(
     if (testID.length > 0) {
       // we need to strip the "path part" of the environment directory from the test ID
       // which is the part before the '|' and after the ':'
-      const enviroPath = testID.split ("|")[0].split (":")[1];
+      const enviroPath = testID.split("|")[0].split(":")[1];
 
       // now the path to the environment might have a slash if the environment is nested or not
       // so we need to handle that case, since we only want the environment name
       let enviroName = enviroPath;
-      if (enviroName.includes ("/")) {
-          enviroName = enviroPath.substring(enviroPath.lastIndexOf("/") + 1, enviroPath.length);
+      if (enviroName.includes("/")) {
+        enviroName = enviroPath.substring(enviroPath.lastIndexOf("/") + 1, enviroPath.length);
       }
       // The -test arguments should be the enviro name along with everything after the |
-      testArgument = ` --test="${enviroName}|${testID.split ('|')[1]}"`; 
+      testArgument = ` --test="${enviroName}|${testID.split('|')[1]}"`;
     }
     return command + testArgument;
 
@@ -96,29 +96,29 @@ export function testInterfaceCommand(
 }
 
 
-export function parseCBTCommand (filePath:string):string {
+export function parseCBTCommand(filePath: string): string {
   // this command returns the list of tests that exist in a coded test source file
-   return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --path=${filePath}`;
+  return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --path=${filePath}`;
 }
 
 
-export function rebuildEnvironmentCommand (filePath:string):string {
+export function rebuildEnvironmentCommand(filePath: string): string {
 
   // this command performs the environment rebuild, including the update of the .env file
 
   // read the settings that affect enviro build
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  var optionsDict: { [command : string]: string|boolean} = {};
-  optionsDict ["ENVIRO.COVERAGE_TYPE"] = settings.get("build.coverageKind", "None");
+  var optionsDict: { [command: string]: string | boolean } = {};
+  optionsDict["ENVIRO.COVERAGE_TYPE"] = settings.get("build.coverageKind", "None");
 
-  const jsonOptions:string = JSON.stringify(optionsDict);
+  const jsonOptions: string = JSON.stringify(optionsDict);
   return `${vPythonCommandToUse} ${globalTestInterfacePath} --clicast=${clicastCommandToUse} --mode=rebuild --path=${filePath} --options=${jsonOptions}`;
 
 }
 
 
 let globalCheckSumCommand: string | undefined = undefined;
-let crc32Name="crc32-win32.exe";
+let crc32Name = "crc32-win32.exe";
 if (process.platform == "linux") {
   crc32Name = "crc32-linux";
 }
@@ -140,25 +140,25 @@ function pyCrc32IsAvailable(): boolean {
 }
 
 
-function getCRCutilityPath(vcastInstallationPath:string) {
+function getCRCutilityPath(vcastInstallationPath: string) {
 
   // check if the crc32 utility has been added to the the VectorCAST installation
 
   let returnValue: string | undefined = undefined;
   if (vcastInstallationPath) {
-      let candidatePath = path.join(vcastInstallationPath, crc32Name);
-      if (fs.existsSync(candidatePath)) {
-        vectorMessage(`   found '${crc32Name}' here: ${vcastInstallationPath}`);
-        returnValue = candidatePath;
-      }
-      else {
-        vectorMessage(`   could NOT find '${crc32Name}' here: ${vcastInstallationPath}, coverage annotations will not be available`);
-      }
+    let candidatePath = path.join(vcastInstallationPath, crc32Name);
+    if (fs.existsSync(candidatePath)) {
+      vectorMessage(`   found '${crc32Name}' here: ${vcastInstallationPath}`);
+      returnValue = candidatePath;
     }
+    else {
+      vectorMessage(`   could NOT find '${crc32Name}' here: ${vcastInstallationPath}, coverage annotations will not be available`);
+    }
+  }
   return returnValue;
 }
 
-export function initializeChecksumCommand(vcastInstallationPath:string): string | undefined {
+export function initializeChecksumCommand(vcastInstallationPath: string): string | undefined {
   // checks if this vcast distro has python checksum support built-in
   if (globalCrc32Path && pyCrc32IsAvailable()) {
     globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
@@ -175,24 +175,24 @@ export function getChecksumCommand() {
 }
 
 export interface jsonDataType {
-  jsonData:any;
-  jsonDataAsString:string;
+  jsonData: any;
+  jsonDataAsString: string;
 }
 
-export function loadLaunchFile(jsonPath: string): jsonDataType|undefined {
+export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
 
   // this function takes the path to a launch.json
   // and returns the contents, or an empty list of configurations
   // if we cannot read the file
-  let returnValue:jsonDataType|undefined = undefined;
-  
+  let returnValue: jsonDataType | undefined = undefined;
+
   // Requires json-c parsing to handle comments etc.
-  const existingContents = fs.readFileSync (jsonPath).toString();
+  const existingContents = fs.readFileSync(jsonPath).toString();
   // note that jsonc.parse returns "real json" without the comments
   const existingJSONdata = jsonc.parse(existingContents, jsoncParseErrors, jsoncParseOptions);
-  
+
   if (existingJSONdata) {
-    returnValue = { jsonData:existingJSONdata , jsonDataAsString: existingContents };
+    returnValue = { jsonData: existingJSONdata, jsonDataAsString: existingContents };
   }
   return returnValue;
 }
@@ -202,8 +202,8 @@ export function addLaunchConfiguration(fileUri: Uri) {
   // launch.json file that the user right clicks on
 
   const jsonPath = fileUri.fsPath;
-  const existingLaunchData:jsonDataType|undefined = loadLaunchFile(jsonPath);
-  
+  const existingLaunchData: jsonDataType | undefined = loadLaunchFile(jsonPath);
+
   const vectorJSON = JSON.parse(
     fs.readFileSync(
       path.join(globalPathToSupportFiles, "vcastLaunchTemplate.json")
@@ -213,7 +213,7 @@ export function addLaunchConfiguration(fileUri: Uri) {
   // if we have a well formatted launch file with an array of configurations ...
   if (existingLaunchData && existingLaunchData.jsonData.configurations && existingLaunchData.jsonData.configurations.length > 0) {
 
-      // Remember that the vectorJSON data has the "configurations" level which is an array
+    // Remember that the vectorJSON data has the "configurations" level which is an array
     const vectorConfiguration = vectorJSON.configurations[0];
 
     // now loop through launch.json to make sure it does not already have the vector config
@@ -231,21 +231,21 @@ export function addLaunchConfiguration(fileUri: Uri) {
     if (needToAddVectorLaunchConfig) {
       const whereToInsert = existingLaunchData.jsonData.configurations.length;
       let jsonDataAsString = existingLaunchData.jsonDataAsString;
-      const jsoncEdits  = 
+      const jsoncEdits =
         jsonc.modify(
-            jsonDataAsString, 
-            ["configurations", whereToInsert], 
-            vectorConfiguration, 
-            jsoncModificationOptions,
-            );
-      jsonDataAsString = jsonc.applyEdits (jsonDataAsString, jsoncEdits);
+          jsonDataAsString,
+          ["configurations", whereToInsert],
+          vectorConfiguration,
+          jsoncModificationOptions,
+        );
+      jsonDataAsString = jsonc.applyEdits(jsonDataAsString, jsoncEdits);
       fs.writeFileSync(jsonPath, jsonDataAsString);
     }
   }
   else {
     // if the existing file is empty or does not contain a "configurations" section, 
     // simply insert the vector config.  This allows the user to start with an empty file
-    fs.writeFileSync (jsonPath, JSON.stringify(vectorJSON, null, 4));
+    fs.writeFileSync(jsonPath, JSON.stringify(vectorJSON, null, 4));
   }
 }
 
@@ -254,16 +254,16 @@ export function addSettingsFileFilter(fileUri: Uri) {
 
   const filePath = fileUri.fsPath;
   let existingJSON;
-  let existingJSONasString:string;
+  let existingJSONasString: string;
 
   try {
     // Requires json-c parsing to handle comments etc.
-    existingJSONasString = fs.readFileSync (filePath).toString();
+    existingJSONasString = fs.readFileSync(filePath).toString();
     // note that jsonc.parse returns "real json" without the comments
     existingJSON = jsonc.parse(existingJSONasString, jsoncParseErrors, jsoncParseOptions);
-  } 
+  }
   catch {
-    vscode.window.showErrorMessage(`Could not load the existing ${path.basename (filePath)}, check for syntax errors`);
+    vscode.window.showErrorMessage(`Could not load the existing ${path.basename(filePath)}, check for syntax errors`);
     return;
   }
 
@@ -284,19 +284,19 @@ export function addSettingsFileFilter(fileUri: Uri) {
     vscode.window.showInformationMessage(
       `File: ${filePath}, already contains the VectorCAST exclude patterns`
     );
-  } 
+  }
   else {
     const mergedExcludeList = Object.assign(
       existingJSON["files.exclude"],
       vectorJSON["files.exclude"]);
-    const jsoncEdits = 
+    const jsoncEdits =
       jsonc.modify(
-        existingJSONasString, 
-        [filesExcludeString], 
+        existingJSONasString,
+        [filesExcludeString],
         mergedExcludeList,
         jsoncModificationOptions,
-        );
-    existingJSONasString = jsonc.applyEdits (existingJSONasString, jsoncEdits);
+      );
+    existingJSONasString = jsonc.applyEdits(existingJSONasString, jsoncEdits);
 
     fs.writeFileSync(filePath, existingJSONasString);
   }
@@ -311,7 +311,7 @@ export function executeVPythonScript(
   // We could send the json data to a temp file, but the create/open file operations
   // have overhead.
 
-  let returnData:commandStatusType = { errorCode: 0, stdout: "" };
+  let returnData: commandStatusType = { errorCode: 0, stdout: "" };
   if (commandToRun) {
     const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
@@ -320,7 +320,7 @@ export function executeVPythonScript(
     const pieces = commandStatus.stdout.split("ACTUAL-DATA", 2);
     returnData.stdout = pieces[1].trim();
     returnData.errorCode = commandStatus.errorCode;
-    }
+  }
   return returnData;
 }
 
@@ -348,11 +348,11 @@ export interface commandStatusType {
 }
 
 
-export function processExceptionFromExecuteCommand (
-  command:string, 
-  error:any, 
-  printErrorDetails:boolean
-  ):commandStatusType {
+export function processExceptionFromExecuteCommand(
+  command: string,
+  error: any,
+  printErrorDetails: boolean
+): commandStatusType {
 
   // created to make the excuteCommand logic easier to understand
 
@@ -389,7 +389,7 @@ export function executeCommandSync(
   printErrorDetails: boolean = true
 ): commandStatusType {
 
-  vectorMessage (`Running: ${commandToRun}`, errorLevel.trace);
+  vectorMessage(`Running: ${commandToRun}`, errorLevel.trace);
 
   let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
   try {
@@ -397,14 +397,14 @@ export function executeCommandSync(
     commandStatus.stdout = execSync(commandToRun, { cwd: cwd })
       .toString()
       .trim();
-    } 
+  }
   catch (error: any) {
-    commandStatus = 
-      processExceptionFromExecuteCommand (
+    commandStatus =
+      processExceptionFromExecuteCommand(
         commandToRun,
-        error, 
+        error,
         printErrorDetails);
-    }
+  }
   return commandStatus;
 }
 
@@ -416,7 +416,7 @@ export function exeFilename(basename: string): string {
 }
 
 
-function findVcastTools():boolean {
+function findVcastTools(): boolean {
 
   // This function will set global paths to vpython, clicast and vcastqt
   // by sequentially looking for vpython in the directory set via the 
@@ -433,10 +433,10 @@ function findVcastTools():boolean {
   const installationOptionString = settings.get("vectorcastInstallationLocation", "");
 
   // value of VECTORCAST_DIR
-  const  VECTORCAST_DIR = process.env ["VECTORCAST_DIR"];
+  const VECTORCAST_DIR = process.env["VECTORCAST_DIR"];
 
   // VectorCAST installation location
-  let vcastInstallationPath:string|undefined = undefined;
+  let vcastInstallationPath: string | undefined = undefined;
 
   // priority 1 is the option value, since this lets the user over-ride PATH or VECTORCAST_DIR
   if (installationOptionString.length > 0) {
@@ -455,7 +455,7 @@ function findVcastTools():boolean {
       );
       showSettings();
     }
-  } 
+  }
 
   // priority 2 is VECTORCAST_DIR, while this is no longer required, it is still widely used
   else if (VECTORCAST_DIR) {
@@ -470,19 +470,19 @@ function findVcastTools():boolean {
     } else {
       vectorMessage(
         `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
+        "use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
-  } 
+  }
 
   // priority 3 is the system path
   else if (vpythonFromPath) {
-    vcastInstallationPath = path.dirname (vpythonFromPath)
+    vcastInstallationPath = path.dirname(vpythonFromPath)
     vPythonCommandToUse = vpythonFromPath;
     vectorMessage(`   found '${vPythonName}' on the system path [${vcastInstallationPath}]`);
-  } 
-  
+  }
+
   else {
     vectorMessage(
       `   command: '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set, ` +
@@ -499,7 +499,7 @@ function findVcastTools():boolean {
     foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
 
     // setup coded-test stuff (new for vc24)
-    initializeCodedTestSupport (vcastInstallationPath)
+    initializeCodedTestSupport(vcastInstallationPath)
 
     // check if we have access to a valid crc32 command - this is not fatal
     // must be called after initializeInstallerFiles()
@@ -507,8 +507,8 @@ function findVcastTools():boolean {
     if (!initializeChecksumCommand(vcastInstallationPath)) {
       vscode.window.showWarningMessage(
         "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
-          "so the code coverage feature will not be available.  For details on how to resolve " +
-          "this issue, please refer to the 'Prerequisites' section of the README.md file."
+        "so the code coverage feature will not be available.  For details on how to resolve " +
+        "this issue, please refer to the 'Prerequisites' section of the README.md file."
       );
     }
   }
@@ -576,8 +576,7 @@ export function forceLowerCaseDriveLetter(path?: string): string {
     return ""
 }
 
-export function getRangeOption (lineIndex: number):vscode.DecorationOptions 
-{
+export function getRangeOption(lineIndex: number): vscode.DecorationOptions {
   // this function returns a single line range DecorationOption
   const startPos = new vscode.Position(lineIndex, 0);
   const endPos = new vscode.Position(lineIndex, 0);
@@ -585,12 +584,12 @@ export function getRangeOption (lineIndex: number):vscode.DecorationOptions
 }
 
 
-export function openFileWithLineSelected (
-  filePath:string, 
-  lineNumber:number, 
-  viewColumn:vscode.ViewColumn=vscode.ViewColumn.One) {
+export function openFileWithLineSelected(
+  filePath: string,
+  lineNumber: number,
+  viewColumn: vscode.ViewColumn = vscode.ViewColumn.One) {
 
-  const locationToHighlight : vscode.Range = new vscode.Range(
+  const locationToHighlight: vscode.Range = new vscode.Range(
     new vscode.Position(lineNumber, 0),
     new vscode.Position(lineNumber, 200)
   );
@@ -605,8 +604,8 @@ export function openFileWithLineSelected (
     .then((doc: vscode.TextDocument) => {
       vscode.window.showTextDocument(doc, viewOptions);
     },
-    (error: any) => {
-      vectorMessage(error.message, errorLevel.error);
-    });
+      (error: any) => {
+        vectorMessage(error.message, errorLevel.error);
+      });
 }
 

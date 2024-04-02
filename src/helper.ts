@@ -9,10 +9,10 @@ import {
 import {
   removeCoverageDataForEnviro,
 } from "./vcastTestInterface";
-import { 
+import {
   removeCBTfilesCacheForEnviro,
-  removeEnvironmentFromTestPane, 
-  updateTestPane 
+  removeEnvironmentFromTestPane,
+  updateTestPane
 } from "./testPane";
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 import { updateExploreDecorations } from "./fileDecorator";
@@ -28,7 +28,7 @@ export function showSettings() {
 }
 
 
-function removeFilePattern (enviroPath: string, pattern: string) {
+function removeFilePattern(enviroPath: string, pattern: string) {
 
   const options = { cwd: path.dirname(enviroPath), absolute: true, strict: false };
   let fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
@@ -39,7 +39,7 @@ function removeFilePattern (enviroPath: string, pattern: string) {
 
 
 export function updateDataForEnvironment(enviroPath: string) {
-  
+
   // this function does all of the "common" work when an environment is updated
   // sources of environment update are things like:
   //   - opening the environment in the vcast gui
@@ -49,7 +49,7 @@ export function updateDataForEnvironment(enviroPath: string) {
   updateTestPane(enviroPath);
   updateDisplayedCoverage();
   updateExploreDecorations();
-  updateTestDecorator ();
+  updateTestDecorator();
 
 }
 
@@ -57,19 +57,19 @@ const fs = require("fs");
 const glob = require("glob");
 const path = require("path");
 
-export function buildEnvironmentCallback (enviroPath: string, code:number) {
+export function buildEnvironmentCallback(enviroPath: string, code: number) {
   // This function gets called after the newEnviroVCAST command
   // We check the return code and cleanup on failure
 
-  if (code==0) {
+  if (code == 0) {
     updateDataForEnvironment(enviroPath);
   }
   else {
     try {
       // remove the envionment directory, as well as the .vce file
-      vectorMessage ("Environment build failed, removing artifacts ...");
-      fs.rmSync (enviroPath, {recursive: true, force: true});
-      fs.unlinkSync(enviroPath+".vce");
+      vectorMessage("Environment build failed, removing artifacts ...");
+      fs.rmSync(enviroPath, { recursive: true, force: true });
+      fs.unlinkSync(enviroPath + ".vce");
       // Don't want to remove the .env, because leaving it allows the
       // user to edit and then right click to try a re-build
     }
@@ -79,19 +79,19 @@ export function buildEnvironmentCallback (enviroPath: string, code:number) {
   }
 }
 
-export function rebuildEnvironmentCallback (enviroPath: string, code:number) {
+export function rebuildEnvironmentCallback(enviroPath: string, code: number) {
   // This function gets called after the rebuildEnviro command
   // When the rebuild succeeds, we delete the BAK stuff
 
-  if (code==0) {
+  if (code == 0) {
     try {
       // remove the BAK directory and .vce file
-      vectorMessage ("Environment re-build complete, removing artifacts ...");
-      fs.rmSync (enviroPath+".BAK", {recursive: true, force: true});
-      fs.unlinkSync(enviroPath+".BAK.vce");
-     
+      vectorMessage("Environment re-build complete, removing artifacts ...");
+      fs.rmSync(enviroPath + ".BAK", { recursive: true, force: true });
+      fs.unlinkSync(enviroPath + ".BAK.vce");
+
       // vcast leaves the ENVIRO-NAME.time-tag.tst file so we clean that up
-      removeFilePattern (enviroPath, ".*.tst")
+      removeFilePattern(enviroPath, ".*.tst")
     }
     catch {
       ; // ignore errors
@@ -101,11 +101,11 @@ export function rebuildEnvironmentCallback (enviroPath: string, code:number) {
 }
 
 
-export function deleteEnvironmentCallback(enviroNodeID: string, code:number) {
+export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
   // this function gets called after the clicast env delete completes
 
   // if the delete succeeded then we need to remove the environment from the test pane
-  if (code==0) {
+  if (code == 0) {
     removeEnvironmentFromTestPane(enviroNodeID);
     removeCBTfilesCacheForEnviro(enviroNodeID);
 
@@ -113,12 +113,12 @@ export function deleteEnvironmentCallback(enviroNodeID: string, code:number) {
     removeCoverageDataForEnviro(enviroPath);
     updateDisplayedCoverage();
     updateExploreDecorations();
-    updateTestDecorator ();
+    updateTestDecorator();
 
     removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
-    removeFilePattern (enviroPath, ".*")
+    removeFilePattern(enviroPath, ".*")
 
   }
 }

@@ -193,7 +193,7 @@ export const commonEnviroCommandList = [
   "LIBRARY_STUBS",             // a common separated list of names like fopen, malloc, etc.
   "END",
 ];
-  
+
 // Less commonly used commands, maybe handle these with ENVIRO.* to start?
 export const extendedEnviroCommandList = [
   "UUT",
