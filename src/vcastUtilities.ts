@@ -1,5 +1,8 @@
 import * as vscode from "vscode";
 
+// needed for parsing json files with comments
+import * as jsonc from "jsonc-parser";
+
 import {
   openMessagePane,
   vectorMessage,
@@ -18,6 +21,9 @@ import {
   commandStatusType,
   executeCommandSync,
   exeFilename,
+  jsoncModificationOptions,
+  jsoncParseErrors,
+  jsoncParseOptions,
   openFileWithLineSelected,
   processExceptionFromExecuteCommand,
 } from "./utilities";
@@ -26,8 +32,6 @@ import {
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
 } from "./vcastTestInterface";
-import { writeFileSync } from "fs";
-
 
 const fs = require("fs");
 const os = require("os");
@@ -159,49 +163,70 @@ export function addIncludePath (fileUri: vscode.Uri) {
   // I'm handling a few error cases here without going crazy
   let statusMessages:string[] = [];
 
-  // read the existing file contents
   let existingJSON: any;
-  try {
-    existingJSON = JSON.parse(fs.readFileSync(fileUri.fsPath));
-    if (existingJSON.configurations.length == 0) {
-      statusMessages.push (`{configurationFile} file has no existing configurations, creating a 'vcast' configuraiton.  `); 
-      existingJSON.configurations.push ({name: "vcast", includePath: []});
-    }
-  } catch {
-    // if there is some sort of parse error with the existing file don't change it
-    vscode.window.showErrorMessage(`Exception parsing {configurationFile} file, no changes made.  Check for syntax errors.  `);
+  let existingJSONasString: string;
+  
+  // Requires json-c parsing to handle comments etc.
+  existingJSONasString  = fs.readFileSync (fileUri.fsPath).toString();
+  // note that jsonc.parse returns "real json" without the comments
+  existingJSON = jsonc.parse(existingJSONasString, jsoncParseErrors, jsoncParseOptions);
+
+  if (existingJSON && existingJSON.configurations && existingJSON.configurations.length > 0) {
+    const numberOfCofigurations = existingJSON.configurations.length;
+    statusMessages.push (`{configurationFile} file has ${numberOfCofigurations} configurations ... `); 
+  }
+  else {
+    statusMessages.push (`{configurationFile} file has no existing configurations, please add a configuration.   `); 
+    vscode.window.showErrorMessage(statusMessages.join ("\n"));
     return;
   }
-
+  
   // when we get here we should always have a configurations array
-  // but we might now have an includePath, so add it if its missing
+  // but we might not have an includePath, so add it if its missing
   
   let configName = existingJSON.configurations[0].name;
   if (existingJSON.configurations[0].includePath == undefined) {
     statusMessages.push (`Configuration: "${configName}" is missing an includePath list, adding.  `); 
+    // we keep the existing JSON up to date to make the logic below simpler
     existingJSON.configurations[0].includePath = [];
   }
 
-  let includePath = existingJSON.configurations[0].includePath;
-  if (includePath.includes(globalIncludePath)) {
+  let includePathList = existingJSON.configurations[0].includePath;
+  let whereToInsert = existingJSON.configurations[0].includePath.length;
+  if (includePathList.includes(globalIncludePath)) {
     statusMessages.push (`Configuration: "${configName}" already contains the correct include path.  `); 
   }
   else {
     // if the user updated versions of VectorCAST, we might have an "old" include path that needs to be removed
-    const indexToRemove = includePath.findIndex ( (element:string) => element.includes("/vunit/include"));
+    const indexToRemove = includePathList.findIndex ( (element:string) => element.includes("/vunit/include"));
     if (indexToRemove >= 0) {
-      const oldPath = includePath[indexToRemove];
-      includePath.splice (indexToRemove, 1);
+      const oldPath = includePathList[indexToRemove];
+      const jsoncEdits = 
+        jsonc.modify(
+          existingJSONasString, 
+          ["configurations",0,"includePath",indexToRemove], 
+          undefined, 
+          jsoncModificationOptions,
+          );
+      existingJSONasString = jsonc.applyEdits (existingJSONasString, jsoncEdits);
       statusMessages.push (`Removed: ${oldPath} from configuration: "${configName}".  `);
     }
-    includePath.push (globalIncludePath)
+    
+    const jsoncEdits = 
+      jsonc.modify(
+        existingJSONasString, 
+        ["configurations",0,"includePath",whereToInsert],
+        globalIncludePath,
+        jsoncModificationOptions,
+        );
+    existingJSONasString = jsonc.applyEdits (existingJSONasString, jsoncEdits);
     statusMessages.push (`Added: ${globalIncludePath} to configuration: "${configName}".  `); 
   }
 
   vscode.window.showInformationMessage(statusMessages.join ("\n"));
 
   // we unconditionally write rather than tracking if we changed anything
-  writeFileSync (fileUri.fsPath, JSON.stringify(existingJSON, null, 4));
+  fs.writeFileSync(fileUri.fsPath, existingJSONasString);
 
 }
 
