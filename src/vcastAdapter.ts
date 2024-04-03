@@ -4,13 +4,9 @@
 import * as vscode from "vscode";
 
 import { buildEnvironmentCallback, deleteEnvironmentCallback } from "./helper";
-import { openMessagePane } from "./messagePane";
+import { openMessagePane, vectorMessage } from "./messagePane";
 
-import {
-  getEnviroNameFromID,
-  getTestNode,
-  testNodeType,
-} from "./testData";
+import { getEnviroNameFromID, getTestNode, testNodeType } from "./testData";
 import { commandStatusType, executeCommandSync } from "./utilities";
 
 import {
@@ -139,12 +135,12 @@ export function setCodedTestOption(unitTestLocation: string) {
 export enum codedTestAction {
   add = "add",
   new = "new",
-};
-export function addCodedTestToEnvironment (
+}
+export function addCodedTestToEnvironment(
   enviroPath: string,
   testNode: testNodeType,
   action: codedTestAction,
-  userFilePath:string,
+  userFilePath: string
 ): commandStatusType {
   const enclosingDirectory = path.dirname(enviroPath);
 
@@ -155,3 +151,46 @@ export function addCodedTestToEnvironment (
   const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
   return commandStatus;
 }
+
+// Dump the Test Script from an Environment
+export function dumptestScriptFile(
+  testNode: testNodeType,
+  scriptPath: string
+): commandStatusType {
+  const enclosingDirectory = path.dirname(testNode.enviroPath);
+  const clicastArgs = getClicastArgsFromTestNode(testNode);
+
+  let commandToRun: string = `${clicastCommandToUse} ${clicastArgs} test script create ${scriptPath}`;
+  const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+
+  return commandStatus;
+}
+
+// Load the Test Script into the Environment
+export async function loadScriptIntoEnvironment(
+  enviroName: string,
+  scriptPath: string
+) {
+  // call clicast to load the test script
+  const enviroArg = `-e${enviroName}`;
+  let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
+
+  const commandStatus = executeCommandSync(
+    commandToRun,
+    path.dirname(scriptPath)
+  );
+
+  // if the script load fails, executeCommandSync will open the message pane ...
+  // if the load passes, we want to give the user an indication that it worked
+  if (commandStatus.errorCode == 0) {
+    vectorMessage("Script loaded successfully ...");
+    // Maybe this will be annoying to users, but I think
+    // it's good to know when the load is complete.
+    vscode.window.showInformationMessage(`Test script loaded successfully`);
+
+    // this API allows a timeout for the message, but I think its too subtle
+    //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
+  }
+}
+
+

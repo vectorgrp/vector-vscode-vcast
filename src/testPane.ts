@@ -45,7 +45,11 @@ import {
   parseCBTCommand,
 } from "./utilities";
 
-import { deleteSingleTest, refreshCodedTests } from "./vcastAdapter";
+import {
+  deleteSingleTest,
+  loadScriptIntoEnvironment,
+  refreshCodedTests,
+} from "./vcastAdapter";
 
 import {
   getEnviroDataFromPython,
@@ -58,11 +62,11 @@ import {
 } from "./vcastTestInterface";
 
 import {
+  adjustScriptContentsBeforeLoad,
   closeAnyOpenErrorFiles,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
   launchFile,
-  loadScriptIntoEnvironment,
   testStatus,
 } from "./vcastUtilities";
 
@@ -1021,10 +1025,19 @@ export async function loadTestScript() {
     }
 
     let scriptPath = url.fileURLToPath(activeEditor.document.uri.toString());
+
+    // we use the test script contents to determine the environment name
     const enviroName = getEnviroNameFromScript(scriptPath);
+
     if (enviroName) {
+      adjustScriptContentsBeforeLoad(scriptPath);
       const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+
+      // call clicast to load the test script
       loadScriptIntoEnvironment(enviroName, scriptPath);
+
+      // update the test pane for this environment after the script is loaded
+      // we are reading the data back from the environment with this call
       updateTestPane(enviroPath);
     } else {
       vscode.window.showErrorMessage(

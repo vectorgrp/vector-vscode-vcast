@@ -20,6 +20,8 @@ import {
   processExceptionFromExecuteCommand,
 } from "./utilities";
 
+import { dumptestScriptFile, loadScriptIntoEnvironment } from "./vcastAdapter";
+
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -337,14 +339,10 @@ export async function openTestScript(nodeID: string) {
   // this can get called for a unit, environment, function, or test
 
   const testNode: testNodeType = getTestNode(nodeID);
-
-  const enclosingDirectory = path.dirname(testNode.enviroPath);
   const scriptPath = testNode.enviroPath + ".tst";
 
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-    testNode
-  )} test script create ${scriptPath}`;
-  const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+  const commandStatus = dumptestScriptFile(testNode, scriptPath);
+
   if (commandStatus.errorCode == 0) {
     // Improvement needed:
     // It would be nice if vcast generated the scripts with TEST.REPLACE, but for now
@@ -363,7 +361,7 @@ export async function openTestScript(nodeID: string) {
   }
 }
 
-async function adjustScriptContentsBeforeLoad(scriptPath: string) {
+export async function adjustScriptContentsBeforeLoad(scriptPath: string) {
   // There are some things that need updating before we can load the
   // script into VectorCAST:
   //   - The requirement key lines need to be split into two lines
@@ -389,33 +387,6 @@ async function adjustScriptContentsBeforeLoad(scriptPath: string) {
     }
   }
   fs.writeFileSync(scriptPath, newLines.join("\n"), "utf8");
-}
-
-export async function loadScriptIntoEnvironment(
-  enviroName: string,
-  scriptPath: string
-) {
-  // this does the clicast call to laod the test script
-
-  adjustScriptContentsBeforeLoad(scriptPath);
-
-  const enviroArg = `-e${enviroName}`;
-  let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
-  const commandStatus = executeCommandSync(
-    commandToRun,
-    path.dirname(scriptPath)
-  );
-  // if the script load fails, executeCommandSync will open the message pane ...
-  // if the load passes, we want to give the user an indication that it worked
-  if (commandStatus.errorCode == 0) {
-    vectorMessage("Script loaded successfully ...");
-    // Maybe this will be annoying to users, but I think
-    // it's good to know when the load is complete.
-    vscode.window.showInformationMessage(`Test script loaded successfully`);
-
-    // this API allows a timeout for the message, but I think its too subtle
-    //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
-  }
 }
 
 export function generateAndLoadBasisPathTests(testNode: testNodeType) {
@@ -516,11 +487,14 @@ export function loadScriptCallBack(
   scriptPath: string
 ) {
   // This is the callback that should be passed to executeClicastWithProgress() when
-  // we are computing basis path or ATG tests
+  // we are computing basis path or ATG tests, this gets called when the command completes
 
   if (commandStatus.errorCode == 0) {
     vectorMessage("Loading tests into VectorCAST environment ...");
+
+    // call clicast to load the test script
     loadScriptIntoEnvironment(enviroName, scriptPath);
+
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
     vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
     updateTestPane(enviroPath);
