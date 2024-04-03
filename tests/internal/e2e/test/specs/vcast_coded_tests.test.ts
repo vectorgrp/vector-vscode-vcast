@@ -797,7 +797,8 @@ describe("vTypeCheck VS Code Extension", () => {
     let menuElem = await $("aria/Add Existing Coded Test File");
     await menuElem.click();
 
-    const textbox = await $("aria/Select Coded Test File")
+    const textbox = (await $("aria/Select Coded Test File"))
+    await textbox.click()
     await browser.keys(Key.End)
     for (const character of "manager-Tests.cpp") {
       await browser.keys(character);
