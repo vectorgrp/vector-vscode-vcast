@@ -34,12 +34,15 @@ import {
   testInterfaceCommand,
 } from "./utilities";
 
-import { buildEnvironmentFromScript, setCodedTestOption } from "./vcastAdapter";
+import {
+  addCodedTestToEnvironment,
+  buildEnvironmentFromScript,
+  codedTestAction,
+  setCodedTestOption,
+} from "./vcastAdapter";
 
 import {
-  clicastCommandToUse,
   closeAnyOpenErrorFiles,
-  getClicastArgsFromTestNode,
   openTestFileAndErrors,
   testStatus,
 } from "./vcastUtilities";
@@ -808,7 +811,37 @@ export async function newTestScript(testNode: testNodeType) {
   );
 }
 
-export async function newCodedTest(testID: string) {
+async function commonCodedTestProcessing(
+  userFilePath: string,
+  testID: string,
+  action: codedTestAction
+) {
+  let testNode: testNodeType = getTestNode(testID);
+  const enviroPath = getEnviroPathFromID(testID);
+
+  await vectorMessage(
+    `Adding coded test file: ${userFilePath} for environment: ${enviroPath}`
+  );
+
+  // call clicast to create new coded test
+  const commandStatus: commandStatusType = addCodedTestToEnvironment(
+    enviroPath,
+    testNode,
+    action,
+    userFilePath
+  );
+
+  updateTestPane(enviroPath);
+  if (commandStatus.errorCode == 0) {
+    vscode.window.showInformationMessage(`Coded Tests added successfully`);
+  } else {
+    // need to re-read to get the test file name
+    testNode = getTestNode(testID);
+    openTestFileAndErrors(testNode);
+  }
+}
+
+export async function addExistingCodedTestFile(testID: string) {
   // This can be called for any "main" Coded Test node that
   // does not have children.  When we are loading the test data,
   // we set the testFile field for the "Coded Test" node if
@@ -825,37 +858,17 @@ export async function newCodedTest(testID: string) {
     };
     vscode.window.showOpenDialog(option).then(async (fileUri) => {
       if (fileUri) {
-        const UserFilePath: string = fileUri[0].fsPath;
-
-        const enviroPath = getEnviroPathFromID(testID);
-        const enclosingDirectory = path.dirname(enviroPath);
-
-        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-          testNode
-        )} test coded add ${UserFilePath}`;
-        await vectorMessage(
-          `Adding coded test file: ${UserFilePath} for environment: ${enviroPath}`
+        commonCodedTestProcessing(
+          fileUri[0].fsPath,
+          testID,
+          codedTestAction.add
         );
-        const commandStatus = executeCommandSync(
-          commandToRun,
-          enclosingDirectory
-        );
-        updateTestPane(enviroPath);
-        if (commandStatus.errorCode == 0) {
-          vscode.window.showInformationMessage(
-            `Coded Tests added successfully`
-          );
-        } else {
-          // need to re-read to get the test file name
-          testNode = getTestNode(testID);
-          openTestFileAndErrors(testNode);
-        }
       }
     });
   }
 }
 
-export async function generateCodedTest(testID: string) {
+export async function generateNewCodedTestFile(testID: string) {
   // This can be called for any "main" Coded Test node that
   // does not have children.  When we are loading the test data,
   // we set the testFile field for the "Coded Test" node if
@@ -870,27 +883,7 @@ export async function generateCodedTest(testID: string) {
     };
     vscode.window.showSaveDialog(option).then(async (fileUri) => {
       if (fileUri) {
-        const UserFilePath: string = fileUri.fsPath;
-
-        const enviroPath = getEnviroPathFromID(testID);
-        const enclosingDirectory = path.dirname(enviroPath);
-
-        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-          testNode
-        )} test coded new ${UserFilePath}`;
-        await vectorMessage(
-          `Creating new coded test file: for environment: ${enviroPath}`
-        );
-        const commandStatus = executeCommandSync(
-          commandToRun,
-          enclosingDirectory
-        );
-        updateTestPane(enviroPath);
-        if (commandStatus.errorCode == 0) {
-          vscode.window.showInformationMessage(
-            `Coded Tests generated successfully`
-          );
-        }
+        commonCodedTestProcessing(fileUri.fsPath, testID, codedTestAction.new);
       }
     });
   }

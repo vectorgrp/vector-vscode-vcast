@@ -74,8 +74,8 @@ import {
 } from "./vcastAdapter";
 
 import {
-  generateCodedTest,
-  newCodedTest,
+  generateNewCodedTestFile,
+  addExistingCodedTestFile,
   newEnvironment,
   newTestScript,
   openCodedTest,
@@ -231,7 +231,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.addCodedTests",
     (args: any) => {
       if (args) {
-        newCodedTest(args.id);
+        addExistingCodedTestFile(args.id);
       }
     }
   );
@@ -243,7 +243,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.generateCodedTests",
     (args: any) => {
       if (args) {
-        generateCodedTest(args.id);
+        generateNewCodedTestFile(args.id);
       }
     }
   );

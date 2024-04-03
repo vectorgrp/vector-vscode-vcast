@@ -5,7 +5,12 @@ import * as vscode from "vscode";
 
 import { buildEnvironmentCallback, deleteEnvironmentCallback } from "./helper";
 import { openMessagePane } from "./messagePane";
-import { getEnviroNameFromID, getTestNode, testNodeType } from "./testData";
+
+import {
+  getEnviroNameFromID,
+  getTestNode,
+  testNodeType,
+} from "./testData";
 import { commandStatusType, executeCommandSync } from "./utilities";
 
 import {
@@ -107,7 +112,7 @@ export function vcastLicenseOK(): boolean {
   return commandStatus.errorCode == 0;
 }
 
-// Set Coded Test Option 
+// Set Coded Test Option
 export function setCodedTestOption(unitTestLocation: string) {
   // This gets called before every build and rebuild environment
   // to make sure that the CFG file has the right value for coded testing.
@@ -128,4 +133,25 @@ export function setCodedTestOption(unitTestLocation: string) {
       unitTestLocation
     );
   }
+}
+
+// Add New or Existing Coded Test File to Environment based on action
+export enum codedTestAction {
+  add = "add",
+  new = "new",
+};
+export function addCodedTestToEnvironment (
+  enviroPath: string,
+  testNode: testNodeType,
+  action: codedTestAction,
+  userFilePath:string,
+): commandStatusType {
+  const enclosingDirectory = path.dirname(enviroPath);
+
+  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+    testNode
+  )} test coded ${action}} ${userFilePath}`;
+
+  const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+  return commandStatus;
 }
