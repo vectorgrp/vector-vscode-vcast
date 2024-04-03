@@ -34,6 +34,7 @@ import {
   clicastCommandToUse,
   closeAnyOpenErrorFiles,
   executeWithRealTimeEcho,
+  getClicastArgsFromTestNode,
   openTestFileAndErrors,
   testStatus,
 } from "./vcastUtilities";

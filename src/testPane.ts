@@ -32,14 +32,12 @@ import {
   getEnviroNodeIDFromID,
   getFunctionNameFromID,
   getTestNameFromID,
-  getTestNode,
   getUnitNameFromID,
   testNodeType,
 } from "./testData";
 
 import {
   addLaunchConfiguration,
-  executeCommandSync,
   forceLowerCaseDriveLetter,
   getJsonDataFromTestInterface,
   loadLaunchFile,
@@ -47,7 +45,7 @@ import {
   parseCBTCommand,
 } from "./utilities";
 
-import { deleteSingleTest } from "./vcastAdapter";
+import { deleteSingleTest, refreshCodedTests } from "./vcastAdapter";
 
 import {
   getEnviroDataFromPython,
@@ -60,7 +58,6 @@ import {
 } from "./vcastTestInterface";
 
 import {
-  clicastCommandToUse,
   closeAnyOpenErrorFiles,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
@@ -975,7 +972,7 @@ export async function deleteTests(nodeList: any[]) {
   for (let node of nodeList) {
     await vectorMessage(`Deleting tests for node: ${node.id} ...`);
 
-    // execute a clicast call to delete the test
+    // call clicast to delete the test case
     const commandStatus = deleteSingleTest(node.id);
 
     if (commandStatus.errorCode == 0) {
@@ -1213,24 +1210,22 @@ export function updateCodedTestCases(editor: any) {
       let newTestNames: string[] | undefined;
       for (let enviroNodeID of codedTestFileData.enviroNodeIDSet.values()) {
         const enviroPath: string = getEnviroPathFromID(enviroNodeID);
-        // update newTestNames if we have not yet computed them ...
-        if (!newTestNames)
-          newTestNames = getListOfTestsFromFile(filePath, enviroNodeID);
-        const testNode = getTestNode(enviroNodeID);
-        const enclosingDirectory = path.dirname(enviroPath);
 
-        // refresh the coded test file for this environment
-        // note: the same file should never be associated with more than one unit
-        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-          testNode
-        )} test coded refresh`;
+        // update newTestNames if we have not yet computed them ...
+        if (!newTestNames) {
+          newTestNames = getListOfTestsFromFile(filePath, enviroNodeID);
+        }
+
         vectorMessage(
           `Refreshing coded test file: ${filePath} for environment: ${enviroPath}`
         );
-        const refreshCommandStatus = executeCommandSync(
-          commandToRun,
-          enclosingDirectory
+
+        // call clicast to update the coded tests
+        const refreshCommandStatus = refreshCodedTests(
+          enviroPath,
+          enviroNodeID
         );
+
         // if the refresh worked, and the test names changed, then update test pane
         if (refreshCommandStatus.errorCode == 0) {
           updateTestPane(enviroPath);

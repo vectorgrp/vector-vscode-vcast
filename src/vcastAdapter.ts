@@ -7,9 +7,9 @@ import { getEnviroNameFromID, getTestNode, testNodeType } from "./testData";
 import { commandStatusType, executeCommandSync } from "./utilities";
 
 import {
+  clicastCommandToUse,
   executeWithRealTimeEcho,
   getClicastArgsFromTestNode,
-  clicastCommandToUse,
 } from "./vcastUtilities";
 
 const path = require("path");
@@ -49,4 +49,25 @@ export function deleteSingleTest(testNodeID: string): commandStatusType {
   );
 
   return commandStatus;
+}
+
+// Refresh Coded Test List From File
+export function refreshCodedTests(
+  enviroPath: string,
+  enviroNodeID: string
+): commandStatusType {
+  // refresh the coded test file for this environment
+  // note: the same file should never be associated with more than one unit
+
+  const testNode = getTestNode(enviroNodeID);
+  const enclosingDirectory = path.dirname(enviroPath);
+
+  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+    testNode
+  )} test coded refresh`;
+  const refreshCommandStatus = executeCommandSync(
+    commandToRun,
+    enclosingDirectory
+  );
+  return refreshCommandStatus;
 }
