@@ -26,7 +26,6 @@ import {
 } from "./editorDecorator";
 
 import {
-  deleteEnvironmentCallback,
   rebuildEnvironmentCallback,
   updateDataForEnvironment,
   showSettings,
@@ -68,6 +67,8 @@ import {
   rebuildEnvironmentCommand,
 } from "./utilities";
 
+import { deleteEnvironment } from "./vcastAdapter";
+
 import {
   buildEnvironmentFromScript,
   generateCodedTest,
@@ -87,7 +88,6 @@ import {
   getEnviroNameFromFile,
   openTestScript,
   vcastCommandtoUse,
-  clicastCommandToUse,
 } from "./vcastUtilities";
 
 import { updateExploreDecorations } from "./fileDecorator";
@@ -619,21 +619,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         .showInformationMessage(message, "Delete", "Cancel")
         .then((answer) => {
           if (answer === "Delete") {
-            const enclosingDirectory = path.dirname(enviroPath);
-
-            // this returns the environment directory name without any nesting
-            let vcastArgs: string[] = [
-              "-e" + getEnviroNameFromID(enviroNode.id),
-            ];
-            vcastArgs.push("enviro");
-            vcastArgs.push("delete");
-            executeWithRealTimeEcho(
-              clicastCommandToUse,
-              vcastArgs,
-              enclosingDirectory,
-              deleteEnvironmentCallback,
-              enviroNode.id
-            );
+            // execute a clicast call to delete the test
+            deleteEnvironment(enviroPath, enviroNode.id);
           }
         });
     }

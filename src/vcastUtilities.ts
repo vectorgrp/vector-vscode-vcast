@@ -5,7 +5,7 @@ import * as jsonc from "jsonc-parser";
 
 import { openMessagePane, vectorMessage } from "./messagePane";
 
-import { getTestNode, testNodeType } from "./testData";
+import { compoundOnlyString, getTestNode, testNodeType } from "./testData";
 
 import { updateTestPane } from "./testPane";
 
@@ -19,11 +19,6 @@ import {
   openFileWithLineSelected,
   processExceptionFromExecuteCommand,
 } from "./utilities";
-
-import {
-  getClicastArgsFromTestNode,
-  getClicastArgsFromTestNodeAsList,
-} from "./vcastTestInterface";
 
 const fs = require("fs");
 const os = require("os");
@@ -805,4 +800,48 @@ export function getEnviroNameFromFile(filePath: string): string | undefined {
   }
 
   return enviroName;
+}
+
+function quote(name: string) {
+  // if name contains <<COMPOUND>>, <<INIT>> or parenthesis
+  // we need to quote the name so that the shell does not interpret it.
+
+  if (
+    name.includes("<") ||
+    name.includes(">") ||
+    name.includes("(") ||
+    name.includes(")")
+  ) {
+    return '"' + name + '"';
+  } else return name;
+}
+
+export function getClicastArgsFromTestNodeAsList(
+  testNode: testNodeType
+): string[] {
+  // this function will create the enviro, unit, subprogram, and test
+  // arguments as a list, since spawn for example requires an arg list.
+
+  let returnList = [];
+  returnList.push(`-e${testNode.enviroName}`);
+  if (testNode.unitName.length > 0 && testNode.unitName != "not-used")
+    returnList.push(`-u${testNode.unitName}`);
+
+  // we need the quotes on the names to handle <<COMPOUND>>/<<INIT>>/parenthesis
+  if (testNode.functionName.length > 0)
+    returnList.push(`-s${quote(testNode.functionName)}`);
+  if (testNode.testName.length > 0) {
+    const nameToUse = testNode.testName.replace(compoundOnlyString, "");
+    returnList.push(`-t${quote(nameToUse)}`);
+  }
+
+  return returnList;
+}
+
+export function getClicastArgsFromTestNode(testNode: testNodeType) {
+  // this function will create the enviro, unit, subprogram,
+  // and test arg string for clicast calls that need a arg string
+
+  const argList = getClicastArgsFromTestNodeAsList(testNode);
+  return argList.join(" ");
 }
