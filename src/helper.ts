@@ -8,16 +8,12 @@ import {
 } from "./editorDecorator";
 import {
   removeCoverageDataForEnviro,
+  updateCoverageData,
 } from "./vcastTestInterface";
-import { 
-  removeCBTfilesCacheForEnviro,
-  removeEnvironmentFromTestPane, 
-  updateTestPane 
-} from "./testPane";
-import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
+import { removeEnvironmentFromTestPane, updateTestPane } from "./testPane";
+import { getEnviroPathFromID } from "./testData";
 import { updateExploreDecorations } from "./fileDecorator";
 import { vectorMessage } from "./messagePane";
-
 
 export function showSettings() {
   console.log("VectorCAST Test Explorer show settings called ...");
@@ -30,7 +26,7 @@ export function showSettings() {
 
 function removeFilePattern (enviroPath: string, pattern: string) {
 
-  const options = { cwd: path.dirname(enviroPath), absolute: true, strict: false };
+  const options = { cwd: path.dirname(enviroPath), absolute: true };
   let fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
   for (let filePath of fileList) {
     fs.unlinkSync(filePath);
@@ -38,8 +34,8 @@ function removeFilePattern (enviroPath: string, pattern: string) {
 }
 
 
+
 export function updateDataForEnvironment(enviroPath: string) {
-  
   // this function does all of the "common" work when an environment is updated
   // sources of environment update are things like:
   //   - opening the environment in the vcast gui
@@ -47,6 +43,7 @@ export function updateDataForEnvironment(enviroPath: string) {
   //   - ...
 
   updateTestPane(enviroPath);
+  updateCoverageData(enviroPath);
   updateDisplayedCoverage();
   updateExploreDecorations();
   updateTestDecorator ();
@@ -107,15 +104,12 @@ export function deleteEnvironmentCallback(enviroNodeID: string, code:number) {
   // if the delete succeeded then we need to remove the environment from the test pane
   if (code==0) {
     removeEnvironmentFromTestPane(enviroNodeID);
-    removeCBTfilesCacheForEnviro(enviroNodeID);
 
     const enviroPath = getEnviroPathFromID(enviroNodeID);
     removeCoverageDataForEnviro(enviroPath);
     updateDisplayedCoverage();
     updateExploreDecorations();
     updateTestDecorator ();
-
-    removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
     removeFilePattern (enviroPath, ".*")

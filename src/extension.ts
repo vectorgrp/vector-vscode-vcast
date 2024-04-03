@@ -7,8 +7,7 @@ import {
 } from "./client";
 
 import {
-  updateConfigurationOption,
-  updateUnitTestLocationOption,
+  updateConfigurationOption
 } from "./configuration"
 
 import {
@@ -56,8 +55,6 @@ import {
   insertATGTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
-  pathToProgramBeingDebugged,
-  updateCodedTestCases,
 } from "./testPane";
 
 import {
@@ -69,20 +66,13 @@ import {
 
 import {
   buildEnvironmentFromScript,
-  generateCodedTest,
-  newCodedTest,
   newEnvironment,
   newTestScript,
-  openCodedTest,
   resetCoverageData,
 } from "./vcastTestInterface";
 
 import {
-  addIncludePath,
-  configurationFile,
   executeClicastCommand,
-  launchFile,
-  getEnviroNameFromFile,
   openTestScript,
   vcastCommandtoUse,
 } from "./vcastUtilities";
@@ -91,64 +81,34 @@ import {
 import { updateExploreDecorations } from "./fileDecorator";
 
 const spawn = require("child_process").spawn;
-import fs = require("fs");
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
 
-
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
 export async function activate(context: vscode.ExtensionContext) {
-  // activation gets called when:
-  //  -- VectorCAST environment exists in the workspace
-  //  -- "Create VectorCAST Environment" is selected from the Explorer context menu
-  //  -- "VectorCAST Test Explorer: Configure" is selected from the command palette (ctrl-shift-p)
+  // activation gets called when vectorcastTestExplorer.configure is called
+  // currently from the ctrl-p menu,
 
-  // Handler for "VectorCAST Test Explorer: Configure"
-  // The first use of configure will trigger this activate function
-  // subsequent uses will trigger configureCommandCalled()
+  // dummy command to be used for activation
   vscode.commands.registerCommand("vectorcastTestExplorer.configure", () => {
-    configureCommandCalled(context);
+    checkPrerequisites(context);
   });
   vscode.commands.registerCommand("vectorcastTestExplorer.toggleLog", () =>
     toggleMessageLog()
   );
-
-  // we need to install some event handlers so that the user can "fix"
-  // a "bad" vcast installation by providing a valid path see logic 
-  // and comments in this function
-  installPreActivationEventHandlers (context);
-
-  // this checks the vcast installation, 
-  // and if its ok will proceed with full activation
   checkPrerequisites(context);
-
-}
-
-export function configureCommandCalled (context: vscode.ExtensionContext) {
-  // open the extension settings if the user has explicitly called configure
-  showSettings();
 }
 
 let alreadyConfigured: boolean = false;
-let installationFilesInitialized: boolean = false;
-function checkPrerequisites(context: vscode.ExtensionContext) {
-
-  // this function is called from the activate function, and also from the
-  // event handler for changes to the vcast installation location.  So in the 
-  // case that the VectorCAST installation is not found initially, we will get
-  // here multiple times
-
+export function checkPrerequisites(context: vscode.ExtensionContext) {
   if (!alreadyConfigured) {
     
     // setup the location of vTestInterface.py and other utilities
-    if (!installationFilesInitialized) {
-      initializeInstallerFiles(context);
-      installationFilesInitialized = true;
-    }
+    initializeInstallerFiles(context);
 
     if (checkIfInstallationIsOK()) {
       activationLogic(context);
@@ -183,7 +143,6 @@ function activationLogic(context: vscode.ExtensionContext) {
 
   // start the language server
   activateLanguageServerClient(context);
-
 }
 
 function configureExtension(context: vscode.ExtensionContext) {
@@ -225,44 +184,6 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(createTestScriptCommand);
-
-  // Command: vectorcastTestExplorer.addCodedTests////////////////////////////////////////////////////////
-  // This is the callback for the right clicks in the test explorer tree
-  let addCodedTestsCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.addCodedTests",
-    (args: any) => {
-      if (args) {
-        newCodedTest(args.id);
-      }
-    }
-  );
-  context.subscriptions.push(addCodedTestsCommand);
-
-  // Command: vectorcastTestExplorer.generateCodedTests////////////////////////////////////////////////////////
-  // This is the callback for the right clicks in the test explorer tree
-  let generateCodedTestsCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.generateCodedTests",
-    (args: any) => {
-      if (args) {
-        generateCodedTest(args.id);
-      }
-    }
-  );
-  context.subscriptions.push(generateCodedTestsCommand);
-
-  // Command: vectorcastTestExplorer.removeCodedTests////////////////////////////////////////////////////////
-  // This is the callback for the right clicks in the test explorer tree
-
-  // adding the ... to nodeList, results in us getting a list of selected tests!
-  let removeCodedTestsCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.removeCodedTests",
-    (...nodeList: any) => {
-      if (nodeList) {
-        deleteTests(nodeList);
-      }
-    }
-  );
-  context.subscriptions.push(removeCodedTestsCommand);
 
   // Command: vectorcastTestExplorer.insertBasisPathTests////////////////////////////////////////////////////////
   let insertBasisPathTestsCommand = vscode.commands.registerCommand(
@@ -378,18 +299,6 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(editTestScriptCommand);
 
-  // Command: vectorcastTestExplorer.editCodedTest////////////////////////////////////////////////////////
-  let editCodedTestCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.editCodedTest",
-    (args: any) => {
-      if (args) {
-        const testNode: testNodeType = getTestNode(args.id);
-        openCodedTest(testNode);
-      }
-    }
-  );
-  context.subscriptions.push(editCodedTestCommand);
-
   // Command: vectorcastTestExplorer.loadTestScript////////////////////////////////////////////////////////
   let loadTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.loadTestScript",
@@ -410,17 +319,6 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(debugEnviroPathCommand);
 
-  // Command: vectorcastTestExplorer.debugProgramPath ////////////////////////////////////////////////////////
-  // this command is used to return the path to the environment being debugged via
-  // the variable: vectorcastTestExplorer.debugProgramPath that is used in launch.json
-  let debugProgramPathCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.debugProgramPath",
-    () => {
-      return pathToProgramBeingDebugged;
-    }
-  );
-  context.subscriptions.push(debugProgramPathCommand);
-
   // Command: vectorcastTestExplorer.showSettings
   vscode.commands.registerCommand("vectorcastTestExplorer.showSettings", () =>
     showSettings()
@@ -434,55 +332,11 @@ function configureExtension(context: vscode.ExtensionContext) {
       // of all items if this is a multi-select.  Since argList is always valid, even for a single
       // selection, we just use this here.
       if (argList) {
-        // find the list item that contains launch.json
-        for (let i = 0; i < argList.length; i++) {
-          if (argList[i].fsPath.includes(launchFile))  {
-            addLaunchConfiguration(argList[i]);
-          }
-        }
-      }
-      else {
-        // if the arglist is undefined, this might be a right click action in the editor
-        let activeEditor = vscode.window.activeTextEditor;
-        if (activeEditor) {
-          const filePath = activeEditor.document.uri.toString();
-          if (filePath.endsWith(launchFile)) {
-            addLaunchConfiguration(activeEditor.document.uri);
-          }
-        }
+        addLaunchConfiguration(argList[0]);
       }
     }
   );
   context.subscriptions.push(addLaunchConfigurationCommand);
-    
-    // Command: vectorcastTestExplorer.addIncludePath ////////////////////////////////////////////////////////
-    let addIncludePathCommand = vscode.commands.registerCommand(
-      "vectorcastTestExplorer.addIncludePath",
-      (args: Uri, argList: Uri[]) => {
-        // arg is the actual item that the right click happened on, argList is the list
-        // of all items if this is a multi-select.  Since argList is always valid, even for a single
-        // selection, we just use this here.
-        if (argList) {
-          // find the list item that contains c_cpp_properties.json
-          for (let i = 0; i < argList.length; i++) {
-            if (argList[i].fsPath.includes(configurationFile))  {
-              addIncludePath(argList[i]);
-            }
-          }
-        }
-        else {
-          // if the arglist is undefined, this might be a right click action in the editor
-          let activeEditor = vscode.window.activeTextEditor;
-          if (activeEditor) {
-            const filePath = activeEditor.document.uri.toString();
-            if (filePath.endsWith(configurationFile)) {
-              addIncludePath(activeEditor.document.uri);
-            }
-          }
-        }
-      }
-    );
-    context.subscriptions.push(addIncludePathCommand);
 
   // Command: vectorcastTestExplorer.addSettingsFileFilter ////////////////////////////////////////////////////////
   let addSettingsTFileFilterCommand = vscode.commands.registerCommand(
@@ -530,7 +384,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     let openVCASTFromVce = vscode.commands.registerCommand(
       "vectorcastTestExplorer.openVCASTFromVce",
       (arg: any) => {
-        // split vceFile path into the CWD and the Environment
+        // split vceFile path into the CWD and the Environame
         const vcePath = arg.fsPath;
         const cwd = path.dirname (vcePath);
         const enviroName = path.basename (vcePath);
@@ -553,25 +407,28 @@ function configureExtension(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(openVCASTFromVce);
 
+  // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
+  let newEnviroVCASTCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.newEnviroVCAST",
+    (args: Uri, argList: Uri[]) => {
+      // arg is the actual item that the right click happened on, argList is the list
+      // of all items if this is a multi-select.  Since argList is always valid, even for a single
+      // selection, we just use this here.
+      if (argList) {
+        newEnvironment(argList);
+      }
+    }
+  );
+  context.subscriptions.push(newEnviroVCASTCommand);
+
   // Command: vectorcastTestExplorer.buildEnviroFromEnv ////////////////////////////////////////////////////////
   let buildEnviroVCASTCommand = vscode.commands.registerCommand("vectorcastTestExplorer.buildEnviroFromEnv",(arg: Uri) => {
       // arg is the URI of the .env file that was clicked
       if (arg) {
         const envFilepath = arg.fsPath;
-        const buildDirectory = path.dirname(envFilepath);
-        const enviroFilename = path.basename(envFilepath);
-        const enviroName = getEnviroNameFromFile (envFilepath);
-        if (enviroName) {
-          if (!fs.existsSync (path.join (buildDirectory, enviroName))) {
-            buildEnvironmentFromScript (buildDirectory, enviroFilename.split(".")[0]);
-          }
-          else {
-            vscode.window.showErrorMessage (`Environment: ${enviroName} already exists`);
-          }
-        }
-        else {
-            vscode.window.showErrorMessage (`Unable to determine environment name from file: ${envFilepath}`);
-        }
+        const directory = path.dirname(envFilepath);
+        const enviroName = path.basename(envFilepath);
+        buildEnvironmentFromScript (directory, enviroName.split (".")[0]);
       }
     });
   context.subscriptions.push(buildEnviroVCASTCommand);
@@ -686,7 +543,6 @@ function configureExtension(context: vscode.ExtensionContext) {
       // changing the file will invalidate the 
       // coverage and editor annotations
       if (editor) {
-        updateCodedTestCases (editor);
         updateCOVdecorations();
         updateTestDecorator ();
       }
@@ -695,80 +551,36 @@ function configureExtension(context: vscode.ExtensionContext) {
     context.subscriptions
   );
 
-}
 
-
-function installPreActivationEventHandlers (context: vscode.ExtensionContext) {
-
-  // this is separate from configureExtension() because we want to 
-  // handle some actions before the configuration of the extension is complete
-  // Specifically for the case where the user does a create environment action 
-  // and vcast installation is invalid.
-  
   vscode.workspace.onDidChangeConfiguration((event) => {
+    // This function gets triggered when any option at any level (user, workspace, etc.)
+    // gets changed.  The event parameter does not indicate what level has been
+    // edited but you can use the 
 
-    // post configuration, we handle changes to all options ...
-    if (alreadyConfigured) {
-      // This function gets triggered when any option at any level (user, workspace, etc.)
-      // gets changed.  The event parameter does not indicate what level has been
-      // edited but you can use the 
-
-      if (event.affectsConfiguration("vectorcastTestExplorer.decorateExplorer")) {
-        updateExploreDecorations();
-      }
-      else if (event.affectsConfiguration("vectorcastTestExplorer.verboseLogging")) {
-        adjustVerboseSetting();
-      }
-      else if (event.affectsConfiguration("vectorcastTestExplorer.configurationLocation")){
-        updateConfigurationOption ();
-      }
-      else if (event.affectsConfiguration(
-        "vectorcastTestExplorer.unitTestLocation")) {
-        updateUnitTestLocationOption ();
-      }
-      else if (
-        event.affectsConfiguration(
-          "vectorcastTestExplorer.vectorcastInstallationLocation")) {
-        // if the user changes the path to vcast, we need to reset the values
-        // for clicast and vpython path etc.
-        if (checkIfInstallationIsOK()) {
-          resetCoverageData();
-          buildTestPaneContents();
-          updateCOVdecorations();
-        }
-      }
+    if (event.affectsConfiguration("vectorcastTestExplorer.decorateExplorer")) {
+      updateExploreDecorations();
     }
-    // pre-configuration, we only handle changes to the vcast installation location
-    else {
-      if (event.affectsConfiguration("vectorcastTestExplorer.vectorcastInstallationLocation")) {
-        // this call will check if the new value is valid, 
-        // and if so, perform extension activation
-        checkPrerequisites (context)
+    else if (event.affectsConfiguration("vectorcastTestExplorer.verboseLogging")) {
+      adjustVerboseSetting();
+    }
+    else if (event.affectsConfiguration("vectorcastTestExplorer.configurationLocation")){
+      updateConfigurationOption (event);
+    }
+    else if (
+      event.affectsConfiguration(
+        "vectorcastTestExplorer.vectorcastInstallationLocation"
+      )
+    ) {
+      // if the user changes the path to vcast, we need to reset the values
+      // for clicast and vpython path etc.
+      if (checkIfInstallationIsOK()) {
+        resetCoverageData();
+        buildTestPaneContents();
+        updateCOVdecorations();
       }
     }
   });
-
-  // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
-  let newEnviroVCASTCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.newEnviroVCAST",
-    (args: Uri, argList: Uri[]) => {
-
-      // contains a check for already configured, so no work will be done in that case
-      checkPrerequisites(context)
-      if (alreadyConfigured) {
-        // arg is the actual item that the right click happened on, argList is the list
-        // of all items if this is a multi-select.  Since argList is always valid, even for a single
-        // selection, we just use this here.
-        if (argList) {
-          newEnvironment(argList);
-        }
-      }
-    }
-  );
-  context.subscriptions.push(newEnviroVCASTCommand);
-
 }
-
 
 // this method is called when your extension is deactivated
 export function deactivate() {
