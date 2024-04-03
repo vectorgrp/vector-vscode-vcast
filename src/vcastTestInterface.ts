@@ -10,15 +10,19 @@ import {
 
 import { updateFunctionDataForFile } from "./editorDecorator";
 
-import { buildEnvironmentCallback, showSettings } from "./helper";
+import { showSettings } from "./helper";
+
 import {
   openMessagePane,
   vectorMessage,
   vcastMessage,
   errorLevel,
 } from "./messagePane";
+
 import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+
 import { updateTestPane } from "./testPane";
+
 import {
   commandStatusType,
   executeCommandSync,
@@ -30,10 +34,11 @@ import {
   testInterfaceCommand,
 } from "./utilities";
 
+import { buildEnvironmentFromScript, setCodedTestOption } from "./vcastAdapter";
+
 import {
   clicastCommandToUse,
   closeAnyOpenErrorFiles,
-  executeWithRealTimeEcho,
   getClicastArgsFromTestNode,
   openTestFileAndErrors,
   testStatus,
@@ -557,49 +562,6 @@ function createVcastEnvironmentScript(
   );
 
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
-}
-
-export function buildEnvironmentFromScript(
-  unitTestLocation: string,
-  enviroName: string
-) {
-  // this function is separate and exported because it's used when we
-  // create environments from source files and from .env files
-
-  // this call runs clicast in the background
-  const enviroPath = path.join(unitTestLocation, enviroName);
-  const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
-  // This is long running commands so we open the message pane to give the user a sense of what is going on.
-  openMessagePane();
-  executeWithRealTimeEcho(
-    clicastCommandToUse,
-    clicastArgs,
-    unitTestLocation,
-    buildEnvironmentCallback,
-    enviroPath
-  );
-}
-
-export function setCodedTestOption(unitTestLocation: string) {
-  // This gets called before every build and rebuild environment
-  // to make sure that the CFG file has the right value for coded testing.
-  // This is easier than keeping track of n CFG files and their values
-  // and I think that the coded test option will be removed soon.
-
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  if (settings.get("build.enableCodedTesting", false)) {
-    // force the coded test option on
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
-      unitTestLocation
-    );
-  } else {
-    // force the coded test option off
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT false`,
-      unitTestLocation
-    );
-  }
 }
 
 function buildEnvironmentVCAST(

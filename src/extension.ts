@@ -67,17 +67,19 @@ import {
   rebuildEnvironmentCommand,
 } from "./utilities";
 
-import { deleteEnvironment } from "./vcastAdapter";
-
 import {
   buildEnvironmentFromScript,
+  deleteEnvironment,
+  setCodedTestOption,
+} from "./vcastAdapter";
+
+import {
   generateCodedTest,
   newCodedTest,
   newEnvironment,
   newTestScript,
   openCodedTest,
   resetCoverageData,
-  setCodedTestOption,
 } from "./vcastTestInterface";
 
 import {

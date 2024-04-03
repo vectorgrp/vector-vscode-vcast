@@ -10,8 +10,12 @@ import {
   initializeCodedTestSupport,
   initializeVcastUtilities,
 } from "./vcastUtilities";
+
 import { showSettings } from "./helper";
+
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
+
+import { vcastLicenseOK } from "./vcastAdapter";
 
 const execSync = require("child_process").execSync;
 const fs = require("fs");
@@ -543,13 +547,8 @@ export function checkIfInstallationIsOK() {
 
   if (findVcastTools()) {
     // check if we have a valid license
-    const commandToRun = `${clicastCommandToUse} tools has_license`;
-    let commandStatus: commandStatusType = executeCommandSync(
-      commandToRun,
-      process.cwd(),
-      false
-    );
-    if (commandStatus.errorCode == 0) {
+
+    if (vcastLicenseOK()) {
       vectorMessage("   VectorCAST license is available ...");
       returnValue = true;
     } else {
