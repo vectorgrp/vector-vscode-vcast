@@ -23,6 +23,7 @@ This script must be run under vpython
 ///////////////////////////////////////////////////////////////////////////////////////////
 """
 
+import clicastInterface
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
@@ -247,6 +248,7 @@ def getTestDataVCAST(enviroPath):
             if len(unitNode["functions"]) > 0:
                 testList.append(unitNode)
 
+    api.close()
     return testList
 
 
@@ -275,6 +277,7 @@ def printCoverageListing(enviroPath):
         for line in sourceObject.iterate_coverage():
             sys.stdout.write(str(line.line_number).ljust(line_num_width))
             sys.stdout.write(line._cov_line.covered_char() + " | " + line.text + "\n")
+    capi.close()
 
 
 def getUnitData(enviroPath):
@@ -304,6 +307,7 @@ def getUnitData(enviroPath):
         unitInfo["uncovered"] = uncovered
         unitList.append(unitInfo)
 
+    capi.close()
     return unitList
 
 
@@ -351,69 +355,8 @@ def getCoverageData(sourceObject):
     return coveredString, uncoveredString, checksum
 
 
-commandFileName = "commands.cmd"
-
-globalClicastCommand = ""
-
-
-def runClicastCommandWithEcho(commandToRun):
-    """
-    Similar to runClicastCommand but with real-time echo of output
-    """
-    stdoutString = ""
-    process = subprocess.Popen(
-        commandToRun.split(" "), stdout=subprocess.PIPE, text=True
-    )
-    while process.poll() is None:
-        line = process.stdout.readline().rstrip()
-        if len(line) > 0:
-            stdoutString += line + "\n"
-            print(line, flush=True)
-
-    return process.returncode, stdoutString
-
-
-def runClicastCommand(commandToRun):
-    """
-    A wrapper for the subprocess.run() function
-    """
-    try:
-        # note: shell=true, requires commandToRun to be a string
-        result = subprocess.run(
-            commandToRun,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            shell=True,
-        )
-        returnCode = result.returncode
-        rawOutput = result.stdout
-    except subprocess.CalledProcessError as error:
-        returnCode = error.returncode
-        rawOutput = error.stdout
-
-    return returnCode, rawOutput.decode("utf-8", errors="ignore")
-
-
-def runClicastScript(commandFileName, echoToStdout=False):
-    """
-    The caller should create a correctly formatted clicast script
-    and then call this with the name of that script
-    """
-
-    # false at the end tells clicast to ignore errors in individual commands
-    commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
-
-    if echoToStdout:
-        returnCode, stdoutString = runClicastCommandWithEcho(commandToRun)
-    else:
-        returnCode, stdoutString = runClicastCommand(commandToRun)
-
-    os.remove(commandFileName)
-    return returnCode, stdoutString
-
-
 def getStandardArgsFromTestObject(testIDObject, quoteParameters):
+
     returnString = f"-e{testIDObject.enviroName}"
     if testIDObject.unitName != "not-used":
         returnString += f" -u{testIDObject.unitName}"
@@ -453,8 +396,10 @@ def runTestCommand(testIDObject, commandList):
         )
         # we cannot include the execute command in the command script that we use for
         # results because we need the return code from the execute command separately
-        commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
-        executeReturnCode, stdoutText = runClicastCommand(commandToRun)
+        commandToRun = (
+            f"{clicastInterface.globalClicastCommand} -lc {standardArgs} execute run"
+        )
+        executeReturnCode, stdoutText = clicastInterface.runClicastCommand(commandToRun)
 
         # currently clicast returns the same error code for a failed coded test compile or
         # a failed coded test execution.  We need to distinguish between these two cases
@@ -467,7 +412,7 @@ def runTestCommand(testIDObject, commandList):
         standardArgs = getStandardArgsFromTestObject(testIDObject, False)
         # We build a clicast command script to generate the execution report
         # since we need multiple commands
-        with open(commandFileName, "w") as commandFile:
+        with open(clicastInterface.commandFileName, "w") as commandFile:
             commandFile.write(
                 standardArgs
                 + " report custom actual "
@@ -482,7 +427,7 @@ def runTestCommand(testIDObject, commandList):
                 + ".txt\n"
             )
             commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
-        runClicastScript(commandFileName)
+        clicastInterface.runClicastScript(clicastInterface.commandFileName)
 
     return executeReturnCode, stdoutText
 
@@ -508,9 +453,9 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         if len(testList) > 0:
             returnText += f"PASSFAIL:" + getPassFailString(testList[0])
             returnText += f"TIME:{getTime(testList[0].start_time)}\n"
+        api.close()
 
         returnText += commandOutput
-
         return returnCode, returnText
 
 
@@ -605,84 +550,6 @@ def validateClicastCommand(command, mode):
             raise UsageError()
 
 
-def updatedEnvironment(enviroPath, jsonOptions):
-    """
-    pathToUse is the full path to the environment directory
-    jsonOptions has the new values of ENVIRO.* commands for the enviro script
-    e.g.  ENVIRO.COVERAGE_TYPE: Statement
-
-    We overwrite any matching ENVIRO commands with the new values befoe rebuild
-    """
-
-    tempEnviroScript = "rebuild.env"
-    tempTestScript = "rebuild.tst"
-
-    with cd(os.path.dirname(enviroPath)):
-
-        # first we generate a .env and .tst for the existing environment
-        # we do this using a clicast script
-        enviroName = os.path.basename(enviroPath)
-        with open(commandFileName, "w") as commandFile:
-            commandFile.write(
-                f"-e{enviroName} enviro script create {tempEnviroScript}\n"
-            )
-            commandFile.write(f"-e{enviroName} test script create {tempTestScript}\n")
-        exitCode, stdOutput = runClicastScript(commandFileName, True)
-
-        # Read the enviro script into a list of strings
-        with open(tempEnviroScript, "r") as enviroFile:
-            enviroLines = enviroFile.readlines()
-
-        # Re-write the enviro script replacing the value of commands
-        # that exist in the jsonOptions
-        with open(tempEnviroScript, "w") as enviroFile:
-            for line in enviroLines:
-                whatToWrite = line
-                if line.startswith("ENVIRO.END"):
-                    # if we have some un-used options then
-                    # write these before the ENVIRO.END
-                    for key, value in jsonOptions.items():
-                        enviroFile.write(f"{key}: {value}\n")
-
-                elif line.startswith("ENVIRO.") and ":" in line:
-                    # for all other commands, see if the command matches
-                    # a command from the jsonOptions dict
-                    enviroCommand, enviroValue = line.split(":", 1)
-                    enviroCommand = enviroCommand.strip()
-                    enviroValue = enviroValue.strip()
-                    # if so replace the existing value ...
-                    if enviroCommand in jsonOptions:
-                        whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
-                        jsonOptions.pop(enviroCommand)
-
-                # write the orignal or updated line
-                enviroFile.write(whatToWrite)
-
-        # Finally delelete and re-build the environment using the updated script
-        # and load the existing tests -> which duplicates what enviro rebuild does.
-        with open(commandFileName, "w") as commandFile:
-            # Improvement needed: vcast bug: 100924
-            shutil.rmtree(enviroName)
-            # commandFile.write(f"-e{enviroName} enviro delete\n")
-            commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
-            commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
-        exitCode, stdOutput = runClicastScript(commandFileName, True)
-
-        os.remove(tempEnviroScript)
-        os.remove(tempTestScript)
-
-
-def rebuildEnvironment(enviroPath):
-    """
-    This dowes a "normal" rebuild environment, when there are no
-    edits to be made to the enviro script
-    """
-    with cd(os.path.dirname(enviroPath)):
-        enviroName = os.path.basename(enviroPath)
-        commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro re_build"
-        returnCode, commandOutput = runClicastCommandWithEcho(commandToRun)
-
-
 def processOptions(optionString):
     """
     This function will take the options string and return a dictionary
@@ -704,16 +571,12 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
     it will return a dictionary with the results of the command
     """
 
-    global globalClicastCommand
-
     returnCode = 0
     returnObject = None
 
     # no need to pass this all around
     validateClicastCommand(clicast, mode)
-    globalClicastCommand = clicast
-
-    jsonOptions = processOptions(options)
+    clicastInterface.globalClicastCommand = clicast
 
     if mode == "getEnviroData":
         topLevel = dict()
@@ -752,10 +615,8 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
         # to incorporate any changed build settings, like coverageKind
 
         # we don't set the return object for rebuild, because we echo in real-time
-        if jsonOptions:
-            updatedEnvironment(pathToUse, jsonOptions)
-        else:
-            rebuildEnvironment(pathToUse)
+        jsonOptions = processOptions(options)
+        clicastInterface.rebuildEnvironment(pathToUse, jsonOptions)
 
     # only used for executeTest currently
     return returnCode, returnObject

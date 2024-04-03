@@ -589,7 +589,8 @@ function configureExtension(context: vscode.ExtensionContext) {
       const unitTestLocation = path.dirname(enviroPath);
       setCodedTestOption(unitTestLocation);
 
-      // This is a long running command so we open the message pane to give the user a sense of what is going on.
+      // This uses the python binding to clicast to do the rebuild
+      // We open the message pane to give the user a sense of what's going on
       openMessagePane();
       executeWithRealTimeEcho(
         commandVerb,

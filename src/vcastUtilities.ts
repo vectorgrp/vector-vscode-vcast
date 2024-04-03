@@ -547,7 +547,7 @@ export function executeWithRealTimeEcho(
   enviroPath?: string
 ) {
   // this function is used to build and rebuild environments
-  // long running commands that where we want to show real-time output
+  // long running commands where we want to show real-time output
 
   // it uses spawn to execute a clicast command, log the output to the
   // message pane, and update the test explorer when the command completes
