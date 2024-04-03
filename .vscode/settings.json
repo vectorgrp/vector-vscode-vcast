@@ -6,13 +6,13 @@
   },
   "search.exclude": {
     "**/E2E-test":true,
-    "**/out": true
+    "**/out": true,
+    "*.diff": true
   },
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true
-    }
-  },
+    },
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true

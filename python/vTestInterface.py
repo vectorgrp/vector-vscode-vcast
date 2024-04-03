@@ -355,91 +355,13 @@ def getCoverageData(sourceObject):
     return coveredString, uncoveredString, checksum
 
 
-def getStandardArgsFromTestObject(testIDObject, quoteParameters):
-
-    returnString = f"-e{testIDObject.enviroName}"
-    if testIDObject.unitName != "not-used":
-        returnString += f" -u{testIDObject.unitName}"
-
-    # I did not do something clever with the quote insertion
-    # to make the code easier to read
-    if quoteParameters:
-        # when we call clicast from the command line, we need
-        # Need to quote the strings because of names that have << >>
-        returnString += f' -s"{testIDObject.functionName}"'
-        returnString += f' -t"{testIDObject.testName}"'
-    else:
-        # when we insert commands in the command file we cannot use quotes
-        returnString += f" -s{testIDObject.functionName}"
-        returnString += f" -t{testIDObject.testName}"
-
-    return returnString
-
-
-def runTestCommand(testIDObject, commandList):
-    """
-    Commands is a list where the entries are the ascii strings
-    that tell the function what to do.  Valid command strings:
-        execute -> run test
-        results -> generate the test execution report
-
-    Multiple commands can be included in the commandsList
-
-    """
-
-    executeReturnCode = 0
-    stdoutText = ""
-    if "execute" in commandList:
-        shouldQuoteParameters = True
-        standardArgs = getStandardArgsFromTestObject(
-            testIDObject, shouldQuoteParameters
-        )
-        # we cannot include the execute command in the command script that we use for
-        # results because we need the return code from the execute command separately
-        commandToRun = (
-            f"{clicastInterface.globalClicastCommand} -lc {standardArgs} execute run"
-        )
-        executeReturnCode, stdoutText = clicastInterface.runClicastCommand(commandToRun)
-
-        # currently clicast returns the same error code for a failed coded test compile or
-        # a failed coded test execution.  We need to distinguish between these two cases
-        # so we are using this hack until vcast changes the return code for a failed coded test compile
-        if testIDObject.functionName == "coded_tests_driver" and executeReturnCode != 0:
-            if "TEST RESULT:" not in stdoutText:
-                executeReturnCode = 98
-
-    if "report" in commandList:
-        standardArgs = getStandardArgsFromTestObject(testIDObject, False)
-        # We build a clicast command script to generate the execution report
-        # since we need multiple commands
-        with open(clicastInterface.commandFileName, "w") as commandFile:
-            commandFile.write(
-                standardArgs
-                + " report custom actual "
-                + testIDObject.reportName
-                + ".html\n"
-            )
-            commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT TEXT\n")
-            commandFile.write(
-                standardArgs
-                + " report custom actual "
-                + testIDObject.reportName
-                + ".txt\n"
-            )
-            commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
-        clicastInterface.runClicastScript(clicastInterface.commandFileName)
-
-    return executeReturnCode, stdoutText
-
-
 def executeVCtest(enviroPath, testIDObject, generateReport):
     with cd(os.path.dirname(enviroPath)):
         returnText = ""
-        commands = list()
-        commands.append("execute")
+
+        returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
         if generateReport:
-            commands.append("report")
-        returnCode, commandOutput = runTestCommand(testIDObject, commands)
+            commandOutput += clicastInterface.generateExecutionReport(testIDObject)
 
         if "TEST RESULT: pass" in commandOutput:
             returnText += "STATUS:passed\n"
@@ -484,7 +406,7 @@ def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("report")
-        returnCode, commandOutput = runTestCommand(testIDObject, commands)
+        commandOutput = clicastInterface.generateExecutionReport (testIDObject)
 
         returnText = f"REPORT:{testIDObject.reportName}.txt\n"
         returnText += commandOutput
