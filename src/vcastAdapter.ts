@@ -5,19 +5,22 @@ import * as vscode from "vscode";
 
 import { buildEnvironmentCallback, deleteEnvironmentCallback } from "./helper";
 import { openMessagePane, vectorMessage } from "./messagePane";
-
-import { getEnviroNameFromID, getTestNode, testNodeType } from "./testData";
-import { commandStatusType, executeCommandSync } from "./utilities";
-
 import {
-  atgCommandToUse,
-  clicastCommandToUse,
-  executeWithRealTimeEcho,
-  executeClicastWithProgress,
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
-  loadScriptCallBack,
-} from "./vcastUtilities";
+  getEnviroNameFromID,
+  getTestNode,
+  testNodeType,
+} from "./testData";
+
+import {
+  commandStatusType,
+  executeClicastWithProgress,
+  executeCommandSync,
+  executeWithRealTimeEcho,
+} from "./utilities";
+
+import { atgCommandToUse, clicastCommandToUse } from "./vcastInstallation";
 
 const path = require("path");
 
@@ -27,7 +30,8 @@ export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
 
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e" + getEnviroNameFromID(enviroNodeID)];
-  vcastArgs.push("enviro");
+  vcastArgs.push("enviro"); // Generate Basis Path Tests Script and Load into Environment (via callback)
+
   vcastArgs.push("delete");
   executeWithRealTimeEcho(
     clicastCommandToUse,
@@ -201,7 +205,8 @@ export async function loadScriptIntoEnvironment(
 // Generate Basis Path Test Script and Load into Environment (via callback)
 export function runBasisPathCommands(
   testNode: testNodeType,
-  testScriptPath: string
+  testScriptPath: string,
+  loadScriptCallBack: any
 ) {
   // executeClicastWithProgress() uses spawn() which needs the args as a list
   let argList: string[] = [];
@@ -225,7 +230,11 @@ export function runBasisPathCommands(
 }
 
 // Generate ATG Test Script and Load into Environment (via callback)
-export function runATGCommands(testNode: testNodeType, testScriptPath: string) {
+export function runATGCommands(
+  testNode: testNodeType,
+  testScriptPath: string,
+  loadScriptCallBack: any
+) {
   // executeClicastWithProgress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${atgCommandToUse}`);

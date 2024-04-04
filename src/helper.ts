@@ -5,11 +5,13 @@ import * as vscode from "vscode";
 import { updateDisplayedCoverage } from "./coverage";
 import { updateTestDecorator } from "./editorDecorator";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
+
 import {
   removeCBTfilesCacheForEnviro,
   removeEnvironmentFromTestPane,
   updateTestPane,
 } from "./testPane";
+
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 import { updateExploreDecorations } from "./fileDecorator";
 import { vectorMessage } from "./messagePane";

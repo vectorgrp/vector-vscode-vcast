@@ -62,9 +62,7 @@ import {
 import {
   addLaunchConfiguration,
   addSettingsFileFilter,
-  checkIfInstallationIsOK,
-  initializeInstallerFiles,
-  rebuildEnvironmentCommand,
+  executeWithRealTimeEcho,
 } from "./utilities";
 
 import {
@@ -72,6 +70,15 @@ import {
   deleteEnvironment,
   setCodedTestOption,
 } from "./vcastAdapter";
+
+import {
+  checkIfInstallationIsOK,
+  configurationFile,
+  launchFile,
+  globalPathToSupportFiles,
+  initializeInstallerFiles,
+  vcastCommandToUse,
+} from "./vcastInstallation";
 
 import {
   generateNewCodedTestFile,
@@ -84,12 +91,9 @@ import {
 
 import {
   addIncludePath,
-  configurationFile,
-  executeWithRealTimeEcho,
-  launchFile,
   getEnviroNameFromFile,
   openTestScript,
-  vcastCommandtoUse,
+  rebuildEnvironmentCommand,
 } from "./vcastUtilities";
 
 import { updateExploreDecorations } from "./fileDecorator";
@@ -432,7 +436,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         // find the list item that contains launch.json
         for (let i = 0; i < argList.length; i++) {
           if (argList[i].fsPath.includes(launchFile)) {
-            addLaunchConfiguration(argList[i]);
+            addLaunchConfiguration(argList[i], globalPathToSupportFiles);
           }
         }
       } else {
@@ -441,7 +445,10 @@ function configureExtension(context: vscode.ExtensionContext) {
         if (activeEditor) {
           const filePath = activeEditor.document.uri.toString();
           if (filePath.endsWith(launchFile)) {
-            addLaunchConfiguration(activeEditor.document.uri);
+            addLaunchConfiguration(
+              activeEditor.document.uri,
+              globalPathToSupportFiles
+            );
           }
         }
       }
@@ -485,7 +492,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       // of all items if this is a multi-select.  Since argList is always valid, even for a single
       // selection, we just use this here.
       if (argList) {
-        addSettingsFileFilter(argList[0]);
+        addSettingsFileFilter(argList[0], globalPathToSupportFiles);
       }
     }
   );
@@ -503,7 +510,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       vectorMessage("Starting VectorCAST ...");
 
-      const commandToRun = vcastCommandtoUse;
+      const commandToRun = vcastCommandToUse;
       // we use spawn directly to control the detached and shell args
       let vcast = spawn(commandToRun, vcastArgs, {
         cwd: enclosingDirectory,
@@ -530,7 +537,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       vectorMessage("Starting VectorCAST ...");
 
-      const commandToRun = vcastCommandtoUse;
+      const commandToRun = vcastCommandToUse;
       // we use spawn directly to control the detached and shell args
       let vcast = spawn(commandToRun, vcastArgs, {
         cwd: cwd,

@@ -5,26 +5,13 @@ import * as jsonc from "jsonc-parser";
 
 import { Uri } from "vscode";
 
-import {
-  clicastCommandToUse,
-  initializeCodedTestSupport,
-  initializeVcastUtilities,
-} from "./vcastUtilities";
-
-import { showSettings } from "./helper";
-
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
-
-import { vcastLicenseOK } from "./vcastAdapter";
 
 const execSync = require("child_process").execSync;
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
-const which = require("which");
-
-const vPythonName = "vpython";
-const vpythonFromPath = which.sync(vPythonName, { nothrow: true });
-export let vPythonCommandToUse: string;
+const spawn = require("child_process").spawn;
 
 // options used for reading json-c files
 export const jsoncParseOptions: jsonc.ParseOptions = {
@@ -43,148 +30,6 @@ export const jsoncModificationOptions: jsonc.ModificationOptions = {
 
 // The VectorCAST extensions for settings and launch are delivered in the .vsix
 // in the sub-directory "support"
-
-export let globalTestInterfacePath: string | undefined = undefined;
-let globalCrc32Path: string | undefined = undefined;
-let globalPathToSupportFiles: string | undefined = undefined;
-
-export function initializeInstallerFiles(context: vscode.ExtensionContext) {
-  const pathToTestInterface = context.asAbsolutePath(
-    "./python/vTestInterface.py"
-  );
-  if (fs.existsSync(pathToTestInterface)) {
-    vectorMessage("Found vTestInterface here: " + pathToTestInterface);
-    globalTestInterfacePath = `${pathToTestInterface}`;
-  }
-
-  const crc32Path = context.asAbsolutePath("./python/crc32.py");
-  if (fs.existsSync(crc32Path)) {
-    vectorMessage("Found the crc32 python wrapper here: " + crc32Path);
-    globalCrc32Path = `${crc32Path}`;
-  }
-
-  const pathToSupportFiles = context.asAbsolutePath("./supportFiles");
-  if (fs.existsSync(pathToSupportFiles)) {
-    vectorMessage("Found extension support files here: " + pathToSupportFiles);
-    globalPathToSupportFiles = `${pathToSupportFiles}`;
-  }
-}
-
-export function testInterfaceCommand(
-  mode: string,
-  enviroPath: string,
-  testID: string = ""
-): any | undefined {
-  // enviroPath is the absolute path to the environnement directory
-  // testID is contains the string that uniquely identifies the node, something like:
-  //    vcast:TEST|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
-  //    vcast:unitTests/MANAGER|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
-  //
-
-  if (globalTestInterfacePath && vPythonCommandToUse) {
-    const command = `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${mode} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
-    let testArgument = "";
-    if (testID.length > 0) {
-      // we need to strip the "path part" of the environment directory from the test ID
-      // which is the part before the '|' and after the ':'
-      const enviroPath = testID.split("|")[0].split(":")[1];
-
-      // now the path to the environment might have a slash if the environment is nested or not
-      // so we need to handle that case, since we only want the environment name
-      let enviroName = enviroPath;
-      if (enviroName.includes("/")) {
-        enviroName = enviroPath.substring(
-          enviroPath.lastIndexOf("/") + 1,
-          enviroPath.length
-        );
-      }
-      // The -test arguments should be the enviro name along with everything after the |
-      testArgument = ` --test="${enviroName}|${testID.split("|")[1]}"`;
-    }
-    return command + testArgument;
-  } else
-    vscode.window.showWarningMessage(
-      "The VectorCAST Test Explorer could not find the vpython utility."
-    );
-  return undefined;
-}
-
-export function parseCBTCommand(filePath: string): string {
-  // this command returns the list of tests that exist in a coded test source file
-  return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --path=${filePath}`;
-}
-
-export function rebuildEnvironmentCommand(filePath: string): string {
-  // this command performs the environment rebuild, including the update of the .env file
-
-  // read the settings that affect enviro build
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  var optionsDict: { [command: string]: string | boolean } = {};
-  optionsDict["ENVIRO.COVERAGE_TYPE"] = settings.get(
-    "build.coverageKind",
-    "None"
-  );
-
-  const jsonOptions: string = JSON.stringify(optionsDict);
-  return `${vPythonCommandToUse} ${globalTestInterfacePath} --clicast=${clicastCommandToUse} --mode=rebuild --path=${filePath} --options=${jsonOptions}`;
-}
-
-let globalCheckSumCommand: string | undefined = undefined;
-let crc32Name = "crc32-win32.exe";
-if (process.platform == "linux") {
-  crc32Name = "crc32-linux";
-}
-
-function pyCrc32IsAvailable(): boolean {
-  // Although crc32.py simply puts out AVAILABLE or NOT-AVAILABLE,
-  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
-  // so we need this logic to handle that case.
-
-  // I'm doing this in multiple steps for clarity
-  const commandOutputText = executeVPythonScript(
-    `${vPythonCommandToUse} ${globalCrc32Path}`,
-    process.cwd()
-  ).stdout;
-  const outputLinesAsArray = commandOutputText.split("\n");
-  const lastOutputLine = outputLinesAsArray[outputLinesAsArray.length - 1];
-  return lastOutputLine == "AVAILABLE";
-}
-
-function getCRCutilityPath(vcastInstallationPath: string) {
-  // check if the crc32 utility has been added to the the VectorCAST installation
-
-  let returnValue: string | undefined = undefined;
-  if (vcastInstallationPath) {
-    let candidatePath = path.join(vcastInstallationPath, crc32Name);
-    if (fs.existsSync(candidatePath)) {
-      vectorMessage(`   found '${crc32Name}' here: ${vcastInstallationPath}`);
-      returnValue = candidatePath;
-    } else {
-      vectorMessage(
-        `   could NOT find '${crc32Name}' here: ${vcastInstallationPath}, coverage annotations will not be available`
-      );
-    }
-  }
-  return returnValue;
-}
-
-export function initializeChecksumCommand(
-  vcastInstallationPath: string
-): string | undefined {
-  // checks if this vcast distro has python checksum support built-in
-  if (globalCrc32Path && pyCrc32IsAvailable()) {
-    globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
-  } else {
-    // check if the user has patched the distro with the crc32 utility
-    globalCheckSumCommand = getCRCutilityPath(vcastInstallationPath);
-  }
-
-  return globalCheckSumCommand;
-}
-
-export function getChecksumCommand() {
-  return globalCheckSumCommand;
-}
 
 export interface jsonDataType {
   jsonData: any;
@@ -215,7 +60,10 @@ export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
   return returnValue;
 }
 
-export function addLaunchConfiguration(fileUri: Uri) {
+export function addLaunchConfiguration(
+  fileUri: Uri,
+  pathToSupportfiles: string
+) {
   // This function adds the VectorCAST Harness Debug configuration to any
   // launch.json file that the user right clicks on
 
@@ -223,9 +71,7 @@ export function addLaunchConfiguration(fileUri: Uri) {
   const existingLaunchData: jsonDataType | undefined = loadLaunchFile(jsonPath);
 
   const vectorJSON = JSON.parse(
-    fs.readFileSync(
-      path.join(globalPathToSupportFiles, "vcastLaunchTemplate.json")
-    )
+    fs.readFileSync(path.join(pathToSupportfiles, "vcastLaunchTemplate.json"))
   );
 
   // if we have a well formatted launch file with an array of configurations ...
@@ -269,7 +115,10 @@ export function addLaunchConfiguration(fileUri: Uri) {
 }
 
 const filesExcludeString = "files.exclude";
-export function addSettingsFileFilter(fileUri: Uri) {
+export function addSettingsFileFilter(
+  fileUri: Uri,
+  pathToSupportFiles: string
+) {
   const filePath = fileUri.fsPath;
   let existingJSON;
   let existingJSONasString: string;
@@ -301,7 +150,7 @@ export function addSettingsFileFilter(fileUri: Uri) {
 
   // Remember that the vectorJSON data has the "configurations" level which is an array
   const vectorJSON = JSON.parse(
-    fs.readFileSync(path.join(globalPathToSupportFiles, "vcastSettings.json"))
+    fs.readFileSync(path.join(pathToSupportFiles, "vcastSettings.json"))
   );
 
   // now check if the vector filters are already in the files.exclude object
@@ -427,145 +276,194 @@ export function executeCommandSync(
   return commandStatus;
 }
 
-const os = require("os");
+export function executeWithRealTimeEcho(
+  command: string,
+  argList: string[],
+  CWD: string,
+  callback?: any,
+  enviroPath?: string
+) {
+  // this function is used to build and rebuild environments
+  // long running commands where we want to show real-time output
+
+  // it uses spawn to execute a clicast command, log the output to the
+  // message pane, and update the test explorer when the command completes
+
+  // To debug what's going on with vcast, you can add -dall to
+  // argList, which will dump debug info for the clicast invocation
+  let clicast = spawn(command, argList, { cwd: CWD });
+  vectorMessage("-".repeat(100));
+
+  // maybe this is a hack, but after reading stackoverflow for a while I could
+  // not come up with anything better.  The issue is that the on ("exit") gets called
+  // before the stdout stream is closed so stdoutBuffer is incomplete at that point
+  // so we use on ("exit") to invoke the callback and on ("close") to dump the clicast stdout.
+
+  // I tried to only dump the output when the exit code was non 0 but we get a race
+  // condition because the exit might not have saved it when the close is seen.
+
+  vectorMessage("-".repeat(100));
+  clicast.stdout.on("data", function (data: any) {
+    // split raw message based on \n or \r because messages
+    // that come directly from the compiler are LF terminated
+    const rawString = data.toString();
+    const lineArray = rawString.split(/[\n\r?]/);
+    for (const line of lineArray) {
+      if (line.length > 0) {
+        vectorMessage(line.replace(/\n/g, ""));
+      }
+    }
+  });
+
+  clicast.stdout.on("close", function (code: any) {
+    vectorMessage("-".repeat(100));
+  });
+
+  clicast.on("exit", function (code: any) {
+    vectorMessage("-".repeat(100));
+    vectorMessage(
+      `clicast: '${argList.join(" ")}' returned exit code: ${code.toString()}`
+    );
+    vectorMessage("-".repeat(100));
+    if (callback) {
+      callback(enviroPath, code);
+    }
+  });
+}
+
+interface statusMessageType {
+  fullLines: string;
+  remainderText: string;
+}
+function processCommandOutput(
+  remainderTextFromLastCall: string,
+  newTextFromThisCall: string
+): statusMessageType {
+  // The purpose of this function is to process the raw text that comes
+  // from the spawned process and to split it into full lines and a "remainder"
+  // The caller will keep the remainder around until the next data comes in
+  // and then pass that in with the new text.
+
+  let returnObject: statusMessageType = { fullLines: "", remainderText: "" };
+  const candidateString = remainderTextFromLastCall + newTextFromThisCall;
+
+  if (candidateString.endsWith("\n"))
+    // if we got all full lines, there is no remainder
+    returnObject.fullLines = candidateString.slice(
+      0,
+      candidateString.length - 1
+    );
+  else if (candidateString.includes("\n")) {
+    // if there is at least one \n then we have full lines and a remainder
+    const whereToSplit = candidateString.lastIndexOf("\n");
+    returnObject.fullLines = candidateString.substring(0, whereToSplit);
+    returnObject.remainderText = candidateString.substring(
+      whereToSplit + 1,
+      candidateString.length
+    );
+  } else {
+    // otherwise we have only a remainder
+    returnObject.remainderText = candidateString;
+  }
+
+  return returnObject;
+}
+
+export function executeClicastWithProgress(
+  title: string,
+  commandAndArgs: string[],
+  enviroName: string,
+  testScriptPath: string,
+  filter: RegExp,
+  callback: any
+) {
+  // Very similar to the executeWithRealTimeEcho(), but adds a progress dialog,
+  // and a different callback structure.
+  // We use this for generating the basis path and ATG tests (for now)
+
+  vectorMessage(`Executing command: ${commandAndArgs.join(" ")}`);
+  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+
+  const cwd = path.dirname(testScriptPath);
+  const command = commandAndArgs[0];
+  const args = commandAndArgs.slice(1, commandAndArgs.length);
+
+  vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: title,
+      cancellable: false,
+    },
+    async (progress) => {
+      return new Promise(async (resolve, reject) => {
+        // shell is needed so that stdout is NOT buffered
+        const commandHandle = spawn(command, args, { cwd: cwd, shell: true });
+
+        // each time we get an entry here, we need to check if we have a
+        // partial message if so we print the part up the the
+        // final \n and buffer the rest, see comment above
+        let remainderTextFromLastCall = "";
+
+        commandHandle.stdout.on("data", async (data: any) => {
+          const message: statusMessageType = processCommandOutput(
+            remainderTextFromLastCall,
+            data.toString()
+          );
+          remainderTextFromLastCall = message.remainderText;
+
+          if (message.fullLines.length > 0) {
+            vectorMessage(message.fullLines);
+
+            // for the dialog, we want use the filter to decide what to show
+            // and this requires the message data to be split into single lines
+            const lineArray = message.fullLines.split("\n");
+            for (const line of lineArray) {
+              const matched = line.match(filter);
+              if (matched && matched.length > 0) {
+                progress.report({ message: matched[0], increment: 10 });
+                // This is needed to allow the message window to update ...
+                await new Promise<void>((r) => setTimeout(r, 0));
+              }
+            }
+          }
+        });
+
+        commandHandle.stderr.on("data", async (data: any) => {
+          const message: statusMessageType = processCommandOutput(
+            remainderTextFromLastCall,
+            data.toString(data)
+          );
+          remainderTextFromLastCall = message.remainderText;
+
+          if (message.fullLines.length > 0) {
+            vectorMessage(message.fullLines);
+          }
+        });
+
+        commandHandle.on("error", (error: any) => {
+          commandStatus = processExceptionFromExecuteCommand(
+            commandAndArgs.join(" "),
+            error,
+            true
+          );
+        });
+        commandHandle.on("close", (code: any) => {
+          // display any remaining text ...
+          if (remainderTextFromLastCall.length > 0) {
+            vectorMessage(remainderTextFromLastCall);
+          }
+          commandStatus.errorCode = code;
+          resolve(code);
+          callback(commandStatus, enviroName, testScriptPath);
+        });
+      });
+    }
+  );
+}
+
 export function exeFilename(basename: string): string {
   if (os.platform() == "win32") return basename + ".exe";
   else return basename;
-}
-
-function findVcastTools(): boolean {
-  // This function will set global paths to vpython, clicast and vcastqt
-  // by sequentially looking for vpython in the directory set via the
-  // 1. extension option: "vectorcastInstallationLocation"
-  // 2. VECTORCAST_DIR
-  // 3. system PATH variable
-
-  // return value
-  let foundAllvcastTools = false;
-
-  // value of the extension option
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const installationOptionString = settings.get(
-    "vectorcastInstallationLocation",
-    ""
-  );
-
-  // value of VECTORCAST_DIR
-  const VECTORCAST_DIR = process.env["VECTORCAST_DIR"];
-
-  // VectorCAST installation location
-  let vcastInstallationPath: string | undefined = undefined;
-
-  // priority 1 is the option value, since this lets the user over-ride PATH or VECTORCAST_DIR
-  if (installationOptionString.length > 0) {
-    const candidatePath = path.join(
-      installationOptionString,
-      exeFilename(vPythonName)
-    );
-    if (fs.existsSync(candidatePath)) {
-      vcastInstallationPath = installationOptionString;
-      vPythonCommandToUse = candidatePath;
-      vectorMessage(
-        `   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`
-      );
-    } else {
-      vectorMessage(
-        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
-      );
-      showSettings();
-    }
-  }
-
-  // priority 2 is VECTORCAST_DIR, while this is no longer required, it is still widely used
-  else if (VECTORCAST_DIR) {
-    const candidatePath = path.join(VECTORCAST_DIR, exeFilename(vPythonName));
-    if (fs.existsSync(candidatePath)) {
-      vcastInstallationPath = VECTORCAST_DIR;
-      vPythonCommandToUse = candidatePath;
-      vectorMessage(
-        `   found '${vPythonName}' using VECTORCAST_DIR [${VECTORCAST_DIR}]`
-      );
-    } else {
-      vectorMessage(
-        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
-      );
-      showSettings();
-    }
-  }
-
-  // priority 3 is the system path
-  else if (vpythonFromPath) {
-    vcastInstallationPath = path.dirname(vpythonFromPath);
-    vPythonCommandToUse = vpythonFromPath;
-    vectorMessage(
-      `   found '${vPythonName}' on the system path [${vcastInstallationPath}]`
-    );
-  } else {
-    vectorMessage(
-      `   command: '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set, ` +
-        "use the extension options to provide a valid VectorCAST installation directory."
-    );
-    showSettings();
-  }
-
-  // if we found a vpython somewhere ...
-  // we assume the other executables are there too,  but we check anyway :)
-  if (vcastInstallationPath) {
-    // do all of the setup required to use clicast
-    foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
-
-    // setup coded-test stuff (new for vc24)
-    initializeCodedTestSupport(vcastInstallationPath);
-
-    // check if we have access to a valid crc32 command - this is not fatal
-    // must be called after initializeInstallerFiles()
-
-    if (!initializeChecksumCommand(vcastInstallationPath)) {
-      vscode.window.showWarningMessage(
-        "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
-          "so the code coverage feature will not be available.  For details on how to resolve " +
-          "this issue, please refer to the 'Prerequisites' section of the README.md file."
-      );
-    }
-  }
-
-  return foundAllvcastTools;
-}
-
-export function checkIfInstallationIsOK() {
-  // Check if the installation is ok by verifying that:
-  //   - we can find vpython and clicast
-  //   - we have a valid license
-
-  // default this to false, it only gets to true if we find
-  // vpython and clicast and we have a license
-  let returnValue = false;
-
-  vectorMessage("Checking that a VectorCAST installation is available ... ");
-
-  if (findVcastTools()) {
-    // check if we have a valid license
-
-    if (vcastLicenseOK()) {
-      vectorMessage("   VectorCAST license is available ...");
-      returnValue = true;
-    } else {
-      vectorMessage("   no VectorCAST license is available");
-      returnValue = false;
-    }
-  }
-
-  vectorMessage("-".repeat(100) + "\n");
-
-  if (!returnValue) {
-    vectorMessage(
-      "Please refer to the installation and configuration instructions for details on resolving these issues"
-    );
-    openMessagePane();
-  }
-  return returnValue;
 }
 
 export function forceLowerCaseDriveLetter(path?: string): string {
@@ -616,4 +514,18 @@ export function openFileWithLineSelected(
       vectorMessage(error.message, errorLevel.error);
     }
   );
+}
+
+export function quote(name: string) {
+  // if name contains <<COMPOUND>>, <<INIT>> or parenthesis
+  // we need to quote the name so that the shell does not interpret it.
+
+  if (
+    name.includes("<") ||
+    name.includes(">") ||
+    name.includes("(") ||
+    name.includes(")")
+  ) {
+    return '"' + name + '"';
+  } else return name;
 }

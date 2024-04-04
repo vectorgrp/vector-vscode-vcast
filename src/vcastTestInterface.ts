@@ -28,10 +28,8 @@ import {
   executeCommandSync,
   executeVPythonScript,
   forceLowerCaseDriveLetter,
-  getChecksumCommand,
   getJsonDataFromTestInterface,
   openFileWithLineSelected,
-  testInterfaceCommand,
 } from "./utilities";
 
 import {
@@ -41,9 +39,12 @@ import {
   setCodedTestOption,
 } from "./vcastAdapter";
 
+import { getChecksumCommand } from "./vcastInstallation";
+
 import {
   closeAnyOpenErrorFiles,
   openTestFileAndErrors,
+  testInterfaceCommand,
   testStatus,
 } from "./vcastUtilities";
 

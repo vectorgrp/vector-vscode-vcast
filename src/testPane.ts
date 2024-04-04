@@ -42,7 +42,6 @@ import {
   getJsonDataFromTestInterface,
   loadLaunchFile,
   openFileWithLineSelected,
-  parseCBTCommand,
 } from "./utilities";
 
 import {
@@ -61,12 +60,15 @@ import {
   vcastEnviroFile,
 } from "./vcastTestInterface";
 
+
+import { globalPathToSupportFiles, launchFile } from "./vcastInstallation"
+
 import {
   adjustScriptContentsBeforeLoad,
   closeAnyOpenErrorFiles,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
-  launchFile,
+  parseCBTCommand,
   testStatus,
 } from "./vcastUtilities";
 
@@ -699,11 +701,11 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
         );
 
         createEmptyLaunchConfigFile(ourWorkspace, launchJsonPath);
-        addLaunchConfiguration(launchJsonUri);
+        addLaunchConfiguration(launchJsonUri, globalPathToSupportFiles);
       } else {
         debugConfigurationFound = launchConfigExists(launchJsonPath);
         if (!debugConfigurationFound) {
-          addLaunchConfiguration(launchJsonUri);
+          addLaunchConfiguration(launchJsonUri, globalPathToSupportFiles);
         }
       }
 
