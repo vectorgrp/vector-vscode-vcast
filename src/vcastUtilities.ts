@@ -20,7 +20,12 @@ import {
   processExceptionFromExecuteCommand,
 } from "./utilities";
 
-import { dumptestScriptFile, loadScriptIntoEnvironment } from "./vcastAdapter";
+import {
+  dumptestScriptFile,
+  loadScriptIntoEnvironment,
+  runATGCommands,
+  runBasisPathCommands,
+} from "./vcastAdapter";
 
 const fs = require("fs");
 const os = require("os");
@@ -409,25 +414,8 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   // ignore the testName (if any)
   testNode.testName = "";
 
-  // executeClicastWithProgress() uses spawn() which needs the args as a list
-  let argList: string[] = [];
-  argList.push(`${clicastCommandToUse}`);
-  argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
-  argList = argList.concat(["tool", "auto_test", `${tempScriptPath}`]);
-
-  // Since it can be slow to generate basis path tests, we use a progress dialog
-  // and since we don't want to show all of the stdout messages, we use a
-  // regex filter for what to show
-  const messageFilter = /.*Generating test cases for.*/;
-
-  executeClicastWithProgress(
-    "",
-    argList,
-    testNode.enviroName,
-    tempScriptPath,
-    messageFilter,
-    loadScriptCallBack
-  );
+  runBasisPathCommands(testNode, tempScriptPath);
+  
 }
 
 export function generateAndLoadATGTests(testNode: testNodeType) {
@@ -451,34 +439,7 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
   // ignore the testName (if any)
   testNode.testName = "";
 
-  // executeClicastWithProgress() uses spawn() which needs the args as a list
-  let argList: string[] = [];
-  argList.push(`${atgCommandToUse}`);
-  argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
-
-  // -F tells atg to NOT use regex for the -s (sub-program) option
-  // since we always use the "full" sub-program name, we always set -F
-  argList.push("-F");
-
-  // if we are using over-loaded syntax, then we need to add the -P (parameterized) option
-  if (testNode.functionName.includes("(")) {
-    argList.push("-P");
-  }
-  argList.push(`${tempScriptPath}`);
-
-  // Since it can be slow to generate ATG tests, we use a progress dialog
-  // and since we don't want to show all of the stdout messages, we use a
-  // regex filter for what to show
-  const messageFilter = /Subprogram:.*/;
-
-  executeClicastWithProgress(
-    "Generating ATG Tests: ",
-    argList,
-    testNode.enviroName,
-    tempScriptPath,
-    messageFilter,
-    loadScriptCallBack
-  );
+  runATGCommands(testNode, tempScriptPath);
 }
 
 export function loadScriptCallBack(

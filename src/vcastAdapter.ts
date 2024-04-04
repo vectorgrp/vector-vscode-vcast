@@ -10,9 +10,13 @@ import { getEnviroNameFromID, getTestNode, testNodeType } from "./testData";
 import { commandStatusType, executeCommandSync } from "./utilities";
 
 import {
+  atgCommandToUse,
   clicastCommandToUse,
   executeWithRealTimeEcho,
+  executeClicastWithProgress,
   getClicastArgsFromTestNode,
+  getClicastArgsFromTestNodeAsList,
+  loadScriptCallBack,
 } from "./vcastUtilities";
 
 const path = require("path");
@@ -189,8 +193,63 @@ export async function loadScriptIntoEnvironment(
     vscode.window.showInformationMessage(`Test script loaded successfully`);
 
     // this API allows a timeout for the message, but I think its too subtle
+    // becuase it is only shown in the status bar
     //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
   }
 }
 
+export function runBasisPathCommands(
+  testNode: testNodeType,
+  testScriptPath: string
+) {
+  // executeClicastWithProgress() uses spawn() which needs the args as a list
+  let argList: string[] = [];
+  argList.push(`${clicastCommandToUse}`);
+  argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
+  argList = argList.concat(["tool", "auto_test", `${testScriptPath}`]);
 
+  // Since it can be slow to generate basis path tests, we use a progress dialog
+  // and since we don't want to show all of the stdout messages, we use a
+  // regex filter for what to show
+  const messageFilter = /.*Generating test cases for.*/;
+
+  executeClicastWithProgress(
+    "",
+    argList,
+    testNode.enviroName,
+    testScriptPath,
+    messageFilter,
+    loadScriptCallBack
+  );
+}
+
+export function runATGCommands(testNode: testNodeType, testScriptPath: string) {
+  // executeClicastWithProgress() uses spawn() which needs the args as a list
+  let argList: string[] = [];
+  argList.push(`${atgCommandToUse}`);
+  argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
+
+  // -F tells atg to NOT use regex for the -s (sub-program) option
+  // since we always use the "full" sub-program name, we always set -F
+  argList.push("-F");
+
+  // if we are using over-loaded syntax, then we need to add the -P (parameterized) option
+  if (testNode.functionName.includes("(")) {
+    argList.push("-P");
+  }
+  argList.push(`${testScriptPath}`);
+
+  // Since it can be slow to generate ATG tests, we use a progress dialog
+  // and since we don't want to show all of the stdout messages, we use a
+  // regex filter for what to show
+  const messageFilter = /Subprogram:.*/;
+
+  executeClicastWithProgress(
+    "Generating ATG Tests: ",
+    argList,
+    testNode.enviroName,
+    testScriptPath,
+    messageFilter,
+    loadScriptCallBack
+  );
+}
