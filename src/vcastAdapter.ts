@@ -198,6 +198,7 @@ export async function loadScriptIntoEnvironment(
   }
 }
 
+// Generate Basis Path Test Script and Load into Environment (via callback)
 export function runBasisPathCommands(
   testNode: testNodeType,
   testScriptPath: string
@@ -223,6 +224,7 @@ export function runBasisPathCommands(
   );
 }
 
+// Generate ATG Test Script and Load into Environment (via callback)
 export function runATGCommands(testNode: testNodeType, testScriptPath: string) {
   // executeClicastWithProgress() uses spawn() which needs the args as a list
   let argList: string[] = [];
