@@ -205,9 +205,6 @@ function processVCtestData(
       for (let fIndex = 0; fIndex < functionList.length; fIndex++) {
         let functionName: string = functionList[fIndex].name;
 
-        functionName.replace("::", "-");
-        functionName.replace("~", "-");
-
         const testList = functionList[fIndex].tests;
         const functionNodeID = `${unitNodeID}.${functionName}`;
 
