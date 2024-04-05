@@ -37,7 +37,6 @@ import {
 import { viewResultsReport } from "./reporting";
 
 import {
-  getEnviroNameFromID,
   getEnviroPathFromID,
   getTestNode,
   testNodeType,
@@ -62,6 +61,8 @@ import {
   buildEnvironmentFromScript,
   deleteEnvironment,
   setCodedTestOption,
+  openVcastFromEnviroNode,
+  openVcastFromVCEfile,
 } from "./vcastAdapter";
 
 import { executeWithRealTimeEcho } from "./vcastCommandRunner";
@@ -72,7 +73,6 @@ import {
   launchFile,
   globalPathToSupportFiles,
   initializeInstallerFiles,
-  vcastCommandToUse,
 } from "./vcastInstallation";
 
 import {
@@ -497,25 +497,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   let openVCAST = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCAST",
     (enviroNode: any) => {
-      // this returns the environment directory name without any nesting
-      let vcastArgs: string[] = ["-e " + getEnviroNameFromID(enviroNode.id)];
-      // this returns the full path to the environment directory
-      const enviroPath = getEnviroPathFromID(enviroNode.id);
-      const enclosingDirectory = path.dirname(enviroPath);
-
       vectorMessage("Starting VectorCAST ...");
-
-      const commandToRun = vcastCommandToUse;
-      // we use spawn directly to control the detached and shell args
-      let vcast = spawn(commandToRun, vcastArgs, {
-        cwd: enclosingDirectory,
-        detached: true,
-        shell: true,
-        windowsHide: true,
-      });
-      vcast.on("exit", function (code: any) {
-        updateDataForEnvironment(enviroPath);
-      });
+      openVcastFromEnviroNode (enviroNode.id, updateDataForEnvironment);
     }
   );
   context.subscriptions.push(openVCAST);
@@ -524,25 +507,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   let openVCASTFromVce = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCASTFromVce",
     (arg: any) => {
-      // split vceFile path into the CWD and the Environment
-      const vcePath = arg.fsPath;
-      const cwd = path.dirname(vcePath);
-      const enviroName = path.basename(vcePath);
-      let vcastArgs: string[] = ["-e " + enviroName];
-
       vectorMessage("Starting VectorCAST ...");
-
-      const commandToRun = vcastCommandToUse;
-      // we use spawn directly to control the detached and shell args
-      let vcast = spawn(commandToRun, vcastArgs, {
-        cwd: cwd,
-        detached: true,
-        shell: true,
-        windowsHide: true,
-      });
-      vcast.on("exit", function (code: any) {
-        updateDataForEnvironment(vcePath.split(".")[0]);
-      });
+      openVcastFromVCEfile (arg.fsPath, updateDataForEnvironment);
     }
   );
   context.subscriptions.push(openVCASTFromVce);

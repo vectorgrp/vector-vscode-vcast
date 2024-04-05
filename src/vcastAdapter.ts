@@ -4,12 +4,18 @@
 
 import * as vscode from "vscode";
 
-import { buildEnvironmentCallback, deleteEnvironmentCallback } from "./callbacks";
+import { execSync, spawn } from "child_process";
+
+import {
+  buildEnvironmentCallback,
+  deleteEnvironmentCallback,
+} from "./callbacks";
 import { openMessagePane, vectorMessage } from "./messagePane";
 import {
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
   getEnviroNameFromID,
+  getEnviroPathFromID,
   getTestNode,
   testNodeType,
 } from "./testData";
@@ -19,9 +25,13 @@ import {
   executeClicastWithProgress,
   executeCommandSync,
   executeWithRealTimeEcho,
-} from "./vcastCommandRunner"
+} from "./vcastCommandRunner";
 
-import { atgCommandToUse, clicastCommandToUse } from "./vcastInstallation";
+import {
+  atgCommandToUse,
+  clicastCommandToUse,
+  vcastCommandToUse,
+} from "./vcastInstallation";
 
 const path = require("path");
 
@@ -270,3 +280,51 @@ export function runATGCommands(
   );
 }
 
+// Open vcastqt in options dialog mode ... in the future we might
+// create a native VS Code dialog for this
+export function openVcastOptionsDialog(cwd: string) {
+  execSync(`${vcastCommandToUse} -lc -o`, { cwd: cwd });
+}
+
+// Open vcastqt for an environment
+export function openVcastFromEnviroNode (enviroNodeID: string, callback: any) {
+  // this returns the environment directory name without any nesting
+  let vcastArgs: string[] = ["-e " + getEnviroNameFromID(enviroNodeID)];
+
+  // this returns the full path to the environment directory
+  const enviroPath = getEnviroPathFromID(enviroNodeID);
+
+  const enclosingDirectory = path.dirname(enviroPath);
+
+  // we use spawn directly to control the detached and shell args
+  let vcast = spawn(vcastCommandToUse, vcastArgs, {
+    cwd: enclosingDirectory,
+    detached: true,
+    shell: true,
+    windowsHide: true,
+  });
+
+  vcast.on("exit", function (code: any) {
+    callback(enviroPath);
+  });
+}
+
+
+export function openVcastFromVCEfile (vcePath: string, callback: any) {
+  
+  // split vceFile path into the CWD and the Environment
+  const cwd = path.dirname(vcePath);
+  const enviroName = path.basename(vcePath);
+  let vcastArgs: string[] = ["-e " + enviroName];
+
+  // we use spawn directly to control the detached and shell args
+  let vcast = spawn(vcastCommandToUse, vcastArgs, {
+    cwd: cwd,
+    detached: true,
+    shell: true,
+    windowsHide: true,
+  });
+  vcast.on("exit", function (code: any) {
+    callback(vcePath.split(".")[0]);
+  });
+}

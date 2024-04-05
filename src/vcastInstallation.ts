@@ -20,7 +20,7 @@ const vpythonFromPath = which.sync(vPythonName, { nothrow: true });
 export let vPythonCommandToUse: string;
 
 const vcastqtName = "vcastqt";
-export let vcastCommandToUse: string | undefined = undefined;
+export let vcastCommandToUse: string;
 
 let globalCheckSumCommand: string | undefined = undefined;
 let crc32Name = "crc32-win32.exe";
