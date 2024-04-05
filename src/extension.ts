@@ -36,11 +36,7 @@ import {
 
 import { viewResultsReport } from "./reporting";
 
-import {
-  getEnviroPathFromID,
-  getTestNode,
-  testNodeType,
-} from "./testData";
+import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
 import {
   activateTestPane,
@@ -55,7 +51,11 @@ import {
   updateDataForEnvironment,
 } from "./testPane";
 
-import { addLaunchConfiguration, addSettingsFileFilter, showSettings } from "./utilities";
+import {
+  addLaunchConfiguration,
+  addSettingsFileFilter,
+  showSettings,
+} from "./utilities";
 
 import {
   buildEnvironmentFromScript,
@@ -497,7 +497,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.openVCAST",
     (enviroNode: any) => {
       vectorMessage("Starting VectorCAST ...");
-      openVcastFromEnviroNode (enviroNode.id, updateDataForEnvironment);
+      openVcastFromEnviroNode(enviroNode.id, updateDataForEnvironment);
     }
   );
   context.subscriptions.push(openVCAST);
@@ -507,7 +507,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.openVCASTFromVce",
     (arg: any) => {
       vectorMessage("Starting VectorCAST ...");
-      openVcastFromVCEfile (arg.fsPath, updateDataForEnvironment);
+      openVcastFromVCEfile(arg.fsPath, updateDataForEnvironment);
     }
   );
   context.subscriptions.push(openVCASTFromVce);
@@ -547,9 +547,6 @@ function configureExtension(context: vscode.ExtensionContext) {
   let rebuildEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.rebuildEnviro",
     (enviroNode: any) => {
-
-      
-
       // this returns the full path to the environment directory
       const enviroPath = getEnviroPathFromID(enviroNode.id);
 
@@ -713,16 +710,14 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
       }
     }
     // pre-configuration, we only handle changes to the vcast installation location
-    else {
-      if (
-        event.affectsConfiguration(
-          "vectorcastTestExplorer.vectorcastInstallationLocation"
-        )
-      ) {
-        // this call will check if the new value is valid,
-        // and if so, perform extension activation
-        checkPrerequisites(context);
-      }
+    else if (
+      event.affectsConfiguration(
+        "vectorcastTestExplorer.vectorcastInstallationLocation"
+      )
+    ) {
+      // this call will check if the new value is valid,
+      // and if so, perform extension activation
+      checkPrerequisites(context);
     }
   });
 
