@@ -309,8 +309,8 @@ function getEnvironmentList(baseDirectory: string): string[] {
 // Search for 'vectorcastTestExplorer.vcastEnviroList | vcastHasCodedTestsList' in package.json
 // to see where we reference them
 // this list in a "when" clause
-export var vcastEnviroList: string[] = [];
-export var vcastHasCodedTestsList: string[] = [];
+let vcastEnviroList: string[] = [];
+let vcastHasCodedTestsList: string[] = [];
 
 export function updateTestsForEnvironment(
   enviroPath: string,
@@ -690,7 +690,7 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
       if (!launchFileExists(launchJsonPath)) {
         vectorMessage(
           `${launchFile}| not found in ${launchJsonPath}.` +
-            ` Generating \"VectorCAST Harness Debug\" configuration from template`
+            ` Generating "VectorCAST Harness Debug" configuration from template`
         );
 
         vscode.window.showWarningMessage(
