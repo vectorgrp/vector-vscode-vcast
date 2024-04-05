@@ -1,16 +1,12 @@
 import * as vscode from "vscode";
 
-import { showSettings } from "./helper";
-
 import { openMessagePane, vectorMessage } from "./messagePane";
 
-import {
-  executeCommandSync,
-  exeFilename,
-  executeVPythonScript,
-} from "./utilities";
+import { exeFilename, showSettings } from "./utilities";
 
 import { vcastLicenseOK } from "./vcastAdapter";
+
+import { executeCommandSync, executeVPythonScript } from "./vcastCommandRunner";
 
 const fs = require("fs");
 const path = require("path");

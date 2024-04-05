@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
+import { rebuildEnvironmentCallback } from "./callbacks";
+
 import {
   activateLanguageServerClient,
   deactivateLanguageServerClient,
@@ -24,12 +26,6 @@ import {
   initializeTestDecorator,
   updateTestDecorator,
 } from "./editorDecorator";
-
-import {
-  rebuildEnvironmentCallback,
-  updateDataForEnvironment,
-  showSettings,
-} from "./helper";
 
 import {
   openMessagePane,
@@ -57,19 +53,18 @@ import {
   pathToEnviroBeingDebugged,
   pathToProgramBeingDebugged,
   updateCodedTestCases,
+  updateDataForEnvironment,
 } from "./testPane";
 
-import {
-  addLaunchConfiguration,
-  addSettingsFileFilter,
-  executeWithRealTimeEcho,
-} from "./utilities";
+import { addLaunchConfiguration, addSettingsFileFilter, showSettings } from "./utilities";
 
 import {
   buildEnvironmentFromScript,
   deleteEnvironment,
   setCodedTestOption,
 } from "./vcastAdapter";
+
+import { executeWithRealTimeEcho } from "./vcastCommandRunner";
 
 import {
   checkIfInstallationIsOK,

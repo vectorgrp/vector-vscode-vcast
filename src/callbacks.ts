@@ -4,42 +4,26 @@ import * as vscode from "vscode";
 
 import { updateDisplayedCoverage } from "./coverage";
 import { updateTestDecorator } from "./editorDecorator";
-import { removeCoverageDataForEnviro } from "./vcastTestInterface";
+
+import { updateExploreDecorations } from "./fileDecorator";
+import { openMessagePane, vectorMessage } from "./messagePane";
+import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
   removeCBTfilesCacheForEnviro,
   removeEnvironmentFromTestPane,
+  updateDataForEnvironment,
+  updateTestPane,
 } from "./testPane";
 
-import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
-import { updateExploreDecorations } from "./fileDecorator";
-import { vectorMessage } from "./messagePane";
 
-export function showSettings() {
-  console.log("VectorCAST Test Explorer show settings called ...");
-  // previously, I was using: "VectorCAST Test Explorer" as the "filter" in this call, but
-  // that resulted in a coupld of extra settings, and the wrong order being displayed
-  // through trial and error, I found that this gives what we want
-  vscode.commands.executeCommand(
-    "workbench.action.openWorkspaceSettings",
-    "@ext:vectorgroup.vectorcasttestexplorer"
-  );
-}
+import { removeFilePattern } from "./utilities";
+import { commandStatusType } from "./vcastCommandRunner";
+import { loadScriptIntoEnvironment } from "./vcastAdapter";
+import { removeCoverageDataForEnviro } from "./vcastTestInterface";
 
-function removeFilePattern(enviroPath: string, pattern: string) {
-  const options = {
-    cwd: path.dirname(enviroPath),
-    absolute: true,
-    strict: false,
-  };
-  let fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
-  for (let filePath of fileList) {
-    fs.unlinkSync(filePath);
-  }
-}
 
 const fs = require("fs");
-const glob = require("glob");
 const path = require("path");
 
 export function buildEnvironmentCallback(enviroPath: string, code: number) {
@@ -100,5 +84,32 @@ export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
     removeFilePattern(enviroPath, ".*");
+  }
+}
+
+export function loadScriptCallBack(
+  commandStatus: commandStatusType,
+  enviroName: string,
+  scriptPath: string
+) {
+  // This is the callback that should be passed to executeClicastWithProgress() when
+  // we are computing basis path or ATG tests, this gets called when the command completes
+
+  if (commandStatus.errorCode == 0) {
+    vectorMessage("Loading tests into VectorCAST environment ...");
+
+    // call clicast to load the test script
+    loadScriptIntoEnvironment(enviroName, scriptPath);
+
+    const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+    vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
+    updateTestPane(enviroPath);
+    fs.unlinkSync(scriptPath);
+  } else {
+    vscode.window.showInformationMessage(
+      `Error generating tests, see log for details`
+    );
+    vectorMessage(commandStatus.stdout);
+    openMessagePane();
   }
 }

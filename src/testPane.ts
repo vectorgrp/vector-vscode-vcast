@@ -39,7 +39,6 @@ import {
 import {
   addLaunchConfiguration,
   forceLowerCaseDriveLetter,
-  getJsonDataFromTestInterface,
   loadLaunchFile,
   openFileWithLineSelected,
 } from "./utilities";
@@ -49,6 +48,10 @@ import {
   loadScriptIntoEnvironment,
   refreshCodedTests,
 } from "./vcastAdapter";
+
+
+import {  getJsonDataFromTestInterface } from "./vcastCommandRunner"
+import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
   getEnviroDataFromPython,
@@ -60,7 +63,6 @@ import {
   vcastEnviroFile,
 } from "./vcastTestInterface";
 
-import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
   adjustScriptContentsBeforeLoad,

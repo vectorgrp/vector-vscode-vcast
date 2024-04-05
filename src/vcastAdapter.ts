@@ -1,9 +1,10 @@
 // This module contains all interactions with a VectorCAST environment via clicast or vpython
-// The functions are organized alpabetically by the command
+// The functions are organized into two secitons, the top section is for direct calls to clicast
+// and the bottom section is for calls via vpython vTestInterface.py
 
 import * as vscode from "vscode";
 
-import { buildEnvironmentCallback, deleteEnvironmentCallback } from "./helper";
+import { buildEnvironmentCallback, deleteEnvironmentCallback } from "./callbacks";
 import { openMessagePane, vectorMessage } from "./messagePane";
 import {
   getClicastArgsFromTestNode,
@@ -18,11 +19,15 @@ import {
   executeClicastWithProgress,
   executeCommandSync,
   executeWithRealTimeEcho,
-} from "./utilities";
+} from "./vcastCommandRunner"
 
 import { atgCommandToUse, clicastCommandToUse } from "./vcastInstallation";
 
 const path = require("path");
+
+// ------------------------------------------------------------------------------------
+// Direct clicast Calls
+// ------------------------------------------------------------------------------------
 
 // Delete Environment
 export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
@@ -264,3 +269,4 @@ export function runATGCommands(
     loadScriptCallBack
   );
 }
+

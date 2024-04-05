@@ -10,8 +10,6 @@ import {
 
 import { updateFunctionDataForFile } from "./editorDecorator";
 
-import { showSettings } from "./helper";
-
 import {
   openMessagePane,
   vectorMessage,
@@ -24,12 +22,9 @@ import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 import { updateTestPane } from "./testPane";
 
 import {
-  commandStatusType,
-  executeCommandSync,
-  executeVPythonScript,
   forceLowerCaseDriveLetter,
-  getJsonDataFromTestInterface,
   openFileWithLineSelected,
+  showSettings,
 } from "./utilities";
 
 import {
@@ -38,6 +33,13 @@ import {
   codedTestAction,
   setCodedTestOption,
 } from "./vcastAdapter";
+
+import {
+  commandStatusType,
+  executeCommandSync,
+  executeVPythonScript,
+  getJsonDataFromTestInterface,
+} from "./vcastCommandRunner"
 
 import { getChecksumCommand } from "./vcastInstallation";
 

@@ -3,14 +3,13 @@ import * as vscode from "vscode";
 // needed for parsing json files with comments
 import * as jsonc from "jsonc-parser";
 
-import { openMessagePane, vectorMessage } from "./messagePane";
+import { loadScriptCallBack } from "./callbacks";
+
+import { vectorMessage } from "./messagePane";
 
 import { getTestNode, testNodeType } from "./testData";
 
-import { updateTestPane } from "./testPane";
-
 import {
-  commandStatusType,
   jsoncModificationOptions,
   jsoncParseErrors,
   jsoncParseOptions,
@@ -19,7 +18,6 @@ import {
 
 import {
   dumptestScriptFile,
-  loadScriptIntoEnvironment,
   runATGCommands,
   runBasisPathCommands,
 } from "./vcastAdapter";
@@ -34,7 +32,6 @@ import {
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-
 
 export function addIncludePath(fileUri: vscode.Uri) {
   // I'm handling a few error cases here without going crazy
@@ -241,33 +238,6 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
   testNode.testName = "";
 
   runATGCommands(testNode, tempScriptPath, loadScriptCallBack);
-}
-
-function loadScriptCallBack(
-  commandStatus: commandStatusType,
-  enviroName: string,
-  scriptPath: string
-) {
-  // This is the callback that should be passed to executeClicastWithProgress() when
-  // we are computing basis path or ATG tests, this gets called when the command completes
-
-  if (commandStatus.errorCode == 0) {
-    vectorMessage("Loading tests into VectorCAST environment ...");
-
-    // call clicast to load the test script
-    loadScriptIntoEnvironment(enviroName, scriptPath);
-
-    const enviroPath = path.join(path.dirname(scriptPath), enviroName);
-    vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
-    updateTestPane(enviroPath);
-    fs.unlinkSync(scriptPath);
-  } else {
-    vscode.window.showInformationMessage(
-      `Error generating tests, see log for details`
-    );
-    vectorMessage(commandStatus.stdout);
-    openMessagePane();
-  }
 }
 
 export enum testStatus {
