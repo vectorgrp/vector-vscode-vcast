@@ -11,7 +11,7 @@ import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
 import { updateTestDecorator } from "./editorDecorator";
 
-import { updateDataForEnvironment } from "./helper";
+import { updateExploreDecorations } from "./fileDecorator";
 
 import {
   errorLevel,
@@ -60,8 +60,7 @@ import {
   vcastEnviroFile,
 } from "./vcastTestInterface";
 
-
-import { globalPathToSupportFiles, launchFile } from "./vcastInstallation"
+import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
   adjustScriptContentsBeforeLoad,
@@ -866,6 +865,19 @@ function getTestNodes(
     }
   }
   return returnQueue;
+}
+
+export function updateDataForEnvironment(enviroPath: string) {
+  // this function does all of the "common" work when an environment is updated
+  // sources of environment update are things like:
+  //   - opening the environment in the vcast gui
+  //   - building a new environment
+  //   - ...
+
+  updateTestPane(enviroPath);
+  updateDisplayedCoverage();
+  updateExploreDecorations();
+  updateTestDecorator();
 }
 
 function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {

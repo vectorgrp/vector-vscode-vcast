@@ -9,7 +9,6 @@ import { removeCoverageDataForEnviro } from "./vcastTestInterface";
 import {
   removeCBTfilesCacheForEnviro,
   removeEnvironmentFromTestPane,
-  updateTestPane,
 } from "./testPane";
 
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
@@ -37,19 +36,6 @@ function removeFilePattern(enviroPath: string, pattern: string) {
   for (let filePath of fileList) {
     fs.unlinkSync(filePath);
   }
-}
-
-export function updateDataForEnvironment(enviroPath: string) {
-  // this function does all of the "common" work when an environment is updated
-  // sources of environment update are things like:
-  //   - opening the environment in the vcast gui
-  //   - building a new environment
-  //   - ...
-
-  updateTestPane(enviroPath);
-  updateDisplayedCoverage();
-  updateExploreDecorations();
-  updateTestDecorator();
 }
 
 const fs = require("fs");
