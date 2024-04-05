@@ -11,11 +11,11 @@ const path = require("path");
 
 // This is used in the package.json to control the display of context menu items
 // Search for 'vectorcastTestExplorer.testableLineList' in package.json to see where we reference it
-export var testableLineList: number[] = [];
+let testableLineList: number[] = [];
 
-var testableFunctionDecorationType: TextEditorDecorationType;
-var testableFunctionOptions: DecorationRenderOptions;
-var testableFunctionsDecorations: vscode.DecorationOptions[] = [];
+let testableFunctionDecorationType: TextEditorDecorationType;
+let testableFunctionOptions: DecorationRenderOptions;
+let testableFunctionsDecorations: vscode.DecorationOptions[] = [];
 
 export function initializeTestDecorator(context: vscode.ExtensionContext) {
   testableFunctionOptions = {
