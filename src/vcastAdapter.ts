@@ -1,6 +1,4 @@
-// This module contains all interactions with a VectorCAST environment via clicast or vpython
-// The functions are organized into two secitons, the top section is for direct calls to clicast
-// and the bottom section is for calls via vpython vTestInterface.py
+// This module contains all interactions with a VectorCAST environment via clicast or vcastqt
 
 import * as vscode from "vscode";
 
@@ -39,63 +37,15 @@ const path = require("path");
 // Direct clicast Calls
 // ------------------------------------------------------------------------------------
 
-// Delete Environment
-export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
-  const enclosingDirectory = path.dirname(enviroPath);
-
-  // this returns the environment directory name without any nesting
-  let vcastArgs: string[] = ["-e" + getEnviroNameFromID(enviroNodeID)];
-  vcastArgs.push("enviro"); // Generate Basis Path Tests Script and Load into Environment (via callback)
-
-  vcastArgs.push("delete");
-  executeWithRealTimeEcho(
-    clicastCommandToUse,
-    vcastArgs,
-    enclosingDirectory,
-    deleteEnvironmentCallback,
-    enviroNodeID
-  );
-}
-
-// Delete Test Case
-export function deleteSingleTest(testNodeID: string): commandStatusType {
-  const testNode: testNodeType = getTestNode(testNodeID);
-  const clicastArgs: string = getClicastArgsFromTestNode(testNode);
-  let commandToRun = `${clicastCommandToUse} ${clicastArgs} test delete`;
-
-  // special vcast case for delete ALL tests for the environment
-  // when no unit, subprogram or test is provided, you have to give YES to delete all
-  if (testNode.unitName.length == 0 && testNode.functionName.length == 0) {
-    commandToRun += " YES";
-  }
-
+// Check License
+export function vcastLicenseOK(): boolean {
+  const commandToRun = `${clicastCommandToUse} tools has_license`;
   let commandStatus: commandStatusType = executeCommandSync(
     commandToRun,
-    path.dirname(testNode.enviroPath)
+    process.cwd(),
+    false
   );
-
-  return commandStatus;
-}
-
-// Refresh Coded Test List From File
-export function refreshCodedTests(
-  enviroPath: string,
-  enviroNodeID: string
-): commandStatusType {
-  // refresh the coded test file for this environment
-  // note: the same file should never be associated with more than one unit
-
-  const testNode = getTestNode(enviroNodeID);
-  const enclosingDirectory = path.dirname(enviroPath);
-
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-    testNode
-  )} test coded refresh`;
-  const refreshCommandStatus = executeCommandSync(
-    commandToRun,
-    enclosingDirectory
-  );
-  return refreshCommandStatus;
+  return commandStatus.errorCode == 0;
 }
 
 // Build Environment
@@ -120,15 +70,70 @@ export function buildEnvironmentFromScript(
   );
 }
 
-// Check License
-export function vcastLicenseOK(): boolean {
-  const commandToRun = `${clicastCommandToUse} tools has_license`;
+// Delete Environment
+export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
+  const enclosingDirectory = path.dirname(enviroPath);
+
+  // this returns the environment directory name without any nesting
+  let vcastArgs: string[] = ["-e" + getEnviroNameFromID(enviroNodeID)];
+  vcastArgs.push("enviro"); // Generate Basis Path Tests Script and Load into Environment (via callback)
+
+  vcastArgs.push("delete");
+  executeWithRealTimeEcho(
+    clicastCommandToUse,
+    vcastArgs,
+    enclosingDirectory,
+    deleteEnvironmentCallback,
+    enviroNodeID
+  );
+}
+
+// Load the Test Script into the Environment
+export async function loadScriptIntoEnvironment(
+  enviroName: string,
+  scriptPath: string
+) {
+  // call clicast to load the test script
+  const enviroArg = `-e${enviroName}`;
+  let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
+
+  const commandStatus = executeCommandSync(
+    commandToRun,
+    path.dirname(scriptPath)
+  );
+
+  // if the script load fails, executeCommandSync will open the message pane ...
+  // if the load passes, we want to give the user an indication that it worked
+  if (commandStatus.errorCode == 0) {
+    vectorMessage("Script loaded successfully ...");
+    // Maybe this will be annoying to users, but I think
+    // it's good to know when the load is complete.
+    vscode.window.showInformationMessage(`Test script loaded successfully`);
+
+    // this API allows a timeout for the message, but I think its too subtle
+    // becuase it is only shown in the status bar
+    //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
+  }
+}
+
+// Delete Test Case
+export function deleteSingleTest(testNodeID: string): commandStatusType {
+  const testNode: testNodeType = getTestNode(testNodeID);
+  const clicastArgs: string = getClicastArgsFromTestNode(testNode);
+  let commandToRun = `${clicastCommandToUse} ${clicastArgs} test delete`;
+
+  // special vcast case for delete ALL tests for the environment
+  // when no unit, subprogram or test is provided, you have to give YES to delete all
+  if (testNode.unitName.length == 0 && testNode.functionName.length == 0) {
+    commandToRun += " YES";
+  }
+
   let commandStatus: commandStatusType = executeCommandSync(
     commandToRun,
-    process.cwd(),
-    false
+    path.dirname(testNode.enviroPath)
   );
-  return commandStatus.errorCode == 0;
+
+  return commandStatus;
 }
 
 // Set Coded Test Option
@@ -189,32 +194,25 @@ export function dumptestScriptFile(
   return commandStatus;
 }
 
-// Load the Test Script into the Environment
-export async function loadScriptIntoEnvironment(
-  enviroName: string,
-  scriptPath: string
-) {
-  // call clicast to load the test script
-  const enviroArg = `-e${enviroName}`;
-  let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
+// Refresh Coded Test List From File
+export function refreshCodedTests(
+  enviroPath: string,
+  enviroNodeID: string
+): commandStatusType {
+  // refresh the coded test file for this environment
+  // note: the same file should never be associated with more than one unit
 
-  const commandStatus = executeCommandSync(
+  const testNode = getTestNode(enviroNodeID);
+  const enclosingDirectory = path.dirname(enviroPath);
+
+  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+    testNode
+  )} test coded refresh`;
+  const refreshCommandStatus = executeCommandSync(
     commandToRun,
-    path.dirname(scriptPath)
+    enclosingDirectory
   );
-
-  // if the script load fails, executeCommandSync will open the message pane ...
-  // if the load passes, we want to give the user an indication that it worked
-  if (commandStatus.errorCode == 0) {
-    vectorMessage("Script loaded successfully ...");
-    // Maybe this will be annoying to users, but I think
-    // it's good to know when the load is complete.
-    vscode.window.showInformationMessage(`Test script loaded successfully`);
-
-    // this API allows a timeout for the message, but I think its too subtle
-    // becuase it is only shown in the status bar
-    //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
-  }
+  return refreshCommandStatus;
 }
 
 // Generate Basis Path Test Script and Load into Environment (via callback)
@@ -287,7 +285,7 @@ export function openVcastOptionsDialog(cwd: string) {
 }
 
 // Open vcastqt for an environment
-export function openVcastFromEnviroNode (enviroNodeID: string, callback: any) {
+export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e " + getEnviroNameFromID(enviroNodeID)];
 
@@ -309,9 +307,7 @@ export function openVcastFromEnviroNode (enviroNodeID: string, callback: any) {
   });
 }
 
-
-export function openVcastFromVCEfile (vcePath: string, callback: any) {
-  
+export function openVcastFromVCEfile(vcePath: string, callback: any) {
   // split vceFile path into the CWD and the Environment
   const cwd = path.dirname(vcePath);
   const enviroName = path.basename(vcePath);

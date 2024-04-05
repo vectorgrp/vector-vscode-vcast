@@ -93,7 +93,6 @@ import {
 
 import { updateExploreDecorations } from "./fileDecorator";
 
-const spawn = require("child_process").spawn;
 import fs = require("fs");
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
@@ -548,6 +547,9 @@ function configureExtension(context: vscode.ExtensionContext) {
   let rebuildEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.rebuildEnviro",
     (enviroNode: any) => {
+
+      
+
       // this returns the full path to the environment directory
       const enviroPath = getEnviroPathFromID(enviroNode.id);
 

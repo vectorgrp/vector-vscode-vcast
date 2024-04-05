@@ -57,6 +57,7 @@ const path = require("path");
 
 export const vcastEnviroFile = "UNITDATA.VCD";
 
+// Compute the checksum for a source file
 function getChecksum(filePath: string) {
   let returnValue = 0;
   const checksumCommand = getChecksumCommand();
@@ -89,6 +90,7 @@ function getChecksum(filePath: string) {
   return returnValue;
 }
 
+// Get the Environment Data using the dataAPI
 export function getEnviroDataFromPython(enviroPath: string): any {
   // This function will return the environment data for a single directory
 
