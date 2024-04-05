@@ -183,8 +183,7 @@ function processVCtestData(
 
   // The top level of the JSON is an array ...
   const unitList = enviroData.testData;
-  for (let unitIndex = 0; unitIndex < unitList.length; unitIndex++) {
-    const unitData = unitList[unitIndex];
+  for (const unitData of unitList) {
 
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
@@ -202,10 +201,10 @@ function processVCtestData(
 
     if (unitData.functions) {
       const functionList = unitData.functions;
-      for (let fIndex = 0; fIndex < functionList.length; fIndex++) {
-        let functionName: string = functionList[fIndex].name;
+      for (const functionData of functionList) {
+        let functionName: string = functionData.name;
 
-        const testList = functionList[fIndex].tests;
+        const testList = functionData.tests;
         const functionNodeID = `${unitNodeID}.${functionName}`;
 
         // add a cache node for the function
