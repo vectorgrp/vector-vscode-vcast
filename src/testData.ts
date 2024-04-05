@@ -61,7 +61,7 @@ export function nodeIsInCache(nodeID: string) {
 }
 
 export function clearTestNodeCache() {
-  testNodeCache.clear;
+  testNodeCache.clear();
 }
 
 export function getTestNode(nodeID: string): testNodeType {

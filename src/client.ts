@@ -1,7 +1,7 @@
 // this file contains the language server client logic for test script editing
 
 import * as path from "path";
-import { workspace, ExtensionContext } from "vscode";
+import { ExtensionContext } from "vscode";
 
 import {
   LanguageClient,
