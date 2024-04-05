@@ -153,7 +153,7 @@ interface fileCoverageType {
 }
 
 // key is filePath
-var globalCoverageData = new Map<string, fileCoverageType>();
+let globalCoverageData = new Map<string, fileCoverageType>();
 
 /////////////////////////////////////////////////////////////////////
 export function resetCoverageData() {
@@ -191,7 +191,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   if (dataForThisFile && dataForThisFile.enviroList.size > 0) {
     let coveredList: number[] = [];
     let uncoveredList: number[] = [];
-    for (var enviroData of dataForThisFile.enviroList.values()) {
+    for (const enviroData of dataForThisFile.enviroList.values()) {
       if (enviroData.crc32Checksum == checksum) {
         coveredList = coveredList.concat(enviroData.covered);
         uncoveredList = uncoveredList.concat(enviroData.uncovered);
@@ -805,7 +805,7 @@ export async function newTestScript(testNode: testNodeType) {
   // create the template file
   fs.writeFileSync(scriptPath, contents);
 
-  var scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
+  let scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
   vscode.workspace.openTextDocument(scriptUri).then(
     (doc: vscode.TextDocument) => {
       vscode.window.showTextDocument(doc, 1, false);

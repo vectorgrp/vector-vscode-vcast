@@ -128,7 +128,9 @@ function convertTestScriptContents(scriptPath: string) {
 
   // Modify the lines
   for (let line of originalLines) {
-    if (line == "TEST.NEW") line = "TEST.REPLACE";
+    if (line == "TEST.NEW") {
+      line = "TEST.REPLACE";
+    }
     newLines.push(line);
   }
 
@@ -370,7 +372,7 @@ export function rebuildEnvironmentCommand(filePath: string): string {
 
   // read the settings that affect enviro build
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  var optionsDict: { [command: string]: string | boolean } = {};
+  let optionsDict: { [command: string]: string | boolean } = {};
   optionsDict["ENVIRO.COVERAGE_TYPE"] = settings.get(
     "build.coverageKind",
     "None"

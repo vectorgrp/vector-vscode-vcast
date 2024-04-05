@@ -254,7 +254,7 @@ export function openFileWithLineSelected(
     new vscode.Position(lineNumber, 200)
   );
 
-  var viewOptions: vscode.TextDocumentShowOptions = {
+  let viewOptions: vscode.TextDocumentShowOptions = {
     viewColumn: viewColumn,
     preserveFocus: false,
     selection: locationToHighlight,
