@@ -50,7 +50,7 @@ import {
 } from "./vcastAdapter";
 
 
-import {  getJsonDataFromTestInterface } from "./vcastCommandRunner"
+import {  getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
@@ -72,6 +72,8 @@ import {
   parseCBTCommand,
   testStatus,
 } from "./vcastUtilities";
+
+import { getEnviroDataFromServer } from "./vcastServer";
 
 import {
   cfgOptionType,
@@ -311,7 +313,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
 let vcastEnviroList: string[] = [];
 let vcastHasCodedTestsList: string[] = [];
 
-export function updateTestsForEnvironment(
+export async function updateTestsForEnvironment(
   enviroPath: string,
   workspaceRoot: string
 ) {
@@ -319,7 +321,10 @@ export function updateTestsForEnvironment(
   // this includes all units, functions, and tests for that environment
 
   // This is all of the data for a single environment
-  let jsonData = getEnviroDataFromPython(enviroPath);
+  let jsonData:any;
+  // TBD - this is the new server way to get data
+  jsonData = await getEnviroDataFromServer (enviroPath);
+  jsonData = getEnviroDataFromPython(enviroPath);
 
   if (jsonData) {
     let enviroDisplayName: string = "";

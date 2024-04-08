@@ -39,7 +39,7 @@ import {
   executeCommandSync,
   executeVPythonScript,
   getJsonDataFromTestInterface,
-} from "./vcastCommandRunner"
+} from "./vcastCommandRunner";
 
 import { getChecksumCommand } from "./vcastInstallation";
 
