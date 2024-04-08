@@ -12,7 +12,7 @@ commandFileName = "commands.cmd"
 globalClicastCommand = ""
 
 
-enviroNameRegex = "-e([^\s]*)"
+enviroNameRegex = "-e\s*([^\s]*)"
 
 
 def getEnviroPathFromCommand(command):
