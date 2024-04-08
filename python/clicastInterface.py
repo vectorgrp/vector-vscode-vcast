@@ -88,15 +88,6 @@ def getEnviroPathFromCommand(command):
     return enviroPath
 
 
-def runClicastCommandUsingServer(commandToRun):
-
-    enviroPath = getEnviroPathFromCommand(commandToRun)
-
-    # TBD in the future we will only get the clicast args without the clicast exe ...
-    commandArgString = " ".join(commandToRun.split(" ")[1:])
-    return runClicastServerCommand(enviroPath, commandArgString)
-
-
 def getStandardArgsFromTestObject(testIDObject, quoteParameters):
 
     returnString = f"-e{testIDObject.enviroName}"
@@ -116,6 +107,32 @@ def getStandardArgsFromTestObject(testIDObject, quoteParameters):
         returnString += f" -t{testIDObject.testName}"
 
     return returnString
+
+
+def runClicastCommandWithEcho(commandToRun):
+    """
+    Similar to runClicastCommand but with real-time echo of output
+    """
+    stdoutString = ""
+    process = subprocess.Popen(
+        commandToRun.split(" "), stdout=subprocess.PIPE, text=True
+    )
+    while process.poll() is None:
+        line = process.stdout.readline().rstrip()
+        if len(line) > 0:
+            stdoutString += line + "\n"
+            print(line, flush=True)
+
+    return process.returncode, stdoutString
+
+
+def runClicastCommandUsingServer(commandToRun):
+
+    enviroPath = getEnviroPathFromCommand(commandToRun)
+
+    # TBD in the future we will only get the clicast args without the clicast exe ...
+    commandArgString = " ".join(commandToRun.split(" ")[1:])
+    return runClicastServerCommand(enviroPath, commandArgString)
 
 
 def runClicastCommandCommandLine(commandToRun):
@@ -138,23 +155,6 @@ def runClicastCommandCommandLine(commandToRun):
         rawOutput = error.stdout
 
     return returnCode, rawOutput.decode("utf-8", errors="ignore")
-
-
-def runClicastCommandWithEcho(commandToRun):
-    """
-    Similar to runClicastCommand but with real-time echo of output
-    """
-    stdoutString = ""
-    process = subprocess.Popen(
-        commandToRun.split(" "), stdout=subprocess.PIPE, text=True
-    )
-    while process.poll() is None:
-        line = process.stdout.readline().rstrip()
-        if len(line) > 0:
-            stdoutString += line + "\n"
-            print(line, flush=True)
-
-    return process.returncode, stdoutString
 
 
 def runClicastCommand(commandToRun, noServer=False):
