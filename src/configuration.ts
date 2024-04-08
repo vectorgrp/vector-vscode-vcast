@@ -1,10 +1,11 @@
 import * as vscode from "vscode";
+
 import { vectorMessage } from "./messagePane";
-import { vcastCommandtoUse } from "./vcastUtilities";
+
+import { openVcastOptionsDialog } from "./vcastAdapter";
 
 const fs = require("fs");
 const path = require("path");
-const execSync = require("child_process").execSync;
 
 export const configFilename = "CCAST_.CFG";
 
@@ -38,7 +39,7 @@ export function initializeConfigurationFile(CWD: string): boolean {
     );
 
     vectorMessage(`Opening the VectorCAST options editor ...`);
-    execSync(`${vcastCommandtoUse} -lc -o`, { cwd: CWD });
+    openVcastOptionsDialog (CWD);
 
     // if the user simply closes the options dialog, no CFG file will get created so we will abort ...
     if (!fs.existsSync(localConfigurationFilePath)) {

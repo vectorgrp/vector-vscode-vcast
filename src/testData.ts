@@ -1,3 +1,5 @@
+import { quote } from "./utilities";
+
 export const compoundOnlyString = " [compound only]";
 
 export interface testNodeType {
@@ -13,7 +15,7 @@ export interface testNodeType {
 }
 // this is a lookup table for the nodes in the test tree
 // the key is the nodeID, the data is an testNodeType
-var testNodeCache = new Map();
+let testNodeCache = new Map();
 
 export function createTestNodeinCache(
   enviroNodeID: string,
@@ -61,7 +63,7 @@ export function nodeIsInCache(nodeID: string) {
 }
 
 export function clearTestNodeCache() {
-  testNodeCache.clear;
+  testNodeCache.clear();
 }
 
 export function getTestNode(nodeID: string): testNodeType {
@@ -91,4 +93,34 @@ export function getFunctionNameFromID(nodeID: string): string {
 export function getTestNameFromID(nodeID: string): string {
   const testName = testNodeCache.get(nodeID).testName;
   return testName.replace(compoundOnlyString, "");
+}
+
+export function getClicastArgsFromTestNodeAsList(
+  testNode: testNodeType
+): string[] {
+  // this function will create the enviro, unit, subprogram, and test
+  // arguments as a list, since spawn for example requires an arg list.
+
+  let returnList = [];
+  returnList.push(`-e${testNode.enviroName}`);
+  if (testNode.unitName.length > 0 && testNode.unitName != "not-used")
+    returnList.push(`-u${testNode.unitName}`);
+
+  // we need the quotes on the names to handle <<COMPOUND>>/<<INIT>>/parenthesis
+  if (testNode.functionName.length > 0)
+    returnList.push(`-s${quote(testNode.functionName)}`);
+  if (testNode.testName.length > 0) {
+    const nameToUse = testNode.testName.replace(compoundOnlyString, "");
+    returnList.push(`-t${quote(nameToUse)}`);
+  }
+
+  return returnList;
+}
+
+export function getClicastArgsFromTestNode(testNode: testNodeType) {
+  // this function will create the enviro, unit, subprogram,
+  // and test arg string for clicast calls that need a arg string
+
+  const argList = getClicastArgsFromTestNodeAsList(testNode);
+  return argList.join(" ");
 }

@@ -18,7 +18,7 @@ from vector.lib.core.system import cd
 commandFileName = "commands.cmd"
 
 globalClicastCommand = ""
-enviroNameRegex = "-e([^\s]*)"
+enviroNameRegex = "-e\s*([^\s]*)"
 USE_SERVER = False
 
 # Key is the path to the environment, value is the clicast instance for that environment
@@ -95,6 +95,27 @@ def runClicastCommandUsingServer(commandToRun):
     # TBD in the future we will only get the clicast args without the clicast exe ...
     commandArgString = " ".join(commandToRun.split(" ")[1:])
     return runClicastServerCommand(enviroPath, commandArgString)
+
+
+def getStandardArgsFromTestObject(testIDObject, quoteParameters):
+
+    returnString = f"-e{testIDObject.enviroName}"
+    if testIDObject.unitName != "not-used":
+        returnString += f" -u{testIDObject.unitName}"
+
+    # I did not do something clever with the quote insertion
+    # to make the code easier to read
+    if quoteParameters:
+        # when we call clicast from the command line, we need
+        # Need to quote the strings because of names that have << >>
+        returnString += f' -s"{testIDObject.functionName}"'
+        returnString += f' -t"{testIDObject.testName}"'
+    else:
+        # when we insert commands in the command file we cannot use quotes
+        returnString += f" -s{testIDObject.functionName}"
+        returnString += f" -t{testIDObject.testName}"
+
+    return returnString
 
 
 def runClicastCommandCommandLine(commandToRun):
@@ -270,6 +291,7 @@ def rebuildEnvironmentUsingClicastReBuild(enviroPath):
 
 
 # ----------------------------------------------------------------------------------------------------
+# Functional Interface to clicast
 # ----------------------------------------------------------------------------------------------------
 
 
@@ -283,6 +305,50 @@ def rebuildEnvironment(enviroPath, jsonOptions):
         updateEnvironment(enviroPath, jsonOptions)
     else:
         rebuildEnvironmentUsingClicastReBuild(enviroPath)
+
+
+def executeTest(testIDObject):
+
+    # since we are doing a direct call to clicast, we need to quote the parameters
+    # separate variable because in the future there will be additional parameters
+    shouldQuoteParameters = True
+    standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
+    # we cannot include the execute command in the command script that we use for
+    # results because we need the return code from the execute command separately
+    commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
+    executeReturnCode, stdoutText = runClicastCommand(commandToRun)
+
+    # currently clicast returns the same error code for a failed coded test compile or
+    # a failed coded test execution.  We need to distinguish between these two cases
+    # so we are using this hack until vcast changes the return code for a failed coded test compile
+    if testIDObject.functionName == "coded_tests_driver" and executeReturnCode != 0:
+        if "TEST RESULT:" not in stdoutText:
+            executeReturnCode = 98
+
+    return executeReturnCode, stdoutText
+
+
+def generateExecutionReport(testIDObject):
+
+    standardArgs = getStandardArgsFromTestObject(testIDObject, False)
+    # We build a clicast command script to generate the execution report
+    # since we need multiple commands
+    with open(commandFileName, "w") as commandFile:
+        commandFile.write(
+            standardArgs
+            + " report custom actual "
+            + testIDObject.reportName
+            + ".html\n"
+        )
+        commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT TEXT\n")
+        commandFile.write(
+            standardArgs + " report custom actual " + testIDObject.reportName + ".txt\n"
+        )
+        commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
+
+    # we ignore the exit code and return the stdoutput
+    exitCode, stdOutput = runClicastScript(commandFileName)
+    return stdOutput
 
 
 if __name__ == "__main__":

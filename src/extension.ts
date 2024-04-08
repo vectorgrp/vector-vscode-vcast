@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
+import { rebuildEnvironmentCallback } from "./callbacks";
+
 import {
   activateLanguageServerClient,
   deactivateLanguageServerClient,
@@ -26,13 +28,6 @@ import {
 } from "./editorDecorator";
 
 import {
-  deleteEnvironmentCallback,
-  rebuildEnvironmentCallback,
-  updateDataForEnvironment,
-  showSettings,
-} from "./helper";
-
-import {
   openMessagePane,
   toggleMessageLog,
   adjustVerboseSetting,
@@ -41,12 +36,7 @@ import {
 
 import { viewResultsReport } from "./reporting";
 
-import {
-  getEnviroNameFromID,
-  getEnviroPathFromID,
-  getTestNode,
-  testNodeType,
-} from "./testData";
+import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
 import {
   activateTestPane,
@@ -58,41 +48,51 @@ import {
   pathToEnviroBeingDebugged,
   pathToProgramBeingDebugged,
   updateCodedTestCases,
+  updateDataForEnvironment,
 } from "./testPane";
 
 import {
   addLaunchConfiguration,
   addSettingsFileFilter,
-  checkIfInstallationIsOK,
-  initializeInstallerFiles,
-  rebuildEnvironmentCommand,
+  showSettings,
 } from "./utilities";
 
 import {
   buildEnvironmentFromScript,
-  generateCodedTest,
-  newCodedTest,
+  deleteEnvironment,
+  setCodedTestOption,
+  openVcastFromEnviroNode,
+  openVcastFromVCEfile,
+} from "./vcastAdapter";
+
+import { executeWithRealTimeEcho } from "./vcastCommandRunner";
+
+import {
+  checkIfInstallationIsOK,
+  configurationFile,
+  launchFile,
+  globalPathToSupportFiles,
+  initializeInstallerFiles,
+} from "./vcastInstallation";
+
+import {
+  generateNewCodedTestFile,
+  addExistingCodedTestFile,
   newEnvironment,
   newTestScript,
   openCodedTest,
   resetCoverageData,
-  setCodedTestOption,
 } from "./vcastTestInterface";
 
 import {
   addIncludePath,
-  configurationFile,
-  executeWithRealTimeEcho,
-  launchFile,
   getEnviroNameFromFile,
   openTestScript,
-  vcastCommandtoUse,
-  clicastCommandToUse,
+  rebuildEnvironmentCommand,
 } from "./vcastUtilities";
 
 import { updateExploreDecorations } from "./fileDecorator";
 
-const spawn = require("child_process").spawn;
 import fs = require("fs");
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
@@ -229,7 +229,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.addCodedTests",
     (args: any) => {
       if (args) {
-        newCodedTest(args.id);
+        addExistingCodedTestFile(args.id);
       }
     }
   );
@@ -241,7 +241,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.generateCodedTests",
     (args: any) => {
       if (args) {
-        generateCodedTest(args.id);
+        generateNewCodedTestFile(args.id);
       }
     }
   );
@@ -430,7 +430,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         // find the list item that contains launch.json
         for (let i = 0; i < argList.length; i++) {
           if (argList[i].fsPath.includes(launchFile)) {
-            addLaunchConfiguration(argList[i]);
+            addLaunchConfiguration(argList[i], globalPathToSupportFiles);
           }
         }
       } else {
@@ -439,7 +439,10 @@ function configureExtension(context: vscode.ExtensionContext) {
         if (activeEditor) {
           const filePath = activeEditor.document.uri.toString();
           if (filePath.endsWith(launchFile)) {
-            addLaunchConfiguration(activeEditor.document.uri);
+            addLaunchConfiguration(
+              activeEditor.document.uri,
+              globalPathToSupportFiles
+            );
           }
         }
       }
@@ -483,7 +486,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       // of all items if this is a multi-select.  Since argList is always valid, even for a single
       // selection, we just use this here.
       if (argList) {
-        addSettingsFileFilter(argList[0]);
+        addSettingsFileFilter(argList[0], globalPathToSupportFiles);
       }
     }
   );
@@ -493,25 +496,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   let openVCAST = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCAST",
     (enviroNode: any) => {
-      // this returns the environment directory name without any nesting
-      let vcastArgs: string[] = ["-e " + getEnviroNameFromID(enviroNode.id)];
-      // this returns the full path to the environment directory
-      const enviroPath = getEnviroPathFromID(enviroNode.id);
-      const enclosingDirectory = path.dirname(enviroPath);
-
       vectorMessage("Starting VectorCAST ...");
-
-      const commandToRun = vcastCommandtoUse;
-      // we use spawn directly to control the detached and shell args
-      let vcast = spawn(commandToRun, vcastArgs, {
-        cwd: enclosingDirectory,
-        detached: true,
-        shell: true,
-        windowsHide: true,
-      });
-      vcast.on("exit", function (code: any) {
-        updateDataForEnvironment(enviroPath);
-      });
+      openVcastFromEnviroNode(enviroNode.id, updateDataForEnvironment);
     }
   );
   context.subscriptions.push(openVCAST);
@@ -520,25 +506,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   let openVCASTFromVce = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCASTFromVce",
     (arg: any) => {
-      // split vceFile path into the CWD and the Environment
-      const vcePath = arg.fsPath;
-      const cwd = path.dirname(vcePath);
-      const enviroName = path.basename(vcePath);
-      let vcastArgs: string[] = ["-e " + enviroName];
-
       vectorMessage("Starting VectorCAST ...");
-
-      const commandToRun = vcastCommandtoUse;
-      // we use spawn directly to control the detached and shell args
-      let vcast = spawn(commandToRun, vcastArgs, {
-        cwd: cwd,
-        detached: true,
-        shell: true,
-        windowsHide: true,
-      });
-      vcast.on("exit", function (code: any) {
-        updateDataForEnvironment(vcePath.split(".")[0]);
-      });
+      openVcastFromVCEfile(arg.fsPath, updateDataForEnvironment);
     }
   );
   context.subscriptions.push(openVCASTFromVce);
@@ -619,21 +588,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         .showInformationMessage(message, "Delete", "Cancel")
         .then((answer) => {
           if (answer === "Delete") {
-            const enclosingDirectory = path.dirname(enviroPath);
-
-            // this returns the environment directory name without any nesting
-            let vcastArgs: string[] = [
-              "-e" + getEnviroNameFromID(enviroNode.id),
-            ];
-            vcastArgs.push("enviro");
-            vcastArgs.push("delete");
-            executeWithRealTimeEcho(
-              clicastCommandToUse,
-              vcastArgs,
-              enclosingDirectory,
-              deleteEnvironmentCallback,
-              enviroNode.id
-            );
+            // execute a clicast call to delete the test
+            deleteEnvironment(enviroPath, enviroNode.id);
           }
         });
     }
@@ -754,16 +710,14 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
       }
     }
     // pre-configuration, we only handle changes to the vcast installation location
-    else {
-      if (
-        event.affectsConfiguration(
-          "vectorcastTestExplorer.vectorcastInstallationLocation"
-        )
-      ) {
-        // this call will check if the new value is valid,
-        // and if so, perform extension activation
-        checkPrerequisites(context);
-      }
+    else if (
+      event.affectsConfiguration(
+        "vectorcastTestExplorer.vectorcastInstallationLocation"
+      )
+    ) {
+      // this call will check if the new value is valid,
+      // and if so, perform extension activation
+      checkPrerequisites(context);
     }
   });
 
