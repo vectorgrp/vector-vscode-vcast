@@ -18,7 +18,6 @@ from vector.lib.core.system import cd
 commandFileName = "commands.cmd"
 
 globalClicastCommand = ""
-enviroNameRegex = "-e\s*([^\s]*)"
 USE_SERVER = False
 
 # Key is the path to the environment, value is the clicast instance for that environment
@@ -75,6 +74,9 @@ def terminateClicastProcess(enviroPath):
         process.stdin.flush()
         process.wait()
         del clicastInstances[enviroPath]
+
+
+enviroNameRegex = "-e\s*([^\s]*)"
 
 
 def getEnviroPathFromCommand(command):
