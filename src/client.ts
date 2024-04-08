@@ -9,8 +9,10 @@ import {
   ServerOptions,
   TransportKind,
 } from "vscode-languageclient";
+
 import { vectorMessage } from "./messagePane";
-import { vPythonCommandToUse } from "./utilities";
+
+import { vPythonCommandToUse } from "./vcastInstallation";
 
 let client: LanguageClient;
 

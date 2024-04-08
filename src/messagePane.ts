@@ -67,7 +67,7 @@ export function adjustVerboseSetting() {
   globalVerboseOn = settings.get("verboseLogging", false);
 }
 
-var globalLogIsOpen: boolean = false;
+let globalLogIsOpen: boolean = false;
 export function openMessagePane() {
   const messagePane = getMessagePane();
   messagePane.show();

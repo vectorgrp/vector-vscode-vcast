@@ -10,36 +10,43 @@ import {
 
 import { updateFunctionDataForFile } from "./editorDecorator";
 
-import { buildEnvironmentCallback, showSettings } from "./helper";
 import {
   openMessagePane,
   vectorMessage,
   vcastMessage,
   errorLevel,
 } from "./messagePane";
-import {
-  compoundOnlyString,
-  getEnviroPathFromID,
-  getTestNode,
-  testNodeType,
-} from "./testData";
+
+import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+
 import { updateTestPane } from "./testPane";
+
+import {
+  forceLowerCaseDriveLetter,
+  openFileWithLineSelected,
+  showSettings,
+} from "./utilities";
+
+import {
+  addCodedTestToEnvironment,
+  buildEnvironmentFromScript,
+  codedTestAction,
+  setCodedTestOption,
+} from "./vcastAdapter";
+
 import {
   commandStatusType,
   executeCommandSync,
   executeVPythonScript,
-  forceLowerCaseDriveLetter,
-  getChecksumCommand,
   getJsonDataFromTestInterface,
-  openFileWithLineSelected,
-  testInterfaceCommand,
-} from "./utilities";
+} from "./vcastCommandRunner"
+
+import { getChecksumCommand } from "./vcastInstallation";
 
 import {
-  clicastCommandToUse,
   closeAnyOpenErrorFiles,
-  executeWithRealTimeEcho,
   openTestFileAndErrors,
+  testInterfaceCommand,
   testStatus,
 } from "./vcastUtilities";
 
@@ -50,6 +57,7 @@ const path = require("path");
 
 export const vcastEnviroFile = "UNITDATA.VCD";
 
+// Compute the checksum for a source file
 function getChecksum(filePath: string) {
   let returnValue = 0;
   const checksumCommand = getChecksumCommand();
@@ -82,6 +90,7 @@ function getChecksum(filePath: string) {
   return returnValue;
 }
 
+// Get the Environment Data using the dataAPI
 export function getEnviroDataFromPython(enviroPath: string): any {
   // This function will return the environment data for a single directory
 
@@ -144,7 +153,7 @@ interface fileCoverageType {
 }
 
 // key is filePath
-var globalCoverageData = new Map<string, fileCoverageType>();
+let globalCoverageData = new Map<string, fileCoverageType>();
 
 /////////////////////////////////////////////////////////////////////
 export function resetCoverageData() {
@@ -182,7 +191,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   if (dataForThisFile && dataForThisFile.enviroList.size > 0) {
     let coveredList: number[] = [];
     let uncoveredList: number[] = [];
-    for (var enviroData of dataForThisFile.enviroList.values()) {
+    for (const enviroData of dataForThisFile.enviroList.values()) {
       if (enviroData.crc32Checksum == checksum) {
         coveredList = coveredList.concat(enviroData.covered);
         uncoveredList = uncoveredList.concat(enviroData.uncovered);
@@ -563,49 +572,6 @@ function createVcastEnvironmentScript(
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
 }
 
-export function buildEnvironmentFromScript(
-  unitTestLocation: string,
-  enviroName: string
-) {
-  // this function is separate and exported because it's used when we
-  // create environments from source files and from .env files
-
-  // this call runs clicast in the background
-  const enviroPath = path.join(unitTestLocation, enviroName);
-  const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
-  // This is long running commands so we open the message pane to give the user a sense of what is going on.
-  openMessagePane();
-  executeWithRealTimeEcho(
-    clicastCommandToUse,
-    clicastArgs,
-    unitTestLocation,
-    buildEnvironmentCallback,
-    enviroPath
-  );
-}
-
-export function setCodedTestOption(unitTestLocation: string) {
-  // This gets called before every build and rebuild environment
-  // to make sure that the CFG file has the right value for coded testing.
-  // This is easier than keeping track of n CFG files and their values
-  // and I think that the coded test option will be removed soon.
-
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  if (settings.get("build.enableCodedTesting", false)) {
-    // force the coded test option on
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
-      unitTestLocation
-    );
-  } else {
-    // force the coded test option off
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT false`,
-      unitTestLocation
-    );
-  }
-}
-
 function buildEnvironmentVCAST(
   fileList: string[],
   unitTestLocation: string,
@@ -839,7 +805,7 @@ export async function newTestScript(testNode: testNodeType) {
   // create the template file
   fs.writeFileSync(scriptPath, contents);
 
-  var scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
+  let scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
   vscode.workspace.openTextDocument(scriptUri).then(
     (doc: vscode.TextDocument) => {
       vscode.window.showTextDocument(doc, 1, false);
@@ -850,7 +816,37 @@ export async function newTestScript(testNode: testNodeType) {
   );
 }
 
-export async function newCodedTest(testID: string) {
+async function commonCodedTestProcessing(
+  userFilePath: string,
+  testID: string,
+  action: codedTestAction
+) {
+  let testNode: testNodeType = getTestNode(testID);
+  const enviroPath = getEnviroPathFromID(testID);
+
+  await vectorMessage(
+    `Adding coded test file: ${userFilePath} for environment: ${enviroPath}`
+  );
+
+  // call clicast to create new coded test
+  const commandStatus: commandStatusType = addCodedTestToEnvironment(
+    enviroPath,
+    testNode,
+    action,
+    userFilePath
+  );
+
+  updateTestPane(enviroPath);
+  if (commandStatus.errorCode == 0) {
+    vscode.window.showInformationMessage(`Coded Tests added successfully`);
+  } else {
+    // need to re-read to get the test file name
+    testNode = getTestNode(testID);
+    openTestFileAndErrors(testNode);
+  }
+}
+
+export async function addExistingCodedTestFile(testID: string) {
   // This can be called for any "main" Coded Test node that
   // does not have children.  When we are loading the test data,
   // we set the testFile field for the "Coded Test" node if
@@ -867,37 +863,17 @@ export async function newCodedTest(testID: string) {
     };
     vscode.window.showOpenDialog(option).then(async (fileUri) => {
       if (fileUri) {
-        const UserFilePath: string = fileUri[0].fsPath;
-
-        const enviroPath = getEnviroPathFromID(testID);
-        const enclosingDirectory = path.dirname(enviroPath);
-
-        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-          testNode
-        )} test coded add ${UserFilePath}`;
-        await vectorMessage(
-          `Adding coded test file: ${UserFilePath} for environment: ${enviroPath}`
+        commonCodedTestProcessing(
+          fileUri[0].fsPath,
+          testID,
+          codedTestAction.add
         );
-        const commandStatus = executeCommandSync(
-          commandToRun,
-          enclosingDirectory
-        );
-        updateTestPane(enviroPath);
-        if (commandStatus.errorCode == 0) {
-          vscode.window.showInformationMessage(
-            `Coded Tests added successfully`
-          );
-        } else {
-          // need to re-read to get the test file name
-          testNode = getTestNode(testID);
-          openTestFileAndErrors(testNode);
-        }
       }
     });
   }
 }
 
-export async function generateCodedTest(testID: string) {
+export async function generateNewCodedTestFile(testID: string) {
   // This can be called for any "main" Coded Test node that
   // does not have children.  When we are loading the test data,
   // we set the testFile field for the "Coded Test" node if
@@ -912,27 +888,7 @@ export async function generateCodedTest(testID: string) {
     };
     vscode.window.showSaveDialog(option).then(async (fileUri) => {
       if (fileUri) {
-        const UserFilePath: string = fileUri.fsPath;
-
-        const enviroPath = getEnviroPathFromID(testID);
-        const enclosingDirectory = path.dirname(enviroPath);
-
-        let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-          testNode
-        )} test coded new ${UserFilePath}`;
-        await vectorMessage(
-          `Creating new coded test file: for environment: ${enviroPath}`
-        );
-        const commandStatus = executeCommandSync(
-          commandToRun,
-          enclosingDirectory
-        );
-        updateTestPane(enviroPath);
-        if (commandStatus.errorCode == 0) {
-          vscode.window.showInformationMessage(
-            `Coded Tests generated successfully`
-          );
-        }
+        commonCodedTestProcessing(fileUri.fsPath, testID, codedTestAction.new);
       }
     });
   }
@@ -946,48 +902,4 @@ export async function openCodedTest(testNode: testNodeType) {
   if (fs.existsSync(testNode.testFile)) {
     openFileWithLineSelected(testNode.testFile, testNode.testStartLine - 1);
   }
-}
-
-function quote(name: string) {
-  // if name contains <<COMPOUND>>, <<INIT>> or parenthesis
-  // we need to quote the name so that the shell does not interpret it.
-
-  if (
-    name.includes("<") ||
-    name.includes(">") ||
-    name.includes("(") ||
-    name.includes(")")
-  ) {
-    return '"' + name + '"';
-  } else return name;
-}
-
-export function getClicastArgsFromTestNodeAsList(
-  testNode: testNodeType
-): string[] {
-  // this function will create the enviro, unit, subprogram, and test
-  // arguments as a list, since spawn for example requires an arg list.
-
-  let returnList = [];
-  returnList.push(`-e${testNode.enviroName}`);
-  if (testNode.unitName.length > 0 && testNode.unitName != "not-used")
-    returnList.push(`-u${testNode.unitName}`);
-
-  // we need the quotes on the names to handle <<COMPOUND>>/<<INIT>>/parenthesis
-  if (testNode.functionName.length > 0)
-    returnList.push(`-s${quote(testNode.functionName)}`);
-  if (testNode.testName.length > 0) {
-    const nameToUse = testNode.testName.replace(compoundOnlyString, "");
-    returnList.push(`-t${quote(nameToUse)}`);
-  }
-
-  return returnList;
-}
-
-export function getClicastArgsFromTestNode(testNode: testNodeType) {
-  // this function will create the enviro, unit, subprogram,
-  // and test arg string for clicast calls that need a arg string
-
-  const argList = getClicastArgsFromTestNodeAsList(testNode);
-  return argList.join(" ");
 }

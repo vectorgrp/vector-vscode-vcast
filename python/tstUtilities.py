@@ -520,6 +520,7 @@ def processLine(enviroName, line):
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)
 
+        api.close ()
         return returnData
 
     except Exception as err:
