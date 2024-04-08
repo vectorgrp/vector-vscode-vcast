@@ -313,7 +313,7 @@ def executeTest(testIDObject):
 
     # since we are doing a direct call to clicast, we need to quote the parameters
     # separate variable because in the future there will be additional parameters
-    shouldQuoteParameters = True
+    shouldQuoteParameters = True and not USE_SERVER
     standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
     # we cannot include the execute command in the command script that we use for
     # results because we need the return code from the execute command separately
