@@ -443,8 +443,7 @@ export async function getEnviroDataTimingTest(enviroPath: string) {
   let startTime: number = performance.now();
   vectorMessage("Starting server timing test ...");
   for (let index = 0; index < 10; index++) {
-    const jsonData = await getEnviroDataFromServer(enviroPath);
-    vectorMessage(`  Size of return data: ${Object.keys(jsonData).length}`);
+    await getEnviroDataFromServer(enviroPath);
   }
   let endTime: number = performance.now();
   let deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
@@ -455,8 +454,7 @@ export async function getEnviroDataTimingTest(enviroPath: string) {
   startTime = performance.now();
   vectorMessage("Starting vpython timing test ...");
   for (let index = 0; index < 10; index++) {
-    const jsonData = getEnviroDataFromPython(enviroPath);
-    vectorMessage(`  Size of return data: ${Object.keys(jsonData).length}`);
+    getEnviroDataFromPython(enviroPath);
   }
   endTime = performance.now();
   deltaString = ((endTime - startTime) / 1000).toFixed(2);
