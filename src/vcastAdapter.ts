@@ -22,7 +22,9 @@ import {
   commandStatusType,
   executeClicastWithProgress,
   executeCommandSync,
+  executeVPythonScript,
   executeWithRealTimeEcho,
+  getJsonDataFromTestInterface,
 } from "./vcastCommandRunner";
 
 import {
@@ -30,6 +32,13 @@ import {
   clicastCommandToUse,
   vcastCommandToUse,
 } from "./vcastInstallation";
+
+import { getEnviroDataFromServer } from "./vcastServer";
+
+import {
+  rebuildEnvironmentCommand,
+  testInterfaceCommand,
+} from "./vcastUtilities";
 
 const path = require("path");
 
@@ -242,6 +251,10 @@ export function runBasisPathCommands(
   );
 }
 
+// ------------------------------------------------------------------------------------
+// Direct ATG Call
+// ------------------------------------------------------------------------------------
+
 // Generate ATG Test Script and Load into Environment (via callback)
 export function runATGCommands(
   testNode: testNodeType,
@@ -278,20 +291,23 @@ export function runATGCommands(
   );
 }
 
-// Open vcastqt in options dialog mode ... in the future we might
-// create a native VS Code dialog for this
+// ------------------------------------------------------------------------------------
+// Direct vcastqt Calls
+// ------------------------------------------------------------------------------------
+
+// Open vcastqt in options dialog mode ...
+// In the future we might create a native VS Code dialog for this
 export function openVcastOptionsDialog(cwd: string) {
   execSync(`${vcastCommandToUse} -lc -o`, { cwd: cwd });
 }
 
-// Open vcastqt for an environment
+// Open VectorCAST for an environment directory
 export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e " + getEnviroNameFromID(enviroNodeID)];
 
   // this returns the full path to the environment directory
   const enviroPath = getEnviroPathFromID(enviroNodeID);
-
   const enclosingDirectory = path.dirname(enviroPath);
 
   // we use spawn directly to control the detached and shell args
@@ -301,26 +317,148 @@ export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
     shell: true,
     windowsHide: true,
   });
-
   vcast.on("exit", function (code: any) {
     callback(enviroPath);
   });
 }
 
+// Open VectorCAST for a .vce file
 export function openVcastFromVCEfile(vcePath: string, callback: any) {
   // split vceFile path into the CWD and the Environment
-  const cwd = path.dirname(vcePath);
-  const enviroName = path.basename(vcePath);
-  let vcastArgs: string[] = ["-e " + enviroName];
+  const vceFilename = path.basename(vcePath);
+  let vcastArgs: string[] = ["-e " + vceFilename];
+
+  const enviroPath = vcePath.split(".")[0];
+  const enclosingDirectory = path.dirname(vcePath);
 
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
-    cwd: cwd,
+    cwd: enclosingDirectory,
     detached: true,
     shell: true,
     windowsHide: true,
   });
   vcast.on("exit", function (code: any) {
-    callback(vcePath.split(".")[0]);
+    callback(enviroPath);
   });
+}
+
+// ------------------------------------------------------------------------------------
+// Direct vpython calls
+// ------------------------------------------------------------------------------------
+
+// Get Environment Data
+function getEnviroDataFromPython(enviroPath: string): any {
+  // This function will return the environment data for a single directory
+  // by calling vpython with the appropriate command
+  const commandToRun = testInterfaceCommand("getEnviroData", enviroPath);
+  let jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
+  return jsonData;
+}
+
+export function getDataForEnvironment(enviroPath: string): any {
+  // what we get back is a JSON formatted string (if the command works)
+  // that has two sub-fields: testData, and unitData
+  vectorMessage("Processing environment data for: " + enviroPath);
+
+  let jsonData = getEnviroDataFromPython(enviroPath);
+
+  return jsonData;
+}
+
+// Get Execution Report
+export function getTestExecutionReport(
+  testID: string,
+  CWD: string
+): commandStatusType {
+  const commandToRun = testInterfaceCommand("report", CWD, testID);
+  const commandStatus: commandStatusType = executeVPythonScript(
+    commandToRun,
+    CWD
+  );
+  return commandStatus;
+}
+
+// Execute Test
+export function executeTest(
+  enviroPath: string,
+  nodeID: string,
+  generateReport: boolean
+): commandStatusType {
+  let commandToRun: string = "";
+  if (generateReport) {
+    commandToRun = testInterfaceCommand(
+      "executeTestReport",
+      enviroPath,
+      nodeID
+    );
+  } else {
+    commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
+  }
+  const startTime: number = performance.now();
+  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
+
+  // added this timing info to help with performance tuning - interesting to leave in
+  const endTime: number = performance.now();
+  const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
+  vectorMessage(`Execution via vPython took: ${deltaString} seconds`);
+
+  return commandStatus;
+}
+
+// Rebuild Environment
+export function rebuildEnvironment(
+  enviroPath: string,
+  rebuildEnvironmentCallback: any
+) {
+  const fullCommand = rebuildEnvironmentCommand(enviroPath);
+  let commandPieces = fullCommand.split(" ");
+  const commandVerb = commandPieces[0];
+  commandPieces.shift();
+
+  const unitTestLocation = path.dirname(enviroPath);
+  setCodedTestOption(unitTestLocation);
+
+  // This uses the python binding to clicast to do the rebuild
+  // We open the message pane to give the user a sense of what's going on
+  openMessagePane();
+  executeWithRealTimeEcho(
+    commandVerb,
+    commandPieces,
+    unitTestLocation,
+    rebuildEnvironmentCallback,
+    enviroPath
+  );
+}
+
+// ------------------------------------------------------------------------------------
+// Temporary Functions for Development
+// ------------------------------------------------------------------------------------
+const { performance } = require("perf_hooks");
+
+export async function getEnviroDataTimingTest(enviroPath: string) {
+  // Compares the timing for getEnviroData using the server and vpython
+  // To use this, insert a call into getDataForEnvironment()
+
+  let startTime: number = performance.now();
+  vectorMessage("Starting server timing test ...");
+  for (let index = 0; index < 10; index++) {
+    const jsonData = await getEnviroDataFromServer(enviroPath);
+    vectorMessage(`  Size of return data: ${Object.keys(jsonData).length}`);
+  }
+  let endTime: number = performance.now();
+  let deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
+  vectorMessage(
+    `getEnviroData via the server 10x took: ${deltaString} seconds`
+  );
+
+  startTime = performance.now();
+  vectorMessage("Starting vpython timing test ...");
+  for (let index = 0; index < 10; index++) {
+    const jsonData = getEnviroDataFromPython(enviroPath);
+    vectorMessage(`  Size of return data: ${Object.keys(jsonData).length}`);
+  }
+  endTime = performance.now();
+  deltaString = ((endTime - startTime) / 1000).toFixed(2);
+  vectorMessage(`getEnviroData via vpython 10x took: ${deltaString} seconds`);
 }

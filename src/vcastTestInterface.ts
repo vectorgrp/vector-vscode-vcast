@@ -31,6 +31,8 @@ import {
   addCodedTestToEnvironment,
   buildEnvironmentFromScript,
   codedTestAction,
+  executeTest,
+  getTestExecutionReport,
   setCodedTestOption,
 } from "./vcastAdapter";
 
@@ -38,7 +40,6 @@ import {
   commandStatusType,
   executeCommandSync,
   executeVPythonScript,
-  getJsonDataFromTestInterface,
 } from "./vcastCommandRunner";
 
 import { getChecksumCommand } from "./vcastInstallation";
@@ -46,7 +47,6 @@ import { getChecksumCommand } from "./vcastInstallation";
 import {
   closeAnyOpenErrorFiles,
   openTestFileAndErrors,
-  testInterfaceCommand,
   testStatus,
 } from "./vcastUtilities";
 
@@ -88,26 +88,6 @@ function getChecksum(filePath: string) {
     }
   }
   return returnValue;
-}
-
-// Get the Environment Data using the dataAPI
-export function getEnviroDataFromPython(enviroPath: string): any {
-  // This function will return the environment data for a single directory
-
-  let jsonData = undefined;
-
-  // what we get back is a JSON formatted string (if the command works)
-  // that has two sub-fields: testData, and unitData
-  vectorMessage("Processing environment data for: " + enviroPath);
-
-  const commandToRun = testInterfaceCommand("getEnviroData", enviroPath);
-  jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
-
-  if (jsonData) {
-    updateGlobalDataForFile(enviroPath, jsonData.unitData);
-  }
-
-  return jsonData;
 }
 
 // we save the some key data, indexed into by test.id
@@ -249,7 +229,7 @@ export function getListOfFilesWithCoverage(): string[] {
 // key is enviroPath, value is a list of filePaths
 let enviroFileList: Map<string, string[]> = new Map();
 
-function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
+export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
   let filePathList: string[] = [];
 
   for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
@@ -325,11 +305,7 @@ export function getResultFileForTest(testID: string) {
   if (!fs.existsSync(resultFile)) {
     let cwd = getEnviroPathFromID(testID);
 
-    const commandToRun = testInterfaceCommand("report", cwd, testID);
-    const commandStatus: commandStatusType = executeVPythonScript(
-      commandToRun,
-      cwd
-    );
+    const commandStatus = getTestExecutionReport(testID, cwd);
 
     if (commandStatus.errorCode == 0) {
       const firstLineOfOutput: string = commandStatus.stdout.split(EOL, 1)[0];
@@ -340,7 +316,6 @@ export function getResultFileForTest(testID: string) {
           `Results report: '${resultFile}' does not exist`
         );
         vectorMessage(`Results report: '${resultFile}' does not exist`);
-        vectorMessage(commandToRun);
         vectorMessage(commandStatus.stdout);
       }
 
@@ -414,40 +389,22 @@ function logTestResults(
   vectorMessage("-".repeat(100));
 }
 
-const { performance } = require("perf_hooks");
-
 export async function runVCTest(
   enviroPath: string,
   nodeID: string,
   generateReport: boolean
 ) {
-  // Initially, I called clicast directly here, but I switched to the python binding to give
-  // more flexibility for things like: running, and generating the execution report in one action
-
-  // commandOutput is a buffer: (Uint8Array)
-  // RUN mode is a single shot mode where we run the python
-  // script and communicate with stdin/stdout
-
+  // what gets returned
   let returnStatus: testStatus = testStatus.didNotRun;
-  // The executeTest command will run the test AND generate the execution report
-  let commandToRun: string = "";
-  if (generateReport) {
-    commandToRun = testInterfaceCommand(
-      "executeTestReport",
-      enviroPath,
-      nodeID
-    );
-  } else {
-    commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
-  }
-  const startTime: number = performance.now();
-  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
 
-  // added this timing info to help with performance tuning - interesting to leave in
-  const endTime: number = performance.now();
-  const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
-  vectorMessage(`Execution via vPython took: ${deltaString} seconds`);
+  // execute, or execute and generate report
+  const commandStatus: commandStatusType = executeTest(
+    enviroPath,
+    nodeID,
+    generateReport
+  );
 
+  // for readability
   const commandOutputText = commandStatus.stdout;
 
   // errorCode 98 is for a compile error for the coded test source file

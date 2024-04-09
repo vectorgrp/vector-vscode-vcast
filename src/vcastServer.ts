@@ -62,3 +62,4 @@ export function getEnviroDataFromServer(enviroPath: string) {
   };
   return transmitCommand(requestObject);
 }
+

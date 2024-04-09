@@ -60,12 +60,10 @@ import {
 import {
   buildEnvironmentFromScript,
   deleteEnvironment,
-  setCodedTestOption,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
+  rebuildEnvironment,
 } from "./vcastAdapter";
-
-import { executeWithRealTimeEcho } from "./vcastCommandRunner";
 
 import {
   checkIfInstallationIsOK,
@@ -88,7 +86,6 @@ import {
   addIncludePath,
   getEnviroNameFromFile,
   openTestScript,
-  rebuildEnvironmentCommand,
 } from "./vcastUtilities";
 
 import { updateExploreDecorations } from "./fileDecorator";
@@ -547,29 +544,12 @@ function configureExtension(context: vscode.ExtensionContext) {
   let rebuildEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.rebuildEnviro",
     (enviroNode: any) => {
+     
       // this returns the full path to the environment directory
       const enviroPath = getEnviroPathFromID(enviroNode.id);
+      rebuildEnvironment (enviroPath, rebuildEnvironmentCallback);
 
-      const fullCommand = rebuildEnvironmentCommand(enviroPath);
-      let commandPieces = fullCommand.split(" ");
-      const commandVerb = commandPieces[0];
-      commandPieces.shift();
-
-      const unitTestLocation = path.dirname(enviroPath);
-      setCodedTestOption(unitTestLocation);
-
-      // This uses the python binding to clicast to do the rebuild
-      // We open the message pane to give the user a sense of what's going on
-      openMessagePane();
-      executeWithRealTimeEcho(
-        commandVerb,
-        commandPieces,
-        unitTestLocation,
-        rebuildEnvironmentCallback,
-        enviroPath
-      );
-    }
-  );
+    });
   context.subscriptions.push(rebuildEnviro);
 
   // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////

@@ -45,24 +45,23 @@ import {
 
 import {
   deleteSingleTest,
+  getDataForEnvironment,
   loadScriptIntoEnvironment,
   refreshCodedTests,
 } from "./vcastAdapter";
 
-
-import {  getJsonDataFromTestInterface } from "./vcastCommandRunner";
+import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
-  getEnviroDataFromPython,
   getResultFileForTest,
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
   testDataType,
+  updateGlobalDataForFile,
   vcastEnviroFile,
 } from "./vcastTestInterface";
-
 
 import {
   adjustScriptContentsBeforeLoad,
@@ -72,8 +71,6 @@ import {
   parseCBTCommand,
   testStatus,
 } from "./vcastUtilities";
-
-import { getEnviroDataFromServer } from "./vcastServer";
 
 import {
   cfgOptionType,
@@ -186,7 +183,6 @@ function processVCtestData(
   // The top level of the JSON is an array ...
   const unitList = enviroData.testData;
   for (const unitData of unitList) {
-
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
     // add a cache node for the unit
@@ -321,10 +317,11 @@ export async function updateTestsForEnvironment(
   // this includes all units, functions, and tests for that environment
 
   // This is all of the data for a single environment
-  let jsonData:any;
-  // TBD - this is the new server way to get data
-  jsonData = await getEnviroDataFromServer (enviroPath);
-  jsonData = getEnviroDataFromPython(enviroPath);
+  const jsonData = getDataForEnvironment(enviroPath);
+
+  if (jsonData) {
+    updateGlobalDataForFile(enviroPath, jsonData.unitData);
+  }
 
   if (jsonData) {
     let enviroDisplayName: string = "";
@@ -892,6 +889,8 @@ function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {
 }
 
 // this does the actual work of running the tests
+const { performance } = require("perf_hooks");
+
 async function runTests(
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken
