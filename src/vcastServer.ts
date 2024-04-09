@@ -4,33 +4,16 @@ import fetch from "node-fetch";
 
 import { errorLevel, vectorMessage } from "./messagePane";
 
+import { clientRequestType } from "./vcastUtilities";
+
 let HOST = "localhost"; // The server's hostname or IP address
 let PORT = 60461; // The port used by the server anything > 1023 is OK
-
-export enum commandType {
-  ping = "ping",
-  shutdown = "shutdown",
-  closeConnection = "closeConnection",
-  getEnviroData = "getEnviroData",
-  executeTest = "executeTest",
-  executeTestReport = "executeTestReport",
-  report = "report",
-  parseCBT = "parseCBT",
-}
-
-export interface clientRequest {
-  command: commandType;
-  clicast: string;
-  path: string;
-  test: string;
-  options: string;
-}
 
 function serverURL() {
   return `http://${HOST}:${PORT}`;
 }
 
-export async function transmitCommand(requestObject: clientRequest) {
+export async function transmitCommand(requestObject: clientRequestType) {
   // TBD: is this the right way to do this, or can I send a class directly?
 
   // request is a class, so we convert it to a dictionary, then a string
@@ -51,15 +34,3 @@ export async function transmitCommand(requestObject: clientRequest) {
     });
   return returnData;
 }
-
-export function getEnviroDataFromServer(enviroPath: string) {
-  const requestObject: clientRequest = {
-    command: commandType.getEnviroData,
-    clicast: "",
-    path: enviroPath,
-    test: "",
-    options: "",
-  };
-  return transmitCommand(requestObject);
-}
-

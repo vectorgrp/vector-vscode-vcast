@@ -66,10 +66,11 @@ import {
 import {
   adjustScriptContentsBeforeLoad,
   closeAnyOpenErrorFiles,
+  getVcastInterfaceCommand,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
-  parseCBTCommand,
   testStatus,
+  vcastCommandType,
 } from "./vcastUtilities";
 
 import {
@@ -1179,7 +1180,7 @@ function computeChecksum(filePath: string): number {
 function getListOfTestsFromFile(filePath: string, enviroNodeID: string): any {
   // this function calls the vTestInterface.py to get the list of tests from a cbt file
 
-  const commandToRun = parseCBTCommand(filePath);
+  const commandToRun = getVcastInterfaceCommand (vcastCommandType.parseCBT, filePath);
   const enviroPath = getEnviroPathFromID(enviroNodeID);
   return getJsonDataFromTestInterface(commandToRun, enviroPath);
 }

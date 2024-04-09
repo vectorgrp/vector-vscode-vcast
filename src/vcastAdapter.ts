@@ -33,11 +33,14 @@ import {
   vcastCommandToUse,
 } from "./vcastInstallation";
 
-import { getEnviroDataFromServer } from "./vcastServer";
+import { transmitCommand } from "./vcastServer";
 
 import {
-  rebuildEnvironmentCommand,
-  testInterfaceCommand,
+  generateClientRequest,
+  getVcastInterfaceCommand,
+  getRebuildEnviroCommand,
+  vcastCommandType,
+  clientRequestType,
 } from "./vcastUtilities";
 
 const path = require("path");
@@ -347,13 +350,24 @@ export function openVcastFromVCEfile(vcePath: string, callback: any) {
 // Direct vpython calls
 // ------------------------------------------------------------------------------------
 
-// Get Environment Data
+// Get Environment Data ---------------------------------------------------------------
 function getEnviroDataFromPython(enviroPath: string): any {
   // This function will return the environment data for a single directory
   // by calling vpython with the appropriate command
-  const commandToRun = testInterfaceCommand("getEnviroData", enviroPath);
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.getEnviroData,
+    enviroPath
+  );
   let jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
   return jsonData;
+}
+
+function getEnviroDataFromServer(enviroPath: string): any {
+  const requestObject: clientRequestType = generateClientRequest(
+    vcastCommandType.getEnviroData,
+    enviroPath
+  );
+  return transmitCommand(requestObject);
 }
 
 export function getDataForEnvironment(enviroPath: string): any {
@@ -366,20 +380,7 @@ export function getDataForEnvironment(enviroPath: string): any {
   return jsonData;
 }
 
-// Get Execution Report
-export function getTestExecutionReport(
-  testID: string,
-  CWD: string
-): commandStatusType {
-  const commandToRun = testInterfaceCommand("report", CWD, testID);
-  const commandStatus: commandStatusType = executeVPythonScript(
-    commandToRun,
-    CWD
-  );
-  return commandStatus;
-}
-
-// Execute Test
+// Execute Test ------------------------------------------------------------------------
 export function executeTest(
   enviroPath: string,
   nodeID: string,
@@ -387,13 +388,17 @@ export function executeTest(
 ): commandStatusType {
   let commandToRun: string = "";
   if (generateReport) {
-    commandToRun = testInterfaceCommand(
-      "executeTestReport",
+    commandToRun = getVcastInterfaceCommand(
+      vcastCommandType.executeTestReport,
       enviroPath,
       nodeID
     );
   } else {
-    commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
+    commandToRun = getVcastInterfaceCommand(
+      vcastCommandType.executeTest,
+      enviroPath,
+      nodeID
+    );
   }
   const startTime: number = performance.now();
   const commandStatus = executeVPythonScript(commandToRun, enviroPath);
@@ -406,12 +411,29 @@ export function executeTest(
   return commandStatus;
 }
 
-// Rebuild Environment
+// Get Execution Report ----------------------------------------------------------------
+export function getTestExecutionReport(
+  testID: string,
+  CWD: string
+): commandStatusType {
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.report,
+    CWD,
+    testID
+  );
+  const commandStatus: commandStatusType = executeVPythonScript(
+    commandToRun,
+    CWD
+  );
+  return commandStatus;
+}
+
+// Rebuild Environment -----------------------------------------------------------------
 export function rebuildEnvironment(
   enviroPath: string,
   rebuildEnvironmentCallback: any
 ) {
-  const fullCommand = rebuildEnvironmentCommand(enviroPath);
+  const fullCommand = getRebuildEnviroCommand(enviroPath);
   let commandPieces = fullCommand.split(" ");
   const commandVerb = commandPieces[0];
   commandPieces.shift();

@@ -412,34 +412,44 @@ export async function runVCTest(
   if (commandStatus.errorCode == 98) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
+
+    // comes from clicast, something bad happened
+  } else if (commandOutputText.startsWith("FATAL")) {
+    vectorMessage(commandOutputText.replace("FATAL", ""));
+    openMessagePane();
+    returnStatus = testStatus.didNotRun;
+
+    // handles things like compile errors
+  } else if (commandOutputText.includes("Resolve Errors")) {
+    vectorMessage(commandOutputText);
+    openMessagePane();
+    returnStatus = testStatus.didNotRun;
+
+    // usage error with interface
+  } else if (commandStatus.errorCode == 1) {
+    vectorMessage(commandOutputText);
+    openMessagePane();
+    returnStatus = testStatus.didNotRun;
+
+    // successful execution
   } else {
-    if (commandOutputText.startsWith("FATAL")) {
-      vectorMessage(commandOutputText.replace("FATAL", ""));
-      openMessagePane();
-      returnStatus = testStatus.didNotRun;
-    } else if (commandOutputText.includes("Resolve Errors")) {
-      vectorMessage(commandOutputText);
-      openMessagePane();
-      returnStatus = testStatus.didNotRun;
-    } else {
-      const decodedOutput = processExecutionOutput(commandOutputText);
-      logTestResults(nodeID, commandOutputText, decodedOutput);
+    const decodedOutput = processExecutionOutput(commandOutputText);
+    logTestResults(nodeID, commandOutputText, decodedOutput);
 
-      let updatedStatusItem = globalTestStatusArray[nodeID];
+    let updatedStatusItem = globalTestStatusArray[nodeID];
 
-      if (updatedStatusItem) {
-        updatedStatusItem.status = decodedOutput.status;
-        updatedStatusItem.resultFilePath = decodedOutput.resultsFilePath;
-        globalTestStatusArray[nodeID] = updatedStatusItem;
+    if (updatedStatusItem) {
+      updatedStatusItem.status = decodedOutput.status;
+      updatedStatusItem.resultFilePath = decodedOutput.resultsFilePath;
+      globalTestStatusArray[nodeID] = updatedStatusItem;
 
-        if (updatedStatusItem.status == "passed") {
-          returnStatus = testStatus.passed;
-        } else {
-          returnStatus = testStatus.failed;
-        }
+      if (updatedStatusItem.status == "passed") {
+        returnStatus = testStatus.passed;
       } else {
-        returnStatus = testStatus.didNotRun;
+        returnStatus = testStatus.failed;
       }
+    } else {
+      returnStatus = testStatus.didNotRun;
     }
   }
   return returnStatus;
