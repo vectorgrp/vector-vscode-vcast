@@ -326,6 +326,12 @@ class choiceDataType:
     choiceList = list()
     choiceKind = choiceKindType.Keyword
 
+    def toDict(self):
+        data = {}
+        data["choiceKind"] = self.choiceKind
+        data["choiceList"] = self.choiceList
+        return data
+
 
 def processRequirementLines(api, pieces, triggerCharacter):
     """
