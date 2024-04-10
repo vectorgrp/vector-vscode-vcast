@@ -39,7 +39,7 @@ export function runPythonScript(
   action: string,
   payload: string
 ): any {
-  // this is currently not used as the actual server mode is unused
+
   if (testEditorScriptPath == undefined) {
     initializeScriptPath();
   }
