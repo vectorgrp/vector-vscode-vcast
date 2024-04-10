@@ -419,7 +419,7 @@ async function loadAllVCTests(
         if (cancelled) {
           break;
         }
-        updateTestsForEnvironment(enviroPath, workspaceRoot);
+        await updateTestsForEnvironment(enviroPath, workspaceRoot);
       } // for each enviropath
       if (cancelled) {
         break;
