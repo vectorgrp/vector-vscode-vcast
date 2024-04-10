@@ -1,3 +1,9 @@
+import {
+  vcastCommandType,
+  clientRequestType,
+  transmitCommand,
+} from "../src-common/vcastServer";
+
 import fs = require("fs");
 import path = require("path");
 const execSync = require("child_process").execSync;
@@ -11,6 +17,7 @@ export function setPaths(
   testEditorScriptPath = _testEditorScriptPath;
   vPythonCommandToUse = _vPythonCommandToUse;
 }
+
 function initializeScriptPath() {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
@@ -34,12 +41,7 @@ function initializeScriptPath() {
   }
 }
 
-export function runPythonScript(
-  enviroPath: string,
-  action: string,
-  payload: string
-): any {
-
+function getChoiceDataFromPython(enviroPath: string, lineSoFar: string): any {
   if (testEditorScriptPath == undefined) {
     initializeScriptPath();
   }
@@ -49,7 +51,7 @@ export function runPythonScript(
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
   // RUN mode is a single shot mode where we run the python script and communicate with stdin/stdout and
-  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${action} ${enviroPath} "${payload}"`;
+  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} choiceList ${enviroPath} "${lineSoFar}"`;
   const commandOutputBuffer = execSync(commandToRun).toString();
 
   // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
@@ -63,27 +65,37 @@ export function runPythonScript(
   return JSON.parse(pieces[1].trim());
 }
 
-export function getChoiceDataFromPython(
-  enviroPath: string,
-  lineSoFar: string
-): any {
-  const jsonData = runPythonScript(enviroPath, "choiceList", lineSoFar);
+function getChoiceDataFromServer(enviroPath: string, lineSoFar: string): any {
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.choiceList,
+    clicast: "",
+    path: "",
+    test: "",
+    options: lineSoFar,
+  };
+  return transmitCommand(requestObject);
+}
+
+// Get Choice Data for Line Being Edited
+export function getChoiceData(enviroPath: string, lineSoFar: string): any {
+
+  // TBD TIMING TEST
+  // getChoiceListTimingTest (enviroPath, lineSoFar);
+  //
+  const jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
   return jsonData;
 }
 
+// Get Hover String for Requirement
 export function getHoverStringForRequirement(
   enviroPath: string,
   requirementKey: string
 ): any {
   let returnValue: string = "";
-  const jsonData = runPythonScript(
-    enviroPath,
-    "choiceList",
-    "TEST.REQUIREMENT_KEY:"
-  );
+  const jsonData = getChoiceDataFromPython(enviroPath, "TEST.REQUIREMENT_KEY:");
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
@@ -99,4 +111,32 @@ export function getHoverStringForRequirement(
     }
   }
   return returnValue;
+}
+
+// --------------------------------------------------------------------------
+// Temporary Functions for Development
+// --------------------------------------------------------------------------
+export async function getChoiceListTimingTest(
+  enviroPath: string,
+  lineSoFar: string
+) {
+  // Compares the timing for choiceList using the server and vpython
+  // To use this, insert a call into getChoiceData()
+  // See the TBD TIMING comment
+
+  let startTime: number = performance.now();
+  for (let index = 0; index < 10; index++) {
+    await getChoiceDataFromServer(enviroPath, lineSoFar);
+  }
+  let endTime: number = performance.now();
+  let deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
+  console.log(`choiceList via the server 10x took: ${deltaString} seconds`);
+
+  startTime = performance.now();
+  for (let index = 0; index < 10; index++) {
+    getChoiceDataFromPython(enviroPath, lineSoFar);
+  }
+  endTime = performance.now();
+  deltaString = ((endTime - startTime) / 1000).toFixed(2);
+  console.log(`choiceList via vpython 10x took: ${deltaString} seconds`);
 }

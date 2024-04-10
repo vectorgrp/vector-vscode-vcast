@@ -33,15 +33,17 @@ import {
   vcastCommandToUse,
 } from "./vcastInstallation";
 
-import { transmitCommand } from "./vcastServer";
-
 import {
   generateClientRequest,
   getVcastInterfaceCommand,
   getRebuildEnviroCommand,
+} from "./vcastUtilities";
+
+import {
   vcastCommandType,
   clientRequestType,
-} from "./vcastUtilities";
+  transmitCommand,
+} from "../src-common/vcastServer";
 
 const path = require("path");
 
@@ -371,10 +373,14 @@ function getEnviroDataFromServer(enviroPath: string): any {
 }
 
 export function getDataForEnvironment(enviroPath: string): any {
+
   // what we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
   vectorMessage("Processing environment data for: " + enviroPath);
 
+  // TBD TIMING TEST
+  // getEnviroDataTimingTest (enviroPath);
+  //
   let jsonData = getEnviroDataFromPython(enviroPath);
 
   return jsonData;
@@ -461,9 +467,10 @@ const { performance } = require("perf_hooks");
 export async function getEnviroDataTimingTest(enviroPath: string) {
   // Compares the timing for getEnviroData using the server and vpython
   // To use this, insert a call into getDataForEnvironment()
+  // See the TBD TIMING comment
+
 
   let startTime: number = performance.now();
-  vectorMessage("Starting server timing test ...");
   for (let index = 0; index < 10; index++) {
     await getEnviroDataFromServer(enviroPath);
   }
@@ -474,7 +481,6 @@ export async function getEnviroDataTimingTest(enviroPath: string) {
   );
 
   startTime = performance.now();
-  vectorMessage("Starting vpython timing test ...");
   for (let index = 0; index < 10; index++) {
     getEnviroDataFromPython(enviroPath);
   }

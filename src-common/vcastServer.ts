@@ -2,12 +2,33 @@
 
 import fetch from "node-fetch";
 
-import { errorLevel, vectorMessage } from "./messagePane";
-
-import { clientRequestType } from "./vcastUtilities";
 
 let HOST = "localhost"; // The server's hostname or IP address
 let PORT = 60461; // The port used by the server anything > 1023 is OK
+
+    
+// types used for interaction with the python interfaces and the enviro server  
+export enum vcastCommandType {
+  ping = "ping",
+  shutdown = "shutdown",
+  closeConnection = "closeConnection",
+  getEnviroData = "getEnviroData",
+  rebuild = "rebuild",
+  executeTest = "executeTest",
+  executeTestReport = "executeTestReport",
+  report = "report",
+  parseCBT = "parseCBT",
+  choiceList = "choiceList",
+}
+
+export interface clientRequestType {
+  command: vcastCommandType;
+  clicast: string;
+  path: string;
+  test: string;
+  options: string;
+}
+
 
 function serverURL() {
   return `http://${HOST}:${PORT}`;
@@ -23,14 +44,10 @@ export async function transmitCommand(requestObject: clientRequestType) {
   let returnData: any = undefined;
   await fetch(urlToUse)
     .then(async (response) => {
-      vectorMessage(
-        `Enviro server response status: ${response.statusText}`,
-        errorLevel.trace
-      );
       returnData = await response.json();
     })
     .catch((error) => {
-      vectorMessage(`Enviro server error: ${error.message}`);
+      console.log(`Enviro server error: ${error.message}`);
     });
   return returnData;
 }

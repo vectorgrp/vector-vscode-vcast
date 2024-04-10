@@ -29,6 +29,8 @@ import {
   vPythonCommandToUse,
 } from "./vcastInstallation";
 
+import { vcastCommandType, clientRequestType } from "../src-common/vcastServer";
+
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -321,26 +323,6 @@ export function getEnviroNameFromFile(filePath: string): string | undefined {
   }
 
   return enviroName;
-}
-
-export enum vcastCommandType {
-  ping = "ping",
-  shutdown = "shutdown",
-  closeConnection = "closeConnection",
-  getEnviroData = "getEnviroData",
-  rebuild = "rebuild",
-  executeTest = "executeTest",
-  executeTestReport = "executeTestReport",
-  report = "report",
-  parseCBT = "parseCBT",
-}
-
-export interface clientRequestType {
-  command: vcastCommandType;
-  clicast: string;
-  path: string;
-  test: string;
-  options: string;
 }
 
 function getTestArgument(testID: string, withFlag: boolean): string {
