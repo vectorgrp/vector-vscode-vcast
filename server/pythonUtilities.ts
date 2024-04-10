@@ -35,7 +35,7 @@ function initializeScriptPath() {
 }
 
 export function runPythonScript(
-  enviroName: string,
+  enviroPath: string,
   action: string,
   payload: string
 ): any {
@@ -49,7 +49,7 @@ export function runPythonScript(
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
   // RUN mode is a single shot mode where we run the python script and communicate with stdin/stdout and
-  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${action} ${enviroName} "${payload}"`;
+  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${action} ${enviroPath} "${payload}"`;
   const commandOutputBuffer = execSync(commandToRun).toString();
 
   // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
@@ -64,10 +64,10 @@ export function runPythonScript(
 }
 
 export function getChoiceDataFromPython(
-  enviroName: string,
+  enviroPath: string,
   lineSoFar: string
 ): any {
-  const jsonData = runPythonScript(enviroName, "choiceList", lineSoFar);
+  const jsonData = runPythonScript(enviroPath, "choiceList", lineSoFar);
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
@@ -75,12 +75,12 @@ export function getChoiceDataFromPython(
 }
 
 export function getHoverStringForRequirement(
-  enviroName: string,
+  enviroPath: string,
   requirementKey: string
 ): any {
   let returnValue: string = "";
   const jsonData = runPythonScript(
-    enviroName,
+    enviroPath,
     "choiceList",
     "TEST.REQUIREMENT_KEY:"
   );
