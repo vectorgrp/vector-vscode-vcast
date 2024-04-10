@@ -7,6 +7,7 @@ import {
   CompletionItem,
   CompletionParams,
 } from "vscode-languageserver";
+
 import { Hover } from "vscode-languageserver-types";
 
 import { validateTextDocument } from "./tstValidation";

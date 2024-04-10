@@ -319,7 +319,7 @@ export async function updateTestsForEnvironment(
   // this includes all units, functions, and tests for that environment
 
   // This is all of the data for a single environment
-  const jsonData = getDataForEnvironment(enviroPath);
+  const jsonData = await getDataForEnvironment(enviroPath);
 
   if (jsonData) {
     updateGlobalDataForFile(enviroPath, jsonData.unitData);

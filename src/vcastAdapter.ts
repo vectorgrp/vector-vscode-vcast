@@ -43,6 +43,7 @@ import {
   vcastCommandType,
   clientRequestType,
   transmitCommand,
+  transmitResponseType,
 } from "../src-common/vcastServer";
 
 const path = require("path");
@@ -364,24 +365,32 @@ function getEnviroDataFromPython(enviroPath: string): any {
   return jsonData;
 }
 
-function getEnviroDataFromServer(enviroPath: string): any {
+async function getEnviroDataFromServer(enviroPath: string) {
   const requestObject: clientRequestType = generateClientRequest(
     vcastCommandType.getEnviroData,
     enviroPath
   );
-  return transmitCommand(requestObject);
+
+  let transmitResponse: transmitResponseType = await transmitCommand(
+    requestObject
+  );
+  if (transmitResponse.success) {
+    return transmitResponse.returnData;
+  } else {
+    vectorMessage(transmitResponse.statusText);
+    return {};
+  }
 }
 
-export function getDataForEnvironment(enviroPath: string): any {
-
+export async function getDataForEnvironment(enviroPath: string): any {
+  
   // what we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
   vectorMessage("Processing environment data for: " + enviroPath);
 
-  // TBD TIMING TEST
-  // getEnviroDataTimingTest (enviroPath);
-  //
-  let jsonData = getEnviroDataFromPython(enviroPath);
+  // Switch comments to check timing etc.
+  //let jsonData = await getEnviroDataFromServer(enviroPath);
+  let jsonData = getEnviroDataFromPython (enviroPath);
 
   return jsonData;
 }
@@ -457,34 +466,4 @@ export function rebuildEnvironment(
     rebuildEnvironmentCallback,
     enviroPath
   );
-}
-
-// ------------------------------------------------------------------------------------
-// Temporary Functions for Development
-// ------------------------------------------------------------------------------------
-const { performance } = require("perf_hooks");
-
-export async function getEnviroDataTimingTest(enviroPath: string) {
-  // Compares the timing for getEnviroData using the server and vpython
-  // To use this, insert a call into getDataForEnvironment()
-  // See the TBD TIMING comment
-
-
-  let startTime: number = performance.now();
-  for (let index = 0; index < 10; index++) {
-    await getEnviroDataFromServer(enviroPath);
-  }
-  let endTime: number = performance.now();
-  let deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
-  vectorMessage(
-    `getEnviroData via the server 10x took: ${deltaString} seconds`
-  );
-
-  startTime = performance.now();
-  for (let index = 0; index < 10; index++) {
-    getEnviroDataFromPython(enviroPath);
-  }
-  endTime = performance.now();
-  deltaString = ((endTime - startTime) / 1000).toFixed(2);
-  vectorMessage(`getEnviroData via vpython 10x took: ${deltaString} seconds`);
 }

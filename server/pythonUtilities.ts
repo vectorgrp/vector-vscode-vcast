@@ -2,10 +2,12 @@ import {
   vcastCommandType,
   clientRequestType,
   transmitCommand,
+  transmitResponseType,
 } from "../src-common/vcastServer";
 
 import fs = require("fs");
 import path = require("path");
+
 const execSync = require("child_process").execSync;
 
 let testEditorScriptPath: string | undefined = undefined;
@@ -65,7 +67,7 @@ function getChoiceDataFromPython(enviroPath: string, lineSoFar: string): any {
   return JSON.parse(pieces[1].trim());
 }
 
-function getChoiceDataFromServer(enviroPath: string, lineSoFar: string): any {
+async function getChoiceDataFromServer(enviroPath: string, lineSoFar: string) {
   const requestObject: clientRequestType = {
     command: vcastCommandType.choiceList,
     clicast: "",
@@ -73,15 +75,18 @@ function getChoiceDataFromServer(enviroPath: string, lineSoFar: string): any {
     test: "",
     options: lineSoFar,
   };
-  return transmitCommand(requestObject);
+  let transmitResponse:transmitResponseType = await transmitCommand(requestObject);
+  if (transmitResponse.success) {
+    return transmitResponse.returnData;
+  } else {
+    console.log (transmitResponse.statusText);
+    return {};
+  }
 }
 
 // Get Choice Data for Line Being Edited
 export function getChoiceData(enviroPath: string, lineSoFar: string): any {
 
-  // TBD TIMING TEST
-  // getChoiceListTimingTest (enviroPath, lineSoFar);
-  //
   const jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
   for (const msg of jsonData.messages) {
     console.log(msg);
@@ -114,7 +119,7 @@ export function getHoverStringForRequirement(
 }
 
 // --------------------------------------------------------------------------
-// Temporary Functions for Development
+// Temporary Function for Development
 // --------------------------------------------------------------------------
 export async function getChoiceListTimingTest(
   enviroPath: string,
@@ -122,7 +127,6 @@ export async function getChoiceListTimingTest(
 ) {
   // Compares the timing for choiceList using the server and vpython
   // To use this, insert a call into getChoiceData()
-  // See the TBD TIMING comment
 
   let startTime: number = performance.now();
   for (let index = 0; index < 10; index++) {

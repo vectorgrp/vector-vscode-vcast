@@ -34,20 +34,27 @@ function serverURL() {
   return `http://${HOST}:${PORT}`;
 }
 
+export interface transmitResponseType {
+  success:boolean,
+  returnData:any,
+  statusText:string,
+}
 export async function transmitCommand(requestObject: clientRequestType) {
   // TBD: is this the right way to do this, or can I send a class directly?
 
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
   const urlToUse = `${serverURL()}/vassistant?request=${dataAsString}`;
+  let transmitResponse:transmitResponseType = {success: false, returnData:undefined, statusText:""};
 
-  let returnData: any = undefined;
   await fetch(urlToUse)
     .then(async (response) => {
-      returnData = await response.json();
+      transmitResponse.success = true;
+      transmitResponse.statusText = (`Enviro server response status: ${response.statusText}`);
+      transmitResponse.returnData = await response.json();
     })
     .catch((error) => {
-      console.log(`Enviro server error: ${error.message}`);
+      transmitResponse.statusText =  `Enviro server error: ${error.message.split ("reason:")[1]}`;
     });
-  return returnData;
+  return transmitResponse;
 }
