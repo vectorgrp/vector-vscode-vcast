@@ -58,7 +58,7 @@ describe("Hover Info Validator", () => {
         tstText,
         "TEST.SLOT"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(tstText, hoverPosition);
       expect(generatedHoverString).toBe(expectedHoverString);
     },
     timeout
@@ -75,44 +75,46 @@ describe("Hover Info Validator", () => {
         tstText,
         "return"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(tstText, hoverPosition);
       expect(generatedHoverString).toBe(expectedHoverString);
     },
     timeout
   );
-  
+
   test(
     "validate hover over TEST.REQUIREMENT_KEY:FR20",
     async () => {
       const tstText = [initialTst, reqTst].join("\n");
       const expectedFRTitle = "Clearing a table resets orders for all seats";
-      const expectedFRDesc = "Clearing a table clears the orders for all seats of the table within the table database.";
+      const expectedFRDesc =
+        "Clearing a table clears the orders for all seats of the table within the table database.";
       const hoverPosition = getHoverPositionForLine(
         "TEST.REQUIREMENT_KEY:FR20",
         tstText,
         "KEY"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
-      expect(generatedHoverString).toContain(expectedFRTitle)
-      expect(generatedHoverString).toContain(expectedFRDesc)
+      const generatedHoverString = await generateHoverData(tstText, hoverPosition);
+      expect(generatedHoverString).toContain(expectedFRTitle);
+      expect(generatedHoverString).toContain(expectedFRDesc);
     },
     timeout
   );
-  
+
   test(
     "validate hover over TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats",
     async () => {
       const tstText = [initialTst, reqTst].join("\n");
       const expectedFRTitle = "Clearing a table resets orders for all seats";
-      const expectedFRDesc = "Clearing a table clears the orders for all seats of the table within the table database.";
+      const expectedFRDesc =
+        "Clearing a table clears the orders for all seats of the table within the table database.";
       const hoverPosition = getHoverPositionForLine(
         "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats",
         tstText,
         "FR20"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
-      expect(generatedHoverString).toContain(expectedFRTitle)
-      expect(generatedHoverString).toContain(expectedFRDesc)
+      const generatedHoverString = await generateHoverData(tstText, hoverPosition);
+      expect(generatedHoverString).toContain(expectedFRTitle);
+      expect(generatedHoverString).toContain(expectedFRDesc);
     },
     timeout
   );
@@ -128,7 +130,7 @@ describe("Hover Info Validator", () => {
         tstText,
         "return"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(tstText, hoverPosition);
       expect(generatedHoverString).toBe(expectedHoverString);
     },
     timeout
@@ -145,7 +147,7 @@ describe("Hover Info Validator", () => {
         tstText,
         "return"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(tstText, hoverPosition);
       expect(generatedHoverString).toBe(expectedHoverString);
     },
     timeout

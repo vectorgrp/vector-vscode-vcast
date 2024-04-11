@@ -13,7 +13,7 @@ import {
   getHoverStringForRequirement,
 } from "./pythonUtilities";
 
-export function getHoverString(
+export async function getHoverString(
   documents: TextDocuments,
   completionData: CompletionParams
 ) {
@@ -75,7 +75,7 @@ export function getHoverString(
 
           // call python to get the list for this field, and then ...
           // match up that piece to find the "extra stuff" to display
-          const choiceData = getChoiceData(enviroPath, lineSoFar);
+          const choiceData = await getChoiceData(enviroPath, lineSoFar);
           const valueList = choiceData.choiceList;
           for (var index = 0; index < valueList.length; index++) {
             const valuePieces = valueList[index].split("@");

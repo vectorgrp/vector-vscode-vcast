@@ -30,11 +30,11 @@ module.exports = async () => {
     }
   }
 
-  let checkClicast: string = "";
+  let checkClicast = "";
   if (process.platform == "win32") checkClicast = "where clicast";
   else checkClicast = "which clicast";
 
-  let clicastExecutablePath: string = "";
+  let clicastExecutablePath = "";
   {
     try {
       const { stdout, stderr } = await promisifiedExec(checkClicast);
@@ -77,22 +77,27 @@ module.exports = async () => {
   }
 
   const vectorcastDir = path.dirname(clicastExecutablePath);
-  const reqTutorialPath = path.join(vectorcastDir, "examples", "RequirementsGW", "CSV_Requirements_For_Tutorial.csv") 
-  const commandPrefix = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc`
+  const reqTutorialPath = path.join(
+    vectorcastDir,
+    "examples",
+    "RequirementsGW",
+    "CSV_Requirements_For_Tutorial.csv"
+  );
+  const commandPrefix = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc`;
   const rgwPrepCommands = [
     `${commandPrefix} option VCAST_REPOSITORY ${vcastEnvPath}`,
     `${commandPrefix} RGw INitialize`,
     `${commandPrefix} Rgw Set Gateway CSV`,
     `${commandPrefix} RGw Configure Set CSV csv_path ${reqTutorialPath}`,
     `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
-    `${commandPrefix} RGw Configure Set CSV filter_attribute`, 
+    `${commandPrefix} RGw Configure Set CSV filter_attribute`,
     `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
     `${commandPrefix} RGw Configure Set CSV id_attribute ID`,
     `${commandPrefix} RGw Configure Set CSV key_attribute Key`,
     `${commandPrefix} RGw Configure Set CSV title_attribute Title `,
     `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
-    `${commandPrefix} RGw Import`
-  ]
+    `${commandPrefix} RGw Import`,
+  ];
   for (const rgwPrepCommand of rgwPrepCommands) {
     const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
     if (stderr) {

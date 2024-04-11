@@ -87,9 +87,9 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
 
-connection.onHover((completionData: CompletionParams): Hover | undefined => {
+connection.onHover(async (completionData: CompletionParams): Hover | undefined => {
   // This function gets called when the user hovers over a line section
-  const hoverString = getHoverString(documents, completionData);
+  const hoverString = await getHoverString(documents, completionData);
 
   var hover: Hover = { contents: hoverString };
   return hover;

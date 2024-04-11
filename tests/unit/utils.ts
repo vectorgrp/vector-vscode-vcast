@@ -13,7 +13,7 @@ export interface HoverPosition {
   character: number;
 }
 
-export function generateHoverData(
+export async function generateHoverData(
   tstText: string,
   position: HoverPosition,
   envName?: string,
@@ -51,7 +51,7 @@ export function generateHoverData(
   if (documents.all() && documents.all()[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
   }
-  return getHoverString(documents, completion);
+  return await getHoverString(documents, completion);
 }
 
 export function asHoverParams(
