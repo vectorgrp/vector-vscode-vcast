@@ -472,6 +472,20 @@ def splitExistingLine(line):
     return [x.strip() for x in pieces]
 
 
+def buildResponseObject(choiceData: choiceDataType):
+    """
+    This is a separate function to allow the testEditorInterace | main()
+    and the socket based server to use the same code to build the response
+    """
+
+    responseObject = dict()
+    responseObject["choiceKind"] = choiceData.choiceKind
+    responseObject["choiceList"] = choiceData.choiceList
+    responseObject["messages"] = globalOutputLog
+
+    return responseObject
+
+
 def processLine(enviroName, line):
     """
 
@@ -526,7 +540,7 @@ def processLine(enviroName, line):
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)
 
-        api.close ()
+        api.close()
         return returnData
 
     except Exception as err:

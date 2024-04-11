@@ -43,16 +43,56 @@ function initializeScriptPath() {
   }
 }
 
-function getChoiceDataFromPython(enviroPath: string, lineSoFar: string): any {
+// Get Choice Data Processing -------------------------------------------------------------
+
+// This mirrors the data object returned from the python call to get completion text
+interface choiceDataType {
+  choiceKind: string;
+  choiceList: string[];
+  messages: string[];
+}
+const emptyChoiceData: choiceDataType = {
+  choiceKind: "",
+  choiceList: [],
+  messages: [],
+};
+
+async function getChoiceDataFromServer(
+  enviroPath: string,
+  lineSoFar: string
+): Promise<choiceDataType> {
+  // We are re-using options for the line fragment in the request
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.choiceList,
+    clicast: "",
+    path: enviroPath,
+    test: "",
+    options: lineSoFar,
+  };
+
+  let transmitResponse: transmitResponseType = await transmitCommand(
+    requestObject
+  );
+
+  if (transmitResponse.success) {
+    // return data wil be formatted as a choiceDataType
+    return transmitResponse.returnData;
+  } else {
+    console.log(transmitResponse.statusText);
+    return emptyChoiceData;
+  }
+}
+
+function getChoiceDataFromPython(
+  enviroPath: string,
+  lineSoFar: string
+): choiceDataType {
   if (testEditorScriptPath == undefined) {
     initializeScriptPath();
   }
 
-  // As an alternative to using a server, we call vpython each time we need some data
-
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
-  // RUN mode is a single shot mode where we run the python script and communicate with stdin/stdout and
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} choiceList ${enviroPath} "${lineSoFar}"`;
   const commandOutputBuffer = execSync(commandToRun).toString();
 
@@ -64,30 +104,21 @@ function getChoiceDataFromPython(enviroPath: string, lineSoFar: string): any {
 
   // to make debugging easier
   const pieces = commandOutputBuffer.split("ACTUAL-DATA", 2);
-  return JSON.parse(pieces[1].trim());
-}
-
-async function getChoiceDataFromServer(enviroPath: string, lineSoFar: string) {
-  const requestObject: clientRequestType = {
-    command: vcastCommandType.choiceList,
-    clicast: "",
-    path: "",
-    test: "",
-    options: lineSoFar,
-  };
-  let transmitResponse:transmitResponseType = await transmitCommand(requestObject);
-  if (transmitResponse.success) {
-    return transmitResponse.returnData;
-  } else {
-    console.log (transmitResponse.statusText);
-    return {};
-  }
+  // two statement to make debugging easy
+  const returnData = JSON.parse(pieces[1].trim());
+  return returnData;
 }
 
 // Get Choice Data for Line Being Edited
-export function getChoiceData(enviroPath: string, lineSoFar: string): any {
-
+export async function getChoiceData(
+  enviroPath: string,
+  lineSoFar: string
+): Promise<choiceDataType> {
+  //
+  // TBD Today - Switch comments to check timing etc.
+  //const jsonData = await getChoiceDataFromServer(enviroPath, lineSoFar);
   const jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
+
   for (const msg of jsonData.messages) {
     console.log(msg);
   }

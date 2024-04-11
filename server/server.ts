@@ -75,8 +75,8 @@ documents.onDidChangeContent((change) => {
 // the characters in the "triggerCharacters" array that onInitialize sets
 
 connection.onCompletion(
-  (completionData: CompletionParams): CompletionItem[] => {
-    return getTstCompletionData(documents, completionData);
+  async (completionData: CompletionParams): Promise<CompletionItem[]> => {
+    return await getTstCompletionData(documents, completionData);
   }
 );
 

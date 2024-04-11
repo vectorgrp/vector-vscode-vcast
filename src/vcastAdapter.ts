@@ -365,7 +365,7 @@ function getEnviroDataFromPython(enviroPath: string): any {
   return jsonData;
 }
 
-async function getEnviroDataFromServer(enviroPath: string) {
+async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
   const requestObject: clientRequestType = generateClientRequest(
     vcastCommandType.getEnviroData,
     enviroPath
@@ -378,19 +378,18 @@ async function getEnviroDataFromServer(enviroPath: string) {
     return transmitResponse.returnData;
   } else {
     vectorMessage(transmitResponse.statusText);
-    return {};
+    return undefined;
   }
 }
 
-export async function getDataForEnvironment(enviroPath: string): any {
-  
+export async function getDataForEnvironment(enviroPath: string): Promise<any> {
   // what we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
   vectorMessage("Processing environment data for: " + enviroPath);
 
-  // Switch comments to check timing etc.
+  // TBD Today - Switch comments to check timing etc.
   //let jsonData = await getEnviroDataFromServer(enviroPath);
-  let jsonData = getEnviroDataFromPython (enviroPath);
+  let jsonData = getEnviroDataFromPython(enviroPath);
 
   return jsonData;
 }

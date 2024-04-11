@@ -13,8 +13,12 @@ import json
 import sys
 
 
-from tstUtilities import processLine, choiceDataType
-from tstUtilities import globalOutputLog
+from tstUtilities import (
+    buildResponseObject,
+    globalOutputLog,
+    processLine,
+    choiceDataType,
+)
 
 
 def main():
@@ -41,10 +45,7 @@ def main():
         choiceData = choiceDataType()
         globalOutputLog.append("Invalid mode: " + mode)
 
-    outputDictionary = dict()
-    outputDictionary["choiceKind"] = choiceData.choiceKind
-    outputDictionary["choiceList"] = choiceData.choiceList
-    outputDictionary["messages"] = globalOutputLog
+    outputDictionary = buildResponseObject(choiceData)
 
     # See the comment in: runPythonScript()
     print("ACTUAL-DATA")

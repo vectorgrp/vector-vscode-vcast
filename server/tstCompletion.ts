@@ -19,7 +19,7 @@ import {
 
 import { getChoiceData } from "./pythonUtilities";
 
-export function getTstCompletionData(
+export async function getTstCompletionData(
   documents: TextDocuments,
   completionData: CompletionParams
 ) {
@@ -56,7 +56,7 @@ export function getTstCompletionData(
       } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:")
         return completionList(["<test-name>"], CompletionItemKind.Text);
       else if (trigger == "COLON" && upperCaseLine == "TEST.UNIT:") {
-        const choiceData = getChoiceData(enviroPath, lineSoFar);
+        const choiceData = await getChoiceData(enviroPath, lineSoFar);
         return completionList(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
@@ -75,7 +75,7 @@ export function getTstCompletionData(
         let choiceArray = ["<<INIT>>", "<<COMPOUND>>"];
         let choiceKind: CompletionItemKind = CompletionItemKind.Keyword;
         if (unitName.length > 0) {
-          const choiceData = getChoiceData(
+          const choiceData = await getChoiceData(
             enviroPath,
             "TEST.VALUE:" + unitName + "."
           );
@@ -89,7 +89,7 @@ export function getTstCompletionData(
         }
         return completionList(choiceArray, choiceKind);
       } else if (upperCaseLine.startsWith("TEST.SLOT:")) {
-        const choiceData = getChoiceData(enviroPath, lineSoFar);
+        const choiceData = await getChoiceData(enviroPath, lineSoFar);
         return completionList(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
@@ -105,14 +105,14 @@ export function getTstCompletionData(
         upperCaseLine.startsWith("TEST.STUB:")
       ) {
         // the current level, and returns the appropriate list for the next level.
-        const choiceData = getChoiceData(enviroPath, lineSoFar);
+        const choiceData = await getChoiceData(enviroPath, lineSoFar);
         return completionList(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
         );
       } else if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
         // for the requirement keys, the format of the list items is
-        const choiceData = getChoiceData(enviroPath, lineSoFar);
+        const choiceData = await getChoiceData(enviroPath, lineSoFar);
         for (let i = 0; i < choiceData.choiceList.length; i++) {
           let line = choiceData.choiceList[i];
           // raw data looks like:  <key> ||| <title> ||| <description>
