@@ -22,7 +22,7 @@ export let vPythonCommandToUse: string;
 const vcastqtName = "vcastqt";
 export let vcastCommandToUse: string;
 
-let globalCheckSumCommand: string | undefined = undefined;
+export let checksumCommandToUse: string | undefined = undefined;
 let crc32Name = "crc32-win32.exe";
 if (process.platform == "linux") {
   crc32Name = "crc32-linux";
@@ -353,18 +353,15 @@ function initializeChecksumCommand(
 ): string | undefined {
   // checks if this vcast distro has python checksum support built-in
   if (globalCrc32Path && pyCrc32IsAvailable()) {
-    globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
+    checksumCommandToUse = `${vPythonCommandToUse} ${globalCrc32Path}`;
   } else {
     // check if the user has patched the distro with the crc32 utility
-    globalCheckSumCommand = getCRCutilityPath(vcastInstallationPath);
+    checksumCommandToUse = getCRCutilityPath(vcastInstallationPath);
   }
 
-  return globalCheckSumCommand;
+  return checksumCommandToUse;
 }
 
-export function getChecksumCommand() {
-  return globalCheckSumCommand;
-}
 
 function shouldPromptForIncludePath(includePath: string): boolean {
   // So that we don't annoy users with the coded-test popup every time,

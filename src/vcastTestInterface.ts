@@ -42,7 +42,7 @@ import {
   executeVPythonScript,
 } from "./vcastCommandRunner";
 
-import { getChecksumCommand } from "./vcastInstallation";
+import { checksumCommandToUse } from "./vcastInstallation";
 
 import {
   closeAnyOpenErrorFiles,
@@ -60,7 +60,7 @@ export const vcastEnviroFile = "UNITDATA.VCD";
 // Compute the checksum for a source file
 function getChecksum(filePath: string) {
   let returnValue = 0;
-  const checksumCommand = getChecksumCommand();
+  const checksumCommand = checksumCommandToUse;
   if (checksumCommand) {
     let commandOutputString: string;
     if (checksumCommand.endsWith(".py"))
