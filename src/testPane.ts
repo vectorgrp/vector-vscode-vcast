@@ -869,14 +869,16 @@ function getTestNodes(
   return returnQueue;
 }
 
-export function updateDataForEnvironment(enviroPath: string) {
+export async function updateDataForEnvironment(enviroPath: string) {
   // this function does all of the "common" work when an environment is updated
   // sources of environment update are things like:
   //   - opening the environment in the vcast gui
   //   - building a new environment
   //   - ...
 
-  updateTestPane(enviroPath);
+  // we need await on this call because ther other update function
+  // require the data that is loaded downstream of this call
+  await updateTestPane(enviroPath);
   updateDisplayedCoverage();
   updateExploreDecorations();
   updateTestDecorator();
@@ -935,7 +937,7 @@ async function runTests(
   vectorMessage(`Execution event took: ${deltaString} seconds`);
 
   for (let enviroPath of enviroPathList) {
-    updateDataForEnvironment(enviroPath);
+    await updateDataForEnvironment(enviroPath);
   }
   updateDisplayedCoverage();
   run.end();
@@ -1011,7 +1013,7 @@ export async function deleteTests(nodeList: any[]) {
     // remove any coded test files from the cache since
     // they will be re-added by the update
     removeCBTfilesCacheForEnviro(enviroNodeID);
-    updateDataForEnvironment(getEnviroPathFromID(enviroNodeID));
+    await updateDataForEnvironment(getEnviroPathFromID(enviroNodeID));
   }
 }
 
@@ -1121,7 +1123,7 @@ export function buildTestPaneContents() {
   );
 }
 
-export function updateTestPane(enviroPath: string) {
+export async function updateTestPane(enviroPath: string) {
   // this function updates what is displayed in the test tree
 
   // Need to find the workspace root for this environment
@@ -1132,7 +1134,7 @@ export function updateTestPane(enviroPath: string) {
     );
     if (workspaceFolder) workspaceRoot = workspaceFolder.uri.fsPath;
   }
-  updateTestsForEnvironment(enviroPath, workspaceRoot);
+  await updateTestsForEnvironment(enviroPath, workspaceRoot);
 }
 
 interface codedTestFileDataType {

@@ -803,7 +803,7 @@ async function commonCodedTestProcessing(
     userFilePath
   );
 
-  updateTestPane(enviroPath);
+  await updateTestPane(enviroPath);
   if (commandStatus.errorCode == 0) {
     vscode.window.showInformationMessage(`Coded Tests added successfully`);
   } else {
@@ -826,7 +826,7 @@ export async function addExistingCodedTestFile(testID: string) {
       title: "Select Coded Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showOpenDialog(option).then(async (fileUri) => {
+    vscode.window.showOpenDialog(option).then((fileUri) => {
       if (fileUri) {
         commonCodedTestProcessing(
           fileUri[0].fsPath,
@@ -851,7 +851,7 @@ export async function generateNewCodedTestFile(testID: string) {
       title: "Save Code Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showSaveDialog(option).then(async (fileUri) => {
+    vscode.window.showSaveDialog(option).then((fileUri) => {
       if (fileUri) {
         commonCodedTestProcessing(fileUri.fsPath, testID, codedTestAction.new);
       }

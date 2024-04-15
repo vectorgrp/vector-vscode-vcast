@@ -102,8 +102,8 @@ export function loadScriptCallBack(
     loadScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
-    vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
     updateTestPane(enviroPath);
+    vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
     fs.unlinkSync(scriptPath);
   } else {
     vscode.window.showInformationMessage(
