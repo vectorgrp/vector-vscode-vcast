@@ -807,8 +807,6 @@ async function commonCodedTestProcessing(
   if (commandStatus.errorCode == 0) {
     vscode.window.showInformationMessage(`Coded Tests added successfully`);
   } else {
-    // need to re-read to get the test file name
-    testNode = getTestNode(testID);
     openTestFileAndErrors(testNode);
   }
 }

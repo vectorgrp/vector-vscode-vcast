@@ -191,6 +191,7 @@ export function addCodedTestToEnvironment(
     testNode
   )} test coded ${action}} ${userFilePath}`;
 
+  testNode.testFile = userFilePath;
   const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
   return commandStatus;
 }
