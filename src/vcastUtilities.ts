@@ -201,7 +201,7 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
   // In all caeses, we need to do the following:
   //  - Call clicast <-e -u -s options> tool auto_test temp.tst  [creates tests]
-  //  - Call loadScriptIntoEnvironment() to do the actual load
+  //  - Call loadTestScriptIntoEnvironment() to do the actual load
   //
   // Other Points:
   //   - Use a temporary filename and ensure we delete it
@@ -224,7 +224,7 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
   // In all caeses, we need to do the following:
   //  - Call atg <-e -u -s options> temp.tst  [creates tests]
-  //  - Call loadScriptIntoEnvironment() to do the actual load
+  //  - Call loadTestScriptIntoEnvironment() to do the actual load
 
   // Other points:
   //   - Use a temporary filename and ensure we delete it.

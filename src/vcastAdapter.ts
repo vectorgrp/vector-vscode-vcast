@@ -107,8 +107,8 @@ export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
   );
 }
 
-// Load the Test Script into the Environment
-export async function loadScriptIntoEnvironment(
+// Load Test Script into the Environment
+export async function loadTestScriptIntoEnvironment(
   enviroName: string,
   scriptPath: string
 ) {

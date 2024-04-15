@@ -19,7 +19,7 @@ import {
 
 import { removeFilePattern } from "./utilities";
 import { commandStatusType } from "./vcastCommandRunner";
-import { loadScriptIntoEnvironment } from "./vcastAdapter";
+import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
 
 
@@ -99,7 +99,7 @@ export function loadScriptCallBack(
     vectorMessage("Loading tests into VectorCAST environment ...");
 
     // call clicast to load the test script
-    loadScriptIntoEnvironment(enviroName, scriptPath);
+    loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
     updateTestPane(enviroPath);
