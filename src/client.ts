@@ -42,7 +42,11 @@ export function activateLanguageServerClient(context: ExtensionContext) {
     },
     debug: {
       module: serverModule,
-      args: [context.asAbsolutePath("."), vpythonPath],
+      args: [
+        context.asAbsolutePath("."),
+        vpythonPath,
+        globalEnviroServerActive.toString(),
+      ],
       transport: TransportKind.ipc,
       options: debugOptions,
     },
