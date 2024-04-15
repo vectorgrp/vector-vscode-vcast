@@ -10,22 +10,24 @@ import path = require("path");
 
 const execSync = require("child_process").execSync;
 
+// This is the language server version of the flag, set when
+// the server is started.  If the user changes the value
+// of use server in the settings, if will not affect the
+// language server until the extension is re-started
+let globalEnviroServerActive: boolean = false;
+
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
-export function setPaths(
-  _testEditorScriptPath: string,
-  _vPythonCommandToUse: string
-) {
-  testEditorScriptPath = _testEditorScriptPath;
-  vPythonCommandToUse = _vPythonCommandToUse;
-}
 
-function initializeScriptPath() {
+
+export function initializePaths() {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
   const extensionRoot = process.argv[2];
   vPythonCommandToUse = process.argv[3];
+  globalEnviroServerActive = process.argv[4].toLowerCase() === "true";
+
   const pathToTestEditorInterface = path.join(
     extensionRoot,
     "python",
@@ -87,9 +89,6 @@ function getChoiceDataFromPython(
   enviroPath: string,
   lineSoFar: string
 ): choiceDataType {
-  if (testEditorScriptPath == undefined) {
-    initializeScriptPath();
-  }
 
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
@@ -115,9 +114,13 @@ export async function getChoiceData(
   lineSoFar: string
 ): Promise<choiceDataType> {
   //
-  // TBD Today - Switch comments to check timing etc.
-  //const jsonData = await getChoiceDataFromServer(enviroPath, lineSoFar);
-  const jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
+
+  let jsonData: any;
+  if (globalEnviroServerActive) {
+    jsonData = await getChoiceDataFromServer(enviroPath, lineSoFar);
+  } else {
+    jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
+  }
 
   for (const msg of jsonData.messages) {
     console.log(msg);

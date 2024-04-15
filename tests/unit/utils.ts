@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import { TextDocument, TextDocuments, Diagnostic } from "vscode-languageserver";
 import { getHoverString } from "../../server/tstHover";
-import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { CompletionTriggerKind } from "vscode-languageserver-protocol";
 import { validateTextDocument } from "../../server/tstValidation";
@@ -42,11 +41,6 @@ export async function generateHoverData(
   }
 
   const completion = asHoverParams(textDoc, position);
-
-  setPaths(
-    path.join(process.env["PACKAGE_PATH"], "python", "testEditorInterface.py"),
-    "vpython"
-  );
 
   if (documents.all() && documents.all()[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
@@ -110,10 +104,6 @@ export function generateCompletionData(
   }
 
   const completion = asCompletionParams(textDoc, position, triggerCharacter);
-  setPaths(
-    path.join(process.env["PACKAGE_PATH"], "python", "testEditorInterface.py"),
-    "vpython"
-  );
 
   if (documents.all() && documents.all()[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);

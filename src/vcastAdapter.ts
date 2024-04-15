@@ -46,6 +46,10 @@ import {
   transmitResponseType,
 } from "../src-common/vcastServer";
 
+// This is the core extension version of the flag, set on
+// initialization or when the setting value is changed.
+export let globalEnviroServerActive: boolean = false;
+
 const path = require("path");
 
 // ------------------------------------------------------------------------------------
@@ -388,9 +392,12 @@ export async function getDataForEnvironment(enviroPath: string): Promise<any> {
   // that has two sub-fields: testData, and unitData
   vectorMessage("Processing environment data for: " + enviroPath);
 
-  // TBD Today - Switch comments to check timing etc.
-  //let jsonData = await getEnviroDataFromServer(enviroPath);
-  let jsonData = getEnviroDataFromPython(enviroPath);
+  let jsonData: any;
+  if (globalEnviroServerActive) {
+    jsonData = await getEnviroDataFromServer(enviroPath);
+  } else {
+    jsonData = getEnviroDataFromPython(enviroPath);
+  }
 
   return jsonData;
 }
