@@ -997,7 +997,7 @@ export async function deleteTests(nodeList: any[]) {
     await vectorMessage(`Deleting tests for node: ${node.id} ...`);
 
     // call clicast to delete the test case
-    const commandStatus = deleteSingleTest(node.id);
+    const commandStatus = await deleteSingleTest(node.id);
 
     if (commandStatus.errorCode == 0) {
       changedEnvironmentIDList.add(getEnviroNodeIDFromID(node.id));

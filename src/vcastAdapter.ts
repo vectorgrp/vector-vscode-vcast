@@ -147,21 +147,33 @@ export async function loadTestScriptIntoEnvironment(
 }
 
 // Delete Test Case
-export function deleteSingleTest(testNodeID: string): commandStatusType {
+export async function deleteSingleTest(testNodeID: string): Promise<commandStatusType> {
+
   const testNode: testNodeType = getTestNode(testNodeID);
   const clicastArgs: string = getClicastArgsFromTestNode(testNode);
-  let commandToRun = `${clicastCommandToUse} ${clicastArgs} test delete`;
+  let deleteTestArgs = `${clicastArgs} test delete`;
 
   // special vcast case for delete ALL tests for the environment
   // when no unit, subprogram or test is provided, you have to give YES to delete all
   if (testNode.unitName.length == 0 && testNode.functionName.length == 0) {
-    commandToRun += " YES";
+    deleteTestArgs += " YES";
   }
 
-  let commandStatus: commandStatusType = executeCommandSync(
-    commandToRun,
-    path.dirname(testNode.enviroPath)
-  );
+  // using server ....
+  let commandStatus:commandStatusType;
+  if (globalEnviroServerActive) {
+    commandStatus = await executeClicastCommandUsingServer(
+      clicastCommandToUse,
+      testNode.enviroPath,
+      deleteTestArgs,
+    );
+  } else {
+
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${deleteTestArgs}`,
+      path.dirname(testNode.enviroPath)
+    );
+  }
 
   return commandStatus;
 }
