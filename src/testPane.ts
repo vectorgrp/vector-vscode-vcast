@@ -1225,7 +1225,7 @@ function addCodedTestfileToCache(
   enviroToCBTfilesCache.set(enviroNodeID, enviroCacheData);
 }
 
-export function updateCodedTestCases(editor: any) {
+export async function updateCodedTestCases(editor: any) {
   // This function will compare the editor that was just saved against
   // the known coded test files in the workspace.  If there is a match,
   // and if the test cases in the file changed we will use clicast to
@@ -1257,7 +1257,7 @@ export function updateCodedTestCases(editor: any) {
         );
 
         // call clicast to update the coded tests
-        const refreshCommandStatus = refreshCodedTests(
+        const refreshCommandStatus = await refreshCodedTests(
           enviroPath,
           enviroNodeID
         );

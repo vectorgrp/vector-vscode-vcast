@@ -149,7 +149,7 @@ export async function openTestScript(nodeID: string) {
   const testNode: testNodeType = getTestNode(nodeID);
   const scriptPath = testNode.enviroPath + ".tst";
 
-  const commandStatus = dumptestScriptFile(testNode, scriptPath);
+  const commandStatus = await dumptestScriptFile(testNode, scriptPath);
 
   if (commandStatus.errorCode == 0) {
     // Improvement needed:

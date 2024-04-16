@@ -107,7 +107,7 @@ export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
   );
 }
 
-// Load Test Script into the Environment ----------------------------------------------
+// Load Test Script - server version included -----------------------------------------
 export async function loadTestScriptIntoEnvironment(
   enviroName: string,
   scriptPath: string
@@ -146,9 +146,10 @@ export async function loadTestScriptIntoEnvironment(
   }
 }
 
-// Delete Test Case
-export async function deleteSingleTest(testNodeID: string): Promise<commandStatusType> {
-
+// Delete Test Case - server version included ---------------------------------------
+export async function deleteSingleTest(
+  testNodeID: string
+): Promise<commandStatusType> {
   const testNode: testNodeType = getTestNode(testNodeID);
   const clicastArgs: string = getClicastArgsFromTestNode(testNode);
   let deleteTestArgs = `${clicastArgs} test delete`;
@@ -160,15 +161,14 @@ export async function deleteSingleTest(testNodeID: string): Promise<commandStatu
   }
 
   // using server ....
-  let commandStatus:commandStatusType;
+  let commandStatus: commandStatusType;
   if (globalEnviroServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
       clicastCommandToUse,
       testNode.enviroPath,
-      deleteTestArgs,
+      deleteTestArgs
     );
   } else {
-
     commandStatus = executeCommandSync(
       `${clicastCommandToUse} ${deleteTestArgs}`,
       path.dirname(testNode.enviroPath)
@@ -178,7 +178,7 @@ export async function deleteSingleTest(testNodeID: string): Promise<commandStatu
   return commandStatus;
 }
 
-// Set Coded Test Option
+// Set Coded Test Option - no server version needed -----------------------------------
 export function setCodedTestOption(unitTestLocation: string) {
   // This gets called before every build and rebuild environment
   // to make sure that the CFG file has the right value for coded testing.
@@ -201,7 +201,7 @@ export function setCodedTestOption(unitTestLocation: string) {
   }
 }
 
-// Add New or Existing Coded Test File to Environment based on action
+// Add New or Existing Coded Test File ----------------------------------------------
 export enum codedTestAction {
   add = "add",
   new = "new",
@@ -223,39 +223,59 @@ export function addCodedTestToEnvironment(
   return commandStatus;
 }
 
-// Dump the Test Script from an Environment
-export function dumptestScriptFile(
+// Create Test Script - server version included ----------------------------------------
+export async function dumptestScriptFile(
   testNode: testNodeType,
   scriptPath: string
-): commandStatusType {
+): Promise <commandStatusType> {
+  
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const clicastArgs = getClicastArgsFromTestNode(testNode);
+  let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
-  let commandToRun: string = `${clicastCommandToUse} ${clicastArgs} test script create ${scriptPath}`;
-  const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+  let commandStatus: commandStatusType;
+  if (globalEnviroServerActive) {
+    commandStatus = await executeClicastCommandUsingServer(
+      clicastCommandToUse,
+      testNode.enviroPath,
+      dumpScriptArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${dumpScriptArgs}`, 
+      enclosingDirectory);
+  }
 
   return commandStatus;
 }
 
-// Refresh Coded Test List From File
-export function refreshCodedTests(
+// Refresh Coded Test List From File - server version included -------------------------
+export async function refreshCodedTests(
   enviroPath: string,
   enviroNodeID: string
-): commandStatusType {
+): Promise<commandStatusType> {
   // refresh the coded test file for this environment
   // note: the same file should never be associated with more than one unit
 
   const testNode = getTestNode(enviroNodeID);
   const enclosingDirectory = path.dirname(enviroPath);
+  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  let refreshCodedArgs: string = `${clicastArgs} test coded refresh`;
 
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-    testNode
-  )} test coded refresh`;
-  const refreshCommandStatus = executeCommandSync(
-    commandToRun,
-    enclosingDirectory
-  );
-  return refreshCommandStatus;
+  let commandStatus: commandStatusType;
+  if (globalEnviroServerActive) {
+    commandStatus = await executeClicastCommandUsingServer(
+      clicastCommandToUse,
+      enviroPath,
+      refreshCodedArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${refreshCodedArgs}`,
+      enclosingDirectory
+    );
+  }
+  return commandStatus;
 }
 
 // Generate Basis Path Test Script and Load into Environment (via callback)
