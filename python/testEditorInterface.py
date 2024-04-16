@@ -14,7 +14,7 @@ import sys
 
 
 from tstUtilities import (
-    buildResponseObject,
+    buildChoiceResponse,
     globalOutputLog,
     processLine,
     choiceDataType,
@@ -45,7 +45,7 @@ def main():
         choiceData = choiceDataType()
         globalOutputLog.append("Invalid mode: " + mode)
 
-    outputDictionary = buildResponseObject(choiceData)
+    outputDictionary = buildChoiceResponse(choiceData)
 
     # See the comment in: runPythonScript()
     print("ACTUAL-DATA")

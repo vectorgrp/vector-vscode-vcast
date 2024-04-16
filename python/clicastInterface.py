@@ -34,12 +34,14 @@ def runClicastServerCommand(enviroPath, commandString):
         # start clicast in server mode
         logMessage(f"  starting clicast server for environment: {enviroPath}")
         commandArgs = [globalClicastCommand, "-lc", "tools", "server"]
+        CWD = os.path.dirname(enviroPath)
         process = subprocess.Popen(
             commandArgs,
             stdout=subprocess.PIPE,
             stdin=subprocess.PIPE,
             stderr=sys.stdout,
             universal_newlines=True,
+            cwd=CWD,
         )
         clicastInstances[enviroPath] = process
     else:
@@ -52,12 +54,18 @@ def runClicastServerCommand(enviroPath, commandString):
 
     responseLine = ""
     returnText = ""
+    
+    # The clicast server emits a line like this to mark the end of a command:
+    #   clicast-server-command-done:COMMAND_NOT_ALLOWED | 8
+    # Between the colon and the command is the status enum, and the 
+    # number after the | is the 'pos of the enum which is the normal
+    # exit code for a clicast command.
     while not responseLine.startswith("clicast-server-command-done"):
         returnText += responseLine
         responseLine = process.stdout.readline()
 
-    statusText = responseLine.split(":")[1].strip()
-    return statusText != "SUCCESS", returnText
+    errorCode = responseLine.split("|")[1].strip()
+    return errorCode, returnText
 
 
 def terminateClicastProcess(enviroPath):

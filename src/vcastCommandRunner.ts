@@ -5,6 +5,13 @@ import { execSync, spawn } from "child_process";
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
 
+import {
+  clientRequestType,
+  transmitCommand,
+  transmitResponseType,
+  vcastCommandType,
+} from "../src-common/vcastServer";
+
 const path = require("path");
 
 export interface commandStatusType {
@@ -255,4 +262,38 @@ export function executeClicastWithProgress(
       });
     }
   );
+}
+
+// This will run any clicast command on the server
+export async function executeClicastCommandUsingServer(
+  clicastCommandToUse: string,
+  enviroPath: string,
+  commandArgs: string
+): Promise<commandStatusType> {
+  let commandStatus = { errorCode: 0, stdout: "" };
+
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.runClicastCommand,
+    clicast: clicastCommandToUse,
+    path: enviroPath,
+    options: commandArgs,
+  };
+
+  let transmitResponse: transmitResponseType = await transmitCommand(
+    requestObject
+  );
+
+  if (transmitResponse.success) {
+    commandStatus.errorCode = transmitResponse.returnData.errorCode;
+    commandStatus.stdout = transmitResponse.returnData.stdout;
+  } else {
+    commandStatus.errorCode = 1;
+    commandStatus.stdout = transmitResponse.statusText;
+  }
+
+  if (commandStatus.errorCode != 0) {
+    openMessagePane();
+    vectorMessage(commandStatus.stdout);
+  }
+  return commandStatus;
 }

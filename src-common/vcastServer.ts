@@ -2,6 +2,7 @@
 
 import fetch from "node-fetch";
 
+
 let HOST = "localhost"; // The server's hostname or IP address
 let PORT = 60461; // The port used by the server anything > 1023 is OK
 
@@ -16,6 +17,7 @@ export enum vcastCommandType {
   ping = "ping",
   shutdown = "shutdown",
   closeConnection = "closeConnection",
+  runClicastCommand = "runClicastCommand",
   getEnviroData = "getEnviroData",
   rebuild = "rebuild",
   executeTest = "executeTest",
@@ -27,10 +29,10 @@ export enum vcastCommandType {
 
 export interface clientRequestType {
   command: vcastCommandType;
-  clicast: string;
   path: string;
-  test: string;
-  options: string;
+  clicast?: string;
+  test?: string;
+  options?: string;
 }
 
 function serverURL() {
@@ -42,6 +44,8 @@ export interface transmitResponseType {
   returnData: any;
   statusText: string;
 }
+
+// This does the actual fetch from the server
 export async function transmitCommand(requestObject: clientRequestType) {
   // TBD: is this the right way to do this, or can I send a class directly?
 
@@ -67,3 +71,4 @@ export async function transmitCommand(requestObject: clientRequestType) {
     });
   return transmitResponse;
 }
+

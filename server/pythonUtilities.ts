@@ -66,9 +66,7 @@ async function getChoiceDataFromServer(
   // We are re-using options for the line fragment in the request
   const requestObject: clientRequestType = {
     command: vcastCommandType.choiceList,
-    clicast: "",
     path: enviroPath,
-    test: "",
     options: lineSoFar,
   };
 

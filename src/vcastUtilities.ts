@@ -29,7 +29,7 @@ import {
   vPythonCommandToUse,
 } from "./vcastInstallation";
 
-import { vcastCommandType, clientRequestType } from "../src-common/vcastServer";
+import { vcastCommandType } from "../src-common/vcastServer";
 
 const fs = require("fs");
 const os = require("os");
@@ -352,29 +352,6 @@ function getTestArgument(testID: string, withFlag: boolean): string {
   return testArgument || "";
 }
 
-export function generateClientRequest(
-  command: vcastCommandType,
-  enviroPath: string,
-  testID: string = ""
-): clientRequestType {
-  //
-  // This function generates the object that the server request needs
-  //
-  // enviroPath is the absolute path to the environnement directory
-  // testID is contains the string that uniquely identifies the node, something like:
-  //    vcast:TEST|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
-  //    vcast:unitTests/MANAGER|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
-
-  const returnObject: clientRequestType = {
-    command: command,
-    clicast: clicastCommandToUse,
-    path: enviroPath,
-    test: getTestArgument(testID, false),
-    options: "",
-  };
-
-  return returnObject;
-}
 
 function getCommonCommandString(
   command: vcastCommandType,

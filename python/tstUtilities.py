@@ -472,7 +472,7 @@ def splitExistingLine(line):
     return [x.strip() for x in pieces]
 
 
-def buildResponseObject(choiceData: choiceDataType):
+def buildChoiceResponse(choiceData: choiceDataType):
     """
     This is a separate function to allow the testEditorInterace | main()
     and the socket based server to use the same code to build the response

@@ -1054,7 +1054,7 @@ export async function loadTestScript() {
       const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
       // call clicast to load the test script
-      loadTestScriptIntoEnvironment(enviroName, scriptPath);
+      await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
       // update the test pane for this environment after the script is loaded
       // we are reading the data back from the environment with this call

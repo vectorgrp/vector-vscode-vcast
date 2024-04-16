@@ -20,6 +20,7 @@ import {
 
 import {
   commandStatusType,
+  executeClicastCommandUsingServer,
   executeClicastWithProgress,
   executeCommandSync,
   executeVPythonScript,
@@ -34,16 +35,15 @@ import {
 } from "./vcastInstallation";
 
 import {
-  generateClientRequest,
   getVcastInterfaceCommand,
   getRebuildEnviroCommand,
 } from "./vcastUtilities";
 
 import {
-  vcastCommandType,
   clientRequestType,
   transmitCommand,
   transmitResponseType,
+  vcastCommandType,
 } from "../src-common/vcastServer";
 
 // This is the core extension version of the flag, set on
@@ -107,22 +107,33 @@ export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
   );
 }
 
-// Load Test Script into the Environment
+// Load Test Script into the Environment ----------------------------------------------
 export async function loadTestScriptIntoEnvironment(
   enviroName: string,
   scriptPath: string
 ) {
   // call clicast to load the test script
-  const enviroArg = `-e${enviroName}`;
-  let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
+  let loadScriptArgs: string = `-e${enviroName} test script run ${scriptPath}`;
 
-  const commandStatus = executeCommandSync(
-    commandToRun,
-    path.dirname(scriptPath)
-  );
+  let commandStatus: commandStatusType;
+  // using server ....
+  if (globalEnviroServerActive) {
+    const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+    commandStatus = await executeClicastCommandUsingServer(
+      clicastCommandToUse,
+      enviroPath,
+      loadScriptArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${loadScriptArgs}`,
+      path.dirname(scriptPath)
+    );
+  }
 
-  // if the script load fails, executeCommandSync will open the message pane ...
-  // if the load passes, we want to give the user an indication that it worked
+  // if the script load fails, executeCommandSync or executeClicastCommand
+  // will open the message pane.  If the load passes, we want to give the
+  // user an indication that it worked ...
   if (commandStatus.errorCode == 0) {
     vectorMessage("Script loaded successfully ...");
     // Maybe this will be annoying to users, but I think
@@ -371,10 +382,12 @@ function getEnviroDataFromPython(enviroPath: string): any {
 }
 
 async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
-  const requestObject: clientRequestType = generateClientRequest(
-    vcastCommandType.getEnviroData,
-    enviroPath
-  );
+  //
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.getEnviroData,
+    clicast: clicastCommandToUse,
+    path: enviroPath,
+  };
 
   let transmitResponse: transmitResponseType = await transmitCommand(
     requestObject
