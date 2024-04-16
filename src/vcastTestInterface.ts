@@ -796,7 +796,7 @@ async function commonCodedTestProcessing(
   );
 
   // call clicast to create new coded test
-  const commandStatus: commandStatusType = addCodedTestToEnvironment(
+  const commandStatus: commandStatusType = await addCodedTestToEnvironment(
     enviroPath,
     testNode,
     action,

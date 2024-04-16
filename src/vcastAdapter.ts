@@ -201,25 +201,38 @@ export function setCodedTestOption(unitTestLocation: string) {
   }
 }
 
-// Add New or Existing Coded Test File ----------------------------------------------
+// Add New or Existing Coded Test - server version included ---------------------------
 export enum codedTestAction {
   add = "add",
   new = "new",
 }
-export function addCodedTestToEnvironment(
+export async function addCodedTestToEnvironment(
   enviroPath: string,
   testNode: testNodeType,
   action: codedTestAction,
   userFilePath: string
-): commandStatusType {
+): Promise<commandStatusType> {
+  //
   const enclosingDirectory = path.dirname(enviroPath);
+  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  let codedTestArgs: string = `${clicastArgs} test coded ${action} ${userFilePath}`;
 
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-    testNode
-  )} test coded ${action}} ${userFilePath}`;
+  let commandStatus: commandStatusType;
+  if (globalEnviroServerActive) {
+    commandStatus = await executeClicastCommandUsingServer(
+      clicastCommandToUse,
+      enviroPath,
+      codedTestArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${codedTestArgs}`,
+      enclosingDirectory
+    );
+  }
 
+  // update the passed in testNode with the coded test file
   testNode.testFile = userFilePath;
-  const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
   return commandStatus;
 }
 
@@ -227,8 +240,7 @@ export function addCodedTestToEnvironment(
 export async function dumptestScriptFile(
   testNode: testNodeType,
   scriptPath: string
-): Promise <commandStatusType> {
-  
+): Promise<commandStatusType> {
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const clicastArgs = getClicastArgsFromTestNode(testNode);
   let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
@@ -242,8 +254,9 @@ export async function dumptestScriptFile(
     );
   } else {
     commandStatus = executeCommandSync(
-      `${clicastCommandToUse} ${dumpScriptArgs}`, 
-      enclosingDirectory);
+      `${clicastCommandToUse} ${dumpScriptArgs}`,
+      enclosingDirectory
+    );
   }
 
   return commandStatus;
