@@ -325,7 +325,7 @@ export function getEnviroNameFromFile(filePath: string): string | undefined {
   return enviroName;
 }
 
-function getTestArgument(testID: string, withFlag: boolean): string {
+export function getTestArgument(testID: string, withFlag: boolean): string {
   // This funciton will generate the --test argument for the vpython command
   // with or without the --test flag based on the withFlag parameter
 
@@ -351,7 +351,6 @@ function getTestArgument(testID: string, withFlag: boolean): string {
 
   return testArgument || "";
 }
-
 
 function getCommonCommandString(
   command: vcastCommandType,

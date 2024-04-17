@@ -19,7 +19,6 @@ let globalEnviroServerActive: boolean = false;
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
 
-
 export function initializePaths() {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
@@ -74,9 +73,10 @@ async function getChoiceDataFromServer(
     requestObject
   );
 
+  // tansmitResponse.returnData is an object with exitCode and data properties
   if (transmitResponse.success) {
     // return data wil be formatted as a choiceDataType
-    return transmitResponse.returnData;
+    return transmitResponse.returnData.data;
   } else {
     console.log(transmitResponse.statusText);
     return emptyChoiceData;
@@ -87,7 +87,6 @@ function getChoiceDataFromPython(
   enviroPath: string,
   lineSoFar: string
 ): choiceDataType {
-
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} choiceList ${enviroPath} "${lineSoFar}"`;

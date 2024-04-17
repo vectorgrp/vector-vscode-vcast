@@ -75,7 +75,24 @@ export async function transmitCommand(requestObject: clientRequestType) {
     .then(async (response) => {
       transmitResponse.success = true;
       transmitResponse.statusText = `Enviro server response status: ${response.statusText}`;
-      transmitResponse.returnData = await response.json();
+
+      // the server always returns an object with exitCode and data properties
+      const rawReturnData: any = await response.json();
+
+      // the exit code -99 is reserved for internal server errors
+      if (rawReturnData.exitCode === -99) {
+        transmitResponse.success = false;
+        // the error message is a list of strings, so join with \n
+        transmitResponse.statusText = `Enviro server error: ${rawReturnData.data.error.join(
+          "\n"
+        )}`;
+      } else {
+        // the format of the data property is different baesd on the command
+        // so it is up to the caller to interpret it properly
+        transmitResponse.returnData = rawReturnData;
+        // there is alays an exit code field but it is only used when
+        // executing tests or running clicast commands
+      }
     })
     .catch((error) => {
       transmitResponse.statusText = `Enviro server error: ${

@@ -398,14 +398,14 @@ export async function runVCTest(
   let returnStatus: testStatus = testStatus.didNotRun;
 
   // execute, or execute and generate report
-  const commandStatus: commandStatusType = executeTest(
+  const commandStatus: commandStatusType = await executeTest(
     enviroPath,
     nodeID,
     generateReport
   );
 
   // for readability
-  const commandOutputText = commandStatus.stdout;
+  const commandOutputText: string = commandStatus.stdout;
 
   // errorCode 98 is for a compile error for the coded test source file
   // this is hard-coded in runTestCommand() in the python interface

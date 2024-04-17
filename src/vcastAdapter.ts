@@ -37,6 +37,7 @@ import {
 import {
   getVcastInterfaceCommand,
   getRebuildEnviroCommand,
+  getTestArgument,
 } from "./vcastUtilities";
 
 import {
@@ -455,35 +456,6 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
 // ------------------------------------------------------------------------------------
 
 // Get Environment Data ---------------------------------------------------------------
-function getEnviroDataFromPython(enviroPath: string): any {
-  // This function will return the environment data for a single directory
-  // by calling vpython with the appropriate command
-  const commandToRun = getVcastInterfaceCommand(
-    vcastCommandType.getEnviroData,
-    enviroPath
-  );
-  let jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
-  return jsonData;
-}
-
-async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
-  //
-  const requestObject: clientRequestType = {
-    command: vcastCommandType.getEnviroData,
-    clicast: clicastCommandToUse,
-    path: enviroPath,
-  };
-
-  let transmitResponse: transmitResponseType = await transmitCommand(
-    requestObject
-  );
-  if (transmitResponse.success) {
-    return transmitResponse.returnData;
-  } else {
-    vectorMessage(transmitResponse.statusText);
-    return undefined;
-  }
-}
 
 export async function getDataForEnvironment(enviroPath: string): Promise<any> {
   // what we get back is a JSON formatted string (if the command works)
@@ -500,34 +472,125 @@ export async function getDataForEnvironment(enviroPath: string): Promise<any> {
   return jsonData;
 }
 
+// vPython Logic
+function getEnviroDataFromPython(enviroPath: string): any {
+  // This function will return the environment data for a single directory
+  // by calling vpython with the appropriate command
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.getEnviroData,
+    enviroPath
+  );
+  let jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
+  return jsonData;
+}
+
+// Server Logic
+async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
+  //
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.getEnviroData,
+    clicast: clicastCommandToUse,
+    path: enviroPath,
+  };
+
+  let transmitResponse: transmitResponseType = await transmitCommand(
+    requestObject
+  );
+
+  // tansmitResponse.returnData is an object with exitCode and data properties
+  if (transmitResponse.success) {
+    return transmitResponse.returnData.data;
+  } else {
+    await vectorMessage(transmitResponse.statusText);
+    openMessagePane();
+    return undefined;
+  }
+}
+
 // Execute Test ------------------------------------------------------------------------
-export function executeTest(
+export async function executeTest(
   enviroPath: string,
   nodeID: string,
   generateReport: boolean
-): commandStatusType {
-  let commandToRun: string = "";
+): Promise<commandStatusType> {
+  //
+  let vcastCommand: vcastCommandType = vcastCommandType.executeTest;
   if (generateReport) {
-    commandToRun = getVcastInterfaceCommand(
-      vcastCommandType.executeTestReport,
+    vcastCommand = vcastCommandType.executeTestReport;
+  }
+
+  let commandStatus: commandStatusType;
+  const startTime: number = performance.now();
+  if (globalEnviroServerActive) {
+    commandStatus = await executeTestViaServer(
+      vcastCommand,
       enviroPath,
       nodeID
     );
   } else {
-    commandToRun = getVcastInterfaceCommand(
-      vcastCommandType.executeTest,
-      enviroPath,
-      nodeID
-    );
+    commandStatus = executeTestViaPython(vcastCommand, enviroPath, nodeID);
   }
-  const startTime: number = performance.now();
-  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
 
   // added this timing info to help with performance tuning - interesting to leave in
   const endTime: number = performance.now();
   const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
-  vectorMessage(`Execution via vPython took: ${deltaString} seconds`);
+  vectorMessage(`Execution of test took: ${deltaString} seconds (TS)`);
 
+  return commandStatus;
+}
+
+// Server Logic
+async function executeTestViaServer(
+  vcastCommand: vcastCommandType,
+  enviroPath: string,
+  nodeID: string
+): Promise<commandStatusType> {
+  //
+  // Rather than adding another "dontUseQuotes" param I just strip them here
+  const testArgWithQuotes = getTestArgument(nodeID, false);
+  const testArgWitoutQuotes = testArgWithQuotes.substring(
+    1,
+    testArgWithQuotes.length - 1
+  );
+  const requestObject: clientRequestType = {
+    command: vcastCommand,
+    clicast: clicastCommandToUse,
+    path: enviroPath,
+    test: testArgWitoutQuotes,
+  };
+
+  let transmitResponse: transmitResponseType = await transmitCommand(
+    requestObject
+  );
+
+  // tansmitResponse.returnData is an object with exitCode and data properties
+  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+  if (transmitResponse.success) {
+    commandStatus.errorCode = transmitResponse.returnData.exitCode;
+    // the data.text field is returned as a list to join with \n
+    commandStatus.stdout = transmitResponse.returnData.data.text.join("\n");
+  } else {
+    commandStatus.errorCode = 1;
+    commandStatus.stdout = transmitResponse.statusText;
+  }
+
+  return commandStatus;
+}
+
+// vPython Logic
+function executeTestViaPython(
+  vcastCommand: vcastCommandType,
+  enviroPath: string,
+  nodeID: string
+): commandStatusType {
+  //
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommand,
+    enviroPath,
+    nodeID
+  );
+
+  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
   return commandStatus;
 }
 

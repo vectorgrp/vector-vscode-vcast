@@ -283,9 +283,10 @@ export async function executeClicastCommandUsingServer(
     requestObject
   );
 
+  // tansmitResponse.returnData is an object with exitCode and data properties
   if (transmitResponse.success) {
-    commandStatus.errorCode = transmitResponse.returnData.errorCode;
-    commandStatus.stdout = transmitResponse.returnData.stdout;
+    commandStatus.errorCode = transmitResponse.returnData.exitCode;
+    commandStatus.stdout = transmitResponse.returnData.data;
   } else {
     commandStatus.errorCode = 1;
     commandStatus.stdout = transmitResponse.statusText;
@@ -297,4 +298,3 @@ export async function executeClicastCommandUsingServer(
   }
   return commandStatus;
 }
-
