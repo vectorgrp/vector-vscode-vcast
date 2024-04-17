@@ -41,6 +41,7 @@ import {
 
 import {
   clientRequestType,
+  closeConnection,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
@@ -56,7 +57,7 @@ const path = require("path");
 // Direct clicast Calls
 // ------------------------------------------------------------------------------------
 
-// Check License
+// Check License - no server logic needed --------------------------------------------
 export function vcastLicenseOK(): boolean {
   const commandToRun = `${clicastCommandToUse} tools has_license`;
   let commandStatus: commandStatusType = executeCommandSync(
@@ -67,7 +68,7 @@ export function vcastLicenseOK(): boolean {
   return commandStatus.errorCode == 0;
 }
 
-// Build Environment
+// Build Environment - no server logic neeeded ----------------------------------------
 export function buildEnvironmentFromScript(
   unitTestLocation: string,
   enviroName: string
@@ -89,9 +90,12 @@ export function buildEnvironmentFromScript(
   );
 }
 
-// Delete Environment
-export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
+// Delete Environment - server logic included -----------------------------------------
+export async function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
   const enclosingDirectory = path.dirname(enviroPath);
+
+  // if we are in server mode, close any existing connection to the environment
+  if (globalEnviroServerActive) await closeConnection(enviroPath);
 
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e" + getEnviroNameFromID(enviroNodeID)];
@@ -107,7 +111,7 @@ export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
   );
 }
 
-// Load Test Script - server version included -----------------------------------------
+// Load Test Script - server logic included -----------------------------------------
 export async function loadTestScriptIntoEnvironment(
   enviroName: string,
   scriptPath: string
@@ -146,7 +150,7 @@ export async function loadTestScriptIntoEnvironment(
   }
 }
 
-// Delete Test Case - server version included ---------------------------------------
+// Delete Test Case - server logic included ---------------------------------------
 export async function deleteSingleTest(
   testNodeID: string
 ): Promise<commandStatusType> {
@@ -178,7 +182,7 @@ export async function deleteSingleTest(
   return commandStatus;
 }
 
-// Set Coded Test Option - no server version needed -----------------------------------
+// Set Coded Test Option - no server logic needed -----------------------------------
 export function setCodedTestOption(unitTestLocation: string) {
   // This gets called before every build and rebuild environment
   // to make sure that the CFG file has the right value for coded testing.
@@ -201,7 +205,7 @@ export function setCodedTestOption(unitTestLocation: string) {
   }
 }
 
-// Add New or Existing Coded Test - server version included ---------------------------
+// Add New or Existing Coded Test - server logic included ---------------------------
 export enum codedTestAction {
   add = "add",
   new = "new",
@@ -236,7 +240,7 @@ export async function addCodedTestToEnvironment(
   return commandStatus;
 }
 
-// Create Test Script - server version included ----------------------------------------
+// Create Test Script - server logic included ----------------------------------------
 export async function dumptestScriptFile(
   testNode: testNodeType,
   scriptPath: string
@@ -262,7 +266,7 @@ export async function dumptestScriptFile(
   return commandStatus;
 }
 
-// Refresh Coded Test List From File - server version included -------------------------
+// Refresh Coded Test List From File - server logic included -------------------------
 export async function refreshCodedTests(
   enviroPath: string,
   enviroNodeID: string

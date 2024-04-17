@@ -297,3 +297,4 @@ export async function executeClicastCommandUsingServer(
   }
   return commandStatus;
 }
+

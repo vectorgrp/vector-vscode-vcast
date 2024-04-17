@@ -2,7 +2,6 @@
 
 import fetch from "node-fetch";
 
-
 let HOST = "localhost"; // The server's hostname or IP address
 let PORT = 60461; // The port used by the server anything > 1023 is OK
 
@@ -45,6 +44,20 @@ export interface transmitResponseType {
   statusText: string;
 }
 
+// This closes the connection to a clicast instance so that other commands
+// like rebuild or delete environment can be run
+export async function closeConnection(enviroPath: string): Promise<boolean> {
+  let requestObject: clientRequestType = {
+    command: vcastCommandType.closeConnection,
+    path: enviroPath,
+  };
+
+  const transmitResponse: transmitResponseType = await transmitCommand(
+    requestObject
+  );
+  return transmitResponse.success;
+}
+
 // This does the actual fetch from the server
 export async function transmitCommand(requestObject: clientRequestType) {
   // TBD: is this the right way to do this, or can I send a class directly?
@@ -71,4 +84,3 @@ export async function transmitCommand(requestObject: clientRequestType) {
     });
   return transmitResponse;
 }
-
