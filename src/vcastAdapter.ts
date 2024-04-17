@@ -389,20 +389,27 @@ export async function runATGCommands(
 // Direct vcastqt Calls
 // ------------------------------------------------------------------------------------
 
-// Open vcastqt in options dialog mode ...
+// Open vcastqt in options dialog mode - no server logic needed -----------------------
 // In the future we might create a native VS Code dialog for this
 export function openVcastOptionsDialog(cwd: string) {
   execSync(`${vcastCommandToUse} -lc -o`, { cwd: cwd });
 }
 
-// Open VectorCAST for an environment directory
-export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
+// Open VectorCAST for an environment directory --------------------------------------
+// Server logic to close existing connection is included
+export async function openVcastFromEnviroNode(
+  enviroNodeID: string,
+  callback: any
+) {
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e " + getEnviroNameFromID(enviroNodeID)];
 
   // this returns the full path to the environment directory
   const enviroPath = getEnviroPathFromID(enviroNodeID);
   const enclosingDirectory = path.dirname(enviroPath);
+
+  // close any existing clicast connection to this environment
+  if (globalEnviroServerActive) await closeConnection(enviroPath);
 
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
@@ -416,14 +423,20 @@ export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
   });
 }
 
-// Open VectorCAST for a .vce file
-export function openVcastFromVCEfile(vcePath: string, callback: any) {
+// Open VectorCAST for a .vce file ---------------------------------------------------
+// Server logic to close existing connection is included
+export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   // split vceFile path into the CWD and the Environment
   const vceFilename = path.basename(vcePath);
   let vcastArgs: string[] = ["-e " + vceFilename];
 
-  const enviroPath = vcePath.split(".")[0];
+  var dotIndex = vcePath.lastIndexOf(".");
+  const enviroPath = vcePath.slice(0, dotIndex);
+
   const enclosingDirectory = path.dirname(vcePath);
+
+  // close any existing clicast connection to this environment
+  if (globalEnviroServerActive) await closeConnection(enviroPath);
 
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
