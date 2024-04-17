@@ -91,7 +91,10 @@ export function buildEnvironmentFromScript(
 }
 
 // Delete Environment - server logic included -----------------------------------------
-export async function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
+export async function deleteEnvironment(
+  enviroPath: string,
+  enviroNodeID: string
+) {
   const enclosingDirectory = path.dirname(enviroPath);
 
   // if we are in server mode, close any existing connection to the environment
@@ -295,17 +298,27 @@ export async function refreshCodedTests(
   return commandStatus;
 }
 
-// Generate Basis Path Test Script and Load into Environment (via callback)
-export function runBasisPathCommands(
+// Generate Basis Path Test Script and Load into Environment (via callback) ------------
+// Server logic to close existing connection is included
+export async function runBasisPathCommands(
   testNode: testNodeType,
   testScriptPath: string,
   loadScriptCallBack: any
 ) {
-  // executeClicastWithProgress() uses spawn() which needs the args as a list
+  // Execute Clicas tWith Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${clicastCommandToUse}`);
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
   argList = argList.concat(["tool", "auto_test", `${testScriptPath}`]);
+
+  // if we are in server mode, close any existing connection to the environment
+  // because the time benefit of using the server for this is negligible and
+  // getting a nice progress dialog would be impossible.
+  const enviroPath = path.join(
+    path.dirname(testScriptPath),
+    testNode.enviroName
+  );
+  if (globalEnviroServerActive) await closeConnection(enviroPath);
 
   // Since it can be slow to generate basis path tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a
@@ -313,7 +326,7 @@ export function runBasisPathCommands(
   const messageFilter = /.*Generating test cases for.*/;
 
   executeClicastWithProgress(
-    "",
+    "Generating Basis Path Tests: ",
     argList,
     testNode.enviroName,
     testScriptPath,
@@ -327,12 +340,13 @@ export function runBasisPathCommands(
 // ------------------------------------------------------------------------------------
 
 // Generate ATG Test Script and Load into Environment (via callback)
-export function runATGCommands(
+// Server logic to close existing connection is included
+export async function runATGCommands(
   testNode: testNodeType,
   testScriptPath: string,
   loadScriptCallBack: any
 ) {
-  // executeClicastWithProgress() uses spawn() which needs the args as a list
+  // Execute Clicast With Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${atgCommandToUse}`);
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
@@ -346,6 +360,15 @@ export function runATGCommands(
     argList.push("-P");
   }
   argList.push(`${testScriptPath}`);
+
+  // if we are in server mode, close any existing connection to the environment
+  // because the time benefit of using the server for this is negligible and
+  // getting a nice progress dialog would be impossible.
+  const enviroPath = path.join(
+    path.dirname(testScriptPath),
+    testNode.enviroName
+  );
+  if (globalEnviroServerActive) await closeConnection(enviroPath);
 
   // Since it can be slow to generate ATG tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a
