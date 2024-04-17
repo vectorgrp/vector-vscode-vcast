@@ -6,9 +6,9 @@ import sys
 import time
 
 """
-This script contains the clicast stuff from vTestInterface.py, moved
-here to enable us to prototype clicast server mode.  I've kept the 
-interface the same for now, this can be optimized later.
+This script contains the clicast stuff tha was previously 
+in vTestInterface.py.  It was moved here to give access to the 
+VectorCAST environment server.
 """
 
 from vTestUtilities import logMessage
@@ -140,7 +140,8 @@ def runClicastCommandUsingServer(commandToRun):
 
     enviroPath = getEnviroPathFromCommand(commandToRun)
 
-    # TBD in the future we will only get the clicast args without the clicast exe ...
+    # Strip off the first arg which is the clicst.exe
+    # TBD in the future we might only get the clicast args without the clicast exe ...
     commandArgString = " ".join(commandToRun.split(" ")[1:])
     return runClicastServerCommand(enviroPath, commandArgString)
 
