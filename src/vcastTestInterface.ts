@@ -116,6 +116,16 @@ export function addTestDataToStatusArray(
   globalTestStatusArray[testID] = testData;
 }
 
+export function addResultFileToStatusArray(
+  testID: string,
+  resultFilePath: string
+) {
+  // the testID should always me in the map but just to make sure ...
+  if (testID in globalTestStatusArray) {
+    globalTestStatusArray[testID].resultFilePath = resultFilePath;
+  }
+}
+
 export function clearTestDataFromStatusArray(): void {
   globalTestStatusArray = {};
 }
@@ -308,7 +318,9 @@ export async function getResultFileForTest(testID: string) {
     const commandStatus = await getTestExecutionReport(testID, enviroPath);
 
     if (commandStatus.errorCode == 0) {
-      const firstLineOfOutput: string = commandStatus.stdout.split("\n", 1)[0].trim();
+      const firstLineOfOutput: string = commandStatus.stdout
+        .split("\n", 1)[0]
+        .trim();
       resultFile = firstLineOfOutput.replace("REPORT:", "");
 
       if (!fs.existsSync(resultFile)) {
@@ -354,13 +366,13 @@ function processExecutionOutput(commandOutput: string): executeOutputType {
   for (let line of outputLineList) {
     console.log(`LINE IS: ${line}`);
     if (line.startsWith("STATUS:"))
-      returnData.status = line.replace("STATUS:", "");
+      returnData.status = line.replace("STATUS:", "").trim();
     else if (line.startsWith("REPORT:"))
-      returnData.resultsFilePath = line.replace("REPORT:", "");
+      returnData.resultsFilePath = line.replace("REPORT:", "").trim();
     else if (line.startsWith("PASSFAIL:"))
-      returnData.passfail = line.replace("PASSFAIL:", "");
+      returnData.passfail = line.replace("PASSFAIL:", "").trim();
     else if (line.startsWith("TIME:"))
-      returnData.time = line.replace("TIME:", "");
+      returnData.time = line.replace("TIME:", "").trim();
     else returnData.stdOut += line + EOL;
   }
   return returnData;

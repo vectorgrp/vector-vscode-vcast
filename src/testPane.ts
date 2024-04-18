@@ -54,6 +54,7 @@ import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
+  addResultFileToStatusArray,
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
@@ -829,6 +830,14 @@ export async function runNode(
         }
 
         if (generateReport) {
+          // if the showReportOnExecute option is active, then the
+          // execution report path was returned in the executionResult
+          // object, so we add this to the global status array,
+          // which saves a call to vpython or data server.
+          addResultFileToStatusArray(
+            node.id,
+            executionResult.details.resultsFilePath
+          );
           viewResultsReport(node.id);
         }
       }
