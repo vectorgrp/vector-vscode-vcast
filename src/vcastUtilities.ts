@@ -29,7 +29,7 @@ import {
   vPythonCommandToUse,
 } from "./vcastInstallation";
 
-import { vcastCommandType } from "../src-common/vcastServer";
+import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
 
 const fs = require("fs");
 const os = require("os");
@@ -325,7 +325,7 @@ export function getEnviroNameFromFile(filePath: string): string | undefined {
   return enviroName;
 }
 
-export function getTestArgument(testID: string, withFlag: boolean): string {
+function getTestArgument(testID: string, withFlag: boolean): string {
   // This funciton will generate the --test argument for the vpython command
   // with or without the --test flag based on the withFlag parameter
 
@@ -376,6 +376,28 @@ export function getVcastInterfaceCommand(
   const commandToRun = getCommonCommandString(command, enviroPath);
   const testArgument = getTestArgument(testID, true);
   return `${commandToRun} ${testArgument}`;
+}
+
+export function getClientRequestObject(
+  command: vcastCommandType,
+  enviroPath: string,
+  testID: string = ""
+): clientRequestType {
+  //
+  // Rather than adding another "dontUseQuotes" param I just strip them here
+  const testArgWithQuotes = getTestArgument(testID, false);
+  const testArgWitoutQuotes = testArgWithQuotes.substring(
+    1,
+    testArgWithQuotes.length - 1
+  );
+  const requestObject: clientRequestType = {
+    command: command,
+    clicast: clicastCommandToUse,
+    path: enviroPath,
+    test: testArgWitoutQuotes,
+  };
+
+  return requestObject;
 }
 
 export function getRebuildEnviroCommand(enviroPath: string): string {

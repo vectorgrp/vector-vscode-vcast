@@ -373,12 +373,13 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         api = UnitTestApi(enviroPath)
         testList = api.TestCase.filter(name=testIDObject.testName)
         if len(testList) > 0:
-            returnText += f"PASSFAIL:" + getPassFailString(testList[0])
+            returnText += f"PASSFAIL:{getPassFailString(testList[0])}\n"
             returnText += f"TIME:{getTime(testList[0].start_time)}\n"
         api.close()
 
         returnText += commandOutput
-        return returnCode, returnText
+        # need strip of the triling CR
+        return returnCode, returnText.rstrip()
 
 
 def processVResults(filePath):

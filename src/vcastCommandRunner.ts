@@ -19,10 +19,28 @@ export interface commandStatusType {
   stdout: string;
 }
 
+export function convertServerResponseToCommandStatus(
+  serverResponse: transmitResponseType
+): commandStatusType {
+  //
+  // tansmitResponse.returnData is an object with exitCode and data properties
+  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+  if (serverResponse.success) {
+    commandStatus.errorCode = serverResponse.returnData.exitCode;
+    // the data.text field is returned as a list to join with \n
+    commandStatus.stdout = serverResponse.returnData.data.text.join("\n");
+  } else {
+    commandStatus.errorCode = 1;
+    commandStatus.stdout = serverResponse.statusText;
+  }
+  return commandStatus;
+}
+
 // Call vpython vTestInterface.py to run a command
 export function executeVPythonScript(
   commandToRun: string,
-  whereToRun: string
+  whereToRun: string,
+  printErrorDetails: boolean=true,
 ): commandStatusType {
   // we use this common function to run the vpython and process the output because
   // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
@@ -34,7 +52,8 @@ export function executeVPythonScript(
   if (commandToRun) {
     const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
-      whereToRun
+      whereToRun,
+      printErrorDetails,
     );
     const pieces = commandStatus.stdout.split("ACTUAL-DATA", 2);
     returnData.stdout = pieces[1].trim();

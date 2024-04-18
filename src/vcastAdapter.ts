@@ -20,6 +20,7 @@ import {
 
 import {
   commandStatusType,
+  convertServerResponseToCommandStatus,
   executeClicastCommandUsingServer,
   executeClicastWithProgress,
   executeCommandSync,
@@ -35,9 +36,9 @@ import {
 } from "./vcastInstallation";
 
 import {
-  getVcastInterfaceCommand,
+  getClientRequestObject,
   getRebuildEnviroCommand,
-  getTestArgument,
+  getVcastInterfaceCommand,
 } from "./vcastUtilities";
 
 import {
@@ -546,35 +547,17 @@ async function executeTestViaServer(
   nodeID: string
 ): Promise<commandStatusType> {
   //
-  // Rather than adding another "dontUseQuotes" param I just strip them here
-  const testArgWithQuotes = getTestArgument(nodeID, false);
-  const testArgWitoutQuotes = testArgWithQuotes.substring(
-    1,
-    testArgWithQuotes.length - 1
+  const requestObject = getClientRequestObject(
+    vcastCommand,
+    enviroPath,
+    nodeID
   );
-  const requestObject: clientRequestType = {
-    command: vcastCommand,
-    clicast: clicastCommandToUse,
-    path: enviroPath,
-    test: testArgWitoutQuotes,
-  };
 
   let transmitResponse: transmitResponseType = await transmitCommand(
     requestObject
   );
 
-  // tansmitResponse.returnData is an object with exitCode and data properties
-  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
-  if (transmitResponse.success) {
-    commandStatus.errorCode = transmitResponse.returnData.exitCode;
-    // the data.text field is returned as a list to join with \n
-    commandStatus.stdout = transmitResponse.returnData.data.text.join("\n");
-  } else {
-    commandStatus.errorCode = 1;
-    commandStatus.stdout = transmitResponse.statusText;
-  }
-
-  return commandStatus;
+  return convertServerResponseToCommandStatus(transmitResponse);
 }
 
 // vPython Logic
@@ -590,23 +573,55 @@ function executeTestViaPython(
     nodeID
   );
 
-  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
+  const commandStatus = executeVPythonScript(commandToRun, enviroPath, false);
   return commandStatus;
 }
 
 // Get Execution Report ----------------------------------------------------------------
-export function getTestExecutionReport(
-  testID: string,
-  CWD: string
+export async function getTestExecutionReport(
+  enviroPath: string,
+  testID: string
+): Promise<commandStatusType> {
+  if (globalEnviroServerActive) {
+    return await getTestExecutionReportFromServer(testID, enviroPath);
+  } else {
+    return getTestExecutionReportFromPython(testID, enviroPath);
+  }
+}
+
+// Server Logic
+async function getTestExecutionReportFromServer(
+  enviroPath: string,
+  nodeID: string
+): Promise<commandStatusType> {
+  //
+  const requestObject = getClientRequestObject(
+    vcastCommandType.report,
+    enviroPath,
+    nodeID
+  );
+
+  let transmitResponse: transmitResponseType = await transmitCommand(
+    requestObject
+  );
+
+  return convertServerResponseToCommandStatus(transmitResponse);
+}
+
+// python logic
+export function getTestExecutionReportFromPython(
+  enviroPath: string,
+  testID: string
 ): commandStatusType {
+  //
   const commandToRun = getVcastInterfaceCommand(
     vcastCommandType.report,
-    CWD,
+    enviroPath,
     testID
   );
   const commandStatus: commandStatusType = executeVPythonScript(
     commandToRun,
-    CWD
+    enviroPath
   );
   return commandStatus;
 }

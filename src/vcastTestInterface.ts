@@ -298,17 +298,17 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
   }
 }
 
-export function getResultFileForTest(testID: string) {
+export async function getResultFileForTest(testID: string) {
   // This function will return the path to the result file if it is already saved
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
   if (!fs.existsSync(resultFile)) {
-    let cwd = getEnviroPathFromID(testID);
+    let enviroPath = getEnviroPathFromID(testID);
 
-    const commandStatus = getTestExecutionReport(testID, cwd);
+    const commandStatus = await getTestExecutionReport(testID, enviroPath);
 
     if (commandStatus.errorCode == 0) {
-      const firstLineOfOutput: string = commandStatus.stdout.split(EOL, 1)[0];
+      const firstLineOfOutput: string = commandStatus.stdout.split("\n", 1)[0].trim();
       resultFile = firstLineOfOutput.replace("REPORT:", "");
 
       if (!fs.existsSync(resultFile)) {
@@ -333,6 +333,13 @@ interface executeOutputType {
   passfail: string;
   stdOut: string;
 }
+const nullExecutionStatus: executeOutputType = {
+  status: "",
+  resultsFilePath: "",
+  time: "",
+  passfail: "",
+  stdOut: "",
+};
 
 function processExecutionOutput(commandOutput: string): executeOutputType {
   let returnData: executeOutputType = {
@@ -342,10 +349,9 @@ function processExecutionOutput(commandOutput: string): executeOutputType {
     time: "",
     passfail: "",
   };
-  const outputLineList: string[] = commandOutput.split(EOL);
+  const outputLineList: string[] = commandOutput.split("\n");
 
-  for (let lineIndex = 0; lineIndex < outputLineList.length; lineIndex++) {
-    const line: string = outputLineList[lineIndex];
+  for (let line of outputLineList) {
     console.log(`LINE IS: ${line}`);
     if (line.startsWith("STATUS:"))
       returnData.status = line.replace("STATUS:", "");
@@ -409,6 +415,7 @@ export async function runVCTest(
 
   // errorCode 98 is for a compile error for the coded test source file
   // this is hard-coded in runTestCommand() in the python interface
+  let executionDetails: executeOutputType = nullExecutionStatus;
   if (commandStatus.errorCode == 98) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
@@ -433,14 +440,14 @@ export async function runVCTest(
 
     // successful execution
   } else {
-    const decodedOutput = processExecutionOutput(commandOutputText);
-    logTestResults(nodeID, commandOutputText, decodedOutput);
+    executionDetails = processExecutionOutput(commandOutputText);
+    logTestResults(nodeID, commandOutputText, executionDetails);
 
     let updatedStatusItem = globalTestStatusArray[nodeID];
 
     if (updatedStatusItem) {
-      updatedStatusItem.status = decodedOutput.status;
-      updatedStatusItem.resultFilePath = decodedOutput.resultsFilePath;
+      updatedStatusItem.status = executionDetails.status;
+      updatedStatusItem.resultFilePath = executionDetails.resultsFilePath;
       globalTestStatusArray[nodeID] = updatedStatusItem;
 
       if (updatedStatusItem.status == "passed") {
@@ -452,7 +459,7 @@ export async function runVCTest(
       returnStatus = testStatus.didNotRun;
     }
   }
-  return returnStatus;
+  return { status: returnStatus, details: executionDetails };
 }
 
 function addSearchPathsFromConfigurationFile(

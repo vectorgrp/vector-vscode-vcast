@@ -54,7 +54,6 @@ import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
-  getResultFileForTest,
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
@@ -805,45 +804,37 @@ export async function runNode(
 
   // this does the actual work of running the test
   const enviroPath = getEnviroPathFromID(node.id);
-  return runVCTest(enviroPath, node.id, generateReport).then((status) => {
-    if (status == testStatus.didNotRun) {
-      run.skipped(node);
-    } else if (status == testStatus.compileError) {
-      const failMessage: TestMessage = new TestMessage(
-        "Coded Test compile error - see details in file: ACOMPILE.LIS"
-      );
-      run.errored(node, failMessage);
-    } else if (status == testStatus.linkError) {
-      const failMessage: TestMessage = new TestMessage(
-        "Coded Test link error - see details in file: AALINKER.LIS"
-      );
-      run.errored(node, failMessage);
-    } else {
-      if (status == testStatus.passed) {
-        run.passed(node);
-      } else if (status == testStatus.failed) {
-        const textFilePath = getResultFileForTest(node.id);
-
-        // find the summary line that starts with "Expected Results", and add to testMessage
-        const lines = fs.readFileSync(textFilePath, "utf-8").split("\n");
-        let failMessage: TestMessage = new TestMessage("");
-        for (let line of lines) {
-          // start of line, any number of spaces, search text ...
-          if (/^\s*Expected Results matched.*/.test(line)) {
-            // remove the EOL and squash multiple spaces into 1
-            failMessage = new TestMessage(line.trimEnd().replace(/\s+/g, " "));
-            break;
-          }
+  return await runVCTest(enviroPath, node.id, generateReport).then(
+    async (executionResult) => {
+      const status = executionResult.status;
+      if (status == testStatus.didNotRun) {
+        run.skipped(node);
+      } else if (status == testStatus.compileError) {
+        const failMessage: TestMessage = new TestMessage(
+          "Coded Test compile error - see details in file: ACOMPILE.LIS"
+        );
+        run.errored(node, failMessage);
+      } else if (status == testStatus.linkError) {
+        const failMessage: TestMessage = new TestMessage(
+          "Coded Test link error - see details in file: AALINKER.LIS"
+        );
+        run.errored(node, failMessage);
+      } else {
+        if (status == testStatus.passed) {
+          run.passed(node);
+        } else if (status == testStatus.failed) {
+          const textMessage = `Expected Results matched ${executionResult.details.passfail} test failed.`;
+          const failMessage = new TestMessage(textMessage);
+          run.failed(node, failMessage);
         }
-        run.failed(node, failMessage);
-      }
 
-      if (generateReport) {
-        viewResultsReport(node.id);
+        if (generateReport) {
+          viewResultsReport(node.id);
+        }
       }
+      return status;
     }
-    return status;
-  });
+  );
 }
 
 function getTestNodes(
