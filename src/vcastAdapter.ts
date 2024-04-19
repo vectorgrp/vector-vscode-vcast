@@ -457,7 +457,7 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
 // ------------------------------------------------------------------------------------
 
 // Get Environment Data ---------------------------------------------------------------
-
+// Server logic is in a separate function below
 export async function getDataForEnvironment(enviroPath: string): Promise<any> {
   // what we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
@@ -509,6 +509,7 @@ async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
 }
 
 // Execute Test ------------------------------------------------------------------------
+// Server logic is in a separate function below
 export async function executeTest(
   enviroPath: string,
   nodeID: string,
@@ -578,6 +579,7 @@ function executeTestViaPython(
 }
 
 // Get Execution Report ----------------------------------------------------------------
+// Server logic is in a separate function below
 export async function getTestExecutionReport(
   enviroPath: string,
   testID: string
@@ -609,7 +611,7 @@ async function getTestExecutionReportFromServer(
 }
 
 // python logic
-export function getTestExecutionReportFromPython(
+function getTestExecutionReportFromPython(
   enviroPath: string,
   testID: string
 ): commandStatusType {
@@ -627,7 +629,8 @@ export function getTestExecutionReportFromPython(
 }
 
 // Rebuild Environment -----------------------------------------------------------------
-export function rebuildEnvironment(
+// Server logic to close existing connection embedded in the vpython function
+export async function rebuildEnvironment(
   enviroPath: string,
   rebuildEnvironmentCallback: any
 ) {

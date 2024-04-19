@@ -12,6 +12,8 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 
+import { cleanOutputString } from "../src-common/commonUtilities";
+
 const path = require("path");
 
 export interface commandStatusType {
@@ -40,7 +42,7 @@ export function convertServerResponseToCommandStatus(
 export function executeVPythonScript(
   commandToRun: string,
   whereToRun: string,
-  printErrorDetails: boolean=true,
+  printErrorDetails: boolean = true
 ): commandStatusType {
   // we use this common function to run the vpython and process the output because
   // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
@@ -53,10 +55,10 @@ export function executeVPythonScript(
     const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
       whereToRun,
-      printErrorDetails,
+      printErrorDetails
     );
-    const pieces = commandStatus.stdout.split("ACTUAL-DATA", 2);
-    returnData.stdout = pieces[1].trim();
+    // see comment about ACTUAL-DATA in cleanOutputString
+    returnData.stdout = cleanOutputString(commandStatus.stdout);
     returnData.errorCode = commandStatus.errorCode;
   }
   return returnData;
@@ -84,27 +86,20 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+  // see comment about ACTUAL-DATA in cleanOutputString
+  let stdout = cleanOutputString(error.stdout.toString());
+  let commandStatus = { stdout: stdout, errorCode: error.status };
 
-  // 99 is a warning, like a mismatch opening the environment
-  if (error && error.status == 99) {
-    commandStatus.stdout = error.stdout.toString();
-    commandStatus.errorCode = 0;
-    vectorMessage(commandStatus.stdout);
-  } else if (error && error.stdout) {
-    commandStatus.stdout = error.stdout.toString();
-    commandStatus.errorCode = error.status;
-    if (printErrorDetails) {
-      vectorMessage("Exception while running command:");
-      vectorMessage(command);
-      vectorMessage(commandStatus.stdout);
-      vectorMessage(error.stderr.toString());
-      openMessagePane();
-    }
-  } else {
-    vectorMessage(
-      "Unexpected error in utilities/processExceptionFromExecuteCommand()"
-    );
+  // 998 is an interface error
+  if (error.status == 998) {
+    vectorMessage(`Failure running ${command}`);
+    vectorMessage(stdout);
+  } else if (error.stdout && printErrorDetails) {
+    vectorMessage("Exception while running command:");
+    vectorMessage(command);
+    vectorMessage(stdout);
+    vectorMessage(error.stderr.toString());
+    openMessagePane();
   }
 
   return commandStatus;

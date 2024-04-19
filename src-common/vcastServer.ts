@@ -79,8 +79,8 @@ export async function transmitCommand(requestObject: clientRequestType) {
       // the server always returns an object with exitCode and data properties
       const rawReturnData: any = await response.json();
 
-      // the exit code -99 is reserved for internal server errors
-      if (rawReturnData.exitCode === -99) {
+      // the exit code 999 is reserved for internal server errors
+      if (rawReturnData.exitCode === 999) {
         transmitResponse.success = false;
         // the error message is a list of strings, so join with \n
         transmitResponse.statusText = `Enviro server error: ${rawReturnData.data.error.join(

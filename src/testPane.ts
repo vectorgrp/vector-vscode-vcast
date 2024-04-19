@@ -824,7 +824,7 @@ export async function runNode(
         if (status == testStatus.passed) {
           run.passed(node);
         } else if (status == testStatus.failed) {
-          const textMessage = `Expected Results matched ${executionResult.details.passfail} test failed.`;
+          const textMessage = `Expected results do not match actuals [${executionResult.details.passfail}]`;
           const failMessage = new TestMessage(textMessage);
           run.failed(node, failMessage);
         }

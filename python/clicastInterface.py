@@ -30,8 +30,14 @@ def runClicastServerCommand(enviroPath, commandString):
     read in the context of the original server command received
     """
 
-    if enviroPath not in clicastInstances:
-        # start clicast in server mode
+    if enviroPath in clicastInstances and clicastInstances[enviroPath].poll() == None:
+        logMessage(f"  using existing clicast instance for: {enviroPath}")
+
+    else:
+        # this is in case the clicast server crashes ...   
+        if enviroPath in clicastInstances:
+            logMessage(f"  previous clicast server seems to have died ...")
+
         logMessage(f"  starting clicast server for environment: {enviroPath}")
         commandArgs = [globalClicastCommand, "-lc", "tools", "server"]
         CWD = os.path.dirname(enviroPath)
@@ -44,8 +50,7 @@ def runClicastServerCommand(enviroPath, commandString):
             cwd=CWD,
         )
         clicastInstances[enviroPath] = process
-    else:
-        logMessage(f"  using existing clicast instance for: {enviroPath}")
+
 
     logMessage(f"    commandString: {commandString}")
     process = clicastInstances[enviroPath]
@@ -65,6 +70,10 @@ def runClicastServerCommand(enviroPath, commandString):
         responseLine = process.stdout.readline()
 
     errorCode = responseLine.split("|")[1].strip()
+    logMessage (f"    server return code: {errorCode}")
+    if errorCode != "0":
+        logMessage (f"    server return text: {returnText}")
+
     return errorCode, returnText
 
 
@@ -334,7 +343,7 @@ def executeTest(testIDObject):
     # so we are using this hack until vcast changes the return code for a failed coded test compile
     if testIDObject.functionName == "coded_tests_driver" and executeReturnCode != 0:
         if "TEST RESULT:" not in stdoutText:
-            executeReturnCode = 98
+            executeReturnCode = 997
 
     return executeReturnCode, stdoutText
 

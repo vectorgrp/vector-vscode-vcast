@@ -67,3 +67,16 @@ export function getVcastOptionValues(enviroPath: string): cfgOptionType {
     return cachedObject;
   }
 }
+
+export function cleanOutputString(rawOutput: string): string {
+  // vpython and clicast print this annoying message when VC_DIR does not match
+  // the vcast distro being run.  This happens before our script even starts so
+  // we cannot suppress it, so this function strips it from the stdout.
+
+  if (rawOutput.includes("ACTUAL-DATA")) {
+    const pieces = rawOutput.split("ACTUAL-DATA", 2);
+    return pieces[1].trim();
+  } else {
+    return rawOutput.trim();
+  }
+}

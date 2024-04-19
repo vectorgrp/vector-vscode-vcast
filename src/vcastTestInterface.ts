@@ -10,6 +10,8 @@ import {
 
 import { updateFunctionDataForFile } from "./editorDecorator";
 
+import { fileDecorator } from "./fileDecorator";
+
 import {
   openMessagePane,
   vectorMessage,
@@ -50,7 +52,7 @@ import {
   testStatus,
 } from "./vcastUtilities";
 
-import { fileDecorator } from "./fileDecorator";
+import { cleanOutputString } from "../src-common/commonUtilities";
 
 const fs = require("fs");
 const path = require("path");
@@ -77,12 +79,9 @@ function getChecksum(filePath: string) {
     // convert the to a number and return
     // this will crash if something is wrong with the result
     try {
-      if (commandOutputString.includes("ACTUAL-DATA")) {
-        const pieces = commandOutputString.split("ACTUAL-DATA", 2);
-        returnValue = Number(pieces[1].trim());
-      } else {
-        returnValue = Number(commandOutputString);
-      }
+      // see comment about ACTUAL-DATA in cleanOutputString
+      commandOutputString = cleanOutputString(commandOutputString);
+      returnValue = Number(commandOutputString);
     } catch {
       returnValue = 0;
     }
@@ -425,10 +424,10 @@ export async function runVCTest(
   // for readability
   const commandOutputText: string = commandStatus.stdout;
 
-  // errorCode 98 is for a compile error for the coded test source file
-  // this is hard-coded in runTestCommand() in the python interface
+  // errorCode 997 is for a compile error for the coded test source file
+  // this is hard-coded in executeTest() in the python interface
   let executionDetails: executeOutputType = nullExecutionStatus;
-  if (commandStatus.errorCode == 98) {
+  if (commandStatus.errorCode == 997) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
 
