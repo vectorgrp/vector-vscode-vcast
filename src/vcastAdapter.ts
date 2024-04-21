@@ -51,7 +51,7 @@ import {
 
 // This is the core extension version of the flag, set on
 // initialization or when the setting value is changed.
-export let globalEnviroServerActive: boolean = false;
+export let globalEnviroServerActive: boolean = true;
 
 const path = require("path");
 

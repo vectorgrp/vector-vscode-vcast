@@ -24,21 +24,37 @@ USE_SERVER = False
 clicastInstances = {}
 
 
+def cleanEnviroPath(enviroPath):
+    """
+    This function is used to clean up the environment path
+    to make it compatible with the clicast server
+    """
+    returnPath = enviroPath.replace("\\", "/")
+    if returnPath[2]==":":
+        returnPath = returnPath[0].lower() + returnPath[1:]
+    return returnPath
+
+
 def runClicastServerCommand(enviroPath, commandString):
     """
     Note: we indent the log messages here to make them easier to
     read in the context of the original server command received
     """
+    global clicastInstances
+
+    # Since we use enviro path as a key to the clicastInstances dictionary
+    # it is important that the eviroPath string be consistent.  Rather
+    # than checking and correcting the path for each call, we do it here
+    enviroPath = cleanEnviroPath (enviroPath)
 
     if enviroPath in clicastInstances and clicastInstances[enviroPath].poll() == None:
-        logMessage(f"  using existing clicast instance for: {enviroPath}")
+        logMessage(f"  using existing clicast instance [{clicastInstances[enviroPath].pid}] for: {enviroPath} ")
 
     else:
         # this is in case the clicast server crashes ...   
         if enviroPath in clicastInstances:
             logMessage(f"  previous clicast server seems to have died ...")
 
-        logMessage(f"  starting clicast server for environment: {enviroPath}")
         commandArgs = [globalClicastCommand, "-lc", "tools", "server"]
         CWD = os.path.dirname(enviroPath)
         process = subprocess.Popen(
@@ -50,6 +66,7 @@ def runClicastServerCommand(enviroPath, commandString):
             cwd=CWD,
         )
         clicastInstances[enviroPath] = process
+        logMessage(f"  started clicast instance [{process.pid}] for environment: {enviroPath}")
 
 
     logMessage(f"    commandString: {commandString}")
@@ -84,8 +101,11 @@ def terminateClicastProcess(enviroPath):
     to delete the environment directory, and the running process will have it locked
     if we are in server mode
     """
+
+    global clicastInstances
+
     if USE_SERVER and enviroPath in clicastInstances:
-        logMessage(f"  terminating clicast instance for environment: {enviroPath}")
+        logMessage(f"  terminating clicast instance [{clicastInstances[enviroPath].pid}] for environment: {enviroPath}")
         process = clicastInstances[enviroPath]
         process.stdin.write("clicast-server-shutdown\n")
         process.stdin.flush()
