@@ -22,12 +22,12 @@ let globalEnviroServerActive: boolean = false;
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
 
-export function initializePaths(extensionRoot:string, vpythonPath:string) {
+export function initializePaths(extensionRoot:string, vpythonPath:string, useServer:boolean) {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
   vPythonCommandToUse = vpythonPath;
-  globalEnviroServerActive = process.argv[4].toLowerCase() === "true";
+  globalEnviroServerActive = useServer;
 
   const pathToTestEditorInterface = path.join(
     extensionRoot,

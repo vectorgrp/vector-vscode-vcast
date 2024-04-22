@@ -31,8 +31,9 @@ connection.onInitialize((params: InitializeParams) => {
   // reads the params passed to the server 
   // and initializes globals for vpyton path etc.
   initializePaths (
-    process.argv[2],  // extensionRoot
-    process.argv[3],  // vpythonPath
+    process.argv[2],                          // extensionRoot
+    process.argv[3],                          // vpythonPath
+    process.argv[4].toLowerCase() === "true", // useServer
   );
 
   return {
