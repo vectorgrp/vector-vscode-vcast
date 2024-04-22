@@ -58,13 +58,26 @@ export async function closeConnection(enviroPath: string): Promise<boolean> {
   return transmitResponse.success;
 }
 
+export async function serverIsAlive() {
+  //
+  const pingObject: clientRequestType = {
+    command: vcastCommandType.ping,
+    path: "",
+  };
+
+  const transmitResponse: transmitResponseType = await transmitCommand(
+    pingObject, "ping"
+  );
+  return transmitResponse.success;
+}
+
 // This does the actual fetch from the server
-export async function transmitCommand(requestObject: clientRequestType) {
+export async function transmitCommand(requestObject: clientRequestType, route="vassistant") {
   // TBD: is this the right way to do this, or can I send a class directly?
 
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
-  const urlToUse = `${serverURL()}/vassistant?request=${dataAsString}`;
+  const urlToUse = `${serverURL()}/${route}?request=${dataAsString}`;
   let transmitResponse: transmitResponseType = {
     success: false,
     returnData: undefined,

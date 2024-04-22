@@ -44,6 +44,7 @@ import {
 import {
   clientRequestType,
   closeConnection,
+  serverIsAlive,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
@@ -54,6 +55,14 @@ import {
 export let globalEnviroServerActive: boolean = false;
 
 const path = require("path");
+
+// Allow extenal modules to set server active
+export async function initializeServerState() {
+  globalEnviroServerActive = await serverIsAlive();
+  if (globalEnviroServerActive) {
+    vectorMessage ("VectorCAST Environment Data Server is Active ...");
+  }
+}
 
 // ------------------------------------------------------------------------------------
 // Direct clicast Calls
@@ -692,7 +701,7 @@ export async function rebuildEnvironmentUsingServer(
     path: enviroPath,
     options: getRebuildOptionsString(),
   };
-  
+
   // We don't know how long this will take, so we just
   // use a running rabbit style progress bar
   let transmitResponse = await vscode.window.withProgress(
@@ -701,10 +710,10 @@ export async function rebuildEnvironmentUsingServer(
       title: `Rebuilding environment: ${path.basename(enviroPath)}... `,
       cancellable: false,
     },
-    async (progress):Promise<transmitResponseType> => {     
-      progress.report({  increment: 25 })
+    async (progress): Promise<transmitResponseType> => {
+      progress.report({ increment: 25 });
       let transmitResponse = await transmitCommand(requestObject);
-      progress.report({  increment: 100 })
+      progress.report({ increment: 100 });
       return transmitResponse;
     }
   );
