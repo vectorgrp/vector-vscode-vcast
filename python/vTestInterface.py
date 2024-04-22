@@ -363,9 +363,9 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
     with cd(os.path.dirname(enviroPath)):
         returnText = ""
 
-        returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
+        returnCode, commandOutput = clicastInterface.executeTest(enviroPath, testIDObject)
         if generateReport:
-            commandOutput += clicastInterface.generateExecutionReport(testIDObject)
+            commandOutput += clicastInterface.generateExecutionReport(enviroPath, testIDObject)
 
         if "TEST RESULT: pass" in commandOutput:
             returnText += "STATUS:passed\n"
@@ -411,7 +411,7 @@ def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("report")
-        commandOutput = clicastInterface.generateExecutionReport(testIDObject)
+        commandOutput = clicastInterface.generateExecutionReport(enviroPath, testIDObject)
 
         returnText = f"REPORT:{testIDObject.reportName}.txt\n"
         returnText += commandOutput
@@ -548,7 +548,8 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options="") -> 
 
         # we don't set the return object for rebuild, because we echo in real-time
         jsonOptions = processOptions(options)
-        clicastInterface.rebuildEnvironment(pathToUse, jsonOptions)
+        returnCode, commandOutput = clicastInterface.rebuildEnvironment(pathToUse, jsonOptions)
+        returnObject = {"text": commandOutput.split("\n")}
 
     else:
         modeListAsString = ",".join(modeChoices)

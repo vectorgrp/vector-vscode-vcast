@@ -37,7 +37,7 @@ import {
 
 import {
   getClientRequestObject,
-  getRebuildEnviroCommand,
+  getRebuildOptionsString,
   getVcastInterfaceCommand,
 } from "./vcastUtilities";
 
@@ -629,18 +629,46 @@ function getTestExecutionReportFromPython(
 }
 
 // Rebuild Environment -----------------------------------------------------------------
-// Server logic to close existing connection embedded in the vpython function
+// Server logic is in a separate function below
 export async function rebuildEnvironment(
   enviroPath: string,
   rebuildEnvironmentCallback: any
 ) {
-  const fullCommand = getRebuildEnviroCommand(enviroPath);
-  let commandPieces = fullCommand.split(" ");
+  setCodedTestOption(path.dirname(enviroPath));
+
+  if (globalEnviroServerActive) {
+    return rebuildEnvironmentUsingServer(
+      enviroPath,
+      rebuildEnvironmentCallback
+    );
+  } else {
+    return rebuildEnvironmentUsingPython(
+      enviroPath,
+      rebuildEnvironmentCallback
+    );
+  }
+}
+
+export async function rebuildEnvironmentUsingPython(
+  enviroPath: string,
+  rebuildEnvironmentCallback: any
+) {
+  // this returns a string including the vpython command
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.rebuild,
+    enviroPath
+  );
+  const optionString = `--options=${getRebuildOptionsString()}`;
+
+  // executeWithRealTimeEcho uses spawn which needs an arg list so create list
+  let commandPieces = commandToRun.split(" ");
+  // add the option string
+  commandPieces.push(optionString);
+  // pop the first arg which is the vpython command
   const commandVerb = commandPieces[0];
   commandPieces.shift();
 
   const unitTestLocation = path.dirname(enviroPath);
-  setCodedTestOption(unitTestLocation);
 
   // This uses the python binding to clicast to do the rebuild
   // We open the message pane to give the user a sense of what's going on
@@ -652,4 +680,41 @@ export async function rebuildEnvironment(
     rebuildEnvironmentCallback,
     enviroPath
   );
+}
+
+export async function rebuildEnvironmentUsingServer(
+  enviroPath: string,
+  rebuildEnvironmentCallback: any
+) {
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.rebuild,
+    clicast: clicastCommandToUse,
+    path: enviroPath,
+    options: getRebuildOptionsString(),
+  };
+  
+  // We don't know how long this will take, so we just
+  // use a running rabbit style progress bar
+  let transmitResponse = await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Rebuilding environment: ${path.basename(enviroPath)}... `,
+      cancellable: false,
+    },
+    async (progress):Promise<transmitResponseType> => {     
+      progress.report({  increment: 25 })
+      let transmitResponse = await transmitCommand(requestObject);
+      progress.report({  increment: 100 })
+      return transmitResponse;
+    }
+  );
+
+  const commandStatus = convertServerResponseToCommandStatus(transmitResponse);
+  // in the server case, we cannot echo the rebuild output to the message pane
+  // in real-time as we do in the Python case, so show it here!
+  vectorMessage("-".repeat(100));
+  vectorMessage(commandStatus.stdout);
+
+  // call the callback to update the test explorer pane
+  rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
 }

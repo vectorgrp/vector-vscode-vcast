@@ -400,8 +400,9 @@ export function getClientRequestObject(
   return requestObject;
 }
 
-export function getRebuildEnviroCommand(enviroPath: string): string {
-  // this command performs the environment rebuild, including the update of the .env file
+export function getRebuildOptionsString(): string {
+
+  // this returns the --options=jsonString that is used to rebuild the environment
 
   // read the settings that affect enviro build
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
@@ -411,9 +412,6 @@ export function getRebuildEnviroCommand(enviroPath: string): string {
     "None"
   );
   const jsonOptions: string = JSON.stringify(optionsDict);
-  const commonCommandString = getCommonCommandString(
-    vcastCommandType.rebuild,
-    enviroPath
-  );
-  return `${commonCommandString} --options=${jsonOptions}`;
+ 
+  return jsonOptions;
 }
