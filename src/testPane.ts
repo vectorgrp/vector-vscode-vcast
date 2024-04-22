@@ -138,6 +138,8 @@ function addTestNodes(
         new Position(startLine - 1, 0),
         new Position(startLine - 1, 0)
       );
+    } else {
+      testURI = undefined;
     }
 
     let testNode: vcastTestItem = globalController.createTestItem(
