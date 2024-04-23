@@ -4,6 +4,7 @@ import { getHoverString } from "../../server/tstHover";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { CompletionTriggerKind } from "vscode-languageserver-protocol";
 import { validateTextDocument } from "../../server/tstValidation";
+import { initializePaths } from "../../server/pythonUtilities";
 import URI from "vscode-uri";
 const path = require("path");
 
@@ -41,6 +42,7 @@ export async function generateHoverData(
   }
 
   const completion = asHoverParams(textDoc, position);
+  initializePaths(process.env["PACKAGE_PATH"], "vpython", '');
 
   if (documents.all() && documents.all()[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
@@ -104,6 +106,7 @@ export function generateCompletionData(
   }
 
   const completion = asCompletionParams(textDoc, position, triggerCharacter);
+  initializePaths(process.env["PACKAGE_PATH"], "vpython", '');
 
   if (documents.all() && documents.all()[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
