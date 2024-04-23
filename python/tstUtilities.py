@@ -323,8 +323,9 @@ class choiceKindType(str, Enum):
 
 
 class choiceDataType:
-    choiceList = list()
-    choiceKind = choiceKindType.Keyword
+    def __init__ (self):
+        self.choiceList = list()
+        self.choiceKind = choiceKindType.Keyword
 
     def toDict(self):
         data = {}

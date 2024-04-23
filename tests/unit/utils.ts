@@ -42,7 +42,10 @@ export async function generateHoverData(
   }
 
   const completion = asHoverParams(textDoc, position);
-  initializePaths(process.env["PACKAGE_PATH"], "vpython", '');
+  
+  const extensionRoot: string = process.env["PACKAGE_PATH"] || "";
+  const useServer: boolean = process.env.USE_SERVER != undefined;
+  initializePaths(extensionRoot, "vpython", useServer);
 
   if (documents.all() && documents.all()[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
@@ -106,7 +109,10 @@ export function generateCompletionData(
   }
 
   const completion = asCompletionParams(textDoc, position, triggerCharacter);
-  initializePaths(process.env["PACKAGE_PATH"], "vpython", '');
+
+  const extensionRoot: string = process.env["PACKAGE_PATH"] || "";
+  const useServer: boolean = process.env.USE_SERVER != undefined;
+  initializePaths(extensionRoot, "vpython", useServer);
 
   if (documents.all() && documents.all()[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
