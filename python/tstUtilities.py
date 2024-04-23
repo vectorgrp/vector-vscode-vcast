@@ -343,9 +343,10 @@ def processRequirementLines(api, pieces, triggerCharacter):
 
     requirements = api.environment.requirement_api.Requirement.all()
     for requirement in requirements:
-        # the description can have multipl
+        # the description can have multiple lines, so we replace \n with ,
+        description = requirement.description.replace('\n', ', ')
         returnData.choiceList.append(
-            f"{requirement.external_key} ||| {requirement.title} ||| {requirement.description}"
+            f"{requirement.external_key} ||| {requirement.title} ||| {description}"
         )
 
     return returnData
