@@ -1,3 +1,5 @@
+import path from "node:path";
+import process from "node:process";
 import {
   TextDocument,
   TextDocuments,
@@ -9,8 +11,6 @@ import { getHoverString } from "../../server/tstHover";
 import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
-import path from "node:path";
-import process from "node:process";
 
 export type HoverPosition = {
   line: number;

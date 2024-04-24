@@ -1,7 +1,7 @@
-import { describe, expect, test } from "vitest";
-import { getVcastOptionValues } from "../../src-common/commonUtilities";
 import path from "node:path";
 import process from "node:process";
+import { describe, expect, test } from "vitest";
+import { getVcastOptionValues } from "../../src-common/commonUtilities";
 
 const timeout = 30_000; // 30 seconds
 

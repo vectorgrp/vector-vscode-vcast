@@ -1,8 +1,8 @@
+import path from "node:path";
+import process from "node:process";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { rm, mkdir, copyFile } from "node:fs/promises";
-import path from "node:path";
-import process from "node:process";
 
 module.exports = async () => {
   const promisifiedExec = promisify(exec);
