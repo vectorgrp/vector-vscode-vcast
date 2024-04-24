@@ -188,6 +188,7 @@ export function storeNewDocument(
   uri: string,
   textDocument: TextDocument | undefined
 ) {
-  /* Private access to store new document */
-  documents._documents[uri] = textDocument;
+  /* `_documents` is private in `TextDocuments`.
+   * We cast to `any` to make the linter happy */
+  (documents as any)._documents[uri] = textDocument;
 }
