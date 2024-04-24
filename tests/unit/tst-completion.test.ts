@@ -3,9 +3,13 @@ import process from "node:process";
 import { describe, expect, test } from "vitest";
 import { TextDocument, TextDocuments } from "vscode-languageserver";
 import URI from "vscode-uri";
-import { getCompletionPositionForLine, generateCompletionData } from "./utils"; // 30 seconds
+import {
+  getCompletionPositionForLine,
+  generateCompletionData,
+  storeNewDocument,
+} from "./utils";
 
-const timeout = 30_000;
+const timeout = 30_000; // 30 seconds
 
 const initialTst = `
 -- Environment: TEST
@@ -1017,8 +1021,7 @@ describe("Text Completion", () => {
 
       const textDocument = TextDocument.create(uri, languageId, 1, tstText);
       const documents = new TextDocuments();
-      documents._documents[uri] = textDocument;
-
+      storeNewDocument(documents, uri, textDocument);
       const lineToComplete = "TEST.SUBPROGRAM:";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
@@ -1160,8 +1163,7 @@ describe("Text Completion", () => {
 
       const textDocument = TextDocument.create(uri, languageId, 1, tstText);
       const documents = new TextDocuments();
-      documents._documents[uri] = textDocument;
-
+      storeNewDocument(documents, uri, textDocument);
       const lineToComplete = "TEST.NAME:normal";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,

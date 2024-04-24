@@ -42,8 +42,7 @@ export function generateHoverData(
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
   const documents = new TextDocuments();
 
-  /* Private access to store new document */
-  documents._documents[uri] = emptyDocument ? undefined : textDocument;
+  storeNewDocument(documents, uri, emptyDocument ? undefined : textDocument);
 
   const completion = asHoverParameters(textDocument, position);
 
@@ -114,8 +113,7 @@ export function generateCompletionData(
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
   const documents = new TextDocuments();
 
-  /* Private access to store new document */
-  documents._documents[uri] = emptyDocument ? undefined : textDocument;
+  storeNewDocument(documents, uri, emptyDocument ? undefined : textDocument);
 
   const completion = asCompletionParameters(
     textDocument,
@@ -184,4 +182,13 @@ export function generateDiagnosticMessages(tstText: string): string[] {
   );
 
   return diagnosticMessages;
+}
+
+export function storeNewDocument(
+  documents: TextDocuments,
+  uri: string,
+  textDocument: TextDocument | undefined
+) {
+  /* Private access to store new document */
+  documents._documents[uri] = textDocument;
 }
