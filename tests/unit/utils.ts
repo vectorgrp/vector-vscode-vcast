@@ -10,7 +10,8 @@ import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
 
-const path = require("node:path");
+import path from "node:path";
+import process from "node:process";
 
 export type HoverPosition = {
   line: number;
@@ -24,26 +25,34 @@ export function generateHoverData(
   emptyDocument?: boolean
 ) {
   envName ||= "vcast";
-  const process = require("node:process");
+
   const languageId = "VectorCAST Test Script";
   const testEnvPath = path.join(
-    process.env.PACKAGE_PATH,
+    process.env.PACKAGE_PATH as string,
     "tests",
     "unit",
     envName
   );
-  const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+  const tstFilepath = path.join(
+    testEnvPath,
+    process.env.TST_FILENAME as string
+  );
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
   const documents = new TextDocuments();
 
+  /* Private access to store new document */
   documents._documents[uri] = emptyDocument ? undefined : textDocument;
 
   const completion = asHoverParameters(textDocument, position);
 
   setPaths(
-    path.join(process.env.PACKAGE_PATH, "python", "testEditorInterface.py"),
+    path.join(
+      process.env.PACKAGE_PATH as string,
+      "python",
+      "testEditorInterface.py"
+    ),
     "vpython"
   );
 
@@ -89,20 +98,23 @@ export function generateCompletionData(
   emptyDocument?: boolean
 ) {
   envName ||= "vcast";
-  const process = require("node:process");
   const languageId = "VectorCAST Test Script";
   const testEnvPath = path.join(
-    process.env.PACKAGE_PATH,
+    process.env.PACKAGE_PATH as string,
     "tests",
     "unit",
     envName
   );
-  const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+  const tstFilepath = path.join(
+    testEnvPath,
+    process.env.TST_FILENAME as string
+  );
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
   const documents = new TextDocuments();
 
+  /* Private access to store new document */
   documents._documents[uri] = emptyDocument ? undefined : textDocument;
 
   const completion = asCompletionParameters(
@@ -111,7 +123,11 @@ export function generateCompletionData(
     triggerCharacter
   );
   setPaths(
-    path.join(process.env.PACKAGE_PATH, "python", "testEditorInterface.py"),
+    path.join(
+      process.env.PACKAGE_PATH as string,
+      "python",
+      "testEditorInterface.py"
+    ),
     "vpython"
   );
 
@@ -148,15 +164,17 @@ export function getCompletionPositionForLine(
 }
 
 export function generateDiagnosticMessages(tstText: string): string[] {
-  const process = require("node:process");
   const languageId = "VectorCAST Test Script";
   const testEnvPath = path.join(
-    process.env.PACKAGE_PATH,
+    process.env.PACKAGE_PATH as string,
     "tests",
     "unit",
     "vcast"
   );
-  const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+  const tstFilepath = path.join(
+    testEnvPath,
+    process.env.TST_FILENAME as string
+  );
   const uri = URI.file(tstFilepath).toString();
   const tstTextDocument = TextDocument.create(uri, languageId, 1, tstText);
 

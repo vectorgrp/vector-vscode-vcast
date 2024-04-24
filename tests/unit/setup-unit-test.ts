@@ -2,14 +2,14 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { rm, mkdir, copyFile } from "node:fs/promises";
 
-module.exports = async () => {
-  const path = require("node:path");
+import path from "node:path";
 
+import process from "node:process";
+
+module.exports = async () => {
   const promisifiedExec = promisify(exec);
 
   const tstFilename = "firstTest.tst";
-
-  const process = require("node:process");
   process.env.PACKAGE_PATH = process.env.INIT_CWD;
   process.env.TST_FILENAME = tstFilename;
   process.env.VECTORCAST_DIR = "";
@@ -52,9 +52,16 @@ module.exports = async () => {
     );
   }
 
-  const unitTestsPath = path.join(process.env.PACKAGE_PATH, "tests", "unit");
+  const unitTestsPath = path.join(
+    process.env.PACKAGE_PATH as string,
+    "tests",
+    "unit"
+  );
   const vcastEnvPath = path.join(unitTestsPath, "vcast");
-  const coverageFolderPath = path.join(process.env.PACKAGE_PATH, "coverage");
+  const coverageFolderPath = path.join(
+    process.env.PACKAGE_PATH as string,
+    "coverage"
+  );
   const resourcesFolderPath = path.join(unitTestsPath, "resources");
 
   await rm(vcastEnvPath, { recursive: true, force: true });

@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { getVcastOptionValues } from "../../src-common/commonUtilities";
 
-const path = require("node:path");
+import path from "node:path";
+import process from "node:process";
 
 const timeout = 30_000; // 30 seconds
 
@@ -9,9 +10,8 @@ describe("Validating commonUtilities", () => {
   test(
     "validate VectorCAST option values",
     async () => {
-      const process = require("node:process");
       const testEnvPath = path.join(
-        process.env.PACKAGE_PATH,
+        process.env.PACKAGE_PATH as string,
         "tests",
         "unit",
         "vcast",

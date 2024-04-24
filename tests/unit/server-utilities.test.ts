@@ -3,10 +3,10 @@ import {
   getPieceAtColumn,
   getEnviroNameFromTestScript,
 } from "../../server/serverUtilities";
+import path from "node:path";
+import process from "node:process";
 
 const timeout = 30_000; // 30 seconds
-
-const path = require("node:path");
 
 describe("Validating serverUtilities on edgecases not validated by tstCompletion, tstHover and tstValidation tests", () => {
   test(
@@ -21,14 +21,16 @@ describe("Validating serverUtilities on edgecases not validated by tstCompletion
   test(
     "validate response for invalid environment name",
     async () => {
-      const process = require("node:process");
       const testEnvPath = path.join(
-        process.env.PACKAGE_PATH,
+        process.env.PACKAGE_PATH as string,
         "tests",
         "unit",
         "invalid_vcast"
       );
-      const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
       const generatedEnviroName = getEnviroNameFromTestScript(tstFilepath);
       expect(generatedEnviroName).toBe(undefined);
     },

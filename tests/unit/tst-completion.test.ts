@@ -1,4 +1,5 @@
-import path = require("node:path");
+import path from "node:path";
+import process from "node:process";
 import { describe, expect, test } from "vitest";
 import { TextDocument, TextDocuments } from "vscode-languageserver";
 import URI from "vscode-uri";
@@ -1000,16 +1001,18 @@ describe("Text Completion", () => {
   test(
     'validate "invalid environment name" case',
     async () => {
-      const process = require("node:process");
       const tstText = invalidEnviroTst;
       const languageId = "VectorCAST Test Script";
       const testEnvPath = path.join(
-        process.env.PACKAGE_PATH,
+        process.env.PACKAGE_PATH as string,
         "tests",
         "unit",
         "fake_vcast"
       );
-      const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
       const uri = URI.file(tstFilepath).toString();
 
       const textDocument = TextDocument.create(uri, languageId, 1, tstText);
@@ -1141,16 +1144,18 @@ describe("Text Completion", () => {
   test(
     "validate tst completion for standard test on CR (new line)",
     async () => {
-      const process = require("node:process");
       const tstText = normalCarriageReturnTst;
       const languageId = "VectorCAST Test Script";
       const testEnvPath = path.join(
-        process.env.PACKAGE_PATH,
+        process.env.PACKAGE_PATH as string,
         "tests",
         "unit",
         "vcast"
       );
-      const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
       const uri = URI.file(tstFilepath).toString();
 
       const textDocument = TextDocument.create(uri, languageId, 1, tstText);
