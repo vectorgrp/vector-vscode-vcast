@@ -341,16 +341,19 @@ def getCoverageData(sourceObject):
     if sourceObject:
         checksum = sourceObject.checksum
         if sourceObject.has_cover_data:
-            # if iterate_coverage crashes if the original
+            # iterate_coverage crashes if the original
             # file path does not exist.
             if os.path.exists(sourceObject.path):
-                for line in sourceObject.iterate_coverage():
-                    covLine = line._cov_line
-                    covChar = covLine.covered_char()
-                    if covChar in ["*", "A"]:
-                        coveredString += str(line.line_number) + ","
-                    elif covChar in [" ", "P", "a"]:
-                        uncoveredString += str(line.line_number) + ","
+                try: 
+                    for line in sourceObject.iterate_coverage():
+                        covLine = line._cov_line
+                        covChar = covLine.covered_char()
+                        if covChar in ["*", "A"]:
+                            coveredString += str(line.line_number) + ","
+                        elif covChar in [" ", "P", "a"]:
+                            uncoveredString += str(line.line_number) + ","
+                except:
+                    pass
 
                 # print, but drop the last colon
                 coveredString = coveredString[:-1]
