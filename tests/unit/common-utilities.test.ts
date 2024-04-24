@@ -1,15 +1,17 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-import { getVcastOptionValues } from "../../src-common/commonUtilities";
 import { describe, expect, test } from "vitest";
-const path = require("path");
-const timeout = 30000; // 30 seconds
+import { getVcastOptionValues } from "../../src-common/commonUtilities";
+
+const path = require("node:path");
+
+const timeout = 30_000; // 30 seconds
 
 describe("Validating commonUtilities", () => {
   test(
     "validate VectorCAST option values",
     async () => {
+      const process = require("node:process");
       const testEnvPath = path.join(
-        process.env["PACKAGE_PATH"],
+        process.env.PACKAGE_PATH,
         "tests",
         "unit",
         "vcast",
@@ -21,7 +23,7 @@ describe("Validating commonUtilities", () => {
       expect(cfgOptions.C_DEBUG_CMD).toBe("gdb");
       expect(cfgOptions.SOURCE_EXTENSION).toBe(".cpp");
 
-      // calling again to get the cached value
+      // Calling again to get the cached value
       const cachedCfgOptions = getVcastOptionValues(testEnvPath);
       expect(cachedCfgOptions.C_DEBUG_CMD).toBe("gdb");
       expect(cachedCfgOptions.SOURCE_EXTENSION).toBe(".cpp");

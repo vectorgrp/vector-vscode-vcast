@@ -1,65 +1,65 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-import { TextDocument, TextDocuments, Diagnostic } from "vscode-languageserver";
+import {
+  TextDocument,
+  TextDocuments,
+  type Diagnostic,
+} from "vscode-languageserver";
+import { CompletionTriggerKind } from "vscode-languageserver-protocol";
+import URI from "vscode-uri";
 import { getHoverString } from "../../server/tstHover";
 import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
-import { CompletionTriggerKind } from "vscode-languageserver-protocol";
 import { validateTextDocument } from "../../server/tstValidation";
-import URI from "vscode-uri";
-const path = require("path");
 
-export interface HoverPosition {
+const path = require("node:path");
+
+export type HoverPosition = {
   line: number;
   character: number;
-}
+};
 
 export function generateHoverData(
   tstText: string,
   position: HoverPosition,
   envName?: string,
-  emptyDoc?: boolean
+  emptyDocument?: boolean
 ) {
-  if (!envName) {
-    envName = "vcast";
-  }
+  envName ||= "vcast";
+  const process = require("node:process");
   const languageId = "VectorCAST Test Script";
   const testEnvPath = path.join(
-    process.env["PACKAGE_PATH"],
+    process.env.PACKAGE_PATH,
     "tests",
     "unit",
     envName
   );
-  const tst_filepath = path.join(testEnvPath, process.env["TST_FILENAME"]);
-  const uri = URI.file(tst_filepath).toString();
+  const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+  const uri = URI.file(tstFilepath).toString();
 
-  const textDoc = TextDocument.create(uri, languageId, 1, tstText);
+  const textDocument = TextDocument.create(uri, languageId, 1, tstText);
   const documents = new TextDocuments();
 
-  if (emptyDoc) {
-    documents["_documents"][uri] = undefined;
-  } else {
-    documents["_documents"][uri] = textDoc;
-  }
+  documents._documents[uri] = emptyDocument ? undefined : textDocument;
 
-  const completion = asHoverParams(textDoc, position);
+  const completion = asHoverParameters(textDocument, position);
 
   setPaths(
-    path.join(process.env["PACKAGE_PATH"], "python", "testEditorInterface.py"),
+    path.join(process.env.PACKAGE_PATH, "python", "testEditorInterface.py"),
     "vpython"
   );
 
-  if (documents.all() && documents.all()[0]) {
+  if (documents.all()?.[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
   }
+
   return getHoverString(documents, completion);
 }
 
-export function asHoverParams(
+export function asHoverParameters(
   textDocument: TextDocument,
   position: HoverPosition
 ) {
   return {
-    textDocument: textDocument,
+    textDocument,
     position: { line: position.line, character: position.character },
   };
 }
@@ -75,63 +75,64 @@ export function getHoverPositionForLine(
   return { line: lineNumber, character: columnNumber };
 }
 
-export interface CompletionPosition {
+export type CompletionPosition = {
   line: number;
   character: number;
-}
+};
 
+// eslint-disable-next-line max-params
 export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
   envName?: string,
-  emptyDoc?: boolean
+  emptyDocument?: boolean
 ) {
-  if (!envName) {
-    envName = "vcast";
-  }
+  envName ||= "vcast";
+  const process = require("node:process");
   const languageId = "VectorCAST Test Script";
   const testEnvPath = path.join(
-    process.env["PACKAGE_PATH"],
+    process.env.PACKAGE_PATH,
     "tests",
     "unit",
     envName
   );
-  const tst_filepath = path.join(testEnvPath, process.env["TST_FILENAME"]);
-  const uri = URI.file(tst_filepath).toString();
+  const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+  const uri = URI.file(tstFilepath).toString();
 
-  const textDoc = TextDocument.create(uri, languageId, 1, tstText);
+  const textDocument = TextDocument.create(uri, languageId, 1, tstText);
   const documents = new TextDocuments();
 
-  if (emptyDoc) {
-    documents["_documents"][uri] = undefined;
-  } else {
-    documents["_documents"][uri] = textDoc;
-  }
+  documents._documents[uri] = emptyDocument ? undefined : textDocument;
 
-  const completion = asCompletionParams(textDoc, position, triggerCharacter);
+  const completion = asCompletionParameters(
+    textDocument,
+    position,
+    triggerCharacter
+  );
   setPaths(
-    path.join(process.env["PACKAGE_PATH"], "python", "testEditorInterface.py"),
+    path.join(process.env.PACKAGE_PATH, "python", "testEditorInterface.py"),
     "vpython"
   );
 
-  if (documents.all() && documents.all()[0]) {
+  if (documents.all()?.[0]) {
     console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
   }
+
   return getTstCompletionData(documents, completion);
 }
 
-export function asCompletionParams(
+export function asCompletionParameters(
   textDocument: TextDocument,
   position: CompletionPosition,
   triggerCharacter: string | undefined
 ) {
   return {
-    textDocument: textDocument,
+    textDocument,
     position: { line: position.line, character: position.character },
     context: {
       triggerKind: CompletionTriggerKind.TriggerCharacter,
-      triggerCharacter: triggerCharacter,
+      triggerCharacter,
     },
   };
 }
@@ -147,18 +148,19 @@ export function getCompletionPositionForLine(
 }
 
 export function generateDiagnosticMessages(tstText: string): string[] {
+  const process = require("node:process");
   const languageId = "VectorCAST Test Script";
   const testEnvPath = path.join(
-    process.env["PACKAGE_PATH"],
+    process.env.PACKAGE_PATH,
     "tests",
     "unit",
     "vcast"
   );
-  const tst_filepath = path.join(testEnvPath, process.env["TST_FILENAME"]);
-  const uri = URI.file(tst_filepath).toString();
-  const tstTextDoc = TextDocument.create(uri, languageId, 1, tstText);
+  const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME);
+  const uri = URI.file(tstFilepath).toString();
+  const tstTextDocument = TextDocument.create(uri, languageId, 1, tstText);
 
-  const diagnostics: Diagnostic[] = validateTextDocument(tstTextDoc);
+  const diagnostics: Diagnostic[] = validateTextDocument(tstTextDocument);
   const diagnosticMessages = diagnostics.map(
     (diagnostics) => diagnostics.message
   );

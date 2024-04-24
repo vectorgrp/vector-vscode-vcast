@@ -1,0 +1,23 @@
+{
+  "space": true,
+  "semicolon": true,
+  "prettier": true,
+  "rules": {
+    "@typescript-eslint/no-require-imports": 0,
+    "@typescript-eslint/no-unsafe-argument": 0,
+    "@typescript-eslint/no-unsafe-assignment": 0,
+    "@typescript-eslint/no-unsafe-call": 0,
+    "@typescript-eslint/no-var-requires": 0,
+    "eslint-comments/no-unused-disable": 0,
+    "import/extensions": 0,
+    "import/no-extraneous-dependencies": 0,
+    "import/order": 0,
+    "unicorn/prefer-module": 0
+  },
+  "extends": [
+    "prettier"
+  ],
+  "plugins": [
+    "prettier"
+  ]
+}
