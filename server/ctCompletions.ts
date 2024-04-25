@@ -33,11 +33,7 @@ export function getCodedTestCompletionData(
     const lineSoFar = getLineFragment(document, completionData.position).trim();
     if (lineSoFar.startsWith("vmock")) {
       listToReturn = ["unit1", "unit2", "unit3"];
-    } else {
-      listToReturn = [];
     }
-  } else {
-    listToReturn = ["error"];
   }
   return completionList(listToReturn, CompletionItemKind.Text);
 }
