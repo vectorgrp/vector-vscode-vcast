@@ -2,65 +2,62 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-
-
 import {
   configFilename,
   getUnitTestLocationForPath,
   initializeConfigurationFile,
 } from "./configuration";
 
-import {
-  updateFunctionDataForFile,
-} from "./editorDecorator";
+import { updateFunctionDataForFile } from "./editorDecorator";
 
-import { 
-  buildEnvironmentCallback,
-  showSettings,
- } from "./helper";
 import {
   openMessagePane,
   vectorMessage,
   vcastMessage,
   errorLevel,
 } from "./messagePane";
-import { 
-  compoundOnlyString, 
-  getEnviroPathFromID, 
-  getTestNode,
-  testNodeType 
-} from "./testData";
+
+import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+
+import { updateTestPane } from "./testPane";
+
 import {
-  updateTestPane,
-} from "./testPane";
+  forceLowerCaseDriveLetter,
+  openFileWithLineSelected,
+  showSettings,
+} from "./utilities";
+
+import {
+  addCodedTestToEnvironment,
+  buildEnvironmentFromScript,
+  codedTestAction,
+  setCodedTestOption,
+} from "./vcastAdapter";
+
 import {
   commandStatusType,
   executeCommandSync,
   executeVPythonScript,
-  forceLowerCaseDriveLetter,
-  getChecksumCommand,
   getJsonDataFromTestInterface,
-  openFileWithLineSelected,
-  testInterfaceCommand,
-} from "./utilities";
+} from "./vcastCommandRunner"
+
+import { getChecksumCommand } from "./vcastInstallation";
 
 import {
-  clicastCommandToUse,
   closeAnyOpenErrorFiles,
-  executeClicastCommand,
   openTestFileAndErrors,
+  testInterfaceCommand,
   testStatus,
-} from "./vcastUtilities"
-
+} from "./vcastUtilities";
 
 import { fileDecorator } from "./fileDecorator";
 
 const fs = require("fs");
 const path = require("path");
 
-
 export const vcastEnviroFile = "UNITDATA.VCD";
 
+// Compute the checksum for a source file
 function getChecksum(filePath: string) {
   let returnValue = 0;
   const checksumCommand = getChecksumCommand();
@@ -74,7 +71,8 @@ function getChecksum(filePath: string) {
     else
       commandOutputString = executeCommandSync(
         `${checksumCommand} ${filePath}`,
-        process.cwd()).stdout;
+        process.cwd()
+      ).stdout;
 
     // convert the to a number and return
     // this will crash if something is wrong with the result
@@ -92,6 +90,7 @@ function getChecksum(filePath: string) {
   return returnValue;
 }
 
+// Get the Environment Data using the dataAPI
 export function getEnviroDataFromPython(enviroPath: string): any {
   // This function will return the environment data for a single directory
 
@@ -110,7 +109,6 @@ export function getEnviroDataFromPython(enviroPath: string): any {
 
   return jsonData;
 }
-
 
 // we save the some key data, indexed into by test.id
 // at the time that we build the test tree
@@ -155,7 +153,7 @@ interface fileCoverageType {
 }
 
 // key is filePath
-var globalCoverageData = new Map<string, fileCoverageType>();
+let globalCoverageData = new Map<string, fileCoverageType>();
 
 /////////////////////////////////////////////////////////////////////
 export function resetCoverageData() {
@@ -193,7 +191,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   if (dataForThisFile && dataForThisFile.enviroList.size > 0) {
     let coveredList: number[] = [];
     let uncoveredList: number[] = [];
-    for (var enviroData of dataForThisFile.enviroList.values()) {
+    for (const enviroData of dataForThisFile.enviroList.values()) {
       if (enviroData.crc32Checksum == checksum) {
         coveredList = coveredList.concat(enviroData.covered);
         uncoveredList = uncoveredList.concat(enviroData.uncovered);
@@ -213,20 +211,22 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   return returnData;
 }
 
-export function checksumMatchesEnvironment(filePath: string, enviroPath: string): boolean {
-
-  // this will check if the current checksum of filePath matches the 
+export function checksumMatchesEnvironment(
+  filePath: string,
+  enviroPath: string
+): boolean {
+  // this will check if the current checksum of filePath matches the
   // checksum of that file from the provided environment.
 
   let returnValue: boolean = false;
   const checksum = getChecksum(filePath);
   const dataForThisFile = globalCoverageData.get(filePath);
 
-  if (dataForThisFile) { 
-    const enviroData = dataForThisFile.enviroList.get (enviroPath);
+  if (dataForThisFile) {
+    const enviroData = dataForThisFile.enviroList.get(enviroPath);
     if (enviroData) {
-        if (enviroData.crc32Checksum == checksum) {
-           returnValue = true;
+      if (enviroData.crc32Checksum == checksum) {
+        returnValue = true;
       }
     }
   }
@@ -249,15 +249,11 @@ export function getListOfFilesWithCoverage(): string[] {
 // key is enviroPath, value is a list of filePaths
 let enviroFileList: Map<string, string[]> = new Map();
 
-function updateGlobalDataForFile(
-  enviroPath: string,
-  fileList: any[]
-) {
+function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
   let filePathList: string[] = [];
 
   for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
-    
-    let filePath = forceLowerCaseDriveLetter (fileList[fileIndex].path);
+    let filePath = forceLowerCaseDriveLetter(fileList[fileIndex].path);
     filePathList.push(filePath);
 
     let coveredList: number[] = [];
@@ -294,12 +290,13 @@ function updateGlobalDataForFile(
         fileDecorator.addCoverageDecorationToFile(filePath);
       else fileDecorator.removeCoverageDecorationFromFile(filePath);
     }
-    
+
     // update the testable function icons for this file
-    updateFunctionDataForFile (
+    updateFunctionDataForFile(
       enviroPath,
       filePath,
-      fileList[fileIndex].functionList);
+      fileList[fileIndex].functionList
+    );
   }
   enviroFileList.set(enviroPath, filePathList);
 }
@@ -321,9 +318,7 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
   }
 }
 
-
 export function getResultFileForTest(testID: string) {
-
   // This function will return the path to the result file if it is already saved
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
@@ -331,7 +326,10 @@ export function getResultFileForTest(testID: string) {
     let cwd = getEnviroPathFromID(testID);
 
     const commandToRun = testInterfaceCommand("report", cwd, testID);
-    const commandStatus:commandStatusType = executeVPythonScript(commandToRun, cwd);
+    const commandStatus: commandStatusType = executeVPythonScript(
+      commandToRun,
+      cwd
+    );
 
     if (commandStatus.errorCode == 0) {
       const firstLineOfOutput: string = commandStatus.stdout.split(EOL, 1)[0];
@@ -416,9 +414,13 @@ function logTestResults(
   vectorMessage("-".repeat(100));
 }
 
-const { performance } = require('perf_hooks');
+const { performance } = require("perf_hooks");
 
-export async function runVCTest(enviroPath: string, nodeID: string, generateReport:boolean) {
+export async function runVCTest(
+  enviroPath: string,
+  nodeID: string,
+  generateReport: boolean
+) {
   // Initially, I called clicast directly here, but I switched to the python binding to give
   // more flexibility for things like: running, and generating the execution report in one action
 
@@ -428,30 +430,32 @@ export async function runVCTest(enviroPath: string, nodeID: string, generateRepo
 
   let returnStatus: testStatus = testStatus.didNotRun;
   // The executeTest command will run the test AND generate the execution report
-  let commandToRun:string = "";
+  let commandToRun: string = "";
   if (generateReport) {
-    commandToRun = testInterfaceCommand("executeTestReport", enviroPath, nodeID);
-  }
-  else {
+    commandToRun = testInterfaceCommand(
+      "executeTestReport",
+      enviroPath,
+      nodeID
+    );
+  } else {
     commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
   }
-  const startTime:number = performance.now();
+  const startTime: number = performance.now();
   const commandStatus = executeVPythonScript(commandToRun, enviroPath);
 
   // added this timing info to help with performance tuning - interesting to leave in
-  const endTime:number = performance.now();
-  const deltaString:string = ((endTime-startTime)/1000).toFixed(2)
-  vectorMessage (`Execution via vPython took: ${deltaString} seconds`);
+  const endTime: number = performance.now();
+  const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
+  vectorMessage(`Execution via vPython took: ${deltaString} seconds`);
 
   const commandOutputText = commandStatus.stdout;
 
   // errorCode 98 is for a compile error for the coded test source file
   // this is hard-coded in runTestCommand() in the python interface
-  if (commandStatus.errorCode==98) {
+  if (commandStatus.errorCode == 98) {
     const testNode = getTestNode(nodeID);
-    returnStatus = openTestFileAndErrors (testNode)
-  }
-  else {
+    returnStatus = openTestFileAndErrors(testNode);
+  } else {
     if (commandOutputText.startsWith("FATAL")) {
       vectorMessage(commandOutputText.replace("FATAL", ""));
       openMessagePane();
@@ -473,8 +477,7 @@ export async function runVCTest(enviroPath: string, nodeID: string, generateRepo
 
         if (updatedStatusItem.status == "passed") {
           returnStatus = testStatus.passed;
-        }
-        else {
+        } else {
           returnStatus = testStatus.failed;
         }
       } else {
@@ -485,21 +488,21 @@ export async function runVCTest(enviroPath: string, nodeID: string, generateRepo
   return returnStatus;
 }
 
-
-function addSearchPathsFromConfigurationFile (cwd:string, searchList:string[]) {
-
-  const pathToConfigurationFile = path.join (cwd, configFilename);
+function addSearchPathsFromConfigurationFile(
+  cwd: string,
+  searchList: string[]
+) {
+  const pathToConfigurationFile = path.join(cwd, configFilename);
 
   // should always exist, but just to make sure
-  if (fs.existsSync (pathToConfigurationFile)) {
-
+  if (fs.existsSync(pathToConfigurationFile)) {
     // open the file, and loop looking for "TESTABLE_SOURCE_DIR" lines,
     const fileContents = fs.readFileSync(pathToConfigurationFile, "utf8");
     const lineList = fileContents.split(/\r?\n/g);
     for (let lineIndex = 0; lineIndex < lineList.length; lineIndex++) {
       const line = lineList[lineIndex];
       if (line.startsWith("TESTABLE_SOURCE_DIR")) {
-        const pieces = line.split("TESTABLE_SOURCE_DIR:",2);
+        const pieces = line.split("TESTABLE_SOURCE_DIR:", 2);
         if (pieces.length > 1) {
           const searchPath = pieces[1].trim();
           if (!searchList.includes(searchPath)) {
@@ -511,12 +514,11 @@ function addSearchPathsFromConfigurationFile (cwd:string, searchList:string[]) {
   }
 }
 
-
 function createVcastEnvironmentScript(
   unitTestLocation: string,
   enviroName: string,
-  fileList: string[]) {
-
+  fileList: string[]
+) {
   // This will take a list of files and create the enviroName.env
   // in the locaiton pointed to by unitTestLocation
 
@@ -535,16 +537,26 @@ function createVcastEnvironmentScript(
     }
   }
 
-  addSearchPathsFromConfigurationFile (unitTestLocation, searchList);
+  addSearchPathsFromConfigurationFile(unitTestLocation, searchList);
   const envFilePath = path.join(unitTestLocation, enviroName + ".env");
+
+  // read the settings that affect enviro build
+  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
 
   fs.writeFileSync(envFilePath, `ENVIRO.NEW\n`, { flag: "w" });
   fs.writeFileSync(envFilePath, `ENVIRO.NAME: ${enviroName}\n`, { flag: "a+" });
-  fs.writeFileSync(envFilePath, "ENVIRO.COVERAGE_TYPE: Statement\n", {
+
+  const coverageKind = settings.get("build.coverageKind", "None");
+  if (coverageKind != "None") {
+    fs.writeFileSync(envFilePath, `ENVIRO.COVERAGE_TYPE: ${coverageKind}\n`, {
+      flag: "a+",
+    });
+  }
+
+  fs.writeFileSync(envFilePath, "ENVIRO.WHITE_BOX: YES\n", { flag: "a+" });
+  fs.writeFileSync(envFilePath, "ENVIRO.STUB: ALL_BY_PROTOTYPE\n", {
     flag: "a+",
   });
-  fs.writeFileSync(envFilePath, "ENVIRO.WHITE_BOX: YES\n", { flag: "a+" });
-  fs.writeFileSync(envFilePath, "ENVIRO.STUB: ALL_BY_PROTOTYPE\n", { flag: "a+" });
 
   searchList.forEach((item) =>
     fs.writeFileSync(envFilePath, `ENVIRO.SEARCH_LIST: ${item}\n`, {
@@ -556,52 +568,15 @@ function createVcastEnvironmentScript(
       flag: "a+",
     })
   );
-  let settings = vscode.workspace.getConfiguration(
-    "vectorcastTestExplorer"
-  );
-  if (settings.get("enableCodedTesting", false)) {
-    // force the coded test option on
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
-      unitTestLocation);
-  }
-  else {
-    // force the coded test option off
-    executeCommandSync(
-      `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT false`,
-      unitTestLocation);
-  }
 
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
-}
-
-
-export function buildEnvironmentFromScript (
-  unitTestLocation: string,
-  enviroName: string) {
-  
-  // this function is separate and exported because it's used when we
-  // create environments from source files and from .env files
-
-  // this call runs clicast in the background
-  const enviroPath = path.join (unitTestLocation, enviroName);
-  const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
-  // This is long running commands so we open the message pane to give the user a sense of what is going on.
-  openMessagePane();
-  executeClicastCommand(
-    clicastArgs,
-    unitTestLocation,
-    buildEnvironmentCallback,
-    enviroPath
-  );
-
 }
 
 function buildEnvironmentVCAST(
   fileList: string[],
   unitTestLocation: string,
-  enviroName: string) {
-
+  enviroName: string
+) {
   // enviroName is the name of the enviro without the .env
 
   // use the first filename in the list as the environment name
@@ -614,23 +589,16 @@ function buildEnvironmentVCAST(
       fileList.length +
       " file(s) ..."
   );
-  
+
   // It is important that this call be done before the creation of the .env
   // Check that we have a valid configuration file, and create one if we don't
   // This function will return True if there is a CFG when it is done.
-  if (initializeConfigurationFile (unitTestLocation)) {
-    
-    createVcastEnvironmentScript(
-      unitTestLocation,
-      enviroName,
-      fileList
-    );
+  if (initializeConfigurationFile(unitTestLocation)) {
+    setCodedTestOption(unitTestLocation);
 
-    buildEnvironmentFromScript (
-      unitTestLocation,
-      enviroName
-    );
+    createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
 
+    buildEnvironmentFromScript(unitTestLocation, enviroName);
   }
 }
 
@@ -656,7 +624,7 @@ function configureWorkspaceAndBuildEnviro(
           try {
             fs.mkdirSync(unitTestLocation, { recursive: true });
             commonNewEnvironmentStuff(fileList, unitTestLocation);
-          } catch (error:any) {
+          } catch (error: any) {
             vscode.window.showErrorMessage(
               `Error creating directory: ${unitTestLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
             );
@@ -837,7 +805,7 @@ export async function newTestScript(testNode: testNodeType) {
   // create the template file
   fs.writeFileSync(scriptPath, contents);
 
-  var scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
+  let scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
   vscode.workspace.openTextDocument(scriptUri).then(
     (doc: vscode.TextDocument) => {
       vscode.window.showTextDocument(doc, 1, false);
@@ -848,81 +816,83 @@ export async function newTestScript(testNode: testNodeType) {
   );
 }
 
+async function commonCodedTestProcessing(
+  userFilePath: string,
+  testID: string,
+  action: codedTestAction
+) {
+  let testNode: testNodeType = getTestNode(testID);
+  const enviroPath = getEnviroPathFromID(testID);
 
-export async function newCodedTest (testID: string) {
+  await vectorMessage(
+    `Adding coded test file: ${userFilePath} for environment: ${enviroPath}`
+  );
 
+  // call clicast to create new coded test
+  const commandStatus: commandStatusType = addCodedTestToEnvironment(
+    enviroPath,
+    testNode,
+    action,
+    userFilePath
+  );
+
+  updateTestPane(enviroPath);
+  if (commandStatus.errorCode == 0) {
+    vscode.window.showInformationMessage(`Coded Tests added successfully`);
+  } else {
+    // need to re-read to get the test file name
+    testNode = getTestNode(testID);
+    openTestFileAndErrors(testNode);
+  }
+}
+
+export async function addExistingCodedTestFile(testID: string) {
   // This can be called for any "main" Coded Test node that
   // does not have children.  When we are loading the test data,
-  // we set the testFile field for the "Coded Test" node if 
+  // we set the testFile field for the "Coded Test" node if
   // there are children, so check that to determine if we can add ...
 
   // check if there are any vcast error files open, and close them
-  await closeAnyOpenErrorFiles ();
+  await closeAnyOpenErrorFiles();
 
   let testNode: testNodeType = getTestNode(testID);
   if (testNode.testFile.length == 0) {
-    const option: vscode.OpenDialogOptions = { 
+    const option: vscode.OpenDialogOptions = {
       title: "Select Coded Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showOpenDialog(option).then(fileUri => {
+    vscode.window.showOpenDialog(option).then(async (fileUri) => {
       if (fileUri) {
-        const UserFilePath:string = fileUri[0].fsPath;
-
-        const enviroPath = getEnviroPathFromID(testID);
-        const enclosingDirectory = path.dirname(enviroPath);
-
-        let commandToRun: string = 
-          `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded add ${UserFilePath}`;
-        const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
-        updateTestPane(enviroPath);
-        if (commandStatus.errorCode == 0) {
-          vscode.window.showInformationMessage(`Coded Tests added successfully`);
-        }
-        else {
-          // need to re-read to get the test file name
-          testNode = getTestNode(testID);
-          openTestFileAndErrors (testNode)
-        }
+        commonCodedTestProcessing(
+          fileUri[0].fsPath,
+          testID,
+          codedTestAction.add
+        );
       }
     });
   }
 }
 
-export async function generateCodedTest (testID: string) {
-
+export async function generateNewCodedTestFile(testID: string) {
   // This can be called for any "main" Coded Test node that
   // does not have children.  When we are loading the test data,
-  // we set the testFile field for the "Coded Test" node if 
+  // we set the testFile field for the "Coded Test" node if
   // there are children, so check that to determine if we can add ...
 
   const testNode: testNodeType = getTestNode(testID);
 
   if (testNode.testFile.length == 0) {
-    const option: vscode.SaveDialogOptions = { 
+    const option: vscode.SaveDialogOptions = {
       title: "Save Code Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showSaveDialog(option).then(fileUri => {
+    vscode.window.showSaveDialog(option).then(async (fileUri) => {
       if (fileUri) {
-        const UserFilePath:string = fileUri.fsPath;
-
-        const enviroPath = getEnviroPathFromID(testID);
-        const enclosingDirectory = path.dirname(enviroPath);
-
-        let commandToRun: string = 
-          `${clicastCommandToUse} ${getClicastArgsFromTestNode(testNode)} test coded new ${UserFilePath}`;
-        const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
-        updateTestPane(enviroPath);
-        if (commandStatus.errorCode == 0) {
-          vscode.window.showInformationMessage(`Coded Tests generated successfully`);
-        }
+        commonCodedTestProcessing(fileUri.fsPath, testID, codedTestAction.new);
       }
     });
   }
 }
-
-
 
 export async function openCodedTest(testNode: testNodeType) {
   // This can be called for any Coded Test or its children
@@ -930,54 +900,6 @@ export async function openCodedTest(testNode: testNodeType) {
 
   // just to be sure ...
   if (fs.existsSync(testNode.testFile)) {
-    openFileWithLineSelected (testNode.testFile, testNode.testStartLine-1);
+    openFileWithLineSelected(testNode.testFile, testNode.testStartLine - 1);
   }
 }
-
-
-function quote (name:string){
-  // if name contains <<COMPOUND>>, <<INIT>> or parenthesis
-  // we need to quote the name so that the shell does not interpret it.
-
-  if (
-    name.includes("<") ||
-    name.includes(">") ||
-    name.includes("(") ||
-    name.includes(")")
-  ) {
-    return '"' + name + '"';
-  }
-  else 
-    return name;
-}
-
-export function getClicastArgsFromTestNodeAsList(testNode: testNodeType):string[] {
-  // this function will create the enviro, unit, subprogram, and test
-  // arguments as a list, since spawn for example requires an arg list.
-
-  let returnList = [];
-  returnList.push(`-e${testNode.enviroName}`);
-  if (testNode.unitName.length > 0 && testNode.unitName != "not-used")
-    returnList.push (`-u${testNode.unitName}`);
-
-  // we need the quotes on the names to handle <<COMPOUND>>/<<INIT>>/parenthesis
-  if (testNode.functionName.length > 0)
-    returnList.push (`-s${quote (testNode.functionName)}`);
-  if (testNode.testName.length > 0)  {
-    const nameToUse = testNode.testName.replace (compoundOnlyString,"");
-    returnList.push (`-t${quote(nameToUse)}`);
-  }
-
-  return returnList;
-}
-
-
-export function getClicastArgsFromTestNode(testNode: testNodeType) {
-  // this function will create the enviro, unit, subprogram,
-  // and test arg string for clicast calls that need a arg string
-
-  const argList = getClicastArgsFromTestNodeAsList (testNode);
-  return argList.join (" ");
-}
-
-

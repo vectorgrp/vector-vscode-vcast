@@ -1,7 +1,7 @@
 // this file contains the language server client logic for test script editing
 
 import * as path from "path";
-import { workspace, ExtensionContext } from "vscode";
+import { ExtensionContext } from "vscode";
 
 import {
   LanguageClient,
@@ -9,8 +9,10 @@ import {
   ServerOptions,
   TransportKind,
 } from "vscode-languageclient";
+
 import { vectorMessage } from "./messagePane";
-import { vPythonCommandToUse } from "./utilities";
+
+import { vPythonCommandToUse } from "./vcastInstallation";
 
 let client: LanguageClient;
 
@@ -50,10 +52,6 @@ export function activateLanguageServerClient(context: ExtensionContext) {
       { scheme: 'file', language: 'cpp' },
       { scheme: 'file', language: 'cuda-cpp' }
     ],
-    synchronize: {
-      // Notify the server about file changes to '.clientrc files contained in the workspace
-      fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
-    },
   };
 
   // Create the language client and start the client.

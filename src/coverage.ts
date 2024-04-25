@@ -9,21 +9,19 @@ import {
   getListOfFilesWithCoverage,
 } from "./vcastTestInterface";
 
-import {
-  getRangeOption,
-} from "./utilities";
+import { getRangeOption } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 
 // these are defined as globals so that the deactivate function has access
 // to dispose of them when the coverage id turned off
-var uncoveredDecorationType: TextEditorDecorationType;
-var coveredDecorationType: TextEditorDecorationType;
+let uncoveredDecorationType: TextEditorDecorationType;
+let coveredDecorationType: TextEditorDecorationType;
 
 // these are really constants, but I set the values via a function
 // so that we could support the user controlling options for the decorations
-var uncoveredRenderOptions: DecorationRenderOptions;
-var coveredRenderOptions: DecorationRenderOptions;
+let uncoveredRenderOptions: DecorationRenderOptions;
+let coveredRenderOptions: DecorationRenderOptions;
 
 export function initializeCodeCoverageFeatures(
   context: vscode.ExtensionContext
@@ -59,7 +57,7 @@ function addDecorations(
   uncovered: number[]
 ) {
   const lineCount = activeEditor.document.lineCount;
-  var lineIndex;
+  let lineIndex;
   // these are lists of line numbers
 
   for (lineIndex = 0; lineIndex < lineCount; lineIndex++) {

@@ -1342,15 +1342,19 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/VectorCAST: Add Launch Configuration")).click();
 
     console.log("Validating that debug launch configuration got generated");
-    const debugConfigTab = (await editorView.openEditor(
+    let debugConfigTab = (await editorView.openEditor(
       "launch.json",
     )) as TextEditor;
-
+    
     await browser.waitUntil(
       async () => (await debugConfigTab.getText()) !== "",
       { timeout: TIMEOUT },
     );
-
+    await debugConfigTab.moveCursor(1,2)
+    await browser.keys(Key.Enter)
+    await debugConfigTab.setTextAtLine(2, " // This is a comment")
+    await debugConfigTab.save()
+    
     const allTextFromDebugConfig = await debugConfigTab.getText();
     expect(allTextFromDebugConfig.includes("configurations")).toBe(true);
     expect(allTextFromDebugConfig.includes("VectorCAST Harness Debug"));
@@ -1406,7 +1410,13 @@ describe("vTypeCheck VS Code Extension", () => {
     const activeTabTitle = await activeTab.getTitle();
     console.log(activeTabTitle);
     expect(activeTabTitle).toBe("manager_inst.cpp");
-
+    
+    // checking that the debug config file still has the comment we added
+    debugConfigTab = (await editorView.openEditor(
+      "launch.json",
+    )) as TextEditor;
+    const commentLine = await debugConfigTab.getTextAtLine(2)
+    expect(commentLine).toBe("// This is a comment")
     console.log("Finished creating debug configuration");
   });
 
