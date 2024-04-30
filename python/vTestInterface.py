@@ -303,25 +303,23 @@ def getCoverageData(sourceObject):
     coveredString = ""
     uncoveredString = ""
     checksum = 0
-    if sourceObject:
+    if sourceObject and sourceObject.is_instrumented:
         checksum = sourceObject.checksum
-        if sourceObject.has_cover_data:
-            # if iterate_coverage crashes if the original
-            # file path does not exist.
-            if os.path.exists(sourceObject.path):
-                for line in sourceObject.iterate_coverage():
-                    metrics = line.metrics
-                    if (
-                        metrics.max_covered_statements == 1
-                        or metrics.annotations_statements == 1
-                    ):
-                        coveredString += str(line.line_number) + ","
-                    elif metrics.max_uncovered_statements == 1:
-                        uncoveredString += str(line.line_number) + ","
+        # iterate_coverage crashes if the file path doesn't exist
+        if os.path.exists(sourceObject.path):
+            for line in sourceObject.iterate_coverage():
+                metrics = line.metrics
+                if (
+                    metrics.max_covered_statements == 1
+                    or metrics.annotations_statements == 1
+                ):
+                    coveredString += str(line.line_number) + ","
+                elif metrics.max_uncovered_statements == 1:
+                    uncoveredString += str(line.line_number) + ","
 
-                # print, but drop the last colon
-                coveredString = coveredString[:-1]
-                uncoveredString = uncoveredString[:-1]
+            # print, but drop the last colon
+            coveredString = coveredString[:-1]
+            uncoveredString = uncoveredString[:-1]
 
     return coveredString, uncoveredString, checksum
 
