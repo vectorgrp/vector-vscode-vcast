@@ -309,12 +309,9 @@ def getCoverageData(sourceObject):
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
                 metrics = line.metrics
-                if (
-                    metrics.max_covered_statements == 1
-                    or metrics.annotations_statements == 1
-                ):
+                if metrics.has_any_coverage():
                     coveredString += str(line.line_number) + ","
-                elif metrics.max_uncovered_statements == 1:
+                elif metrics.statements > 0:
                     uncoveredString += str(line.line_number) + ","
 
             # print, but drop the last colon
