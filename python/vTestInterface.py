@@ -27,6 +27,8 @@ import clicastInterface
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
+from vector.enums import COVERAGE_TYPE_TYPE_T
+from vector.apps.DataAPI.configuration import get_coverage_type_text
 
 vpythonHasCodedTestSupport: bool = False
 try:
@@ -295,6 +297,35 @@ def getFunctionData(sourceObject):
     return functionList
 
 
+# For the purposes of the extension we only care about statement
+# or branch coverage, so we handle all the possible coverage types
+# here and boil them down to an enum of none, statement, branch
+class CoverageKind:
+    other = 0
+    statement = 1
+    branch = 2
+    mcdc = 3
+
+
+def getCoverageKind(sourceObject):
+    """
+    This function will return:
+    statement: for statement, statement+branch, statement+mcdc, etc.
+    branch: for branch
+    mcdc: for mcdc
+    none: for everything else.
+    """
+    coverageTypeAsText = get_coverage_type_text(sourceObject.coverage_type)
+    if coverageTypeAsText.startswith("Statement"):
+        return CoverageKind.statement
+    elif coverageTypeAsText == "Branch":
+        return CoverageKind.branch
+    elif coverageTypeAsText == "MC/DC":
+        return CoverageKind.mcdc
+    else:
+        return CoverageKind.Ignore
+
+
 def getCoverageData(sourceObject):
     """
     This function will use the data interface to
@@ -305,14 +336,38 @@ def getCoverageData(sourceObject):
     checksum = 0
     if sourceObject and sourceObject.is_instrumented:
         checksum = sourceObject.checksum
+        coverageKind = getCoverageKind(sourceObject)
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
                 metrics = line.metrics
-                if metrics.has_any_coverage():
-                    coveredString += str(line.line_number) + ","
-                elif metrics.statements > 0:
-                    uncoveredString += str(line.line_number) + ","
+                if coverageKind == CoverageKind.statement:
+                    if (
+                        metrics.covered_statements > 0
+                        or metrics.annotations_statements > 0
+                    ):
+                        coveredString += str(line.line_number) + ","
+                    elif metrics.statements > 0:
+                        uncoveredString += str(line.line_number) + ","
+                elif coverageKind == CoverageKind.branch:
+                    if (
+                        metrics.branches > 0
+                        and metrics.covered_branches + metrics.annotations_branches
+                        == metrics.branches
+                    ):
+                        coveredString += str(line.line_number) + ","
+                    elif metrics.uncovered_branches > 0:
+                        uncoveredString += str(line.line_number) + ","
+                elif coverageKind == CoverageKind.mcdc:
+                    if (
+                        metrics.mcdc_branches > 0
+                        and metrics.covered_mcdc_branches
+                        + metrics.annotations_mcdc_branches
+                        == metrics.mcdc_branches
+                    ):
+                        coveredString += str(line.line_number) + ","
+                    elif metrics.uncovered_mcdc_branches > 0:
+                        uncoveredString += str(line.line_number) + ","
 
             # print, but drop the last colon
             coveredString = coveredString[:-1]
