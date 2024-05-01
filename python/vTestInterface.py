@@ -26,8 +26,9 @@ This script must be run under vpython
 import clicastInterface
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
-from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
+from vector.enums import COVERAGE_TYPE_TYPE_T
+from vector.apps.DataAPI.configuration import get_coverage_type_text
 
 vpythonHasCodedTestSupport: bool = False
 try:
@@ -252,34 +253,6 @@ def getTestDataVCAST(enviroPath):
     return testList
 
 
-def printCoverageListing(enviroPath):
-    """
-    This is used for testing only ...
-    It will print out the coverage for each file in the environment.
-
-    The caller will ensure that the source file is part of the environment
-    The covered_char is used as follows:
-        " " UNCOVERED
-        "*" COVERED
-        "A" ANNOTATED
-        "P" PARTIAL
-        "a" ANNOTATED_PARTIAL
-        "X" NOT_APPLICABLE
-    """
-    splitter = "-" * 80
-    line_num_width = 6
-
-    capi = CoverApi(enviroPath)
-
-    sourceObjects = capi.SourceFile.all()
-    for sourceObject in sourceObjects:
-        sys.stdout.write("=" * 100 + "\n")
-        for line in sourceObject.iterate_coverage():
-            sys.stdout.write(str(line.line_number).ljust(line_num_width))
-            sys.stdout.write(line._cov_line.covered_char() + " | " + line.text + "\n")
-    capi.close()
-
-
 def getUnitData(enviroPath):
     """
     This function will return info about the units in an environment
@@ -287,27 +260,25 @@ def getUnitData(enviroPath):
     unitList = list()
     try:
         # this can throw an error of the coverDB is too old!
-        capi = CoverApi(enviroPath)
+        api = UnitTestApi(enviroPath)
     except Exception as err:
         print(err)
         raise UsageError()
 
-    # For testing/debugging
-    # printCoverageListing (enviroPath)
-
-    sourceObjects = capi.SourceFile.all()
+    sourceObjects = api.SourceFile.all()
     for sourceObject in sourceObjects:
-        sourcePath = sourceObject.display_path
-        covered, uncovered, checksum = getCoverageData(sourceObject)
-        unitInfo = dict()
-        unitInfo["path"] = sourcePath
-        unitInfo["functionList"] = getFunctionData(sourceObject)
-        unitInfo["cmcChecksum"] = checksum
-        unitInfo["covered"] = covered
-        unitInfo["uncovered"] = uncovered
-        unitList.append(unitInfo)
+        if sourceObject.is_instrumented:
+            sourcePath = sourceObject.display_path
+            covered, uncovered, checksum = getCoverageData(sourceObject)
+            unitInfo = dict()
+            unitInfo["path"] = sourcePath
+            unitInfo["functionList"] = getFunctionData(sourceObject)
+            unitInfo["cmcChecksum"] = checksum
+            unitInfo["covered"] = covered
+            unitInfo["uncovered"] = uncovered
+            unitList.append(unitInfo)
 
-    capi.close()
+    api.close()
     return unitList
 
 
@@ -326,6 +297,35 @@ def getFunctionData(sourceObject):
     return functionList
 
 
+# For the purposes of the extension we only care about statement
+# or branch coverage, so we handle all the possible coverage types
+# here and boil them down to an enum of none, statement, branch
+class CoverageKind:
+    other = 0
+    statement = 1
+    branch = 2
+    mcdc = 3
+
+
+def getCoverageKind(sourceObject):
+    """
+    This function will return:
+    statement: for statement, statement+branch, statement+mcdc, etc.
+    branch: for branch
+    mcdc: for mcdc
+    none: for everything else.
+    """
+    coverageTypeAsText = get_coverage_type_text(sourceObject.coverage_type)
+    if coverageTypeAsText.startswith("Statement"):
+        return CoverageKind.statement
+    elif coverageTypeAsText == "Branch":
+        return CoverageKind.branch
+    elif coverageTypeAsText == "MC/DC":
+        return CoverageKind.mcdc
+    else:
+        return CoverageKind.Ignore
+
+
 def getCoverageData(sourceObject):
     """
     This function will use the data interface to
@@ -334,23 +334,44 @@ def getCoverageData(sourceObject):
     coveredString = ""
     uncoveredString = ""
     checksum = 0
-    if sourceObject:
+    if sourceObject and sourceObject.is_instrumented:
         checksum = sourceObject.checksum
-        if sourceObject.has_cover_data:
-            # if iterate_coverage crashes if the original
-            # file path does not exist.
-            if os.path.exists(sourceObject.path):
-                for line in sourceObject.iterate_coverage():
-                    covLine = line._cov_line
-                    covChar = covLine.covered_char()
-                    if covChar in ["*", "A"]:
+        coverageKind = getCoverageKind(sourceObject)
+        # iterate_coverage crashes if the file path doesn't exist
+        if os.path.exists(sourceObject.path):
+            for line in sourceObject.iterate_coverage():
+                metrics = line.metrics
+                if coverageKind == CoverageKind.statement:
+                    if (
+                        metrics.covered_statements > 0
+                        or metrics.annotations_statements > 0
+                    ):
                         coveredString += str(line.line_number) + ","
-                    elif covChar in [" ", "P", "a"]:
+                    elif metrics.statements > 0:
+                        uncoveredString += str(line.line_number) + ","
+                elif coverageKind == CoverageKind.branch:
+                    if (
+                        metrics.branches > 0
+                        and metrics.covered_branches + metrics.annotations_branches
+                        == metrics.branches
+                    ):
+                        coveredString += str(line.line_number) + ","
+                    elif metrics.uncovered_branches > 0:
+                        uncoveredString += str(line.line_number) + ","
+                elif coverageKind == CoverageKind.mcdc:
+                    if (
+                        metrics.mcdc_branches > 0
+                        and metrics.covered_mcdc_branches
+                        + metrics.annotations_mcdc_branches
+                        == metrics.mcdc_branches
+                    ):
+                        coveredString += str(line.line_number) + ","
+                    elif metrics.uncovered_mcdc_branches > 0:
                         uncoveredString += str(line.line_number) + ","
 
-                # print, but drop the last colon
-                coveredString = coveredString[:-1]
-                uncoveredString = uncoveredString[:-1]
+            # print, but drop the last colon
+            coveredString = coveredString[:-1]
+            uncoveredString = uncoveredString[:-1]
 
     return coveredString, uncoveredString, checksum
 
@@ -406,7 +427,7 @@ def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("report")
-        commandOutput = clicastInterface.generateExecutionReport (testIDObject)
+        commandOutput = clicastInterface.generateExecutionReport(testIDObject)
 
         returnText = f"REPORT:{testIDObject.reportName}.txt\n"
         returnText += commandOutput
