@@ -19,7 +19,7 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/SandBox/VectorCAST",
+      "cwd": "C:/RDS/VectorCAST/FOO",
       "env": {
         "PYTHONPATH": "C:/vcast/vc22sp7/python",
         "VECTORCAST_DIR": "c:/VCAST/vc21sp5"
@@ -27,7 +27,7 @@
       "args": [
         "--mode=getEnviroData",
         "--clicast=C:/vcast/vc23sp2/clicast.exe",
-        "--path=c:/RDS/SandBox/VectorCAST/examples/unitTests/FOO"
+        "--path=c:/RDS/VectorCAST/FOO/unitTests/FOO"
       ],
       "console": "integratedTerminal"
     },
