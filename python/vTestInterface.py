@@ -137,7 +137,7 @@ def getPassFailString(test):
     return XofYString(numerator, denominator)
 
 
-def generateTestInfo(test):
+def generateTestInfo(enviroPath, test):
     """
     This function takes a test object from the dataAPI
     and creates a dictionary with the attributes we need
@@ -156,8 +156,10 @@ def generateTestInfo(test):
     if vpythonHasCodedTestSupport and test.coded_tests_file:
         # guard against the case where the coded test file has been renamed or deleted
         # or dataAPI has a bad line nuumber for the test, and return None in this case.
-        if os.path.exists(test.coded_tests_file) and test.coded_tests_line > 0:
-            testInfo["codedTestFile"] = test.coded_tests_file
+        enclosingDirectory = os.path.dirname (enviroPath)
+        codedTestFilePath = os.path.abspath (os.path.join(enclosingDirectory, test.coded_tests_file))
+        if os.path.exists(codedTestFilePath) and test.coded_tests_line > 0:
+            testInfo["codedTestFile"] = codedTestFilePath
             testInfo["codedTestLine"] = test.coded_tests_line
         else:
             testInfo = None
@@ -197,7 +199,7 @@ def getTestDataVCAST(enviroPath):
     compoundNode["name"] = "Compound Tests"
     compoundNode["tests"] = list()
     for test in compoundList:
-        testInfo = generateTestInfo(test)
+        testInfo = generateTestInfo(enviroPath, test)
         compoundNode["tests"].append(testInfo)
     testList.append(compoundNode)
 
@@ -207,7 +209,7 @@ def getTestDataVCAST(enviroPath):
     initNode["name"] = "Initialization Tests"
     initNode["tests"] = list()
     for test in initList:
-        testInfo = generateTestInfo(test)
+        testInfo = generateTestInfo(enviroPath, test)
         initNode["tests"].append(testInfo)
     testList.append(initNode)
 
@@ -240,7 +242,7 @@ def getTestDataVCAST(enviroPath):
                         else:
                             # A coded test file might have been renamed or deleted,
                             # in which case generateTestInfo() will return None
-                            testInfo = generateTestInfo(test)
+                            testInfo = generateTestInfo(enviroPath, test)
                             if testInfo:
                                 functionNode["tests"].append(testInfo)
 
