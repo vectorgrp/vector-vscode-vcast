@@ -1,11 +1,15 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
+import path from "node:path";
+import process from "node:process";
 import { describe, expect, test } from "vitest";
 import { TextDocument, TextDocuments } from "vscode-languageserver";
-import { getCompletionPositionForLine, generateCompletionData } from "./utils";
 import URI from "vscode-uri";
+import {
+  getCompletionPositionForLine,
+  generateCompletionData,
+  storeNewDocument,
+} from "./utils";
 
-const timeout = 30000; // 30 seconds
-const path = require("path");
+const timeout = 30_000; // 30 seconds
 
 const initialTst = `
 -- Environment: TEST
@@ -22,7 +26,7 @@ const unitTst = `
 TEST.UNIT:
 TEST.SUBPROGRAM:
 `;
-const reqTst = `
+const requestTst = `
 -- Environment: TEST
 TEST.UNIT:
 TEST.SUBPROGRAM:
@@ -50,7 +54,7 @@ TEST.SLOT:
 TEST.END
 `;
 
-const normalCRTst = `
+const normalCarriageReturnTst = `
 -- Environment: TEST
 TEST.UNIT:unit
 TEST.SUBPROGRAM:bar
@@ -79,7 +83,7 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-const valTst = `
+const valueTst = `
 TEST.NEW
 TEST.NAME:valueHover
 TEST.VALUE:unit.
@@ -111,7 +115,7 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-const fieldValTst = `
+const fieldValueTst = `
 TEST.NEW
 TEST.NAME:fieldValTest
 TEST.VALUE:unit.<<GLOBAL>>.r:
@@ -119,7 +123,7 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-const globalValTst = `
+const globalValueTst = `
 TEST.NEW
 TEST.NAME:fieldValTest
 TEST.VALUE:unit.<<GLOBAL>>.
@@ -153,7 +157,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -194,7 +198,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -229,13 +233,13 @@ describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.REQUIREMENT_KEY:",
     async () => {
-      const tstText = reqTst;
+      const tstText = requestTst;
       const lineToComplete = "TEST.REQUIREMENT_KEY:";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -340,7 +344,6 @@ describe("Text Completion", () => {
           detail: "",
           data: 15,
         },
-
       ]);
     },
     timeout
@@ -349,14 +352,14 @@ describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.SCRIPT_FEATURE:",
     async () => {
-      // this test would fail if the vector cast release used has a different set of features
+      // This test would fail if the vector cast release used has a different set of features
       const tstText = scriptFeatureTst;
       const lineToComplete = "TEST.SCRIPT_FEATURE:";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -487,7 +490,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -517,7 +520,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -668,7 +671,7 @@ describe("Text Completion", () => {
           kind: 14,
           detail: "",
           data: 23,
-        }
+        },
       ]);
     },
     timeout
@@ -677,13 +680,13 @@ describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.VALUE:unit.",
     async () => {
-      const tstText = [initialTst, valTst].join("\n");
+      const tstText = [initialTst, valueTst].join("\n");
       const lineToComplete = "TEST.VALUE:unit.";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -717,7 +720,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -745,13 +748,13 @@ describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.VALUE:unit.<<GLOBAL>>.r: field value",
     async () => {
-      const tstText = [initialTst, fieldValTst].join("\n");
+      const tstText = [initialTst, fieldValueTst].join("\n");
       const lineToComplete = "TEST.VALUE:unit.<<GLOBAL>>.r:";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -785,13 +788,13 @@ describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.VALUE:unit.<<GLOBAL>>. field value",
     async () => {
-      const tstText = [initialTst, globalValTst].join("\n");
+      const tstText = [initialTst, globalValueTst].join("\n");
       const lineToComplete = "TEST.VALUE:unit.<<GLOBAL>>.";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -831,7 +834,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -859,7 +862,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      // edge case
+      // Edge case
       completionPosition.line += 1;
       completionPosition.character = 1;
       const triggerCharacter = "\n";
@@ -909,7 +912,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -957,7 +960,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -985,7 +988,7 @@ describe("Text Completion", () => {
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -1005,24 +1008,26 @@ describe("Text Completion", () => {
       const tstText = invalidEnviroTst;
       const languageId = "VectorCAST Test Script";
       const testEnvPath = path.join(
-        process.env["PACKAGE_PATH"],
+        process.env.PACKAGE_PATH as string,
         "tests",
         "unit",
         "fake_vcast"
       );
-      const tst_filepath = path.join(testEnvPath, process.env["TST_FILENAME"]);
-      const uri = URI.file(tst_filepath).toString();
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
+      const uri = URI.file(tstFilepath).toString();
 
-      const textDoc = TextDocument.create(uri, languageId, 1, tstText);
+      const textDocument = TextDocument.create(uri, languageId, 1, tstText);
       const documents = new TextDocuments();
-      documents["_documents"][uri] = textDoc;
-
+      storeNewDocument(documents, uri, textDocument);
       const lineToComplete = "TEST.SUBPROGRAM:";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
         tstText
       );
-      const triggerCharacter = lineToComplete.charAt(lineToComplete.length - 1);
+      const triggerCharacter = lineToComplete.at(-1);
 
       const generatedCompletionData = generateCompletionData(
         tstText,
@@ -1142,21 +1147,23 @@ describe("Text Completion", () => {
   test(
     "validate tst completion for standard test on CR (new line)",
     async () => {
-      const tstText = normalCRTst;
+      const tstText = normalCarriageReturnTst;
       const languageId = "VectorCAST Test Script";
       const testEnvPath = path.join(
-        process.env["PACKAGE_PATH"],
+        process.env.PACKAGE_PATH as string,
         "tests",
         "unit",
         "vcast"
       );
-      const tst_filepath = path.join(testEnvPath, process.env["TST_FILENAME"]);
-      const uri = URI.file(tst_filepath).toString();
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
+      const uri = URI.file(tstFilepath).toString();
 
-      const textDoc = TextDocument.create(uri, languageId, 1, tstText);
+      const textDocument = TextDocument.create(uri, languageId, 1, tstText);
       const documents = new TextDocuments();
-      documents["_documents"][uri] = textDoc;
-
+      storeNewDocument(documents, uri, textDocument);
       const lineToComplete = "TEST.NAME:normal";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,

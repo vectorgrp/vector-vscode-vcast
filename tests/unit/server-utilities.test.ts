@@ -1,12 +1,12 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
+import path from "node:path";
+import process from "node:process";
+import { describe, expect, test } from "vitest";
 import {
   getPieceAtColumn,
   getEnviroNameFromTestScript,
 } from "../../server/serverUtilities";
-import { describe, expect, test } from "vitest";
-const timeout = 30000; // 30 seconds
 
-const path = require("path");
+const timeout = 30_000; // 30 seconds
 
 describe("Validating serverUtilities on edgecases not validated by tstCompletion, tstHover and tstValidation tests", () => {
   test(
@@ -22,12 +22,15 @@ describe("Validating serverUtilities on edgecases not validated by tstCompletion
     "validate response for invalid environment name",
     async () => {
       const testEnvPath = path.join(
-        process.env["PACKAGE_PATH"],
+        process.env.PACKAGE_PATH as string,
         "tests",
         "unit",
         "invalid_vcast"
       );
-      const tstFilepath = path.join(testEnvPath, process.env["TST_FILENAME"]);
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
       const generatedEnviroName = getEnviroNameFromTestScript(tstFilepath);
       expect(generatedEnviroName).toBe(undefined);
     },

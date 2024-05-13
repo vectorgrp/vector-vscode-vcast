@@ -34,7 +34,11 @@ function initializeScriptPath() {
   }
 }
 
-export function runPythonScript(enviroName: string, action:string, payload: string): any {
+export function runPythonScript(
+  enviroName: string,
+  action: string,
+  payload: string
+): any {
   // this is currently not used as the actual server mode is unused
   if (testEditorScriptPath == undefined) {
     initializeScriptPath();
@@ -61,7 +65,8 @@ export function runPythonScript(enviroName: string, action:string, payload: stri
 
 export function getChoiceDataFromPython(
   enviroName: string,
-  lineSoFar: string): any {
+  lineSoFar: string
+): any {
   const jsonData = runPythonScript(enviroName, "choiceList", lineSoFar);
   for (const msg of jsonData.messages) {
     console.log(msg);
@@ -69,14 +74,16 @@ export function getChoiceDataFromPython(
   return jsonData;
 }
 
-
-export function getHoverStringForRequirement (
+export function getHoverStringForRequirement(
   enviroName: string,
-  requirementKey: string): any {
-
-
-  let returnValue:string = "";
-  const jsonData = runPythonScript(enviroName, "choiceList", "TEST.REQUIREMENT_KEY:");
+  requirementKey: string
+): any {
+  let returnValue: string = "";
+  const jsonData = runPythonScript(
+    enviroName,
+    "choiceList",
+    "TEST.REQUIREMENT_KEY:"
+  );
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
@@ -85,12 +92,11 @@ export function getHoverStringForRequirement (
       // raw data looks like:  <key> ||| <title> ||| <description>
       const pieces = line.split("|||");
       // title often has double quotes in our examples so strip those too
-      const title = pieces[1].trim().replace(/['"]+/g, '');
+      const title = pieces[1].trim().replace(/['"]+/g, "");
       const description = pieces[2].trim();
       returnValue = `${title} \n\n ${description}`;
       break;
     }
   }
   return returnValue;
-
 }

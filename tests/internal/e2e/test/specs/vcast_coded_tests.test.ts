@@ -454,7 +454,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running debug prep");
     await testHandle.select();
 
-    const debugButton = await testHandle.getActionButton("Debug Test")
+    let debugButton = await testHandle.getActionButton("Debug Test")
     console.log("Showing generated debug configuration")
     await debugButton.elem.click()
 
@@ -463,6 +463,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(await outputView.getText())
     
     console.log("Showing non-instrumented file")
+    debugButton = await testHandle.getActionButton("Debug Test")
     await debugButton.elem.click()
     await browser.waitUntil(
       async () =>

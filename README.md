@@ -235,15 +235,24 @@ This extension contributes the following settings:
 
 ## Extension Settings
 
-This extension contributes the following settings:
+This extension contributes the following general settings:
 
 - "VectorCAST Installation Location" provides the path to the VectorCAST installation
 - "Unit Test Location" controls where the extension stores unit test new unit test artifacts.
 - "Configuration Location" control where the extension looks for the VectorCAST CCAST_.CFG file
-- "Enable Coded Tests" enables coded testing when new environments are built
 - "Show Report on Execute" will show the HTML test report in after each VectorCAST test run.
 - "Decorate Explorer Tree" will add a VC in the right margin of the file explorer tree for those files that have VectorCAST coverage.
 - "Verbose Logging" will add more detailed messages to the VectorCAST Test Explorer message panel
+
+And the following build settings
+
+If you change a build setting, and rebuild an existing environment, the new build settings will be used
+to update that environment.  For example, if you change the coverage kind to "Statement+Branch" 
+that coverage kind will be active after the re-build action.
+
+- "Enable Coded Tests" enables coded testing when new environments are built or re-built
+- "Coverage Kind" sets the coverage kind for when environments are are built or re-built
+
 
 ## Known Issues
 

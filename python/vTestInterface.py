@@ -23,9 +23,20 @@ This script must be run under vpython
 ///////////////////////////////////////////////////////////////////////////////////////////
 """
 
+import clicastInterface
+
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
-from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
+from vector.enums import COVERAGE_TYPE_TYPE_T
+from vector.apps.DataAPI.configuration import get_coverage_type_text
+
+vpythonHasCodedTestSupport: bool = False
+try:
+    from vector.lib.coded_tests import Parser
+
+    vpythonHasCodedTestSupport = True
+except:
+    pass
 
 
 class InvalidEnviro(Exception):
@@ -36,6 +47,16 @@ class UsageError(Exception):
     pass
 
 
+modeChoices = [
+    "getEnviroData",
+    "executeTest",
+    "executeTestReport",
+    "report",
+    "parseCBT",
+    "rebuild",
+]
+
+
 def setupArgs():
     """
     Add Command Line Args
@@ -43,7 +64,6 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
 
-    modeChoices = ["getEnviroData", "getCoverageData", "executeTest", "results"]
     parser.add_argument(
         "--mode",
         choices=modeChoices,
@@ -68,6 +88,10 @@ def setupArgs():
     )
 
     parser.add_argument("--test", help="Test ID")
+
+    parser.add_argument(
+        "--options", help="Serialized JSON object containing other option values"
+    )
 
     return parser
 
@@ -136,6 +160,16 @@ def generateTestInfo(test):
     testInfo["status"] = textStatus(test.status)
     testInfo["passfail"] = getPassFailString(test)
 
+    # New to support coded tests in vc24
+    if vpythonHasCodedTestSupport and test.coded_tests_file:
+        # guard against the case where the coded test file has been renamed or deleted
+        # or dataAPI has a bad line nuumber for the test, and return None in this case.
+        if os.path.exists(test.coded_tests_file) and test.coded_tests_line > 0:
+            testInfo["codedTestFile"] = test.coded_tests_file
+            testInfo["codedTestLine"] = test.coded_tests_line
+        else:
+            testInfo = None
+
     return testInfo
 
 
@@ -143,7 +177,8 @@ def generateTestInfo(test):
 # in getTestDataVCAST(), and we use it to set the isTestable field when
 # walk the coverage data in the getUnitData() function which has no
 # knowledge of "testabilty"
-globalListOfTestableFunctions = [];
+globalListOfTestableFunctions = []
+
 
 def getTestDataVCAST(enviroPath):
 
@@ -155,6 +190,11 @@ def getTestDataVCAST(enviroPath):
     except Exception as err:
         print(err)
         raise InvalidEnviro()
+
+    # Not currently used.
+    # returns "None" if coverage is not initialized,
+    # does not change based on coverage enabled/disabled
+    coverageType = api.environment.coverage_type_text
 
     testList = list()
     sourceFiles = dict()
@@ -193,11 +233,14 @@ def getTestDataVCAST(enviroPath):
             for function in unit.functions:
                 functionNode = dict()
                 # Seems like a vcast dataAPI bug with manager.cpp
-                if function.vcast_name != "<<INIT>>" and not function.is_non_testable_stub:
+                if (
+                    function.vcast_name != "<<INIT>>"
+                    and not function.is_non_testable_stub
+                ):
                     # Note: the vcast_name has the parameterization only when there is an overload
                     functionNode["name"] = function.vcast_name
                     functionNode["parameterizedName"] = function.long_name
-                    globalListOfTestableFunctions.append (function.long_name)
+                    globalListOfTestableFunctions.append(function.long_name)
                     functionNode["tests"] = list()
                     for test in function.testcases:
                         if test.is_csv_map:
@@ -211,54 +254,25 @@ def getTestDataVCAST(enviroPath):
             if len(unitNode["functions"]) > 0:
                 testList.append(unitNode)
 
+    api.close()
     return testList
 
 
-def printCoverageListing(enviroPath):
-    """
-    This is used for testing only ...
-    It will print out the coverage for each file in the environment.
-
-    The caller will ensure that the source file is part of the environment
-    The covered_char is used as follows:
-        " " UNCOVERED
-        "*" COVERED
-        "A" ANNOTATED
-        "P" PARTIAL
-        "a" ANNOTATED_PARTIAL
-        "X" NOT_APPLICABLE
-    """
-    splitter = "-" * 80
-    line_num_width = 6
-
-    capi = CoverApi(enviroPath)
-
-    sourceObjects = capi.SourceFile.all()
-    for sourceObject in sourceObjects:
-        sys.stdout.write("=" * 100 + "\n")
-        for line in sourceObject.iterate_coverage():
-            sys.stdout.write(str(line.line_number).ljust(line_num_width))
-            sys.stdout.write(line._cov_line.covered_char() + " | " + line.text + "\n")
-
-
-def getUnitData(enviroPath, kind):
+def getUnitData(enviroPath):
     """
     This function will return info about the units in an environment
     """
     unitList = list()
-    if kind == "vcast":
-        try:
-            # this can throw an error of the coverDB is too old!
-            capi = CoverApi(enviroPath)
-        except Exception as err:
-            print(err)
-            raise UsageError()
+    try:
+        # this can throw an error of the coverDB is too old!
+        api = UnitTestApi(enviroPath)
+    except Exception as err:
+        print(err)
+        raise UsageError()
 
-        # For testing/debugging
-        # printCoverageListing (enviroPath)
-
-        sourceObjects = capi.SourceFile.all()
-        for sourceObject in sourceObjects:
+    sourceObjects = api.SourceFile.all()
+    for sourceObject in sourceObjects:
+        if sourceObject.is_instrumented:
             sourcePath = sourceObject.display_path
             covered, uncovered, checksum = getCoverageData(sourceObject)
             unitInfo = dict()
@@ -269,6 +283,7 @@ def getUnitData(enviroPath, kind):
             unitInfo["uncovered"] = uncovered
             unitList.append(unitInfo)
 
+    api.close()
     return unitList
 
 
@@ -287,6 +302,35 @@ def getFunctionData(sourceObject):
     return functionList
 
 
+# For the purposes of the extension we only care about statement
+# or branch coverage, so we handle all the possible coverage types
+# here and boil them down to an enum of none, statement, branch
+class CoverageKind:
+    other = 0
+    statement = 1
+    branch = 2
+    mcdc = 3
+
+
+def getCoverageKind(sourceObject):
+    """
+    This function will return:
+    statement: for statement, statement+branch, statement+mcdc, etc.
+    branch: for branch
+    mcdc: for mcdc
+    none: for everything else.
+    """
+    coverageTypeAsText = get_coverage_type_text(sourceObject.coverage_type)
+    if coverageTypeAsText.startswith("Statement"):
+        return CoverageKind.statement
+    elif coverageTypeAsText == "Branch":
+        return CoverageKind.branch
+    elif coverageTypeAsText == "MC/DC":
+        return CoverageKind.mcdc
+    else:
+        return CoverageKind.Ignore
+
+
 def getCoverageData(sourceObject):
     """
     This function will use the data interface to
@@ -295,116 +339,72 @@ def getCoverageData(sourceObject):
     coveredString = ""
     uncoveredString = ""
     checksum = 0
-    if sourceObject:
+    if sourceObject and sourceObject.is_instrumented:
         checksum = sourceObject.checksum
-        if sourceObject.has_cover_data:
-            # if iterate_coverage crashes if the original
-            # file path does not exist.
-            if os.path.exists(sourceObject.path):
-                for line in sourceObject.iterate_coverage():
-                    covLine = line._cov_line
-                    covChar = covLine.covered_char()
-                    if covChar in ["*", "A"]:
+        coverageKind = getCoverageKind(sourceObject)
+        # iterate_coverage crashes if the file path doesn't exist
+        if os.path.exists(sourceObject.path):
+            for line in sourceObject.iterate_coverage():
+                metrics = line.metrics
+                if coverageKind == CoverageKind.statement:
+                    if (
+                        metrics.covered_statements > 0
+                        or metrics.annotations_statements > 0
+                    ):
                         coveredString += str(line.line_number) + ","
-                    elif covChar in [" ", "P", "a"]:
+                    elif metrics.statements > 0:
+                        uncoveredString += str(line.line_number) + ","
+                elif coverageKind == CoverageKind.branch:
+                    if (
+                        metrics.branches > 0
+                        and metrics.covered_branches + metrics.annotations_branches
+                        == metrics.branches
+                    ):
+                        coveredString += str(line.line_number) + ","
+                    elif metrics.uncovered_branches > 0:
+                        uncoveredString += str(line.line_number) + ","
+                elif coverageKind == CoverageKind.mcdc:
+                    if (
+                        metrics.mcdc_branches > 0
+                        and metrics.covered_mcdc_branches
+                        + metrics.annotations_mcdc_branches
+                        == metrics.mcdc_branches
+                    ):
+                        coveredString += str(line.line_number) + ","
+                    elif metrics.uncovered_mcdc_branches > 0:
                         uncoveredString += str(line.line_number) + ","
 
-                # print, but drop the last colon
-                coveredString = coveredString[:-1]
-                uncoveredString = uncoveredString[:-1]
+            # print, but drop the last colon
+            coveredString = coveredString[:-1]
+            uncoveredString = uncoveredString[:-1]
 
     return coveredString, uncoveredString, checksum
 
 
-commandFileName = "commands.cmd"
-
-globalClicastCommand = ""
-
-
-def runClicastScript(commandFileName):
-    """
-    The caller should create a correctly formatted clicast script
-    and then call this with the name of that script
-    """
-
-    # false at the end tells clicast to ignore errors in individual commands
-    commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
-    try:
-        rawOutput = subprocess.check_output(
-            commandToRun, stderr=subprocess.STDOUT, shell=True
-        )
-    except subprocess.CalledProcessError as error:
-        rawOutput = error.output
-
-    os.remove(commandFileName)
-    return rawOutput.decode("utf-8", errors="ignore")
-
-
-def getStandardArgsFromTestObject(testIDObject):
-    returnString = f"-e {testIDObject.enviroName}"
-    if testIDObject.unitName != "not-used":
-        returnString += f" -u{testIDObject.unitName}"
-    returnString += f" -s{testIDObject.functionName}"
-    returnString += f" -t{testIDObject.testName}"
-    return returnString
-
-
-def runTestCommand(testIDObject, commandList):
-    """
-    Commands is a list where the entries are the ascii strings
-    that tell the function what to do.  Valid command strings:
-        execute -> run test
-        results -> generate the test execution report
-
-    Multiple commands can be included in the commandsList
-
-    """
-
-    # We build a clicast command script to run the test and generate the execution report
-    with open(commandFileName, "w") as commandFile:
-        standardArgs = getStandardArgsFromTestObject(testIDObject)
-        if "execute" in commandList:
-            commandFile.write(standardArgs + " execute run\n")
-        if "results" in commandList:
-            commandFile.write(
-                standardArgs
-                + " report custom actual "
-                + testIDObject.reportName
-                + ".html\n"
-            )
-            commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT TEXT\n")
-            commandFile.write(
-                standardArgs
-                + " report custom actual "
-                + testIDObject.reportName
-                + ".txt\n"
-            )
-            commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
-
-    return runClicastScript(commandFileName)
-
-
-def executeVCtest(enviroPath, testIDObject):
+def executeVCtest(enviroPath, testIDObject, generateReport):
     with cd(os.path.dirname(enviroPath)):
-        commands = list()
-        commands.append("execute")
-        commands.append("results")
-        commandOutput = runTestCommand(testIDObject, commands)
+        returnText = ""
+
+        returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
+        if generateReport:
+            commandOutput += clicastInterface.generateExecutionReport(testIDObject)
 
         if "TEST RESULT: pass" in commandOutput:
-            print("STATUS:passed")
+            returnText += "STATUS:passed\n"
         else:
-            print("STATUS:failed")
-        print("REPORT:" + testIDObject.reportName + ".txt")
+            returnText += "STATUS:failed\n"
+        returnText += f"REPORT:{testIDObject.reportName}.txt\n"
 
         # Retrieve the expected value x/y and the
         api = UnitTestApi(enviroPath)
         testList = api.TestCase.filter(name=testIDObject.testName)
         if len(testList) > 0:
-            print("PASSFAIL:" + getPassFailString(testList[0]))
-            print("TIME:" + getTime(testList[0].start_time))
+            returnText += f"PASSFAIL:" + getPassFailString(testList[0])
+            returnText += f"TIME:{getTime(testList[0].start_time)}\n"
+        api.close()
 
-        print(commandOutput)
+        returnText += commandOutput
+        return returnCode, returnText
 
 
 def processVResults(filePath):
@@ -428,7 +428,18 @@ def processVResults(filePath):
         print(f"{filePath} not found")
 
 
-def executeCodeBasedTest(enviroPath, testID):
+def getResults(enviroPath, testIDObject):
+    with cd(os.path.dirname(enviroPath)):
+        commands = list()
+        commands.append("report")
+        commandOutput = clicastInterface.generateExecutionReport(testIDObject)
+
+        returnText = f"REPORT:{testIDObject.reportName}.txt\n"
+        returnText += commandOutput
+        return returnText
+
+
+def getCodeBasedTestNames(filePath):
     """
     testID looks like: EXAMPLE.CBT.mySuite.byPointer
     So we just need to split the mySuite.byPointer part
@@ -438,38 +449,19 @@ def executeCodeBasedTest(enviroPath, testID):
     with cd(enviroPath):
         nameOfDriver = os.path.basename(enviroPath).lower()
 
-        if shutil.which(nameOfDriver):
-            testString = testID.split("|")[1]
-            commandToRun = [nameOfDriver, testString]
-            try:
-                rawOutput = subprocess.check_output(
-                    commandToRun, stderr=subprocess.STDOUT, shell=True
-                )
-                print(rawOutput.decode("utf-8", errors="ignore"))
-            except subprocess.CalledProcessError as error:
-                rawOutput = error.output
-
-            print("TIME:" + getTime(datetime.now()))
-            reportName = os.path.join(enviroPath, testString) + ".vresults"
-            processVResults(reportName)
-            print("REPORT:" + reportName)
-        else:
-            print("FATAL")
-            print(f"The executable file: '{nameOfDriver}' does not exist")
-            print(
-                "Ensure that you've added: 'add_subdirectory(unitTests)' to the CMakeLists.txt file\n"
-                + "   that builds the file being tested, and that there are not any CMake errors reported."
-            )
-
-
-def getResults(enviroPath, testIDObject):
-    with cd(os.path.dirname(enviroPath)):
-        commands = list()
-        commands.append("results")
-        commandOutput = runTestCommand(testIDObject, commands)
-
-        print("REPORT:" + testIDObject.reportName + ".txt")
-        print(commandOutput)
+        cbtParser = Parser()
+        with open(filePath, "r") as cbtFile:
+            fileData = cbtParser.parse(filePath)
+            outputList = []
+            for test in fileData:
+                outputNode = {
+                    "testName": f"{test.test_suite}.{test.test_case}",
+                    "codedTestFile": filePath,
+                    "codedTestLine": test.line,
+                }
+                outputList.append(outputNode)
+            returnObject = {"tests": outputList}
+    return returnObject
 
 
 class testID:
@@ -487,14 +479,51 @@ class testID:
         self.reportName = os.path.join(enviroPath, hashString)
 
 
-def main():
-    global globalClicastCommand
+def validateClicastCommand(command, mode):
+    """
+    The --clicast arg is only required for a sub-set of modes, so we do
+    those checks here, and throw usage error if there is a probelem
+    """
+    if mode.startswith("executeTest") or mode == "rebuild":
+        if command is None or len(command) == 0:
+            print(f"Arg --clicast is required for mode: {mode}")
+            raise UsageError()
+        elif os.path.isfile(command) or (
+            sys.platform == "win32" and os.path.isfile(command + ".exe")
+        ):
+            pass
+        else:
+            print(f"Invalid value for --clicast: {command}")
+            raise UsageError()
+
+
+def processOptions(optionString):
+    """
+    This function will take the options string and return a dictionary
+    """
+    returnObject = None
+    if optionString and len(optionString) > 0:
+        try:
+            returnObject = {}
+            returnObject = json.loads(optionString)
+        except:
+            print("Invalid --options argument, value not JSON formatted")
+            raise UsageError()
+    return returnObject
+
+
+def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
+    """
+    This function does the actual work of processing a vTestInterface command,
+    it will return a dictionary with the results of the command
+    """
 
     argParser = setupArgs()
     args, restOfArgs = argParser.parse_known_args()
 
     # no need to pass this all around
-    globalClicastCommand = args.clicast
+    validateClicastCommand(clicast, mode)
+    clicastInterface.globalClicastCommand = clicast
 
     # enviroPath is the full path to the vce file
     enviroPath = os.path.abspath(args.path)
@@ -506,8 +535,41 @@ def main():
         topLevel = dict()
         # it is important that getTetDataVCAST() is called first since it sets up
         # the global list of tesable functoions that getUnitData() needs
-        topLevel["testData"] = getTestDataVCAST(enviroPath)
-        topLevel["unitData"] = getUnitData(enviroPath, args.kind)
+        topLevel["testData"] = getTestDataVCAST(pathToUse)
+        topLevel["unitData"] = getUnitData(pathToUse)
+        returnObject = topLevel
+
+    elif mode.startswith("executeTest"):
+        try:
+            testIDObject = testID(pathToUse, testString)
+        except:
+            print("Invalid test ID, provide a valid --test argument")
+            raise UsageError()
+        returnCode, returnText = executeVCtest(
+            pathToUse, testIDObject, mode == "executeTestReport"
+        )
+        returnObject = {"text": returnText.split("\n")}
+
+    elif mode == "report":
+        try:
+            testIDObject = testID(pathToUse, testString)
+        except:
+            print("Invalid test ID, provide a valid --test argument")
+            raise UsageError()
+        returnObject = {"text": getResults(pathToUse, testIDObject).split("\n")}
+
+    elif mode == "parseCBT":
+        # This is a special mode used by the unit test driver to parse the CBT
+        # file and generate the test list.
+        returnObject = getCodeBasedTestNames(pathToUse)
+
+    elif mode == "rebuild":
+        # Rebuild environment has some special processing because we want
+        # to incorporate any changed build settings, like coverageKind
+
+        # we don't set the return object for rebuild, because we echo in real-time
+        jsonOptions = processOptions(options)
+        clicastInterface.rebuildEnvironment(pathToUse, jsonOptions)
 
         json.dump(topLevel, sys.stdout, indent=4)
 
@@ -529,9 +591,16 @@ def main():
             testIDObject = testID(enviroPath, args.test)
             getResults(enviroPath, testIDObject)
 
-    else:
-        print("Unknown mode value: " + args.mode)
-        print("Valid modes are: getEnviroData, getCoverageData, executeTest, results")
+    returnCode, returnObject = processCommand(
+        args.mode, args.clicast, pathToUse, args.test, args.options
+    )
+    if returnObject:
+        if "text" in returnObject:
+            returnText = "\n".join(returnObject["text"])
+            print(returnText)
+        else:
+            returnText = json.dumps(returnObject, indent=4)
+            print(returnText)
 
     # Zero exit code
     return 0

@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import { describe, expect, test } from "vitest";
 import { generateDiagnosticMessages } from "./utils";
-const timeout = 30000; // 30 seconds
+
+const timeout = 30_000; // 30 seconds
 
 const initialTst = `
 -- Environment: TEST
