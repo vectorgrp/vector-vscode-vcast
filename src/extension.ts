@@ -80,6 +80,7 @@ import {
   addExistingCodedTestFile,
   newEnvironment,
   newTestScript,
+  openCodedTest,
   resetCoverageData,
 } from "./vcastTestInterface";
 
@@ -102,12 +103,16 @@ export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
 export async function activate(context: vscode.ExtensionContext) {
-  // activation gets called when vectorcastTestExplorer.configure is called
-  // currently from the ctrl-p menu,
+  // activation gets called when:
+  //  -- VectorCAST environment exists in the workspace
+  //  -- "Create VectorCAST Environment" is selected from the Explorer context menu
+  //  -- "VectorCAST Test Explorer: Configure" is selected from the command palette (ctrl-shift-p)
 
-  // dummy command to be used for activation
+  // Handler for "VectorCAST Test Explorer: Configure"
+  // The first use of configure will trigger this activate function
+  // subsequent uses will trigger configureCommandCalled()
   vscode.commands.registerCommand("vectorcastTestExplorer.configure", () => {
-    checkPrerequisites(context);
+    configureCommandCalled(context);
   });
   vscode.commands.registerCommand("vectorcastTestExplorer.toggleLog", () =>
     toggleMessageLog()
@@ -138,7 +143,10 @@ function checkPrerequisites(context: vscode.ExtensionContext) {
 
   if (!alreadyConfigured) {
     // setup the location of vTestInterface.py and other utilities
-    initializeInstallerFiles(context);
+    if (!installationFilesInitialized) {
+      initializeInstallerFiles(context);
+      installationFilesInitialized = true;
+    }
 
     if (checkIfInstallationIsOK()) {
       activationLogic(context);
@@ -363,6 +371,18 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(editTestScriptCommand);
 
+  // Command: vectorcastTestExplorer.editCodedTest////////////////////////////////////////////////////////
+  let editCodedTestCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.editCodedTest",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        openCodedTest(testNode);
+      }
+    }
+  );
+  context.subscriptions.push(editCodedTestCommand);
+
   // Command: vectorcastTestExplorer.loadTestScript////////////////////////////////////////////////////////
   let loadTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.loadTestScript",
@@ -382,6 +402,17 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(debugEnviroPathCommand);
+
+  // Command: vectorcastTestExplorer.debugProgramPath ////////////////////////////////////////////////////////
+  // this command is used to return the path to the environment being debugged via
+  // the variable: vectorcastTestExplorer.debugProgramPath that is used in launch.json
+  let debugProgramPathCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.debugProgramPath",
+    () => {
+      return pathToProgramBeingDebugged;
+    }
+  );
+  context.subscriptions.push(debugProgramPathCommand);
 
   // Command: vectorcastTestExplorer.showSettings
   vscode.commands.registerCommand("vectorcastTestExplorer.showSettings", () =>
@@ -480,20 +511,6 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(openVCASTFromVce);
-
-  // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
-  let newEnviroVCASTCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.newEnviroVCAST",
-    (args: Uri, argList: Uri[]) => {
-      // arg is the actual item that the right click happened on, argList is the list
-      // of all items if this is a multi-select.  Since argList is always valid, even for a single
-      // selection, we just use this here.
-      if (argList) {
-        newEnvironment(argList);
-      }
-    }
-  );
-  context.subscriptions.push(newEnviroVCASTCommand);
 
   // Command: vectorcastTestExplorer.buildEnviroFromEnv ////////////////////////////////////////////////////////
   let buildEnviroVCASTCommand = vscode.commands.registerCommand(
