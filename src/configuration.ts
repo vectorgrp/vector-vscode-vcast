@@ -143,5 +143,15 @@ export function getUnitTestLocationForPath(dirpath: string): string {
   // By default the unit tests get created in the "unitTests" directory
   // but this can be controlled with an option
 
+  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  let unitTestLocation: string = settings.get(
+    "unitTestLocation",
+    defaultUTlocation
+  );
 
+  if (unitTestLocation.startsWith(".")) {
+    unitTestLocation = path.join(dirpath, unitTestLocation);
+  }
+
+  return unitTestLocation;
 }

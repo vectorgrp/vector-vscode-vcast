@@ -45,10 +45,6 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", pattern: "**/*.tst" }],
-    synchronize: {
-      // Notify the server about file changes to '.clientrc files contained in the workspace
-      fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
-    },
   };
 
   // Create the language client and start the client.
