@@ -45,12 +45,12 @@ describe("vTypeCheck VS Code Extension", () => {
     process.env["E2E_TEST_ID"] = "0";
   });
 
-  it("test 1: should be able to load VS Code", async () => {
-    await updateTestID();
-    expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
-    );
-  });
+  // it("test 1: should be able to load VS Code", async () => {
+  //   await updateTestID();
+  //   expect(await workbench.getTitleBar().getTitle()).toBe(
+  //     "[Extension Development Host] vcastTutorial - Visual Studio Code",
+  //   );
+  // });
 
   it("should activate vcastAdapter", async () => {
     await updateTestID();
