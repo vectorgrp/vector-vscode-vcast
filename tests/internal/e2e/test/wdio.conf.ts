@@ -181,12 +181,10 @@ export const config: Options.Testrunner = {
         vscodeArgs: {
           disableExtensions: true,
           "local-history.enabled":
-            capabilitiesJson["wdio:vscodeOptions"]["vscodeArgs"][
-              "local-history.enabled"
-            ],
+            false,
         },
         verboseLogging:
-          capabilitiesJson["wdio:vscodeOptions"]["verboseLogging"],
+          false,
         userSettings: {
           "editor.fontSize":
             capabilitiesJson["wdio:vscodeOptions"]["userSettings"][
@@ -262,7 +260,7 @@ export const config: Options.Testrunner = {
   connectionRetryTimeout: 22000,
   //
   // Default request retries count
-  connectionRetryCount: 2,
+  connectionRetryCount: 1,
   //
   // Test runner services
   // Services take over a specific job you don"t want to take care of. They enhance
@@ -291,12 +289,12 @@ export const config: Options.Testrunner = {
   // see also: https://webdriver.io/docs/dot-reporter
   reporters: [
     "spec",
-    ['junit', {
-      outputDir: 'test_results',
-      outputFileFormat: function(options) { // optional
-        return `results-${options.cid}.xml`
-      }
-    }]
+    // ['junit', {
+    //   outputDir: 'test_results',
+    //   outputFileFormat: function(options) { // optional
+    //     return `results-${options.cid}.xml`
+    //   }
+    // }]
   ],
 
   //

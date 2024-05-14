@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - gh_actions_for_tests  # TODO
+      - wip_gh_actions_for_tests
   pull_request:
   release:
 jobs:
