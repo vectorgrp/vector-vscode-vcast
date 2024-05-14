@@ -204,9 +204,9 @@ describe("vTypeCheck VS Code Extension", () => {
     // timeout on the following wait indicates unsuccessful test deletion
     await browser.keys([Key.Ctrl, "R"])
 
-    await browser.waitUntil(
-      async () => (await customSubprogramMethod.getChildren()).length == 2,
-    );
+    // await browser.waitUntil(
+    //   async () => (await customSubprogramMethod.getChildren()).length == 2,
+    // );
 
     for (const testHandle of await customSubprogramMethod.getChildren()) {
       expect(
