@@ -402,15 +402,15 @@ export const config: Options.Testrunner = {
     await promisifiedExec(createLaunchJson);
 
     const envFile = `ENVIRO.NEW
-    ENVIRO.NAME: DATABASE-MANAGER-test
-    ENVIRO.COVERAGE_TYPE: Statement
-    ENVIRO.WHITE_BOX: YES
-    ENVIRO.COMPILER: CC
-    ENVIRO.STUB: ALL_BY_PROTOTYPE
-    ENVIRO.SEARCH_LIST: cpp
-    ENVIRO.STUB_BY_FUNCTION: database
-    ENVIRO.STUB_BY_FUNCTION: manager
-    ENVIRO.END
+ENVIRO.NAME: DATABASE-MANAGER-test
+ENVIRO.COVERAGE_TYPE: Statement
+ENVIRO.WHITE_BOX: YES
+ENVIRO.COMPILER: CC
+ENVIRO.STUB: ALL_BY_PROTOTYPE
+ENVIRO.SEARCH_LIST: cpp
+ENVIRO.STUB_BY_FUNCTION: database
+ENVIRO.STUB_BY_FUNCTION: manager
+ENVIRO.END
     `;
     await writeFile(
       path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),

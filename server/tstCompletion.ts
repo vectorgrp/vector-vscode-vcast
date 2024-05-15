@@ -110,18 +110,17 @@ export function getTstCompletionData(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
         );
-      }
-      else if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
+      } else if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
         // for the requirement keys, the format of the list items is
         const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
-        for (let i= 0; i < choiceData.choiceList.length; i++) {
+        for (let i = 0; i < choiceData.choiceList.length; i++) {
           let line = choiceData.choiceList[i];
           // raw data looks like:  <key> ||| <title> ||| <description>
-          const pieces = line.split ("|||");
+          const pieces = line.split("|||");
           // remove whitespace and any enclosing quotes ... the vcast RGW example has quotes ...
           const key = pieces[0].trim();
-          const title = pieces[1].trim().replace(/['"]+/g, '')
-          choiceData.choiceList[i] = `${key} | ${title}`;;
+          const title = pieces[1].trim().replace(/['"]+/g, "");
+          choiceData.choiceList[i] = `${key} | ${title}`;
         }
 
         return completionList(

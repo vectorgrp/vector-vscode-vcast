@@ -46,9 +46,11 @@ function displayMessage(prefix: string, msg: string, level: errorLevel) {
 export function vectorMessage(
   msg: string,
   level: errorLevel = errorLevel.info
-) 
-{
-  if (level != errorLevel.trace || (level == errorLevel.trace && globalVerboseOn)) {
+) {
+  if (
+    level != errorLevel.trace ||
+    (level == errorLevel.trace && globalVerboseOn)
+  ) {
     displayMessage("test explorer", msg, level);
   }
 }
@@ -63,7 +65,7 @@ export function adjustVerboseSetting() {
   globalVerboseOn = settings.get("verboseLogging", false);
 }
 
-var globalLogIsOpen: boolean = false;
+let globalLogIsOpen: boolean = false;
 export function openMessagePane() {
   const messagePane = getMessagePane();
   messagePane.show();

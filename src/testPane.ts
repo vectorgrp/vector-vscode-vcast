@@ -5,28 +5,16 @@
 
 import * as vscode from "vscode";
 
-import {
-  Position,
-  Range,
-  Uri,
-  TestController,
-  TestItemCollection,
-  TestMessage,
-} from "vscode";
+import { Position, Range, Uri, TestMessage } from "vscode";
 
-import { 
-  updateDisplayedCoverage, 
-  updateCOVdecorations,
-} from "./coverage";
+import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
+
+import { updateTestDecorator } from "./editorDecorator";
+
+import { updateExploreDecorations } from "./fileDecorator";
 
 import {
-  updateTestDecorator,
-} from "./editorDecorator";
-
-import { updateDataForEnvironment } from "./helper"
-
-import { 
-  errorLevel, 
+  errorLevel,
   openMessagePane,
   vcastMessage,
   vectorMessage,
@@ -44,20 +32,28 @@ import {
   getFunctionNameFromID,
   getEnviroNameFromID,
   getTestNameFromID,
-  getTestNode,
   getUnitNameFromID,
   testNodeType,
 } from "./testData";
 
 import {
-  commandStatusType,
-  executeCommandSync,
-  loadLaunchFile,
   addLaunchConfiguration,
+  forceLowerCaseDriveLetter,
+  loadLaunchFile,
+  openFileWithLineSelected,
 } from "./utilities";
 
 import {
-  getClicastArgsFromTestNode,
+  deleteSingleTest,
+  loadScriptIntoEnvironment,
+  refreshCodedTests,
+} from "./vcastAdapter";
+
+
+import {  getJsonDataFromTestInterface } from "./vcastCommandRunner"
+import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
+
+import {
   getEnviroDataFromPython,
   getResultFileForTest,
   globalTestStatusArray,
@@ -68,11 +64,14 @@ import {
   vcastEnviroFile,
 } from "./vcastTestInterface";
 
-import { 
-  clicastCommandToUse,
+
+import {
+  adjustScriptContentsBeforeLoad,
+  closeAnyOpenErrorFiles,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
-  loadScriptIntoEnvironment,
+  parseCBTCommand,
+  testStatus,
 } from "./vcastUtilities";
 
 import {
@@ -83,39 +82,15 @@ import {
 
 const fs = require("fs");
 const path = require("path");
-
-// find test location in file
-function getTestLocation(testFile: Uri, testName: string): vscode.Range {
-  // This function will find the location of the VTEST in the
-  // testfile and return a position that starts at this line.
-
-  const filePath: string = testFile.fsPath;
-  let startLine: number = 1;
-
-  if (fs.existsSync(filePath)) {
-    // I tried doing split on os.EOL, but this did not handle LF terminated lines on windows.
-    const lines = fs
-      .readFileSync(filePath, "utf-8")
-      .replace("\r", "")
-      .split("\n");
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-      const lineText = lines[lineIndex];
-      if (lineText.startsWith("VTEST") && lineText.includes(testName)) {
-        startLine = lineIndex + 1;
-        break;
-      }
-    }
-  }
-  return new Range(new Position(startLine - 1, 0), new Position(startLine, 0));
-}
+const crypto = require("crypto");
 
 // This function does the work of adding the actual tests
 // to whatever parent is passed in generally a function node
-// 
+//
 // Note that if you pass in a fileURI, then the test tree node will have
 // a "go to test" icon, and clicking on it will open the file at the test location
 // and double click on the test will open the test file.
-// 
+//
 function addTestNodes(
   controller: TestController,
   testList: any[],
@@ -135,9 +110,13 @@ function addTestNodes(
       compoundOnly: testList[testIndex].compoundOnly,
     };
 
+    testData.testFile = forceLowerCaseDriveLetter(
+      path.normalize(testData.testFile)
+    );
+    parentNodeForCache.testFile = testData.testFile;
+
     let testName = testList[testIndex].testName;
-    if (testData.compoundOnly)
-      testName += compoundOnlyString;
+    if (testData.compoundOnly) testName += compoundOnlyString;
     const testNodeID = parentNodeID + "." + testName;
 
     // add a cache node for the test
@@ -146,16 +125,50 @@ function addTestNodes(
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;
-    let testNode: vcastTestItem = controller.createTestItem(
+
+    // currently we only use the Uri and Range for Coded Tests
+    let testURI: vscode.Uri | undefined = undefined;
+    let testRange: vscode.Range | undefined = undefined;
+    if (testData.testFile.length > 0) {
+      testURI = vscode.Uri.file(testData.testFile);
+      const startLine = testData.testStartLine;
+      testRange = new Range(
+        new Position(startLine - 1, 0),
+        new Position(startLine - 1, 0)
+      );
+    }
+
+    let testNode: vcastTestItem = globalController.createTestItem(
       testNodeID,
       testName,
       fileURI
     );
     testNode.nodeKind = nodeKind.test;
     testNode.isCompoundOnly = testData.compoundOnly;
-    if (fileURI) testNode.range = getTestLocation(fileURI, testName);
-    parentNode.add(testNode);
+    testNode.range = testRange;
+
+    parentNode.children.add(testNode);
   }
+
+  // Note: vcast currently only supports a single coded test file per uut,
+  // so when there are coded test children, we set the coded testFile
+  // for the function node to match the first child
+
+  // vcastHasCodedTestsList is used by the package.json to control context menu choices
+  if (testList.length > 0 && testList[0].codedTestFile) {
+    vcastHasCodedTestsList.push(parentNodeID);
+  } else {
+    vcastHasCodedTestsList = vcastHasCodedTestsList.filter(
+      (item) => item !== parentNodeID
+    );
+  }
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.vcastHasCodedTestsList",
+    vcastHasCodedTestsList
+  );
+
+  addTestNodeToCache(parentNodeID, parentNodeForCache);
 }
 
 
@@ -169,8 +182,7 @@ function processVCtestData(
 
   // The top level of the JSON is an array ...
   const unitList = enviroData.testData;
-  for (let unitIndex = 0; unitIndex < unitList.length; unitIndex++) {
-    const unitData = unitList[unitIndex];
+  for (const unitData of unitList) {
 
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
@@ -188,12 +200,10 @@ function processVCtestData(
 
     if (unitData.functions) {
       const functionList = unitData.functions;
-      for (let fIndex = 0; fIndex < functionList.length; fIndex++) {
-        let functionName: string = functionList[fIndex].name;
-        functionName.replace("::", "-");
-        functionName.replace("~", "-");
+      for (const functionData of functionList) {
+        let functionName: string = functionData.name;
 
-        const testList = functionList[fIndex].tests;
+        const testList = functionData.tests;
         const functionNodeID = `${unitNodeID}.${functionName}`;
 
         // add a cache node for the function
@@ -210,9 +220,17 @@ function processVCtestData(
         addTestNodes(
           controller,
           testList,
-          functionNode.children,
-          functionNodeID
+          functionNode,
+          functionNodeID,
+          functionNodeForCache
         );
+
+        if (
+          functionName == codedTestFunctionName &&
+          functionNodeForCache.testFile.length > 0
+        ) {
+          addCodedTestfileToCache(enviroNodeID, functionNodeForCache);
+        }
 
         unitNode.children.add(functionNode);
       }
@@ -253,7 +271,7 @@ function processVCtestData(
       // we use sortText to force the compound and init nodes to the top of the tree
       specialNode.sortText = sortText;
 
-      addTestNodes(controller, testList, specialNode.children, specialNodeID);
+      addTestNodes(testList, specialNode, specialNodeID, specialNodeForCache);
 
       enviroNode.children.add(specialNode);
     }
@@ -282,10 +300,12 @@ function getEnvironmentList(baseDirectory: string): string[] {
   return returnList;
 }
 
-// This is used in the package.json to control the display of context menu items
-// Search for 'vectorcastTestExplorer.vcastEnviroList' in package.json to see where we reference it
+// These variables are used in the package.json to control the display of context menu items
+// Search for 'vectorcastTestExplorer.vcastEnviroList | vcastHasCodedTestsList' in package.json
+// to see where we reference them
 // this list in a "when" clause
-export var vcastEnviroList: string[] = [];
+let vcastEnviroList: string[] = [];
+let vcastHasCodedTestsList: string[] = [];
 
 export function updateTestsForEnvironment(
   controller: TestController,
@@ -299,12 +319,13 @@ export function updateTestsForEnvironment(
   let jsonData = getEnviroDataFromPython(enviroPath);
 
   if (jsonData) {
-    let enviroDisplayName:string = "";
+    let enviroDisplayName: string = "";
     if (workspaceRoot.length > 0) {
-      enviroDisplayName = path.relative(workspaceRoot, enviroPath).replaceAll("\\", "/");
-    }
-    else {
-      enviroDisplayName = enviroPath.replaceAll ("\\", "/");
+      enviroDisplayName = path
+        .relative(workspaceRoot, enviroPath)
+        .replaceAll("\\", "/");
+    } else {
+      enviroDisplayName = enviroPath.replaceAll("\\", "/");
     }
 
     // the vcast: prefix to allow package.json nodes to control
@@ -315,7 +336,10 @@ export function updateTestsForEnvironment(
 
     // crateTestItem, takes ID,Label, the ID must be unique, so
     // we add a _index-value to it ...
-    const enviroNode: vcastTestItem = controller.createTestItem(enviroNodeID, enviroDisplayName);
+    const enviroNode: vcastTestItem = globalController.createTestItem(
+      enviroNodeID,
+      enviroDisplayName
+    );
     enviroNode.nodeKind = nodeKind.enviro;
 
     // if we have data
@@ -343,6 +367,7 @@ export function removeEnvironmentFromTestPane(enviroID: string) {
   globalController.items.delete(enviroID);
 }
 
+export let vcastEnvironmentsFound: boolean = false;
 async function loadAllVCTests(
   controller: TestController,
   progress: vscode.Progress<{ message?: string; increment?: number }>,
@@ -362,6 +387,9 @@ async function loadAllVCTests(
     for (const workspace of vscode.workspace.workspaceFolders) {
       const workspaceRoot = workspace.uri.fsPath;
       let environmentList = getEnvironmentList(workspaceRoot);
+
+      // used in the activation processing
+      if (environmentList.length > 0) vcastEnvironmentsFound = true;
 
       // increment is added to the progress bar by each call to progress.report
       // this is not perfect because we don't know how many environments will exist in each workspace
@@ -396,11 +424,11 @@ async function loadAllVCTests(
   // once the data is loaded update the coverage and test icons for the active editor
   updateDisplayedCoverage();
   updateTestDecorator();
-
 }
 
 export let pathToEnviroBeingDebugged: string =
   "No Environment is Being Debugged";
+export let pathToProgramBeingDebugged: string = "No Program is Being Debugged";
 
 function okToDebug(
   node: vcastTestItem,
@@ -530,9 +558,9 @@ function launchConfigExists(launchJsonPath: string): boolean {
   // this will check if launch.json has
   // the "VectorCAST Harness Debug" configuration defined
   let returnValue = false;
-  const existingJSON: any = loadLaunchFile(launchJsonPath);
-  if (existingJSON.configurations) {
-    for (const existingConfig of existingJSON.configurations) {
+  const existingJSONdata: any = loadLaunchFile(launchJsonPath);
+  if (existingJSONdata && existingJSONdata.jsonData.configurations) {
+    for (const existingConfig of existingJSONdata.jsonData.configurations) {
       if (existingConfig.name === vectorcastLaunchConfigName) {
         returnValue = true;
         launchFilesWithVectorCASTConfig.set(launchJsonPath, true);
@@ -544,11 +572,83 @@ function launchConfigExists(launchJsonPath: string): boolean {
   return returnValue;
 }
 
-async function debugNode(
-  controller: vscode.TestController,
-  request: vscode.TestRunRequest,
-  node: vcastTestItem
-) {
+const coverageExeFilename = "UUT_INST";
+const normalExeFilename = "UUT_INTE";
+
+function getNameOfHarnessExecutable(enviroPath: string): string {
+  // the executable being debugged will either be UUT_INTE or UUT_INST
+  // depending on whether coverage is on.
+  // Could not find a dataAPI call to determine coverage on/off so
+  // I'm using this brute force approach
+
+  // if windows the executable will have an .exe extension
+  let extension = "";
+  if (process.platform === "win32") {
+    extension = ".EXE";
+  }
+
+  let harnessName = normalExeFilename + extension;
+  if (isCoverageTurnedOn(enviroPath)) {
+    harnessName = coverageExeFilename + extension;
+  }
+
+  return harnessName;
+}
+
+function isCoverageTurnedOn(enviroPath: string): boolean {
+  const commonDBpath = path.join(enviroPath, "COMMONDB.VCD");
+  const lines = fs.readFileSync(commonDBpath, "utf-8").split(/\r?\n/);
+  let coverageON = false;
+  let currentLine = "";
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    currentLine = lines[lineIdx];
+    if (currentLine.trim() === "COVERAGE_ON_OFF_HDR") {
+      coverageON = lines[lineIdx + 1].trim() === "TRUE";
+      break;
+    }
+  }
+
+  return coverageON;
+}
+function getFileToDebug(
+  enviroPath: string,
+  uutName: string,
+  functionName: string,
+  executableFilename: string
+): string {
+  // note: glob pattern is a regex
+  let globPattern: string;
+
+  // coded test
+  if (functionName == codedTestFunctionName) {
+    if (executableFilename.startsWith(coverageExeFilename)) {
+      globPattern = uutName + "_exp_inst_driver.c*";
+    } else {
+      globPattern = uutName + "_expanded_driver.c*";
+    }
+  }
+  // compound or init
+  else if (uutName == "not-used") {
+    // Improvement needed: would be nice to figure out the uut for the first slot ...
+    globPattern = "S3_switch.*";
+  }
+  // regular test
+  else {
+    if (executableFilename.startsWith(coverageExeFilename)) {
+      globPattern = uutName + "_inst.c*";
+    } else {
+      globPattern = uutName + "_vcast.c*";
+    }
+  }
+
+  const globOptions = { cwd: enviroPath, absolute: true, strict: false };
+  // two steps for debugging ...
+  const globResult = glob.sync(globPattern, globOptions);
+
+  return globResult[0];
+}
+
+async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
   // Note: we always debug the non-coverage harness, because the
   // SBF + Cover instrumentation is really messy.
 
@@ -565,17 +665,17 @@ async function debugNode(
   pathToEnviroBeingDebugged = "No Environment is Being Debugged";
   const enviroPath = getEnviroPathFromID(node.id);
   const enviroOptions = getVcastOptionValues(enviroPath);
-
-  // for compound and init
-  let globPattern: string;
   const uutName = getUnitNameFromID(node.id);
-  if (uutName == "not-used")
-    // Improvement needed: would be nice to figure out the uut for the first slot ...
-    globPattern = "S3_switch.*";
-  else globPattern = uutName + "_vcast.*";
+  const functionUnderTest = getFunctionNameFromID(node.id);
 
-  const globOptions = { cwd: enviroPath, absolute: true };
-  const sbfFilePath = glob.sync(globPattern, globOptions)[0];
+  const executableFilename = getNameOfHarnessExecutable(enviroPath);
+
+  const fileToDebug: string = getFileToDebug(
+    enviroPath,
+    uutName,
+    functionUnderTest,
+    executableFilename
+  );
 
   if (okToDebug(node, sbfFilePath, enviroOptions)) {
     let ourWorkspace = getWorkspacePath(enviroPath);
@@ -587,8 +687,8 @@ async function debugNode(
 
       if (!launchFileExists(launchJsonPath)) {
         vectorMessage(
-          `launch.json not found in ${launchJsonPath}.` +
-            ` Generating \"VectorCAST Harness Debug\" configuration from template`
+          `${launchFile}| not found in ${launchJsonPath}.` +
+            ` Generating "VectorCAST Harness Debug" configuration from template`
         );
 
         vscode.window.showWarningMessage(
@@ -597,12 +697,16 @@ async function debugNode(
         );
 
         createEmptyLaunchConfigFile(ourWorkspace, launchJsonPath);
-        addLaunchConfiguration(launchJsonUri);
+        addLaunchConfiguration(launchJsonUri, globalPathToSupportFiles);
       } else {
         debugConfigurationFound = launchConfigExists(launchJsonPath);
-        if (!debugConfigurationFound) addLaunchConfiguration(launchJsonUri);
+        if (!debugConfigurationFound) {
+          addLaunchConfiguration(launchJsonUri, globalPathToSupportFiles);
+        }
       }
 
+      // this flag means that the launch file already had a vectorcast debug configuration
+      // if we just added it we want to give the user a chance to review before we debug
       if (debugConfigurationFound) {
         vectorMessage(
           `Preparing to debug test ${getTestNameFromID(node.id)} ... `
@@ -615,62 +719,49 @@ async function debugNode(
 
         // this is the global that the launch.json links to ...
         pathToEnviroBeingDebugged = enviroPath;
-
-        // disable coverage
-        // we need to wait for this to complete, so we use executeCommandSync
-        vectorMessage(`   - disabling coverage for environment ... `);
-        const enviroArg = "-e " + getEnviroNameFromID(node.id);
-        executeCommandSync(
-          `${clicastCommandToUse} ${enviroArg} tools coverage disable `,
-          path.dirname(enviroPath)
-        );
+        pathToProgramBeingDebugged = path.join(enviroPath, executableFilename);
 
         // run the test first without debug to setup the inputs
         // it's important that we wait for this to finish
         vectorMessage(`   - initializing test case inputs ... `);
-        const run = controller.createTestRun(request);
-        await runNode(node, run, true);
-        run.end();
+        const run = globalController.createTestRun(request);
+        runNode(node, run, false).then(async (status) => {
+          run.end();
 
-        // Improvement needed:
-        // It would be nice if vcast saved away the function start location when building the _vcast file
-        // open the sbf uut at the correct line for the function being tested
-        const functionUnderTest = getFunctionNameFromID(node.id);
-        const functionStartLine = findLineForFunction(
-          sbfFilePath,
-          functionUnderTest
-        );
-        const functionLocation: vscode.Range = new Range(
-          new Position(functionStartLine, 0),
-          new Position(functionStartLine, 100)
-        );
+          if (
+            status == testStatus.didNotRun ||
+            status == testStatus.compileError ||
+            status == testStatus.linkError
+          ) {
+            return;
+          } else {
+            vectorMessage(
+              `   - opening VectorCAST version of file: ${uutName} ... `
+            );
 
-        vectorMessage(
-          `   - opening VectorCAST version of file: ${getUnitNameFromID(
-            node.id
-          )} ... `
-        );
-        var viewOptions: vscode.TextDocumentShowOptions = {
-          viewColumn: 1,
-          preserveFocus: false,
-          selection: functionLocation,
-        };
-        vscode.workspace
-          .openTextDocument(sbfFilePath)
-          .then((doc: vscode.TextDocument) => {
-            vscode.window.showTextDocument(doc, viewOptions);
-          });
+            // Improvement needed:
+            // It would be nice if vcast saved away the function start location when building the _vcast file
+            // open the sbf uut at the correct line for the function being tested
 
-        // Prompt the user for what to do next!
-        vscode.window.showInformationMessage(
-          `Ready for debugging, choose launch configuration: "${vectorcastLaunchConfigName}" ... `
-        );
+            let searchString: string = "";
+            if (functionUnderTest == codedTestFunctionName) {
+              // for coded tests, the test logic will be in something that
+              // looks like: "class Test_managerTests_realTest"  class Test_<suite-name>_<test-name>
+              const testName = getTestNameFromID(node.id).replace(".", "_");
+              searchString = `class Test_${testName}`;
+            } else {
+              searchString = functionUnderTest.split("(")[0];
+            }
 
-        // we need this because we don't want to leave cover disabled
-        executeCommandSync(
-          `${clicastCommandToUse} ${enviroArg} tools coverage enable`,
-          path.dirname(enviroPath)
-        );
+            const debugStartLine = findStringInFile(fileToDebug, searchString);
+            openFileWithLineSelected(fileToDebug, debugStartLine);
+
+            // Prompt the user for what to do next!
+            vscode.window.showInformationMessage(
+              `Ready for debugging, choose launch configuration: "${vectorcastLaunchConfigName}" ... `
+            );
+          }
+        });
       } else {
         const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
           launchJsonUri
@@ -703,8 +794,8 @@ let doingAMultiTestExecution = false;
 export async function runNode(
   node: vcastTestItem,
   run: vscode.TestRun,
-  preDebugMode: boolean = false
-): Promise<void> {
+  generateReport: boolean
+): Promise<testStatus> {
   vectorMessage("Starting execution of test: " + node.label + " ...");
   run.started(node);
 
@@ -713,19 +804,31 @@ export async function runNode(
   runVCTest(enviroPath, node.id).then((status) => {
     if (status == testStatus.didNotRun) {
       run.skipped(node);
+    } else if (status == testStatus.compileError) {
+      const failMessage: TestMessage = new TestMessage(
+        "Coded Test compile error - see details in file: ACOMPILE.LIS"
+      );
+      run.errored(node, failMessage);
+    } else if (status == testStatus.linkError) {
+      const failMessage: TestMessage = new TestMessage(
+        "Coded Test link error - see details in file: AALINKER.LIS"
+      );
+      run.errored(node, failMessage);
     } else {
-      if (status == testStatus.passed) run.passed(node);
-      else if (status == testStatus.failed) {
+      if (status == testStatus.passed) {
+        run.passed(node);
+      } else if (status == testStatus.failed) {
         const textFilePath = getResultFileForTest(node.id);
-        let failures = "";
-        if (fs.existsSync(textFilePath)) {
-          const contentsList = fs
-            .readFileSync(textFilePath)
-            .toString()
-            .split("\n");
-          for (var i = 0; i < contentsList.length; i++) {
-            if (contentsList[i].includes("FAIL:"))
-              failures += contentsList[i] + "\n";
+
+        // find the summary line that starts with "Expected Results", and add to testMessage
+        const lines = fs.readFileSync(textFilePath, "utf-8").split("\n");
+        let failMessage: TestMessage = new TestMessage("");
+        for (let line of lines) {
+          // start of line, any number of spaces, search text ...
+          if (/^\s*Expected Results matched.*/.test(line)) {
+            // remove the EOL and squash multiple spaces into 1
+            failMessage = new TestMessage(line.trimEnd().replace(/\s+/g, " "));
+            break;
           }
         }
         run.failed(node, new TestMessage(failures));
@@ -768,6 +871,27 @@ function getTestNodes(
   return returnQueue;
 }
 
+export function updateDataForEnvironment(enviroPath: string) {
+  // this function does all of the "common" work when an environment is updated
+  // sources of environment update are things like:
+  //   - opening the environment in the vcast gui
+  //   - building a new environment
+  //   - ...
+
+  updateTestPane(enviroPath);
+  updateDisplayedCoverage();
+  updateExploreDecorations();
+  updateTestDecorator();
+}
+
+function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {
+  // a helper function for determining if we should show the report
+
+  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const showReport: boolean = settings.get("showReportOnExecute", false);
+  return testList.length == 1 && showReport;
+}
+
 // this does the actual work of running the tests
 async function runTests(
   controller: vscode.TestController,
@@ -790,14 +914,32 @@ async function runTests(
   doingAMultiTestExecution = testList.length > 1;
 
   // this does the actual execution of the full test list
-  const run = controller.createTestRun(request);
+  const run = globalController.createTestRun(request);
+  // added this for performance tuning - but interesting to leave in
+  const startTime: number = performance.now();
+  const generateReport: boolean = shouldGenerateExecutionReport(testList);
+  let enviroPathList: Set<string> = new Set();
   for (const test of testList) {
-    if (cancellation.isCancellationRequested) run.skipped(test);
-    else if (test.isCompoundOnly) run.skipped(test);
-    else await runNode(test, run);
+    if (cancellation.isCancellationRequested) {
+      run.skipped(test);
+    } else if (test.isCompoundOnly) {
+      run.skipped(test);
+    } else {
+      const enviroPath = getEnviroPathFromID(test.id);
+      enviroPathList.add(enviroPath);
+      await runNode(test, run, generateReport);
+    }
     // used to allow the message window to display properly
     await new Promise<void>((r) => setTimeout(r, 0));
   }
+  const endTime: number = performance.now();
+  const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
+  vectorMessage(`Execution event took: ${deltaString} seconds`);
+
+  for (let enviroPath of enviroPathList) {
+    updateDataForEnvironment(enviroPath);
+  }
+  updateDisplayedCoverage();
   run.end();
 }
 
@@ -819,17 +961,18 @@ async function processRunRequest(
   cancellation: vscode.CancellationToken,
   isDebug: boolean = false
 ) {
+  // check if there are any vcast error files open, and close them
+  await closeAnyOpenErrorFiles();
 
   // Debug is only valid for a single test node
   // requests.include will be null if the request is for all tests
   // or it will have a list if the request is for one or more tests
-  // isSingleTestNode checks if it is exactly one and it is a test 
+  // isSingleTestNode checks if it is exactly one and it is a test
   // not a unit, function, ...
   if (isDebug && request.include && isSingleTestNode(request)) {
     const node = request.include[0];
-    debugNode(controller, request, node);
-  }
-  else {
+    debugNode(request, node);
+  } else {
     // tell user that we are doing a normal run ...
     if (isDebug) {
       vscode.window.showInformationMessage(
@@ -840,41 +983,25 @@ async function processRunRequest(
   }
 }
 
-
 export async function deleteTests(nodeList: any[]) {
-
   // nodeList might contain environment, unit, function or test nodes
   // or a combination of all kinds.  The nice thing  is that clicast
   // handles this all for us.  If we provide only a unit, it deletes
   // all tests for that unit, only a unit and subprogram, it deletes
-  // all for that subprogram. 
-  // 
+  // all for that subprogram.
+  //
   // The only special case is for environment-wide delete, see note below
 
-  let changedEnvironmentPathList:Set<string> = new Set();
+  let changedEnvironmentIDList: Set<string> = new Set();
 
   for (let node of nodeList) {
     vectorMessage(`Deleting tests for node: ${node.id} ...`);
 
-    const nodeID = node.id;
-    const testNode: testNodeType = getTestNode(nodeID);
+    // call clicast to delete the test case
+    const commandStatus = deleteSingleTest(node.id);
 
-    let commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-      testNode
-    )} test delete`;
-
-    // special vcast case for delete ALL tests for the environment
-    // when no unit, subprogram or test is provided, you have to give YES to delete all
-    if (testNode.unitName.length==0 && testNode.functionName.length==0) {
-      commandToRun += " YES"
-    }
-
-    let commandStatus: commandStatusType = executeCommandSync(
-      commandToRun,
-      path.dirname(testNode.enviroPath)
-    );
     if (commandStatus.errorCode == 0) {
-      changedEnvironmentPathList.add (getEnviroPathFromID(nodeID));
+      changedEnvironmentIDList.add(getEnviroNodeIDFromID(node.id));
     } else {
       vectorMessage("Test delete failed ...");
       vcastMessage(commandStatus.stdout);
@@ -883,28 +1010,26 @@ export async function deleteTests(nodeList: any[]) {
   }
 
   // now update all of the environments that changed
-  for (let enviroPath of changedEnvironmentPathList) {
-    updateDataForEnvironment(enviroPath);
+  for (let enviroNodeID of changedEnvironmentIDList) {
+    // remove any coded test files from the cache since
+    // they will be re-added by the update
+    removeCBTfilesCacheForEnviro(enviroNodeID);
+    updateDataForEnvironment(getEnviroPathFromID(enviroNodeID));
   }
-
-
 }
 
 export async function insertBasisPathTests(testNode: testNodeType) {
   // this will insert basis path tests for the given test node
-    
-  generateAndLoadBasisPathTests (testNode);
-  
+
+  generateAndLoadBasisPathTests(testNode);
 }
 
 export async function insertATGTests(testNode: testNodeType) {
   // this will insert basis path tests for the given test node
-    
-  generateAndLoadATGTests (testNode);
-  updateTestPane(testNode.enviroPath);
-  
-}
 
+  generateAndLoadATGTests(testNode);
+  updateTestPane(testNode.enviroPath);
+}
 
 const url = require("url");
 export async function loadTestScript() {
@@ -921,12 +1046,19 @@ export async function loadTestScript() {
     }
 
     let scriptPath = url.fileURLToPath(activeEditor.document.uri.toString());
+
+    // we use the test script contents to determine the environment name
     const enviroName = getEnviroNameFromScript(scriptPath);
+
     if (enviroName) {
+      adjustScriptContentsBeforeLoad(scriptPath);
       const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
-      loadScriptIntoEnvironment (enviroName, scriptPath);
+      // call clicast to load the test script
+      loadScriptIntoEnvironment(enviroName, scriptPath);
 
+      // update the test pane for this environment after the script is loaded
+      // we are reading the data back from the environment with this call
       updateTestPane(enviroPath);
     } else {
       vscode.window.showErrorMessage(
@@ -935,7 +1067,6 @@ export async function loadTestScript() {
     }
   }
 }
-
 
 // create the controller
 let globalController: vscode.TestController;
@@ -965,15 +1096,13 @@ export function activateTestPane(context: vscode.ExtensionContext) {
   globalController.createRunProfile(
     "Run",
     vscode.TestRunProfileKind.Run,
-    (request, cancellation) =>
-      processRunRequest(globalController, request, cancellation),
+    (request, cancellation) => processRunRequest(request, cancellation),
     true
   );
   globalController.createRunProfile(
     "Debug",
     vscode.TestRunProfileKind.Debug,
-    (request, cancellation) =>
-      processRunRequest(globalController, request, cancellation, true),
+    (request, cancellation) => processRunRequest(request, cancellation, true),
     true
   );
 }
@@ -999,14 +1128,148 @@ export function updateTestPane(enviroPath: string) {
   // this function updates what is displayed in the test tree
 
   // Need to find the workspace root for this environment
-  let workspaceRoot : string = "";
+  let workspaceRoot: string = "";
   if (vscode.workspace) {
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(
       vscode.Uri.file(enviroPath)
     );
     if (workspaceFolder) workspaceRoot = workspaceFolder.uri.fsPath;
   }
-  updateTestsForEnvironment(globalController, enviroPath, workspaceRoot);
+  updateTestsForEnvironment(enviroPath, workspaceRoot);
+}
+
+interface codedTestFileDataType {
+  checksum: number;
+  enviroNodeIDSet: Set<string>;
+  testNames: any;
+}
+// This map is used to cache the list of tests within a single coded test file
+// we use this when we edit a file to know if the tests have changed
+// the key is the coded test file path, the value is a codedTestFileDataType
+let codedTestFileCache: Map<string, codedTestFileDataType> = new Map();
+
+// This map is used to cache the list of coded test file in an environment.
+// we use this when we change an environment to know what cbt files are affected
+// the key is the enviroNodeID, the value is the list of cbt files
+let enviroToCBTfilesCache: Map<string, Set<string>> = new Map();
+
+export function removeCBTfilesCacheForEnviro(enviroNodeID: string) {
+  // this function will remove the coded test file list from the cache
+  // when we delete or are about to reload an environment
+  const existingList: Set<string> | undefined =
+    enviroToCBTfilesCache.get(enviroNodeID);
+
+  for (let cbtFile of existingList || []) {
+    let cacheData = codedTestFileCache.get(cbtFile);
+    // remove this enviro from the list
+    cacheData?.enviroNodeIDSet.delete(enviroNodeID);
+    // if the list is empty remove the whole node
+    if (cacheData?.enviroNodeIDSet.size == 0) {
+      codedTestFileCache.delete(cbtFile);
+    }
+  }
+  enviroToCBTfilesCache.delete(enviroNodeID);
+}
+
+function computeChecksum(filePath: string): number {
+  // used to compute a checksum for a coded test file so that
+  // we know if it has "really changed" when we get a write event
+
+  // read contents of testFile into a string
+  const content = fs.readFileSync(filePath);
+  // compute the checksum
+  return crypto.createHash("md5").update(content, "utf8").digest("hex");
+}
+
+function getListOfTestsFromFile(filePath: string, enviroNodeID: string): any {
+  // this function calls the vTestInterface.py to get the list of tests from a cbt file
+
+  const commandToRun = parseCBTCommand(filePath);
+  const enviroPath = getEnviroPathFromID(enviroNodeID);
+  return getJsonDataFromTestInterface(commandToRun, enviroPath);
+}
+
+function addCodedTestfileToCache(
+  enviroNodeID: string,
+  functionNodeForCache: testNodeType
+) {
+  // this function will add a coded test file to the cache as we process the enviro data
+  let fileCacheData: codedTestFileDataType | undefined = codedTestFileCache.get(
+    functionNodeForCache.testFile
+  );
+
+  if (!fileCacheData) {
+    fileCacheData = {
+      checksum: computeChecksum(functionNodeForCache.testFile),
+      enviroNodeIDSet: new Set(),
+      testNames: getListOfTestsFromFile(
+        functionNodeForCache.testFile,
+        enviroNodeID
+      ),
+    };
+  }
+
+  // add this enviroID to the list for this test file ...
+  fileCacheData.enviroNodeIDSet.add(enviroNodeID);
+  codedTestFileCache.set(functionNodeForCache.testFile, fileCacheData);
+
+  // we also need to add this cbt file to the enviro cache
+  let enviroCacheData: Set<string> | undefined =
+    enviroToCBTfilesCache.get(enviroNodeID);
+  if (enviroCacheData == undefined) {
+    enviroCacheData = new Set();
+  }
+  enviroCacheData.add(functionNodeForCache.testFile);
+  enviroToCBTfilesCache.set(enviroNodeID, enviroCacheData);
+}
+
+export function updateCodedTestCases(editor: any) {
+  // This function will compare the editor that was just saved against
+  // the known coded test files in the workspace.  If there is a match,
+  // and if the test cases in the file changed we will use clicast to
+  // update the environment and then update the tree.  If the file changed
+  // but the tests did not change we will only ask clicast to re-load the file
+
+  // if this file is a coded test file for any enviornment in the workspace
+  const filePath = editor.fileName;
+  const codedTestFileData: codedTestFileDataType | undefined =
+    codedTestFileCache.get(filePath);
+  if (codedTestFileData) {
+    // then check if the file has changed (checksum is differnt)
+    // if it hasn't then we're done
+    const currentChecksum = computeChecksum(filePath);
+    if (currentChecksum != codedTestFileData.checksum) {
+      // we need to do a refresh for every enviro node that uses this file
+      // and then if the test names changed, also update the test pane
+      let newTestNames: string[] | undefined;
+      for (let enviroNodeID of codedTestFileData.enviroNodeIDSet.values()) {
+        const enviroPath: string = getEnviroPathFromID(enviroNodeID);
+
+        // update newTestNames if we have not yet computed them ...
+        if (!newTestNames) {
+          newTestNames = getListOfTestsFromFile(filePath, enviroNodeID);
+        }
+
+        vectorMessage(
+          `Refreshing coded test file: ${filePath} for environment: ${enviroPath}`
+        );
+
+        // call clicast to update the coded tests
+        const refreshCommandStatus = refreshCodedTests(
+          enviroPath,
+          enviroNodeID
+        );
+
+        // if the refresh worked, and the test names changed, then update test pane
+        if (refreshCommandStatus.errorCode == 0) {
+          updateTestPane(enviroPath);
+        }
+      }
+      // update the test names and checksum in all cases, rather than checking for diffs again
+      codedTestFileData.testNames = newTestNames;
+      codedTestFileData.checksum = currentChecksum;
+    }
+  }
 }
 
 // special is for compound and init
@@ -1026,7 +1289,7 @@ export interface vcastTestItem extends vscode.TestItem {
   nodeKind?: nodeKind;
 
   // used to inhibit run for compound only tests
-  isCompoundOnly?:boolean;
+  isCompoundOnly?: boolean;
 
   // this is used for unit nodes to keep track of the
   // full path to the source file
