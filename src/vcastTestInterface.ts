@@ -4,6 +4,7 @@ import { Uri } from "vscode";
 
 import {
   configFilename,
+  getUnitTestLocationForPath,
   initializeConfigurationFile,
 } from "./configuration";
 
@@ -34,6 +35,7 @@ import {
 } from "./vcastAdapter";
 
 import {
+  commandStatusType,
   executeCommandSync,
   executeVPythonScript,
   getJsonDataFromTestInterface,
@@ -65,7 +67,7 @@ function getChecksum(filePath: string) {
       commandOutputString = executeVPythonScript(
         `${checksumCommand} ${filePath}`,
         path.dirname(filePath)
-      );
+      ).stdout;
     else
       commandOutputString = executeCommandSync(
         `${checksumCommand} ${filePath}`,
@@ -116,8 +118,9 @@ export interface testDataType {
   time: string;
   resultFilePath: string;
   notes: string;
-  URI: vscode.Uri | undefined;
   compoundOnly: boolean;
+  testFile: string;
+  testStartLine: number;
 }
 
 // This allows us to get diret access to the test nodes via the ID
@@ -328,8 +331,8 @@ export function getResultFileForTest(testID: string) {
       cwd
     );
 
-    if (commandOutputText) {
-      const firstLineOfOutput: string = commandOutputText.split(EOL, 1)[0];
+    if (commandStatus.errorCode == 0) {
+      const firstLineOfOutput: string = commandStatus.stdout.split(EOL, 1)[0];
       resultFile = firstLineOfOutput.replace("REPORT:", "");
 
       if (!fs.existsSync(resultFile)) {
@@ -338,7 +341,7 @@ export function getResultFileForTest(testID: string) {
         );
         vectorMessage(`Results report: '${resultFile}' does not exist`);
         vectorMessage(commandToRun);
-        vectorMessage(commandOutputText);
+        vectorMessage(commandStatus.stdout);
       }
 
       globalTestStatusArray[testID].resultFilePath = resultFile;
@@ -456,11 +459,11 @@ export async function runVCTest(
     if (commandOutputText.startsWith("FATAL")) {
       vectorMessage(commandOutputText.replace("FATAL", ""));
       openMessagePane();
-      return testStatus.didNotRun;
+      returnStatus = testStatus.didNotRun;
     } else if (commandOutputText.includes("Resolve Errors")) {
       vectorMessage(commandOutputText);
       openMessagePane();
-      return testStatus.didNotRun;
+      returnStatus = testStatus.didNotRun;
     } else {
       const decodedOutput = processExecutionOutput(commandOutputText);
       logTestResults(nodeID, commandOutputText, decodedOutput);
@@ -478,11 +481,11 @@ export async function runVCTest(
           returnStatus = testStatus.failed;
         }
       } else {
-        return testStatus.didNotRun;
+        returnStatus = testStatus.didNotRun;
       }
     }
   }
-  return testStatus.didNotRun;
+  return returnStatus;
 }
 
 function addSearchPathsFromConfigurationFile(
@@ -565,6 +568,7 @@ function createVcastEnvironmentScript(
       flag: "a+",
     })
   );
+
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
 }
 

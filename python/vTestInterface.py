@@ -70,19 +70,10 @@ def setupArgs():
         help="Test Explorer Mode",
     )
 
-    kindChoices = ["vcast", "codebased"]
-    parser.add_argument(
-        "--kind",
-        choices=kindChoices,
-        required=True,
-        help="Environment Kind",
-    )
-
-    parser.add_argument("--clicast", required=True, help="Path to clicast to use")
+    parser.add_argument("--clicast", help="Path to clicast to use")
 
     parser.add_argument(
         "--path",
-        required=True,
         help="Path to Environment Directory",
     )
 
@@ -152,6 +143,7 @@ def generateTestInfo(test):
     """
     testInfo = dict()
     testInfo["testName"] = test.name
+
     testInfo["notes"] = test.notes
     # stored as 0 or 1
     testInfo["compoundOnly"] = test.for_compound_only
@@ -245,8 +237,11 @@ def getTestDataVCAST(enviroPath):
                         if test.is_csv_map:
                             pass
                         else:
+                            # A coded test file might have been renamed or deleted,
+                            # in which case generateTestInfo() will return None
                             testInfo = generateTestInfo(test)
-                            functionNode["tests"].append(testInfo)
+                            if testInfo:
+                                functionNode["tests"].append(testInfo)
 
                     unitNode["functions"].append(functionNode)
 
@@ -285,33 +280,32 @@ def printCoverageListing(enviroPath):
     capi.close()
 
 
-def getUnitData(enviroPath, kind):
+def getUnitData(enviroPath):
     """
     This function will return info about the units in an environment
     """
     unitList = list()
-    if kind == "vcast":
-        try:
-            # this can throw an error of the coverDB is too old!
-            capi = CoverApi(enviroPath)
-        except Exception as err:
-            print(err)
-            raise UsageError()
+    try:
+        # this can throw an error of the coverDB is too old!
+        capi = CoverApi(enviroPath)
+    except Exception as err:
+        print(err)
+        raise UsageError()
 
-        # For testing/debugging
-        # printCoverageListing (enviroPath)
+    # For testing/debugging
+    # printCoverageListing (enviroPath)
 
-        sourceObjects = capi.SourceFile.all()
-        for sourceObject in sourceObjects:
-            sourcePath = sourceObject.display_path
-            covered, uncovered, checksum = getCoverageData(sourceObject)
-            unitInfo = dict()
-            unitInfo["path"] = sourcePath
-            unitInfo["functionList"] = getFunctionData(sourceObject)
-            unitInfo["cmcChecksum"] = checksum
-            unitInfo["covered"] = covered
-            unitInfo["uncovered"] = uncovered
-            unitList.append(unitInfo)
+    sourceObjects = capi.SourceFile.all()
+    for sourceObject in sourceObjects:
+        sourcePath = sourceObject.display_path
+        covered, uncovered, checksum = getCoverageData(sourceObject)
+        unitInfo = dict()
+        unitInfo["path"] = sourcePath
+        unitInfo["functionList"] = getFunctionData(sourceObject)
+        unitInfo["cmcChecksum"] = checksum
+        unitInfo["covered"] = covered
+        unitInfo["uncovered"] = uncovered
+        unitList.append(unitInfo)
 
     capi.close()
     return unitList
@@ -421,13 +415,14 @@ def getResults(enviroPath, testIDObject):
 
 def getCodeBasedTestNames(filePath):
     """
-    testID looks like: EXAMPLE.CBT.mySuite.byPointer
-    So we just need to split the mySuite.byPointer part
-    off and pass that to the driver.
+    This function will use the same file parser that the vcast
+    uses to extract the test names from the CBT file.  It will return
+    a list of dictionaries that contain the test name, the file path
+    and the starting line for he test
     """
 
-    with cd(enviroPath):
-        nameOfDriver = os.path.basename(enviroPath).lower()
+    returnObject = None
+    if os.path.isfile(filePath):
 
         cbtParser = Parser()
         with open(filePath, "r") as cbtFile:
@@ -498,20 +493,14 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
     it will return a dictionary with the results of the command
     """
 
-    argParser = setupArgs()
-    args, restOfArgs = argParser.parse_known_args()
+    returnCode = 0
+    returnObject = None
 
     # no need to pass this all around
     validateClicastCommand(clicast, mode)
     clicastInterface.globalClicastCommand = clicast
 
-    # enviroPath is the full path to the vce file
-    enviroPath = os.path.abspath(args.path)
-
-    # See the comment in: executeVPythonScript()
-    print("ACTUAL-DATA")
-
-    if args.mode == "getEnviroData":
+    if mode == "getEnviroData":
         topLevel = dict()
         # it is important that getTetDataVCAST() is called first since it sets up
         # the global list of tesable functoions that getUnitData() needs
@@ -551,25 +540,20 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
         jsonOptions = processOptions(options)
         clicastInterface.rebuildEnvironment(pathToUse, jsonOptions)
 
-        json.dump(topLevel, sys.stdout, indent=4)
+    # only used for executeTest currently
+    return returnCode, returnObject
 
-    elif args.mode == "getCoverageData":
-        # need to call this function to set the global list of testable functions
-        getTestDataVCAST(enviroPath)
-        unitData = getUnitData(enviroPath, args.kind)
-        json.dump(unitData, sys.stdout, indent=4)
 
-    elif args.mode == "executeTest":
-        if args.kind == "vcast":
-            testIDObject = testID(enviroPath, args.test)
-            executeVCtest(enviroPath, testIDObject)
-        else:
-            executeCodeBasedTest(enviroPath, args.test)
+def main():
 
-    elif args.mode == "results":
-        if args.kind == "vcast":
-            testIDObject = testID(enviroPath, args.test)
-            getResults(enviroPath, testIDObject)
+    argParser = setupArgs()
+    args, restOfArgs = argParser.parse_known_args()
+
+    # path is the path to the enviro directory or cbt file
+    pathToUse = os.path.abspath(args.path)
+
+    # See the comment in: executeVPythonScript()
+    print("ACTUAL-DATA")
 
     returnCode, returnObject = processCommand(
         args.mode, args.clicast, pathToUse, args.test, args.options
@@ -582,8 +566,8 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
             returnText = json.dumps(returnObject, indent=4)
             print(returnText)
 
-    # Zero exit code
-    return 0
+    # only used for executeTest currently
+    return returnCode
 
 
 if __name__ == "__main__":
@@ -604,3 +588,4 @@ if __name__ == "__main__":
         returnCode = 1
 
     sys.exit(returnCode)
+    

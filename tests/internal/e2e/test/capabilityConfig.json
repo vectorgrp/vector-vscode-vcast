@@ -9,11 +9,11 @@
           "extensionsDir" : "",
           "local-history.enabled": false
         },
-        "verboseLogging": true,
+        "verboseLogging": false,
         "userSettings": {
-            "editor.fontSize": 12,
-            "terminal.integrated.fontSize": 12,
-            "window.zoomLevel" : -3
+            "editor.fontSize": 18,
+            "terminal.integrated.fontSize": 18,
+            "window.zoomLevel" : -4
         },
         "vscodeProxyOptions":{
             "enable": true,

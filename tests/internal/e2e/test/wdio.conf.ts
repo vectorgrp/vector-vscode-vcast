@@ -122,21 +122,22 @@ export const config: Options.Testrunner = {
   // will be called from there.
   //
   specs: [
-    "./**/**/vcast_testgen_bugs.test.ts",
-    "./**/**/vcast_testgen_bugs_2.test.ts",
+    // "./**/**/vcast_testgen_bugs.test.ts",
+    // "./**/**/vcast_testgen_bugs_2.test.ts",
+    "./**/**/vcast.test.ts",
     // "./**/**/vcast_testgen_env.test.ts",
     // "./**/**/vcast_testgen_unit.test.ts",
     // "./**/**/vcast_testgen_func.test.ts",
     // "./**/**/vcast_coded_tests.test.ts",
-    "./**/**/vcast.build_env.test.ts",
-    "./**/**/vcast.create_script_1.test.ts",
-    "./**/**/vcast.create_script_2_and_run.test.ts",
-    "./**/**/vcast.create_second_test_1.test.ts",
-    "./**/**/vcast.create_second_test_2_and_run.test.ts",
-    "./**/**/vcast.third_test.test.ts",
-    "./**/**/vcast.rest.test.ts",
-    "./**/**/vcast.rest_2.test.ts",
-    "./**/**/vcast.rest_3.test.ts",
+    // "./**/**/vcast.build_env.test.ts",
+    // "./**/**/vcast.create_script_1.test.ts",
+    // "./**/**/vcast.create_script_2_and_run.test.ts",
+    // "./**/**/vcast.create_second_test_1.test.ts",
+    // "./**/**/vcast.create_second_test_2_and_run.test.ts",
+    // "./**/**/vcast.third_test.test.ts",
+    // "./**/**/vcast.rest.test.ts",
+    // "./**/**/vcast.rest_2.test.ts",
+    // "./**/**/vcast.rest_3.test.ts",
   ],
   // Patterns to exclude.
   // exclude:
@@ -391,6 +392,9 @@ export const config: Options.Testrunner = {
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
     await mkdir(testInputEnvPath, { recursive: true });
 
+    const codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
+    await mkdir(codedTestsPath , { recursive: true });
+
     const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
     await mkdir(vscodeSettingsPath, { recursive: true });
     const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
@@ -400,6 +404,29 @@ export const config: Options.Testrunner = {
       createLaunchJson = `copy /b NUL ${launchJsonPath}`;
     else createLaunchJson = `touch ${launchJsonPath}`;
     await promisifiedExec(createLaunchJson);
+    
+    const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include")
+    const c_cpp_properties = {
+      configurations: [
+          {
+              "name": "Linux",
+              "includePath": [
+                  "${workspaceFolder}/**",
+                  `${pathTovUnitInclude}`  
+              ],
+              "defines": [],
+              "compilerPath": "/usr/bin/clang",
+              "cStandard": "c17",
+              "cppStandard": "c++14",
+              "intelliSenseMode": "linux-clang-x64"
+          }
+      ],
+      version: 4
+    }
+
+    const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
+    const c_cpp_properties_JSONPath = path.join(vscodeSettingsPath, "c_cpp_properties.json");
+    await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
 
     const envFile = `ENVIRO.NEW
 ENVIRO.NAME: DATABASE-MANAGER-test
@@ -458,10 +485,10 @@ ENVIRO.END
     await mkdir(pathToTutorial, { recursive: true });
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
     const headerFilesToCopy = path.join(pathToTutorial, "*.h");
-
+    
     const examplesDir = path.join(initialWorkdir, "test", "examples");
     const examplesToCopy = path.join(examplesDir, "*.cpp");
-
+    const codedTestsExamplesToCopy = path.join(examplesDir, "coded_tests", "*.cpp")
     // copying didn't work with cp from fs
     if (process.platform == "win32") {
       await promisifiedExec(
@@ -474,6 +501,9 @@ ENVIRO.END
         `xcopy /s /i /y ${headerFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`
       );
       await promisifiedExec(
+        `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`,
+      );
+      await promisifiedExec(
         `xcopy /s /i /y ${testInputVcastTutorial} ${path.join(
           initialWorkdir,
           "test",
@@ -484,6 +514,7 @@ ENVIRO.END
       await promisifiedExec(`cp ${examplesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
+      await promisifiedExec(`cp ${codedTestsExamplesToCopy} ${codedTestsPath}`);
       await promisifiedExec(
         `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`
       );

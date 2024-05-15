@@ -29,8 +29,8 @@ import {
   createTestNodeinCache,
   duplicateTestNode,
   getEnviroPathFromID,
+  getEnviroNodeIDFromID,
   getFunctionNameFromID,
-  getEnviroNameFromID,
   getTestNameFromID,
   getUnitNameFromID,
   testNodeType,
@@ -60,7 +60,6 @@ import {
   resetCoverageData,
   runVCTest,
   testDataType,
-  testStatus,
   vcastEnviroFile,
 } from "./vcastTestInterface";
 
@@ -92,11 +91,10 @@ const crypto = require("crypto");
 // and double click on the test will open the test file.
 //
 function addTestNodes(
-  controller: TestController,
   testList: any[],
-  parentNode: TestItemCollection,
+  parentNode: vcastTestItem,
   parentNodeID: string,
-  fileURI?: vscode.Uri
+  parentNodeForCache: testNodeType
 ) {
   for (let testIndex = 0; testIndex < testList.length; testIndex++) {
     // we save the current test status to be used by updateStatusForNode
@@ -106,8 +104,9 @@ function addTestNodes(
       time: testList[testIndex].time,
       notes: testList[testIndex].notes,
       resultFilePath: "",
-      URI: fileURI,
       compoundOnly: testList[testIndex].compoundOnly,
+      testFile: testList[testIndex].codedTestFile || "",
+      testStartLine: testList[testIndex].codedTestLine || 1,
     };
 
     testData.testFile = forceLowerCaseDriveLetter(
@@ -122,6 +121,8 @@ function addTestNodes(
     // add a cache node for the test
     let testNodeForCache: testNodeType = duplicateTestNode(parentNodeID);
     testNodeForCache.testName = testName;
+    testNodeForCache.testFile = testData.testFile;
+    testNodeForCache.testStartLine = testData.testStartLine;
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;
@@ -141,7 +142,7 @@ function addTestNodes(
     let testNode: vcastTestItem = globalController.createTestItem(
       testNodeID,
       testName,
-      fileURI
+      testURI
     );
     testNode.nodeKind = nodeKind.test;
     testNode.isCompoundOnly = testData.compoundOnly;
@@ -171,9 +172,9 @@ function addTestNodes(
   addTestNodeToCache(parentNodeID, parentNodeForCache);
 }
 
-
+const codedTestFunctionName = "coded_tests_driver";
+const codedTestDisplayName = "Coded Tests";
 function processVCtestData(
-  controller: TestController,
   enviroNodeID: string,
   enviroNode: vcastTestItem,
   enviroData: any
@@ -191,7 +192,7 @@ function processVCtestData(
     unitNodeForCache.unitName = unitData.name;
     addTestNodeToCache(unitNodeID, unitNodeForCache);
 
-    let unitNode: vcastTestItem = controller.createTestItem(
+    let unitNode: vcastTestItem = globalController.createTestItem(
       unitNodeID,
       unitData.name
     );
@@ -211,14 +212,17 @@ function processVCtestData(
         functionNodeForCache.functionName = functionName;
         addTestNodeToCache(functionNodeID, functionNodeForCache);
 
-        const functionNode: vcastTestItem = controller.createTestItem(
+        let displayName = functionName;
+        if (functionName == codedTestFunctionName) {
+          displayName = codedTestDisplayName;
+        }
+        const functionNode: vcastTestItem = globalController.createTestItem(
           functionNodeID,
-          functionName
+          displayName
         );
         functionNode.nodeKind = nodeKind.function;
 
         addTestNodes(
-          controller,
           testList,
           functionNode,
           functionNodeID,
@@ -263,7 +267,7 @@ function processVCtestData(
       specialNodeForCache.functionName = nodeIdName;
       addTestNodeToCache(specialNodeID, specialNodeForCache);
 
-      const specialNode: vcastTestItem = controller.createTestItem(
+      const specialNode: vcastTestItem = globalController.createTestItem(
         specialNodeID,
         nodeName
       );
@@ -284,7 +288,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
   // This function will find all of the VectorCAST and vTest
   // environments downstream of the current workspace
 
-  const options = { cwd: baseDirectory, absolute: true };
+  const options = { cwd: baseDirectory, absolute: true, strict: false };
   let fileList = glob.sync("**/" + vcastEnviroFile, options);
 
   // now we have a list of the UNITDATA.VCD files downstream of us
@@ -308,7 +312,6 @@ let vcastEnviroList: string[] = [];
 let vcastHasCodedTestsList: string[] = [];
 
 export function updateTestsForEnvironment(
-  controller: TestController,
   enviroPath: string,
   workspaceRoot: string
 ) {
@@ -343,7 +346,7 @@ export function updateTestsForEnvironment(
     enviroNode.nodeKind = nodeKind.enviro;
 
     // if we have data
-    processVCtestData(controller, enviroNodeID, enviroNode, jsonData);
+    processVCtestData(enviroNodeID, enviroNode, jsonData);
 
     // this is used by the package.json to control content (right click) menu choices
     if (!vcastEnviroList.includes(enviroNodeID)) {
@@ -355,8 +358,8 @@ export function updateTestsForEnvironment(
       );
     }
     // starting with VS Code 1.81 the tree was not updating unless I added the delete
-    controller.items.delete(enviroNode.id);
-    controller.items.add(enviroNode);
+    globalController.items.delete(enviroNode.id);
+    globalController.items.add(enviroNode);
   } else {
     vectorMessage(`Ignoring environment: ${enviroPath}\n`);
   }
@@ -369,14 +372,13 @@ export function removeEnvironmentFromTestPane(enviroID: string) {
 
 export let vcastEnvironmentsFound: boolean = false;
 async function loadAllVCTests(
-  controller: TestController,
   progress: vscode.Progress<{ message?: string; increment?: number }>,
   token: vscode.CancellationToken
 ) {
   // loads all vcast test environemnts found in the workspace
 
   // throw away the existing items
-  controller.items.replace([]);
+  globalController.items.replace([]);
   vcastEnviroList = [];
   clearTestNodeCache();
 
@@ -413,7 +415,7 @@ async function loadAllVCTests(
         if (cancelled) {
           break;
         }
-        updateTestsForEnvironment(controller, enviroPath, workspaceRoot);
+        updateTestsForEnvironment(enviroPath, workspaceRoot);
       } // for each enviropath
       if (cancelled) {
         break;
@@ -467,7 +469,7 @@ function okToDebug(
 
 let sourceCache: Map<string, string[]> = new Map();
 
-function findLineForFunction(filePath: string, functionName: string): number {
+function findStringInFile(filePath: string, stringToFind: string): number {
   // We know filePath exists when we get here
 
   let returnLineNumber = 0;
@@ -482,9 +484,8 @@ function findLineForFunction(filePath: string, functionName: string): number {
     sourceCache.set(filePath, fileContents);
   }
 
-  const functionNameWithoutParams = functionName.split("(")[0];
   for (const [index, line] of fileContents.entries()) {
-    if (line.includes(functionNameWithoutParams)) {
+    if (line.includes(stringToFind)) {
       returnLineNumber = index;
       break;
     }
@@ -530,7 +531,7 @@ function getWorkspacePath(enviroPath: string): string | undefined {
 }
 
 function getLaunchJsonPath(workspacePath: string): string {
-  const jsonPath = path.join(workspacePath, ".vscode", "launch.json");
+  const jsonPath = path.join(workspacePath, ".vscode", launchFile);
   return jsonPath;
 }
 
@@ -677,7 +678,7 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
     executableFilename
   );
 
-  if (okToDebug(node, sbfFilePath, enviroOptions)) {
+  if (okToDebug(node, fileToDebug, enviroOptions)) {
     let ourWorkspace = getWorkspacePath(enviroPath);
 
     if (ourWorkspace) {
@@ -692,7 +693,7 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
         );
 
         vscode.window.showWarningMessage(
-          "launch.json not found.\n" +
+          `${launchFile} not found.\n` +
             'Generating "VectorCAST Harness Debug" configuration from template'
         );
 
@@ -717,7 +718,7 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
 
         // ok to debug, let's go!
 
-        // this is the global that the launch.json links to ...
+        // these are the globals that the launch.json links to ...
         pathToEnviroBeingDebugged = enviroPath;
         pathToProgramBeingDebugged = path.join(enviroPath, executableFilename);
 
@@ -783,14 +784,13 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
       );
     }
   } else {
-    // just do a normal test execute
-    const run = controller.createTestRun(request);
-    await runNode(node, run);
+    // cannot debug so just do a normal test execute
+    const run = globalController.createTestRun(request);
+    await runNode(node, run, false);
     run.end();
   }
 }
 
-let doingAMultiTestExecution = false;
 export async function runNode(
   node: vcastTestItem,
   run: vscode.TestRun,
@@ -801,7 +801,7 @@ export async function runNode(
 
   // this does the actual work of running the test
   const enviroPath = getEnviroPathFromID(node.id);
-  runVCTest(enviroPath, node.id).then((status) => {
+  return runVCTest(enviroPath, node.id, generateReport).then((status) => {
     if (status == testStatus.didNotRun) {
       run.skipped(node);
     } else if (status == testStatus.compileError) {
@@ -831,20 +831,14 @@ export async function runNode(
             break;
           }
         }
-        run.failed(node, new TestMessage(failures));
+        run.failed(node, failMessage);
       }
 
-      if (!preDebugMode) {
-        let settings = vscode.workspace.getConfiguration(
-          "vectorcastTestExplorer"
-        );
-        const showReport: boolean = settings.get("showReportOnExecute", false);
-        if (!doingAMultiTestExecution && showReport) {
-          viewResultsReport(node.id);
-        }
-        updateDisplayedCoverage();
+      if (generateReport) {
+        viewResultsReport(node.id);
       }
     }
+    return status;
   });
 }
 
@@ -894,7 +888,6 @@ function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {
 
 // this does the actual work of running the tests
 async function runTests(
-  controller: vscode.TestController,
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken
 ) {
@@ -907,11 +900,10 @@ async function runTests(
     request.include.forEach((test) => nodeList.push(test));
   } else {
     // all known tests
-    controller.items.forEach((test) => nodeList.push(test));
+    globalController.items.forEach((test) => nodeList.push(test));
   }
 
   const testList: vcastTestItem[] = getTestNodes(request, nodeList);
-  doingAMultiTestExecution = testList.length > 1;
 
   // this does the actual execution of the full test list
   const run = globalController.createTestRun(request);
@@ -956,7 +948,6 @@ function isSingleTestNode(request: vscode.TestRunRequest): boolean {
 }
 
 async function processRunRequest(
-  controller: vscode.TestController,
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken,
   isDebug: boolean = false
@@ -979,7 +970,7 @@ async function processRunRequest(
         `Debug is only available for single test selections nodes, performing normal test execution.`
       );
     }
-    runTests(controller, request, cancellation);
+    runTests(request, cancellation);
   }
 }
 
@@ -995,7 +986,7 @@ export async function deleteTests(nodeList: any[]) {
   let changedEnvironmentIDList: Set<string> = new Set();
 
   for (let node of nodeList) {
-    vectorMessage(`Deleting tests for node: ${node.id} ...`);
+    await vectorMessage(`Deleting tests for node: ${node.id} ...`);
 
     // call clicast to delete the test case
     const commandStatus = deleteSingleTest(node.id);
@@ -1119,7 +1110,7 @@ export function buildTestPaneContents() {
       // to find VectorCAST environments
       //
       // key is to wait for this to finish
-      await loadAllVCTests(globalController, progress, token);
+      await loadAllVCTests(progress, token);
     }
   );
 }

@@ -3,18 +3,22 @@ import { quote } from "./utilities";
 export const compoundOnlyString = " [compound only]";
 
 export interface testNodeType {
+  enviroNodeID: string;
   enviroPath: string; // the full path including the enviro directory
   enviroName: string; // the directory name
   unitName: string;
   functionName: string;
   testName: string;
+  // initially will be used for coded-tests
+  testFile: string;
+  testStartLine: number;
 }
 // this is a lookup table for the nodes in the test tree
 // the key is the nodeID, the data is an testNodeType
 let testNodeCache = new Map();
 
 export function createTestNodeinCache(
-  nodeID: string,
+  enviroNodeID: string,
   enviroPath: string,
   enviroName: string,
   unitName: string = "",
@@ -30,9 +34,11 @@ export function createTestNodeinCache(
     unitName: unitName,
     functionName: functionName,
     testName: testName,
+    testFile: testFile,
+    testStartLine: testStartLine,
   };
   // set will over-write if nodeID exists
-  testNodeCache.set(nodeID, testNode);
+  testNodeCache.set(enviroNodeID, testNode);
 }
 
 export function addTestNodeToCache(nodeID: string, testNode: testNodeType) {
@@ -62,6 +68,10 @@ export function clearTestNodeCache() {
 
 export function getTestNode(nodeID: string): testNodeType {
   return testNodeCache.get(nodeID);
+}
+
+export function getEnviroNodeIDFromID(nodeID: string): string {
+  return testNodeCache.get(nodeID).enviroNodeID;
 }
 
 export function getEnviroPathFromID(nodeID: string): string {

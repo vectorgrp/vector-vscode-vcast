@@ -53,14 +53,14 @@ tr:hover {
     overflow: scroll;
 }
 
-.danger {
-    background-color: var(--vscode-testing-iconFailed);
+.danger, .bg-danger {
+    background-color: var(--vscode-minimap-errorHighlight);
     color: black;
     font-weight: bold
 }
 
-.danger:hover {
-    background-color: var(--vscode-testing-iconFailed) !important;
+.danger:hover, .bg-danger:hover {
+    background-color: var(--vscode-minimap-errorHighlight) !important;
 }
 
 .success, .bg-success {
@@ -81,6 +81,12 @@ tr:hover {
 
 .warning:hover, .bg-warning:hover {
     background-color: var(--vscode-testing-iconQueued) !important;
+}
+
+pre {
+  border:1px solid var(--vscode-editorGroup-border);
+  background-color:var(--vscode-editorGroup-border);
+  color: var(--vscode-foreground);
 }
 </style>`;
         returnText += line;
