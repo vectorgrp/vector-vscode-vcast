@@ -12,8 +12,8 @@
         "verboseLogging": false,
         "userSettings": {
             "editor.fontSize": 18,
-            "terminal.integrated.fontSize": 18,
-            "window.zoomLevel" : -4
+            "terminal.integrated.fontSize": 12,
+            "window.zoomLevel" : -5
         },
         "vscodeProxyOptions":{
             "enable": true,

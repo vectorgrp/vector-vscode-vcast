@@ -172,8 +172,7 @@ import {
       await browser.saveScreenshot(
         "info_finished_creating_vcast_environment.png",
       );
-      // clearing all notifications
-      await (await $(".codicon-notifications-clear-all")).click();
+
     });
 
     it("should explicitly check that ./unittests/a/b/c is created and contains the .env file", async () => {
