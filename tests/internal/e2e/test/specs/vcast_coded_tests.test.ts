@@ -1208,6 +1208,18 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running corrected test")
     await runArrowElement.click({button:1})
     
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+    await webview.open();
+    console.log("Checking test report")
+    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
+      "Execution Results (FAIL)",
+    );
+   
+    await webview.close()
+    await editorView.closeAllEditors()
+
     await(await bottomBar.elem).click()
     await bottomBar.maximize()
     await browser.waitUntil(
@@ -1220,18 +1232,6 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
     expect(outputTextFlat.includes("TEST RESULT: fail"))
     await bottomBar.restore()
-
-    const webviews = await workbench.getAllWebviews();
-    expect(webviews).toHaveLength(1);
-    const webview = webviews[0];
-    await webview.open();
-    console.log("Checking test report")
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)",
-    );
-   
-    await webview.close()
-    await editorView.closeAllEditors()
   });
 
   it("should clean up", async () => {
