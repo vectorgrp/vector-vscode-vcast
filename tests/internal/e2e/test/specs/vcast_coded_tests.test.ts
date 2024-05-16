@@ -1000,6 +1000,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     
     console.log("Verifying test output")
+    await bottomBar.maximize()
     await browser.waitUntil(
       async () => ((await outputView.getText()).toString().includes("[  FAIL  ] manager.coded_tests_driver - managerTests.myTest")),
       { timeout: TIMEOUT },
@@ -1009,7 +1010,8 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
     expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
     expect(outputTextFlat.includes("TEST RESULT: fail"))
-    
+    await bottomBar.restore()
+
     console.log("Checking test report")
     let webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
