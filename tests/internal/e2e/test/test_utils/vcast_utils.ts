@@ -44,8 +44,7 @@ export async function cleanup(){
   const vcastNotification = await vcastNotifSourceElem.$("..");
   await (await vcastNotification.$("aria/Delete")).click();
   await bottomBar.maximize()
-  const tempText = await (await bottomBar.openOutputView()).getText()
-  console.log(tempText)
+ 
   await browser.waitUntil(
     async () =>
       (await (await bottomBar.openOutputView()).getText())
@@ -131,7 +130,7 @@ export async function expandWorkspaceFolderSectionInExplorer(
   const workspaceFolderSection = await explorerSideBarView
     .getContent()
     .getSection(workspaceName.toUpperCase());
-  console.log(await workspaceFolderSection.getTitle());
+  
   await workspaceFolderSection.expand();
 
   return workspaceFolderSection;
@@ -146,7 +145,7 @@ export async function clickOnButtonInTestingHeader(buttonLabel: string) {
 
   const testingViewTitlePart = testingOpenView.getTitlePart();
   await (await testingViewTitlePart.elem).click();
-  console.log(`Clicking on${buttonLabel} button in Testing view`);
+ 
 
   const actionButton = await (
     await $(`aria/${buttonLabel}`)
@@ -227,7 +226,7 @@ export async function getTestHandle(
   if (!customSubprogramMethod.isExpanded()) {
     await customSubprogramMethod.select();
   }
-  console.log(`Waiting until ${expectedTestName} appears in the test tree`);
+  
   try{
     await browser.waitUntil(
       async () =>
@@ -310,7 +309,7 @@ export enum testGenMethod {
 
 export async function generateAllTestsForEnv(envName:string, testGenMethod:string){
   const menuItemLabel = `Insert ${testGenMethod} Tests`
-  console.log(`Menu to click is ${menuItemLabel}`)
+
   const vcastTestingViewContent = await getViewContent("Testing");
   
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
@@ -417,16 +416,16 @@ export async function validateTestDeletionForEnv(envName:string){
       const subprogramGroup = visibleItem as CustomTreeItem;
    
       if ((await subprogramGroup.getTooltip()).includes(envName)){
-        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+        
 
         for (const unit of await subprogramGroup.getChildren()) {
           const unitName = await unit.getTooltip()
-          console.log(`Unit: ${unitName}`)
+          
           
           if (!(unitName.includes("Compound")) && !(unitName.includes("Initialization"))){
             for (const method of await unit.getChildren()) {
               const methodName = await method.getTooltip()
-              console.log(`Method: ${methodName}`) 
+              
               // this is flaky, it sometimes takes manager as Child element
               if (methodName.includes("::")){
                 await browser.waitUntil(
@@ -461,16 +460,16 @@ export async function validateTestDeletionForUnit(envName:string, unitName:strin
       const subprogramGroup = visibleItem as CustomTreeItem;
    
       if ((await subprogramGroup.getTooltip()).includes(envName)){
-        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+        
 
         for (const unit of await subprogramGroup.getChildren()) {
           const unitNameTooltip = await unit.getTooltip()
-          console.log(`Unit: ${unitNameTooltip}`)
+          
           
           if (unitNameTooltip.includes(unitName)){
             for (const method of await unit.getChildren()) {
               const methodName = await method.getTooltip()
-              console.log(`Method: ${methodName}`) 
+              
               // this is flaky, it sometimes takes manager as Child element
               if (methodName.includes("::")){
                 await browser.waitUntil(
@@ -505,16 +504,16 @@ export async function validateTestDeletionForFunction(envName:string, unitName:s
       const subprogramGroup = visibleItem as CustomTreeItem;
    
       if ((await subprogramGroup.getTooltip()).includes(envName)){
-        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+        
 
         for (const unit of await subprogramGroup.getChildren()) {
           const unitNameTooltip = await unit.getTooltip()
-          console.log(`Unit: ${unitNameTooltip}`)
+          
           
           if (unitNameTooltip.includes(unitName)){
             for (const method of await unit.getChildren()) {
               const methodNameTooltip = await method.getTooltip()
-              console.log(`Method: ${methodNameTooltip}`) 
+              
               // this is flaky, it sometimes takes manager as Child element
               if (methodNameTooltip.includes(functionName)){
 
@@ -546,7 +545,7 @@ export async function generateAndValidateAllTestsFor(envName:string, testGenMeth
   for (const [unitName, functions] of Object.entries(expectedTests[envName])) {
     for (const [functionName,tests] of Object.entries(functions)) {
       for (const [testName, testCode] of Object.entries(tests)) {
-        console.log(`Expected Test ${envName}:${unitName}:${functionName}:${testName}`);
+      
         let subprogram: TreeItem = undefined;
         let testHandle: TreeItem = undefined;
         for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
@@ -590,7 +589,7 @@ export async function generateFlaskIconTestsFor(line:number, testGenMethod:strin
   const workspaceFolderSection = await explorerSideBarView
     .getContent()
     .getSection(workspaceFolderName.toUpperCase());
-  console.log(await workspaceFolderSection.getTitle());
+  
   await workspaceFolderSection.expand();
 
   const managerCpp = workspaceFolderSection.findItem(unitFileName);
@@ -907,7 +906,7 @@ export async function validateGeneratedTestsForUnit(envName: string, unitName: s
   
   for (const [functionName,tests] of Object.entries(expectedUnitInfo)) {
     for (const [testName, expectedTestCode] of Object.entries(tests)) {
-      console.log(`Expected Test ${envName}:${unitName}:${functionName}:${testName}`);
+      
       let subprogram: TreeItem = undefined;
       let testHandle: TreeItem = undefined;
       for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
@@ -944,7 +943,7 @@ export async function validateGeneratedTestsForFunction(envName: string, unitNam
 
   
   for (const [testName, expectedTestCode] of Object.entries(expectedFunctionInfo)) {
-    console.log(`Expected Test ${functionName}:${testName}`);
+    
     let subprogram: TreeItem = undefined;
     let testHandle: TreeItem = undefined;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
