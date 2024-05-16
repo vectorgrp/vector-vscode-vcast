@@ -408,7 +408,7 @@ export async function deleteAllTestsForEnv(envName:string){
 
 export async function validateTestDeletionForEnv(envName:string){
   const vcastTestingViewContent = await getViewContent("Testing");
-  
+  let doneValidating = false
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
     
     for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
@@ -440,14 +440,17 @@ export async function validateTestDeletionForEnv(envName:string){
         }
         // getVisibleItems() literally gets the visible items, including leaves in the structure
         // important to stop the loop here, otherwise wdio starts doing random things and hangs
-        break;
+        if (doneValidating) 
+          break;
       }
     }
-
+    if (doneValidating) 
+      break;
   }
 }
 
 export async function validateTestDeletionForUnit(envName:string, unitName:string){
+  let doneValidating = false
   const vcastTestingViewContent = await getViewContent("Testing");
   
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
@@ -476,15 +479,18 @@ export async function validateTestDeletionForUnit(envName:string, unitName:strin
                 ); 
               }
             }
+          doneValidating = true;
           break;
           }
         }
         // getVisibleItems() literally gets the visible items, including leaves in the structure
         // important to stop the loop here, otherwise wdio starts doing random things and hangs
-        break;
+        if (doneValidating) 
+            break;
       }
     }
-    break;
+    if (doneValidating) 
+      break;
   }
 }
 
