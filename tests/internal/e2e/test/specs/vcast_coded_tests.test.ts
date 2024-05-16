@@ -1208,6 +1208,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running corrected test")
     await runArrowElement.click({button:1})
     
+    await bottomBar.maximize()
     await browser.waitUntil(
       async () => ((await outputView.getText()).toString().includes("[        ]   Testcase User Code Mismatch:")),
       { timeout: TIMEOUT },
@@ -1217,6 +1218,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
     expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
     expect(outputTextFlat.includes("TEST RESULT: fail"))
+    await bottomBar.restore()
 
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
