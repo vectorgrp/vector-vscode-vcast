@@ -1208,6 +1208,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running corrected test")
     await runArrowElement.click({button:1})
     
+    await(await bottomBar.elem).click()
     await bottomBar.maximize()
     await browser.waitUntil(
       async () => ((await outputView.getText()).toString().includes("[        ]   Testcase User Code Mismatch:")),
