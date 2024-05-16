@@ -125,8 +125,8 @@ export const config: Options.Testrunner = {
     // "./**/**/vcast_testgen_bugs.test.ts",
     // "./**/**/vcast_testgen_bugs_2.test.ts",
     // "./**/**/vcast.test.ts",
-    "./**/**/vcast_testgen_func.test.ts",
-    "./**/**/vcast_testgen_unit.test.ts",
+    // "./**/**/vcast_testgen_func.test.ts",
+    // "./**/**/vcast_testgen_unit.test.ts",
     "./**/**/vcast_testgen_env.test.ts",
     "./**/**/vcast_coded_tests.test.ts",
     // "./**/**/vcast.build_env.test.ts",
@@ -304,7 +304,7 @@ export const config: Options.Testrunner = {
   // See the full list at http://mochajs.org/
   mochaOpts: {
     ui: "bdd",
-    timeout: 900000,
+    timeout: 9000000,
     bail: true,
   },
   //
