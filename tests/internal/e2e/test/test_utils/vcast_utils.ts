@@ -43,7 +43,9 @@ export async function cleanup(){
   );
   const vcastNotification = await vcastNotifSourceElem.$("..");
   await (await vcastNotification.$("aria/Delete")).click();
-
+  await bottomBar.maximize()
+  const tempText = await (await bottomBar.openOutputView()).getText()
+  console.log(tempText)
   await browser.waitUntil(
     async () =>
       (await (await bottomBar.openOutputView()).getText())
@@ -51,6 +53,7 @@ export async function cleanup(){
         .includes("Successful deletion of environment"),
     { timeout: 30000 },
   )
+  await bottomBar.restore()
 
   const initialWorkdir = process.env["INIT_CWD"];
   const pathToTutorial = path.join(
@@ -481,13 +484,13 @@ export async function validateTestDeletionForUnit(envName:string, unitName:strin
         break;
       }
     }
-
+    break;
   }
 }
 
 export async function validateTestDeletionForFunction(envName:string, unitName:string, functionName:string){
   const vcastTestingViewContent = await getViewContent("Testing");
-  
+  let doneValidating = true
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
     
     for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
@@ -851,7 +854,7 @@ export async function deleteAllTestsForUnit(unitName:string, testGenMethod:strin
       );
       const vcastNotification = await vcastNotifSourceElem.$("..");
       await (await vcastNotification.$("aria/Delete")).click();
-
+      
       break
     }
   }
