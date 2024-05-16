@@ -71,6 +71,32 @@ const proxyObject: ProxyObject = {
   noProxy: noProxyRules
 }
 
+
+let coreTestSpecs = [
+  "./**/**/vcast.build_env.test.ts",
+  "./**/**/vcast.create_script_1.test.ts",
+  "./**/**/vcast.create_script_2_and_run.test.ts",
+  "./**/**/vcast.create_second_test_1.test.ts",
+  "./**/**/vcast.create_second_test_2_and_run.test.ts",
+  "./**/**/vcast.third_test.test.ts",
+  "./**/**/vcast.rest.test.ts",
+  "./**/**/vcast.rest_2.test.ts",
+  "./**/**/vcast.rest_3.test.ts",
+]
+let fullTestSpecs = coreTestSpecs;
+if (process.env["USE_VCAST_24"] == "True")
+  fullTestSpecs = coreTestSpecs.concat(["./**/**/vcast_coded_tests.test.ts"]);
+fullTestSpecs = fullTestSpecs.concat(
+  [
+    "./**/**/vcast_testgen_bugs.test.ts",
+    "./**/**/vcast_testgen_bugs_2.test.ts",
+    "./**/**/vcast_testgen_func.test.ts",
+    "./**/**/vcast_testgen_unit.test.ts",
+  ]
+)
+// this test takes very long and it's not that critical
+if (process.env["BRANCH_REF"] == "refs/heads/main")
+  fullTestSpecs.concat(["./**/**/vcast_testgen_env.test.ts"])
 export const config: Options.Testrunner = {
   //
   // ====================
@@ -121,24 +147,7 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: [
-    // "./**/**/vcast_testgen_bugs.test.ts",
-    // "./**/**/vcast_testgen_bugs_2.test.ts",
-    // "./**/**/vcast.test.ts",
-    // "./**/**/vcast_testgen_func.test.ts",
-    // "./**/**/vcast_testgen_unit.test.ts",
-    "./**/**/vcast_testgen_env.test.ts",
-    // "./**/**/vcast_coded_tests.test.ts",
-    // "./**/**/vcast.build_env.test.ts",
-    // "./**/**/vcast.create_script_1.test.ts",
-    // "./**/**/vcast.create_script_2_and_run.test.ts",
-    // "./**/**/vcast.create_second_test_1.test.ts",
-    // "./**/**/vcast.create_second_test_2_and_run.test.ts",
-    // "./**/**/vcast.third_test.test.ts",
-    // "./**/**/vcast.rest.test.ts",
-    // "./**/**/vcast.rest_2.test.ts",
-    // "./**/**/vcast.rest_3.test.ts",
-  ],
+  specs: fullTestSpecs,
   // Patterns to exclude.
   // exclude:
   //

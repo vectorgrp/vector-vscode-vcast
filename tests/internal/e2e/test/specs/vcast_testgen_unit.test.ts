@@ -161,6 +161,7 @@ import {
       await updateTestID();
      
       const envName = "cpp/unitTests/DATABASE-MANAGER"
+      console.log("Generating all BASIS PATH tests for unit database")
       await generateAllTestsForUnit("database",testGenMethod.BasisPath);
       await validateGeneratedTestsForUnit(envName, "database", testGenMethod.BasisPath);
       
@@ -169,7 +170,9 @@ import {
     it("should correctly delete all BASIS PATH tests for the unit", async () => {
       await updateTestID();
       const envName = "cpp/unitTests/DATABASE-MANAGER"
+      console.log("Deleting all BASIS PATH tests for unit database")
       await deleteAllTestsForUnit("database",testGenMethod.BasisPath);
+      console.log("Validating deletion of all BASIS PATH tests for unit database")
       await validateTestDeletionForUnit(envName,"database");
     });
 
@@ -179,6 +182,7 @@ import {
       const envName = "cpp/unitTests/DATABASE-MANAGER"
       
       if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
+        console.log("Generating all ATG tests for unit database")
         await generateAllTestsForUnit("database",testGenMethod.ATG);
         await validateGeneratedTestsForUnit(envName, "database", testGenMethod.ATG);
       }
@@ -192,7 +196,9 @@ import {
       await updateTestID();
       const envName = "cpp/unitTests/DATABASE-MANAGER"
       if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
+        console.log("Deleting all ATG tests for unit database")
         await deleteAllTestsForUnit("database",testGenMethod.ATG);
+        console.log("Validating deletion of all ATG tests for unit database")
         await validateTestDeletionForUnit(envName,"database");
       }
       else{
