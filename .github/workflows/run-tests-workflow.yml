@@ -186,11 +186,11 @@ jobs:
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
       - name: Run tests
+        run: |
+          ./tests/internal/e2e/run_e2e_tests.sh
         with:
           env:
             BRANCH_REF: ${{ github.ref }}
-        run: |
-          ./tests/internal/e2e/run_e2e_tests.sh
 
       - name: Publish e2e tests results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
@@ -292,11 +292,11 @@ jobs:
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
       - name: Run tests
+        run: |
+          USE_VCAST_24=True ./tests/internal/e2e/run_e2e_tests.sh
         with:
           env:
             BRANCH_REF: ${{ github.ref }}
-        run: |
-          USE_VCAST_24=True ./tests/internal/e2e/run_e2e_tests.sh
 
       - name: Publish e2e tests results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
