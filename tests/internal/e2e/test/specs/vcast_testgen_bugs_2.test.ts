@@ -93,6 +93,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should correctly generate all BASIS PATH tests for function", async () => {
     await updateTestID();
+    console.log("Generating BASIS PATH tests for quotes_example")
     await generateAllTestsForFunction(QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.BasisPath);
     await validateGeneratedTestsForFunction(QUOTES_ENV, QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION,testGenMethod.BasisPath);
 
@@ -100,6 +101,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should correctly delete all BASIS PATH tests for function", async () => {
     await updateTestID();
+    console.log("Deleting BASIS PATH tests for quotes_example")
     await deleteAllTestsForFunction(QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION, testGenMethod.BasisPath);
     await validateTestDeletionForFunction(QUOTES_ENV,QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION);
   });
@@ -108,6 +110,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
     
     if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
+      console.log("Generating ATG tests for quotes_example")
       await generateAllTestsForFunction(QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
       await validateGeneratedTestsForFunction(QUOTES_ENV, QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
     }
@@ -121,6 +124,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
     
     if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
+      console.log("Deleting ATG tests for quotes_example")
       await deleteAllTestsForFunction(QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
       await validateTestDeletionForFunction(QUOTES_ENV,QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION);
     }

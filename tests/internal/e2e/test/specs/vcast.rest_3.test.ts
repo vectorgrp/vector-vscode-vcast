@@ -241,7 +241,7 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT },
     );
-
+    await bottomBar.restore()
   });
 
   it("should open VectorCAST from .vce", async () => {
