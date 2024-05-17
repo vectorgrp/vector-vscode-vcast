@@ -24,6 +24,9 @@ export async function updateTestID() {
 
 
 export async function cleanup(){
+  console.log("Cleanup")
+  console.log("Deleting all environments")
+
   const workbench = await browser.getWorkbench();
   const bottomBar = workbench.getBottomBar()
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -36,26 +39,32 @@ export async function cleanup(){
     const testEnvironmentContextMenu = await (
       testEnvironment as CustomTreeItem
     ).openContextMenu();
-    await testEnvironmentContextMenu.select("VectorCAST");
-    await (await $("aria/Delete Environment")).click();
+    if (testEnvironmentContextMenu){
+      await testEnvironmentContextMenu.select("VectorCAST");
+      await (await $("aria/Delete Environment")).click();
 
-    const vcastNotifSourceElem = await $(
-      "aria/VectorCAST Test Explorer (Extension)",
-    );
-    const vcastNotification = await vcastNotifSourceElem.$("..");
-    await (await vcastNotification.$("aria/Delete")).click();
-    await bottomBar.maximize()
-  
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Successful deletion of environment"),
-      { timeout: 30000 },
-    )
-    await(await bottomBar.openOutputView()).clearText()
-    await bottomBar.restore()
+      const vcastNotifSourceElem = await $(
+        "aria/VectorCAST Test Explorer (Extension)",
+      );
+      const vcastNotification = await vcastNotifSourceElem.$("..");
+      await (await vcastNotification.$("aria/Delete")).click();
+      await bottomBar.maximize()
+    
+      await browser.waitUntil(
+        async () =>
+          (await (await bottomBar.openOutputView()).getText())
+            .toString()
+            .includes("Successful deletion of environment"),
+        { timeout: 30000 },
+      )
+      await(await bottomBar.openOutputView()).clearText()
+      await bottomBar.restore()
+    }
   }
+  console.log("Done deleting all environments")
+  console.log("Removing folders")
+
+
   const initialWorkdir = process.env["INIT_CWD"];
   const pathToTutorial = path.join(
     initialWorkdir,
