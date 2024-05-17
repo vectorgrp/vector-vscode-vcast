@@ -360,6 +360,12 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(await outputView.getText())
     const editorView = workbench.getEditorView()
     console.log("Validating that debug launch configuration got generated");
+
+    await browser.waitUntil(
+      async () =>  (await editorView.getOpenTabs()).length !== 0,
+      { timeout: TIMEOUT },
+    );
+
     const debugConfigTab = (await editorView.openEditor(
       "launch.json",
     )) as TextEditor;
