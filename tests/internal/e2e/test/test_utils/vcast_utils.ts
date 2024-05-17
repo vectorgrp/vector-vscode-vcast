@@ -84,6 +84,26 @@ export async function cleanup(){
     "vcastTutorial",
     "cpp"
   )
+
+  const vscodeSettingsPath = path.join(   
+    initialWorkdir,
+    "test",
+    "vcastTutorial",
+    ".vscode"
+  );
+
+  const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
+  let clearLaunchJson: string = "";
+  if (process.platform == "win32") clearLaunchJson = `del ${launchJsonPath}`;
+  else clearLaunchJson = `rm -rf ${launchJsonPath}`;
+  await promisifiedExec(clearLaunchJson);
+
+  let createLaunchJson: string;
+  if (process.platform == "win32")
+    createLaunchJson = `copy /b NUL ${launchJsonPath}`;
+  else createLaunchJson = `touch ${launchJsonPath}`;
+  await promisifiedExec(createLaunchJson);
+
   const unitTestsPath = path.join(pathToTutorial, "unitTests");
   const qikPath = path.join(pathToTutorial, "VCAST.QIK");
   let clearUnitTestsFolder: string = "";
