@@ -35,13 +35,25 @@ export async function cleanup(){
   const testExplorerSection = sections[0];
   const testEnvironments = await testExplorerSection.getVisibleItems();
   for (const testEnvironment of testEnvironments) {
+    let testEnvironmentContextMenu = undefined;
     
-    const testEnvironmentContextMenu = await (
-      testEnvironment as CustomTreeItem
-    ).openContextMenu();
-    if (testEnvironmentContextMenu){
+    try{
+      testEnvironmentContextMenu = await (
+        testEnvironment as CustomTreeItem
+      ).openContextMenu();
+    }
+    catch{
+      console.log("Cannot open context menu, not an environment")
+      break;
+    }
+    
+    if (testEnvironmentContextMenu != undefined){
       await testEnvironmentContextMenu.select("VectorCAST");
-      await (await $("aria/Delete Environment")).click();
+      const deleteButton = await $("aria/Delete Environment");
+      if (deleteButton == undefined)
+        break;
+
+      await deleteButton.click();
 
       const vcastNotifSourceElem = await $(
         "aria/VectorCAST Test Explorer (Extension)",
