@@ -13,7 +13,7 @@ on:
 jobs:
   unit-tests:
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, vscode1]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
@@ -124,111 +124,111 @@ jobs:
           $upload_url \
           --data-binary "@${{ env.VSIX_FILE }}"
 
-  # e2e-tests-23:
-  #   permissions: write-all
-  #   runs-on: [ self-hosted, vscode-vcast ]
+  e2e-tests-23:
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast, vscode1 ]
 
-  #   container:
-  #     image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
-  #     options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
 
-  #   steps:
-  #     - name: Start forward proxy
-  #       run: |
-  #         sudo /usr/sbin/squid
-  #         NEW_PROXY="http://$(hostname --ip-address):3128"
-  #         echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-  #         echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-  #         echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
-  #         echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
-  #         echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-  #         echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+    steps:
+      - name: Start forward proxy
+        run: |
+          sudo /usr/sbin/squid
+          NEW_PROXY="http://$(hostname --ip-address):3128"
+          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
 
-  #     - name: Check out repository
-  #       uses: actions/checkout@v3
+      - name: Check out repository
+        uses: actions/checkout@v3
 
-  #     - name: Restore cached dependencies
-  #       id: cache-dependencies-restore
-  #       uses: actions/cache/restore@v3
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+      - name: Restore cached dependencies
+        id: cache-dependencies-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
-  #     - name: Install dependencies
-  #       if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-  #       run: npm install
+      - name: Install dependencies
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
+        run: npm install
 
-  #     - name: Save dependencies
-  #       if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-  #       uses: actions/cache/save@v3
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+      - name: Save dependencies
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
-  #     - name: Package with VSCE
-  #       run: vsce package
+      - name: Package with VSCE
+        run: vsce package
 
-  #     - name: Restore cached dependencies - node
-  #       id: cache-dependencies-restore-node
-  #       uses: actions/cache/restore@v3
-  #       with:
-  #         path: |
-  #           tests/internal/e2e/node_modules
-  #         key: ${{ runner.os }}-dependencies-${{ hashFiles('tests/internal/e2e/package.json') }}
+      - name: Restore cached dependencies - node
+        id: cache-dependencies-restore-node
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            tests/internal/e2e/node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('tests/internal/e2e/package.json') }}
 
-  #     - name: Restore cached dependencies - vscode
-  #       id: cache-dependencies-restore-vscode
-  #       uses: actions/cache/restore@v3
-  #       with:
-  #         path: |
-  #           tests/internal/e2e/.wdio-vscode-service
-  #         key: ${{ runner.os }}-dependencies-webdriver-vscode
-  #     - name: Run tests
-  #       run: |
-  #         export BRANCH_REF=${{ github.ref }} && ./tests/internal/e2e/run_e2e_tests.sh
+      - name: Restore cached dependencies - vscode
+        id: cache-dependencies-restore-vscode
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            tests/internal/e2e/.wdio-vscode-service
+          key: ${{ runner.os }}-dependencies-webdriver-vscode
+      - name: Run tests
+        run: |
+          export BRANCH_REF=${{ github.ref }} && ./tests/internal/e2e/run_e2e_tests.sh
         
-  #     - name: Publish e2e tests results
-  #       uses: EnricoMi/publish-unit-test-result-action/composite@v2
-  #       if: always()
-  #       with:
-  #         check_name: "E2e Test results - Vcast 23"
-  #         files: |
-  #           ./tests/internal/e2e/test_results/*.xml
+      - name: Publish e2e tests results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          check_name: "E2e Test results - Vcast 23"
+          files: |
+            ./tests/internal/e2e/test_results/*.xml
 
-  #     - name: Uploading screenshots
-  #       uses: actions/upload-artifact@v3
-  #       if: always()
-  #       with:
-  #         name: e2e_screenshots_23
-  #         path: ./tests/internal/e2e/*.png
+      - name: Uploading screenshots
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e_screenshots_23
+          path: ./tests/internal/e2e/*.png
 
-  #     - name: Show run summary
-  #       run: |
-  #         echo "### Run summary - Vcast 23" >> $GITHUB_STEP_SUMMARY
-  #         content=$([ -s ./tests/internal/e2e/gh_output.txt ] && cat ./tests/internal/e2e/gh_output.txt || echo 'Not available')
-  #         echo "${content}" >> $GITHUB_STEP_SUMMARY
+      - name: Show run summary
+        run: |
+          echo "### Run summary - Vcast 23" >> $GITHUB_STEP_SUMMARY
+          content=$([ -s ./tests/internal/e2e/gh_output.txt ] && cat ./tests/internal/e2e/gh_output.txt || echo 'Not available')
+          echo "${content}" >> $GITHUB_STEP_SUMMARY
 
-  #     - name: Save dependencies - node
-  #       if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
-  #       uses: actions/cache/save@v3
-  #       with:
-  #         path: |
-  #           tests/internal/e2e/node_modules
-  #         key: ${{ runner.os }}-dependencies-${{ hashFiles('tests/internal/e2e/package.json') }}
+      - name: Save dependencies - node
+        if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            tests/internal/e2e/node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('tests/internal/e2e/package.json') }}
 
-  #     - name: Save dependencies - vscode
-  #       if: always() && steps.cache-dependencies-restore-vscode.outputs.cache-hit != 'true'
-  #       uses: actions/cache/save@v3
-  #       with:
-  #         path: |
-  #           tests/internal/e2e/.wdio-vscode-service
-  #         key: ${{ runner.os }}-dependencies-webdriver-vscode
+      - name: Save dependencies - vscode
+        if: always() && steps.cache-dependencies-restore-vscode.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            tests/internal/e2e/.wdio-vscode-service
+          key: ${{ runner.os }}-dependencies-webdriver-vscode
 
   e2e-tests-24:
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast ]
+    runs-on: [ self-hosted, vscode-vcast, vscode2 ]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
