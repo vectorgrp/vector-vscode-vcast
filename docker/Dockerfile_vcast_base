@@ -87,18 +87,18 @@ RUN sudo yum install -y xorg-x11-server-Xvfb && \
 
 ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST23.tar.gz /home/${USERNAME}/software/vcast/releaseVectorCAST23.tar.gz
 ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST24.tar.gz /home/${USERNAME}/software/vcast/releaseVectorCAST24.tar.gz
-ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vector-DEMO-24.lic /home/${USERNAME}/software/vcast/vector-DEMO-24.lic
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast_test_explorer/vector-DEMO-2025.lic /home/${USERNAME}/software/vcast/vector-license.lic
 RUN cd /home/${USERNAME}/software/vcast && \
     sudo chown ${USERNAME} releaseVectorCAST23.tar.gz && \
     sudo chown ${USERNAME} releaseVectorCAST24.tar.gz && \
-    sudo chown ${USERNAME} vector-DEMO-24.lic && \
+    sudo chown ${USERNAME} vector-license.lic && \
     tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz && mv release release23 && \
     tar -xvzf releaseVectorCAST24.tar.gz && rm releaseVectorCAST24.tar.gz && mv release release24
 
 ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
     PATH=/home/${USERNAME}/software/vcast/release23:/opt/rh/devtoolset-10/root/usr/bin:$PATH \
-    LM_LICENSE_FILE=/home/${USERNAME}/software/vcast/vector-DEMO-24.lic \
-    VECTOR_LICENSE_FILE=/home/${USERNAME}/software/vcast/vector-DEMO-24.lic \
+    LM_LICENSE_FILE=/home/${USERNAME}/software/vcast/vector-license.lic \
+    VECTOR_LICENSE_FILE=/home/${USERNAME}/software/vcast/vector-license.lic \
     VCAST_TEST_PATH=/home/${USERNAME}/project/vscode-vcast/E2E-test \
     VCAST_EXTENSION_PATH=/home/${USERNAME}/project/vscode-vcast \
     RDS_REPO_PATH=/home/${USERNAME}/project \
