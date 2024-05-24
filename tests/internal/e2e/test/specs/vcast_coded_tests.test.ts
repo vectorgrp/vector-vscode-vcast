@@ -34,7 +34,6 @@ describe("vTypeCheck VS Code Extension", () => {
     // opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
-    editorView = workbench.getEditorView();
     process.env["E2E_TEST_ID"] = "0";
   });
 

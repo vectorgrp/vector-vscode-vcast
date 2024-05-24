@@ -4,32 +4,19 @@ import {
   StatusBar,
   TextEditor,
   EditorView,
-  CustomTreeItem,
   Workbench,
   TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
-  releaseCtrl,
-  executeCtrlClickOn,
-  expandWorkspaceFolderSectionInExplorer,
-  clickOnButtonInTestingHeader,
-  getGeneratedTooltipTextAt,
   getViewContent,
   findSubprogram,
   getTestHandle,
   findSubprogramMethod,
-  openTestScriptFor,
   editTestScriptFor,
-  deleteTest,
   updateTestID,
-  cleanup
 } from "../test_utils/vcast_utils";
 
-import { exec, execSync } from "child_process";
-import * as path from 'path';
-import { promisify } from "node:util";
-const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
@@ -121,7 +108,7 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     }
     if (!subprogram) {
-      throw "Subprogram 'manager' not found";
+      throw new Error("Subprogram 'manager' not found");
     }
 
     const subprogramMethod = await findSubprogramMethod(
@@ -129,7 +116,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Manager::PlaceOrder",
     );
     if (!subprogramMethod) {
-      throw "Subprogram method 'Manager::PlaceOrder' not found";
+      throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
     }
     if (!subprogramMethod.isExpanded()) {
       await subprogramMethod.select();
@@ -203,13 +190,13 @@ describe("vTypeCheck VS Code Extension", () => {
         if (testHandle) {
           break;
         } else {
-          throw "Test handle not found for myFirstTest";
+          throw new Error("Test handle not found for myFirstTest");
         }
       }
     }
 
     if (!subprogram) {
-      throw "Subprogram 'manager' not found";
+      throw new Error("Subprogram 'manager' not found");
     }
 
     console.log("Running myFirstTest");

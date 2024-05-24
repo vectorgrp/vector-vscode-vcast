@@ -10,24 +10,17 @@ import {
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
-  releaseCtrl,
-  executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
-  clickOnButtonInTestingHeader,
-  getGeneratedTooltipTextAt,
   getViewContent,
   findSubprogram,
   getTestHandle,
   findSubprogramMethod,
-  openTestScriptFor,
-  editTestScriptFor,
   deleteTest,
   updateTestID,
   cleanup
 } from "../test_utils/vcast_utils";
 
-import { exec, execSync } from "child_process";
-import * as path from 'path';
+import { exec } from "child_process";
 import { promisify } from "node:util";
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
@@ -178,13 +171,13 @@ describe("vTypeCheck VS Code Extension", () => {
         if (testHandle) {
           break;
         } else {
-          throw "Test handle not found for myThirdTest";
+          throw new Error("Test handle not found for myThirdTest");
         }
       }
     }
 
     if (!subprogram) {
-      throw "Subprogram 'manager' not found";
+      throw new Error("Subprogram 'manager' not found");
     }
     console.log("Prepared test deletion");
     await deleteTest(testHandle as CustomTreeItem);
@@ -268,7 +261,7 @@ describe("vTypeCheck VS Code Extension", () => {
       
       if (stderr) {
         console.log(stderr);
-        throw `Error when running ${checkVcastQtCmd}`;
+        throw new Error(`Error when running ${checkVcastQtCmd}`);
       }
       await browser.waitUntil(
         async () => (await promisifiedExec(checkVcastQtCmd)).stdout.includes("vcastqt") === true,
@@ -283,9 +276,9 @@ describe("vTypeCheck VS Code Extension", () => {
       const { stdout, stderr } = await promisifiedExec(stopVcastCmd);
       if (stderr) {
         console.log(stderr);
-        throw `Error when running ${stopVcastCmd}`;
+        throw new Error(`Error when running ${stopVcastCmd}`);
       }
-      
+      console.log(stdout);
     }
 
   });

@@ -588,4 +588,3 @@ if __name__ == "__main__":
         returnCode = 1
 
     sys.exit(returnCode)
-    

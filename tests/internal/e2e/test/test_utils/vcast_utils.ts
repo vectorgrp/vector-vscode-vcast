@@ -93,28 +93,30 @@ export async function cleanup(){
   );
 
   const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
-  let clearLaunchJson: string = "";
-  if (process.platform == "win32") clearLaunchJson = `del ${launchJsonPath}`;
-  else clearLaunchJson = `rm -rf ${launchJsonPath}`;
-  await promisifiedExec(clearLaunchJson);
-
-  let createLaunchJson: string;
-  if (process.platform == "win32")
-    createLaunchJson = `copy /b NUL ${launchJsonPath}`;
-  else createLaunchJson = `touch ${launchJsonPath}`;
-  await promisifiedExec(createLaunchJson);
-
   const unitTestsPath = path.join(pathToTutorial, "unitTests");
   const qikPath = path.join(pathToTutorial, "VCAST.QIK");
+
+  let clearLaunchJson: string = "";
+  let createLaunchJson: string = "";
   let clearUnitTestsFolder: string = "";
-
-  if (process.platform == "win32") clearUnitTestsFolder = `rmdir /s /q ${unitTestsPath}`;
-  else clearUnitTestsFolder = `rm -rf ${unitTestsPath}`;
-  await promisifiedExec(clearUnitTestsFolder);
-
   let clearQik: string = "";
-  if (process.platform == "win32") clearQik = `del ${qikPath}`;
-  else clearQik = `rm -rf ${qikPath}`;
+
+  if (process.platform == "win32"){
+    clearLaunchJson = `del ${launchJsonPath}`;
+    createLaunchJson = `copy /b NUL ${launchJsonPath}`;
+    clearUnitTestsFolder = `rmdir /s /q ${unitTestsPath}`;
+    clearQik = `del ${qikPath}`;
+  } 
+  else {
+    clearLaunchJson = `rm -rf ${launchJsonPath}`;
+    createLaunchJson = `touch ${launchJsonPath}`;
+    clearUnitTestsFolder = `rm -rf ${unitTestsPath}`;
+    clearQik = `rm -rf ${qikPath}`;
+  }
+
+  await promisifiedExec(clearLaunchJson);
+  await promisifiedExec(createLaunchJson);
+  await promisifiedExec(clearUnitTestsFolder);
   await promisifiedExec(clearQik);
 }
 export async function getGeneratedTooltipTextAt(

@@ -1,40 +1,27 @@
 // test/specs/vcast.test.ts
 import {
   BottomBarPanel,
-  StatusBar,
   TextEditor,
   EditorView,
-  CustomTreeItem,
   Workbench,
   TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
-  releaseCtrl,
-  executeCtrlClickOn,
-  expandWorkspaceFolderSectionInExplorer,
-  clickOnButtonInTestingHeader,
-  getGeneratedTooltipTextAt,
   getViewContent,
   findSubprogram,
   getTestHandle,
   findSubprogramMethod,
-  openTestScriptFor,
-  editTestScriptFor,
-  deleteTest,
   updateTestID,
-  cleanup
 } from "../test_utils/vcast_utils";
 
-import { exec, execSync } from "child_process";
-import * as path from 'path';
+import { exec } from "child_process";
 import { promisify } from "node:util";
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  let statusBar: StatusBar;
   const TIMEOUT = 20000;
   before(async () => {
     workbench = await browser.getWorkbench();
@@ -137,13 +124,13 @@ describe("vTypeCheck VS Code Extension", () => {
         if (testHandle) {
           break;
         } else {
-          throw "Test handle not found for myFirstTest";
+          throw new Error("Test handle not found for myFirstTest");
         }
       }
     }
 
     if (!subprogram) {
-      throw "Subprogram 'manager' not found";
+      throw new Error("Subprogram 'manager' not found");
     }
 
     console.log("Running myThirdTest");
@@ -191,13 +178,13 @@ describe("vTypeCheck VS Code Extension", () => {
         if (testHandle) {
           break;
         } else {
-          throw "Test handle not found for Compound Test";
+          throw new Error( "Test handle not found for Compound Test");
         }
       }
     }
 
     if (!subprogram) {
-      throw "Subprogram 'manager' not found";
+      throw new Error( "Subprogram 'manager' not found");
     }
 
     console.log("Running Compound Test");
@@ -291,13 +278,13 @@ describe("vTypeCheck VS Code Extension", () => {
         if (testHandle) {
           break;
         } else {
-          throw "Test handle not found for myFirstTest";
+          throw new Error( "Test handle not found for myFirstTest");
         }
       }
     }
 
     if (!subprogram) {
-      throw "Subprogram 'manager' not found";
+      throw new Error( "Subprogram 'manager' not found");
     }
 
     console.log("Debugging myFirstTest");
@@ -342,7 +329,7 @@ describe("vTypeCheck VS Code Extension", () => {
         
       if (stderr) {
         console.log(stderr);
-        throw `Error when running ${turnOffCoverageCmd}`;
+        throw new Error( `Error when running ${turnOffCoverageCmd}`);
       }
       console.log(stdout)
     }
@@ -376,13 +363,13 @@ describe("vTypeCheck VS Code Extension", () => {
         if (testHandle) {
           break;
         } else {
-          throw "Test handle not found for myFirstTest";
+          throw new Error( "Test handle not found for myFirstTest");
         }
       }
     }
 
     if (!subprogram) {
-      throw "Subprogram 'manager' not found";
+      throw new Error( "Subprogram 'manager' not found");
     }
 
     console.log("Debugging myFirstTest");
@@ -412,7 +399,7 @@ describe("vTypeCheck VS Code Extension", () => {
         
       if (stderr) {
         console.log(stderr);
-        throw `Error when running ${turnOffCoverageCmd}`;
+        throw new Error(`Error when running ${turnOffCoverageCmd}`);
       }
       console.log(stdout)
     }

@@ -10,12 +10,6 @@ import {
     executeCtrlClickOn,
     expandWorkspaceFolderSectionInExplorer,
     updateTestID,
-    testGenMethod,
-    generateAllTestsForFunction,
-    validateGeneratedTestsForFunction,
-    deleteAllTestsForFunction,
-    validateTestDeletionForFunction,
-    cleanup
   } from "../test_utils/vcast_utils";
   
   
@@ -24,9 +18,7 @@ import {
     let workbench: Workbench;
     let editorView: EditorView;
     const TIMEOUT = 120000;
-    const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE"
     const QUOTES_EXAMPLE_UNIT = "quotes_example"
-    const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)" 
     before(async () => {
       workbench = await browser.getWorkbench();
       // opening bottom bar and problems view before running any tests

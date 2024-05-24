@@ -1,7 +1,6 @@
 // test/specs/vcast.test.ts
 import {
     BottomBarPanel,
-    CustomTreeItem,
     EditorView,
     Workbench,
   } from "wdio-vscode-service";

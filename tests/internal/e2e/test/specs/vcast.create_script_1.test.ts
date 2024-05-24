@@ -1,47 +1,28 @@
 // test/specs/vcast.test.ts
 import {
   BottomBarPanel,
-  StatusBar,
   TextEditor,
-  EditorView,
-  CustomTreeItem,
   Workbench,
   TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
-  releaseCtrl,
-  executeCtrlClickOn,
-  expandWorkspaceFolderSectionInExplorer,
-  clickOnButtonInTestingHeader,
-  getGeneratedTooltipTextAt,
   getViewContent,
   findSubprogram,
-  getTestHandle,
   findSubprogramMethod,
   openTestScriptFor,
-  editTestScriptFor,
-  deleteTest,
   updateTestID,
-  cleanup
 } from "../test_utils/vcast_utils";
 
-import { exec, execSync } from "child_process";
-import * as path from 'path';
-import { promisify } from "node:util";
-const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  let editorView: EditorView;
-  let statusBar: StatusBar;
   const TIMEOUT = 20000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
-    editorView = workbench.getEditorView();
     process.env["E2E_TEST_ID"] = "0";
   });
 
@@ -126,7 +107,7 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     }
     if (!subprogram) {
-      throw "Subprogram 'manager' not found";
+      throw new Error("Subprogram 'manager' not found");
     }
 
     const subprogramMethod = await findSubprogramMethod(
@@ -134,7 +115,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Manager::PlaceOrder",
     );
     if (!subprogramMethod) {
-      throw "Subprogram method 'Manager::PlaceOrder' not found";
+      throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
     }
 
     if (!subprogramMethod.isExpanded()) {

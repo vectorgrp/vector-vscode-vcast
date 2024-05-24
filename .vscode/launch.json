@@ -33,39 +33,6 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "getCoverageData",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/SandBox/VectorCAST/examples",
-      "env": {
-        "PYTHONPATH": "C:/vcast/vc22sp7/python"
-      },
-      "args": [
-        "--mode=getCoverageData",
-        "--kind=vcast",
-        "--clicast=C:/vcast/vc23sp2/clicast.exe",
-        "--path=c:/RDS/SandBox/VectorCAST/examples/unitTests/FOO"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "getCompletion",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/python/testEditorInterface.py",
-      "cwd": "C:/RDS/VectorCAST/testExplorer/unitTests",
-      "env": {
-        "PYTHONPATH": "C:/vcast/vc23/python"
-      },
-      "args": [
-        "choiceList",
-        "C:\\RDS\\VectorCAST\\testExplorer\\unitTests\\MANAGER",
-        "TEST.REQUIREMENT_KEY"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
       "name": "runTest",
       "type": "python",
       "request": "launch",
@@ -76,7 +43,6 @@
       },
       "args": [
         "--mode=executeTest",
-        "--kind=vcast",
         "--path=c:/RDS/SandBox/VCAST-NEW/vcastTutorial/cpp/unitTests/DATABASE-MANAGER",
         "--test=\"DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest\""
       ],

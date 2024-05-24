@@ -1,7 +1,6 @@
 // test/specs/vcast.test.ts
 import {
     BottomBarPanel,
-    EditorView,
     Workbench,
   } from "wdio-vscode-service";
   import { Key } from "webdriverio";
@@ -26,14 +25,12 @@ import {
   describe("vTypeCheck VS Code Extension", () => {
     let bottomBar: BottomBarPanel;
     let workbench: Workbench;
-    let editorView: EditorView;
     const TIMEOUT = 120000;
     before(async () => {
       workbench = await browser.getWorkbench();
       // opening bottom bar and problems view before running any tests
       bottomBar = workbench.getBottomBar();
       await bottomBar.toggle(true);
-      editorView = workbench.getEditorView();
       process.env["E2E_TEST_ID"] = "0";
     });
   

@@ -96,7 +96,7 @@ fullTestSpecs = fullTestSpecs.concat(
 )
 // this test takes very long and it's not that critical
 if (process.env["BRANCH_REF"] == "refs/heads/main")
-  fullTestSpecs.concat(["./**/**/vcast_testgen_env.test.ts"])
+  fullTestSpecs = fullTestSpecs.concat(["./**/**/vcast_testgen_env.test.ts"])
 export const config: Options.Testrunner = {
   //
   // ====================
