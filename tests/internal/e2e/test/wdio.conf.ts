@@ -1,4 +1,4 @@
-import type { Options, Reporters } from "@wdio/types";
+import type { Options } from "@wdio/types";
 // only using global-agent and GlobalDispatcher
 // if running on vistr server
 import { bootstrap } from "global-agent";
@@ -11,7 +11,7 @@ import {
   ProxyAgent,
 } from "undici";
 import {ProxyTypes, ProxyObject} from "@wdio/types/build/Capabilities"
-import { exec, execSync } from "child_process";
+import { exec } from "child_process";
 import { mkdir, rm, writeFile } from "fs/promises";
 import { promisify } from "node:util";
 

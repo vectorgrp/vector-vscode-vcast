@@ -3,7 +3,6 @@ import {
   BottomBarPanel,
   StatusBar,
   TextEditor,
-  EditorView,
   Workbench,
   TreeItem,
 } from "wdio-vscode-service";
@@ -26,7 +25,6 @@ const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  let editorView: EditorView;
   let statusBar: StatusBar;
   const TIMEOUT = 120000;
   before(async () => {
@@ -189,6 +187,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await clickOnButtonInTestingHeader(buttonLabel);
 
     console.log("Verifying that VectorCAST Settings is opened");
+    const editorView = workbench.getEditorView()
     const activeTab = await editorView.getActiveTab();
     expect(await activeTab.getTitle()).toBe("Settings");
 
