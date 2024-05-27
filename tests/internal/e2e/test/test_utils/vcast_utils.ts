@@ -24,6 +24,9 @@ export async function updateTestID() {
 
 
 export async function cleanup(){
+  console.log("Cleanup")
+  console.log("Deleting all environments")
+
   const workbench = await browser.getWorkbench();
   const bottomBar = workbench.getBottomBar()
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -31,27 +34,49 @@ export async function cleanup(){
   const sections = await vcastTestingViewContent.getSections();
   const testExplorerSection = sections[0];
   const testEnvironments = await testExplorerSection.getVisibleItems();
-  const testEnvironment = testEnvironments[0];
-  const testEnvironmentContextMenu = await (
-    testEnvironment as CustomTreeItem
-  ).openContextMenu();
-  await testEnvironmentContextMenu.select("VectorCAST");
-  await (await $("aria/Delete Environment")).click();
+  for (const testEnvironment of testEnvironments) {
+    let testEnvironmentContextMenu = undefined;
+    
+    try{
+      testEnvironmentContextMenu = await (
+        testEnvironment as CustomTreeItem
+      ).openContextMenu();
+    }
+    catch{
+      console.log("Cannot open context menu, not an environment")
+      break;
+    }
+    
+    if (testEnvironmentContextMenu != undefined){
+      await testEnvironmentContextMenu.select("VectorCAST");
+      const deleteButton = await $("aria/Delete Environment");
+      if (deleteButton == undefined)
+        break;
 
-  const vcastNotifSourceElem = await $(
-    "aria/VectorCAST Test Explorer (Extension)",
-  );
-  const vcastNotification = await vcastNotifSourceElem.$("..");
-  await (await vcastNotification.$("aria/Delete")).click();
+      await deleteButton.click();
 
-  await browser.waitUntil(
-    async () =>
-      (await (await bottomBar.openOutputView()).getText())
-        .toString()
-        .includes("Successful deletion of environment"),
-    { timeout: 10000 },
-  )
-  
+      const vcastNotifSourceElem = await $(
+        "aria/VectorCAST Test Explorer (Extension)",
+      );
+      const vcastNotification = await vcastNotifSourceElem.$("..");
+      await (await vcastNotification.$("aria/Delete")).click();
+      await bottomBar.maximize()
+    
+      await browser.waitUntil(
+        async () =>
+          (await (await bottomBar.openOutputView()).getText())
+            .toString()
+            .includes("Successful deletion of environment"),
+        { timeout: 30000 },
+      )
+      await(await bottomBar.openOutputView()).clearText()
+      await bottomBar.restore()
+    }
+  }
+  console.log("Done deleting all environments")
+  console.log("Removing folders")
+
+
   const initialWorkdir = process.env["INIT_CWD"];
   const pathToTutorial = path.join(
     initialWorkdir,
@@ -59,17 +84,39 @@ export async function cleanup(){
     "vcastTutorial",
     "cpp"
   )
+
+  const vscodeSettingsPath = path.join(   
+    initialWorkdir,
+    "test",
+    "vcastTutorial",
+    ".vscode"
+  );
+
+  const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
   const unitTestsPath = path.join(pathToTutorial, "unitTests");
   const qikPath = path.join(pathToTutorial, "VCAST.QIK");
+
+  let clearLaunchJson: string = "";
+  let createLaunchJson: string = "";
   let clearUnitTestsFolder: string = "";
-  
-  if (process.platform == "win32") clearUnitTestsFolder = `rmdir /s /q ${unitTestsPath}`;
-  else clearUnitTestsFolder = `rm -rf ${unitTestsPath}`;
-  await promisifiedExec(clearUnitTestsFolder);
-  
   let clearQik: string = "";
-  if (process.platform == "win32") clearQik = `del ${qikPath}`;
-  else clearQik = `rm -rf ${qikPath}`;
+
+  if (process.platform == "win32"){
+    clearLaunchJson = `del ${launchJsonPath}`;
+    createLaunchJson = `copy /b NUL ${launchJsonPath}`;
+    clearUnitTestsFolder = `rmdir /s /q ${unitTestsPath}`;
+    clearQik = `del ${qikPath}`;
+  } 
+  else {
+    clearLaunchJson = `rm -rf ${launchJsonPath}`;
+    createLaunchJson = `touch ${launchJsonPath}`;
+    clearUnitTestsFolder = `rm -rf ${unitTestsPath}`;
+    clearQik = `rm -rf ${qikPath}`;
+  }
+
+  await promisifiedExec(clearLaunchJson);
+  await promisifiedExec(createLaunchJson);
+  await promisifiedExec(clearUnitTestsFolder);
   await promisifiedExec(clearQik);
 }
 export async function getGeneratedTooltipTextAt(
@@ -128,7 +175,7 @@ export async function expandWorkspaceFolderSectionInExplorer(
   const workspaceFolderSection = await explorerSideBarView
     .getContent()
     .getSection(workspaceName.toUpperCase());
-  console.log(await workspaceFolderSection.getTitle());
+  
   await workspaceFolderSection.expand();
 
   return workspaceFolderSection;
@@ -143,7 +190,7 @@ export async function clickOnButtonInTestingHeader(buttonLabel: string) {
 
   const testingViewTitlePart = testingOpenView.getTitlePart();
   await (await testingViewTitlePart.elem).click();
-  console.log(`Clicking on${buttonLabel} button in Testing view`);
+ 
 
   const actionButton = await (
     await $(`aria/${buttonLabel}`)
@@ -224,7 +271,7 @@ export async function getTestHandle(
   if (!customSubprogramMethod.isExpanded()) {
     await customSubprogramMethod.select();
   }
-  console.log(`Waiting until ${expectedTestName} appears in the test tree`);
+  
   try{
     await browser.waitUntil(
       async () =>
@@ -307,7 +354,7 @@ export enum testGenMethod {
 
 export async function generateAllTestsForEnv(envName:string, testGenMethod:string){
   const menuItemLabel = `Insert ${testGenMethod} Tests`
-  console.log(`Menu to click is ${menuItemLabel}`)
+
   const vcastTestingViewContent = await getViewContent("Testing");
   
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
@@ -405,7 +452,7 @@ export async function deleteAllTestsForEnv(envName:string){
 
 export async function validateTestDeletionForEnv(envName:string){
   const vcastTestingViewContent = await getViewContent("Testing");
-  
+  let doneValidating = false
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
     
     for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
@@ -414,16 +461,16 @@ export async function validateTestDeletionForEnv(envName:string){
       const subprogramGroup = visibleItem as CustomTreeItem;
    
       if ((await subprogramGroup.getTooltip()).includes(envName)){
-        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+        
 
         for (const unit of await subprogramGroup.getChildren()) {
           const unitName = await unit.getTooltip()
-          console.log(`Unit: ${unitName}`)
+          
           
           if (!(unitName.includes("Compound")) && !(unitName.includes("Initialization"))){
             for (const method of await unit.getChildren()) {
               const methodName = await method.getTooltip()
-              console.log(`Method: ${methodName}`) 
+              
               // this is flaky, it sometimes takes manager as Child element
               if (methodName.includes("::")){
                 await browser.waitUntil(
@@ -437,14 +484,17 @@ export async function validateTestDeletionForEnv(envName:string){
         }
         // getVisibleItems() literally gets the visible items, including leaves in the structure
         // important to stop the loop here, otherwise wdio starts doing random things and hangs
-        break;
+        if (doneValidating) 
+          break;
       }
     }
-
+    if (doneValidating) 
+      break;
   }
 }
 
 export async function validateTestDeletionForUnit(envName:string, unitName:string){
+  let doneValidating = false
   const vcastTestingViewContent = await getViewContent("Testing");
   
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
@@ -455,16 +505,16 @@ export async function validateTestDeletionForUnit(envName:string, unitName:strin
       const subprogramGroup = visibleItem as CustomTreeItem;
    
       if ((await subprogramGroup.getTooltip()).includes(envName)){
-        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+        
 
         for (const unit of await subprogramGroup.getChildren()) {
           const unitNameTooltip = await unit.getTooltip()
-          console.log(`Unit: ${unitNameTooltip}`)
+          
           
           if (unitNameTooltip.includes(unitName)){
             for (const method of await unit.getChildren()) {
               const methodName = await method.getTooltip()
-              console.log(`Method: ${methodName}`) 
+              
               // this is flaky, it sometimes takes manager as Child element
               if (methodName.includes("::")){
                 await browser.waitUntil(
@@ -473,21 +523,24 @@ export async function validateTestDeletionForUnit(envName:string, unitName:strin
                 ); 
               }
             }
+          doneValidating = true;
           break;
           }
         }
         // getVisibleItems() literally gets the visible items, including leaves in the structure
         // important to stop the loop here, otherwise wdio starts doing random things and hangs
-        break;
+        if (doneValidating) 
+            break;
       }
     }
-
+    if (doneValidating) 
+      break;
   }
 }
 
 export async function validateTestDeletionForFunction(envName:string, unitName:string, functionName:string){
   const vcastTestingViewContent = await getViewContent("Testing");
-  
+  let doneValidating = true
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
     
     for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
@@ -496,16 +549,16 @@ export async function validateTestDeletionForFunction(envName:string, unitName:s
       const subprogramGroup = visibleItem as CustomTreeItem;
    
       if ((await subprogramGroup.getTooltip()).includes(envName)){
-        console.log(`env: ${await subprogramGroup.getTooltip()}`)
+        
 
         for (const unit of await subprogramGroup.getChildren()) {
           const unitNameTooltip = await unit.getTooltip()
-          console.log(`Unit: ${unitNameTooltip}`)
+          
           
           if (unitNameTooltip.includes(unitName)){
             for (const method of await unit.getChildren()) {
               const methodNameTooltip = await method.getTooltip()
-              console.log(`Method: ${methodNameTooltip}`) 
+              
               // this is flaky, it sometimes takes manager as Child element
               if (methodNameTooltip.includes(functionName)){
 
@@ -537,7 +590,7 @@ export async function generateAndValidateAllTestsFor(envName:string, testGenMeth
   for (const [unitName, functions] of Object.entries(expectedTests[envName])) {
     for (const [functionName,tests] of Object.entries(functions)) {
       for (const [testName, testCode] of Object.entries(tests)) {
-        console.log(`Expected Test ${envName}:${unitName}:${functionName}:${testName}`);
+      
         let subprogram: TreeItem = undefined;
         let testHandle: TreeItem = undefined;
         for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
@@ -581,7 +634,7 @@ export async function generateFlaskIconTestsFor(line:number, testGenMethod:strin
   const workspaceFolderSection = await explorerSideBarView
     .getContent()
     .getSection(workspaceFolderName.toUpperCase());
-  console.log(await workspaceFolderSection.getTitle());
+  
   await workspaceFolderSection.expand();
 
   const managerCpp = workspaceFolderSection.findItem(unitFileName);
@@ -851,7 +904,7 @@ export async function deleteAllTestsForUnit(unitName:string, testGenMethod:strin
       );
       const vcastNotification = await vcastNotifSourceElem.$("..");
       await (await vcastNotification.$("aria/Delete")).click();
-
+      
       break
     }
   }
@@ -898,7 +951,7 @@ export async function validateGeneratedTestsForUnit(envName: string, unitName: s
   
   for (const [functionName,tests] of Object.entries(expectedUnitInfo)) {
     for (const [testName, expectedTestCode] of Object.entries(tests)) {
-      console.log(`Expected Test ${envName}:${unitName}:${functionName}:${testName}`);
+      
       let subprogram: TreeItem = undefined;
       let testHandle: TreeItem = undefined;
       for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
@@ -935,7 +988,7 @@ export async function validateGeneratedTestsForFunction(envName: string, unitNam
 
   
   for (const [testName, expectedTestCode] of Object.entries(expectedFunctionInfo)) {
-    console.log(`Expected Test ${functionName}:${testName}`);
+    
     let subprogram: TreeItem = undefined;
     let testHandle: TreeItem = undefined;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
