@@ -3,7 +3,6 @@ import {
   BottomBarPanel,
   StatusBar,
   TextEditor,
-  EditorView,
   Workbench,
   TreeItem,
 } from "wdio-vscode-service";
@@ -26,7 +25,6 @@ const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  let editorView: EditorView;
   let statusBar: StatusBar;
   const TIMEOUT = 120000;
   before(async () => {
@@ -34,7 +32,6 @@ describe("vTypeCheck VS Code Extension", () => {
     // opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
-    editorView = workbench.getEditorView();
     process.env["E2E_TEST_ID"] = "0";
   });
 
@@ -190,6 +187,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await clickOnButtonInTestingHeader(buttonLabel);
 
     console.log("Verifying that VectorCAST Settings is opened");
+    const editorView = workbench.getEditorView()
     const activeTab = await editorView.getActiveTab();
     expect(await activeTab.getTitle()).toBe("Settings");
 
@@ -360,6 +358,12 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(await outputView.getText())
     const editorView = workbench.getEditorView()
     console.log("Validating that debug launch configuration got generated");
+
+    await browser.waitUntil(
+      async () =>  (await editorView.getOpenTabs()).length !== 0,
+      { timeout: TIMEOUT },
+    );
+
     const debugConfigTab = (await editorView.openEditor(
       "launch.json",
     )) as TextEditor;
@@ -798,6 +802,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await menuElem.click();
 
     const textbox = await $("aria/Select Coded Test File")
+    await textbox.click()
     await browser.keys(Key.End)
     for (const character of "manager-Tests.cpp") {
       await browser.keys(character);
@@ -999,6 +1004,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     
     console.log("Verifying test output")
+    await bottomBar.maximize()
     await browser.waitUntil(
       async () => ((await outputView.getText()).toString().includes("[  FAIL  ] manager.coded_tests_driver - managerTests.myTest")),
       { timeout: TIMEOUT },
@@ -1008,7 +1014,8 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
     expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
     expect(outputTextFlat.includes("TEST RESULT: fail"))
-    
+    await bottomBar.restore()
+
     console.log("Checking test report")
     let webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
@@ -1205,16 +1212,6 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running corrected test")
     await runArrowElement.click({button:1})
     
-    await browser.waitUntil(
-      async () => ((await outputView.getText()).toString().includes("[        ]   Testcase User Code Mismatch:")),
-      { timeout: TIMEOUT },
-    );
-    console.log("Verifying test output")
-    const outputTextFlat = (await outputView.getText()).toString()
-    expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
-    expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
-    expect(outputTextFlat.includes("TEST RESULT: fail"))
-
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
     const webview = webviews[0];
@@ -1226,6 +1223,19 @@ describe("vTypeCheck VS Code Extension", () => {
    
     await webview.close()
     await editorView.closeAllEditors()
+
+    await(await bottomBar.elem).click()
+    await bottomBar.maximize()
+    await browser.waitUntil(
+      async () => ((await outputView.getText()).toString().includes("[        ]   Testcase User Code Mismatch:")),
+      { timeout: TIMEOUT },
+    );
+    console.log("Verifying test output")
+    const outputTextFlat = (await outputView.getText()).toString()
+    expect(outputTextFlat.includes("[        ]   Testcase User Code Mismatch:"))
+    expect(outputTextFlat.includes("[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"))
+    expect(outputTextFlat.includes("TEST RESULT: fail"))
+    await bottomBar.restore()
   });
 
   it("should clean up", async () => {
