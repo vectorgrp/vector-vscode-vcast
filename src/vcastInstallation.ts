@@ -1,8 +1,14 @@
 import * as vscode from "vscode";
+import * as jsonc from "jsonc-parser";
 
 import { openMessagePane, vectorMessage } from "./messagePane";
 
-import { exeFilename, showSettings } from "./utilities";
+import {
+  exeFilename,
+  jsoncParseErrors,
+  jsoncParseOptions,
+  showSettings,
+} from "./utilities";
 
 import { vcastLicenseOK } from "./vcastAdapter";
 
@@ -366,55 +372,75 @@ export function getChecksumCommand() {
   return globalCheckSumCommand;
 }
 
-function shouldPromptForIncludePath(includePath: string): boolean {
-  // So that we don't annoy users with the coded-test popup every time,
-  // we do our best to check if the include path is already in the workspace
+export const vUnitIncludeSuffix = "/vunit/include"
 
-  let returnValue: boolean = true;
-  if (fs.existsSync(includePath)) {
-    for (const workspace of vscode.workspace.workspaceFolders || []) {
-      const workspaceRoot = workspace.uri.fsPath;
-      const c_cpp_properties = path.join(
-        workspaceRoot,
-        ".vscode",
-        configurationFile
-      );
-      if (fs.existsSync(c_cpp_properties)) {
-        const c_cpp_properties_contents = fs
-          .readFileSync(c_cpp_properties)
-          .toString();
-        if (c_cpp_properties_contents.includes(includePath)) {
-          returnValue = false;
-          break;
+export function configFileContainsCorrectInclude(filePath: string): boolean {
+  // This function will check if the include path for coded testing is in the
+  // c_cpp_properties.json file passed in.  There are two cases to check for:
+  //   1. The path to the current VectorCAST /vUnit/include directory exists
+  //   2. A path with an environment variable, ending in /vunit/include exists
+
+  let returnValue: boolean = false;
+  let existingJSONasString: string;
+  let existingJSON: any;
+
+  // Requires json-c parsing to handle comments etc.
+  existingJSONasString = fs.readFileSync(filePath).toString();
+  // note that jsonc.parse returns "real json" without the comments
+  existingJSON = jsonc.parse(
+    existingJSONasString,
+    jsoncParseErrors,
+    jsoncParseOptions
+  );
+
+  if (
+    existingJSON &&
+    existingJSON.configurations &&
+    existingJSON.configurations.length > 0
+  ) {
+    for (const configuration of existingJSON.configurations) {
+      if (configuration.includePath) {
+        for (const includePath of configuration.includePath) {
+          if (includePath == globalIncludePath) {
+            returnValue = true;
+            break;
+          }
+          // allow the use of _any_ environment variable, not just VECTORCAST_DIR 
+          // could have used a regex but this is more clear
+          if (includePath.startsWith("${env:") && includePath.endsWith (vUnitIncludeSuffix)) {
+            returnValue = true;
+            break;
+          }
         }
       }
     }
-  } else {
-    // don't prompt if the include path is missing for some reason
-    returnValue = false;
   }
   return returnValue;
 }
 
-function checkWorkspaceForIncludePath(includePath: string) {
+function includePathExistsInWorkspace(): boolean {
   // We'd like to make it easy for the user to add the include path
-  // for the VectorCAST vUnit/Include directory.  I looked at automating
-  // this via the vscode.workspace.getConfiguration() API,
-  // but there are too many edge cases, I decided to do check
-  // if the path exists, in any of the c_cpp_properties.json files
-  // and prompt the user to add if it doesn't
+  // for the coded test files.  We check if the /vunit/include path
+  // exists in any of the c_cpp_properties.json files and prompt the
+  // user to add the path it doesn't
+  //
+  let returnValue: boolean = false;
 
-  // swap backslashes to make paths consistent for windows users and
-  // so that they can copy paste from the pop-up to the .json
-  globalIncludePath = includePath.replace(/\\/g, "/");
-
-  if (shouldPromptForIncludePath(globalIncludePath)) {
-    vscode.window.showInformationMessage(
-      "The include path for VectorCAST Coded Testing was not found in your workspace, you should add the " +
-        `include path by right clicking on the appropriate ${configurationFile} file, ` +
-        "and choosing 'VectorCAST: Add Coded Test Include Path`  "
+  for (const workspace of vscode.workspace.workspaceFolders || []) {
+    const workspaceRoot = workspace.uri.fsPath;
+    const c_cpp_properties = path.join(
+      workspaceRoot,
+      ".vscode",
+      configurationFile
     );
+    if (fs.existsSync(c_cpp_properties)) {
+      if (configFileContainsCorrectInclude(c_cpp_properties)) {
+        returnValue = true;
+        break;
+      }
+    }
   }
+  return returnValue;
 }
 
 function initializeCodedTestSupport(vcastInstallationPath: string) {
@@ -423,11 +449,20 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
   // this version has coded test support, so check for that
   // and initialize global variables to support coded testing
 
-  const candidatePath = path.join(vcastInstallationPath, "vunit", "include");
+  let candidatePath = path.join(vcastInstallationPath, "vunit", "include");
+  // swap backslashes to make paths consistent for windows users and
+  globalIncludePath = candidatePath.replace(/\\/g, "/");
+
   if (fs.existsSync(candidatePath)) {
     vectorMessage(`   found coded-test support, initializing ...`);
     globalCodedTestingAvailable = true;
-    checkWorkspaceForIncludePath(candidatePath);
+    if (!includePathExistsInWorkspace()) {
+      vscode.window.showInformationMessage(
+        "The include path for VectorCAST Coded Testing was not found in your workspace, you should add the " +
+          `include path by right clicking on the appropriate ${configurationFile} file, ` +
+          "and choosing 'VectorCAST: Add Coded Test Include Path`  "
+      );
+    }
   } else {
     globalCodedTestingAvailable = false;
   }
