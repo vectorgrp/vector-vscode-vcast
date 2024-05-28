@@ -155,8 +155,10 @@ def generateTestInfo(enviroPath, test):
     if vpythonHasCodedTestSupport and test.coded_tests_file:
         # guard against the case where the coded test file has been renamed or deleted
         # or dataAPI has a bad line nuumber for the test, and return None in this case.
-        enclosingDirectory = os.path.dirname (enviroPath)
-        codedTestFilePath = os.path.abspath (os.path.join(enclosingDirectory, test.coded_tests_file))
+        enclosingDirectory = os.path.dirname(enviroPath)
+        codedTestFilePath = os.path.abspath(
+            os.path.join(enclosingDirectory, test.coded_tests_file)
+        )
         if os.path.exists(codedTestFilePath) and test.coded_tests_line > 0:
             testInfo["codedTestFile"] = codedTestFilePath
             testInfo["codedTestLine"] = test.coded_tests_line
@@ -408,7 +410,7 @@ def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("report")
-        commandOutput = clicastInterface.generateExecutionReport (testIDObject)
+        commandOutput = clicastInterface.generateExecutionReport(testIDObject)
 
         returnText = f"REPORT:{testIDObject.reportName}.txt\n"
         returnText += commandOutput
