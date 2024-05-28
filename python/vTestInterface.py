@@ -138,7 +138,7 @@ def getPassFailString(test):
 
 def generateTestInfo(enviroPath, test):
     """
-    This function takes a test object from the dataAPI
+    This function takes an enviroPath and a dataAPI test object
     and creates a dictionary with the attributes we need
     """
     testInfo = dict()
