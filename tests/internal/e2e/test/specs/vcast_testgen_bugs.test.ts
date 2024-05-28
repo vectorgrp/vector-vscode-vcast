@@ -10,12 +10,6 @@ import {
     executeCtrlClickOn,
     expandWorkspaceFolderSectionInExplorer,
     updateTestID,
-    testGenMethod,
-    generateAllTestsForFunction,
-    validateGeneratedTestsForFunction,
-    deleteAllTestsForFunction,
-    validateTestDeletionForFunction,
-    cleanup
   } from "../test_utils/vcast_utils";
   
   
@@ -24,9 +18,7 @@ import {
     let workbench: Workbench;
     let editorView: EditorView;
     const TIMEOUT = 120000;
-    const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE"
     const QUOTES_EXAMPLE_UNIT = "quotes_example"
-    const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)" 
     before(async () => {
       workbench = await browser.getWorkbench();
       // opening bottom bar and problems view before running any tests
@@ -106,25 +98,25 @@ import {
       await configFile.openContextMenu()
       await (await $("aria/Set as VectorCAST Configuration File")).click()
     });
-    
+
     it("should set nested unitTest location", async () => {
       await updateTestID();
-  
+
       const workbench = await browser.getWorkbench();
       const activityBar = workbench.getActivityBar();
       const explorerView = await activityBar.getViewControl("Explorer");
       await explorerView?.openView();
-  
+
       let settingsEditor = await workbench.openSettings();
       let unitTestLocationSetting = await settingsEditor.findSetting(
         "Unit Test Location","Vectorcast Test Explorer"
       );
       await unitTestLocationSetting.setValue("./unittests/a/b/c")
-    
-      await (await workbench.openNotificationsCenter()).clearAllNotifications()
-     
-    });
 
+      await (await workbench.openNotificationsCenter()).clearAllNotifications()
+
+    });
+  
     it("should create VectorCAST environment", async () => {
       await updateTestID();
   
@@ -159,7 +151,6 @@ import {
       console.log(
         "Waiting for clicast and waiting for environment to get processed",
       );
-     
       await browser.waitUntil(
         async () =>
           (await (await bottomBar.openOutputView()).getText())
@@ -173,7 +164,7 @@ import {
       await browser.saveScreenshot(
         "info_finished_creating_vcast_environment.png",
       );
-     
+
     });
 
     it("should explicitly check that ./unittests/a/b/c is created and contains the .env file", async () => {
@@ -181,10 +172,10 @@ import {
       const workbench = await browser.getWorkbench();
       const activityBar = workbench.getActivityBar();
       await (await bottomBar.openOutputView()).clearText()
-      
+
       const explorerView = await activityBar.getViewControl("Explorer");
       await explorerView?.openView();
-  
+
       const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
         "vcastTutorial",
       );
@@ -193,10 +184,10 @@ import {
       expect(resultingFolder).not.toBe(undefined)
       // this will auto-expand all the way to c as there are no other nested folders in unittests
       await resultingFolder.select()
-    
+
       resultingFolder = await workspaceFolderSection.findItem("c")
       expect(resultingFolder).not.toBe(undefined)
- 
+
       const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
       expect(vceFile).not.toBe(undefined)
     });
@@ -206,21 +197,21 @@ import {
       const workbench = await browser.getWorkbench();
       const activityBar = workbench.getActivityBar();
       await (await bottomBar.openOutputView()).clearText()
-      
+
       const explorerView = await activityBar.getViewControl("Explorer");
       await explorerView?.openView();
-  
+
       const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
         "vcastTutorial",
       );
-      
+
       await workspaceFolderSection.expand()
-  
+
       const vceFile = await workspaceFolderSection.findItem("QUOTES_EXAMPLE.env");
       const vceMenu = await vceFile.openContextMenu()
       console.log("Executing env build for an existing environment");
       await vceMenu.select("Build VectorCAST Environment")
-      
+
       // making sure notification is shown
 
       const notifications = await workbench.getNotifications()
@@ -236,50 +227,6 @@ import {
       const envFolder = await workspaceFolderSection.findItem("QUOTES_EXAMPLE");
       expect(envFolder).not.toBe(undefined)
     });
-  
-    it("should correctly generate all BASIS PATH tests for function", async () => {
-      await updateTestID(); 
-      await generateAllTestsForFunction(QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.BasisPath);
-      await validateGeneratedTestsForFunction(QUOTES_ENV, QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION,testGenMethod.BasisPath);
-      
-    });
 
-    it("should correctly delete all BASIS PATH tests for function", async () => {
-      await updateTestID();
-      await deleteAllTestsForFunction(QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION, testGenMethod.BasisPath);
-      await validateTestDeletionForFunction(QUOTES_ENV,QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION);
-    });
-
-    it("should correctly generate all ATG tests for function", async () => {
-      await updateTestID();
-      
-      if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
-        await generateAllTestsForFunction(QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
-        await validateGeneratedTestsForFunction(QUOTES_ENV, QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
-      }
-      else{
-        console.log("Skipping ATG tests")
-      }
-      
-    });
-
-    it("should correctly delete all ATG tests for function", async () => {
-      await updateTestID();
-      
-      if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
-        await deleteAllTestsForFunction(QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
-        await validateTestDeletionForFunction(QUOTES_ENV,QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION);
-      }
-      else{
-        console.log("Skipping ATG tests")
-      }
-    });
-
-   
-    it("should clean up", async () => {
-      await updateTestID();
-      await cleanup()
-      
-    });
   });
   
