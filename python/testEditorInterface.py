@@ -13,7 +13,7 @@ import json
 import sys
 
 
-from tstUtilities import processLine, choiceDataType
+from tstUtilities import choiceDataType, processTstLine, processVMockLine
 from tstUtilities import globalOutputLog
 
 
@@ -35,7 +35,10 @@ def main():
         # This arg is the contents of the line from the editor, up to the . or :
         inputLine = sys.argv[3]
 
-        choiceData = processLine(enviroName, inputLine)
+        if inputLine.startsWith("vmock_"):
+            choiceData = processVMockLine(enviroName, inputLine)
+        else:
+            choiceData = processTstLine(enviroName, inputLine)
 
     else:
         choiceData = choiceDataType()

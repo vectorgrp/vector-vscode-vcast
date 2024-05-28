@@ -136,6 +136,8 @@ export function getLineText(document: TextDocument, line: number) {
 export function getEnviroNameFromTestScript(testScriptPath: string) {
   let whatToReturn: string | undefined = undefined;
 
+  // note: this expects the test script to be in the same directory as the enviro
+
   // extract the enviroName from the script
   let enviroName: string | undefined = getEnviroNameFromScript(testScriptPath);
 
