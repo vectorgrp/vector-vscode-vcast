@@ -24,9 +24,11 @@ import {
 
 import {
   clicastCommandToUse,
+  configFileContainsCorrectInclude,
   globalIncludePath,
   globalTestInterfacePath,
   vPythonCommandToUse,
+  vUnitIncludeSuffix,
 } from "./vcastInstallation";
 
 import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
@@ -36,14 +38,38 @@ const os = require("os");
 const path = require("path");
 
 export function addIncludePath(fileUri: vscode.Uri) {
+  // This small wrapper just checks if we really need to add the include path
+  // and if so calls insertIncludePath.  We intentionally don't turn off
+  // the right click menu if we find the include path during initialization
+  // because that would lock the user out if there is an error in the init stuff
+
+  const filePath = fileUri.fsPath;
+  if (!configFileContainsCorrectInclude(filePath)) {
+    insertIncludePath(filePath);
+  } else {
+    vscode.window.showInformationMessage(
+      `${filePath} already contains the correct include path.  `
+    );
+  }
+}
+
+function insertIncludePath(filePath: string) {
+  //
+  // this function will add globalIncludePath to the includePath list in the
+  // c_cpp_properties.json passed in, it will be added to the end of
+  // the includePath list.
+  //
+  // globalIncludePath is initialized in vcastInstallation.ts
+  //
   // I'm handling a few error cases here without going crazy
+  //
   let statusMessages: string[] = [];
 
   let existingJSON: any;
   let existingJSONasString: string;
 
   // Requires json-c parsing to handle comments etc.
-  existingJSONasString = fs.readFileSync(fileUri.fsPath).toString();
+  existingJSONasString = fs.readFileSync(filePath).toString();
   // note that jsonc.parse returns "real json" without the comments
   existingJSON = jsonc.parse(
     existingJSONasString,
@@ -68,10 +94,10 @@ export function addIncludePath(fileUri: vscode.Uri) {
     return;
   }
 
-  // when we get here we should always have a configurations array
-  // but we might not have an includePath, so add it if its missing
-
+  // when we get here we should always have a configurations array,
+  // to make things easier we will add the new include to the first config in the array
   let configName = existingJSON.configurations[0].name;
+  // This configuration might now have includePath, so add it if its missing
   if (existingJSON.configurations[0].includePath == undefined) {
     statusMessages.push(
       `Configuration: "${configName}" is missing an includePath list, adding.  `
@@ -82,45 +108,40 @@ export function addIncludePath(fileUri: vscode.Uri) {
 
   let includePathList = existingJSON.configurations[0].includePath;
   let whereToInsert = existingJSON.configurations[0].includePath.length;
-  if (includePathList.includes(globalIncludePath)) {
-    statusMessages.push(
-      `Configuration: "${configName}" already contains the correct include path.  `
-    );
-  } else {
-    // if the user updated versions of VectorCAST, we might have an "old" include path that needs to be removed
-    const indexToRemove = includePathList.findIndex((element: string) =>
-      element.includes("/vunit/include")
-    );
-    if (indexToRemove >= 0) {
-      const oldPath = includePathList[indexToRemove];
-      const jsoncEdits = jsonc.modify(
-        existingJSONasString,
-        ["configurations", 0, "includePath", indexToRemove],
-        undefined,
-        jsoncModificationOptions
-      );
-      existingJSONasString = jsonc.applyEdits(existingJSONasString, jsoncEdits);
-      statusMessages.push(
-        `Removed: ${oldPath} from configuration: "${configName}".  `
-      );
-    }
 
+  // if the user updated versions of VectorCAST, we might have an "old" include path that needs to be removed
+  const indexToRemove = includePathList.findIndex((element: string) =>
+    element.includes(vUnitIncludeSuffix)
+  );
+  if (indexToRemove >= 0) {
+    const oldPath = includePathList[indexToRemove];
     const jsoncEdits = jsonc.modify(
       existingJSONasString,
-      ["configurations", 0, "includePath", whereToInsert],
-      globalIncludePath,
+      ["configurations", 0, "includePath", indexToRemove],
+      undefined,
       jsoncModificationOptions
     );
     existingJSONasString = jsonc.applyEdits(existingJSONasString, jsoncEdits);
     statusMessages.push(
-      `Added: ${globalIncludePath} to configuration: "${configName}".  `
+      `Removed: ${oldPath} from configuration: "${configName}".  `
     );
   }
+
+  const jsoncEdits = jsonc.modify(
+    existingJSONasString,
+    ["configurations", 0, "includePath", whereToInsert],
+    globalIncludePath,
+    jsoncModificationOptions
+  );
+  existingJSONasString = jsonc.applyEdits(existingJSONasString, jsoncEdits);
+  statusMessages.push(
+    `Added: ${globalIncludePath} to configuration: "${configName}".  `
+  );
 
   vscode.window.showInformationMessage(statusMessages.join("\n"));
 
   // we unconditionally write rather than tracking if we changed anything
-  fs.writeFileSync(fileUri.fsPath, existingJSONasString);
+  fs.writeFileSync(filePath, existingJSONasString);
 }
 
 function convertTestScriptContents(scriptPath: string) {

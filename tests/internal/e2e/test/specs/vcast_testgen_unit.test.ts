@@ -1,7 +1,6 @@
 // test/specs/vcast.test.ts
 import {
     BottomBarPanel,
-    EditorView,
     Workbench,
   } from "wdio-vscode-service";
   import { Key } from "webdriverio";
@@ -22,14 +21,12 @@ import {
   describe("vTypeCheck VS Code Extension", () => {
     let bottomBar: BottomBarPanel;
     let workbench: Workbench;
-    let editorView: EditorView;
     const TIMEOUT = 120000;
     before(async () => {
       workbench = await browser.getWorkbench();
       // opening bottom bar and problems view before running any tests
       bottomBar = workbench.getBottomBar();
       await bottomBar.toggle(true);
-      editorView = workbench.getEditorView();
       process.env["E2E_TEST_ID"] = "0";
     });
   
@@ -161,6 +158,7 @@ import {
       await updateTestID();
      
       const envName = "cpp/unitTests/DATABASE-MANAGER"
+      console.log("Generating all BASIS PATH tests for unit database")
       await generateAllTestsForUnit("database",testGenMethod.BasisPath);
       await validateGeneratedTestsForUnit(envName, "database", testGenMethod.BasisPath);
       
@@ -169,7 +167,9 @@ import {
     it("should correctly delete all BASIS PATH tests for the unit", async () => {
       await updateTestID();
       const envName = "cpp/unitTests/DATABASE-MANAGER"
+      console.log("Deleting all BASIS PATH tests for unit database")
       await deleteAllTestsForUnit("database",testGenMethod.BasisPath);
+      console.log("Validating deletion of all BASIS PATH tests for unit database")
       await validateTestDeletionForUnit(envName,"database");
     });
 
@@ -179,6 +179,7 @@ import {
       const envName = "cpp/unitTests/DATABASE-MANAGER"
       
       if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
+        console.log("Generating all ATG tests for unit database")
         await generateAllTestsForUnit("database",testGenMethod.ATG);
         await validateGeneratedTestsForUnit(envName, "database", testGenMethod.ATG);
       }
@@ -192,7 +193,9 @@ import {
       await updateTestID();
       const envName = "cpp/unitTests/DATABASE-MANAGER"
       if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
+        console.log("Deleting all ATG tests for unit database")
         await deleteAllTestsForUnit("database",testGenMethod.ATG);
+        console.log("Validating deletion of all ATG tests for unit database")
         await validateTestDeletionForUnit(envName,"database");
       }
       else{

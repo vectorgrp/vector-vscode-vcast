@@ -1,7 +1,6 @@
 // test/specs/vcast.test.ts
 import {
     BottomBarPanel,
-    CustomTreeItem,
     EditorView,
     Workbench,
   } from "wdio-vscode-service";
@@ -159,6 +158,7 @@ import {
     it("should correctly generate all BASIS PATH tests for the environment", async () => {
       await updateTestID();
       const envName = "cpp/unitTests/DATABASE-MANAGER"
+      console.log(`Generating all BASIS PATH tests for the environment ${envName}`)
       await generateAndValidateAllTestsFor(envName,testGenMethod.BasisPath)
   
     });
@@ -167,7 +167,9 @@ import {
       await updateTestID();
       
       const envName = "cpp/unitTests/DATABASE-MANAGER"
+      console.log(`Deleting all BASIS PATH tests for the environment ${envName}`)
       await deleteAllTestsForEnv(envName);
+      console.log(`Validating deletion of all BASIS PATH tests for the environment ${envName}`)
       await validateTestDeletionForEnv(envName);
       
     });
@@ -176,7 +178,7 @@ import {
       await updateTestID();
       const envName = "cpp/unitTests/DATABASE-MANAGER"
       if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
-        
+        console.log(`Generating all ATG tests for the environment ${envName}`)
         await generateAndValidateAllTestsFor(envName,testGenMethod.ATG)
       }
       else{
@@ -190,7 +192,9 @@ import {
 
       if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
         const envName = "cpp/unitTests/DATABASE-MANAGER"
+        console.log(`Deleting all ATG tests for the environment ${envName}`)
         await deleteAllTestsForEnv(envName);
+        console.log(`Validating deletion of all ATG tests for the environment ${envName}`)
         await validateTestDeletionForEnv(envName);
       }
       
