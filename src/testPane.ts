@@ -7,6 +7,8 @@ import * as vscode from "vscode";
 
 import { Position, Range, Uri, TestMessage } from "vscode";
 
+import { sendTestFileDataToLangaugeServer } from "./client";
+
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
 import { updateTestDecorator } from "./editorDecorator";
@@ -49,8 +51,7 @@ import {
   refreshCodedTests,
 } from "./vcastAdapter";
 
-
-import {  getJsonDataFromTestInterface } from "./vcastCommandRunner"
+import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
@@ -62,7 +63,6 @@ import {
   testDataType,
   vcastEnviroFile,
 } from "./vcastTestInterface";
-
 
 import {
   adjustScriptContentsBeforeLoad,
@@ -184,7 +184,6 @@ function processVCtestData(
   // The top level of the JSON is an array ...
   const unitList = enviroData.testData;
   for (const unitData of unitList) {
-
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
     // add a cache node for the unit
@@ -1139,7 +1138,7 @@ interface codedTestFileDataType {
 // the key is the coded test file path, the value is a codedTestFileDataType
 let codedTestFileCache: Map<string, codedTestFileDataType> = new Map();
 
-// This map is used to cache the list of coded test file in an environment.
+// This map is used to cache the list of coded test files in an environment.
 // we use this when we change an environment to know what cbt files are affected
 // the key is the enviroNodeID, the value is the list of cbt files
 let enviroToCBTfilesCache: Map<string, Set<string>> = new Map();
@@ -1212,6 +1211,14 @@ function addCodedTestfileToCache(
   }
   enviroCacheData.add(functionNodeForCache.testFile);
   enviroToCBTfilesCache.set(enviroNodeID, enviroCacheData);
+
+  // we need to tell the language server about the test file to environment mapping
+  for (const testFilePath of enviroCacheData) {
+    sendTestFileDataToLangaugeServer(
+      testFilePath,
+      functionNodeForCache.enviroPath
+    );
+  }
 }
 
 export function updateCodedTestCases(editor: any) {

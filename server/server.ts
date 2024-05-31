@@ -9,7 +9,7 @@ import {
 } from "vscode-languageserver";
 import { Hover } from "vscode-languageserver-types";
 
-import { getCodedTestCompletionData } from "./ctCompletions"
+import { getCodedTestCompletionData } from "./ctCompletions";
 import { validateTextDocument } from "./tstValidation";
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
@@ -17,6 +17,8 @@ import { getHoverString } from "./tstHover";
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 let connection = createConnection(ProposedFeatures.all);
+
+let testFiletoEnviroMap: Map<string, string> = new Map<string, string>();
 
 // Create a simple text document manager. The text document manager
 // supports full document sync only
@@ -55,6 +57,19 @@ connection.onInitialized(() => {
   }
 });
 
+// this handler receives information about coded test file to environment association
+// so that we know what environment to use wheen providing LSE features for coded test file
+// The data parameter is a JSON object with two fields: filePath and enviroPath
+connection.onNotification("vcasttesteditor/loadTestfile", (data) => {
+  testFiletoEnviroMap.set(data.filePath, data.enviroPath);
+  connection.console.log(
+    "Load test file: " +
+      data.filePath +
+      " notification for environment: " +
+      data.enviroPath
+  );
+});
+
 connection.onDidChangeWatchedFiles((_change) => {
   // Monitored files have change in VSCode
   connection.console.log("We received a file change event");
@@ -75,13 +90,24 @@ documents.onDidChangeContent((change) => {
 // This handler gets called whenever "completion" is triggered by
 // the characters in the "triggerCharacters" array that onInitialize sets
 
+import url = require("url");
+
 connection.onCompletion(
   (completionData: CompletionParams): CompletionItem[] => {
-     if (completionData.textDocument.uri.endsWith(".tst")) {
+    if (completionData.textDocument.uri.endsWith(".tst")) {
       return getTstCompletionData(documents, completionData);
-     }
-     else {
-      return getCodedTestCompletionData(documents, completionData);
+    } else {
+      const filePath = url.fileURLToPath(completionData.textDocument.uri);
+      const enviroPath = testFiletoEnviroMap.get(filePath);
+      if (enviroPath) {
+        return getCodedTestCompletionData(
+          documents,
+          enviroPath,
+          completionData
+        );
+      } else {
+        return [];
+      }
     }
   }
 );
@@ -94,14 +120,12 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
 });
 
 connection.onHover((completionData: CompletionParams): Hover | undefined => {
-
   // This function gets called when the user hovers over a line section
   if (completionData.textDocument.uri.endsWith(".tst")) {
     const hoverString = getHoverString(documents, completionData);
     var hover: Hover = { contents: hoverString };
     return hover;
-  }
-  else {
+  } else {
     return undefined;
   }
 });

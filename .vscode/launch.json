@@ -32,6 +32,23 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "getCompletionData",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/testEditorInterface.py",
+      "cwd": "C:/RDS/VectorCAST/CodeBasedTests/unitTests",
+      "env": {
+        "PYTHONPATH": "C:/vcast/vc24/python",
+        "VECTORCAST_DIR": "c:/VCAST/vc24"
+      },
+      "args": [
+        "choiceList",
+        "MANAGER-DATABASE",
+        "void vmock_database_"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
       "name": "runTest",
       "type": "python",
       "request": "launch",

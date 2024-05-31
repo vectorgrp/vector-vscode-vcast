@@ -35,7 +35,8 @@ def main():
         # This arg is the contents of the line from the editor, up to the . or :
         inputLine = sys.argv[3]
 
-        if inputLine.startsWith("vmock_"):
+        # TBD today need to support more flexible input ^^^void^^^vmock_ for example
+        if inputLine.startswith("void vmock_"):
             choiceData = processVMockLine(enviroName, inputLine)
         else:
             choiceData = processTstLine(enviroName, inputLine)

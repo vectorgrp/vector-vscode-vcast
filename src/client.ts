@@ -43,14 +43,14 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   };
 
   // Options to control the language client
-  // we register for .tsts and c|cpp files, and do the right thing in the callback 
+  // we register for .tsts and c|cpp files, and do the right thing in the callback
   // depending on the extension of the file
   let clientOptions: LanguageClientOptions = {
     documentSelector: [
       { scheme: "file", pattern: "**/*.tst" },
-      { scheme: 'file', language: 'c' },
-      { scheme: 'file', language: 'cpp' },
-      { scheme: 'file', language: 'cuda-cpp' }
+      { scheme: "file", language: "c" },
+      { scheme: "file", language: "cpp" },
+      { scheme: "file", language: "cuda-cpp" },
     ],
   };
 
@@ -67,6 +67,20 @@ export function activateLanguageServerClient(context: ExtensionContext) {
     "Starting the language server client for test script editing ..."
   );
   client.start();
+}
+
+// This function is used to send the server information about the association between
+// a coded test file and the environmeent that uses that file.
+export function sendTestFileDataToLangaugeServer(
+  filePath: string,
+  enviroPath: string
+) {
+  client.onReady().then(() => {
+    client.sendNotification("vcasttesteditor/loadTestfile", {
+      filePath,
+      enviroPath,
+    });
+  });
 }
 
 export function deactivateLanguageServerClient(): Thenable<void> | undefined {

@@ -466,43 +466,44 @@ def splitExistingLine(line):
     return [x.strip() for x in pieces]
 
 
+def getUnitAndFunction(lineSoFar):
+    """
+    This function will get called with the lineSoFar for
+    the curent line being editted.  When we get here the line
+    will look someting like:
+         void vmock_
+         void vmock_myUnit_
+         void vmock_myUnit_myFunction (
+    """
+    pieces = lineSoFar.split("_")
+    unitString = ""
+    functionString = ""
 
-def getUnitAndFunction (lineSoFar):
-  """
-  This function will get called with the lineSoFar for
-  the curent line being editted.  When we get here the line
-  will look someting like:
-       void vmock_
-       void vmock_myUnit_
-       void vmock_myUnit_myFunction (
-  """
-  pieces = lineSoFar.split("_");
-  unitString = "";
-  functionString = "";
+    # the first piece will be "void vmock_" or void vmock_myUnit
+    # done in multiple steps for clarity
 
-  # the first piece will be "void vmock_" or void vmock_myUnit
-  # done in multiple steps for clarity
+    # TBD today, does not work with void^^^vmock_
 
-  # TBD today, does not work with void^^^vmock_
+    # if we have a unit name provided ...
+    if len(pieces) > 1 and len(pieces[1]) > 0:
+        unitString = pieces[1]
 
-  # if we have a unit name provided ...
-  if len(pieces) > 1 and len (pieces[1]) > 0:
-    unitString = pieces[1];
+        # if we have a subprogram name provided ...
+        if len(pieces) > 2 and len(pieces[2]) > 0:
+            functionString = pieces[1].split("(")[0].strip()
 
-    # if we have a subprogram name provided ...
-    if len(pieces) > 2 and len(pieces[2]) > 0:
-      functionString = pieces[1].split("(")[0].strip();
-
-  return unitString, functionString
-
+    return unitString, functionString
 
 
-def processVMockLine (enviroName, lineSoFar):
+unitsToIgnore = ["uut_prototype_stubs", "USER_GLOBALS_VCAST"]
+
+
+def processVMockLine(enviroName, lineSoFar):
     """
     This function will process vmock_  line completions for coded tests
     When we get here, the line will always start with vmock, and end
     with "_" or (, like this:
-    
+
           void vmock_
           void vmock_myUnit_
           void vmock_myUnit_myFunction (
@@ -514,36 +515,40 @@ def processVMockLine (enviroName, lineSoFar):
 
     This is just because of how VS Code does auto-completion
     """
-    
+
+    returnData = choiceDataType()
+
+    api = UnitTestApi(enviroName)
+
+    # TBD today, do we need this?
+    returnData.choiceKind = choiceKindType.Value
+
     unitName, functionName = getUnitAndFunction(lineSoFar)
     if unitName == "":
-        listToReturn = ["vmock_unit1,"]
 
-        // TBD today, need to get real unit names here
-        const jsonData = getChoiceDataFromPython(enviroPath, "vmock_");
-        const unitNameList:string[] = jsonData.choiceList;
-        // prepend each unitName with "vmock_" and and store into listToReturn
-        unitNameList.forEach((unitName) => {
-          listToReturn.push("vmock_" + unitName);
-        });
-      } else if (functionInfo.function == "") {
-        // TBD today, need to get real function names here
-        const jsonData = getChoiceDataFromPython(enviroPath, "vmock_");
-        const functionList:string[] = jsonData.choiceList
-        // prepend each functionName with "vmock_" and and store into listToReturn
-        functionList.forEach((functionName) => {
-          listToReturn.push("vmock_" + functionInfo.unit + "_" + functionName);
-        });
-      }
-    } else if (lineSoFar.endsWith("(")) {
-      // TBD today need to get the parameter profile for the stubbed function
-      const functionInfo = getUnitAndFunciton(lineSoFar);
-      listToReturn.push ("::vunit::CallCtx<DataBase> vunit_ctx, ...");
-    }
+        unitNameList = api.Unit.all()
 
+        # prepend each unitName with "vmock_" and and store into listToReturn
+        for unitObject in unitNameList:
+            if unitObject.name not in unitsToIgnore:
+                returnData.choiceList.append("vmock_" + unitObject.name)
 
-    
+    elif functionName == "":
 
+        functionNameList = getFunctionList(api, unitName)
+
+        # prepend each functionName with "vmock_" and and store into listToReturn
+        for functionName in functionNameList:
+            returnData.choiceList.append("vmock_" + unitName + "_" + functionName)
+
+    elif lineSoFar.endswith("("):
+
+        # TBD today need to get the parameter profile for the stubbed function
+        returnData.choiceList.append("::vunit::CallCtx<DataBase> vunit_ctx, ...")
+
+    api.close()
+
+    return returnData
 
 
 def processTstLine(enviroName, line):
@@ -600,7 +605,7 @@ def processTstLine(enviroName, line):
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)
 
-        api.close ()
+        api.close()
         return returnData
 
     except Exception as err:
@@ -614,14 +619,14 @@ def processTstLine(enviroName, line):
         return choiceDataType()
 
 
-# Some unit tests 
-def main ():
-    
-    print (f"unit, function: {getUnitAndFunction('vmock_')}")
-    print (f"unit, function: {getUnitAndFunction('vmock_myFunction_')}")
-    print (f"unit, function: {getUnitAndFunction('vmock_myFunction_myUnit ')}")
-    print (f"unit, function: {getUnitAndFunction('vmock_myFunction_myUnit   (')}")
-    
+# Some unit tests
+def main():
+
+    print(f"unit, function: {getUnitAndFunction('vmock_')}")
+    print(f"unit, function: {getUnitAndFunction('vmock_myFunction_')}")
+    print(f"unit, function: {getUnitAndFunction('vmock_myFunction_myUnit ')}")
+    print(f"unit, function: {getUnitAndFunction('vmock_myFunction_myUnit   (')}")
+
 
 if __name__ == "__main__":
     main()
