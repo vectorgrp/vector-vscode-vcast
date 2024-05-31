@@ -309,6 +309,7 @@ class CoverageKind:
     statement = 1
     branch = 2
     mcdc = 3
+    ignore = 4
 
 
 def getCoverageKind(sourceObject):
@@ -327,7 +328,7 @@ def getCoverageKind(sourceObject):
     elif coverageTypeAsText == "MC/DC":
         return CoverageKind.mcdc
     else:
-        return CoverageKind.Ignore
+        return CoverageKind.ignore
 
 
 def getCoverageData(sourceObject):
@@ -347,30 +348,24 @@ def getCoverageData(sourceObject):
                 metrics = line.metrics
                 if coverageKind == CoverageKind.statement:
                     if (
-                        metrics.covered_statements > 0
-                        or metrics.annotations_statements > 0
+                        metrics.max_covered_statements > 0
+                        or metrics.max_annotations_statements > 0
                     ):
                         coveredString += str(line.line_number) + ","
                     elif metrics.statements > 0:
                         uncoveredString += str(line.line_number) + ","
-                elif coverageKind == CoverageKind.branch:
+                elif coverageKind in [CoverageKind.branch, CoverageKind.mcdc]:
+                    # for mcdc we only report on the top level branch
+                    # not the sub-conditions, so for if (a && b)  we report
+                    # covered if the if statement has been true and false
                     if (
                         metrics.branches > 0
-                        and metrics.covered_branches + metrics.annotations_branches
+                        and metrics.max_covered_branches
+                        + metrics.max_annotations_branches
                         == metrics.branches
                     ):
                         coveredString += str(line.line_number) + ","
-                    elif metrics.uncovered_branches > 0:
-                        uncoveredString += str(line.line_number) + ","
-                elif coverageKind == CoverageKind.mcdc:
-                    if (
-                        metrics.mcdc_branches > 0
-                        and metrics.covered_mcdc_branches
-                        + metrics.annotations_mcdc_branches
-                        == metrics.mcdc_branches
-                    ):
-                        coveredString += str(line.line_number) + ","
-                    elif metrics.uncovered_mcdc_branches > 0:
+                    elif metrics.max_uncovered_branches > 0:
                         uncoveredString += str(line.line_number) + ","
 
             # print, but drop the last colon
