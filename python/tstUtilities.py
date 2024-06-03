@@ -536,10 +536,10 @@ def processVMockLine(enviroName, lineSoFar):
     currentUnitName, currentFunctionName = getUnitAndFunction(lineSoFar)
     if currentUnitName == "" or currentUnitName.endswith("*"):
 
-        unitNameList = api.Unit.all()
+        unitList = api.Unit.all()
 
         # prepend each unitName with "vmock_" and and store into listToReturn
-        for unitObject in unitNameList:
+        for unitObject in unitList:
             if currentUnitName.endswith ("*"):
                 if unitObject.name.startswith(currentUnitName[:-1]):
                     returnData.choiceList.append("vmock_" + unitObject.name)
@@ -563,8 +563,21 @@ def processVMockLine(enviroName, lineSoFar):
 
     elif lineSoFar.endswith("("):
 
-        # TBD today need to get the parameter profile for the stubbed function
-        returnData.choiceList.append("::vunit::CallCtx<DataBase> vunit_ctx, ...")
+        unitList = api.Unit.all()
+        unitObject = getObjectFromName(unitList, currentUnitName)
+        functionList = unitObject.functions
+        functionObject = getObjectFromName(functionList, currentFunctionName)
+
+        returnString = "::vunit::CallCtx<DataBase> vunit_ctx,"
+        for paramteterObject in functionObject.parameters:
+            typeInfo = additionalTypeInfo(paramteterObject.type)
+            parameterString = f" {typeInfo} {paramteterObject.name},"
+            returnString +=  parameterString
+        
+        # In all cases the returnString will end with a "," so stripo that, and replace with ") {"
+        returnString = returnString[:-1] + ") {"
+
+        returnData.choiceList.append(returnString)
 
     api.close()
 
