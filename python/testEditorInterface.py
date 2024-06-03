@@ -10,6 +10,7 @@ and the VectorCAST environment, using the VectorCAST dataAPI
 """
 
 import json
+import re
 import sys
 
 
@@ -35,8 +36,8 @@ def main():
         # This arg is the contents of the line from the editor, up to the . or :
         inputLine = sys.argv[3]
 
-        # TBD today need to support more flexible input ^^^void^^^vmock_ for example
-        if inputLine.startswith("void vmock_"):
+        # TBD today regex is used to match 
+        if re.match("^\s*void\s+vmock", inputLine):
             choiceData = processVMockLine(enviroName, inputLine)
         else:
             choiceData = processTstLine(enviroName, inputLine)

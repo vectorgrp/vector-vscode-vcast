@@ -23,12 +23,8 @@ export function getCodedTestCompletionData(
     ).trimEnd();
 
     // Identify lines of interest
-    if (
-      // TBD today - support more flexible formats
-      lineSoFar.startsWith("void vmock") &&
-      (lineSoFar.endsWith("_") || lineSoFar.endsWith("("))
-    ) {
-      // TBD today need to get the parameter profile for the stubbed function
+    // so lines that start with void vmock
+    if (lineSoFar.match (/^\s*void\s+vmock/)) {
       const jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
       listToReturn = jsonData.choiceList;
     }

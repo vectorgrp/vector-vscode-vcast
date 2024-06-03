@@ -482,15 +482,25 @@ def getUnitAndFunction(lineSoFar):
     # the first piece will be "void vmock_" or void vmock_myUnit
     # done in multiple steps for clarity
 
-    # TBD today, does not work with void^^^vmock_
-
     # if we have a unit name provided ...
     if len(pieces) > 1 and len(pieces[1]) > 0:
+
+        # this might be a full or partial unit name ,,,
         unitString = pieces[1]
 
         # if we have a subprogram name provided ...
         if len(pieces) > 2 and len(pieces[2]) > 0:
-            functionString = pieces[1].split("(")[0].strip()
+            # this might be a full or partial function name
+            functionString = pieces[2].split("(")[0].strip()
+
+            if not lineSoFar.endswith("("):
+                # indicate that the funciton name might be partial
+                functionString = functionString + "*"
+
+        elif not lineSoFar.endswith("_"):
+            # if we have a unit name but no function name, then 
+            # indicate that the unit name might be partial
+            unitString = unitString + "*"
 
     return unitString, functionString
 
@@ -523,23 +533,33 @@ def processVMockLine(enviroName, lineSoFar):
     # TBD today, do we need this?
     returnData.choiceKind = choiceKindType.Value
 
-    unitName, functionName = getUnitAndFunction(lineSoFar)
-    if unitName == "":
+    currentUnitName, currentFunctionName = getUnitAndFunction(lineSoFar)
+    if currentUnitName == "" or currentUnitName.endswith("*"):
 
         unitNameList = api.Unit.all()
 
         # prepend each unitName with "vmock_" and and store into listToReturn
         for unitObject in unitNameList:
-            if unitObject.name not in unitsToIgnore:
+            if currentUnitName.endswith ("*"):
+                if unitObject.name.startswith(currentUnitName[:-1]):
+                    returnData.choiceList.append("vmock_" + unitObject.name)
+            elif unitObject.name not in unitsToIgnore:
                 returnData.choiceList.append("vmock_" + unitObject.name)
 
-    elif functionName == "":
+    elif currentFunctionName == "" or currentFunctionName.endswith("*"):
 
-        functionNameList = getFunctionList(api, unitName)
+        functionNameList = getFunctionList(api, currentUnitName)
+
+        # TBD today, need unit tests for this
+        # TBD today, patial function matching works as unit test but not from VS Code
 
         # prepend each functionName with "vmock_" and and store into listToReturn
         for functionName in functionNameList:
-            returnData.choiceList.append("vmock_" + unitName + "_" + functionName)
+            if currentFunctionName.endswith("*"):
+                if functionName.startswith (currentFunctionName[:-1]):
+                    returnData.choiceList.append("vmock_" + currentUnitName + "_" + functionName)
+            elif functionName != "coded_tests_driver":
+                returnData.choiceList.append("vmock_" + currentUnitName + "_" + functionName)
 
     elif lineSoFar.endswith("("):
 
