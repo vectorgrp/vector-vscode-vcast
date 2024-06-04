@@ -34,6 +34,8 @@ describe("vTypeCheck VS Code Extension", () => {
   });
 
   it("should activate vcastAdapter", async () => {
+    throw new Error("Test");
+
     await updateTestID();
 
     await browser.keys([Key.Control, Key.Shift, "p"]);
