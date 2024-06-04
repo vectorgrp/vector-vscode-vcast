@@ -28,7 +28,7 @@ if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
     xvfb-run --server-num=99 --auto-servernum --server-args="-screen 0 1920x1080x24+32" npx wdio run test/wdio.conf.ts | tee output.txt
     if [ "$GITHUB_ACTIONS" = "true" ] && [ -f output.txt ] ; then
       export LANG="C.UTF-8"
-      python get_e2e_summary_for_gh_actions.py output.txt
+      python3 get_e2e_summary_for_gh_actions.py output.txt
     fi
 else
     npx wdio run test/wdio.conf.ts
