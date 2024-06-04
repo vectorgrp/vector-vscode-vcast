@@ -208,6 +208,7 @@ jobs:
           path: ./tests/internal/e2e/*.png
 
       - name: Show run summary
+        if: always()
         run: |
           echo "### Run summary - Vcast 23" >> $GITHUB_STEP_SUMMARY
           content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
@@ -325,6 +326,7 @@ jobs:
           path: ./tests/internal/e2e/*.png
 
       - name: Show run summary
+        if: always()
         run: |
           echo "### Run summary - Vcast 24" >> $GITHUB_STEP_SUMMARY
           content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
