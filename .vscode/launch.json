@@ -44,7 +44,7 @@
       "args": [
         "choiceList",
         "MANAGER-DATABASE",
-        "  void    vmock_database_DataBase::UpdateTableRecord ("
+        "  void    vmock_database_DataBase::D"
       ],
       "console": "integratedTerminal"
     },

@@ -36,7 +36,7 @@ def main():
         # This arg is the contents of the line from the editor, up to the . or :
         inputLine = sys.argv[3]
 
-        # TBD today regex is used to match 
+        # if the line starts with "void vmock" then we are processing a VMock line
         if re.match("^\s*void\s+vmock", inputLine):
             choiceData = processVMockLine(enviroName, inputLine)
         else:

@@ -22,8 +22,8 @@ export function getCodedTestCompletionData(
       completionData.position
     ).trimEnd();
 
-    // Identify lines of interest
-    // so lines that start with void vmock
+    // Identify lines of interest, so lines that start with
+    //     void vmock
     if (lineSoFar.match (/^\s*void\s+vmock/)) {
       const jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
       listToReturn = jsonData.choiceList;

@@ -556,9 +556,12 @@ def processVMockLine(enviroName, lineSoFar):
         # prepend each functionName with "vmock_" and and store into listToReturn
         for functionName in functionNameList:
             if currentFunctionName.endswith("*"):
-                if functionName.startswith (currentFunctionName[:-1]):
-                    returnData.choiceList.append("vmock_" + currentUnitName + "_" + functionName)
-            elif functionName != "coded_tests_driver":
+                functionNameFragment = currentFunctionName[:-1]
+                if functionName.startswith (functionNameFragment):
+                    # special case for ":" because colon is a separator for test script lines
+                    index = functionNameFragment.rfind("::")
+                    returnData.choiceList.append(functionName[index+2:])
+            elif functionName not in  ["coded_tests_driver", tagForGlobals]:
                 returnData.choiceList.append("vmock_" + currentUnitName + "_" + functionName)
 
     elif lineSoFar.endswith("("):
