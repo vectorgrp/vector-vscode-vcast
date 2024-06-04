@@ -498,7 +498,7 @@ def getUnitAndFunction(lineSoFar):
                 functionString = functionString + "*"
 
         elif not lineSoFar.endswith("_"):
-            # if we have a unit name but no function name, then 
+            # if we have a unit name but no function name, then
             # indicate that the unit name might be partial
             unitString = unitString + "*"
 
@@ -508,7 +508,7 @@ def getUnitAndFunction(lineSoFar):
 unitsToIgnore = ["uut_prototype_stubs", "USER_GLOBALS_VCAST"]
 
 
-def processVMockLine(enviroName, lineSoFar):
+def processVMockDefinition(enviroName, lineSoFar):
     """
     This function will process vmock_  line completions for coded tests
     When we get here, the line will always start with vmock, and end
@@ -527,11 +527,10 @@ def processVMockLine(enviroName, lineSoFar):
     """
 
     returnData = choiceDataType()
-
-    api = UnitTestApi(enviroName)
-
     # TBD today, do we need this?
     returnData.choiceKind = choiceKindType.Value
+
+    api = UnitTestApi(enviroName)
 
     currentUnitName, currentFunctionName = getUnitAndFunction(lineSoFar)
     if currentUnitName == "" or currentUnitName.endswith("*"):
@@ -540,7 +539,7 @@ def processVMockLine(enviroName, lineSoFar):
 
         # prepend each unitName with "vmock_" and and store into listToReturn
         for unitObject in unitList:
-            if currentUnitName.endswith ("*"):
+            if currentUnitName.endswith("*"):
                 if unitObject.name.startswith(currentUnitName[:-1]):
                     returnData.choiceList.append("vmock_" + unitObject.name)
             elif unitObject.name not in unitsToIgnore:
@@ -557,12 +556,14 @@ def processVMockLine(enviroName, lineSoFar):
         for functionName in functionNameList:
             if currentFunctionName.endswith("*"):
                 functionNameFragment = currentFunctionName[:-1]
-                if functionName.startswith (functionNameFragment):
+                if functionName.startswith(functionNameFragment):
                     # special case for ":" because colon is a separator for test script lines
                     index = functionNameFragment.rfind("::")
-                    returnData.choiceList.append(functionName[index+2:])
-            elif functionName not in  ["coded_tests_driver", tagForGlobals]:
-                returnData.choiceList.append("vmock_" + currentUnitName + "_" + functionName)
+                    returnData.choiceList.append(functionName[index + 2 :])
+            elif functionName not in ["coded_tests_driver", tagForGlobals]:
+                returnData.choiceList.append(
+                    "vmock_" + currentUnitName + "_" + functionName
+                )
 
     elif lineSoFar.endswith("("):
 
@@ -575,14 +576,24 @@ def processVMockLine(enviroName, lineSoFar):
         for paramteterObject in functionObject.parameters:
             typeInfo = additionalTypeInfo(paramteterObject.type)
             parameterString = f" {typeInfo} {paramteterObject.name},"
-            returnString +=  parameterString
-        
+            returnString += parameterString
+
         # In all cases the returnString will end with a "," so stripo that, and replace with ") {"
         returnString = returnString[:-1] + ") {"
 
         returnData.choiceList.append(returnString)
 
     api.close()
+
+    return returnData
+
+
+def processVMockSession(enviroName, lineSoFar):
+
+    returnData = choiceDataType()
+    # TBD today, do we need this?
+    returnData.choiceKind = choiceKindType.Value
+    returnData.choiceList.append(" ::vunit::MockSession();")
 
     return returnData
 

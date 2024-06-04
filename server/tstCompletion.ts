@@ -17,7 +17,7 @@ import {
   convertKind,
 } from "./serverUtilities";
 
-import { getChoiceDataFromPython } from "./pythonUtilities";
+import { choiceKindType, getChoiceDataFromPython } from "./pythonUtilities";
 
 export function getTstCompletionData(
   documents: TextDocuments,
@@ -56,7 +56,11 @@ export function getTstCompletionData(
       } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:")
         return completionList(["<test-name>"], CompletionItemKind.Text);
       else if (trigger == "COLON" && upperCaseLine == "TEST.UNIT:") {
-        const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
+        const choiceData = getChoiceDataFromPython(
+          choiceKindType.choiceListTST,
+          enviroPath,
+          lineSoFar
+        );
         return completionList(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
@@ -76,6 +80,7 @@ export function getTstCompletionData(
         let choiceKind: CompletionItemKind = CompletionItemKind.Keyword;
         if (unitName.length > 0) {
           const choiceData = getChoiceDataFromPython(
+            choiceKindType.choiceListTST,
             enviroPath,
             "TEST.VALUE:" + unitName + "."
           );
@@ -89,7 +94,11 @@ export function getTstCompletionData(
         }
         return completionList(choiceArray, choiceKind);
       } else if (upperCaseLine.startsWith("TEST.SLOT:")) {
-        const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
+        const choiceData = getChoiceDataFromPython(
+          choiceKindType.choiceListTST,
+          enviroPath,
+          lineSoFar
+        );
         return completionList(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
@@ -105,14 +114,22 @@ export function getTstCompletionData(
         upperCaseLine.startsWith("TEST.STUB:")
       ) {
         // the current level, and returns the appropriate list for the next level.
-        const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
+        const choiceData = getChoiceDataFromPython(
+          choiceKindType.choiceListTST,
+          enviroPath,
+          lineSoFar
+        );
         return completionList(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
         );
       } else if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
         // for the requirement keys, the format of the list items is
-        const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
+        const choiceData = getChoiceDataFromPython(
+          choiceKindType.choiceListTST,
+          enviroPath,
+          lineSoFar
+        );
         for (let i = 0; i < choiceData.choiceList.length; i++) {
           let line = choiceData.choiceList[i];
           // raw data looks like:  <key> ||| <title> ||| <description>

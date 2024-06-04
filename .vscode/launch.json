@@ -42,9 +42,9 @@
         "VECTORCAST_DIR": "c:/VCAST/vc24"
       },
       "args": [
-        "choiceList",
+        "choiceList-ct",
         "MANAGER-DATABASE",
-        "  void    vmock_database_DataBase::D"
+        "   auto vmock_session = "
       ],
       "console": "integratedTerminal"
     },

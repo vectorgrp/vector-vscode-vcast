@@ -14,7 +14,12 @@ import re
 import sys
 
 
-from tstUtilities import choiceDataType, processTstLine, processVMockLine
+from tstUtilities import (
+    choiceDataType,
+    processTstLine,
+    processVMockDefinition,
+    processVMockSession,
+)
 from tstUtilities import globalOutputLog
 
 
@@ -26,25 +31,41 @@ def main():
 
     # We get here when the user types a "." or ":"
 
-    mode = sys.argv[1]
-    if mode == "choiceList":
-        # This is option will process one input line and
-        # return one set of choices, using stdin/stdout for communication
+    # argv has the name of the script as arg 1 and then user args
+    if len(sys.argv) == 4:
 
+        # What to do choiceList-ct or choiceList-tst
+        mode = sys.argv[1]
+
+        # Path to the environment folder
         enviroName = sys.argv[2]
 
-        # This arg is the contents of the line from the editor, up to the . or :
+        # Contents of the line from the editor so far
         inputLine = sys.argv[3]
 
-        # if the line starts with "void vmock" then we are processing a VMock line
-        if re.match("^\s*void\s+vmock", inputLine):
-            choiceData = processVMockLine(enviroName, inputLine)
-        else:
+        if mode == "choiceList-ct":
+
+            # if the line starts with "void vmock" then we are processing vmock definition
+            if re.match("^\s*void\s+vmock", inputLine):
+                choiceData = processVMockDefinition(enviroName, inputLine)
+
+            # of if the line starts with auto vmock_session =
+            elif re.match("^\s*auto\s+vmock_session\s*=", inputLine):
+                choiceData = processVMockSession(enviroName, inputLine)
+
+        elif mode == "choiceList-tst":
             choiceData = processTstLine(enviroName, inputLine)
+
+        else:
+            choiceData = choiceDataType()
+            globalOutputLog.append("Invalid mode: " + mode)
 
     else:
         choiceData = choiceDataType()
-        globalOutputLog.append("Invalid mode: " + mode)
+        # first arg is the name of the scropt, so we subtract 1
+        globalOutputLog.append(
+            f"Invalid number of arguments: {len(sys.argv)-1}, 3 expected"
+        )
 
     outputDictionary = dict()
     outputDictionary["choiceKind"] = choiceData.choiceKind

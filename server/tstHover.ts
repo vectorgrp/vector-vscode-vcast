@@ -9,6 +9,7 @@ import {
 import { TextDocuments, CompletionParams } from "vscode-languageserver";
 
 import {
+  choiceKindType,
   getChoiceDataFromPython,
   getHoverStringForRequirement,
 } from "./pythonUtilities";
@@ -75,7 +76,11 @@ export function getHoverString(
 
           // call python to get the list for this field, and then ...
           // match up that piece to find the "extra stuff" to display
-          const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
+          const choiceData = getChoiceDataFromPython(
+            choiceKindType.choiceListTST,
+            enviroPath,
+            lineSoFar
+          );
           const valueList = choiceData.choiceList;
           for (var index = 0; index < valueList.length; index++) {
             const valuePieces = valueList[index].split("@");

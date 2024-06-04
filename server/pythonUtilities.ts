@@ -35,8 +35,8 @@ function initializeScriptPath() {
 }
 
 export function runPythonScript(
-  enviroName: string,
   action: string,
+  enviroName: string,
   payload: string
 ): any {
   // this is currently not used as the actual server mode is unused
@@ -63,11 +63,16 @@ export function runPythonScript(
   return JSON.parse(pieces[1].trim());
 }
 
+export enum choiceKindType {
+  choiceListTST = "choiceList-tst",
+  choiceListCT = "choiceList-ct",
+}
 export function getChoiceDataFromPython(
+  kind: choiceKindType,
   enviroName: string,
   lineSoFar: string
 ): any {
-  const jsonData = runPythonScript(enviroName, "choiceList", lineSoFar);
+  const jsonData = runPythonScript(kind, enviroName, lineSoFar);
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
@@ -80,8 +85,8 @@ export function getHoverStringForRequirement(
 ): any {
   let returnValue: string = "";
   const jsonData = runPythonScript(
+    "choiceList-tst",
     enviroName,
-    "choiceList",
     "TEST.REQUIREMENT_KEY:"
   );
   for (const msg of jsonData.messages) {

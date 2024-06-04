@@ -5,7 +5,7 @@ import {
   TextDocuments,
 } from "vscode-languageserver";
 
-import { getChoiceDataFromPython } from "./pythonUtilities";
+import { choiceKindType, getChoiceDataFromPython } from "./pythonUtilities";
 
 import { completionList, getLineFragment } from "./serverUtilities";
 
@@ -24,8 +24,16 @@ export function getCodedTestCompletionData(
 
     // Identify lines of interest, so lines that start with
     //     void vmock
-    if (lineSoFar.match (/^\s*void\s+vmock/)) {
-      const jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
+    //     auto vmock_session =
+    if (
+      lineSoFar.match(/^\s*void\s+vmock/) ||
+      lineSoFar.match(/^\s*auto\s+vmock_session\s*=\s*/)
+    ) {
+      const jsonData = getChoiceDataFromPython(
+        choiceKindType.choiceListCT,
+        enviroPath,
+        lineSoFar
+      );
       listToReturn = jsonData.choiceList;
     }
   }
