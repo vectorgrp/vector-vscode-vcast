@@ -16,13 +16,15 @@ REPOSITORY_PATH = str(Path(os.path.realpath(__file__)).parent.parent.parent.pare
 
 
 def get_link_from_error(text: str) -> str:
-    errors = re.findall(re.compile(r'(?:^Error: .+?)\((.+?)\)$', flags=re.DOTALL | re.MULTILINE), text)
+    errors = re.findall(re.compile(r'^Error: .+?\(.*\)$', flags=re.DOTALL | re.MULTILINE), text)
     ret = ''
     for error in errors:
-        file_path, line_column = error.split(':', 1)
-        file_path = file_path.replace(REPOSITORY_PATH + '/', '')
-        line = line_column.split(':')[0]
-        ret += f'[{file_path}](https://github.com/{os.getenv("GITHUB_REPOSITORY")}/blob/{os.getenv("GITHUB_SHA")}/{file_path}#L{line})\n'
+        files = re.findall(re.compile(r'Context\.<anonymous>\s*\(([^)]+)\)'), error)
+        for file in files:
+            file_path, line_column = file.split(':', 1)
+            file_path = file_path.replace(REPOSITORY_PATH + '/', '')
+            line = line_column.split(':')[0]
+            ret += f'[{file_path}](https://github.com/{os.getenv("GITHUB_REPOSITORY")}/blob/{os.getenv("GITHUB_SHA")}/{file_path}#L{line})\n'
     if ret:
         ret = f'#### Links to source files\n{ret}'
     return ret
@@ -37,8 +39,8 @@ else:
     for spec in specs:
         clean_spec = re.compile(r'\x1b[^m]*m').sub('', spec.strip())
         clean_spec = re.sub(re.compile(r'^\[.+?\]\s', flags=re.DOTALL | re.MULTILINE), '', clean_spec)
-        workers_executions = re.split(re.compile(r'-+\n|\n\n'), clean_spec)[1:]
-        final_line = workers_executions.pop(-1)
+        workers_executions = re.split(re.compile(r'-+\n|\nSpec Files:'), clean_spec)[1:]
+        final_line = f'Spec Files:{workers_executions.pop(-1)}'
         res += '## Spec\n'
         for execution in workers_executions:
             res += f'```\n{execution.strip()}\n```\n'
