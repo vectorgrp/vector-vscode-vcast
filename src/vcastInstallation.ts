@@ -82,9 +82,9 @@ function vcastVersionGreaterThan(
   // A general purpose version checker, will be needed for Coded Tests, etc.
 
   let returnValue = false;
-  const toolPath = path.join(vcastInstallationPath, "DATA", "tool_version.txt");
+  const toolVersionPath = path.join(vcastInstallationPath, "DATA", "tool_version.txt");
 
-  const toolVersion = fs.readFileSync(toolPath).toString().trim();
+  const toolVersion = fs.readFileSync(toolVersionPath).toString().trim();
   // extract version and service pack from toolVersion (23.sp2 date)
   const matched = toolVersion.match(/(\d+)\.sp(\d+).*/);
   if (matched) {
