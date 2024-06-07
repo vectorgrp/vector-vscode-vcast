@@ -80,6 +80,12 @@ RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tg
     sudo alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1 && mkdir ".pip" && \
     echo -e '[global]\ntrusted-host = pypi.org\n               pypi.python.org\n               files.pythonhosted.org' >> .pip/pip.conf
 
+RUN sudo yum groupinstall 'Development Tools' -y && sudo yum install curl-devel expat-devel gettext-devel zlib-devel perl-CPAN perl-devel -y && cd && \
+    wget https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.18.0.tar.gz && tar xf git-2.18.0.tar.gz && cd git-2.18.0/ && \
+    make configure && ./configure --prefix=/usr/local && make all && sudo make install && \
+    cd .. && sudo rm -rf git-2.18.0* && \
+    sudo yum clean all && sudo rm -rf /var/cache/yum
+
 RUN sudo yum install -y xorg-x11-server-Xvfb && \
     sudo yum install -y chromium && \
     sudo yum clean all && sudo rm -rf /var/cache/yum && \
