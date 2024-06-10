@@ -15,7 +15,7 @@ import { vectorMessage } from "./messagePane";
 import { vPythonCommandToUse } from "./vcastInstallation";
 
 let client: LanguageClient;
-
+let globalvMockAvailable: boolean = false;
 export function activateLanguageServerClient(context: ExtensionContext) {
   // The server is implemented in nodejs also
   let serverModule = context.asAbsolutePath(path.join("out", "server.js"));
@@ -67,6 +67,9 @@ export function activateLanguageServerClient(context: ExtensionContext) {
     "Starting the language server client for test script editing ..."
   );
   client.start();
+
+  // initialize the vMock status to the value set during activation
+  updateVMockStatus(globalvMockAvailable);
 }
 
 // This function is used to send the server information about the association between
@@ -81,6 +84,22 @@ export function sendTestFileDataToLangaugeServer(
       enviroPath,
     });
   });
+}
+
+// This function is used to update vmockAvailabe on the server side
+export function updateVMockStatus(vmockAvailable: boolean) {
+  // during activation, the client may not be ready yet, so we store the value
+  // of the vmockAvailable flag in a global variable and send it to the server
+  // on startup
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/vmockstatus", {
+        vmockAvailable,
+      });
+    });
+  } else {
+    globalvMockAvailable = vmockAvailable;
+  }
 }
 
 export function deactivateLanguageServerClient(): Thenable<void> | undefined {

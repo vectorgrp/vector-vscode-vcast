@@ -53,6 +53,10 @@ def main():
             elif re.match("^\s*auto\s+vmock_session\s*=", inputLine):
                 choiceData = processVMockSession(enviroName, inputLine)
 
+            else:
+                # noting to be done
+                choiceData = choiceDataType()
+
         elif mode == "choiceList-tst":
             choiceData = processTstLine(enviroName, inputLine)
 

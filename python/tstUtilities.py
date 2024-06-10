@@ -475,7 +475,7 @@ def getUnitAndFunction(lineSoFar):
          void vmock_myUnit_
          void vmock_myUnit_myFunction (
     """
-    pieces = lineSoFar.split("_")
+    pieces = lineSoFar.split("_", 2)
     unitString = ""
     functionString = ""
 
@@ -493,8 +493,9 @@ def getUnitAndFunction(lineSoFar):
             # this might be a full or partial function name
             functionString = pieces[2].split("(")[0].strip()
 
-            if not lineSoFar.endswith("("):
-                # indicate that the funciton name might be partial
+            lastChar = lineSoFar.rstrip()[-1]
+            if lastChar.isalpha() or lastChar == "_":
+                # indicate that the function name might be partial
                 functionString = functionString + "*"
 
         elif not lineSoFar.endswith("_"):
@@ -506,6 +507,63 @@ def getUnitAndFunction(lineSoFar):
 
 
 unitsToIgnore = ["uut_prototype_stubs", "USER_GLOBALS_VCAST"]
+
+
+def getParameterTypes(parameterizedName):
+    """
+    This function will take a parameterized name and return a list of types
+    The input string will be something like: 'simple(char*)int'
+    where char* is the parameter, and int is the return
+    """
+
+    returnList = list()
+    paramterString = parameterizedName.split("(")[1].split(")")[0]
+    if "," in paramterString:
+        returnList = paramterString.split(",")
+    else:
+        returnList = [paramterString]
+
+    return returnList
+
+
+def createFunctionSignature(functionObject):
+    """
+    Create the signature for a vmock object, something like this:
+        ::vunit::CallCtx<myClass> vunit_ctx, const char* param1
+    """
+
+    # if this function is a class member, we include the class name
+    instantiatingClass = ""
+    if "::" in functionObject.name:
+        instantiatingClass = functionObject.name.split("::")[0]
+
+    # the static part of the signature looks like this, 
+    # we will append the parameters next
+    returnString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx,"
+
+    # To get the original type definition, we need to deconstruct
+    # the parameterized name, vs looping on the parameters.
+    # This is because the pameterObject.type is "processed" and
+    # char* gets turned into string for example.
+    parameterTypeList = getParameterTypes(functionObject.parameterized_name)
+    for paramteterObject in functionObject.parameters:
+        if paramteterObject.name != "return":
+            typeString = parameterTypeList.pop(0)
+            # for arrays, the typeString will end with "]"
+            # and we need to change int[] param to int param[]
+            if typeString.endswith("]"):
+                startOfArrayQualifier = typeString.find("[", 1)
+                typeStringOnly = typeString[:startOfArrayQualifier]
+                arraySize = typeString[startOfArrayQualifier:]
+                parameterString = f" {typeStringOnly} {paramteterObject.name}{arraySize},"
+            else:
+                parameterString = f" {typeString} {paramteterObject.name},"
+            returnString += parameterString
+
+    # In all cases the returnString will end with a "," so strip that, and replace with ") {"
+    returnString = returnString[:-1]
+
+    return returnString
 
 
 def processVMockDefinition(enviroName, lineSoFar):
@@ -559,29 +617,26 @@ def processVMockDefinition(enviroName, lineSoFar):
                 if functionName.startswith(functionNameFragment):
                     # special case for ":" because colon is a separator for test script lines
                     index = functionNameFragment.rfind("::")
-                    returnData.choiceList.append(functionName[index + 2 :])
+                    returnData.choiceList.append(functionName[index + 1 :])
             elif functionName not in ["coded_tests_driver", tagForGlobals]:
                 returnData.choiceList.append(
                     "vmock_" + currentUnitName + "_" + functionName
                 )
 
-    elif lineSoFar.endswith("("):
+    elif lineSoFar.rstrip().endswith("("):
 
         unitList = api.Unit.all()
         unitObject = getObjectFromName(unitList, currentUnitName)
-        functionList = unitObject.functions
-        functionObject = getObjectFromName(functionList, currentFunctionName)
-
-        returnString = "::vunit::CallCtx<DataBase> vunit_ctx,"
-        for paramteterObject in functionObject.parameters:
-            typeInfo = additionalTypeInfo(paramteterObject.type)
-            parameterString = f" {typeInfo} {paramteterObject.name},"
-            returnString += parameterString
-
-        # In all cases the returnString will end with a "," so stripo that, and replace with ") {"
-        returnString = returnString[:-1] + ") {"
-
-        returnData.choiceList.append(returnString)
+        if unitObject==None:
+            globalOutputLog.append(f"Unit name: '{currentUnitName}' not found in environment: {enviroName}")
+        else:
+            functionList = unitObject.functions
+            functionObject = getObjectFromName(functionList, currentFunctionName)
+            if functionObject==None:
+                globalOutputLog.append(f"Function name: '{currentFunctionName}' not found in unit: '{currentUnitName}'")
+            else:
+                signatureString = createFunctionSignature(functionObject)
+                returnData.choiceList.append(signatureString)
 
     api.close()
 

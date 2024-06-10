@@ -20,6 +20,8 @@ let connection = createConnection(ProposedFeatures.all);
 
 let testFiletoEnviroMap: Map<string, string> = new Map<string, string>();
 
+let globalVMockAvailable: boolean = false;
+
 // Create a simple text document manager. The text document manager
 // supports full document sync only
 let documents: TextDocuments = new TextDocuments();
@@ -52,7 +54,7 @@ connection.onInitialized(() => {
   }
   if (hasWorkspaceFolderCapability) {
     connection.workspace.onDidChangeWorkspaceFolders((_event) => {
-      connection.console.log("Workspace folder change event received.");
+      connection.console.log("Notification received: workspace folder change");
     });
   }
 });
@@ -63,16 +65,25 @@ connection.onInitialized(() => {
 connection.onNotification("vcasttesteditor/loadTestfile", (data) => {
   testFiletoEnviroMap.set(data.filePath, data.enviroPath);
   connection.console.log(
-    "Load test file: " +
+    "Notification received: test file: " +
       data.filePath +
-      " notification for environment: " +
+      " environment: " +
       data.enviroPath
+  );
+});
+
+// this handler is called with the status of vmock available, it will be called on
+// initialization and whenever the vcast installation changes
+connection.onNotification("vcasttesteditor/vmockstatus", (data) => {
+  globalVMockAvailable = data.vmockAvailable;
+  connection.console.log(
+    "Notification received: vMock Available: " + data.vmockAvailable
   );
 });
 
 connection.onDidChangeWatchedFiles((_change) => {
   // Monitored files have change in VSCode
-  connection.console.log("We received a file change event");
+  connection.console.log("Notification received: file change event");
 });
 
 // The content of a text document has changed. This event is emitted
@@ -94,9 +105,12 @@ import url = require("url");
 
 connection.onCompletion(
   (completionData: CompletionParams): CompletionItem[] => {
+    // Test Script Editor
     if (completionData.textDocument.uri.endsWith(".tst")) {
       return getTstCompletionData(documents, completionData);
-    } else {
+
+      // Coded Test Editor
+    } else if (globalVMockAvailable) {
       const filePath = url.fileURLToPath(completionData.textDocument.uri);
       const enviroPath = testFiletoEnviroMap.get(filePath);
       if (enviroPath) {

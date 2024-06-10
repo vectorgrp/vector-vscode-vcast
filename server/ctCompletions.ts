@@ -26,7 +26,7 @@ export function getCodedTestCompletionData(
     //     void vmock
     //     auto vmock_session =
     if (
-      lineSoFar.match(/^\s*void\s+vmock/) ||
+      lineSoFar.match(/^\s*void\s+vmock_/) ||
       lineSoFar.match(/^\s*auto\s+vmock_session\s*=\s*/)
     ) {
       const jsonData = getChoiceDataFromPython(

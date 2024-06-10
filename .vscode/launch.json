@@ -39,12 +39,12 @@
       "cwd": "C:/RDS/VectorCAST/CodeBasedTests/unitTests",
       "env": {
         "PYTHONPATH": "C:/vcast/vc24/python",
-        "VECTORCAST_DIR": "c:/VCAST/vc24"
+        "VECTORCAST_DIR": "c:/VCAST/vc24sp2"
       },
       "args": [
         "choiceList-ct",
-        "MANAGER-DATABASE",
-        "   auto vmock_session = "
+        "STL",
+        "void vmock_stl_copy_list_to_vector ("
       ],
       "console": "integratedTerminal"
     },
