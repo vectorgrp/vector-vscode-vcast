@@ -105,6 +105,7 @@ import url = require("url");
 
 connection.onCompletion(
   (completionData: CompletionParams): CompletionItem[] => {
+
     // Test Script Editor
     if (completionData.textDocument.uri.endsWith(".tst")) {
       return getTstCompletionData(documents, completionData);
@@ -122,6 +123,9 @@ connection.onCompletion(
       } else {
         return [];
       }
+    }
+    else {
+      return [];
     }
   }
 );
