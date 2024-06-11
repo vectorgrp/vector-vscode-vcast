@@ -416,6 +416,8 @@ jobs:
         if: always()
         id: git_changes
         run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
           if git diff --quiet; then
             echo "No changes to commit"
             echo "::set-output name=changes::false"
