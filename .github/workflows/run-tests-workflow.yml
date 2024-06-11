@@ -382,6 +382,26 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
+      - name: Restore cached dependencies
+        id: cache-dependencies-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Save dependencies
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+
       - name: Black
         shell: bash
         run: |
