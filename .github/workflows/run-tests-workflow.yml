@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - gh_actions_improvements_final   # TODO tmp
   pull_request:
     branches:
       - main
