@@ -1,30 +1,24 @@
 import * as vscode from "vscode";
 
-// some functions that are used across functional areas of the extensions
+// Some functions that are used across functional areas of the extensions
 
 import { updateDisplayedCoverage } from "./coverage";
 import { updateTestDecorator } from "./editorDecorator";
-
 import { updateExploreDecorations } from "./fileDecorator";
 import { openMessagePane, vectorMessage } from "./messagePane";
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
-
 import {
   removeCBTfilesCacheForEnviro,
   removeEnvironmentFromTestPane,
   updateDataForEnvironment,
   updateTestPane,
 } from "./testPane";
-
-
 import { removeFilePattern } from "./utilities";
-import { commandStatusType } from "./vcastCommandRunner";
+import { type commandStatusType } from "./vcastCommandRunner";
 import { loadScriptIntoEnvironment } from "./vcastAdapter";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
-
-
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 export function buildEnvironmentCallback(enviroPath: string, code: number) {
   // This function gets called after the newEnviroVCAST command
@@ -34,7 +28,7 @@ export function buildEnvironmentCallback(enviroPath: string, code: number) {
     updateDataForEnvironment(enviroPath);
   } else {
     try {
-      // remove the envionment directory, as well as the .vce file
+      // Remove the envionment directory, as well as the .vce file
       vectorMessage("Environment build failed, removing artifacts ...");
       fs.rmSync(enviroPath, { recursive: true, force: true });
       fs.unlinkSync(enviroPath + ".vce");
@@ -52,22 +46,23 @@ export function rebuildEnvironmentCallback(enviroPath: string, code: number) {
 
   if (code == 0) {
     try {
-      // remove the BAK directory and .vce file
+      // Remove the BAK directory and .vce file
       vectorMessage("Environment re-build complete, removing artifacts ...");
       fs.rmSync(enviroPath + ".BAK", { recursive: true, force: true });
       fs.unlinkSync(enviroPath + ".BAK.vce");
 
-      // vcast leaves the ENVIRO-NAME.time-tag.tst file so we clean that up
+      // Vcast leaves the ENVIRO-NAME.time-tag.tst file so we clean that up
       removeFilePattern(enviroPath, ".*.tst");
     } catch {
       // ignore errors
     }
+
     updateDataForEnvironment(enviroPath);
   }
 }
 
 export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
-  // this function gets called after the clicast env delete completes
+  // This function gets called after the clicast env delete completes
 
   // if the delete succeeded then we need to remove the environment from the test pane
   if (code == 0) {
@@ -82,7 +77,7 @@ export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
 
     removeNodeFromCache(enviroNodeID);
 
-    // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
+    // Vcast does not delete the ENVIRO-NAME.* files so we clean those up here
     removeFilePattern(enviroPath, ".*");
   }
 }
@@ -98,7 +93,7 @@ export function loadScriptCallBack(
   if (commandStatus.errorCode == 0) {
     vectorMessage("Loading tests into VectorCAST environment ...");
 
-    // call clicast to load the test script
+    // Call clicast to load the test script
     loadScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);

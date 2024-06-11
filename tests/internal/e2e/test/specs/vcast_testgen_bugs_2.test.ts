@@ -1,8 +1,5 @@
-// test/specs/vcast.test.ts
-import {
-  BottomBarPanel,
-  Workbench,
-} from "wdio-vscode-service";
+// Test/specs/vcast.test.ts
+import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   updateTestID,
@@ -11,29 +8,28 @@ import {
   validateGeneratedTestsForFunction,
   deleteAllTestsForFunction,
   validateTestDeletionForFunction,
-  cleanup
+  cleanup,
 } from "../test_utils/vcast_utils";
-
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120000;
-  const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE"
-  const QUOTES_EXAMPLE_UNIT = "quotes_example"
-  const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)" 
+  const TIMEOUT = 120_000;
+  const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE";
+  const QUOTES_EXAMPLE_UNIT = "quotes_example";
+  const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)";
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -41,18 +37,18 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     await browser.keys([Key.Control, Key.Shift, "p"]);
-    
+
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
     // so just need to hit Enter to activate
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
-    
-    
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -61,7 +57,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -69,68 +65,95 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
   });
 
-
   it("should correctly generate all BASIS PATH tests for function", async () => {
     await updateTestID();
-    console.log("Generating BASIS PATH tests for quotes_example")
-    await generateAllTestsForFunction(QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.BasisPath);
-    await validateGeneratedTestsForFunction(QUOTES_ENV, QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION,testGenMethod.BasisPath);
-
+    console.log("Generating BASIS PATH tests for quotes_example");
+    await generateAllTestsForFunction(
+      QUOTES_EXAMPLE_UNIT,
+      QUOTES_EXAMPLE_FUNCTION,
+      testGenMethod.BasisPath
+    );
+    await validateGeneratedTestsForFunction(
+      QUOTES_ENV,
+      QUOTES_EXAMPLE_UNIT,
+      QUOTES_EXAMPLE_FUNCTION,
+      testGenMethod.BasisPath
+    );
   });
 
   it("should correctly delete all BASIS PATH tests for function", async () => {
     await updateTestID();
-    console.log("Deleting BASIS PATH tests for quotes_example")
-    await deleteAllTestsForFunction(QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION, testGenMethod.BasisPath);
-    await validateTestDeletionForFunction(QUOTES_ENV,QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION);
+    console.log("Deleting BASIS PATH tests for quotes_example");
+    await deleteAllTestsForFunction(
+      QUOTES_EXAMPLE_UNIT,
+      QUOTES_EXAMPLE_FUNCTION,
+      testGenMethod.BasisPath
+    );
+    await validateTestDeletionForFunction(
+      QUOTES_ENV,
+      QUOTES_EXAMPLE_UNIT,
+      QUOTES_EXAMPLE_FUNCTION
+    );
   });
 
   it("should correctly generate all ATG tests for function", async () => {
     await updateTestID();
-    
-    if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
-      console.log("Generating ATG tests for quotes_example")
-      await generateAllTestsForFunction(QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
-      await validateGeneratedTestsForFunction(QUOTES_ENV, QUOTES_EXAMPLE_UNIT, QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
+
+    if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
+      console.log("Generating ATG tests for quotes_example");
+      await generateAllTestsForFunction(
+        QUOTES_EXAMPLE_UNIT,
+        QUOTES_EXAMPLE_FUNCTION,
+        testGenMethod.ATG
+      );
+      await validateGeneratedTestsForFunction(
+        QUOTES_ENV,
+        QUOTES_EXAMPLE_UNIT,
+        QUOTES_EXAMPLE_FUNCTION,
+        testGenMethod.ATG
+      );
+    } else {
+      console.log("Skipping ATG tests");
     }
-    else{
-      console.log("Skipping ATG tests")
-    }
-    
   });
 
   it("should correctly delete all ATG tests for function", async () => {
     await updateTestID();
-    
-    if (process.env["ENABLE_ATG_FEATURE"] === "TRUE"){
-      console.log("Deleting ATG tests for quotes_example")
-      await deleteAllTestsForFunction(QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION, testGenMethod.ATG);
-      await validateTestDeletionForFunction(QUOTES_ENV,QUOTES_EXAMPLE_UNIT,QUOTES_EXAMPLE_FUNCTION);
-    }
-    else{
-      console.log("Skipping ATG tests")
+
+    if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
+      console.log("Deleting ATG tests for quotes_example");
+      await deleteAllTestsForFunction(
+        QUOTES_EXAMPLE_UNIT,
+        QUOTES_EXAMPLE_FUNCTION,
+        testGenMethod.ATG
+      );
+      await validateTestDeletionForFunction(
+        QUOTES_ENV,
+        QUOTES_EXAMPLE_UNIT,
+        QUOTES_EXAMPLE_FUNCTION
+      );
+    } else {
+      console.log("Skipping ATG tests");
     }
   });
 
-
   it("should clean up", async () => {
     await updateTestID();
-    await cleanup()
-
+    await cleanup();
   });
 });

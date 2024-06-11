@@ -1,9 +1,9 @@
-// test/specs/vcast.test.ts
+// Test/specs/vcast.test.ts
 import {
-  BottomBarPanel,
-  TextEditor,
-  Workbench,
-  TreeItem,
+  type BottomBarPanel,
+  type TextEditor,
+  type Workbench,
+  type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -17,19 +17,19 @@ import {
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 20000;
+  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -43,6 +43,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -50,6 +51,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -58,7 +60,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -66,15 +68,15 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
@@ -86,33 +88,33 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      if (! await vcastTestingViewSection.isExpanded())
+      if (!(await vcastTestingViewSection.isExpanded()))
         await vcastTestingViewSection.expand();
 
       for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
         console.log(await vcastTestingViewContentSection.getTitle());
-        await vcastTestingViewContentSection.expand()
+        await vcastTestingViewContentSection.expand();
         subprogram = await findSubprogram(
           "manager",
-          vcastTestingViewContentSection,
+          vcastTestingViewContentSection
         );
         if (subprogram) {
-          if (! await subprogram.isExpanded())
-            await subprogram.expand();
+          if (!(await subprogram.isExpanded())) await subprogram.expand();
           break;
         }
       }
     }
+
     if (!subprogram) {
       throw new Error("Subprogram 'manager' not found");
     }
 
     const subprogramMethod = await findSubprogramMethod(
       subprogram,
-      "Manager::PlaceOrder",
+      "Manager::PlaceOrder"
     );
     if (!subprogramMethod) {
       throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
@@ -121,11 +123,12 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogramMethod.isExpanded()) {
       await subprogramMethod.select();
     }
+
     await openTestScriptFor(subprogramMethod);
     const editorView = workbench.getEditorView();
 
     const tab = (await editorView.openEditor(
-      "vcast-template.tst",
+      "vcast-template.tst"
     )) as TextEditor;
     console.log("Getting content assist");
     // Need to activate contentAssist before getting the object
@@ -142,22 +145,20 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys([Key.Escape]);
 
     let currentLine = await tab.getLineOfText("TEST.NAME:myFirstTest");
-    await tab.moveCursor(
-      currentLine,
-      "TEST.NAME:myFirstTest".length + 1,
-    );
+    await tab.moveCursor(currentLine, "TEST.NAME:myFirstTest".length + 1);
     await browser.keys([Key.Enter]);
     currentLine += 1;
 
     await tab.setTextAtLine(
       currentLine,
-      "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats",
+      "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats"
     );
     await tab.save();
 
     await tab.moveCursor(
       currentLine,
-      "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats".length + 1,
+      "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats"
+        .length + 1
     );
     await browser.keys([Key.Enter]);
 
@@ -167,7 +168,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Really important to wait until content assist appears
     await browser.waitUntil(
-      async () => (await contentAssist.getItems()).length === 4,
+      async () => (await contentAssist.getItems()).length === 4
     );
 
     console.log("validating content assist (LSE features) for TEST.VALUE:");
@@ -177,36 +178,34 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(await contentAssist.hasItem("uut_prototype_stubs")).toBe(true);
 
     console.log(
-      "validating content assist (LSE features) for TEST.VALUE:manager.",
+      "validating content assist (LSE features) for TEST.VALUE:manager."
     );
     await tab.typeTextAt(currentLine, "TEST.VALUE:".length + 1, "manager.");
-    
+
     await browser.waitUntil(
-      async () => (await contentAssist.getItems()).length === 8,
+      async () => (await contentAssist.getItems()).length === 8
     );
     expect(await contentAssist.hasItem("<<GLOBAL>>")).toBe(true);
     expect(await contentAssist.hasItem("Manager::AddIncludedDessert")).toBe(
-      true,
+      true
     );
     expect(await contentAssist.hasItem("Manager::AddPartyToWaitingList")).toBe(
-      true,
+      true
     );
     expect(await contentAssist.hasItem("Manager::ClearTable")).toBe(true);
     expect(await contentAssist.hasItem("Manager::GetCheckTotal")).toBe(true);
     expect(await contentAssist.hasItem("Manager::GetNextPartyToBeSeated")).toBe(
-      true,
+      true
     );
     expect(await contentAssist.hasItem("Manager::Manager")).toBe(true);
     expect(await contentAssist.hasItem("Manager::PlaceOrder")).toBe(true);
-    
-    await tab.setTextAtLine(currentLine, '');
+
+    await tab.setTextAtLine(currentLine, "");
 
     await tab.save();
 
     await browser.executeWorkbench((vscode) => {
       vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
     });
-
   });
-
 });

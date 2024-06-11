@@ -2,31 +2,29 @@ import {
   createConnection,
   TextDocuments,
   ProposedFeatures,
-  InitializeParams,
+  type InitializeParams,
   DidChangeConfigurationNotification,
-  CompletionItem,
-  CompletionParams,
+  type CompletionItem,
+  type CompletionParams,
 } from "vscode-languageserver";
-import { Hover } from "vscode-languageserver-types";
-
+import { type Hover } from "vscode-languageserver-types";
 import { validateTextDocument } from "./tstValidation";
-
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
-let connection = createConnection(ProposedFeatures.all);
+const connection = createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager. The text document manager
 // supports full document sync only
-let documents: TextDocuments = new TextDocuments();
+const documents: TextDocuments = new TextDocuments();
 
-let hasConfigurationCapability: boolean = false;
-let hasWorkspaceFolderCapability: boolean = false;
+const hasConfigurationCapability = false;
+const hasWorkspaceFolderCapability = false;
 
-connection.onInitialize((params: InitializeParams) => {
-  // initializePython(); - this was called with if(false) inside
+connection.onInitialize((parameters: InitializeParams) => {
+  // InitializePython(); - this was called with if(false) inside
   return {
     capabilities: {
       textDocumentSync: documents.syncKind,
@@ -48,6 +46,7 @@ connection.onInitialized(() => {
       undefined
     );
   }
+
   if (hasWorkspaceFolderCapability) {
     connection.workspace.onDidChangeWorkspaceFolders((_event) => {
       connection.console.log("Workspace folder change event received.");
@@ -65,7 +64,7 @@ connection.onDidChangeWatchedFiles((_change) => {
 documents.onDidChangeContent((change) => {
   // Improvement needed:  Is it ok if this is called before the previous validation is complete?
 
-  let diagnostics = validateTextDocument(change.document);
+  const diagnostics = validateTextDocument(change.document);
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
 });
@@ -90,7 +89,7 @@ connection.onHover((completionData: CompletionParams): Hover | undefined => {
   // This function gets called when the user hovers over a line section
   const hoverString = getHoverString(documents, completionData);
 
-  var hover: Hover = { contents: hoverString };
+  const hover: Hover = { contents: hoverString };
   return hover;
 });
 

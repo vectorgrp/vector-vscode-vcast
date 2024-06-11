@@ -1,18 +1,16 @@
 import path = require("path");
 import {
-  TextDocument,
-  CompletionItem,
+  type TextDocument,
+  type CompletionItem,
   CompletionItemKind,
 } from "vscode-languageserver";
-
 import { Position, Range, InsertTextFormat } from "vscode-languageserver-types";
-
 import { getEnviroNameFromScript } from "../src-common/commonUtilities";
 
 export function getTriggerFromContext(context: any) {
   let returnValue: string;
 
-  if (!context || !context.triggerCharacter) returnValue = "NULL";
+  if (!context?.triggerCharacter) returnValue = "NULL";
   else if (context.triggerCharacter == "\n") returnValue = "CR";
   else if (context.triggerCharacter == ".") returnValue = "DOT";
   else if (context.triggerCharacter == ":") returnValue = "COLON";
@@ -25,65 +23,68 @@ export function getPieceAtColumn(pieces: string[], columnIndex: number) {
   // This function will return the piece that sits under the current cursor
 
   let index: number;
-  let endOfPieceIndex: number = 0;
+  let endOfPieceIndex = 0;
   for (index = 0; index < pieces.length; index++) {
     // +1 for the delimiter
     endOfPieceIndex += pieces[index].length + 1;
     if (endOfPieceIndex > columnIndex) {
       return {
         text: pieces[index],
-        index: index,
+        index,
       };
     }
   }
+
   return { text: "", index: 0 };
 }
 
-// this function will take a js array and create a completion array
+// This function will take a js array and create a completion array
 export function completionList(
   inputList: string[],
   choiceKind: CompletionItemKind
 ): CompletionItem[] {
-  // the format of what comes in here looks like a list of strings
+  // The format of what comes in here looks like a list of strings
   // formatted as textValue or textValue@extraInfo
 
   let i;
-  let returnList: CompletionItem[] = [];
+  const returnList: CompletionItem[] = [];
   for (i = 0; i < inputList.length; i++) {
     const rawData = inputList[i];
     const pieces = rawData.split("@");
-    let details = pieces.length > 1 ? pieces[1] : "";
+    const details = pieces.length > 1 ? pieces[1] : "";
     const labelValue = pieces[0];
 
     if (labelValue == "scalar") {
-      // now details will have the type of scalar
+      // Now details will have the type of scalar
       // so let's add that, as well as a snippet for vary
-      returnList.push({
-        label: details,
-        kind: choiceKind,
-        detail: "",
-      });
-      returnList.push({
-        label: "vary",
-        kind: CompletionItemKind.Snippet,
-        insertText: "VARY FROM:$1 TO:$2 BY:$3",
-        insertTextFormat: InsertTextFormat.Snippet,
-      });
-      returnList.push({
-        label: "<<MIN>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
-      returnList.push({
-        label: "<<MID>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
-      returnList.push({
-        label: "<<MAX>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
+      returnList.push(
+        {
+          label: details,
+          kind: choiceKind,
+          detail: "",
+        },
+        {
+          label: "vary",
+          kind: CompletionItemKind.Snippet,
+          insertText: "VARY FROM:$1 TO:$2 BY:$3",
+          insertTextFormat: InsertTextFormat.Snippet,
+        },
+        {
+          label: "<<MIN>>",
+          kind: CompletionItemKind.Constant,
+          detail: "",
+        },
+        {
+          label: "<<MID>>",
+          kind: CompletionItemKind.Constant,
+          detail: "",
+        },
+        {
+          label: "<<MAX>>",
+          kind: CompletionItemKind.Constant,
+          detail: "",
+        }
+      );
     } else
       returnList.push({
         label: labelValue,
@@ -92,6 +93,7 @@ export function completionList(
         data: i,
       });
   }
+
   return returnList;
 }
 
@@ -134,12 +136,13 @@ export function getLineText(document: TextDocument, line: number) {
 }
 
 export function getEnviroNameFromTestScript(testScriptPath: string) {
-  let whatToReturn: string | undefined = undefined;
+  let whatToReturn: string | undefined;
 
-  // extract the enviroName from the script
-  let enviroName: string | undefined = getEnviroNameFromScript(testScriptPath);
+  // Extract the enviroName from the script
+  const enviroName: string | undefined =
+    getEnviroNameFromScript(testScriptPath);
 
-  // if we found a valid environment name, create a full path for it
+  // If we found a valid environment name, create a full path for it
   if (enviroName) {
     const enviroPath = path.join(path.dirname(testScriptPath), enviroName);
     console.log(
@@ -161,14 +164,15 @@ export function getNearest(
   currentLine: number
 ) {
   let lineIndex: number;
-  let unitName: string = "";
+  let unitName = "";
   for (lineIndex = 0; lineIndex < currentLine; lineIndex++) {
     const fullLine = getLineText(document, lineIndex);
     if (fullLine.toUpperCase().startsWith(`TEST.${command}:`)) {
-      var pieces = fullLine.split(":");
+      const pieces = fullLine.split(":");
       unitName = pieces[1];
     }
   }
+
   return unitName;
 }
 
@@ -187,7 +191,7 @@ export const commonEnviroCommandList = [
   "STUB", // * ALL_BY_PROTOTYPE, ALL, NONE
   "SEARCH_LIST", // * Absolute path | $(BASE_DIRECTORY)/relative-path
   "TYPE_HANDLED_DIRS_ALLOWED", //
-  "LIBRARY_STUBS", // a common separated list of names like fopen, malloc, etc.
+  "LIBRARY_STUBS", // A common separated list of names like fopen, malloc, etc.
   "END",
 ];
 
@@ -255,7 +259,7 @@ export const testCommandList = [
   "REPLACE",
   "ADD",
   "END",
-  // test scope
+  // Test scope
   "NAME",
   "NOTES",
   "END_NOTES",

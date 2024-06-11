@@ -245,5 +245,5 @@ def generateExecutionReport(testIDObject):
         commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
 
     # we ignore the exit code and return the stdoutput
-    exitCode, stdOutput = runClicastScript(commandFileName) 
+    exitCode, stdOutput = runClicastScript(commandFileName)
     return stdOutput

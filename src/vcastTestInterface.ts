@@ -1,59 +1,52 @@
-import { EOL } from "os";
+import { EOL } from "node:os";
 import * as vscode from "vscode";
-import { Uri } from "vscode";
-
+import { type Uri } from "vscode";
 import {
   configFilename,
   getUnitTestLocationForPath,
   initializeConfigurationFile,
 } from "./configuration";
-
 import { updateFunctionDataForFile } from "./editorDecorator";
-
 import {
   openMessagePane,
   vectorMessage,
   vcastMessage,
   errorLevel,
 } from "./messagePane";
-
-import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
-
+import {
+  getEnviroPathFromID,
+  getTestNode,
+  type testNodeType,
+} from "./testData";
 import { updateTestPane } from "./testPane";
-
 import {
   forceLowerCaseDriveLetter,
   openFileWithLineSelected,
   showSettings,
 } from "./utilities";
-
 import {
   addCodedTestToEnvironment,
   buildEnvironmentFromScript,
   codedTestAction,
   setCodedTestOption,
 } from "./vcastAdapter";
-
 import {
-  commandStatusType,
+  type commandStatusType,
   executeCommandSync,
   executeVPythonScript,
   getJsonDataFromTestInterface,
-} from "./vcastCommandRunner"
-
+} from "./vcastCommandRunner";
 import { getChecksumCommand } from "./vcastInstallation";
-
 import {
   closeAnyOpenErrorFiles,
   openTestFileAndErrors,
   testInterfaceCommand,
   testStatus,
 } from "./vcastUtilities";
-
 import { fileDecorator } from "./fileDecorator";
 
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 export const vcastEnviroFile = "UNITDATA.VCD";
 
@@ -74,7 +67,7 @@ function getChecksum(filePath: string) {
         process.cwd()
       ).stdout;
 
-    // convert the to a number and return
+    // Convert the to a number and return
     // this will crash if something is wrong with the result
     try {
       if (commandOutputString.includes("ACTUAL-DATA")) {
@@ -87,6 +80,7 @@ function getChecksum(filePath: string) {
       returnValue = 0;
     }
   }
+
   return returnValue;
 }
 
@@ -94,9 +88,9 @@ function getChecksum(filePath: string) {
 export function getEnviroDataFromPython(enviroPath: string): any {
   // This function will return the environment data for a single directory
 
-  let jsonData = undefined;
+  let jsonData;
 
-  // what we get back is a JSON formatted string (if the command works)
+  // What we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
   vectorMessage("Processing environment data for: " + enviroPath);
 
@@ -110,9 +104,9 @@ export function getEnviroDataFromPython(enviroPath: string): any {
   return jsonData;
 }
 
-// we save the some key data, indexed into by test.id
+// We save the some key data, indexed into by test.id
 // at the time that we build the test tree
-export interface testDataType {
+export type testDataType = {
   status: string;
   passfail: string;
   time: string;
@@ -121,13 +115,11 @@ export interface testDataType {
   compoundOnly: boolean;
   testFile: string;
   testStartLine: number;
-}
+};
 
 // This allows us to get diret access to the test nodes via the ID
-export interface testStatusArrayType {
-  [id: string]: testDataType;
-}
-export var globalTestStatusArray = <testStatusArrayType>{};
+export type testStatusArrayType = Record<string, testDataType>;
+export var globalTestStatusArray = {} as testStatusArrayType;
 
 export function addTestDataToStatusArray(
   testID: string,
@@ -141,35 +133,35 @@ export function clearTestDataFromStatusArray(): void {
 }
 
 // List of source file from all local environments
-interface coverageDataType {
+type coverageDataType = {
   crc32Checksum: number;
   covered: number[];
   uncovered: number[];
-}
+};
 
-interface fileCoverageType {
+type fileCoverageType = {
   hasCoverage: boolean;
-  enviroList: Map<string, coverageDataType>; //key is enviroPath
-}
+  enviroList: Map<string, coverageDataType>; // Key is enviroPath
+};
 
-// key is filePath
-let globalCoverageData = new Map<string, fileCoverageType>();
+// Key is filePath
+const globalCoverageData = new Map<string, fileCoverageType>();
 
-/////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////
 export function resetCoverageData() {
-  // this should be called whenever we want to reload all coverage data
+  // This should be called whenever we want to reload all coverage data
   globalCoverageData.clear();
 }
 
-interface coverageSummaryType {
+type coverageSummaryType = {
   statusString: string;
   covered: number[];
   uncovered: number[];
-}
+};
 
-//////////////////////////////////////////////////////////////////////
+/// ///////////////////////////////////////////////////////////////////
 export function getCoverageDataForFile(filePath: string): coverageSummaryType {
-  // this function will combine the coverage for all instances of
+  // This function will combine the coverage for all instances of
   // filePath that match the provided checksum into a single coverageDataType
 
   // .statusString will be "no-coverage-data" if there are no environments
@@ -181,7 +173,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   // .statusString will be "out-of-date" if ALL no enviro checksums match this file
 
   const checksum: number = getChecksum(filePath);
-  let returnData: coverageSummaryType = {
+  const returnData: coverageSummaryType = {
     statusString: "No Coverage Data",
     covered: [],
     uncovered: [],
@@ -198,11 +190,11 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
       }
     }
 
-    if (coveredList.length == 0 && uncoveredList.length == 0) {
+    if (coveredList.length === 0 && uncoveredList.length === 0) {
       returnData.statusString = "Coverage Out of Date";
     } else {
       returnData.statusString = "";
-      // remove duplicates
+      // Remove duplicates
       returnData.covered = [...new Set(coveredList)];
       returnData.uncovered = [...new Set(uncoveredList)];
     }
@@ -215,57 +207,57 @@ export function checksumMatchesEnvironment(
   filePath: string,
   enviroPath: string
 ): boolean {
-  // this will check if the current checksum of filePath matches the
+  // This will check if the current checksum of filePath matches the
   // checksum of that file from the provided environment.
 
-  let returnValue: boolean = false;
+  let returnValue = false;
   const checksum = getChecksum(filePath);
   const dataForThisFile = globalCoverageData.get(filePath);
 
   if (dataForThisFile) {
     const enviroData = dataForThisFile.enviroList.get(enviroPath);
-    if (enviroData) {
-      if (enviroData.crc32Checksum == checksum) {
-        returnValue = true;
-      }
+    if (enviroData && enviroData.crc32Checksum == checksum) {
+      returnValue = true;
     }
   }
+
   return returnValue;
 }
 
 export function getListOfFilesWithCoverage(): string[] {
-  let returnList: string[] = [];
+  const returnList: string[] = [];
 
-  for (let [filePath, enviroData] of globalCoverageData.entries()) {
+  for (const [filePath, enviroData] of globalCoverageData.entries()) {
     if (enviroData.hasCoverage && !returnList.includes(filePath))
       returnList.push(filePath);
   }
+
   return returnList;
 }
 
-// we keep track of the files for each enviro, so that its faster
+// We keep track of the files for each enviro, so that its faster
 // to remove coverage when an enviro is deleted.
 
 // key is enviroPath, value is a list of filePaths
-let enviroFileList: Map<string, string[]> = new Map();
+const enviroFileList = new Map<string, string[]>();
 
 function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
-  let filePathList: string[] = [];
+  const filePathList: string[] = [];
 
-  for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
-    let filePath = forceLowerCaseDriveLetter(fileList[fileIndex].path);
+  for (const element of fileList) {
+    const filePath = forceLowerCaseDriveLetter(element.path);
     filePathList.push(filePath);
 
     let coveredList: number[] = [];
-    if (fileList[fileIndex].covered.length > 0)
-      coveredList = fileList[fileIndex].covered.split(",").map(Number);
+    if (element.covered.length > 0)
+      coveredList = element.covered.split(",").map(Number);
 
     let uncoveredList: number[] = [];
-    if (fileList[fileIndex].uncovered.length > 0)
-      uncoveredList = fileList[fileIndex].uncovered.split(",").map(Number);
+    if (element.uncovered.length > 0)
+      uncoveredList = element.uncovered.split(",").map(Number);
 
-    const checksum = fileList[fileIndex].cmcChecksum;
-    let coverageData: coverageDataType = {
+    const checksum = element.cmcChecksum;
+    const coverageData: coverageDataType = {
       crc32Checksum: checksum,
       covered: coveredList,
       uncovered: uncoveredList,
@@ -274,7 +266,7 @@ function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     let fileData: fileCoverageType | undefined =
       globalCoverageData.get(filePath);
 
-    // if there is not existing data for this file
+    // If there is not existing data for this file
     if (!fileData) {
       fileData = { hasCoverage: false, enviroList: new Map() };
       globalCoverageData.set(filePath, fileData);
@@ -284,33 +276,30 @@ function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
       fileData.hasCoverage || coverageData.covered.length > 0;
     fileData.enviroList.set(enviroPath, coverageData);
 
-    // if we are displaying the file decoration in the explorer view
+    // If we are displaying the file decoration in the explorer view
     if (fileDecorator) {
       if (fileData.hasCoverage)
         fileDecorator.addCoverageDecorationToFile(filePath);
       else fileDecorator.removeCoverageDecorationFromFile(filePath);
     }
 
-    // update the testable function icons for this file
-    updateFunctionDataForFile(
-      enviroPath,
-      filePath,
-      fileList[fileIndex].functionList
-    );
+    // Update the testable function icons for this file
+    updateFunctionDataForFile(enviroPath, filePath, element.functionList);
   }
+
   enviroFileList.set(enviroPath, filePathList);
 }
 
 export function removeCoverageDataForEnviro(enviroPath: string) {
-  let filePathList: string[] | undefined = enviroFileList.get(enviroPath);
+  const filePathList: string[] | undefined = enviroFileList.get(enviroPath);
   if (filePathList) {
-    for (let filePath of filePathList) {
-      let coverageForFile: fileCoverageType | undefined =
+    for (const filePath of filePathList) {
+      const coverageForFile: fileCoverageType | undefined =
         globalCoverageData.get(filePath);
-      // if there is coverage data for this file
+      // If there is coverage data for this file
       if (coverageForFile) {
         coverageForFile.enviroList.delete(enviroPath);
-        if (coverageForFile.enviroList.size == 0) {
+        if (coverageForFile.enviroList.size === 0) {
           coverageForFile.hasCoverage = false;
         }
       }
@@ -323,7 +312,7 @@ export function getResultFileForTest(testID: string) {
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
   if (!fs.existsSync(resultFile)) {
-    let cwd = getEnviroPathFromID(testID);
+    const cwd = getEnviroPathFromID(testID);
 
     const commandToRun = testInterfaceCommand("report", cwd, testID);
     const commandStatus: commandStatusType = executeVPythonScript(
@@ -351,16 +340,16 @@ export function getResultFileForTest(testID: string) {
   return resultFile;
 }
 
-interface executeOutputType {
+type executeOutputType = {
   status: string;
   resultsFilePath: string;
   time: string;
   passfail: string;
   stdOut: string;
-}
+};
 
 function processExecutionOutput(commandOutput: string): executeOutputType {
-  let returnData: executeOutputType = {
+  const returnData: executeOutputType = {
     status: "failed",
     stdOut: "",
     resultsFilePath: "",
@@ -369,8 +358,7 @@ function processExecutionOutput(commandOutput: string): executeOutputType {
   };
   const outputLineList: string[] = commandOutput.split(EOL);
 
-  for (let lineIndex = 0; lineIndex < outputLineList.length; lineIndex++) {
-    const line: string = outputLineList[lineIndex];
+  for (const line: string of outputLineList) {
     console.log(`LINE IS: ${line}`);
     if (line.startsWith("STATUS:"))
       returnData.status = line.replace("STATUS:", "");
@@ -382,10 +370,11 @@ function processExecutionOutput(commandOutput: string): executeOutputType {
       returnData.time = line.replace("TIME:", "");
     else returnData.stdOut += line + EOL;
   }
+
   return returnData;
 }
 
-// with the old test case interface we could have a hover-over
+// With the old test case interface we could have a hover-over
 // for each test, and we inserted this info there.
 // I could not figure out how to do this with the native API
 // so for now, I am logging this to the message pane.
@@ -407,14 +396,14 @@ function logTestResults(
     testData.passfail.length > 0 ? "Values: " + testData.passfail : "Values:"
   );
   vectorMessage(
-    testData.time.length
+    testData.time.length > 0
       ? "Execution Time: " + testData.time
       : "Execution Time:"
   );
   vectorMessage("-".repeat(100));
 }
 
-const { performance } = require("perf_hooks");
+const { performance } = require("node:perf_hooks");
 
 export async function runVCTest(
   enviroPath: string,
@@ -430,7 +419,7 @@ export async function runVCTest(
 
   let returnStatus: testStatus = testStatus.didNotRun;
   // The executeTest command will run the test AND generate the execution report
-  let commandToRun: string = "";
+  let commandToRun = "";
   if (generateReport) {
     commandToRun = testInterfaceCommand(
       "executeTestReport",
@@ -440,51 +429,50 @@ export async function runVCTest(
   } else {
     commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
   }
+
   const startTime: number = performance.now();
   const commandStatus = executeVPythonScript(commandToRun, enviroPath);
 
-  // added this timing info to help with performance tuning - interesting to leave in
+  // Added this timing info to help with performance tuning - interesting to leave in
   const endTime: number = performance.now();
   const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
   vectorMessage(`Execution via vPython took: ${deltaString} seconds`);
 
   const commandOutputText = commandStatus.stdout;
 
-  // errorCode 98 is for a compile error for the coded test source file
+  // ErrorCode 98 is for a compile error for the coded test source file
   // this is hard-coded in runTestCommand() in the python interface
   if (commandStatus.errorCode == 98) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
+  } else if (commandOutputText.startsWith("FATAL")) {
+    vectorMessage(commandOutputText.replace("FATAL", ""));
+    openMessagePane();
+    returnStatus = testStatus.didNotRun;
+  } else if (commandOutputText.includes("Resolve Errors")) {
+    vectorMessage(commandOutputText);
+    openMessagePane();
+    returnStatus = testStatus.didNotRun;
   } else {
-    if (commandOutputText.startsWith("FATAL")) {
-      vectorMessage(commandOutputText.replace("FATAL", ""));
-      openMessagePane();
-      returnStatus = testStatus.didNotRun;
-    } else if (commandOutputText.includes("Resolve Errors")) {
-      vectorMessage(commandOutputText);
-      openMessagePane();
-      returnStatus = testStatus.didNotRun;
+    const decodedOutput = processExecutionOutput(commandOutputText);
+    logTestResults(nodeID, commandOutputText, decodedOutput);
+
+    const updatedStatusItem = globalTestStatusArray[nodeID];
+
+    if (updatedStatusItem) {
+      updatedStatusItem.status = decodedOutput.status;
+      updatedStatusItem.resultFilePath = decodedOutput.resultsFilePath;
+      globalTestStatusArray[nodeID] = updatedStatusItem;
+
+      returnStatus =
+        updatedStatusItem.status == "passed"
+          ? testStatus.passed
+          : testStatus.failed;
     } else {
-      const decodedOutput = processExecutionOutput(commandOutputText);
-      logTestResults(nodeID, commandOutputText, decodedOutput);
-
-      let updatedStatusItem = globalTestStatusArray[nodeID];
-
-      if (updatedStatusItem) {
-        updatedStatusItem.status = decodedOutput.status;
-        updatedStatusItem.resultFilePath = decodedOutput.resultsFilePath;
-        globalTestStatusArray[nodeID] = updatedStatusItem;
-
-        if (updatedStatusItem.status == "passed") {
-          returnStatus = testStatus.passed;
-        } else {
-          returnStatus = testStatus.failed;
-        }
-      } else {
-        returnStatus = testStatus.didNotRun;
-      }
+      returnStatus = testStatus.didNotRun;
     }
   }
+
   return returnStatus;
 }
 
@@ -494,13 +482,12 @@ function addSearchPathsFromConfigurationFile(
 ) {
   const pathToConfigurationFile = path.join(cwd, configFilename);
 
-  // should always exist, but just to make sure
+  // Should always exist, but just to make sure
   if (fs.existsSync(pathToConfigurationFile)) {
-    // open the file, and loop looking for "TESTABLE_SOURCE_DIR" lines,
+    // Open the file, and loop looking for "TESTABLE_SOURCE_DIR" lines,
     const fileContents = fs.readFileSync(pathToConfigurationFile, "utf8");
     const lineList = fileContents.split(/\r?\n/g);
-    for (let lineIndex = 0; lineIndex < lineList.length; lineIndex++) {
-      const line = lineList[lineIndex];
+    for (const line of lineList) {
       if (line.startsWith("TESTABLE_SOURCE_DIR")) {
         const pieces = line.split("TESTABLE_SOURCE_DIR:", 2);
         if (pieces.length > 1) {
@@ -524,11 +511,10 @@ function createVcastEnvironmentScript(
 
   // compute the UUT and SEARCH_LIST lists
   // Improvement needed: Add source locations for include paths from cpp_properties
-  let uutList: string[] = [];
-  let searchList: string[] = [];
-  for (let index = 0; index < fileList.length; index++) {
-    const filePath = fileList[index];
-    // must strip the extension ...
+  const uutList: string[] = [];
+  const searchList: string[] = [];
+  for (const filePath of fileList) {
+    // Must strip the extension ...
     const uutName = path.basename(filePath).split(".")[0];
     uutList.push(uutName);
     const candidatePath = path.dirname(filePath);
@@ -540,8 +526,8 @@ function createVcastEnvironmentScript(
   addSearchPathsFromConfigurationFile(unitTestLocation, searchList);
   const envFilePath = path.join(unitTestLocation, enviroName + ".env");
 
-  // read the settings that affect enviro build
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  // Read the settings that affect enviro build
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
 
   fs.writeFileSync(envFilePath, `ENVIRO.NEW\n`, { flag: "w" });
   fs.writeFileSync(envFilePath, `ENVIRO.NAME: ${enviroName}\n`, { flag: "a+" });
@@ -558,16 +544,14 @@ function createVcastEnvironmentScript(
     flag: "a+",
   });
 
-  searchList.forEach((item) =>
+  for (const item of searchList)
     fs.writeFileSync(envFilePath, `ENVIRO.SEARCH_LIST: ${item}\n`, {
       flag: "a+",
-    })
-  );
-  uutList.forEach((item) =>
+    });
+  for (const item of uutList)
     fs.writeFileSync(envFilePath, `ENVIRO.STUB_BY_FUNCTION: ${item}\n`, {
       flag: "a+",
-    })
-  );
+    });
 
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
 }
@@ -577,11 +561,11 @@ function buildEnvironmentVCAST(
   unitTestLocation: string,
   enviroName: string
 ) {
-  // enviroName is the name of the enviro without the .env
+  // EnviroName is the name of the enviro without the .env
 
   // use the first filename in the list as the environment name
 
-  vectorMessage(new Array(101).join("-"));
+  vectorMessage(Array.from({ length: 101 }).join("-"));
   vectorMessage(
     "Creating environment '" +
       enviroName +
@@ -650,7 +634,7 @@ function commonNewEnvironmentStuff(
     const filename = path.basename(firstFile);
     let enviroName = filename.split(".")[0].toUpperCase();
 
-    // if multiple files are in the list make the enviroName the hyphenated name of the first 2
+    // If multiple files are in the list make the enviroName the hyphenated name of the first 2
     if (fileList.length > 1) {
       enviroName += `-${path
         .basename(fileList[1])
@@ -704,16 +688,17 @@ export function newEnvironment(URIlist: Uri[]) {
   // for the multi-select case.
   //
 
-  let fileList: string[] = [];
-  for (let index = 0; index < URIlist.length; index++) {
-    const filePath = URIlist[index].fsPath;
+  const fileList: string[] = [];
+  for (const element of URIlist) {
+    const filePath = element.fsPath;
     const fileExtension = filePath.split(".").pop();
     if (fileExtension && extensionsOfInterest.includes(fileExtension)) {
       fileList.push(filePath);
     }
   }
+
   if (fileList.length > 0) {
-    let unitTestLocation = getUnitTestLocationForPath(
+    const unitTestLocation = getUnitTestLocationForPath(
       path.dirname(fileList[0])
     );
     configureWorkspaceAndBuildEnviro(fileList, unitTestLocation);
@@ -735,59 +720,55 @@ function defaultTestName(name: string): string {
 }
 
 function createScriptTemplate(testNode: testNodeType): string {
-  // this will create a test script template and return the path to the file
+  // This will create a test script template and return the path to the file
 
-  let scriptTemplateLines: string[] = [];
+  const scriptTemplateLines: string[] = [];
 
-  scriptTemplateLines.push("-- Test Case Script");
-  scriptTemplateLines.push("--");
-  scriptTemplateLines.push("-- Environment: " + testNode.enviroName);
+  scriptTemplateLines.push(
+    "-- Test Case Script",
+    "--",
+    "-- Environment: " + testNode.enviroName
+  );
   if (testNode.unitName != "not-used")
     scriptTemplateLines.push("-- Unit:        " + testNode.unitName);
-  scriptTemplateLines.push("-- Function:    " + testNode.functionName);
-  scriptTemplateLines.push("--");
-  scriptTemplateLines.push("--");
   scriptTemplateLines.push(
-    "-- Type 'vcast-test to get the framework of a new test inserted"
+    "-- Function:    " + testNode.functionName,
+    "--",
+    "--",
+    "-- Type 'vcast-test to get the framework of a new test inserted",
+    "-- Then use the LSE features of the extension to fill-in values",
+    "--",
+    "-- Right click anywhere in the editor pane and choose",
+    "-- 'Load Test Script into Environment' when done editing",
+    "--",
+    "--",
+    "",
+    "",
+    "TEST.SCRIPT_FEATURE:MIXED_CASE_NAMES",
+    "TEST.SCRIPT_FEATURE:MULTIPLE_UUT_SUPPORT",
+    "",
+    ""
   );
-  scriptTemplateLines.push(
-    "-- Then use the LSE features of the extension to fill-in values"
-  );
-  scriptTemplateLines.push("--");
-  scriptTemplateLines.push(
-    "-- Right click anywhere in the editor pane and choose"
-  );
-  scriptTemplateLines.push(
-    "-- 'Load Test Script into Environment' when done editing"
-  );
-  scriptTemplateLines.push("--");
-  scriptTemplateLines.push("--");
-  scriptTemplateLines.push("");
-  scriptTemplateLines.push("");
-  scriptTemplateLines.push("TEST.SCRIPT_FEATURE:MIXED_CASE_NAMES");
-  scriptTemplateLines.push("TEST.SCRIPT_FEATURE:MULTIPLE_UUT_SUPPORT");
-  scriptTemplateLines.push("");
-  scriptTemplateLines.push("");
 
   if (testNode.unitName != "not-used")
     scriptTemplateLines.push("TEST.UNIT" + valueOrDefault(testNode.unitName));
 
   scriptTemplateLines.push(
-    "TEST.SUBPROGRAM" + valueOrDefault(testNode.functionName)
+    "TEST.SUBPROGRAM" + valueOrDefault(testNode.functionName),
+    "TEST.NEW"
   );
-  // It's important to use TEST.NEW here, see Issue# 20
-  scriptTemplateLines.push("TEST.NEW");
   scriptTemplateLines.push(
-    "TEST.NAME" + defaultTestName(testNode.functionName)
+    "TEST.NAME" + defaultTestName(testNode.functionName),
+    "TEST.NOTES:",
+    "",
+    "TEST.END_NOTES:"
   );
-  scriptTemplateLines.push("TEST.NOTES:");
-  scriptTemplateLines.push("");
-  scriptTemplateLines.push("TEST.END_NOTES:");
   if (testNode.functionName == "<<COMPOUND>>") {
     scriptTemplateLines.push("TEST.SLOT");
   } else {
     scriptTemplateLines.push("TEST.VALUE");
   }
+
   scriptTemplateLines.push("TEST.END");
 
   return scriptTemplateLines.join("\n");
@@ -802,13 +783,13 @@ export async function newTestScript(testNode: testNodeType) {
     "vcast-template.tst"
   );
 
-  // create the template file
+  // Create the template file
   fs.writeFileSync(scriptPath, contents);
 
-  let scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
+  const scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
   vscode.workspace.openTextDocument(scriptUri).then(
-    (doc: vscode.TextDocument) => {
-      vscode.window.showTextDocument(doc, 1, false);
+    (document: vscode.TextDocument) => {
+      vscode.window.showTextDocument(document, 1, false);
     },
     (error: any) => {
       vectorMessage(error.message, errorLevel.error);
@@ -828,7 +809,7 @@ async function commonCodedTestProcessing(
     `Adding coded test file: ${userFilePath} for environment: ${enviroPath}`
   );
 
-  // call clicast to create new coded test
+  // Call clicast to create new coded test
   const commandStatus: commandStatusType = addCodedTestToEnvironment(
     enviroPath,
     testNode,
@@ -840,7 +821,7 @@ async function commonCodedTestProcessing(
   if (commandStatus.errorCode == 0) {
     vscode.window.showInformationMessage(`Coded Tests added successfully`);
   } else {
-    // need to re-read to get the test file name
+    // Need to re-read to get the test file name
     testNode = getTestNode(testID);
     openTestFileAndErrors(testNode);
   }
@@ -855,8 +836,8 @@ export async function addExistingCodedTestFile(testID: string) {
   // check if there are any vcast error files open, and close them
   await closeAnyOpenErrorFiles();
 
-  let testNode: testNodeType = getTestNode(testID);
-  if (testNode.testFile.length == 0) {
+  const testNode: testNodeType = getTestNode(testID);
+  if (testNode.testFile.length === 0) {
     const option: vscode.OpenDialogOptions = {
       title: "Select Coded Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
@@ -881,7 +862,7 @@ export async function generateNewCodedTestFile(testID: string) {
 
   const testNode: testNodeType = getTestNode(testID);
 
-  if (testNode.testFile.length == 0) {
+  if (testNode.testFile.length === 0) {
     const option: vscode.SaveDialogOptions = {
       title: "Save Code Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },

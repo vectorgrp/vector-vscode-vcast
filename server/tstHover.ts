@@ -1,13 +1,14 @@
 import url = require("url");
 import {
+  type TextDocuments,
+  type CompletionParams,
+} from "vscode-languageserver";
+import {
   getEnviroNameFromTestScript,
   getLineFragment,
   getLineText,
   getPieceAtColumn,
 } from "./serverUtilities";
-
-import { TextDocuments, CompletionParams } from "vscode-languageserver";
-
 import {
   getChoiceDataFromPython,
   getHoverStringForRequirement,
@@ -30,26 +31,24 @@ export function getHoverString(
 
       const fullLine = getLineText(document, completionData.position.line);
 
-      // generate a list of pieces ...
+      // Generate a list of pieces ...
       // this regex creates a set of delimiters that are either . or : but NOT ::
-      let pieces = fullLine.split(/(?<!:)[:\.](?!:)/);
+      const pieces = fullLine.split(/(?<!:)[:.](?!:)/);
 
       const upperCaseLine: string = fullLine.toUpperCase();
 
-      // doing hover for TEST.VALUE, TEST.EXPECTED, TEST.REQUIREMENT_KEY
+      // Doing hover for TEST.VALUE, TEST.EXPECTED, TEST.REQUIREMENT_KEY
 
       if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
-        // if we have 3 pieces, then we have a requirement key
+        // If we have 3 pieces, then we have a requirement key
         // the line should look like TEST.REQUIREMENT_KEY: <key>  or <key> | <title>
         // IF the title is already there we don't need to do the hover-over
         if (pieces.length >= 3) {
-          let key: string = "";
-          if (pieces[2].includes("|")) {
-            key = pieces[2].split("|")[0].trim();
-          } else {
-            key = pieces[2].trim();
-          }
-          // now find the title for this key, via a python call
+          let key = "";
+          key = pieces[2].includes("|")
+            ? pieces[2].split("|")[0].trim()
+            : pieces[2].trim();
+          // Now find the title for this key, via a python call
           hoverString = getHoverStringForRequirement(enviroPath, key);
           console.log(hoverString);
         }
@@ -57,28 +56,28 @@ export function getHoverString(
         upperCaseLine.startsWith("TEST.EXPECTED:") ||
         upperCaseLine.startsWith("TEST.VALUE:")
       ) {
-        // get the piece we are hovering over and its index
+        // Get the piece we are hovering over and its index
         const fieldObject = getPieceAtColumn(
           pieces,
           completionData.position.character
         );
 
-        // we only care about the stuff at the param level and deeper
+        // We only care about the stuff at the param level and deeper
         if (fieldObject.index > 3) {
-          // array fields may/will look like this: data[23]
+          // Array fields may/will look like this: data[23]
           fieldObject.text = fieldObject.text.split("[")[0];
-          // get start of line to cursor for the call to python
+          // Get start of line to cursor for the call to python
           const lineSoFar: string = getLineFragment(
             document,
             completionData.position
           );
 
-          // call python to get the list for this field, and then ...
+          // Call python to get the list for this field, and then ...
           // match up that piece to find the "extra stuff" to display
           const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
           const valueList = choiceData.choiceList;
-          for (var index = 0; index < valueList.length; index++) {
-            const valuePieces = valueList[index].split("@");
+          for (const element of valueList) {
+            const valuePieces = element.split("@");
             if (valuePieces[0] == fieldObject.text) {
               hoverString = valuePieces[1];
               break;
@@ -86,11 +85,11 @@ export function getHoverString(
           }
         }
       } else if (upperCaseLine.startsWith("TEST.SLOT:"))
-        // just to remind users of the format :)
+        // Just to remind users of the format :)
         hoverString =
           "format: slot-number, unit-name, function-name, iteration-count, test-name";
       else {
-        // invalid enviroName
+        // Invalid enviroName
         hoverString = "";
       }
     }

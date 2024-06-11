@@ -1,26 +1,30 @@
-import type { Options } from "@wdio/types";
-// only using global-agent and GlobalDispatcher
+// Only using global-agent and GlobalDispatcher
 // if running on vistr server
-import { bootstrap } from "global-agent";
 import path from "node:path";
 import { URL } from "node:url";
+import { exec } from "node:child_process";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { promisify } from "node:util";
+import {
+  type ProxyTypes,
+  type ProxyObject,
+} from "@wdio/types/build/Capabilities";
 import {
   getGlobalDispatcher,
   setGlobalDispatcher,
   Dispatcher,
   ProxyAgent,
 } from "undici";
-import {ProxyTypes, ProxyObject} from "@wdio/types/build/Capabilities"
-import { exec } from "child_process";
-import { mkdir, rm, writeFile } from "fs/promises";
-import { promisify } from "node:util";
+import { bootstrap } from "global-agent";
+import type { Options } from "@wdio/types";
+import capabilitiesJson from "./capabilityConfig.json";
 
-const noProxyRules = (process.env["no_proxy"] ?? "")
-    .split(",")
-    .map((rule) => rule.trim());
+const noProxyRules = (process.env.no_proxy ?? "")
+  .split(",")
+  .map((rule) => rule.trim());
 if (
-  process.env["RUNNING_ON_SERVER"] === "True" ||
-  process.env["GITHUB_ACTIONS"] === "true"
+  process.env.RUNNING_ON_SERVER === "True" ||
+  process.env.GITHUB_ACTIONS === "true"
 ) {
   bootstrap();
   const proxyAgents = Object.fromEntries(
@@ -29,6 +33,7 @@ if (
       if (uri) {
         return [`${protocol}:`, new ProxyAgent(uri)];
       }
+
       return [];
     })
   );
@@ -44,7 +49,7 @@ if (
               : options.origin;
           if (
             !noProxyRules.some((rule) =>
-              rule.startsWith(process.env["INIT_CWD"])
+              rule.startsWith(process.env.INIT_CWD)
                 ? host.endsWith(rule)
                 : host === rule
             )
@@ -55,24 +60,22 @@ if (
             }
           }
         }
+
         return defaultDispatcher.dispatch(options, handler);
       }
     })()
   );
 }
 
-import capabilitiesJson from "./capabilityConfig.json";
-
-const proxyType: ProxyTypes = 'manual'
+const proxyType: ProxyTypes = "manual";
 const proxyObject: ProxyObject = {
-  proxyType: proxyType,
-  ftpProxy: process.env['http_proxy'],
-  httpProxy: process.env['http_proxy'],
-  noProxy: noProxyRules
-}
+  proxyType,
+  ftpProxy: process.env.http_proxy,
+  httpProxy: process.env.http_proxy,
+  noProxy: noProxyRules,
+};
 
-
-let coreTestSpecs = [
+const coreTestSpecs = [
   "./**/**/vcast.build_env.test.ts",
   "./**/**/vcast.create_script_1.test.ts",
   "./**/**/vcast.create_script_2_and_run.test.ts",
@@ -82,19 +85,17 @@ let coreTestSpecs = [
   "./**/**/vcast.rest.test.ts",
   "./**/**/vcast.rest_2.test.ts",
   "./**/**/vcast.rest_3.test.ts",
-]
+];
 let fullTestSpecs = coreTestSpecs;
-if (process.env["USE_VCAST_24"] == "True")
+if (process.env.USE_VCAST_24 == "True")
   fullTestSpecs = coreTestSpecs.concat(["./**/**/vcast_coded_tests.test.ts"]);
-fullTestSpecs = fullTestSpecs.concat(
-  [
-    "./**/**/vcast_testgen_bugs.test.ts",
-    "./**/**/vcast_testgen_bugs_2.test.ts",
-    "./**/**/vcast_testgen_func.test.ts",
-    "./**/**/vcast_testgen_unit.test.ts",
-  ]
-)
-// this test takes very long and it's not that critical
+fullTestSpecs = fullTestSpecs.concat([
+  "./**/**/vcast_testgen_bugs.test.ts",
+  "./**/**/vcast_testgen_bugs_2.test.ts",
+  "./**/**/vcast_testgen_func.test.ts",
+  "./**/**/vcast_testgen_unit.test.ts",
+]);
+// This test takes very long and it's not that critical
 // if (process.env["BRANCH_REF"] == "refs/heads/main")
 //   fullTestSpecs = fullTestSpecs.concat(["./**/**/vcast_testgen_env.test.ts"])
 export const config: Options.Testrunner = {
@@ -119,13 +120,13 @@ export const config: Options.Testrunner = {
   headless: true,
   autoCompileOpts: {
     autoCompile: true,
-    // see https://github.com/TypeStrong/ts-node#cli-and-programmatic-options
+    // See https://github.com/TypeStrong/ts-node#cli-and-programmatic-options
     // for all available options
     tsNodeOpts: {
       transpileOnly: true,
       project: "test/tsconfig.json",
     },
-    // tsconfig-paths is only used if "tsConfigPathsOpts" are provided, if you
+    // Tsconfig-paths is only used if "tsConfigPathsOpts" are provided, if you
     // do please make sure "tsconfig-paths" is installed as dependency
     // tsConfigPathsOpts: {
     //     baseUrl: "./"
@@ -176,56 +177,49 @@ export const config: Options.Testrunner = {
   //
   capabilities: [
     {
-      // maxInstances can get overwritten per capability. So if you have an in-house Selenium
+      // MaxInstances can get overwritten per capability. So if you have an in-house Selenium
       // grid with only 5 firefox instances available you can make sure that not more than
       // 5 instances get started at a time.
-      maxInstances: capabilitiesJson["maxInstances"],
-      browserName: capabilitiesJson["browserName"],
+      maxInstances: capabilitiesJson.maxInstances,
+      browserName: capabilitiesJson.browserName,
       proxy: proxyObject,
-      browserVersion: capabilitiesJson["browserVersion"],
-      acceptInsecureCerts: capabilitiesJson["acceptInsecureCerts"],
+      browserVersion: capabilitiesJson.browserVersion,
+      acceptInsecureCerts: capabilitiesJson.acceptInsecureCerts,
       "wdio:vscodeOptions": {
         extensionPath: path.join(__dirname, "extension"),
         workspacePath: path.join(__dirname, "vcastTutorial"),
         vscodeArgs: {
           disableExtensions: true,
           "local-history.enabled":
-            capabilitiesJson["wdio:vscodeOptions"]["vscodeArgs"][
+            capabilitiesJson["wdio:vscodeOptions"].vscodeArgs[
               "local-history.enabled"
             ],
         },
-        verboseLogging:
-          capabilitiesJson["wdio:vscodeOptions"]["verboseLogging"],
+        verboseLogging: capabilitiesJson["wdio:vscodeOptions"].verboseLogging,
         userSettings: {
           "editor.fontSize":
-            capabilitiesJson["wdio:vscodeOptions"]["userSettings"][
+            capabilitiesJson["wdio:vscodeOptions"].userSettings[
               "editor.fontSize"
             ],
           "terminal.integrated.fontSize":
-            capabilitiesJson["wdio:vscodeOptions"]["userSettings"][
+            capabilitiesJson["wdio:vscodeOptions"].userSettings[
               "terminal.integrated.fontSize"
             ],
           "window.zoomLevel":
-            capabilitiesJson["wdio:vscodeOptions"]["userSettings"][
+            capabilitiesJson["wdio:vscodeOptions"].userSettings[
               "window.zoomLevel"
             ],
         },
         vscodeProxyOptions: {
           enable:
-            capabilitiesJson["wdio:vscodeOptions"]["vscodeProxyOptions"][
-              "enable"
-            ],
-          port: capabilitiesJson["wdio:vscodeOptions"]["vscodeProxyOptions"][
-            "port"
-          ],
+            capabilitiesJson["wdio:vscodeOptions"].vscodeProxyOptions.enable,
+          port: capabilitiesJson["wdio:vscodeOptions"].vscodeProxyOptions.port,
           connectionTimeout:
-            capabilitiesJson["wdio:vscodeOptions"]["vscodeProxyOptions"][
-              "connectionTimeout"
-            ],
+            capabilitiesJson["wdio:vscodeOptions"].vscodeProxyOptions
+              .connectionTimeout,
           commandTimeout:
-            capabilitiesJson["wdio:vscodeOptions"]["vscodeProxyOptions"][
-              "commandTimeout"
-            ],
+            capabilitiesJson["wdio:vscodeOptions"].vscodeProxyOptions
+              .commandTimeout,
         },
       },
     },
@@ -264,11 +258,11 @@ export const config: Options.Testrunner = {
   baseUrl: "http://localhost",
   //
   // Default timeout for all waitFor* commands.
-  waitforTimeout: 30000,
+  waitforTimeout: 30_000,
   //
   // Default timeout in milliseconds for request
   // if browser driver or grid doesn"t send response
-  connectionRetryTimeout: 22000,
+  connectionRetryTimeout: 22_000,
   //
   // Default request retries count
   connectionRetryCount: 2,
@@ -300,12 +294,16 @@ export const config: Options.Testrunner = {
   // see also: https://webdriver.io/docs/dot-reporter
   reporters: [
     "spec",
-    ['junit', {
-      outputDir: 'test_results',
-      outputFileFormat: function(options) { // optional
-        return `results-${options.cid}.xml`
-      }
-    }]
+    [
+      "junit",
+      {
+        outputDir: "test_results",
+        outputFileFormat(options) {
+          // Optional
+          return `results-${options.cid}.xml`;
+        },
+      },
+    ],
   ],
 
   //
@@ -313,7 +311,7 @@ export const config: Options.Testrunner = {
   // See the full list at http://mochajs.org/
   mochaOpts: {
     ui: "bdd",
-    timeout: 9000000,
+    timeout: 9_000_000,
     bail: true,
   },
   //
@@ -329,8 +327,8 @@ export const config: Options.Testrunner = {
    * @param {Object} config wdio configuration object
    * @param {Array.<Object>} capabilities list of capabilities details
    */
-  onPrepare: async function (config, capabilities) {
-    const initialWorkdir = process.env["INIT_CWD"];
+  async onPrepare(config, capabilities) {
+    const initialWorkdir = process.env.INIT_CWD;
     const vcastTutorialPath = path.join(
       initialWorkdir,
       "test",
@@ -351,11 +349,11 @@ export const config: Options.Testrunner = {
 
     const promisifiedExec = promisify(exec);
 
-    process.env["WORKSPACE_FOLDER"] = "vcastTutorial";
+    process.env.WORKSPACE_FOLDER = "vcastTutorial";
 
     let checkVPython: string;
-    if (process.platform == "win32") checkVPython = "where vpython";
-    else checkVPython = "which vpython";
+    checkVPython =
+      process.platform == "win32" ? "where vpython" : "which vpython";
 
     {
       const { stdout, stderr } = await promisifiedExec(checkVPython);
@@ -368,8 +366,8 @@ export const config: Options.Testrunner = {
     }
 
     let checkClicast: string;
-    if (process.platform == "win32") checkClicast = "where clicast";
-    else checkClicast = "which clicast";
+    checkClicast =
+      process.platform == "win32" ? "where clicast" : "which clicast";
 
     let clicastExecutablePath: string;
     {
@@ -382,14 +380,15 @@ export const config: Options.Testrunner = {
         console.log(`clicast found in ${clicastExecutablePath}`);
       }
     }
-    process.env["CLICAST_PATH"] = clicastExecutablePath;
+
+    process.env.CLICAST_PATH = clicastExecutablePath;
 
     const vectorcastDir = path.dirname(clicastExecutablePath);
-    process.env["VC_DIR"] = vectorcastDir;
+    process.env.VC_DIR = vectorcastDir;
 
     let clearScreenshots: string;
-    if (process.platform == "win32") clearScreenshots = "del /s /q *.png";
-    else clearScreenshots = "rm -rf *.png";
+    clearScreenshots =
+      process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
     await promisifiedExec(clearScreenshots);
 
     const testInputVcastTutorial = path.join(
@@ -401,40 +400,45 @@ export const config: Options.Testrunner = {
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
     await mkdir(testInputEnvPath, { recursive: true });
 
-    const codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
-    await mkdir(codedTestsPath , { recursive: true });
+    const codedTestsPath = path.join(
+      testInputVcastTutorial,
+      "cpp",
+      "TestFiles"
+    );
+    await mkdir(codedTestsPath, { recursive: true });
 
     const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
     await mkdir(vscodeSettingsPath, { recursive: true });
     const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
 
     let createLaunchJson: string;
-    if (process.platform == "win32")
-      createLaunchJson = `copy /b NUL ${launchJsonPath}`;
-    else createLaunchJson = `touch ${launchJsonPath}`;
+    createLaunchJson =
+      process.platform == "win32"
+        ? `copy /b NUL ${launchJsonPath}`
+        : `touch ${launchJsonPath}`;
     await promisifiedExec(createLaunchJson);
-    
-    const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include")
+
+    const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
     const c_cpp_properties = {
       configurations: [
-          {
-              "name": "Linux",
-              "includePath": [
-                  "${workspaceFolder}/**",
-                  `${pathTovUnitInclude}`  
-              ],
-              "defines": [],
-              "compilerPath": "/usr/bin/clang",
-              "cStandard": "c17",
-              "cppStandard": "c++14",
-              "intelliSenseMode": "linux-clang-x64"
-          }
+        {
+          name: "Linux",
+          includePath: ["${workspaceFolder}/**", `${pathTovUnitInclude}`],
+          defines: [],
+          compilerPath: "/usr/bin/clang",
+          cStandard: "c17",
+          cppStandard: "c++14",
+          intelliSenseMode: "linux-clang-x64",
+        },
       ],
-      version: 4
-    }
+      version: 4,
+    };
 
     const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
-    const c_cpp_properties_JSONPath = path.join(vscodeSettingsPath, "c_cpp_properties.json");
+    const c_cpp_properties_JSONPath = path.join(
+      vscodeSettingsPath,
+      "c_cpp_properties.json"
+    );
     await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
 
     const envFile = `ENVIRO.NEW
@@ -456,7 +460,7 @@ ENVIRO.END
     const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
     await promisifiedExec(createCFG);
 
-    const reqTutorialPath = path.join(
+    const requestTutorialPath = path.join(
       vectorcastDir,
       "examples",
       "RequirementsGW",
@@ -471,7 +475,7 @@ ENVIRO.END
       )}`,
       `${commandPrefix} RGw INitialize`,
       `${commandPrefix} Rgw Set Gateway CSV`,
-      `${commandPrefix} RGw Configure Set CSV csv_path ${reqTutorialPath}`,
+      `${commandPrefix} RGw Configure Set CSV csv_path ${requestTutorialPath}`,
       `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
       `${commandPrefix} RGw Configure Set CSV filter_attribute`,
       `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
@@ -487,6 +491,7 @@ ENVIRO.END
         console.log(stderr);
         throw `Error when running ${rgwPrepCommand}`;
       }
+
       console.log(stdout);
     }
 
@@ -494,11 +499,15 @@ ENVIRO.END
     await mkdir(pathToTutorial, { recursive: true });
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
     const headerFilesToCopy = path.join(pathToTutorial, "*.h");
-    
+
     const examplesDir = path.join(initialWorkdir, "test", "examples");
     const examplesToCopy = path.join(examplesDir, "*.cpp");
-    const codedTestsExamplesToCopy = path.join(examplesDir, "coded_tests", "*.cpp")
-    // copying didn't work with cp from fs
+    const codedTestsExamplesToCopy = path.join(
+      examplesDir,
+      "coded_tests",
+      "*.cpp"
+    );
+    // Copying didn't work with cp from fs
     if (process.platform == "win32") {
       await promisifiedExec(
         `xcopy /s /i /y ${examplesToCopy} ${testInputEnvPath} > NUL 2> NUL`
@@ -510,7 +519,7 @@ ENVIRO.END
         `xcopy /s /i /y ${headerFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`
       );
       await promisifiedExec(
-        `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`,
+        `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`
       );
       await promisifiedExec(
         `xcopy /s /i /y ${testInputVcastTutorial} ${path.join(
@@ -574,9 +583,7 @@ ENVIRO.END
    * @param  {[type]} args     object that will be merged with the main configuration once worker is initialized
    * @param  {[type]} execArgv list of string arguments passed to the worker process
    */
-  onWorkerStart: async function (cid, caps, specs, args, execArgv) {
-
-  },
+  async onWorkerStart(cid, caps, specs, arguments_, execArgv) {},
   /**
    * Gets executed just after a worker process has exited.
    * @param  {String} cid      capability id (e.g 0-0)
@@ -584,10 +591,10 @@ ENVIRO.END
    * @param  {[type]} specs    specs to be run in the worker process
    * @param  {Number} retries  number of retries used
    */
-  onWorkerEnd: async function (cid, exitCode, specs, retries) {
-    const path = require("path");
+  async onWorkerEnd(cid, exitCode, specs, retries) {
+    const path = require("node:path");
     const promisifiedExec = promisify(exec);
-    const initialWorkdir = process.env["INIT_CWD"];
+    const initialWorkdir = process.env.INIT_CWD;
     const logDir = path.join(initialWorkdir, "test", "log");
 
     if (process.platform == "win32") {
@@ -623,9 +630,9 @@ ENVIRO.END
    * @param {Array.<String>} specs        List of spec file paths that are to be run
    * @param {Object}         browser      instance of created browser/device session
    */
-// before: function (capabilities, specs, browser) {
+  // before: function (capabilities, specs, browser) {
 
-//   },
+  //   },
   /**
    * Runs before a WebdriverIO command gets executed.
    * @param {String} commandName hook command name
@@ -666,15 +673,11 @@ ENVIRO.END
    * @param {Boolean} result.passed    true if test has passed, otherwise false
    * @param {Object}  result.retries   informations to spec related retries, e.g. `{ attempts: 0, limit: 0 }`
    */
-  afterTest: function (
-    test,
-    context,
-    { error, result, duration, passed, retries }
-  ) {
-    // take a screenshot anytime a test fails and throws an error
+  afterTest(test, context, { error, result, duration, passed, retries }) {
+    // Take a screenshot anytime a test fails and throws an error
     if (error) {
       browser.takeScreenshot();
-      const testID = process.env["E2E_TEST_ID"];
+      const testID = process.env.E2E_TEST_ID;
       const filename = `error in test ${testID} ${test.title}.png`;
       browser.saveScreenshot(filename);
     }

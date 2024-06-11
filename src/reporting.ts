@@ -2,8 +2,8 @@ import * as vscode from "vscode";
 import { vectorMessage } from "./messagePane";
 import { getResultFileForTest } from "./vcastTestInterface";
 
-const fs = require("fs");
-const os = require("os");
+const fs = require("node:fs");
+const os = require("node:os");
 
 function cleanHTML(htmlText: string) {
   // This function will remove the html
@@ -11,8 +11,8 @@ function cleanHTML(htmlText: string) {
   // bar in the execution report.  This makes
   // the report look better in VS Code
 
-  let lineList = htmlText.split(os.EOL);
-  let returnText: string = "";
+  const lineList = htmlText.split(os.EOL);
+  let returnText = "";
   let skipping = false;
 
   for (let line of lineList) {
@@ -92,40 +92,42 @@ pre {
         returnText += line;
         skipping = false;
       }
+    } else if (line.includes('div id="title-bar"')) {
+      skipping = true;
+    }
+    // Default headings from VCAST is annoyingly big
+    else if (line.includes("Execution Results (FAIL)")) {
+      line = line.replace(
+        "Execution Results (FAIL)",
+        "<h4>Execution Results (FAIL)</h4>"
+      );
+      returnText += line;
+    } else if (line.includes("Execution Results (PASS)")) {
+      line = line.replace(
+        "Execution Results (PASS)",
+        "<h4>Execution Results (PASS)</h4>"
+      );
+      returnText += line;
     } else {
-      if (line.includes('div id="title-bar"')) {
-        skipping = true;
-      }
-      //default headings from VCAST is annoyingly big
-      else if (line.includes("Execution Results (FAIL)")) {
-        line = line.replace(
-          "Execution Results (FAIL)",
-          "<h4>Execution Results (FAIL)</h4>"
-        );
-        returnText += line;
-      } else if (line.includes("Execution Results (PASS)")) {
-        line = line.replace(
-          "Execution Results (PASS)",
-          "<h4>Execution Results (PASS)</h4>"
-        );
-        returnText += line;
-      } else {
-        returnText += line;
-      }
+      returnText += line;
     }
   }
+
   return returnText;
 }
 
-let htmlReportPanel: vscode.WebviewPanel | undefined = undefined;
+let htmlReportPanel: vscode.WebviewPanel | undefined;
 function viewResultsReportVC(textFilePath: string) {
   // The stock VectorCAST HTML reports look ugly in VS Code so
   // we do a manual edits, and color changes.
   const htmlFilePath = textFilePath.replace(".txt", ".html");
   vectorMessage(`HTML report file path is: ${htmlFilePath}`);
-  let htmlText = cleanHTML(fs.readFileSync(htmlFilePath, "utf-8"));
-  // this displays the html report in a webview panel
-  if (!htmlReportPanel) {
+  const htmlText = cleanHTML(fs.readFileSync(htmlFilePath, "utf8"));
+  // This displays the html report in a webview panel
+  if (htmlReportPanel) {
+    vectorMessage("Revealing webview panel ...");
+    htmlReportPanel.reveal(vscode.ViewColumn.Two);
+  } else {
     vectorMessage("Creating web view panel ...");
     htmlReportPanel = vscode.window.createWebviewPanel(
       "vcastReport",
@@ -136,9 +138,6 @@ function viewResultsReportVC(textFilePath: string) {
     htmlReportPanel.onDidDispose(() => {
       htmlReportPanel = undefined;
     });
-  } else {
-    vectorMessage("Revealing webview panel ...");
-    htmlReportPanel.reveal(vscode.ViewColumn.Two);
   }
 
   vectorMessage("Setting webview text ...");
@@ -146,7 +145,7 @@ function viewResultsReportVC(textFilePath: string) {
 }
 
 export function viewResultsReport(testID: string) {
-  // make sure that a test is selected
+  // Make sure that a test is selected
   const textFilePath = getResultFileForTest(testID);
   vectorMessage("Viewing results, result report path: '" + textFilePath + "'");
   if (fs.existsSync(textFilePath)) {

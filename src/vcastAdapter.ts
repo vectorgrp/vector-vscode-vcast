@@ -1,9 +1,7 @@
 // This module contains all interactions with a VectorCAST environment via clicast or vcastqt
 
+import { execSync, spawn } from "node:child_process";
 import * as vscode from "vscode";
-
-import { execSync, spawn } from "child_process";
-
 import {
   buildEnvironmentCallback,
   deleteEnvironmentCallback,
@@ -15,23 +13,21 @@ import {
   getEnviroNameFromID,
   getEnviroPathFromID,
   getTestNode,
-  testNodeType,
+  type testNodeType,
 } from "./testData";
-
 import {
-  commandStatusType,
+  type commandStatusType,
   executeClicastWithProgress,
   executeCommandSync,
   executeWithRealTimeEcho,
 } from "./vcastCommandRunner";
-
 import {
   atgCommandToUse,
   clicastCommandToUse,
   vcastCommandToUse,
 } from "./vcastInstallation";
 
-const path = require("path");
+const path = require("node:path");
 
 // ------------------------------------------------------------------------------------
 // Direct clicast Calls
@@ -40,7 +36,7 @@ const path = require("path");
 // Check License
 export function vcastLicenseOK(): boolean {
   const commandToRun = `${clicastCommandToUse} tools has_license`;
-  let commandStatus: commandStatusType = executeCommandSync(
+  const commandStatus: commandStatusType = executeCommandSync(
     commandToRun,
     process.cwd(),
     false
@@ -53,17 +49,17 @@ export function buildEnvironmentFromScript(
   unitTestLocation: string,
   enviroName: string
 ) {
-  // this function is separate and exported because it's used when we
+  // This function is separate and exported because it's used when we
   // create environments from source files and from .env files
 
   // this call runs clicast in the background
   const enviroPath = path.join(unitTestLocation, enviroName);
-  const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
+  const clicastArguments = ["-lc", "env", "build", enviroName + ".env"];
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
   openMessagePane();
   executeWithRealTimeEcho(
     clicastCommandToUse,
-    clicastArgs,
+    clicastArguments,
     unitTestLocation,
     buildEnvironmentCallback,
     enviroPath
@@ -74,14 +70,12 @@ export function buildEnvironmentFromScript(
 export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
   const enclosingDirectory = path.dirname(enviroPath);
 
-  // this returns the environment directory name without any nesting
-  let vcastArgs: string[] = ["-e" + getEnviroNameFromID(enviroNodeID)];
-  vcastArgs.push("enviro"); // Generate Basis Path Tests Script and Load into Environment (via callback)
-
-  vcastArgs.push("delete");
+  // This returns the environment directory name without any nesting
+  const vcastArguments: string[] = ["-e" + getEnviroNameFromID(enviroNodeID)];
+  vcastArguments.push("enviro", "delete");
   executeWithRealTimeEcho(
     clicastCommandToUse,
-    vcastArgs,
+    vcastArguments,
     enclosingDirectory,
     deleteEnvironmentCallback,
     enviroNodeID
@@ -93,16 +87,16 @@ export async function loadScriptIntoEnvironment(
   enviroName: string,
   scriptPath: string
 ) {
-  // call clicast to load the test script
-  const enviroArg = `-e${enviroName}`;
-  let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
+  // Call clicast to load the test script
+  const enviroArgument = `-e${enviroName}`;
+  const commandToRun = `${clicastCommandToUse} ${enviroArgument} test script run ${scriptPath}`;
 
   const commandStatus = executeCommandSync(
     commandToRun,
     path.dirname(scriptPath)
   );
 
-  // if the script load fails, executeCommandSync will open the message pane ...
+  // If the script load fails, executeCommandSync will open the message pane ...
   // if the load passes, we want to give the user an indication that it worked
   if (commandStatus.errorCode == 0) {
     vectorMessage("Script loaded successfully ...");
@@ -110,25 +104,25 @@ export async function loadScriptIntoEnvironment(
     // it's good to know when the load is complete.
     vscode.window.showInformationMessage(`Test script loaded successfully`);
 
-    // this API allows a timeout for the message, but I think its too subtle
+    // This API allows a timeout for the message, but I think its too subtle
     // becuase it is only shown in the status bar
-    //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
+    // vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
   }
 }
 
 // Delete Test Case
 export function deleteSingleTest(testNodeID: string): commandStatusType {
   const testNode: testNodeType = getTestNode(testNodeID);
-  const clicastArgs: string = getClicastArgsFromTestNode(testNode);
-  let commandToRun = `${clicastCommandToUse} ${clicastArgs} test delete`;
+  const clicastArguments: string = getClicastArgsFromTestNode(testNode);
+  let commandToRun = `${clicastCommandToUse} ${clicastArguments} test delete`;
 
-  // special vcast case for delete ALL tests for the environment
+  // Special vcast case for delete ALL tests for the environment
   // when no unit, subprogram or test is provided, you have to give YES to delete all
-  if (testNode.unitName.length == 0 && testNode.functionName.length == 0) {
+  if (testNode.unitName.length === 0 && testNode.functionName.length === 0) {
     commandToRun += " YES";
   }
 
-  let commandStatus: commandStatusType = executeCommandSync(
+  const commandStatus: commandStatusType = executeCommandSync(
     commandToRun,
     path.dirname(testNode.enviroPath)
   );
@@ -145,13 +139,13 @@ export function setCodedTestOption(unitTestLocation: string) {
 
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   if (settings.get("build.enableCodedTesting", false)) {
-    // force the coded test option on
+    // Force the coded test option on
     executeCommandSync(
       `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT true`,
       unitTestLocation
     );
   } else {
-    // force the coded test option off
+    // Force the coded test option off
     executeCommandSync(
       `${clicastCommandToUse} option VCAST_CODED_TESTS_SUPPORT false`,
       unitTestLocation
@@ -172,7 +166,7 @@ export function addCodedTestToEnvironment(
 ): commandStatusType {
   const enclosingDirectory = path.dirname(enviroPath);
 
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+  const commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
     testNode
   )} test coded ${action}} ${userFilePath}`;
 
@@ -186,9 +180,9 @@ export function dumptestScriptFile(
   scriptPath: string
 ): commandStatusType {
   const enclosingDirectory = path.dirname(testNode.enviroPath);
-  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  const clicastArguments = getClicastArgsFromTestNode(testNode);
 
-  let commandToRun: string = `${clicastCommandToUse} ${clicastArgs} test script create ${scriptPath}`;
+  const commandToRun = `${clicastCommandToUse} ${clicastArguments} test script create ${scriptPath}`;
   const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
 
   return commandStatus;
@@ -199,13 +193,13 @@ export function refreshCodedTests(
   enviroPath: string,
   enviroNodeID: string
 ): commandStatusType {
-  // refresh the coded test file for this environment
+  // Refresh the coded test file for this environment
   // note: the same file should never be associated with more than one unit
 
   const testNode = getTestNode(enviroNodeID);
   const enclosingDirectory = path.dirname(enviroPath);
 
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
+  const commandToRun = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
     testNode
   )} test coded refresh`;
   const refreshCommandStatus = executeCommandSync(
@@ -221,11 +215,17 @@ export function runBasisPathCommands(
   testScriptPath: string,
   loadScriptCallBack: any
 ) {
-  // executeClicastWithProgress() uses spawn() which needs the args as a list
-  let argList: string[] = [];
-  argList.push(`${clicastCommandToUse}`);
-  argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
-  argList = argList.concat(["tool", "auto_test", `${testScriptPath}`]);
+  // ExecuteClicastWithProgress() uses spawn() which needs the args as a list
+  let argumentList: string[] = [];
+  argumentList.push(`${clicastCommandToUse}`);
+  argumentList = argumentList.concat(
+    getClicastArgsFromTestNodeAsList(testNode)
+  );
+  argumentList = argumentList.concat([
+    "tool",
+    "auto_test",
+    `${testScriptPath}`,
+  ]);
 
   // Since it can be slow to generate basis path tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a
@@ -234,7 +234,7 @@ export function runBasisPathCommands(
 
   executeClicastWithProgress(
     "",
-    argList,
+    argumentList,
     testNode.enviroName,
     testScriptPath,
     messageFilter,
@@ -248,20 +248,23 @@ export function runATGCommands(
   testScriptPath: string,
   loadScriptCallBack: any
 ) {
-  // executeClicastWithProgress() uses spawn() which needs the args as a list
-  let argList: string[] = [];
-  argList.push(`${atgCommandToUse}`);
-  argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
+  // ExecuteClicastWithProgress() uses spawn() which needs the args as a list
+  let argumentList: string[] = [];
+  argumentList.push(`${atgCommandToUse}`);
+  argumentList = argumentList.concat(
+    getClicastArgsFromTestNodeAsList(testNode)
+  );
 
   // -F tells atg to NOT use regex for the -s (sub-program) option
   // since we always use the "full" sub-program name, we always set -F
-  argList.push("-F");
+  argumentList.push("-F");
 
-  // if we are using over-loaded syntax, then we need to add the -P (parameterized) option
+  // If we are using over-loaded syntax, then we need to add the -P (parameterized) option
   if (testNode.functionName.includes("(")) {
-    argList.push("-P");
+    argumentList.push("-P");
   }
-  argList.push(`${testScriptPath}`);
+
+  argumentList.push(`${testScriptPath}`);
 
   // Since it can be slow to generate ATG tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a
@@ -270,7 +273,7 @@ export function runATGCommands(
 
   executeClicastWithProgress(
     "Generating ATG Tests: ",
-    argList,
+    argumentList,
     testNode.enviroName,
     testScriptPath,
     messageFilter,
@@ -281,21 +284,21 @@ export function runATGCommands(
 // Open vcastqt in options dialog mode ... in the future we might
 // create a native VS Code dialog for this
 export function openVcastOptionsDialog(cwd: string) {
-  execSync(`${vcastCommandToUse} -lc -o`, { cwd: cwd });
+  execSync(`${vcastCommandToUse} -lc -o`, { cwd });
 }
 
 // Open vcastqt for an environment
 export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
-  // this returns the environment directory name without any nesting
-  let vcastArgs: string[] = ["-e " + getEnviroNameFromID(enviroNodeID)];
+  // This returns the environment directory name without any nesting
+  const vcastArguments: string[] = ["-e " + getEnviroNameFromID(enviroNodeID)];
 
-  // this returns the full path to the environment directory
+  // This returns the full path to the environment directory
   const enviroPath = getEnviroPathFromID(enviroNodeID);
 
   const enclosingDirectory = path.dirname(enviroPath);
 
-  // we use spawn directly to control the detached and shell args
-  let vcast = spawn(vcastCommandToUse, vcastArgs, {
+  // We use spawn directly to control the detached and shell args
+  const vcast = spawn(vcastCommandToUse, vcastArguments, {
     cwd: enclosingDirectory,
     detached: true,
     shell: true,
@@ -308,14 +311,14 @@ export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
 }
 
 export function openVcastFromVCEfile(vcePath: string, callback: any) {
-  // split vceFile path into the CWD and the Environment
+  // Split vceFile path into the CWD and the Environment
   const cwd = path.dirname(vcePath);
   const enviroName = path.basename(vcePath);
-  let vcastArgs: string[] = ["-e " + enviroName];
+  const vcastArguments: string[] = ["-e " + enviroName];
 
-  // we use spawn directly to control the detached and shell args
-  let vcast = spawn(vcastCommandToUse, vcastArgs, {
-    cwd: cwd,
+  // We use spawn directly to control the detached and shell args
+  const vcast = spawn(vcastCommandToUse, vcastArguments, {
+    cwd,
     detached: true,
     shell: true,
     windowsHide: true,

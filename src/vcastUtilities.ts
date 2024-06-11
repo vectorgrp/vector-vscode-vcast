@@ -1,27 +1,21 @@
 import * as vscode from "vscode";
 
-// needed for parsing json files with comments
+// Needed for parsing json files with comments
 import * as jsonc from "jsonc-parser";
-
 import { loadScriptCallBack } from "./callbacks";
-
 import { vectorMessage } from "./messagePane";
-
-import { getTestNode, testNodeType } from "./testData";
-
+import { getTestNode, type testNodeType } from "./testData";
 import {
   jsoncModificationOptions,
   jsoncParseErrors,
   jsoncParseOptions,
   openFileWithLineSelected,
 } from "./utilities";
-
 import {
   dumptestScriptFile,
   runATGCommands,
   runBasisPathCommands,
 } from "./vcastAdapter";
-
 import {
   clicastCommandToUse,
   configFileContainsCorrectInclude,
@@ -31,9 +25,9 @@ import {
   vUnitIncludeSuffix,
 } from "./vcastInstallation";
 
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
 export function addIncludePath(fileUri: vscode.Uri) {
   // This small wrapper just checks if we really need to add the include path
@@ -42,12 +36,12 @@ export function addIncludePath(fileUri: vscode.Uri) {
   // because that would lock the user out if there is an error in the init stuff
 
   const filePath = fileUri.fsPath;
-  if (!configFileContainsCorrectInclude(filePath)) {
-    insertIncludePath(filePath);
-  } else {
+  if (configFileContainsCorrectInclude(filePath)) {
     vscode.window.showInformationMessage(
       `${filePath} already contains the correct include path.  `
     );
+  } else {
+    insertIncludePath(filePath);
   }
 }
 
@@ -61,25 +55,21 @@ function insertIncludePath(filePath: string) {
   //
   // I'm handling a few error cases here without going crazy
   //
-  let statusMessages: string[] = [];
+  const statusMessages: string[] = [];
 
   let existingJSON: any;
   let existingJSONasString: string;
 
   // Requires json-c parsing to handle comments etc.
   existingJSONasString = fs.readFileSync(filePath).toString();
-  // note that jsonc.parse returns "real json" without the comments
+  // Note that jsonc.parse returns "real json" without the comments
   existingJSON = jsonc.parse(
     existingJSONasString,
     jsoncParseErrors,
     jsoncParseOptions
   );
 
-  if (
-    existingJSON &&
-    existingJSON.configurations &&
-    existingJSON.configurations.length > 0
-  ) {
+  if (existingJSON?.configurations && existingJSON.configurations.length > 0) {
     const numberOfCofigurations = existingJSON.configurations.length;
     statusMessages.push(
       `{configurationFile} file has ${numberOfCofigurations} configurations ... `
@@ -92,22 +82,22 @@ function insertIncludePath(filePath: string) {
     return;
   }
 
-  // when we get here we should always have a configurations array,
+  // When we get here we should always have a configurations array,
   // to make things easier we will add the new include to the first config in the array
-  let configName = existingJSON.configurations[0].name;
+  const configName = existingJSON.configurations[0].name;
   // This configuration might now have includePath, so add it if its missing
   if (existingJSON.configurations[0].includePath == undefined) {
     statusMessages.push(
       `Configuration: "${configName}" is missing an includePath list, adding.  `
     );
-    // we keep the existing JSON up to date to make the logic below simpler
+    // We keep the existing JSON up to date to make the logic below simpler
     existingJSON.configurations[0].includePath = [];
   }
 
-  let includePathList = existingJSON.configurations[0].includePath;
-  let whereToInsert = existingJSON.configurations[0].includePath.length;
+  const includePathList = existingJSON.configurations[0].includePath;
+  const whereToInsert = existingJSON.configurations[0].includePath.length;
 
-  // if the user updated versions of VectorCAST, we might have an "old" include path that needs to be removed
+  // If the user updated versions of VectorCAST, we might have an "old" include path that needs to be removed
   const indexToRemove = includePathList.findIndex((element: string) =>
     element.includes(vUnitIncludeSuffix)
   );
@@ -138,20 +128,21 @@ function insertIncludePath(filePath: string) {
 
   vscode.window.showInformationMessage(statusMessages.join("\n"));
 
-  // we unconditionally write rather than tracking if we changed anything
+  // We unconditionally write rather than tracking if we changed anything
   fs.writeFileSync(filePath, existingJSONasString);
 }
 
 function convertTestScriptContents(scriptPath: string) {
   // Read the file
-  let originalLines = fs.readFileSync(scriptPath).toString().split(os.EOL);
-  let newLines: string[] = [];
+  const originalLines = fs.readFileSync(scriptPath).toString().split(os.EOL);
+  const newLines: string[] = [];
 
   // Modify the lines
   for (let line of originalLines) {
     if (line == "TEST.NEW") {
       line = "TEST.REPLACE";
     }
+
     newLines.push(line);
   }
 
@@ -163,7 +154,7 @@ function convertTestScriptContents(scriptPath: string) {
 }
 
 export async function openTestScript(nodeID: string) {
-  // this can get called for a unit, environment, function, or test
+  // This can get called for a unit, environment, function, or test
 
   const testNode: testNodeType = getTestNode(nodeID);
   const scriptPath = testNode.enviroPath + ".tst";
@@ -176,10 +167,10 @@ export async function openTestScript(nodeID: string) {
     // convert TEST.NEW to TEST.REPLACE so doing an "immediate load" works without error
     convertTestScriptContents(scriptPath);
 
-    // open the script file for editing
+    // Open the script file for editing
     vscode.workspace.openTextDocument(scriptPath).then(
-      (doc: vscode.TextDocument) => {
-        vscode.window.showTextDocument(doc);
+      (document: vscode.TextDocument) => {
+        vscode.window.showTextDocument(document);
       },
       (error: any) => {
         vectorMessage(error);
@@ -198,9 +189,9 @@ export async function adjustScriptContentsBeforeLoad(scriptPath: string) {
   //
   //   - <might be more things to do later>
 
-  let originalLines = fs.readFileSync(scriptPath).toString().split("\n");
-  let newLines: string[] = [];
-  for (let line of originalLines) {
+  const originalLines = fs.readFileSync(scriptPath).toString().split("\n");
+  const newLines: string[] = [];
+  for (const line of originalLines) {
     if (line.startsWith("TEST.REQUIREMENT_KEY:")) {
       const keyLineParts = line.split("|");
       if (keyLineParts.length == 2) {
@@ -213,6 +204,7 @@ export async function adjustScriptContentsBeforeLoad(scriptPath: string) {
       newLines.push(line);
     }
   }
+
   fs.writeFileSync(scriptPath, newLines.join("\n"), "utf8");
 }
 
@@ -227,7 +219,7 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
 
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const timeStamp = Date.now().toString();
-  const tempScriptPath = path.join(
+  const temporaryScriptPath = path.join(
     enclosingDirectory,
     `vcast-${timeStamp}.tst`
   );
@@ -236,7 +228,7 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   // ignore the testName (if any)
   testNode.testName = "";
 
-  runBasisPathCommands(testNode, tempScriptPath, loadScriptCallBack);
+  runBasisPathCommands(testNode, temporaryScriptPath, loadScriptCallBack);
 }
 
 export function generateAndLoadATGTests(testNode: testNodeType) {
@@ -251,7 +243,7 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
 
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const timeStamp = Date.now().toString();
-  const tempScriptPath = path.join(
+  const temporaryScriptPath = path.join(
     enclosingDirectory,
     `vcast-${timeStamp}.tst`
   );
@@ -260,7 +252,7 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
   // ignore the testName (if any)
   testNode.testName = "";
 
-  runATGCommands(testNode, tempScriptPath, loadScriptCallBack);
+  runATGCommands(testNode, temporaryScriptPath, loadScriptCallBack);
 }
 
 export enum testStatus {
@@ -272,7 +264,7 @@ export enum testStatus {
 }
 
 export function openTestFileAndErrors(testNode: testNodeType): testStatus {
-  // used to show the coded test source file and associated
+  // Used to show the coded test source file and associated
   // compile or link errors when a coded test "add" or execution fails.
 
   // because vcast does not give us a unique error code for coded test
@@ -284,17 +276,18 @@ export function openTestFileAndErrors(testNode: testNodeType): testStatus {
   const compileErrorFile = path.join(testNode.enviroPath, "ACOMPILE.LIS");
   const linkErrorFile = path.join(testNode.enviroPath, "AALINKER.LIS");
 
-  let compileModTime = 0;
+  let compileModuleTime = 0;
   if (fs.existsSync(compileErrorFile)) {
-    compileModTime = fs.statSync(compileErrorFile).mtime.getTime();
+    compileModuleTime = fs.statSync(compileErrorFile).mtime.getTime();
   }
-  let linkModTime = 0;
+
+  let linkModuleTime = 0;
   if (fs.existsSync(linkErrorFile)) {
-    linkModTime = fs.statSync(linkErrorFile).mtime.getTime();
+    linkModuleTime = fs.statSync(linkErrorFile).mtime.getTime();
   }
 
   let fileToDisplay = compileErrorFile;
-  if (compileModTime < linkModTime) {
+  if (compileModuleTime < linkModuleTime) {
     fileToDisplay = linkErrorFile;
     returnStatus = testStatus.linkError;
   }
@@ -306,9 +299,9 @@ export function openTestFileAndErrors(testNode: testNodeType): testStatus {
 }
 
 export async function closeAnyOpenErrorFiles() {
-  // this function will close any left over ACOMPILE.LIS or AALINKER.LIS files
+  // This function will close any left over ACOMPILE.LIS or AALINKER.LIS files
   // from the last test execution.
-  for (let editor of vscode.window.visibleTextEditors) {
+  for (const editor of vscode.window.visibleTextEditors) {
     if (
       editor.document.fileName.endsWith("ACOMPILE.LIS") ||
       editor.document.fileName.endsWith("AALINKER.LIS")
@@ -328,13 +321,13 @@ export function getEnviroNameFromFile(filePath: string): string | undefined {
   // This funciton will extract the enviro name from
   // the ENVIRO.NAME: <name> line of the provided file
 
-  let enviroName: string | undefined = undefined;
+  let enviroName: string | undefined;
 
-  // load the contents of filePath, find the ENVIRO.NAME: line
+  // Load the contents of filePath, find the ENVIRO.NAME: line
   // and return the value after the colon
   const fileContents = fs.readFileSync(filePath).toString();
   const lines = fileContents.split("\n");
-  for (let line of lines) {
+  for (const line of lines) {
     if (line.startsWith("ENVIRO.NAME:")) {
       enviroName = line.split(":")[1].trim();
       break;
@@ -347,9 +340,9 @@ export function getEnviroNameFromFile(filePath: string): string | undefined {
 export function testInterfaceCommand(
   mode: string,
   enviroPath: string,
-  testID: string = ""
+  testID = ""
 ): any | undefined {
-  // enviroPath is the absolute path to the environnement directory
+  // EnviroPath is the absolute path to the environnement directory
   // testID is contains the string that uniquely identifies the node, something like:
   //    vcast:TEST|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
   //    vcast:unitTests/MANAGER|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
@@ -359,11 +352,11 @@ export function testInterfaceCommand(
     const command = `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${mode} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
     let testArgument = "";
     if (testID.length > 0) {
-      // we need to strip the "path part" of the environment directory from the test ID
+      // We need to strip the "path part" of the environment directory from the test ID
       // which is the part before the '|' and after the ':'
       const enviroPath = testID.split("|")[0].split(":")[1];
 
-      // now the path to the environment might have a slash if the environment is nested or not
+      // Now the path to the environment might have a slash if the environment is nested or not
       // so we need to handle that case, since we only want the environment name
       let enviroName = enviroPath;
       if (enviroName.includes("/")) {
@@ -372,33 +365,36 @@ export function testInterfaceCommand(
           enviroPath.length
         );
       }
+
       // The -test arguments should be the enviro name along with everything after the |
       testArgument = ` --test="${enviroName}|${testID.split("|")[1]}"`;
     }
+
     return command + testArgument;
-  } else
-    vscode.window.showWarningMessage(
-      "The VectorCAST Test Explorer could not find the vpython utility."
-    );
+  }
+
+  vscode.window.showWarningMessage(
+    "The VectorCAST Test Explorer could not find the vpython utility."
+  );
   return undefined;
 }
 
 export function parseCBTCommand(filePath: string): string {
-  // this command returns the list of tests that exist in a coded test source file
+  // This command returns the list of tests that exist in a coded test source file
   return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --path=${filePath}`;
 }
 
 export function rebuildEnvironmentCommand(filePath: string): string {
-  // this command performs the environment rebuild, including the update of the .env file
+  // This command performs the environment rebuild, including the update of the .env file
 
   // read the settings that affect enviro build
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  let optionsDict: { [command: string]: string | boolean } = {};
-  optionsDict["ENVIRO.COVERAGE_TYPE"] = settings.get(
+  const optionsDictionary: Record<string, string | boolean> = {};
+  optionsDictionary["ENVIRO.COVERAGE_TYPE"] = settings.get(
     "build.coverageKind",
     "None"
   );
 
-  const jsonOptions: string = JSON.stringify(optionsDict);
+  const jsonOptions: string = JSON.stringify(optionsDictionary);
   return `${vPythonCommandToUse} ${globalTestInterfacePath} --clicast=${clicastCommandToUse} --mode=rebuild --path=${filePath} --options=${jsonOptions}`;
 }

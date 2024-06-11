@@ -1,5 +1,8 @@
-import { TextDocument, Diagnostic, Position } from "vscode-languageserver";
-
+import {
+  type TextDocument,
+  type Diagnostic,
+  type Position,
+} from "vscode-languageserver";
 import { testCommandList, scriptFeatureList } from "./serverUtilities";
 
 const vscode_languageserver = require("vscode-languageserver");
@@ -10,51 +13,51 @@ function diagnostic(
   end: number,
   message: string
 ): Diagnostic {
-  let startPosition: Position = { line: line, character: start };
-  let endPosition: Position = { line: line, character: end };
+  const startPosition: Position = { line, character: start };
+  const endPosition: Position = { line, character: end };
 
-  let diagnostic: Diagnostic = {
+  const diagnostic: Diagnostic = {
     severity: vscode_languageserver.DiagnosticSeverity.Warning,
     range: {
       start: startPosition,
       end: endPosition,
     },
-    message: message,
+    message,
     source: "TST Editor",
   };
   return diagnostic;
 }
 
-const specialSubprogramNames = ["<<INIT>>", "<<COMPOUND>>"];
+const specialSubprogramNames = new Set(["<<INIT>>", "<<COMPOUND>>"]);
 
 export function validateTextDocument(textDocument: TextDocument) {
-  // this function does the error checking for the test script
+  // This function does the error checking for the test script
   // and generates diagnostics for any issues
 
-  let diagnosticList: Diagnostic[] = [];
+  const diagnosticList: Diagnostic[] = [];
 
   let lineIndex = 0;
-  let text = textDocument.getText();
-  let lineList = text.split(/\r?\n/g);
+  const text = textDocument.getText();
+  const lineList = text.split(/\r?\n/g);
 
   let currentUnit = "";
   let currentFunction = "";
-  let withinTest: boolean = false;
-  let withinNotes: boolean = false;
-  let withinFlow: boolean = false;
-  let withinValueUserCode: boolean = false;
-  let withinExpectedUserCode: boolean = false;
+  let withinTest = false;
+  let withinNotes = false;
+  let withinFlow = false;
+  let withinValueUserCode = false;
+  let withinExpectedUserCode = false;
   let withinImportFailures = false;
 
   for (lineIndex = 0; lineIndex < lineList.length; lineIndex++) {
-    let thisLine: string = lineList[lineIndex];
+    const thisLine: string = lineList[lineIndex];
 
     if (thisLine.startsWith("TEST")) {
-      const pieces = thisLine.split(/(?<!:)[:\.](?!:)/);
+      const pieces = thisLine.split(/(?<!:)[:.](?!:)/);
       let command = "";
       if (pieces.length > 1) command = pieces[1].trim();
 
-      // test-level commands
+      // Test-level commands
       if (withinTest) {
         if (withinNotes) {
           if (command == "END_NOTES") withinNotes = false;
@@ -135,104 +138,91 @@ export function validateTextDocument(textDocument: TextDocument) {
           withinTest = false;
         }
       }
-      //file-level commands
-      else {
-        if (testCommandList.indexOf(command) < 0) {
-          diagnosticList.push(
-            diagnostic(
-              lineIndex,
-              0,
-              1000,
-              "Invalid command, type TEST. to see all command values"
-            )
-          );
-        } else if (command == "UNIT") {
-          currentUnit = pieces[2];
-        } else if (command == "SUBPROGRAM") {
-          currentFunction = pieces[2];
-          if (
-            currentUnit == "" &&
-            !specialSubprogramNames.includes(currentFunction)
+      // File-level commands
+      else if (!testCommandList.includes(command)) {
+        diagnosticList.push(
+          diagnostic(
+            lineIndex,
+            0,
+            1000,
+            "Invalid command, type TEST. to see all command values"
           )
-            diagnosticList.push(
-              diagnostic(
-                lineIndex,
-                0,
-                1000,
-                "TEST.UNIT is required but missing"
-              )
-            );
-        } else if (
-          command == "NEW" ||
-          command == "REPLACE" ||
-          command == "ADD"
-        ) {
-          if (currentFunction == "") {
-            diagnosticList.push(
-              diagnostic(
-                lineIndex,
-                0,
-                1000,
-                "TEST.SUBPRORGRAM is required but missing"
-              )
-            );
-          }
-          withinTest = true;
-        } else if (command == "END") {
-          if (!withinTest) {
-            diagnosticList.push(
-              diagnostic(
-                lineIndex,
-                0,
-                1000,
-                "TEST.NEW | REPLACE is required but missing"
-              )
-            );
-          }
-        } else if (command == "SCRIPT_FEATURE" && pieces.length > 2) {
-          const featureName = pieces[2].trim();
-          if (scriptFeatureList.indexOf(featureName) < 0) {
-            diagnosticList.push(
-              diagnostic(
-                lineIndex,
-                0,
-                1000,
-                "Invalid feature flag, type TEST.SCRIPT_FEATURE: to see a all flags"
-              )
-            );
-          }
-        } else {
-          // this is a valid TEST command, but it does not belong in the file scope
+        );
+      } else if (command == "UNIT") {
+        currentUnit = pieces[2];
+      } else if (command == "SUBPROGRAM") {
+        currentFunction = pieces[2];
+        if (currentUnit == "" && !specialSubprogramNames.has(currentFunction))
+          diagnosticList.push(
+            diagnostic(lineIndex, 0, 1000, "TEST.UNIT is required but missing")
+          );
+      } else if (command == "NEW" || command == "REPLACE" || command == "ADD") {
+        if (currentFunction == "") {
           diagnosticList.push(
             diagnostic(
               lineIndex,
               0,
               1000,
-              "Command is only valid within a TEST.NEW | REPLACE -> TEST.END block "
+              "TEST.SUBPRORGRAM is required but missing"
             )
           );
         }
+
+        withinTest = true;
+      } else if (command == "END") {
+        if (!withinTest) {
+          diagnosticList.push(
+            diagnostic(
+              lineIndex,
+              0,
+              1000,
+              "TEST.NEW | REPLACE is required but missing"
+            )
+          );
+        }
+      } else if (command == "SCRIPT_FEATURE" && pieces.length > 2) {
+        const featureName = pieces[2].trim();
+        if (!scriptFeatureList.includes(featureName)) {
+          diagnosticList.push(
+            diagnostic(
+              lineIndex,
+              0,
+              1000,
+              "Invalid feature flag, type TEST.SCRIPT_FEATURE: to see a all flags"
+            )
+          );
+        }
+      } else {
+        // This is a valid TEST command, but it does not belong in the file scope
+        diagnosticList.push(
+          diagnostic(
+            lineIndex,
+            0,
+            1000,
+            "Command is only valid within a TEST.NEW | REPLACE -> TEST.END block "
+          )
+        );
       }
-    } // end if this is a TEST command
+    } // End if this is a TEST command
     else if (
       !(
-        // nothing to be done for comments, blanks lines and notes
+        // Nothing to be done for comments, blanks lines and notes
         (
           withinNotes ||
           withinFlow ||
           withinValueUserCode ||
           withinExpectedUserCode ||
           withinImportFailures ||
-          thisLine.match(/^\s*\/\/.*$/) ||
-          thisLine.match(/^\s*--.*$/) ||
-          thisLine.trim().length == 0
+          /^\s*\/\/.*$/.test(thisLine) ||
+          /^\s*--.*$/.test(thisLine) ||
+          thisLine.trim().length === 0
         )
       )
     ) {
-      let message = "Illegal line, comments must start with -- or //";
+      const message = "Illegal line, comments must start with -- or //";
       diagnosticList.push(diagnostic(lineIndex, 0, 1000, message));
     }
-  } // end for loop
+  } // End for loop
 
   return diagnosticList;
 }
