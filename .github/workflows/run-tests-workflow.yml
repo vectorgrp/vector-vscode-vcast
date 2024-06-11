@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - gh_actions_improvements_final   # TODO tmp
   pull_request:
     branches:
       - main
@@ -357,3 +358,55 @@ jobs:
           path: |
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
+
+  code-formatting:
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+
+    steps:
+      - name: Start forward proxy
+        run: |
+          sudo /usr/sbin/squid
+          NEW_PROXY="http://$(hostname --ip-address):3128"
+          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Black
+        shell: bash
+        run: |
+          source /home/vcast_user/.venv/bin/activate
+          python -m black .
+          deactivate
+
+      - name: Xo
+        run: xo --fix "**/*.{js,jsx,ts,tsx}"
+
+      - name: Check for Git changes
+        id: git_changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            echo "::set-output name=changes::false"
+          else
+            echo "Changes detected"
+            echo "::set-output name=changes::true"
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v3
+        with:
+          commit-message: 'GHABot - Apply code formatting'
+          branch: 'code-formatting'
+          branch-suffix: 'short-commit-hash'

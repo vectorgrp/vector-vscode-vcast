@@ -68,7 +68,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     npm i -g yo && \
     npm install -g @vscode/vsce@^2.15.04 && \
     npm install -g typescript && \
-    npm install -g esbuild
+    npm install -g esbuild && \
+    npm install -g xo
 RUN sudo alternatives --install /usr/bin/openssl openssl /usr/bin/openssl11 1
 
 WORKDIR /home/${USERNAME}
@@ -78,7 +79,8 @@ RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tg
     tar xvf Python-${PY_VERSION}.tgz && cd Python-${PY_VERSION} && sed -i 's/PKG_CONFIG openssl /PKG_CONFIG openssl11 /g' configure && \
     ./configure --enable-optimizations && sudo make altinstall && cd .. && sudo rm -rf Python-${PY_VERSION}* && \
     sudo alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1 && mkdir ".pip" && \
-    echo -e '[global]\ntrusted-host = pypi.org\n               pypi.python.org\n               files.pythonhosted.org' >> .pip/pip.conf
+    echo -e '[global]\ntrusted-host = pypi.org\n               pypi.python.org\n               files.pythonhosted.org' >> .pip/pip.conf && \
+    python3 -m venv .venv && source .venv/bin/activate && pip install black && deactivate
 
 RUN sudo yum groupinstall 'Development Tools' -y && sudo yum install curl-devel expat-devel gettext-devel zlib-devel perl-CPAN perl-devel -y && cd && \
     wget https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.18.0.tar.gz && tar xf git-2.18.0.tar.gz && cd git-2.18.0/ && \
