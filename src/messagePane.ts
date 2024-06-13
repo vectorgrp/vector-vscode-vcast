@@ -24,50 +24,58 @@ function formattedLine(
   line: string,
   level: errorLevel
 ): string {
-  let returnString: string = "";
+  let returnString = "";
   returnString = prefix.padEnd(15) + level.padEnd(8) + line;
   return returnString;
 }
 
-async function displayMessage(prefix: string, msg: string, level: errorLevel) {
+async function displayMessage(
+  prefix: string,
+  message: string,
+  level: errorLevel
+) {
   const messagePane = getMessagePane();
-  let stringList = msg.split("\n");
-  // for errorLevel.error, we show the first line of the msg in a popup
+  const stringList = message.split("\n");
+  // For errorLevel.error, we show the first line of the msg in a popup
   if (level == errorLevel.error) {
     vscode.window.showErrorMessage(stringList[0]);
   }
-  for (let line of stringList) {
+
+  for (const line of stringList) {
     messagePane.appendLine(formattedLine(prefix, line, level));
   }
 }
 
-// duplicated from VTC ////////////////////////
+// Duplicated from VTC ////////////////////////
 
 // Note that this is an aysnc function so to if you are using to display
 // a message before a long-running process, use await in the caller.
 export async function vectorMessage(
-  msg: string,
+  message: string,
   level: errorLevel = errorLevel.info
 ) {
   if (
     level != errorLevel.trace ||
     (level == errorLevel.trace && globalVerboseOn)
   ) {
-    displayMessage("test explorer", msg, level);
+    displayMessage("test explorer", message, level);
   }
 }
 
-export function vcastMessage(msg: string, level: errorLevel = errorLevel.info) {
-  if (globalVerboseOn) displayMessage("vectorcast", msg, level);
+export function vcastMessage(
+  message: string,
+  level: errorLevel = errorLevel.info
+) {
+  if (globalVerboseOn) displayMessage("vectorcast", message, level);
 }
 
-let globalVerboseOn: boolean = false;
+let globalVerboseOn = false;
 export function adjustVerboseSetting() {
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   globalVerboseOn = settings.get("verboseLogging", false);
 }
 
-let globalLogIsOpen: boolean = false;
+let globalLogIsOpen = false;
 export function openMessagePane() {
   const messagePane = getMessagePane();
   messagePane.show();

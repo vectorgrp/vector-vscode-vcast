@@ -1,13 +1,13 @@
 import * as vscode from "vscode";
-import { DecorationRenderOptions, TextEditorDecorationType } from "vscode";
-
-import { testNodeType } from "./testData";
-
+import {
+  type DecorationRenderOptions,
+  type TextEditorDecorationType,
+} from "vscode";
+import { type testNodeType } from "./testData";
 import { getRangeOption } from "./utilities";
-
 import { checksumMatchesEnvironment } from "./vcastTestInterface";
 
-const path = require("path");
+const path = require("node:path");
 
 // This is used in the package.json to control the display of context menu items
 // Search for 'vectorcastTestExplorer.testableLineList' in package.json to see where we reference it
@@ -31,25 +31,24 @@ export function initializeTestDecorator(context: vscode.ExtensionContext) {
   );
 }
 
-interface unitDataType {
+type unitDataType = {
   enviroPath: string;
   enviroName: string;
   unitName: string;
   lineMap: Map<number, string>;
-}
+};
 
-let unitAndFunctionMap: Map<string, unitDataType> = new Map();
+const unitAndFunctionMap = new Map<string, unitDataType>();
 
 export function updateFunctionDataForFile(
   enviroPath: string,
   fileName: string,
   functionList: string[]
 ) {
-  // functionList is a list of json items with fields for "name" and "startLine"
-  let lineMap: Map<number, string> = new Map();
-  for (let i = 0; i < functionList.length; i++) {
-    const functionInfo: any = functionList[i];
-    // for now we only use the line to functionName map to insert
+  // FunctionList is a list of json items with fields for "name" and "startLine"
+  const lineMap = new Map<number, string>();
+  for (const functionInfo: any of functionList) {
+    // For now we only use the line to functionName map to insert
     // the flask icon in the editor, so we simply drop functions
     // with isTestable set to false
     if (functionInfo.isTestable) {
@@ -63,74 +62,78 @@ export function updateFunctionDataForFile(
   const unitName = path.basename(fileName).split(".")[0];
 
   const unitData: unitDataType = {
-    enviroPath: enviroPath,
-    enviroName: enviroName,
-    unitName: unitName,
-    lineMap: lineMap,
+    enviroPath,
+    enviroName,
+    unitName,
+    lineMap,
   };
 
   unitAndFunctionMap.set(fileName, unitData);
 }
 
-export function buildTestNodeForFunction(args: any): testNodeType | undefined {
-  // this functon will take the file path and function index and return a test node
+export function buildTestNodeForFunction(
+  arguments_: any
+): testNodeType | undefined {
+  // This functon will take the file path and function index and return a test node
   // with the correct data for the function
 
   // args comes from the call back and has the file URI and the line number
 
-  const filename = args.uri.fsPath;
+  const filename = arguments_.uri.fsPath;
   const unitData = unitAndFunctionMap.get(filename);
-  let testNode: testNodeType | undefined = undefined;
+  let testNode: testNodeType | undefined;
 
   if (unitData) {
-    const functionName = unitData.lineMap.get(args.lineNumber);
+    const functionName = unitData.lineMap.get(arguments_.lineNumber);
     if (functionName) {
       testNode = {
         enviroPath: unitData.enviroPath,
         enviroName: unitData.enviroName,
         unitName: unitData.unitName,
-        functionName: functionName,
+        functionName,
         testName: "",
       };
     }
   }
+
   return testNode;
 }
 
 export function updateTestDecorator() {
-  // activeEditor will always exist when this is called
+  // ActiveEditor will always exist when this is called
   // this will use the previously initialized file|function map to create
   // the decorations for the currently active file
 
   // Note: VectorCAST only has the location of the opening curly brace for the
   // function, so that's where the icon and right click menu will be
 
-  let activeEditor = vscode.window.activeTextEditor;
+  const activeEditor = vscode.window.activeTextEditor;
   if (activeEditor) {
-    // toss the old data
+    // Toss the old data
     testableLineList = [];
     testableFunctionsDecorations = [];
 
     const filePath = activeEditor.document.fileName;
     const unitData = unitAndFunctionMap.get(filePath);
 
-    if (unitData) {
-      // We don't want to display the icon and context menu if the
+    if (
+      unitData && // We don't want to display the icon and context menu if the
       // file has been edited.  This is the easiest way to check that
-      if (checksumMatchesEnvironment(filePath, unitData.enviroPath)) {
-        unitData.lineMap.forEach((functionName, lineNumber) => {
-          testableLineList.push(lineNumber);
-          // the range positions are 0 based
-          testableFunctionsDecorations.push(getRangeOption(lineNumber - 1));
-        });
+      checksumMatchesEnvironment(filePath, unitData.enviroPath)
+    ) {
+      for (const [lineNumber, functionName] of unitData.lineMap.entries()) {
+        testableLineList.push(lineNumber);
+        // The range positions are 0 based
+        testableFunctionsDecorations.push(getRangeOption(lineNumber - 1));
       }
     }
-    // update the flask icon decorations
+
+    // Update the flask icon decorations
     activeEditor.setDecorations(
       testableFunctionDecorationType,
       testableFunctionsDecorations
     );
-    // push the updated testableLineList to control content (right click) menu choices
+    // Push the updated testableLineList to control content (right click) menu choices
     vscode.commands.executeCommand(
       "setContext",
       "vectorcastTestExplorer.testableLineList",

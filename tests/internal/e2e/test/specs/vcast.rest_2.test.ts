@@ -1,10 +1,12 @@
-// test/specs/vcast.test.ts
+// Test/specs/vcast.test.ts
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import {
-  BottomBarPanel,
-  TextEditor,
-  EditorView,
-  Workbench,
-  TreeItem,
+  type BottomBarPanel,
+  type TextEditor,
+  type EditorView,
+  type Workbench,
+  type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -15,27 +17,25 @@ import {
   updateTestID,
 } from "../test_utils/vcast_utils";
 
-import { exec } from "child_process";
-import { promisify } from "node:util";
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20000;
+  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -49,6 +49,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -56,6 +57,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -64,7 +66,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -72,15 +74,15 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
@@ -98,9 +100,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const settingsEditor = await workbench.openSettings();
     await settingsEditor.findSetting(
-      "vectorcastTestExplorer.showReportOnExecute",
+      "vectorcastTestExplorer.showReportOnExecute"
     );
-    // only one setting in search results, so the current way of clicking is correct
+    // Only one setting in search results, so the current way of clicking is correct
     await (await settingsEditor.checkboxSetting$).click();
     // The following would have been cleaner but returns un undefined setting object:
     // const setting = await settingsEditor.findSetting("vectorcastTestExplorer.showReportOnExecute");
@@ -109,8 +111,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -119,7 +121,7 @@ describe("vTypeCheck VS Code Extension", () => {
           subprogram,
           "Manager::PlaceOrder",
           "myThirdTest",
-          3,
+          3
         );
         if (testHandle) {
           break;
@@ -141,9 +143,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await (await bottomBar.openOutputView()).getText()).includes(
-          "test explorer  [info]  Status: passed",
+          "test explorer  [info]  Status: passed"
         ),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     await bottomBar.restore();
 
@@ -151,7 +153,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(webviews).toHaveLength(0);
 
     await workbench.openSettings();
-    // only one setting in search results, so the current way of clicking is correct
+    // Only one setting in search results, so the current way of clicking is correct
     await (await settingsEditor.checkboxSetting$).click();
   });
 
@@ -160,31 +162,31 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      await vcastTestingViewSection.expand()
+      await vcastTestingViewSection.expand();
       subprogram = await findSubprogram(
         "Compound Tests",
-        vcastTestingViewSection,
+        vcastTestingViewSection
       );
       if (subprogram) {
         await subprogram.expand();
         testHandle = await findSubprogramMethod(
           subprogram,
-          "test-<<COMPOUND>>",
+          "test-<<COMPOUND>>"
         );
 
         if (testHandle) {
           break;
         } else {
-          throw new Error( "Test handle not found for Compound Test");
+          throw new Error("Test handle not found for Compound Test");
         }
       }
     }
 
     if (!subprogram) {
-      throw new Error( "Subprogram 'manager' not found");
+      throw new Error("Subprogram 'manager' not found");
     }
 
     console.log("Running Compound Test");
@@ -194,7 +196,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length > 0,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
@@ -202,15 +204,15 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
     await expect($(".event*=Event 1")).toHaveText(
-      "Event 1 - Calling Manager::PlaceOrder",
+      "Event 1 - Calling Manager::PlaceOrder"
     );
 
     await expect($(".event*=Event 2")).toHaveText(
-      "Event 2 - Returned from Manager::PlaceOrder",
+      "Event 2 - Returned from Manager::PlaceOrder"
     );
 
     await expect($(".text-muted*=UUT: manager.cpp")).toHaveText(
-      "UUT: manager.cpp",
+      "UUT: manager.cpp"
     );
 
     await expect($(".subprogram*=Manager")).toHaveText("Manager::PlaceOrder");
@@ -218,7 +220,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await webview.close();
     await editorView.closeEditor("VectorCAST Report", 1);
   });
-  
+
   it("should prepare for debugging with coverage turned ON", async () => {
     await updateTestID();
 
@@ -243,18 +245,18 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Validating that debug launch configuration got generated");
     let debugConfigTab = (await editorView.openEditor(
-      "launch.json",
+      "launch.json"
     )) as TextEditor;
-    
+
     await browser.waitUntil(
       async () => (await debugConfigTab.getText()) !== "",
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
-    await debugConfigTab.moveCursor(1,2)
-    await browser.keys(Key.Enter)
-    await debugConfigTab.setTextAtLine(2, " // This is a comment")
-    await debugConfigTab.save()
-    
+    await debugConfigTab.moveCursor(1, 2);
+    await browser.keys(Key.Enter);
+    await debugConfigTab.setTextAtLine(2, " // This is a comment");
+    await debugConfigTab.save();
+
     const allTextFromDebugConfig = await debugConfigTab.getText();
     expect(allTextFromDebugConfig.includes("configurations")).toBe(true);
     expect(allTextFromDebugConfig.includes("VectorCAST Harness Debug"));
@@ -263,8 +265,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const vcastTestingViewContent = await getViewContent("Testing");
 
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -273,18 +275,18 @@ describe("vTypeCheck VS Code Extension", () => {
           subprogram,
           "Manager::PlaceOrder",
           "myFirstTest",
-          3,
+          3
         );
         if (testHandle) {
           break;
         } else {
-          throw new Error( "Test handle not found for myFirstTest");
+          throw new Error("Test handle not found for myFirstTest");
         }
       }
     }
 
     if (!subprogram) {
-      throw new Error( "Subprogram 'manager' not found");
+      throw new Error("Subprogram 'manager' not found");
     }
 
     console.log("Debugging myFirstTest");
@@ -295,44 +297,45 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const debugNotificationText =
       "aria/Ready for debugging, choose launch configuration: &quot;VectorCAST Harness Debug&quot; ...";
-    // this will timeout if debugger is not ready and/or debugger notification text is not shown
+    // This will timeout if debugger is not ready and/or debugger notification text is not shown
     await $(debugNotificationText);
 
     console.log("Waiting for manager_inst.cpp to be open");
-    // this times out if manager_vcast.cpp is not ready
+    // This times out if manager_vcast.cpp is not ready
     await browser.waitUntil(
       async () =>
         (await (await editorView.getActiveTab()).getTitle()) ===
         "manager_inst.cpp",
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     const activeTab = await editorView.getActiveTab();
     const activeTabTitle = await activeTab.getTitle();
     console.log(activeTabTitle);
     expect(activeTabTitle).toBe("manager_inst.cpp");
-    
-    // checking that the debug config file still has the comment we added
-    debugConfigTab = (await editorView.openEditor(
-      "launch.json",
-    )) as TextEditor;
-    const commentLine = await debugConfigTab.getTextAtLine(2)
-    expect(commentLine).toBe("// This is a comment")
+
+    // Checking that the debug config file still has the comment we added
+    debugConfigTab = (await editorView.openEditor("launch.json")) as TextEditor;
+    const commentLine = await debugConfigTab.getTextAtLine(2);
+    expect(commentLine).toBe("// This is a comment");
     console.log("Finished creating debug configuration");
   });
 
   it("should prepare for debugging with coverage turned OFF", async () => {
     await updateTestID();
-    console.log("Turning off coverage")
+    console.log("Turning off coverage");
     {
-      const turnOffCoverageCmd = "cd test/vcastTutorial/cpp/unitTests && clicast -e DATABASE-MANAGER tools coverage disable"
+      const turnOffCoverageCmd =
+        "cd test/vcastTutorial/cpp/unitTests && clicast -e DATABASE-MANAGER tools coverage disable";
       const { stdout, stderr } = await promisifiedExec(turnOffCoverageCmd);
-        
+
       if (stderr) {
         console.log(stderr);
-        throw new Error( `Error when running ${turnOffCoverageCmd}`);
+        throw new Error(`Error when running ${turnOffCoverageCmd}`);
       }
-      console.log(stdout)
+
+      console.log(stdout);
     }
+
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
     const explorerSideBarView = await explorerView?.openView();
@@ -348,8 +351,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const vcastTestingViewContent = await getViewContent("Testing");
 
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -358,18 +361,18 @@ describe("vTypeCheck VS Code Extension", () => {
           subprogram,
           "Manager::PlaceOrder",
           "myFirstTest",
-          3,
+          3
         );
         if (testHandle) {
           break;
         } else {
-          throw new Error( "Test handle not found for myFirstTest");
+          throw new Error("Test handle not found for myFirstTest");
         }
       }
     }
 
     if (!subprogram) {
-      throw new Error( "Subprogram 'manager' not found");
+      throw new Error("Subprogram 'manager' not found");
     }
 
     console.log("Debugging myFirstTest");
@@ -379,12 +382,12 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Validating debug notifications");
 
     console.log("Waiting for manager_vcast.cpp to be open");
-    // this times out if manager_vcast.cpp is not ready
+    // This times out if manager_vcast.cpp is not ready
     await browser.waitUntil(
       async () =>
         (await (await editorView.getActiveTab()).getTitle()) ===
         "manager_vcast.cpp",
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     const activeTab = await editorView.getActiveTab();
     const activeTabTitle = await activeTab.getTitle();
@@ -392,18 +395,18 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(activeTabTitle).toBe("manager_vcast.cpp");
 
     console.log("Finished creating debug configuration");
-    console.log("Turning coverage back on")
+    console.log("Turning coverage back on");
     {
-      const turnOffCoverageCmd = "cd test/vcastTutorial/cpp/unitTests && clicast -e DATABASE-MANAGER tools coverage enable"
+      const turnOffCoverageCmd =
+        "cd test/vcastTutorial/cpp/unitTests && clicast -e DATABASE-MANAGER tools coverage enable";
       const { stdout, stderr } = await promisifiedExec(turnOffCoverageCmd);
-        
+
       if (stderr) {
         console.log(stderr);
         throw new Error(`Error when running ${turnOffCoverageCmd}`);
       }
-      console.log(stdout)
+
+      console.log(stdout);
     }
-
   });
-
 });

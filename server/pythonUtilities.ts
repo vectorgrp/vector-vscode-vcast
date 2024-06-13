@@ -1,8 +1,8 @@
 import fs = require("fs");
 import path = require("path");
-const execSync = require("child_process").execSync;
+const execSync = require("node:child_process").execSync;
 
-let testEditorScriptPath: string | undefined = undefined;
+let testEditorScriptPath: string | undefined;
 let vPythonCommandToUse: string;
 export function setPaths(
   _testEditorScriptPath: string,
@@ -11,6 +11,7 @@ export function setPaths(
   testEditorScriptPath = _testEditorScriptPath;
   vPythonCommandToUse = _vPythonCommandToUse;
 }
+
 function initializeScriptPath() {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
@@ -39,7 +40,7 @@ export function runPythonScript(
   action: string,
   payload: string
 ): any {
-  // this is currently not used as the actual server mode is unused
+  // This is currently not used as the actual server mode is unused
   if (testEditorScriptPath == undefined) {
     initializeScriptPath();
   }
@@ -52,7 +53,7 @@ export function runPythonScript(
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${action} ${enviroName} "${payload}"`;
   const commandOutputBuffer = execSync(commandToRun).toString();
 
-  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
+  // Vpython prints this annoying message if VECTORCAST_DIR does not match the executable
   // message to stdout when VC_DIR does not match the vcast distro being run.
   // Since this happens before our script even starts so we cannot suppress it.
   // We could send the json data to a temp file, but the create/open file operations
@@ -68,9 +69,10 @@ export function getChoiceDataFromPython(
   lineSoFar: string
 ): any {
   const jsonData = runPythonScript(enviroName, "choiceList", lineSoFar);
-  for (const msg of jsonData.messages) {
-    console.log(msg);
+  for (const message of jsonData.messages) {
+    console.log(message);
   }
+
   return jsonData;
 }
 
@@ -78,25 +80,27 @@ export function getHoverStringForRequirement(
   enviroName: string,
   requirementKey: string
 ): any {
-  let returnValue: string = "";
+  let returnValue = "";
   const jsonData = runPythonScript(
     enviroName,
     "choiceList",
     "TEST.REQUIREMENT_KEY:"
   );
-  for (const msg of jsonData.messages) {
-    console.log(msg);
+  for (const message of jsonData.messages) {
+    console.log(message);
   }
+
   for (const line of jsonData.choiceList) {
     if (line.startsWith(requirementKey)) {
-      // raw data looks like:  <key> ||| <title> ||| <description>
+      // Raw data looks like:  <key> ||| <title> ||| <description>
       const pieces = line.split("|||");
-      // title often has double quotes in our examples so strip those too
-      const title = pieces[1].trim().replace(/['"]+/g, "");
+      // Title often has double quotes in our examples so strip those too
+      const title = pieces[1].trim().replaceAll(/['"]+/g, "");
       const description = pieces[2].trim();
       returnValue = `${title} \n\n ${description}`;
       break;
     }
   }
+
   return returnValue;
 }

@@ -1,11 +1,11 @@
-// test/specs/vcast.test.ts
+// Test/specs/vcast.test.ts
 import {
-  BottomBarPanel,
-  TextEditor,
-  EditorView,
-  CustomTreeItem,
-  Workbench,
-  TreeItem,
+  type BottomBarPanel,
+  type TextEditor,
+  type EditorView,
+  type CustomTreeItem,
+  type Workbench,
+  type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -20,20 +20,20 @@ describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20000;
+  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -47,6 +47,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -54,6 +55,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -62,7 +64,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -70,15 +72,15 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
@@ -96,9 +98,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const settingsEditor = await workbench.openSettings();
     await settingsEditor.findSetting(
-      "vectorcastTestExplorer.showReportOnExecute",
+      "vectorcastTestExplorer.showReportOnExecute"
     );
-    // only one setting in search results, so the current way of clicking is correct
+    // Only one setting in search results, so the current way of clicking is correct
     await (await settingsEditor.checkboxSetting$).click();
     // The following would have been cleaner but returns un undefined setting object:
     // const setting = await settingsEditor.findSetting("vectorcastTestExplorer.showReportOnExecute");
@@ -107,8 +109,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -117,7 +119,7 @@ describe("vTypeCheck VS Code Extension", () => {
           subprogram,
           "Manager::PlaceOrder",
           "myThirdTest",
-          3,
+          3
         );
         if (testHandle) {
           break;
@@ -139,9 +141,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await (await bottomBar.openOutputView()).getText()).includes(
-          "test explorer  [info]  Status: passed",
+          "test explorer  [info]  Status: passed"
         ),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     await bottomBar.restore();
 
@@ -149,7 +151,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(webviews).toHaveLength(0);
 
     await workbench.openSettings();
-    // only one setting in search results, so the current way of clicking is correct
+    // Only one setting in search results, so the current way of clicking is correct
     await (await settingsEditor.checkboxSetting$).click();
   });
 
@@ -160,7 +162,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       await vcastTestingViewSection.expand();
@@ -168,7 +170,7 @@ describe("vTypeCheck VS Code Extension", () => {
       for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
         subprogram = await findSubprogram(
           "Compound Tests",
-          vcastTestingViewContentSection,
+          vcastTestingViewContentSection
         );
         if (subprogram) {
           await subprogram.expand();
@@ -176,6 +178,7 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw new Error("Subprogram 'Compound Tests' not found");
     }
@@ -183,7 +186,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await openTestScriptFor(subprogram as CustomTreeItem);
 
     const tab = (await editorView.openEditor(
-      "vcast-template.tst",
+      "vcast-template.tst"
     )) as TextEditor;
     // Need to activate contentAssist before getting the object
     // That way we avoid a timeout that is a result of
@@ -202,7 +205,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await tab.setTextAtLine(
       currentLine,
-      "TEST.SLOT:1,manager,Manager::PlaceOrder,1,myFirstTest",
+      "TEST.SLOT:1,manager,Manager::PlaceOrder,1,myFirstTest"
     );
     await browser.keys(Key.Enter);
     await tab.save();
@@ -210,7 +213,7 @@ describe("vTypeCheck VS Code Extension", () => {
     currentLine += 1;
     await tab.setTextAtLine(
       currentLine,
-      "TEST.SLOT:2,manager,Manager::PlaceOrder,1,mySecondTest",
+      "TEST.SLOT:2,manager,Manager::PlaceOrder,1,mySecondTest"
     );
     await tab.save();
 

@@ -1,24 +1,22 @@
 import * as vscode from "vscode";
 import {
-  DecorationRenderOptions,
-  TextEditorDecorationType,
+  type DecorationRenderOptions,
+  type TextEditorDecorationType,
   window,
 } from "vscode";
 import {
   getCoverageDataForFile,
   getListOfFilesWithCoverage,
 } from "./vcastTestInterface";
-
 import { getRangeOption } from "./utilities";
-
 import { fileDecorator } from "./fileDecorator";
 
-// these are defined as globals so that the deactivate function has access
+// These are defined as globals so that the deactivate function has access
 // to dispose of them when the coverage id turned off
 let uncoveredDecorationType: TextEditorDecorationType;
 let coveredDecorationType: TextEditorDecorationType;
 
-// these are really constants, but I set the values via a function
+// These are really constants, but I set the values via a function
 // so that we could support the user controlling options for the decorations
 let uncoveredRenderOptions: DecorationRenderOptions;
 let coveredRenderOptions: DecorationRenderOptions;
@@ -32,17 +30,17 @@ export function initializeCodeCoverageFeatures(
 
   // Improvement needed: "partial" coverage display not supported
   uncoveredRenderOptions = {
-    //backgroundColor: "red",
-    //color: 'white',
-    //color: "red",
-    //fontWeight: "bold",
+    // BackgroundColor: "red",
+    // color: 'white',
+    // color: "red",
+    // fontWeight: "bold",
     gutterIconPath: context.asAbsolutePath("./images/light/no-cover-icon.svg"),
   };
   coveredRenderOptions = {
-    //backgroundColor: 'green',
-    //color: 'white',
-    //color: "green",
-    //fontWeight: "bold",
+    // BackgroundColor: 'green',
+    // color: 'white',
+    // color: "green",
+    // fontWeight: "bold",
     gutterIconPath: context.asAbsolutePath("./images/light/cover-icon.svg"),
   };
 }
@@ -58,7 +56,7 @@ function addDecorations(
 ) {
   const lineCount = activeEditor.document.lineCount;
   let lineIndex;
-  // these are lists of line numbers
+  // These are lists of line numbers
 
   for (lineIndex = 0; lineIndex < lineCount; lineIndex++) {
     if (covered.includes(lineIndex + 1)) {
@@ -70,23 +68,24 @@ function addDecorations(
 }
 
 // Global Data for code coverage ////////////////////////////////////
-let coverageOn: boolean = false;
+let coverageOn = false;
 let globalStatusBarObject: vscode.StatusBarItem;
-/////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////
 
 function resetGlobalDecorations() {
   uncoveredDecorations = [];
   coveredDecorations = [];
-  // and throw away the old decorations
+  // And throw away the old decorations
   if (uncoveredDecorationType) uncoveredDecorationType.dispose();
   if (coveredDecorationType) coveredDecorationType.dispose();
 }
 
-const url = require("url");
-export function updateCOVdecorations() {
-  // this updates the decorations for the currently active file
+const url = require("node:url");
 
-  let activeEditor = vscode.window.activeTextEditor;
+export function updateCOVdecorations() {
+  // This updates the decorations for the currently active file
+
+  const activeEditor = vscode.window.activeTextEditor;
 
   if (
     activeEditor &&
@@ -95,18 +94,18 @@ export function updateCOVdecorations() {
   ) {
     const filePath = url.fileURLToPath(activeEditor.document.uri.toString());
 
-    // this returns the cached coverage data for this file
+    // This returns the cached coverage data for this file
     const coverageData = getCoverageDataForFile(filePath);
 
     if (coverageData.statusString.length > 0) {
       globalStatusBarObject.text = coverageData.statusString;
       resetGlobalDecorations();
     } else {
-      // there is data to display
+      // There is data to display
       // Reset the global decoration arrays
       resetGlobalDecorations();
 
-      // build the global list of decorations needed
+      // Build the global list of decorations needed
       addDecorations(
         activeEditor,
         coverageData.covered,
@@ -128,12 +127,12 @@ export function updateCOVdecorations() {
       const covered = coveredDecorations.length;
       const coverable = covered + uncoveredDecorations.length;
       let percentage: number;
-      if (coverable == 0) percentage = 0;
-      else percentage = Math.round((covered / coverable) * 100);
+      percentage = coverable == 0 ? 0 : Math.round((covered / coverable) * 100);
       const statusBarText = `Coverage: ${covered}/${coverable} (${percentage}%)`;
       globalStatusBarObject.text = statusBarText;
       globalStatusBarObject.show();
     }
+
     globalStatusBarObject.show();
   } else {
     globalStatusBarObject.hide();
@@ -141,7 +140,7 @@ export function updateCOVdecorations() {
 }
 
 function deactivateCoverage() {
-  // delete all decorations
+  // Delete all decorations
   if (uncoveredDecorationType) uncoveredDecorationType.dispose();
   if (coveredDecorationType) coveredDecorationType.dispose();
   globalStatusBarObject.hide();

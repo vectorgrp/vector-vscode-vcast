@@ -1,21 +1,17 @@
 import * as vscode from "vscode";
 import * as jsonc from "jsonc-parser";
-
 import { openMessagePane, vectorMessage } from "./messagePane";
-
 import {
   exeFilename,
   jsoncParseErrors,
   jsoncParseOptions,
   showSettings,
 } from "./utilities";
-
 import { vcastLicenseOK } from "./vcastAdapter";
-
 import { executeCommandSync, executeVPythonScript } from "./vcastCommandRunner";
 
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const which = require("which");
 
 export const clicastName = "clicast";
@@ -28,24 +24,24 @@ export let vPythonCommandToUse: string;
 const vcastqtName = "vcastqt";
 export let vcastCommandToUse: string;
 
-let globalCheckSumCommand: string | undefined = undefined;
+let globalCheckSumCommand: string | undefined;
 let crc32Name = "crc32-win32.exe";
 if (process.platform == "linux") {
   crc32Name = "crc32-linux";
 }
 
-export let globalTestInterfacePath: string | undefined = undefined;
-let globalCrc32Path: string | undefined = undefined;
+export let globalTestInterfacePath: string | undefined;
+let globalCrc32Path: string | undefined;
 
 export let globalPathToSupportFiles: string;
 
-let globalCodedTestingAvailable: boolean = false;
+let globalCodedTestingAvailable = false;
 
-export let globalIncludePath: string | undefined = undefined;
+export let globalIncludePath: string | undefined;
 
 const atgName = "atg";
-export let atgCommandToUse: string | undefined = undefined;
-export let atgAvailable: boolean = false;
+export let atgCommandToUse: string | undefined;
+export let atgAvailable = false;
 
 export const configurationFile = "c_cpp_properties.json";
 export const launchFile = "launch.json";
@@ -85,21 +81,22 @@ function vcastVersionGreaterThan(
   const toolPath = path.join(vcastInstallationPath, "DATA", "tool_version.txt");
 
   const toolVersion = fs.readFileSync(toolPath).toString().trim();
-  // extract version and service pack from toolVersion (23.sp2 date)
+  // Extract version and service pack from toolVersion (23.sp2 date)
   const matched = toolVersion.match(/(\d+)\.sp(\d+).*/);
   if (matched) {
-    const tooVersion = parseInt(matched[1]);
-    const toolServicePack = parseInt(matched[2]);
+    const tooVersion = Number.parseInt(matched[1]);
+    const toolServicePack = Number.parseInt(matched[2]);
     if (
       tooVersion > version ||
       (tooVersion == version && toolServicePack >= servicePack)
     )
       returnValue = true;
   }
-  // this allows us to work with development builds for internal testing
+  // This allows us to work with development builds for internal testing
   else if (toolVersion.includes(" revision ")) {
     returnValue = true;
   }
+
   return returnValue;
 }
 
@@ -112,17 +109,17 @@ function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
 }
 
 function checkForATG(vcastInstallationPath: string) {
-  // we only set atgCommandToUse if we find atg and it's licensed
+  // We only set atgCommandToUse if we find atg and it's licensed
   const atgCommand = path.join(vcastInstallationPath, exeFilename(atgName));
   let statusMessageText = "";
   if (fs.existsSync(atgCommand)) {
     statusMessageText = `   found '${atgName}' here: ${vcastInstallationPath}`;
     const candidateCommand = atgCommand;
 
-    // now check if its licensed ... just atg --help and check the exit code
-    const commandToRun: string = `${candidateCommand} --help`;
+    // Now check if its licensed ... just atg --help and check the exit code
+    const commandToRun = `${candidateCommand} --help`;
 
-    // cwd=working dir for this process /  printErrorDetails=false
+    // Cwd=working dir for this process /  printErrorDetails=false
     const commandStatus = executeCommandSync(
       commandToRun,
       process.cwd(),
@@ -134,12 +131,13 @@ function checkForATG(vcastInstallationPath: string) {
     } else {
       statusMessageText += ", license is NOT available";
     }
+
     vectorMessage(statusMessageText);
     atgAvailable =
       atgCommandToUse != undefined &&
       vectorCASTSupportsATG(vcastInstallationPath);
 
-    // atgAvailabel is used by package.json to control the existance of the atg command in the context menus
+    // AtgAvailabel is used by package.json to control the existance of the atg command in the context menus
     vscode.commands.executeCommand(
       "setContext",
       "vectorcastTestExplorer.atgAvailable",
@@ -162,20 +160,20 @@ function findVcastTools(): boolean {
   // return value
   let foundAllvcastTools = false;
 
-  // value of the extension option
+  // Value of the extension option
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   const installationOptionString = settings.get(
     "vectorcastInstallationLocation",
     ""
   );
 
-  // value of VECTORCAST_DIR
-  const VECTORCAST_DIR = process.env["VECTORCAST_DIR"];
+  // Value of VECTORCAST_DIR
+  const VECTORCAST_DIR = process.env.VECTORCAST_DIR;
 
   // VectorCAST installation location
-  let vcastInstallationPath: string | undefined = undefined;
+  let vcastInstallationPath: string | undefined;
 
-  // priority 1 is the option value, since this lets the user over-ride PATH or VECTORCAST_DIR
+  // Priority 1 is the option value, since this lets the user over-ride PATH or VECTORCAST_DIR
   if (installationOptionString.length > 0) {
     const candidatePath = path.join(
       installationOptionString,
@@ -196,7 +194,7 @@ function findVcastTools(): boolean {
     }
   }
 
-  // priority 2 is VECTORCAST_DIR, while this is no longer required, it is still widely used
+  // Priority 2 is VECTORCAST_DIR, while this is no longer required, it is still widely used
   else if (VECTORCAST_DIR) {
     const candidatePath = path.join(VECTORCAST_DIR, exeFilename(vPythonName));
     if (fs.existsSync(candidatePath)) {
@@ -214,7 +212,7 @@ function findVcastTools(): boolean {
     }
   }
 
-  // priority 3 is the system path
+  // Priority 3 is the system path
   else if (vpythonFromPath) {
     vcastInstallationPath = path.dirname(vpythonFromPath);
     vPythonCommandToUse = vpythonFromPath;
@@ -229,16 +227,16 @@ function findVcastTools(): boolean {
     showSettings();
   }
 
-  // if we found a vpython somewhere ...
+  // If we found a vpython somewhere ...
   // we assume the other executables are there too,  but we check anyway :)
   if (vcastInstallationPath) {
-    // do all of the setup required to use clicast
+    // Do all of the setup required to use clicast
     foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
 
-    // setup coded-test stuff (new for vc24)
+    // Setup coded-test stuff (new for vc24)
     initializeCodedTestSupport(vcastInstallationPath);
 
-    // check if we have access to a valid crc32 command - this is not fatal
+    // Check if we have access to a valid crc32 command - this is not fatal
     // must be called after initializeInstallerFiles()
 
     if (!initializeChecksumCommand(vcastInstallationPath)) {
@@ -265,7 +263,7 @@ export function checkIfInstallationIsOK() {
   vectorMessage("Checking that a VectorCAST installation is available ... ");
 
   if (findVcastTools()) {
-    // check if we have a valid license
+    // Check if we have a valid license
 
     if (vcastLicenseOK()) {
       vectorMessage("   VectorCAST license is available ...");
@@ -284,6 +282,7 @@ export function checkIfInstallationIsOK() {
     );
     openMessagePane();
   }
+
   return returnValue;
 }
 
@@ -303,10 +302,10 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
     if (fs.existsSync(vcastCommandToUse)) {
       vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
 
-      // we only set toolsFound if we find clicast AND vcastqt
+      // We only set toolsFound if we find clicast AND vcastqt
       toolsFound = true;
 
-      // atg existing or being licensed does NOT affect toolsFound
+      // Atg existing or being licensed does NOT affect toolsFound
       checkForATG(vcastInstallationPath);
     } else {
       vectorMessage(
@@ -318,6 +317,7 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
       `   could NOT find '${clicastName}' here: ${vcastInstallationPath}`
     );
   }
+
   return toolsFound;
 }
 
@@ -332,16 +332,16 @@ function pyCrc32IsAvailable(): boolean {
     process.cwd()
   ).stdout;
   const outputLinesAsArray = commandOutputText.split("\n");
-  const lastOutputLine = outputLinesAsArray[outputLinesAsArray.length - 1];
+  const lastOutputLine = outputLinesAsArray.at(-1);
   return lastOutputLine == "AVAILABLE";
 }
 
 function getCRCutilityPath(vcastInstallationPath: string) {
-  // check if the crc32 utility has been added to the the VectorCAST installation
+  // Check if the crc32 utility has been added to the the VectorCAST installation
 
-  let returnValue: string | undefined = undefined;
+  let returnValue: string | undefined;
   if (vcastInstallationPath) {
-    let candidatePath = path.join(vcastInstallationPath, crc32Name);
+    const candidatePath = path.join(vcastInstallationPath, crc32Name);
     if (fs.existsSync(candidatePath)) {
       vectorMessage(`   found '${crc32Name}' here: ${vcastInstallationPath}`);
       returnValue = candidatePath;
@@ -351,17 +351,18 @@ function getCRCutilityPath(vcastInstallationPath: string) {
       );
     }
   }
+
   return returnValue;
 }
 
 function initializeChecksumCommand(
   vcastInstallationPath: string
 ): string | undefined {
-  // checks if this vcast distro has python checksum support built-in
+  // Checks if this vcast distro has python checksum support built-in
   if (globalCrc32Path && pyCrc32IsAvailable()) {
     globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
   } else {
-    // check if the user has patched the distro with the crc32 utility
+    // Check if the user has patched the distro with the crc32 utility
     globalCheckSumCommand = getCRCutilityPath(vcastInstallationPath);
   }
 
@@ -372,7 +373,7 @@ export function getChecksumCommand() {
   return globalCheckSumCommand;
 }
 
-export const vUnitIncludeSuffix = "/vunit/include"
+export const vUnitIncludeSuffix = "/vunit/include";
 
 export function configFileContainsCorrectInclude(filePath: string): boolean {
   // This function will check if the include path for coded testing is in the
@@ -380,24 +381,20 @@ export function configFileContainsCorrectInclude(filePath: string): boolean {
   //   1. The path to the current VectorCAST /vUnit/include directory exists
   //   2. A path with an environment variable, ending in /vunit/include exists
 
-  let returnValue: boolean = false;
+  let returnValue = false;
   let existingJSONasString: string;
   let existingJSON: any;
 
   // Requires json-c parsing to handle comments etc.
   existingJSONasString = fs.readFileSync(filePath).toString();
-  // note that jsonc.parse returns "real json" without the comments
+  // Note that jsonc.parse returns "real json" without the comments
   existingJSON = jsonc.parse(
     existingJSONasString,
     jsoncParseErrors,
     jsoncParseOptions
   );
 
-  if (
-    existingJSON &&
-    existingJSON.configurations &&
-    existingJSON.configurations.length > 0
-  ) {
+  if (existingJSON?.configurations && existingJSON.configurations.length > 0) {
     for (const configuration of existingJSON.configurations) {
       if (configuration.includePath) {
         for (const includePath of configuration.includePath) {
@@ -405,9 +402,13 @@ export function configFileContainsCorrectInclude(filePath: string): boolean {
             returnValue = true;
             break;
           }
-          // allow the use of _any_ environment variable, not just VECTORCAST_DIR 
+
+          // Allow the use of _any_ environment variable, not just VECTORCAST_DIR
           // could have used a regex but this is more clear
-          if (includePath.startsWith("${env:") && includePath.endsWith (vUnitIncludeSuffix)) {
+          if (
+            includePath.startsWith("${env:") &&
+            includePath.endsWith(vUnitIncludeSuffix)
+          ) {
             returnValue = true;
             break;
           }
@@ -415,6 +416,7 @@ export function configFileContainsCorrectInclude(filePath: string): boolean {
       }
     }
   }
+
   return returnValue;
 }
 
@@ -424,7 +426,7 @@ function includePathExistsInWorkspace(): boolean {
   // exists in any of the c_cpp_properties.json files and prompt the
   // user to add the path it doesn't
   //
-  let returnValue: boolean = false;
+  let returnValue = false;
 
   for (const workspace of vscode.workspace.workspaceFolders || []) {
     const workspaceRoot = workspace.uri.fsPath;
@@ -433,13 +435,15 @@ function includePathExistsInWorkspace(): boolean {
       ".vscode",
       configurationFile
     );
-    if (fs.existsSync(c_cpp_properties)) {
-      if (configFileContainsCorrectInclude(c_cpp_properties)) {
-        returnValue = true;
-        break;
-      }
+    if (
+      fs.existsSync(c_cpp_properties) &&
+      configFileContainsCorrectInclude(c_cpp_properties)
+    ) {
+      returnValue = true;
+      break;
     }
   }
+
   return returnValue;
 }
 
@@ -449,9 +453,9 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
   // this version has coded test support, so check for that
   // and initialize global variables to support coded testing
 
-  let candidatePath = path.join(vcastInstallationPath, "vunit", "include");
-  // swap backslashes to make paths consistent for windows users and
-  globalIncludePath = candidatePath.replace(/\\/g, "/");
+  const candidatePath = path.join(vcastInstallationPath, "vunit", "include");
+  // Swap backslashes to make paths consistent for windows users and
+  globalIncludePath = candidatePath.replaceAll("\\", "/");
 
   if (fs.existsSync(candidatePath)) {
     vectorMessage(`   found coded-test support, initializing ...`);
@@ -466,7 +470,8 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
   } else {
     globalCodedTestingAvailable = false;
   }
-  // this controls the availability of the Add Coded Test Include Path context menu item
+
+  // This controls the availability of the Add Coded Test Include Path context menu item
   vscode.commands.executeCommand(
     "setContext",
     "vectorcastTestExplorer.codedTestingAvailable",

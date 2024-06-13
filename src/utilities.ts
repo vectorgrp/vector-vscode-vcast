@@ -1,25 +1,23 @@
 import * as vscode from "vscode";
 
-// needed for parsing json files with comments
+// Needed for parsing json files with comments
 import * as jsonc from "jsonc-parser";
-
-import { Uri } from "vscode";
-
+import { type Uri } from "vscode";
 import { errorLevel, vectorMessage } from "./messagePane";
 
-const fs = require("fs");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const glob = require("glob");
-const os = require("os");
-const path = require("path");
 
-// options used for reading json-c files
+// Options used for reading json-c files
 export const jsoncParseOptions: jsonc.ParseOptions = {
   allowTrailingComma: true,
   disallowComments: false,
   allowEmptyContent: false,
 };
-// note: we don't use this programmatically but it is useful for debugging
-export var jsoncParseErrors: jsonc.ParseError[] = []; // not using programatically, for debug only
+// Note: we don't use this programmatically but it is useful for debugging
+export var jsoncParseErrors: jsonc.ParseError[] = []; // Not using programatically, for debug only
 export const jsoncModificationOptions: jsonc.ModificationOptions = {
   formattingOptions: { tabSize: 4, insertSpaces: true },
 };
@@ -30,20 +28,20 @@ export const jsoncModificationOptions: jsonc.ModificationOptions = {
 // The VectorCAST extensions for settings and launch are delivered in the .vsix
 // in the sub-directory "support"
 
-export interface jsonDataType {
+export type jsonDataType = {
   jsonData: any;
   jsonDataAsString: string;
-}
+};
 
 export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
-  // this function takes the path to a launch.json
+  // This function takes the path to a launch.json
   // and returns the contents, or an empty list of configurations
   // if we cannot read the file
-  let returnValue: jsonDataType | undefined = undefined;
+  let returnValue: jsonDataType | undefined;
 
   // Requires json-c parsing to handle comments etc.
   const existingContents = fs.readFileSync(jsonPath).toString();
-  // note that jsonc.parse returns "real json" without the comments
+  // Note that jsonc.parse returns "real json" without the comments
   const existingJSONdata = jsonc.parse(
     existingContents,
     jsoncParseErrors,
@@ -56,6 +54,7 @@ export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
       jsonDataAsString: existingContents,
     };
   }
+
   return returnValue;
 }
 
@@ -73,16 +72,15 @@ export function addLaunchConfiguration(
     fs.readFileSync(path.join(pathToSupportfiles, "vcastLaunchTemplate.json"))
   );
 
-  // if we have a well formatted launch file with an array of configurations ...
+  // If we have a well formatted launch file with an array of configurations ...
   if (
-    existingLaunchData &&
-    existingLaunchData.jsonData.configurations &&
+    existingLaunchData?.jsonData.configurations &&
     existingLaunchData.jsonData.configurations.length > 0
   ) {
     // Remember that the vectorJSON data has the "configurations" level which is an array
     const vectorConfiguration = vectorJSON.configurations[0];
 
-    // now loop through launch.json to make sure it does not already have the vector config
+    // Now loop through launch.json to make sure it does not already have the vector config
     let needToAddVectorLaunchConfig = true;
 
     for (const existingConfig of existingLaunchData.jsonData.configurations) {
@@ -94,6 +92,7 @@ export function addLaunchConfiguration(
         break;
       }
     }
+
     if (needToAddVectorLaunchConfig) {
       const whereToInsert = existingLaunchData.jsonData.configurations.length;
       let jsonDataAsString = existingLaunchData.jsonDataAsString;
@@ -107,7 +106,7 @@ export function addLaunchConfiguration(
       fs.writeFileSync(jsonPath, jsonDataAsString);
     }
   } else {
-    // if the existing file is empty or does not contain a "configurations" section,
+    // If the existing file is empty or does not contain a "configurations" section,
     // simply insert the vector config.  This allows the user to start with an empty file
     fs.writeFileSync(jsonPath, JSON.stringify(vectorJSON, null, 4));
   }
@@ -125,7 +124,7 @@ export function addSettingsFileFilter(
   try {
     // Requires json-c parsing to handle comments etc.
     existingJSONasString = fs.readFileSync(filePath).toString();
-    // note that jsonc.parse returns "real json" without the comments
+    // Note that jsonc.parse returns "real json" without the comments
     existingJSON = jsonc.parse(
       existingJSONasString,
       jsoncParseErrors,
@@ -140,9 +139,9 @@ export function addSettingsFileFilter(
     return;
   }
 
-  // if the file does not have a "files.exclude" section, add one
+  // If the file does not have a "files.exclude" section, add one
   if (!existingJSON.hasOwnProperty(filesExcludeString)) {
-    // we don't need to modify the existing jsonAsString
+    // We don't need to modify the existing jsonAsString
     // because it will do the insert of a new section for us
     existingJSON[filesExcludeString] = {};
   }
@@ -152,7 +151,7 @@ export function addSettingsFileFilter(
     fs.readFileSync(path.join(pathToSupportFiles, "vcastSettings.json"))
   );
 
-  // now check if the vector filters are already in the files.exclude object
+  // Now check if the vector filters are already in the files.exclude object
   if (
     existingJSON[filesExcludeString].hasOwnProperty("vectorcast-filter-start")
   ) {
@@ -176,10 +175,10 @@ export function addSettingsFileFilter(
   }
 }
 
-export interface statusMessageType {
+export type statusMessageType = {
   fullLines: string;
   remainderText: string;
-}
+};
 export function processCommandOutput(
   remainderTextFromLastCall: string,
   newTextFromThisCall: string
@@ -189,25 +188,25 @@ export function processCommandOutput(
   // The caller will keep the remainder around until the next data comes in
   // and then pass that in with the new text.
 
-  let returnObject: statusMessageType = { fullLines: "", remainderText: "" };
+  const returnObject: statusMessageType = { fullLines: "", remainderText: "" };
   const candidateString = remainderTextFromLastCall + newTextFromThisCall;
 
   if (candidateString.endsWith("\n"))
-    // if we got all full lines, there is no remainder
+    // If we got all full lines, there is no remainder
+    returnObject.fullLines = candidateString.slice(0, -1);
+  else if (candidateString.includes("\n")) {
+    // If there is at least one \n then we have full lines and a remainder
+    const whereToSplit = candidateString.lastIndexOf("\n");
     returnObject.fullLines = candidateString.slice(
       0,
-      candidateString.length - 1
+      Math.max(0, whereToSplit)
     );
-  else if (candidateString.includes("\n")) {
-    // if there is at least one \n then we have full lines and a remainder
-    const whereToSplit = candidateString.lastIndexOf("\n");
-    returnObject.fullLines = candidateString.substring(0, whereToSplit);
     returnObject.remainderText = candidateString.substring(
       whereToSplit + 1,
       candidateString.length
     );
   } else {
-    // otherwise we have only a remainder
+    // Otherwise we have only a remainder
     returnObject.remainderText = candidateString;
   }
 
@@ -216,7 +215,7 @@ export function processCommandOutput(
 
 export function exeFilename(basename: string): string {
   if (os.platform() == "win32") return basename + ".exe";
-  else return basename;
+  return basename;
 }
 
 export function forceLowerCaseDriveLetter(path?: string): string {
@@ -227,18 +226,19 @@ export function forceLowerCaseDriveLetter(path?: string): string {
 
   if (path) {
     const platform = os.platform();
-    if (platform == "win32") {
-      if (path.charAt(1) == ":") {
-        const driveLetter = path.charAt(0).toLowerCase();
-        return driveLetter + path.slice(1, path.length);
-      }
+    if (platform == "win32" && path.charAt(1) == ":") {
+      const driveLetter = path.charAt(0).toLowerCase();
+      return driveLetter + path.slice(1, path.length);
     }
+
     return path;
-  } else return "";
+  }
+
+  return "";
 }
 
 export function getRangeOption(lineIndex: number): vscode.DecorationOptions {
-  // this function returns a single line range DecorationOption
+  // This function returns a single line range DecorationOption
   const startPos = new vscode.Position(lineIndex, 0);
   const endPos = new vscode.Position(lineIndex, 0);
   return { range: new vscode.Range(startPos, endPos) };
@@ -254,14 +254,14 @@ export function openFileWithLineSelected(
     new vscode.Position(lineNumber, 200)
   );
 
-  let viewOptions: vscode.TextDocumentShowOptions = {
-    viewColumn: viewColumn,
+  const viewOptions: vscode.TextDocumentShowOptions = {
+    viewColumn,
     preserveFocus: false,
     selection: locationToHighlight,
   };
   vscode.workspace.openTextDocument(filePath).then(
-    (doc: vscode.TextDocument) => {
-      vscode.window.showTextDocument(doc, viewOptions);
+    (document: vscode.TextDocument) => {
+      vscode.window.showTextDocument(document, viewOptions);
     },
     (error: any) => {
       vectorMessage(error.message, errorLevel.error);
@@ -270,7 +270,7 @@ export function openFileWithLineSelected(
 }
 
 export function quote(name: string) {
-  // if name contains <<COMPOUND>>, <<INIT>> or parenthesis
+  // If name contains <<COMPOUND>>, <<INIT>> or parenthesis
   // we need to quote the name so that the shell does not interpret it.
 
   if (
@@ -280,12 +280,14 @@ export function quote(name: string) {
     name.includes(")")
   ) {
     return '"' + name + '"';
-  } else return name;
+  }
+
+  return name;
 }
 
 export function showSettings() {
   console.log("VectorCAST Test Explorer show settings called ...");
-  // previously, I was using: "VectorCAST Test Explorer" as the "filter" in this call, but
+  // Previously, I was using: "VectorCAST Test Explorer" as the "filter" in this call, but
   // that resulted in a coupld of extra settings, and the wrong order being displayed
   // through trial and error, I found that this gives what we want
   vscode.commands.executeCommand(
@@ -300,8 +302,8 @@ export function removeFilePattern(enviroPath: string, pattern: string) {
     absolute: true,
     strict: false,
   };
-  let fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
-  for (let filePath of fileList) {
+  const fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
+  for (const filePath of fileList) {
     fs.unlinkSync(filePath);
   }
 }

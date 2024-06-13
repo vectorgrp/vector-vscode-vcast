@@ -1,11 +1,10 @@
 import fs = require("fs");
 import url = require("url");
 import {
-  TextDocuments,
-  CompletionParams,
+  type TextDocuments,
+  type CompletionParams,
   CompletionItemKind,
 } from "vscode-languageserver";
-
 import {
   completionList,
   getEnviroNameFromTestScript,
@@ -16,7 +15,6 @@ import {
   scriptFeatureList,
   convertKind,
 } from "./serverUtilities";
-
 import { getChoiceDataFromPython } from "./pythonUtilities";
 
 export function getTstCompletionData(
@@ -46,24 +44,23 @@ export function getTstCompletionData(
             ["TEST", "TEST.SLOT", "\n"],
             CompletionItemKind.Keyword
           );
-        else
-          return completionList(
+        return completionList(
             ["TEST", "TEST.VALUE", "TEST.EXPECTED", "\n"],
             CompletionItemKind.Keyword
           );
-      } else if (trigger == "DOT" && upperCaseLine == "TEST.") {
+      } if (trigger == "DOT" && upperCaseLine == "TEST.") {
         return completionList(testCommandList, CompletionItemKind.Keyword);
-      } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:")
+      } if (trigger == "COLON" && upperCaseLine == "TEST.NAME:")
         return completionList(["<test-name>"], CompletionItemKind.Text);
-      else if (trigger == "COLON" && upperCaseLine == "TEST.UNIT:") {
+      if (trigger == "COLON" && upperCaseLine == "TEST.UNIT:") {
         const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
         return completionList(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
         );
-      } else if (trigger == "COLON" && upperCaseLine == "TEST.SCRIPT_FEATURE:")
+      } if (trigger == "COLON" && upperCaseLine == "TEST.SCRIPT_FEATURE:")
         return completionList(scriptFeatureList, CompletionItemKind.Keyword);
-      else if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
+      if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
         // find closest TEST.UNIT above this line ...
         const unitName = getNearest(
           document,
@@ -88,7 +85,7 @@ export function getTstCompletionData(
           }
         }
         return completionList(choiceArray, choiceKind);
-      } else if (upperCaseLine.startsWith("TEST.SLOT:")) {
+      } if (upperCaseLine.startsWith("TEST.SLOT:")) {
         const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
         return completionList(
           choiceData.choiceList,
@@ -97,7 +94,7 @@ export function getTstCompletionData(
       }
 
       // this handles the everything else
-      else if (
+      if (
         upperCaseLine.startsWith("TEST.EXPECTED:") ||
         upperCaseLine.startsWith("TEST.VALUE:") ||
         upperCaseLine.startsWith("TEST.VALUE_USER_CODE:") ||
@@ -110,7 +107,7 @@ export function getTstCompletionData(
           choiceData.choiceList,
           convertKind(choiceData.choiceKind)
         );
-      } else if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
+      } if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
         // for the requirement keys, the format of the list items is
         const choiceData = getChoiceDataFromPython(enviroPath, lineSoFar);
         for (let i = 0; i < choiceData.choiceList.length; i++) {
@@ -129,10 +126,10 @@ export function getTstCompletionData(
         );
       }
       return [];
-    } else {
+    } 
       // invalid enviroName
       return [];
-    }
+    
   } else {
     // no document
     return [];
