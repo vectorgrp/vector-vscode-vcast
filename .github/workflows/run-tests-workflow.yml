@@ -359,6 +359,7 @@ jobs:
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
   code-formatting:
+    if: github.event_name == 'push'
     permissions: write-all
     runs-on: [ self-hosted, vscode-vcast]
 
