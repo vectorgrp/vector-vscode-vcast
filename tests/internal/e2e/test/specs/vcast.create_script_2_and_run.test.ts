@@ -35,7 +35,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -64,7 +64,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -72,15 +72,15 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
@@ -99,7 +99,7 @@ describe("vTypeCheck VS Code Extension", () => {
       for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
         subprogram = await findSubprogram(
           "manager",
-          vcastTestingViewContentSection,
+          vcastTestingViewContentSection
         );
         if (subprogram) {
           await subprogram.expand();
@@ -113,7 +113,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const subprogramMethod = await findSubprogramMethod(
       subprogram,
-      "Manager::PlaceOrder",
+      "Manager::PlaceOrder"
     );
     if (!subprogramMethod) {
       throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
@@ -124,37 +124,34 @@ describe("vTypeCheck VS Code Extension", () => {
     await editTestScriptFor(subprogramMethod, "DATABASE-MANAGER");
 
     const tab = (await editorView.openEditor(
-      "DATABASE-MANAGER.tst",
+      "DATABASE-MANAGER.tst"
     )) as TextEditor;
 
     let currentLine = await tab.getLineOfText("TEST.REQUIREMENT_KEY:FR20");
-    await tab.moveCursor(
-      currentLine,
-      "TEST.REQUIREMENT_KEY:FR20".length + 1,
-    );
+    await tab.moveCursor(currentLine, "TEST.REQUIREMENT_KEY:FR20".length + 1);
     await browser.keys([Key.Enter]);
     currentLine += 1;
     await tab.setTextAtLine(
       currentLine,
-      "TEST.VALUE:manager.Manager::PlaceOrder.Seat:1",
+      "TEST.VALUE:manager.Manager::PlaceOrder.Seat:1"
     );
 
     await tab.moveCursor(
       currentLine,
-      "TEST.VALUE:manager.Manager::PlaceOrder.Seat:1".length + 1,
+      "TEST.VALUE:manager.Manager::PlaceOrder.Seat:1".length + 1
     );
     await browser.keys([Key.Enter]);
     currentLine += 1;
     await tab.setTextAtLine(
       currentLine,
-      "TEST.VALUE:manager.Manager::PlaceOrder.Table:1",
+      "TEST.VALUE:manager.Manager::PlaceOrder.Table:1"
     );
     await browser.keys([Key.Enter]);
 
     currentLine += 1;
     await tab.setTextAtLine(
       currentLine,
-      "TEST.VALUE:manager.Manager::PlaceOrder.Order.Entree:Steak",
+      "TEST.VALUE:manager.Manager::PlaceOrder.Order.Entree:Steak"
     );
 
     await browser.keys([Key.Enter]);
@@ -185,7 +182,7 @@ describe("vTypeCheck VS Code Extension", () => {
           subprogram,
           "Manager::PlaceOrder",
           "myFirstTest",
-          1,
+          1
         );
         if (testHandle) {
           break;
@@ -206,7 +203,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length > 0,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
@@ -215,14 +212,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await webview.open();
 
     await expect($("h4*=Execution Results (PASS)")).toHaveText(
-      "Execution Results (PASS)",
+      "Execution Results (PASS)"
     );
     await expect($(".event*=Event 1")).toHaveText(
-      "Event 1 - Calling Manager::PlaceOrder",
+      "Event 1 - Calling Manager::PlaceOrder"
     );
 
     await expect($(".event*=Event 2")).toHaveText(
-      "Event 2 - Returned from Manager::PlaceOrder",
+      "Event 2 - Returned from Manager::PlaceOrder"
     );
 
     await expect($(".text-muted*=UUT")).toHaveText("UUT: manager.cpp");
@@ -236,53 +233,53 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.maximize();
     await browser.waitUntil(async () =>
       (await (await bottomBar.openOutputView()).getText()).includes(
-        "test explorer  [info]  Starting execution of test: myFirstTest ...",
-      ),
+        "test explorer  [info]  Starting execution of test: myFirstTest ..."
+      )
     );
     const outputViewText = await (await bottomBar.openOutputView()).getText();
     await bottomBar.restore();
     expect(
       outputViewText.includes(
-        "test explorer  [info]  Starting execution of test: myFirstTest ...",
-      ),
+        "test explorer  [info]  Starting execution of test: myFirstTest ..."
+      )
     ).toBe(true);
     expect(
       outputViewText.includes(
-        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myFirstTest",
-      ),
+        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myFirstTest"
+      )
     ).toBe(true);
     expect(
-      outputViewText.includes("test explorer  [info]  Status: passed"),
+      outputViewText.includes("test explorer  [info]  Status: passed")
     ).toBe(true);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Execution Time:");
-      }),
+      })
     ).not.toBe(undefined);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Processing environment data for:");
-      }),
+      })
     ).not.toBe(undefined);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Viewing results, result report path");
-      }),
+      })
     ).not.toBe(undefined);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Creating web view panel");
-      }),
+      })
     ).not.toBe(undefined);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Setting webview text");
-      }),
+      })
     ).not.toBe(undefined);
   });
 
@@ -310,29 +307,27 @@ describe("vTypeCheck VS Code Extension", () => {
     // moving cursor to make sure coverage indicators are in view
     await tab.moveCursor(10, 3);
     console.log(
-      "Validating that the RED gutter appears on line 10 in manager.cpp",
+      "Validating that the RED gutter appears on line 10 in manager.cpp"
     );
     let lineNumberElement = await $(".line-numbers=10");
     let coverageDecoElement = await (
       await lineNumberElement.parentElement()
     ).$(".cgmr.codicon");
-    let backgroundImageCSS = await coverageDecoElement.getCSSProperty(
-      "background-image",
-    );
+    let backgroundImageCSS =
+      await coverageDecoElement.getCSSProperty("background-image");
     let backgroundImageURL = backgroundImageCSS.value;
     expect(backgroundImageURL.includes(RED_GUTTER)).toBe(true);
 
     await tab.moveCursor(38, 3);
     console.log(
-      "Validating that the GREEN gutter appears on line 38 in manager.cpp",
+      "Validating that the GREEN gutter appears on line 38 in manager.cpp"
     );
     lineNumberElement = await $(".line-numbers=38");
     coverageDecoElement = await (
       await lineNumberElement.parentElement()
     ).$(".cgmr.codicon");
-    backgroundImageCSS = await coverageDecoElement.getCSSProperty(
-      "background-image",
-    );
+    backgroundImageCSS =
+      await coverageDecoElement.getCSSProperty("background-image");
     backgroundImageURL = backgroundImageCSS.value;
     expect(backgroundImageURL.includes(GREEN_GUTTER)).toBe(true);
   });
@@ -348,5 +343,4 @@ describe("vTypeCheck VS Code Extension", () => {
       vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
     });
   });
-
 });

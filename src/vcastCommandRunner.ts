@@ -76,7 +76,9 @@ function processExceptionFromExecuteCommand(
       openMessagePane();
     }
   } else {
-    vectorMessage("Unexpected error in utilities/processExceptionFromExecuteCommand()");
+    vectorMessage(
+      "Unexpected error in utilities/processExceptionFromExecuteCommand()"
+    );
   }
 
   return commandStatus;

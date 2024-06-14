@@ -33,7 +33,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -62,7 +62,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -70,15 +70,15 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
@@ -97,7 +97,7 @@ describe("vTypeCheck VS Code Extension", () => {
       for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
         subprogram = await findSubprogram(
           "manager",
-          vcastTestingViewContentSection,
+          vcastTestingViewContentSection
         );
         if (subprogram) {
           await subprogram.expand();
@@ -111,10 +111,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const subprogramMethod = await findSubprogramMethod(
       subprogram,
-      "Manager::PlaceOrder",
+      "Manager::PlaceOrder"
     );
     if (!subprogramMethod) {
-      throw new Error( "Subprogram method 'Manager::PlaceOrder' not found");
+      throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
     }
     if (!subprogramMethod.isExpanded()) {
       await subprogramMethod.select();
@@ -122,13 +122,21 @@ describe("vTypeCheck VS Code Extension", () => {
     await editTestScriptFor(subprogramMethod, "DATABASE-MANAGER");
 
     const tab = (await editorView.openEditor(
-      "DATABASE-MANAGER.tst",
+      "DATABASE-MANAGER.tst"
     )) as TextEditor;
     let currentLine = await tab.getLineOfText("TEST.REQUIREMENT_KEY:FR20");
-    const reqTooltipText = await getGeneratedTooltipTextAt(currentLine, "TEST.REQUIREMENT_KEY:FR20".length - 1, tab);
+    const reqTooltipText = await getGeneratedTooltipTextAt(
+      currentLine,
+      "TEST.REQUIREMENT_KEY:FR20".length - 1,
+      tab
+    );
     console.log(reqTooltipText);
-    expect(reqTooltipText).toContain("Clearing a table resets orders for all seats");
-    expect(reqTooltipText).toContain("Clearing a table clears the orders for all seats of the table within the table database.");
+    expect(reqTooltipText).toContain(
+      "Clearing a table resets orders for all seats"
+    );
+    expect(reqTooltipText).toContain(
+      "Clearing a table clears the orders for all seats of the table within the table database."
+    );
 
     const findWidget = await tab.openFindWidget();
     await findWidget.setSearchText("TEST.NAME:myFirstTest");
@@ -148,18 +156,18 @@ describe("vTypeCheck VS Code Extension", () => {
     // not evaluating LSE, so setting text is sufficent and faster than typing
     await tab.setTextAtLine(
       currentLine,
-      "TEST.STUB:database.DataBase::GetTableRecord",
+      "TEST.STUB:database.DataBase::GetTableRecord"
     );
     await tab.moveCursor(
       currentLine,
-      "TEST.STUB:database.DataBase::GetTableRecord".length + 1,
+      "TEST.STUB:database.DataBase::GetTableRecord".length + 1
     );
     await browser.keys(Key.Enter);
 
     currentLine += 1;
     await tab.setTextAtLine(
       currentLine,
-      "TEST.STUB:database.DataBase::UpdateTableRecord",
+      "TEST.STUB:database.DataBase::UpdateTableRecord"
     );
 
     await tab.save();
@@ -170,5 +178,5 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.executeWorkbench((vscode) => {
       vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
     });
-  });  
+  });
 });

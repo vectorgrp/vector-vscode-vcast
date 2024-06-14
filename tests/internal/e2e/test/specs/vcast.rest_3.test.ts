@@ -17,7 +17,7 @@ import {
   findSubprogramMethod,
   deleteTest,
   updateTestID,
-  cleanup
+  cleanup,
 } from "../test_utils/vcast_utils";
 
 import { exec } from "child_process";
@@ -41,7 +41,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -70,7 +70,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -78,15 +78,15 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
@@ -121,14 +121,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
     await tab.save();
     console.log(
-      "Verifying that the coverage decorators got removed after file edit",
+      "Verifying that the coverage decorators got removed after file edit"
     );
 
     statusBar = workbench.getStatusBar();
     // Need to wait until status bar updates for gutters to actually disappear
     await browser.waitUntil(
       async () =>
-        (await statusBar.getItems()).includes("Coverage Out of Date") === true,
+        (await statusBar.getItems()).includes("Coverage Out of Date") === true
     );
 
     const lineNumberElement = await $(".line-numbers=10");
@@ -137,7 +137,7 @@ describe("vTypeCheck VS Code Extension", () => {
     ).getHTML();
     expect(coverageDecoElementHTML.includes("codicon")).toBe(false);
     expect(coverageDecoElementHTML.includes("TextEditorDecorationType")).toBe(
-      false,
+      false
     );
   });
 
@@ -158,7 +158,7 @@ describe("vTypeCheck VS Code Extension", () => {
     let subprogram: TreeItem = undefined;
     let testHandle: TreeItem = undefined;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      await vcastTestingViewSection.expand()
+      await vcastTestingViewSection.expand();
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
         await subprogram.expand();
@@ -166,7 +166,7 @@ describe("vTypeCheck VS Code Extension", () => {
           subprogram,
           "Manager::PlaceOrder",
           "myThirdTest",
-          3,
+          3
         );
         if (testHandle) {
           break;
@@ -187,54 +187,54 @@ describe("vTypeCheck VS Code Extension", () => {
     await subprogram.expand();
     const customSubprogramMethod = await findSubprogramMethod(
       subprogram,
-      "Manager::PlaceOrder",
+      "Manager::PlaceOrder"
     );
-    if (!await customSubprogramMethod.isExpanded()) {
-      await customSubprogramMethod.expand()
+    if (!(await customSubprogramMethod.isExpanded())) {
+      await customSubprogramMethod.expand();
     }
 
     console.log(`Waiting until ${"myThirdTest"} disappears from the test tree`);
     // timeout on the following wait indicates unsuccessful test deletion
-    await browser.keys([Key.Ctrl, "R"])
+    await browser.keys([Key.Ctrl, "R"]);
 
     await browser.waitUntil(
-      async () => (await customSubprogramMethod.getChildren()).length == 2,
+      async () => (await customSubprogramMethod.getChildren()).length == 2
     );
 
     for (const testHandle of await customSubprogramMethod.getChildren()) {
       expect(
-        await (await (testHandle as CustomTreeItem).elem).getText(),
+        await (await (testHandle as CustomTreeItem).elem).getText()
       ).not.toBe("myThirdTest");
     }
-
   });
 
   it("should build VectorCAST environment from .env", async () => {
     await updateTestID();
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
-    await (await bottomBar.openOutputView()).clearText()
-    
+    await (await bottomBar.openOutputView()).clearText();
+
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
 
-    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
-      "vcastTutorial",
-    );
-    
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
     await workspaceFolderSection.expand();
-    const vceFile = await workspaceFolderSection.findItem("DATABASE-MANAGER-test.env");
-    const vceMenu = await vceFile.openContextMenu()
-    await vceMenu.select("Build VectorCAST Environment")
-    await bottomBar.maximize()
+    const vceFile = await workspaceFolderSection.findItem(
+      "DATABASE-MANAGER-test.env"
+    );
+    const vceMenu = await vceFile.openContextMenu();
+    await vceMenu.select("Build VectorCAST Environment");
+    await bottomBar.maximize();
     await browser.waitUntil(
       async () =>
         (await (await bottomBar.openOutputView()).getText())
           .toString()
           .includes("Environment built Successfully"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
-    await bottomBar.restore()
+    await bottomBar.restore();
   });
 
   it("should open VectorCAST from .vce", async () => {
@@ -244,34 +244,39 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
 
-    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
-      "vcastTutorial",
-    );
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
 
     await workspaceFolderSection.expand();
-    const vceFile = await workspaceFolderSection.findItem("DATABASE-MANAGER-TEST.vce");
-    const vceMenu = await vceFile.openContextMenu()
-    await vceMenu.select("Open VectorCAST Environment")
-   
+    const vceFile = await workspaceFolderSection.findItem(
+      "DATABASE-MANAGER-TEST.vce"
+    );
+    const vceMenu = await vceFile.openContextMenu();
+    await vceMenu.select("Open VectorCAST Environment");
+
     let checkVcastQtCmd = "ps -ef";
     if (process.platform == "win32") checkVcastQtCmd = "tasklist";
-    
+
     {
       const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);
-      
+
       if (stderr) {
         console.log(stderr);
         throw new Error(`Error when running ${checkVcastQtCmd}`);
       }
       await browser.waitUntil(
-        async () => (await promisifiedExec(checkVcastQtCmd)).stdout.includes("vcastqt") === true,
-        { timeout: TIMEOUT },
+        async () =>
+          (await promisifiedExec(checkVcastQtCmd)).stdout.includes(
+            "vcastqt"
+          ) === true,
+        { timeout: TIMEOUT }
       );
-      expect(stdout).toContain("vcastqt")
+      expect(stdout).toContain("vcastqt");
     }
-    
-    let stopVcastCmd = "pkill vcastqt"
-    if (process.platform == "win32") stopVcastCmd = `taskkill /IM "vcastqt.exe" /F`;
+
+    let stopVcastCmd = "pkill vcastqt";
+    if (process.platform == "win32")
+      stopVcastCmd = `taskkill /IM "vcastqt.exe" /F`;
     {
       const { stdout, stderr } = await promisifiedExec(stopVcastCmd);
       if (stderr) {
@@ -280,13 +285,10 @@ describe("vTypeCheck VS Code Extension", () => {
       }
       console.log(stdout);
     }
-
   });
 
   it("should clean up", async () => {
     await updateTestID();
-    await cleanup()
-
+    await cleanup();
   });
-
 });
