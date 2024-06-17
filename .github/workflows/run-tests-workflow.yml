@@ -183,15 +183,20 @@ jobs:
           path: |
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
+
       - name: Run tests
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           export BRANCH_REF=${{ github.ref }} && ./tests/internal/e2e/run_e2e_tests.sh
-        
+
       - name: Publish e2e tests results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
           check_name: "E2e Test results - Vcast 23"
+          large_files: true
           files: |
             ./tests/internal/e2e/test_results/*.xml
 
@@ -203,10 +208,22 @@ jobs:
           path: ./tests/internal/e2e/*.png
 
       - name: Show run summary
+        if: always()
         run: |
           echo "### Run summary - Vcast 23" >> $GITHUB_STEP_SUMMARY
-          content=$([ -s ./tests/internal/e2e/gh_output.txt ] && cat ./tests/internal/e2e/gh_output.txt || echo 'Not available')
+          content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
           echo "${content}" >> $GITHUB_STEP_SUMMARY
+          
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}"
+          count=`ls -1 tests/internal/e2e/*.png 2>/dev/null | wc -l`
+          if [ $count != 0 ] ; then
+            cd tests/internal/e2e
+            tar -cvzf e2e_vcast23_screenshots.tar.gz *.png > /dev/null
+            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $ARTIFACTORY_URL/e2e_vcast23_screenshots.tar.gz -T e2e_vcast23_screenshots.tar.gz
+            cd ../../..
+            echo "[Screenshots]($ARTIFACTORY_URL/e2e_vcast23_screenshots.tar.gz)" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Save dependencies - node
         if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
@@ -287,6 +304,9 @@ jobs:
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
       - name: Run tests
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           export USE_VCAST_24=True && export BRANCH_REF=${{ github.ref }} && ./tests/internal/e2e/run_e2e_tests.sh
 
@@ -295,6 +315,7 @@ jobs:
         if: always()
         with:
           check_name: "E2e Test results - Vcast 24"
+          large_files: true
           files: |
             ./tests/internal/e2e/test_results/*.xml
 
@@ -306,10 +327,22 @@ jobs:
           path: ./tests/internal/e2e/*.png
 
       - name: Show run summary
+        if: always()
         run: |
           echo "### Run summary - Vcast 24" >> $GITHUB_STEP_SUMMARY
-          content=$([ -s ./tests/internal/e2e/gh_output.txt ] && cat ./tests/internal/e2e/gh_output.txt || echo 'Not available')
+          content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
           echo "${content}" >> $GITHUB_STEP_SUMMARY
+          
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}"
+          count=`ls -1 tests/internal/e2e/*.png 2>/dev/null | wc -l`
+          if [ $count != 0 ] ; then
+            cd tests/internal/e2e
+            tar -cvzf e2e_vcast24_screenshots.tar.gz *.png > /dev/null
+            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $ARTIFACTORY_URL/e2e_vcast24_screenshots.tar.gz -T e2e_vcast24_screenshots.tar.gz
+            cd ../../..
+            echo "[Screenshots]($ARTIFACTORY_URL/e2e_vcast24_screenshots.tar.gz)" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Save dependencies - node
         if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
