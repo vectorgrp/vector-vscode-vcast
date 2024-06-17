@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - gha_support_for_large_files   # TODO tmp
   pull_request:
     branches:
       - main
