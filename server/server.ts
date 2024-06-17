@@ -18,7 +18,7 @@ import { getHoverString } from "./tstHover";
 // Also include all preview / proposed LSP features.
 let connection = createConnection(ProposedFeatures.all);
 
-let testFiletoEnviroMap: Map<string, string> = new Map<string, string>();
+let testFileToEnviroMap: Map<string, string> = new Map<string, string>();
 
 let globalVMockAvailable: boolean = false;
 
@@ -38,7 +38,7 @@ connection.onInitialize((params: InitializeParams) => {
       // Tell the client that the server supports code completion
       completionProvider: {
         resolveProvider: true,
-        triggerCharacters: ["\n", ":", ".", ",", "(", "="],
+        triggerCharacters: ["\n", ":", ".", ",", " ", "="],
       },
     },
   };
@@ -63,7 +63,7 @@ connection.onInitialized(() => {
 // so that we know what environment to use wheen providing LSE features for coded test file
 // The data parameter is a JSON object with two fields: filePath and enviroPath
 connection.onNotification("vcasttesteditor/loadTestfile", (data) => {
-  testFiletoEnviroMap.set(data.filePath, data.enviroPath);
+  testFileToEnviroMap.set(data.filePath, data.enviroPath);
   connection.console.log(
     "Notification received: test file: " +
       data.filePath +
@@ -113,7 +113,7 @@ connection.onCompletion(
       // Coded Test Editor
     } else if (globalVMockAvailable) {
       const filePath = url.fileURLToPath(completionData.textDocument.uri);
-      const enviroPath = testFiletoEnviroMap.get(filePath);
+      const enviroPath = testFileToEnviroMap.get(filePath);
       if (enviroPath) {
         return getCodedTestCompletionData(
           documents,

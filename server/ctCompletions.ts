@@ -5,6 +5,8 @@ import {
   TextDocuments,
 } from "vscode-languageserver";
 
+import { Position, Range, TextEdit } from "vscode-languageserver-types";
+
 import { choiceKindType, getChoiceDataFromPython } from "./pythonUtilities";
 
 import { completionList, getLineFragment } from "./serverUtilities";
@@ -14,8 +16,12 @@ export function getCodedTestCompletionData(
   enviroPath: string,
   completionData: CompletionParams
 ): CompletionItem[] {
+
+  // variables used to construct the completion item list
   let listToReturn: string[] = [];
   const document = documents.get(completionData.textDocument.uri);
+  let extraText: string = "";
+
   if (document) {
     const lineSoFar = getLineFragment(
       document,
@@ -23,10 +29,10 @@ export function getCodedTestCompletionData(
     ).trimEnd();
 
     // Identify lines of interest, so lines that start with
-    //     void vmock
+    //     // vmock
     //     auto vmock_session =
     if (
-      lineSoFar.match(/^\s*void\s+vmock_/) ||
+      lineSoFar.match(/^\s*\/\/\s*vmock\s*/) ||
       lineSoFar.match(/^\s*auto\s+vmock_session\s*=\s*/)
     ) {
       const jsonData = getChoiceDataFromPython(
@@ -35,7 +41,35 @@ export function getCodedTestCompletionData(
         lineSoFar
       );
       listToReturn = jsonData.choiceList;
+      // currently extra text is used only to provide a usage comment 
+      // for vmock functions, the actual string is generated in the python
+      extraText = jsonData.extraText;
     }
   }
-  return completionList(listToReturn, CompletionItemKind.Text);
+  // create a vscode CompletionItem List for the choices
+
+  let completionItemList = completionList(
+    listToReturn,
+    CompletionItemKind.Text
+  );
+
+  if (extraText.length > 0 && completionItemList.length > 0) {
+    const location = completionData.position.line + 1;
+    addAdditionalEdits(completionItemList[0], extraText, location);
+  }
+
+  return completionItemList;
+}
+
+function addAdditionalEdits(
+  completionItem: CompletionItem,
+  textToInsert: string,
+  location: number
+) {
+  // TBD today - why do we need a range, seems like insert in one place is fine
+  const insertPosition: Position = Position.create(location, 0);
+  const insertRange: Range = { start: insertPosition, end: insertPosition };
+  const edit: TextEdit = { range: insertRange, newText: "// " + textToInsert };
+
+  completionItem.additionalTextEdits = [edit];
 }

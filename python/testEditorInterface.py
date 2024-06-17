@@ -46,7 +46,7 @@ def main():
         if mode == "choiceList-ct":
 
             # if the line starts with "void vmock" then we are processing vmock definition
-            if re.match("^\s*void\s+vmock", inputLine):
+            if re.match("^\s*\/\/\s*vmock", inputLine):
                 choiceData = processVMockDefinition(enviroName, inputLine)
 
             # of if the line starts with auto vmock_session =
@@ -74,6 +74,7 @@ def main():
     outputDictionary = dict()
     outputDictionary["choiceKind"] = choiceData.choiceKind
     outputDictionary["choiceList"] = choiceData.choiceList
+    outputDictionary["extraText"] = choiceData.extraText
     outputDictionary["messages"] = globalOutputLog
 
     # See the comment in: runPythonScript()

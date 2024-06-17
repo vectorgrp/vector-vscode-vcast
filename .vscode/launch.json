@@ -43,8 +43,8 @@
       },
       "args": [
         "choiceList-ct",
-        "STL",
-        "void vmock_stl_copy_list_to_vector ("
+        "VMOCK_EXAMPLES",
+        "// vmock vmock_examples  "
       ],
       "console": "integratedTerminal"
     },

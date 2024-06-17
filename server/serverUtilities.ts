@@ -39,6 +39,32 @@ export function getPieceAtColumn(pieces: string[], columnIndex: number) {
   return { text: "", index: 0 };
 }
 
+function addSpecialChoices(returnList: CompletionItem[]) {
+  // This adds all of the special choise for scalars like
+  // min, mid, max and vary
+  returnList.push({
+    label: "vary",
+    kind: CompletionItemKind.Snippet,
+    insertText: "VARY FROM:$1 TO:$2 BY:$3",
+    insertTextFormat: InsertTextFormat.Snippet,
+  });
+  returnList.push({
+    label: "<<MIN>>",
+    kind: CompletionItemKind.Constant,
+    detail: "",
+  });
+  returnList.push({
+    label: "<<MID>>",
+    kind: CompletionItemKind.Constant,
+    detail: "",
+  });
+  returnList.push({
+    label: "<<MAX>>",
+    kind: CompletionItemKind.Constant,
+    detail: "",
+  });
+}
+
 // this function will take a js array and create a completion array
 export function completionList(
   inputList: string[],
@@ -55,35 +81,17 @@ export function completionList(
     let details = pieces.length > 1 ? pieces[1] : "";
     const labelValue = pieces[0];
 
+    // for numbers and characters python will return "scalar"
     if (labelValue == "scalar") {
-      // now details will have the type of scalar
-      // so let's add that, as well as a snippet for vary
+      // details will have the kind (number or char)
       returnList.push({
         label: details,
         kind: choiceKind,
         detail: "",
       });
-      returnList.push({
-        label: "vary",
-        kind: CompletionItemKind.Snippet,
-        insertText: "VARY FROM:$1 TO:$2 BY:$3",
-        insertTextFormat: InsertTextFormat.Snippet,
-      });
-      returnList.push({
-        label: "<<MIN>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
-      returnList.push({
-        label: "<<MID>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
-      returnList.push({
-        label: "<<MAX>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
+      // add the spcial choices for scalars:
+      // min, mind, max, vary
+      addSpecialChoices(returnList);
     } else
       returnList.push({
         label: labelValue,
