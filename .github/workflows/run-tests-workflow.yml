@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - gha_support_for_large_files   # TODO tmp
   pull_request:
     branches:
       - main
@@ -196,6 +197,7 @@ jobs:
         if: always()
         with:
           check_name: "E2e Test results - Vcast 23"
+          large_files: true
           files: |
             ./tests/internal/e2e/test_results/*.xml
 
@@ -314,6 +316,7 @@ jobs:
         if: always()
         with:
           check_name: "E2e Test results - Vcast 24"
+          large_files: true
           files: |
             ./tests/internal/e2e/test_results/*.xml
 
