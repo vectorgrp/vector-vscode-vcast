@@ -18,8 +18,8 @@ import {
 
 
 import { removeFilePattern } from "./utilities";
+import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
-import { loadScriptIntoEnvironment } from "./vcastAdapter";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
 
 
@@ -87,7 +87,7 @@ export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
   }
 }
 
-export function loadScriptCallBack(
+export async function loadScriptCallBack(
   commandStatus: commandStatusType,
   enviroName: string,
   scriptPath: string
@@ -99,11 +99,11 @@ export function loadScriptCallBack(
     vectorMessage("Loading tests into VectorCAST environment ...");
 
     // call clicast to load the test script
-    loadScriptIntoEnvironment(enviroName, scriptPath);
+    await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
-    vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
     updateTestPane(enviroPath);
+    vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
     fs.unlinkSync(scriptPath);
   } else {
     vscode.window.showInformationMessage(

@@ -63,9 +63,10 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
 
+    # we intentionally do NOT provide a choice list so that we can handle
+    # --mode errors manually and control the exit code
     parser.add_argument(
         "--mode",
-        choices=modeChoices,
         required=True,
         help="Test Explorer Mode",
     )
@@ -116,11 +117,14 @@ def getTime(time):
 
 
 def XofYString(numerator, denominator):
-    if numerator == 0 or denominator == 0:
+    if denominator == 0:
         return ""
     else:
-        percentageString = "{:.2f}".format((numerator * 100) / denominator)
-        return str(numerator) + "/" + str(denominator) + " (" + percentageString + ")"
+        if numerator == 0:
+            percentageString = "0"
+        else:
+            percentageString = "{:.2f}".format((numerator * 100) / denominator)
+        return str(numerator) + "/" + str(denominator) + " (" + percentageString + "%)"
 
 
 def getPassFailString(test):
@@ -294,7 +298,7 @@ def getUnitData(enviroPath):
         capi = CoverApi(enviroPath)
     except Exception as err:
         print(err)
-        raise UsageError()
+        raise InvalidEnviro()
 
     # For testing/debugging
     # printCoverageListing (enviroPath)
@@ -363,9 +367,9 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
     with cd(os.path.dirname(enviroPath)):
         returnText = ""
 
-        returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
+        returnCode, commandOutput = clicastInterface.executeTest(enviroPath, testIDObject)
         if generateReport:
-            commandOutput += clicastInterface.generateExecutionReport(testIDObject)
+            commandOutput += clicastInterface.generateExecutionReport(enviroPath, testIDObject)
 
         if "TEST RESULT: pass" in commandOutput:
             returnText += "STATUS:passed\n"
@@ -377,12 +381,13 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         api = UnitTestApi(enviroPath)
         testList = api.TestCase.filter(name=testIDObject.testName)
         if len(testList) > 0:
-            returnText += f"PASSFAIL:" + getPassFailString(testList[0])
+            returnText += f"PASSFAIL:{getPassFailString(testList[0])}\n"
             returnText += f"TIME:{getTime(testList[0].start_time)}\n"
         api.close()
 
         returnText += commandOutput
-        return returnCode, returnText
+        # need strip of the triling CR
+        return returnCode, returnText.rstrip()
 
 
 def processVResults(filePath):
@@ -410,7 +415,7 @@ def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("report")
-        commandOutput = clicastInterface.generateExecutionReport(testIDObject)
+        commandOutput = clicastInterface.generateExecutionReport(enviroPath, testIDObject)
 
         returnText = f"REPORT:{testIDObject.reportName}.txt\n"
         returnText += commandOutput
@@ -465,15 +470,18 @@ def validateClicastCommand(command, mode):
     """
     if mode.startswith("executeTest") or mode == "rebuild":
         if command is None or len(command) == 0:
-            print(f"Arg --clicast is required for mode: {mode}")
-            raise UsageError()
+            raise UsageError("--clicast argument is required")
         elif os.path.isfile(command) or (
             sys.platform == "win32" and os.path.isfile(command + ".exe")
         ):
             pass
         else:
-            print(f"Invalid value for --clicast: {command}")
-            raise UsageError()
+            raise UsageError("--clicast argument is invalid, file does not exist")
+
+
+def validatePath(pathString):
+    if not os.path.isdir(pathString) and not os.path.isfile(pathString):
+        raise UsageError("--path argument is invalid, path does not exist")
 
 
 def processOptions(optionString):
@@ -486,12 +494,11 @@ def processOptions(optionString):
             returnObject = {}
             returnObject = json.loads(optionString)
         except:
-            print("Invalid --options argument, value not JSON formatted")
-            raise UsageError()
+            raise UsageError("--options argument is invalid, value not JSON formatted")
     return returnObject
 
 
-def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
+def processCommandLogic(mode, clicast, pathToUse, testString="", options="") -> dict:
     """
     This function does the actual work of processing a vTestInterface command,
     it will return a dictionary with the results of the command
@@ -501,8 +508,12 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
     returnObject = None
 
     # no need to pass this all around
+    # will raise usageError if path is invalid
     validateClicastCommand(clicast, mode)
     clicastInterface.globalClicastCommand = clicast
+
+    # will raise usageError if path is invalid
+    validatePath(pathToUse)
 
     if mode == "getEnviroData":
         topLevel = dict()
@@ -516,8 +527,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
         try:
             testIDObject = testID(pathToUse, testString)
         except:
-            print("Invalid test ID, provide a valid --test argument")
-            raise UsageError()
+            raise UsageError("--test argument is invalid")
         returnCode, returnText = executeVCtest(
             pathToUse, testIDObject, mode == "executeTestReport"
         )
@@ -528,7 +538,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
             testIDObject = testID(pathToUse, testString)
         except:
             print("Invalid test ID, provide a valid --test argument")
-            raise UsageError()
+            raise UsageError("--test argument is invlalid")
         returnObject = {"text": getResults(pathToUse, testIDObject).split("\n")}
 
     elif mode == "parseCBT":
@@ -542,9 +552,45 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
 
         # we don't set the return object for rebuild, because we echo in real-time
         jsonOptions = processOptions(options)
-        clicastInterface.rebuildEnvironment(pathToUse, jsonOptions)
+        returnCode, commandOutput = clicastInterface.rebuildEnvironment(pathToUse, jsonOptions)
+        returnObject = {"text": commandOutput.split("\n")}
+
+    else:
+        modeListAsString = ",".join(modeChoices)
+        raise UsageError(
+            f"--mode: {mode} is invalid, must be one of: {modeListAsString}"
+        )
 
     # only used for executeTest currently
+    return returnCode, returnObject
+
+
+def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
+    """
+    This is a wrapper for process command logic, so that we can process
+    the exceptions in a single place for stand-alone (via main) and server usage
+    """
+    try:
+        returnCode, returnObject = processCommandLogic(
+            mode, clicast, pathToUse, testString, options
+        )
+
+    # because vpython and clicast use a large range of positive return codes
+    # we use -1 for internal tool errors
+    except InvalidEnviro:
+        returnCode = 998
+        returnObject = {
+            "text": ["Miss-match between Environment and VectorCAST versions"]
+        }
+    except UsageError as error:
+        # for usage error we print the issue where we see it
+        returnCode = 998
+        returnObject = {"text": [str(error)]}
+    except Exception:
+        returnCode = 998
+        traceBackText = traceback.format_exc().split("\n")
+        returnObject = {"text": traceBackText}
+
     return returnCode, returnObject
 
 
@@ -575,20 +621,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # Exit with 1 by default
-    returnCode = 1
 
-    try:
-        returnCode = main()
-    except InvalidEnviro:
-        # We treat invalid enviro as a warning
-        returnCode = 99
-    except UsageError:
-        # for usage error we print the issue where we see it
-        returnCode = 1
-    except Exception:
-        traceBackText = traceback.format_exc()
-        print(traceBackText)
-        returnCode = 1
-
+    returnCode = main()
     sys.exit(returnCode)
