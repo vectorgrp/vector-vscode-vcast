@@ -41,9 +41,8 @@ export function getCodedTestCompletionData(
         lineSoFar
       );
       listToReturn = jsonData.choiceList;
-      // currently extra text is used only to provide a usage comment 
-      // for vmock functions, the actual string is generated in the python
-      extraText = jsonData.extraText + "\n";
+      // not currently used, left in for future usage
+      extraText = jsonData.extraText;
     }
   }
   // create a vscode CompletionItem List for the choices
@@ -54,6 +53,7 @@ export function getCodedTestCompletionData(
   );
 
   if (extraText.length > 0 && completionItemList.length > 0) {
+    // extraText could be used to make an edit somewhere else in the file
     const location = completionData.position.line + 1;
     addAdditionalEdits(completionItemList[0], extraText, location);
   }

@@ -230,12 +230,13 @@ Which will look like this:
 ```
 // vmock foo foo 
 int vmock_foo_foo(::vunit::CallCtx<> vunit_ctx, int param) {  
+  
+  // Usage: vmock_session.mock (&foo).assign (&vmock_foo_foo);
 
 }
-// Usage: vmock_session.mock (&foo).assign (&vmock_foo_foo);
 ```
 
-You can then insert a hard-coded return of 100 into the logic of the mock 
+You can then edit the mock logic to insert a hard-coded return of 100
 and use the Usage hint to create a test like this:
 
 ```

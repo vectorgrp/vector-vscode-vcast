@@ -474,7 +474,8 @@ unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
 # units to not be shown in the unit list
 unitsToIgnore = ["uut_prototype_stubs", "USER_GLOBALS_VCAST"]
 # function to not be shown in the functions list
-# TBD today - seems like a bug that <<INIT>> is in this list
+# TBD today - these <<INIT>> functions should not be in the list
+# Waiting for PCT fix of FB: 101353 - vc24sp3?
 functionsToIgnore = ["coded_tests_driver", "<<INIT>>"]
 
 
@@ -798,17 +799,19 @@ def processVMockDefinition(enviroName, lineSoFar):
         signatureString = createFunctionSignature(functionObject, parameterTypeList)
         returnType = getReturnType(functionObject)
 
-        whatToReturn = (
-            f"\n{returnType} {vmockFunctionName}({signatureString})" + " {  \n\n}"
-        )
-
-        returnData.choiceKind = choiceKindType.Snippet
-        returnData.choiceList.append(whatToReturn)
-        returnData.extraText = getUsageString(
+        usageString = getUsageString(
             functionObject,
             parameterTypeList,
             vmockFunctionName,
         )
+
+        whatToReturn = (
+            f"\n{returnType} {vmockFunctionName}({signatureString})" + " {\n\n   //" + usageString + "\n\n}"
+        )
+
+        returnData.choiceKind = choiceKindType.Snippet
+        returnData.choiceList.append(whatToReturn)
+
 
     api.close()
 
