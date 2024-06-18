@@ -472,7 +472,7 @@ def splitExistingLine(line):
 # see comment below for what the patterns this matches
 unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
 # units to not be shown in the unit list
-unitsToIgnore = ["uut_prototype_stubs", "USER_GLOBALS_VCAST"]
+unitsToIgnore = ["USER_GLOBALS_VCAST"]
 # function to not be shown in the functions list
 # TBD today - these <<INIT>> functions should not be in the list
 # Waiting for PCT fix of FB: 101353 - vc24sp3?
@@ -806,7 +806,7 @@ def processVMockDefinition(enviroName, lineSoFar):
         )
 
         whatToReturn = (
-            f"\n{returnType} {vmockFunctionName}({signatureString})" + " {\n\n   //" + usageString + "\n\n}"
+            f"\n{returnType} {vmockFunctionName}({signatureString})" + " {\n  // " + usageString + "\n\n}"
         )
 
         returnData.choiceKind = choiceKindType.Snippet
