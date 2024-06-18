@@ -474,7 +474,8 @@ unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
 # units to not be shown in the unit list
 unitsToIgnore = ["uut_prototype_stubs", "USER_GLOBALS_VCAST"]
 # function to not be shown in the functions list
-functionsToIgnore = ["coded_tests_driver"]
+# TBD today - seems like a bug that <<INIT>> is in this list
+functionsToIgnore = ["coded_tests_driver", "<<INIT>>"]
 
 
 def getUnitAneFunctionStrings(lineSoFar):
@@ -536,7 +537,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
         # check if the function name matches any of the functions in the unit
         for functionObject in unitObject.functions:
 
-            if functionObject.name not in functionsToIgnore:
+            if functionObject.vcast_name not in functionsToIgnore:
 
                 # vcast name will have the parameterization if the function is overloaded
                 parameterizedName = functionObject.vcast_name
