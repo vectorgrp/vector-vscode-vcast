@@ -23,11 +23,11 @@ def get_link_from_error(text: str) -> str:
         for file in files:
             if ':' in file:
                 file_path, line_column = file.split(':', 1)
-                file_path = file_path.replace(REPOSITORY_PATH + '/', '')
                 line = line_column.split(':')[0]
             else:
                 file_path = file
                 line = 0
+            file_path = file_path.replace(REPOSITORY_PATH + '/', '')
             ret += f'[{file_path}](https://github.com/{os.getenv("GITHUB_REPOSITORY")}/blob/{os.getenv("GITHUB_SHA")}/{file_path}#L{line})\n'
     if ret:
         ret = f'#### Links to source files\n{ret}'
