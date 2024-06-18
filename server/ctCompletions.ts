@@ -43,7 +43,7 @@ export function getCodedTestCompletionData(
       listToReturn = jsonData.choiceList;
       // currently extra text is used only to provide a usage comment 
       // for vmock functions, the actual string is generated in the python
-      extraText = jsonData.extraText;
+      extraText = jsonData.extraText + "\n";
     }
   }
   // create a vscode CompletionItem List for the choices
