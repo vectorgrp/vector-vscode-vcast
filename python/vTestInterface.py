@@ -28,7 +28,6 @@ import clicastInterface
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
 from vector.enums import COVERAGE_TYPE_TYPE_T
-from vector.apps.DataAPI.configuration import get_coverage_type_text
 
 vpythonHasCodedTestSupport: bool = False
 try:
@@ -312,6 +311,17 @@ class CoverageKind:
     ignore = 4
 
 
+statementCoverList = [
+    COVERAGE_TYPE_TYPE_T.STATEMENT,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
+]
+
+
 def getCoverageKind(sourceObject):
     """
     This function will return:
@@ -320,12 +330,14 @@ def getCoverageKind(sourceObject):
     mcdc: for mcdc
     none: for everything else.
     """
-    coverageTypeAsText = get_coverage_type_text(sourceObject.coverage_type)
-    if coverageTypeAsText.startswith("Statement"):
+
+    # vc23sp2 added a function called get_coverage_type_text, but to support
+    # older versoon of vcast, we do the interpretation of the enum manually here
+    if sourceObject.coverage_type in statementCoverList:
         return CoverageKind.statement
-    elif coverageTypeAsText == "Branch":
+    elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.BRANCH:
         return CoverageKind.branch
-    elif coverageTypeAsText == "MC/DC":
+    elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.MCDC:
         return CoverageKind.mcdc
     else:
         return CoverageKind.ignore
