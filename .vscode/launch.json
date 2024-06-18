@@ -44,7 +44,7 @@
       "args": [
         "choiceList-ct",
         "VMOCK_EXAMPLES",
-        "// vmock vmock_examples  "
+        "// vmock vmock_examples myClass::myMethod(char)char  "
       ],
       "console": "integratedTerminal"
     },

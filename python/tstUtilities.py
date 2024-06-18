@@ -568,7 +568,7 @@ def createFunctionSignature(functionObject, parameterTypeList):
     # if this function is a class member, we include the class name
     instantiatingClass = ""
     if "::" in functionObject.name:
-        instantiatingClass = functionObject.name.split("::")[0]
+        instantiatingClass = functionObject.name.rsplit("::",1)[0]
 
     # the static part of the signature looks like this,
     # we will append the parameters next
