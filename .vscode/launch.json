@@ -19,15 +19,15 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/SandBox/VectorCAST",
+      "cwd": "C:/RDS/VectorCAST/CodeBasedTests/unitTests",
       "env": {
         "PYTHONPATH": "C:/vcast/vc22sp7/python",
         "VECTORCAST_DIR": "c:/VCAST/vc21sp5"
       },
       "args": [
         "--mode=getEnviroData",
-        "--clicast=C:/vcast/vc23sp2/clicast.exe",
-        "--path=c:/RDS/SandBox/VectorCAST/examples/unitTests/FOO"
+        "--clicast=C:/vcast/vc24sp2/clicast.exe",
+        "--path=c:/RDS/VectorCAST/CodeBasedTests/unitTests/MANAGER-DATABASE"
       ],
       "console": "integratedTerminal"
     },
@@ -36,14 +36,15 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/SandBox/VCAST/sourceCode/cpp/unitTests",
+      "cwd": "C:/RDS/VectorCAST/CodeBasedTests/unitTests",
       "env": {
         "PYTHONPATH": "C:/vcast/vc22sp7/python"
       },
       "args": [
         "--mode=executeTest",
-        "--path=c:/RDS/SandBox/VCAST-NEW/vcastTutorial/cpp/unitTests/DATABASE-MANAGER",
-        "--test=\"DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest\""
+        "--clicast=C:/vcast/vc24sp2/clicast.exe",
+        "--path=c:/RDS/VectorCAST/CodeBasedTests/unitTests/MANAGER-DATABASE",
+        "--test=\"MANAGER-DATABASE|manager.Manager::PlaceOrder.BASIS-PATH-001\""
       ],
       "console": "integratedTerminal"
     }
