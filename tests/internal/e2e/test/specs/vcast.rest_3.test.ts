@@ -1,12 +1,14 @@
-// test/specs/vcast.test.ts
+// Test/specs/vcast.test.ts
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import {
-  BottomBarPanel,
-  StatusBar,
-  TextEditor,
-  EditorView,
-  CustomTreeItem,
-  Workbench,
-  TreeItem,
+  type BottomBarPanel,
+  type StatusBar,
+  type TextEditor,
+  type EditorView,
+  type CustomTreeItem,
+  type Workbench,
+  type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -20,22 +22,20 @@ import {
   cleanup,
 } from "../test_utils/vcast_utils";
 
-import { exec } from "child_process";
-import { promisify } from "node:util";
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
   let statusBar: StatusBar;
-  const TIMEOUT = 20000;
+  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -55,6 +55,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -62,6 +63,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -115,7 +117,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     editorView = workbench.getEditorView();
     const tab = (await editorView.openEditor("manager.cpp")) as TextEditor;
-    // moving cursor to make sure coverage indicators are in view
+    // Moving cursor to make sure coverage indicators are in view
     await tab.moveCursor(10, 23);
     console.log("Editing manager.cpp to trigger removing coverage decorators");
     await browser.keys(Key.Enter);
@@ -153,10 +155,10 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     console.log("Looking for Manager::PlaceOrder in the test tree");
-    let vcastTestingViewContent = await getViewContent("Testing");
+    const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       await vcastTestingViewSection.expand();
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
@@ -179,6 +181,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogram) {
       throw new Error("Subprogram 'manager' not found");
     }
+
     console.log("Prepared test deletion");
     await deleteTest(testHandle as CustomTreeItem);
 
@@ -194,7 +197,7 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     console.log(`Waiting until ${"myThirdTest"} disappears from the test tree`);
-    // timeout on the following wait indicates unsuccessful test deletion
+    // Timeout on the following wait indicates unsuccessful test deletion
     await browser.keys([Key.Ctrl, "R"]);
 
     await browser.waitUntil(
@@ -264,11 +267,10 @@ describe("vTypeCheck VS Code Extension", () => {
         console.log(stderr);
         throw new Error(`Error when running ${checkVcastQtCmd}`);
       }
+
       await browser.waitUntil(
         async () =>
-          (await promisifiedExec(checkVcastQtCmd)).stdout.includes(
-            "vcastqt"
-          ) === true,
+          (await promisifiedExec(checkVcastQtCmd)).stdout.includes("vcastqt"),
         { timeout: TIMEOUT }
       );
       expect(stdout).toContain("vcastqt");
@@ -283,6 +285,7 @@ describe("vTypeCheck VS Code Extension", () => {
         console.log(stderr);
         throw new Error(`Error when running ${stopVcastCmd}`);
       }
+
       console.log(stdout);
     }
   });

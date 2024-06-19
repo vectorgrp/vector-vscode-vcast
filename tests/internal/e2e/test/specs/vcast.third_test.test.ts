@@ -1,10 +1,10 @@
-// test/specs/vcast.test.ts
+// Test/specs/vcast.test.ts
 import {
-  BottomBarPanel,
-  TextEditor,
-  EditorView,
-  Workbench,
-  TreeItem,
+  type BottomBarPanel,
+  type TextEditor,
+  type EditorView,
+  type Workbench,
+  type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -20,14 +20,14 @@ describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20000;
+  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -47,6 +47,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -54,6 +55,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -89,7 +91,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       await vcastTestingViewSection.expand();
@@ -105,6 +107,7 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw new Error("Subprogram 'manager' not found");
     }
@@ -116,15 +119,17 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogramMethod) {
       throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
     }
+
     if (!subprogramMethod.isExpanded()) {
       await subprogramMethod.select();
     }
+
     await editTestScriptFor(subprogramMethod, "DATABASE-MANAGER");
 
     const tab = (await editorView.openEditor(
       "DATABASE-MANAGER.tst"
     )) as TextEditor;
-    // closing bottom bar so that findWidget would find text that would otherwise be occluded
+    // Closing bottom bar so that findWidget would find text that would otherwise be occluded
     await bottomBar.toggle(false);
     const findWidget = await tab.openFindWidget();
     await findWidget.setSearchText("TEST.NAME:mySecondTest");
@@ -145,7 +150,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await tab.save();
 
-    // this produces invalid locator error somehow
+    // This produces invalid locator error somehow
     // await tab.openContextMenu()
     // Loading test script directly for now
     await browser.executeWorkbench((vscode) => {
@@ -158,7 +163,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should check TEST.NOTES autocomplete and related warnings", async () => {
     await updateTestID();
 
-    // here not clicking on Edit test script
+    // Here not clicking on Edit test script
     // in order to be consistent with the demo
     editorView = workbench.getEditorView();
     await browser.waitUntil(
@@ -170,7 +175,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const tab = (await editorView.openEditor(
       "DATABASE-MANAGER.tst"
     )) as TextEditor;
-    // closing bottom bar so that findWidget would find text that would otherwise be occluded
+    // Closing bottom bar so that findWidget would find text that would otherwise be occluded
     await bottomBar.toggle(false);
     const startingLineNumber = await tab.getLineOfText("TEST.NOTES:");
     await tab.setTextAtLine(startingLineNumber, " ");
@@ -181,7 +186,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.save();
     // TEST.END_NOTES: should appear automatically
     const endNotesLineNumber = await tab.getLineOfText("TEST.END_NOTES:");
-    // line number is -1 if TEST.END_NOTES: is not found
+    // Line number is -1 if TEST.END_NOTES: is not found
     expect(endNotesLineNumber).not.toBe(-1);
     expect(endNotesLineNumber).toBe(startingLineNumber + 2);
 
@@ -195,7 +200,7 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
     const problemMarkers = await problemsView.getAllMarkers();
-    // problem markers can appear for new features
+    // Problem markers can appear for new features
     let nestedCommandProblemFound = false;
     for (const problem of problemMarkers[0].problems) {
       const problemText = await problem.getText();
@@ -205,6 +210,7 @@ describe("vTypeCheck VS Code Extension", () => {
         break;
       }
     }
+
     expect(nestedCommandProblemFound).toBe(true);
 
     await tab.elem.click();
@@ -219,8 +225,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -343,7 +349,7 @@ describe("vTypeCheck VS Code Extension", () => {
     ).not.toBe(undefined);
 
     await bottomBar.toggle(true);
-    // this produces invalid locator error somehow
+    // This produces invalid locator error somehow
     // await tab.openContextMenu()
     // Loading test script directly for now
     await browser.executeWorkbench((vscode) => {

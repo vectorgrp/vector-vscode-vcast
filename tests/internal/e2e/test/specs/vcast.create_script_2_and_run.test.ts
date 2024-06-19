@@ -1,11 +1,11 @@
-// test/specs/vcast.test.ts
+// Test/specs/vcast.test.ts
 import {
-  BottomBarPanel,
-  StatusBar,
-  TextEditor,
-  EditorView,
-  Workbench,
-  TreeItem,
+  type BottomBarPanel,
+  type StatusBar,
+  type TextEditor,
+  type EditorView,
+  type Workbench,
+  type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -22,14 +22,14 @@ describe("vTypeCheck VS Code Extension", () => {
   let workbench: Workbench;
   let editorView: EditorView;
   let statusBar: StatusBar;
-  const TIMEOUT = 20000;
+  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -49,6 +49,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -56,6 +57,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -91,7 +93,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       await vcastTestingViewSection.expand();
@@ -107,6 +109,7 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw new Error("Subprogram 'manager' not found");
     }
@@ -118,9 +121,11 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogramMethod) {
       throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
     }
+
     if (!subprogramMethod.isExpanded()) {
       await subprogramMethod.select();
     }
+
     await editTestScriptFor(subprogramMethod, "DATABASE-MANAGER");
 
     const tab = (await editorView.openEditor(
@@ -172,8 +177,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -304,7 +309,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const tab = (await editorView.openEditor("manager.cpp")) as TextEditor;
     const RED_GUTTER = "/no-cover-icon";
     const GREEN_GUTTER = "/cover-icon";
-    // moving cursor to make sure coverage indicators are in view
+    // Moving cursor to make sure coverage indicators are in view
     await tab.moveCursor(10, 3);
     console.log(
       "Validating that the RED gutter appears on line 10 in manager.cpp"

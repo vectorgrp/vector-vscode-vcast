@@ -1,5 +1,5 @@
-// test/specs/vcast.test.ts
-import { BottomBarPanel, Workbench } from "wdio-vscode-service";
+// Test/specs/vcast.test.ts
+import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   updateTestID,
@@ -14,16 +14,16 @@ import {
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120000;
+  const TIMEOUT = 120_000;
   const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE";
   const QUOTES_EXAMPLE_UNIT = "quotes_example";
   const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)";
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -44,6 +44,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -113,7 +114,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should correctly generate all ATG tests for function", async () => {
     await updateTestID();
 
-    if (process.env["ENABLE_ATG_FEATURE"] === "TRUE") {
+    if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
       console.log("Generating ATG tests for quotes_example");
       await generateAllTestsForFunction(
         QUOTES_EXAMPLE_UNIT,
@@ -134,7 +135,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should correctly delete all ATG tests for function", async () => {
     await updateTestID();
 
-    if (process.env["ENABLE_ATG_FEATURE"] === "TRUE") {
+    if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
       console.log("Deleting ATG tests for quotes_example");
       await deleteAllTestsForFunction(
         QUOTES_EXAMPLE_UNIT,
