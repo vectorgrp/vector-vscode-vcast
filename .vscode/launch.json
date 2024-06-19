@@ -36,15 +36,15 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/VectorCAST/CodeBasedTests/unitTests",
+      "cwd": "C:/RDS/VectorCAST/CodeBasedTests/BUGS/CodedTestCompileError",
       "env": {
         "PYTHONPATH": "C:/vcast/vc22sp7/python"
       },
       "args": [
-        "--mode=executeTest",
+        "--mode=executeTestReport",
         "--clicast=C:/vcast/vc24sp2/clicast.exe",
-        "--path=c:/RDS/VectorCAST/CodeBasedTests/unitTests/MANAGER-DATABASE",
-        "--test=\"MANAGER-DATABASE|manager.Manager::PlaceOrder.BASIS-PATH-001\""
+        "--path=c:/RDS/VectorCAST/CodeBasedTests/BUGS/CodedTestCompileError/UUT",
+        "--test=\"UUT|foo.coded_tests_driver.fooTests.simpleTest\""
       ],
       "console": "integratedTerminal"
     }
