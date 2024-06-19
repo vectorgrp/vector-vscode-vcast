@@ -11,6 +11,7 @@ on:
   workflow_dispatch:
 jobs:
   unit-tests:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast]
 
@@ -124,6 +125,7 @@ jobs:
           --data-binary "@${{ env.VSIX_FILE }}"
 
   e2e-tests-23:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [ self-hosted, vscode-vcast]
 
@@ -244,6 +246,7 @@ jobs:
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
   e2e-tests-24:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [ self-hosted, vscode-vcast]
 
