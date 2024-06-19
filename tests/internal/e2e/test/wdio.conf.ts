@@ -10,14 +10,14 @@ import {
   Dispatcher,
   ProxyAgent,
 } from "undici";
-import {ProxyTypes, ProxyObject} from "@wdio/types/build/Capabilities"
+import { ProxyTypes, ProxyObject } from "@wdio/types/build/Capabilities";
 import { exec } from "child_process";
 import { mkdir, rm, writeFile } from "fs/promises";
 import { promisify } from "node:util";
 
 const noProxyRules = (process.env["no_proxy"] ?? "")
-    .split(",")
-    .map((rule) => rule.trim());
+  .split(",")
+  .map((rule) => rule.trim());
 if (
   process.env["RUNNING_ON_SERVER"] === "True" ||
   process.env["GITHUB_ACTIONS"] === "true"
@@ -63,14 +63,13 @@ if (
 
 import capabilitiesJson from "./capabilityConfig.json";
 
-const proxyType: ProxyTypes = 'manual'
+const proxyType: ProxyTypes = "manual";
 const proxyObject: ProxyObject = {
   proxyType: proxyType,
-  ftpProxy: process.env['http_proxy'],
-  httpProxy: process.env['http_proxy'],
-  noProxy: noProxyRules
-}
-
+  ftpProxy: process.env["http_proxy"],
+  httpProxy: process.env["http_proxy"],
+  noProxy: noProxyRules,
+};
 
 let coreTestSpecs = [
   "./**/**/vcast.build_env.test.ts",
@@ -82,18 +81,16 @@ let coreTestSpecs = [
   "./**/**/vcast.rest.test.ts",
   "./**/**/vcast.rest_2.test.ts",
   "./**/**/vcast.rest_3.test.ts",
-]
+];
 let fullTestSpecs = coreTestSpecs;
 if (process.env["USE_VCAST_24"] == "True")
   fullTestSpecs = coreTestSpecs.concat(["./**/**/vcast_coded_tests.test.ts"]);
-fullTestSpecs = fullTestSpecs.concat(
-  [
-    "./**/**/vcast_testgen_bugs.test.ts",
-    "./**/**/vcast_testgen_bugs_2.test.ts",
-    "./**/**/vcast_testgen_func.test.ts",
-    "./**/**/vcast_testgen_unit.test.ts",
-  ]
-)
+fullTestSpecs = fullTestSpecs.concat([
+  "./**/**/vcast_testgen_bugs.test.ts",
+  "./**/**/vcast_testgen_bugs_2.test.ts",
+  "./**/**/vcast_testgen_func.test.ts",
+  "./**/**/vcast_testgen_unit.test.ts",
+]);
 // this test takes very long and it's not that critical
 // if (process.env["BRANCH_REF"] == "refs/heads/main")
 //   fullTestSpecs = fullTestSpecs.concat(["./**/**/vcast_testgen_env.test.ts"])
@@ -300,12 +297,16 @@ export const config: Options.Testrunner = {
   // see also: https://webdriver.io/docs/dot-reporter
   reporters: [
     "spec",
-    ['junit', {
-      outputDir: 'test_results',
-      outputFileFormat: function(options) { // optional
-        return `results-${options.cid}.xml`
-      }
-    }]
+    [
+      "junit",
+      {
+        outputDir: "test_results",
+        outputFileFormat: function (options) {
+          // optional
+          return `results-${options.cid}.xml`;
+        },
+      },
+    ],
   ],
 
   //
@@ -401,8 +402,12 @@ export const config: Options.Testrunner = {
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
     await mkdir(testInputEnvPath, { recursive: true });
 
-    const codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
-    await mkdir(codedTestsPath , { recursive: true });
+    const codedTestsPath = path.join(
+      testInputVcastTutorial,
+      "cpp",
+      "TestFiles"
+    );
+    await mkdir(codedTestsPath, { recursive: true });
 
     const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
     await mkdir(vscodeSettingsPath, { recursive: true });
@@ -413,28 +418,28 @@ export const config: Options.Testrunner = {
       createLaunchJson = `copy /b NUL ${launchJsonPath}`;
     else createLaunchJson = `touch ${launchJsonPath}`;
     await promisifiedExec(createLaunchJson);
-    
-    const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include")
+
+    const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
     const c_cpp_properties = {
       configurations: [
-          {
-              "name": "Linux",
-              "includePath": [
-                  "${workspaceFolder}/**",
-                  `${pathTovUnitInclude}`  
-              ],
-              "defines": [],
-              "compilerPath": "/usr/bin/clang",
-              "cStandard": "c17",
-              "cppStandard": "c++14",
-              "intelliSenseMode": "linux-clang-x64"
-          }
+        {
+          name: "Linux",
+          includePath: ["${workspaceFolder}/**", `${pathTovUnitInclude}`],
+          defines: [],
+          compilerPath: "/usr/bin/clang",
+          cStandard: "c17",
+          cppStandard: "c++14",
+          intelliSenseMode: "linux-clang-x64",
+        },
       ],
-      version: 4
-    }
+      version: 4,
+    };
 
     const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
-    const c_cpp_properties_JSONPath = path.join(vscodeSettingsPath, "c_cpp_properties.json");
+    const c_cpp_properties_JSONPath = path.join(
+      vscodeSettingsPath,
+      "c_cpp_properties.json"
+    );
     await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
 
     const envFile = `ENVIRO.NEW
@@ -494,10 +499,14 @@ ENVIRO.END
     await mkdir(pathToTutorial, { recursive: true });
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
     const headerFilesToCopy = path.join(pathToTutorial, "*.h");
-    
+
     const examplesDir = path.join(initialWorkdir, "test", "examples");
     const examplesToCopy = path.join(examplesDir, "*.cpp");
-    const codedTestsExamplesToCopy = path.join(examplesDir, "coded_tests", "*.cpp")
+    const codedTestsExamplesToCopy = path.join(
+      examplesDir,
+      "coded_tests",
+      "*.cpp"
+    );
     // copying didn't work with cp from fs
     if (process.platform == "win32") {
       await promisifiedExec(
@@ -510,7 +519,7 @@ ENVIRO.END
         `xcopy /s /i /y ${headerFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`
       );
       await promisifiedExec(
-        `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`,
+        `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`
       );
       await promisifiedExec(
         `xcopy /s /i /y ${testInputVcastTutorial} ${path.join(
@@ -574,9 +583,7 @@ ENVIRO.END
    * @param  {[type]} args     object that will be merged with the main configuration once worker is initialized
    * @param  {[type]} execArgv list of string arguments passed to the worker process
    */
-  onWorkerStart: async function (cid, caps, specs, args, execArgv) {
-
-  },
+  onWorkerStart: async function (cid, caps, specs, args, execArgv) {},
   /**
    * Gets executed just after a worker process has exited.
    * @param  {String} cid      capability id (e.g 0-0)
@@ -623,9 +630,9 @@ ENVIRO.END
    * @param {Array.<String>} specs        List of spec file paths that are to be run
    * @param {Object}         browser      instance of created browser/device session
    */
-// before: function (capabilities, specs, browser) {
+  // before: function (capabilities, specs, browser) {
 
-//   },
+  //   },
   /**
    * Runs before a WebdriverIO command gets executed.
    * @param {String} commandName hook command name

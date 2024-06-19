@@ -485,7 +485,7 @@ function findStringInFile(filePath: string, stringToFind: string): number {
 
   for (const [index, line] of fileContents.entries()) {
     if (line.includes(stringToFind)) {
-      returnLineNumber = index;
+      returnLineNumber = index+1;
       break;
     }
   }

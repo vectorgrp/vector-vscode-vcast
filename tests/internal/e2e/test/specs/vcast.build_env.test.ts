@@ -1,8 +1,5 @@
 // test/specs/vcast.test.ts
-import {
-  BottomBarPanel,
-  Workbench,
-} from "wdio-vscode-service";
+import { BottomBarPanel, Workbench } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   releaseCtrl,
@@ -26,7 +23,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -55,7 +52,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -63,15 +60,15 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
@@ -86,13 +83,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
 
-    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
-      "vcastTutorial",
-    );
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
 
-    const configFile = await workspaceFolderSection.findItem("CCAST_.CFG")
-    await configFile.openContextMenu()
-    await (await $("aria/Set as VectorCAST Configuration File")).click()
+    const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
+    await configFile.openContextMenu();
+    await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
 
   it("should create VectorCAST environment", async () => {
@@ -103,9 +99,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
 
-    const workspaceFolderSection = await expandWorkspaceFolderSectionInExplorer(
-      "vcastTutorial",
-    );
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
     const cppFolder = workspaceFolderSection.findItem("cpp");
     await (await cppFolder).select();
 
@@ -123,30 +118,28 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // this will timeout if VectorCAST notification does not appear, resulting in a failed test
     const vcastNotifSourceElem = await $(
-      "aria/VectorCAST Test Explorer (Extension)",
+      "aria/VectorCAST Test Explorer (Extension)"
     );
     const vcastNotification = await vcastNotifSourceElem.$("..");
     await (await vcastNotification.$("aria/Yes")).click();
 
     console.log(
-      "Waiting for clicast and waiting for environment to get processed",
+      "Waiting for clicast and waiting for environment to get processed"
     );
     await browser.waitUntil(
       async () =>
         (await (await bottomBar.openOutputView()).getText())
           .toString()
           .includes("Environment built Successfully"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
     await browser.saveScreenshot(
-      "info_finished_creating_vcast_environment.png",
+      "info_finished_creating_vcast_environment.png"
     );
     // clearing all notifications
     await (await $(".codicon-notifications-clear-all")).click();
-
   });
-
 });

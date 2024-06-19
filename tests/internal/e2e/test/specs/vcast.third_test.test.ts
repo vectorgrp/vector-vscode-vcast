@@ -16,7 +16,6 @@ import {
   updateTestID,
 } from "../test_utils/vcast_utils";
 
-
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
@@ -34,7 +33,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code",
+      "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
 
@@ -63,7 +62,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
     await browser.waitUntil(async () =>
@@ -71,15 +70,15 @@ describe("vTypeCheck VS Code Extension", () => {
         .toString()
         .includes("VectorCAST Test Explorer")
     );
-    await outputView.selectChannel("VectorCAST Test Explorer")
-    console.log("Channel selected")
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
           .includes("Starting the language server"),
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
 
     const testingView = await activityBar.getViewControl("Testing");
@@ -98,7 +97,7 @@ describe("vTypeCheck VS Code Extension", () => {
       for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
         subprogram = await findSubprogram(
           "manager",
-          vcastTestingViewContentSection,
+          vcastTestingViewContentSection
         );
         if (subprogram) {
           await subprogram.expand();
@@ -112,7 +111,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const subprogramMethod = await findSubprogramMethod(
       subprogram,
-      "Manager::PlaceOrder",
+      "Manager::PlaceOrder"
     );
     if (!subprogramMethod) {
       throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
@@ -123,7 +122,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await editTestScriptFor(subprogramMethod, "DATABASE-MANAGER");
 
     const tab = (await editorView.openEditor(
-      "DATABASE-MANAGER.tst",
+      "DATABASE-MANAGER.tst"
     )) as TextEditor;
     // closing bottom bar so that findWidget would find text that would otherwise be occluded
     await bottomBar.toggle(false);
@@ -138,11 +137,11 @@ describe("vTypeCheck VS Code Extension", () => {
     const expectedValueLineFromPreviousTest =
       "TEST.EXPECTED:database.DataBase::UpdateTableRecord.Data[0].CheckTotal:14";
     const startingLineNumber = await tab.getLineOfText(
-      expectedValueLineFromPreviousTest,
+      expectedValueLineFromPreviousTest
     );
     await tab.setTextAtLine(
       startingLineNumber,
-      "TEST.EXPECTED:database.DataBase::UpdateTableRecord.Data[0].CheckTotal:28",
+      "TEST.EXPECTED:database.DataBase::UpdateTableRecord.Data[0].CheckTotal:28"
     );
     await tab.save();
 
@@ -165,11 +164,11 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await (await editorView.getActiveTab()).getTitle()) ===
-        "DATABASE-MANAGER.tst",
+        "DATABASE-MANAGER.tst"
     );
 
     const tab = (await editorView.openEditor(
-      "DATABASE-MANAGER.tst",
+      "DATABASE-MANAGER.tst"
     )) as TextEditor;
     // closing bottom bar so that findWidget would find text that would otherwise be occluded
     await bottomBar.toggle(false);
@@ -193,7 +192,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const problemsView = await bottomBar.openProblemsView();
     await browser.waitUntil(
       async () => (await problemsView.getAllMarkers()).length > 0,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     const problemMarkers = await problemsView.getAllMarkers();
     // problem markers can appear for new features
@@ -230,7 +229,7 @@ describe("vTypeCheck VS Code Extension", () => {
           subprogram,
           "Manager::PlaceOrder",
           "myThirdTest",
-          3,
+          3
         );
         if (testHandle) {
           break;
@@ -250,7 +249,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length > 0,
-      { timeout: TIMEOUT },
+      { timeout: TIMEOUT }
     );
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
@@ -259,30 +258,30 @@ describe("vTypeCheck VS Code Extension", () => {
     await webview.open();
 
     await expect($("h4*=Execution Results (PASS)")).toHaveText(
-      "Execution Results (PASS)",
+      "Execution Results (PASS)"
     );
     await expect($(".event*=Event 1")).toHaveText(
-      "Event 1 - Calling Manager::PlaceOrder",
+      "Event 1 - Calling Manager::PlaceOrder"
     );
 
     await expect($(".event*=Event 2")).toHaveText(
-      "Event 2 - Stubbed DataBase::GetTableRecord",
+      "Event 2 - Stubbed DataBase::GetTableRecord"
     );
 
     await expect($(".event*=Event 3")).toHaveText(
-      "Event 3 - Stubbed DataBase::UpdateTableRecord",
+      "Event 3 - Stubbed DataBase::UpdateTableRecord"
     );
 
     await expect($(".event*=Event 4")).toHaveText(
-      "Event 4 - Returned from Manager::PlaceOrder",
+      "Event 4 - Returned from Manager::PlaceOrder"
     );
 
     await expect($(".text-muted*=UUT: manager.cpp")).toHaveText(
-      "UUT: manager.cpp",
+      "UUT: manager.cpp"
     );
 
     await expect($(".text-muted*=UUT: database.cpp")).toHaveText(
-      "UUT: database.cpp",
+      "UUT: database.cpp"
     );
 
     await expect($(".subprogram*=Manager")).toHaveText("Manager::PlaceOrder");
@@ -294,53 +293,53 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.maximize();
     await browser.waitUntil(async () =>
       (await (await bottomBar.openOutputView()).getText()).includes(
-        "test explorer  [info]  Starting execution of test: myThirdTest ...",
-      ),
+        "test explorer  [info]  Starting execution of test: myThirdTest ..."
+      )
     );
     const outputViewText = await (await bottomBar.openOutputView()).getText();
     await bottomBar.restore();
     expect(
       outputViewText.includes(
-        "test explorer  [info]  Starting execution of test: myThirdTest ...",
-      ),
+        "test explorer  [info]  Starting execution of test: myThirdTest ..."
+      )
     ).toBe(true);
     expect(
       outputViewText.includes(
-        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest",
-      ),
+        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest"
+      )
     ).toBe(true);
     expect(
-      outputViewText.includes("test explorer  [info]  Status: passed"),
+      outputViewText.includes("test explorer  [info]  Status: passed")
     ).toBe(true);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Execution Time:");
-      }),
+      })
     ).not.toBe(undefined);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Processing environment data for:");
-      }),
+      })
     ).not.toBe(undefined);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Viewing results, result report path");
-      }),
+      })
     ).not.toBe(undefined);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Creating web view panel");
-      }),
+      })
     ).not.toBe(undefined);
 
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Setting webview text");
-      }),
+      })
     ).not.toBe(undefined);
 
     await bottomBar.toggle(true);
@@ -351,5 +350,4 @@ describe("vTypeCheck VS Code Extension", () => {
       vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
     });
   });
-
 });
