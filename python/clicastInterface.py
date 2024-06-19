@@ -16,7 +16,6 @@ enviroNameRegex = "-e\s*([^\s]*)"
 
 
 def getEnviroPathFromCommand(command):
-
     # TBD in the future we will change the caller to pass in the environment path
     # No error handling because the caller will guarantee that we have a valid command
     match = re.search(enviroNameRegex, command)
@@ -27,7 +26,6 @@ def getEnviroPathFromCommand(command):
 
 
 def getStandardArgsFromTestObject(testIDObject, quoteParameters):
-
     returnString = f"-e{testIDObject.enviroName}"
     if testIDObject.unitName != "not-used":
         returnString += f" -u{testIDObject.unitName}"
@@ -127,7 +125,6 @@ def updateEnvironment(enviroPath, jsonOptions):
     tempTestScript = "rebuild.tst"
 
     with cd(os.path.dirname(enviroPath)):
-
         # first we generate a .env and .tst for the existing environment
         # we do this using a clicast script
         enviroName = os.path.basename(enviroPath)
@@ -198,7 +195,6 @@ def rebuildEnvironmentUsingClicastReBuild(enviroPath):
 
 
 def rebuildEnvironment(enviroPath, jsonOptions):
-
     if jsonOptions:
         updateEnvironment(enviroPath, jsonOptions)
     else:
@@ -206,7 +202,6 @@ def rebuildEnvironment(enviroPath, jsonOptions):
 
 
 def executeTest(testIDObject):
-
     # since we are doing a direct call to clicast, we need to quote the parameters
     # separate variable because in the future there will be additional parameters
     shouldQuoteParameters = True
@@ -227,7 +222,6 @@ def executeTest(testIDObject):
 
 
 def generateExecutionReport(testIDObject):
-
     standardArgs = getStandardArgsFromTestObject(testIDObject, False)
     # We build a clicast command script to generate the execution report
     # since we need multiple commands
@@ -245,5 +239,5 @@ def generateExecutionReport(testIDObject):
         commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
 
     # we ignore the exit code and return the stdoutput
-    exitCode, stdOutput = runClicastScript(commandFileName) 
+    exitCode, stdOutput = runClicastScript(commandFileName)
     return stdOutput

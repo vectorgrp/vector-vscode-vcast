@@ -176,7 +176,6 @@ globalListOfTestableFunctions = []
 
 
 def getTestDataVCAST(enviroPath):
-
     global globalListOfTestableFunctions
 
     # dataAPI throws if there is a tool/enviro mismatch
@@ -455,7 +454,6 @@ def getCodeBasedTestNames(filePath):
 
     returnObject = None
     if os.path.isfile(filePath):
-
         cbtParser = Parser()
         with open(filePath, "r") as cbtFile:
             fileData = cbtParser.parse(filePath)
@@ -577,7 +575,6 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
 
 
 def main():
-
     argParser = setupArgs()
     args, restOfArgs = argParser.parse_known_args()
 
