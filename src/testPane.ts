@@ -173,7 +173,7 @@ function addTestNodes(
 }
 
 const codedTestFunctionName = "coded_tests_driver";
-const codedTestDisplayName = "Coded Tests";
+const codedTestDisplayName = " Coded Tests";
 function processVCtestData(
   enviroNodeID: string,
   enviroNode: vcastTestItem,
