@@ -21,7 +21,7 @@
       "program": "${workspaceFolder}/python/vTestInterface.py",
       "cwd": "C:/RDS/VectorCAST/CodeBasedTests/unitTests",
       "env": {
-        "PYTHONPATH": "C:/vcast/vc22sp7/python",
+        "PYTHONPATH": "C:/vcast/vc23sp5/python",
         "VECTORCAST_DIR": "c:/VCAST/vc21sp5"
       },
       "args": [
