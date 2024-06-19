@@ -367,7 +367,7 @@ jobs:
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
   code-formatting:
-    if: contains(fromJSON('["push", "workflow_dispatch"]'), github.event_name)
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [ self-hosted, vscode-vcast]
 
