@@ -19,11 +19,15 @@ def get_link_from_error(text: str) -> str:
     errors = re.findall(re.compile(r'^Error: .+?\(.*\)$', flags=re.DOTALL | re.MULTILINE), text)
     ret = ''
     for error in errors:
-        files = re.findall(re.compile(r'Context\.<anonymous>\s*\(([^)]+)\)'), error)
+        files = re.findall(re.compile(r'(?:Context\.<anonymous>\s*|Error: Timeout of.*)\(([^)]+)\)'), error)
         for file in files:
-            file_path, line_column = file.split(':', 1)
+            if ':' in file:
+                file_path, line_column = file.split(':', 1)
+                line = line_column.split(':')[0]
+            else:
+                file_path = file
+                line = 0
             file_path = file_path.replace(REPOSITORY_PATH + '/', '')
-            line = line_column.split(':')[0]
             ret += f'[{file_path}](https://github.com/{os.getenv("GITHUB_REPOSITORY")}/blob/{os.getenv("GITHUB_SHA")}/{file_path}#L{line})\n'
     if ret:
         ret = f'#### Links to source files\n{ret}'
