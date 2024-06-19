@@ -131,7 +131,7 @@ jobs:
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
-      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+      options: --user vcast_user
 
     steps:
       - name: Start forward proxy
@@ -252,7 +252,7 @@ jobs:
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
-      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+      options: --user vcast_user
 
     steps:
       - name: Start forward proxy
@@ -373,7 +373,7 @@ jobs:
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
-      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+      options: --user vcast_user
 
     steps:
       - name: Start forward proxy
