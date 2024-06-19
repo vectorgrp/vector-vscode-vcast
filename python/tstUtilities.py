@@ -6,6 +6,7 @@ this started life as a duplicate of:  dataAPIInterface/tstUtilities.py
 
 from enum import Enum
 import re
+import sys
 import traceback
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
@@ -569,7 +570,7 @@ def createFunctionSignature(functionObject, parameterTypeList):
     # if this function is a class member, we include the class name
     instantiatingClass = ""
     if "::" in functionObject.name:
-        instantiatingClass = functionObject.name.rsplit("::",1)[0]
+        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
 
     # the static part of the signature looks like this,
     # we will append the parameters next
@@ -733,6 +734,36 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
     return returnString
 
 
+def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
+
+    vmockFunctionName = getFunctionName(unitObject.name, functionObject.vcast_name)
+
+    # TBD today - need new type string from vcast
+    # Waiting for PCT fix of FB: 101295 - vc24sp3?
+
+    # To get the original type definition, we need to deconstruct
+    # the parameterized name, vs using the parameter typemark
+    parameterTypeList = getParameterTypesFromParameterization(functionObject)
+
+    signatureString = createFunctionSignature(functionObject, parameterTypeList)
+    returnType = getReturnType(functionObject)
+
+    usageString = getUsageString(
+        functionObject,
+        parameterTypeList,
+        vmockFunctionName,
+    )
+
+    whatToReturn = (
+        f"\n{returnType} {vmockFunctionName}({signatureString})"
+        + " {\n  // "
+        + usageString
+        + "\n\n}"
+    )
+
+    return whatToReturn
+
+
 def processVMockDefinition(enviroName, lineSoFar):
     """
     This function will process vmock_  line completions for coded tests
@@ -787,31 +818,12 @@ def processVMockDefinition(enviroName, lineSoFar):
         unitObject = unitObjectList[0]
         functionObject = functionObjectList[0]
 
-        vmockFunctionName = getFunctionName(unitObject.name, functionObject.vcast_name)
-
-        # TBD today - need new type string from vcast
-        # Waiting for PCT fix of FB: 101295 - vc24sp3?
-
-        # To get the original type definition, we need to deconstruct
-        # the parameterized name, vs using the parameter typemark
-        parameterTypeList = getParameterTypesFromParameterization(functionObject)
-
-        signatureString = createFunctionSignature(functionObject, parameterTypeList)
-        returnType = getReturnType(functionObject)
-
-        usageString = getUsageString(
-            functionObject,
-            parameterTypeList,
-            vmockFunctionName,
-        )
-
-        whatToReturn = (
-            f"\n{returnType} {vmockFunctionName}({signatureString})" + " {\n  // " + usageString + "\n\n}"
+        whatToReturn = generateVMockDefitionForUnitAndFunction(
+            unitObject, functionObject
         )
 
         returnData.choiceKind = choiceKindType.Snippet
         returnData.choiceList.append(whatToReturn)
-
 
     api.close()
 
