@@ -221,7 +221,7 @@ jobs:
           if [ $count != 0 ] ; then
             cd tests/internal/e2e
             tar -cvzf e2e_vcast23_screenshots.tar.gz *.png > /dev/null
-            URL="$BASE_ARTIFACTORY_URL/e2e_vcast23_screenshots/"
+            URL="$ARTIFACTORY_URL/e2e_vcast23_screenshots/"
             curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T e2e_vcast23_screenshots.tar.gz
             cd ../../..
             echo "[Screenshots]($URL)" >> $GITHUB_STEP_SUMMARY
@@ -341,7 +341,7 @@ jobs:
           if [ $count != 0 ] ; then
             cd tests/internal/e2e
             tar -cvzf e2e_vcast24_screenshots.tar.gz *.png > /dev/null
-            URL="$BASE_ARTIFACTORY_URL/e2e_vcast24_screenshots/"
+            URL="$ARTIFACTORY_URL/e2e_vcast24_screenshots/"
             curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T e2e_vcast24_screenshots.tar.gz
             cd ../../..
             echo "[Screenshots]($URL)" >> $GITHUB_STEP_SUMMARY
