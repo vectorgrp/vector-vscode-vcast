@@ -203,6 +203,8 @@ of any file that has code coverage data, and will show the x/y code coverage % i
 This feature can be toggled ON and OFF using the command: "VectorCAST Test Explorer: Toggle coverage annotations"
 from the command palette, or using the shortcut ctrl-shift-c.
 
+Note: partial coverage will not be shown, and for MCDC, only the top level condition will be annotated
+
 ### Test Case Debugging
 
 The extension supports debugging VectorCAST tests via the right click Test Context menu or icon.
