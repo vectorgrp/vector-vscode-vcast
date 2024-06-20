@@ -6,7 +6,7 @@ import traceback
 
 from string import Template
 
-from tstUtilities import generateVMockDefitionForUnitAndFunction
+from tstUtilities import generateVMockDefinitionForUnitAndFunction, getFunctionList
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
 
@@ -36,11 +36,8 @@ def generateAllVMockDefinitions(enviroPath):
 
     api = UnitTestApi(enviroPath)
     for unitObject in api.Unit.all():
-        for functionObject in unitObject.functions:
-            # We don't want to handle `<<INIT>>` subprograms (bug in VectorCAST)
-            if functionObject.vcast_name == "<<INIT>>":
-                continue
-
+        # This means we only try to generate on functions that we accept are 'workable'
+        for functionObject in getFunctionList(api, unitObject.name, returnObjects=True):
             if first_unit is None:
                 # We record the first unit _with functions_
                 first_unit = unitObject.name
@@ -50,7 +47,7 @@ def generateAllVMockDefinitions(enviroPath):
             # Note: we're doing this with string processing here to avoid
             # changing too much of the actual code
             try:
-                mock_content = generateVMockDefitionForUnitAndFunction(
+                mock_content = generateVMockDefinitionForUnitAndFunction(
                     unitObject, functionObject
                 )
             except IndexError as exc:
