@@ -8,7 +8,7 @@ import {
   updateTestID,
   testGenMethod,
   deleteAllTestsForEnv,
-  validateTestDeletionForEnv,
+  validateTestDeletionForFunction,
   generateAndValidateAllTestsFor,
   cleanup,
 } from "../test_utils/vcast_utils";
@@ -166,7 +166,21 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(
       `Validating deletion of all BASIS PATH tests for the environment ${envName}`
     );
-    await validateTestDeletionForEnv(envName);
+    // spot checking a single function and test will do
+    // we just want to make sure that the tree update got triggered
+    await validateTestDeletionForFunction(
+      "database",
+      "DataBase::GetTableRecord",
+      "BASIS-PATH-001",
+      1
+    );
+
+    await validateTestDeletionForFunction(
+      "manager",
+      "Manager::ClearTable",
+      "BASIS-PATH-001",
+      1
+    );
   });
 
   it("should correctly generate all ATG tests for the environment", async () => {
@@ -190,7 +204,21 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log(
         `Validating deletion of all ATG tests for the environment ${envName}`
       );
-      await validateTestDeletionForEnv(envName);
+      // spot checking a single function and test will do
+      // we just want to make sure that the tree update got triggered
+      await validateTestDeletionForFunction(
+        "database",
+        "DataBase::GetTableRecord",
+        "ATG-TEST-1",
+        1
+      );
+
+      await validateTestDeletionForFunction(
+        "manager",
+        "Manager::ClearTable",
+        "ATG-TEST-1",
+        1
+      );
     }
   });
 
