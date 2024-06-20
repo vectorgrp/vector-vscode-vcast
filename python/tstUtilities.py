@@ -18,7 +18,9 @@ globalOutputLog = list()
 def getNameDictFromObjectList(objectList):
     """
     This will take a list of dataAPI objects and return
-    a list of names ... note all objects have name attributes
+    a dictionary of names to objects.
+
+    Note all objects have name attributes.
     """
     returnDict = {}
     for object in objectList:
@@ -288,6 +290,9 @@ functionsToIgnore = ["coded_tests_driver", tagForInit]
 def getFunctionList(api, unitName, returnObjects=False):
     """
     common code to generate list of functions ...
+
+    Normally the function returns a list of function _names_; if you pass in
+    `returnObjects` as True, it will return a list of function _objects_.
     """
     returnList = []
     unitObject = getObjectFromName(api.Unit.all(), unitName)
