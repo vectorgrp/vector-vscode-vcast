@@ -6,7 +6,7 @@ import traceback
 
 from string import Template
 
-from tstUtilities import generateVMockDefitionForUnitAndFunction
+from tstUtilities import functionCanBeVMocked, generateVMockDefitionForUnitAndFunction
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
 
@@ -38,7 +38,7 @@ def generateAllVMockDefinitions(enviroPath):
     for unitObject in api.Unit.all():
         for functionObject in unitObject.functions:
             # We don't want to handle `<<INIT>>` subprograms (bug in VectorCAST)
-            if functionObject.vcast_name == "<<INIT>>":
+            if not functionCanBeVMocked(functionObject):
                 continue
 
             if first_unit is None:

@@ -24,6 +24,7 @@ This script must be run under vpython
 """
 
 import clicastInterface
+from tstUtilities import tagForInit
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
@@ -227,7 +228,7 @@ def getTestDataVCAST(enviroPath):
                 functionNode = dict()
                 # Seems like a vcast dataAPI bug with manager.cpp
                 if (
-                    function.vcast_name != "<<INIT>>"
+                    function.vcast_name != tagForInit
                     and not function.is_non_testable_stub
                 ):
                     # Note: the vcast_name has the parameterization only when there is an overload

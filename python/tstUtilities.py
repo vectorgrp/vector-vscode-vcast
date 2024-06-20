@@ -287,7 +287,7 @@ def getFunctionList(api, unitName):
         functionList = unitObject.functions
         returnList = getNameListFromObjectList(functionList)
         # seems like a vcast dataAPI bug, that <<INIT>> is in this list
-        if "<<INIT>>" in returnList:
+        if tagForInit in returnList:
             returnList.remove(tagForInit)
         if len(unitObject.globals) > 0:
             returnList.append(tagForGlobals)
@@ -477,7 +477,22 @@ unitsToIgnore = ["USER_GLOBALS_VCAST"]
 # function to not be shown in the functions list
 # TBD today - these <<INIT>> functions should not be in the list
 # Waiting for PCT fix of FB: 101353 - vc24sp3?
-functionsToIgnore = ["coded_tests_driver", "<<INIT>>"]
+functionsToIgnore = ["coded_tests_driver", tagForInit]
+
+
+def functionCanBeVMocked(functionObject):
+    """
+    convenience function
+    """
+    if functionObject.vcast_name in functionsToIgnore:
+        return False
+
+    # TBD today - do we need a check for destructor?
+    elif functionObject.is_constructor:
+        return False
+
+    else:
+        return True
 
 
 def getUnitAneFunctionStrings(lineSoFar):
@@ -539,7 +554,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
         # check if the function name matches any of the functions in the unit
         for functionObject in unitObject.functions:
 
-            if functionObject.vcast_name not in functionsToIgnore:
+            if functionCanBeVMocked(functionObject):
 
                 # vcast name will have the parameterization if the function is overloaded
                 parameterizedName = functionObject.vcast_name
