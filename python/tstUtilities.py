@@ -666,7 +666,7 @@ def getParameterTypesFromParameterization(functionObject):
     # first build the list of parameter types
     paramTypes = list()
     parameterizedName = functionObject.parameterization
-    parameterString = parameterizedName.split("(")[1].split(")")[0]
+    parameterString = parameterizedName.split("(", 1)[1].rsplit(")", 1)[0]
 
     paramTypes = list()
     commasOfInterest = findCommas(parameterString)
