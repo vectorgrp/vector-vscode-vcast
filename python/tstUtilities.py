@@ -306,6 +306,8 @@ def getFunctionList(api, unitName, returnObjects=False):
 
     if returnObjects:
         returnList = list(functionDict.values())
+        # We don't want our 'None' for the global
+        returnList.remove(None)
     else:
         returnList = list(functionDict.keys())
 
@@ -544,10 +546,6 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     if len(returnUnitList) == 1:
         # check if the function name matches any of the functions in the unit
         for functionObject in getFunctionList(api, unitObject.name, returnObjects=True):
-            # If we're a global
-            if functionObject is None:
-                continue
-
             # vcast name will have the parameterization if the function is overloaded
             parameterizedName = functionObject.vcast_name
 
