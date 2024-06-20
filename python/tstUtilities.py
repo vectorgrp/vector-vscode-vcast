@@ -534,7 +534,6 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
 
     #  first build the unit list
     for unitObject in unitList:
-
         if unitObject.name not in unitsToIgnore:
             # if no unit string was entered, return all unit objects
             if unitString == None:
@@ -553,9 +552,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     if len(returnUnitList) == 1:
         # check if the function name matches any of the functions in the unit
         for functionObject in unitObject.functions:
-
             if functionCanBeVMocked(functionObject):
-
                 # vcast name will have the parameterization if the function is overloaded
                 parameterizedName = functionObject.vcast_name
 
@@ -593,9 +590,7 @@ def createFunctionSignature(functionObject, parameterTypeList):
 
     paramIndex = 0
     for parameterObject in functionObject.parameters:
-
         if parameterObject.name != "return":
-
             # TBD today - need new type string from vcast
             # Waiting for PCT fix of FB: 101295 - vc24sp3?
             typeString = parameterTypeList[paramIndex]
@@ -641,13 +636,19 @@ def findCommas(parameterString):
     """
     commasOfInterest = list()
     openTemplate = 0
+    openParam = 0
     for index, char in enumerate(parameterString):
-        if openTemplate > 0:
-            if char == ">":
-                openTemplate -= 1
+        if char == ">":
+            assert openTemplate > 0
+            openTemplate -= 1
         elif char == "<":
             openTemplate += 1
-        elif char == ",":
+        elif char == ")":
+            assert openParam > 0
+            openParam -= 1
+        elif char == "(":
+            openParam += 1
+        elif not openTemplate and not openParam and char == ",":
             commasOfInterest.append(index)
 
     # we return a list of the commas we found and add a
@@ -679,10 +680,19 @@ def getParameterTypesFromParameterization(functionObject):
 
 
 def getReturnType(functionObject):
-
     # get the return type from the parameterized name
     parameterizedName = functionObject.parameterization
-    returnType = parameterizedName.split(")")[1]
+    openParen = 0
+    for index, char in enumerate(parameterizedName):
+        if char == ")":
+            assert openParen > 0
+            openParen -= 1
+            if openParen == 0:
+                break
+        elif char == "(":
+            openParen += 1
+
+    returnType = parameterizedName[index + 1 :]
 
     if returnType == None or len(returnType) == 0:
         returnType = "void"
@@ -714,7 +724,6 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
 
     # if this is a function template
     if functionObject.prototype_instantiation:
-
         # TBD today - need new template support from vcast
         # Waiting for PCT fix of FB: 101345 - vc224sp3?
 
@@ -750,7 +759,6 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
 
 
 def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
-
     vmockFunctionName = getFunctionName(unitObject.name, functionObject.vcast_name)
 
     # TBD today - need new type string from vcast
@@ -829,7 +837,6 @@ def processVMockDefinition(enviroName, lineSoFar):
 
     # else the unit and function names are both valid so build the definition
     elif len(unitObjectList) == 1 and len(functionObjectList) == 1:
-
         unitObject = unitObjectList[0]
         functionObject = functionObjectList[0]
 
@@ -846,7 +853,6 @@ def processVMockDefinition(enviroName, lineSoFar):
 
 
 def processVMockSession(enviroName, lineSoFar):
-
     returnData = choiceDataType()
     returnData.choiceKind = choiceKindType.Variable
     returnData.choiceList.append(" ::vunit::MockSession();")
