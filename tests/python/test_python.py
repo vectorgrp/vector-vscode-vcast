@@ -6,9 +6,12 @@
 
 import sys
 import os
+import pathlib
 from collections import namedtuple
 
-sys.path.insert(0, os.path.join("..", "..", "python"))
+# Get the path to where our packages are
+path_to_packages = pathlib.Path(__file__).parent.parent.parent / "python"
+sys.path.insert(0, str(path_to_packages))
 
 import tstUtilities
 
