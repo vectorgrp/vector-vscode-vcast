@@ -776,9 +776,9 @@ def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
 
     whatToReturn = (
         f"\n{returnType} {vmockFunctionName}({signatureString})"
-        + " {\n   "
+        + " {\n  "
         + enableComment
-        + "\n   "
+        + "\n  "
         + disableComment
         + "\n\n}"
     )
