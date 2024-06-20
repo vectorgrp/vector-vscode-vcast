@@ -707,8 +707,10 @@ def getReturnType(functionObject):
     # one spcial case, for const functions the return type
     # will have const appended, so strip this.
     returnType = parameterizedName[index + 1 :]
-    if returnType.endswith("const"):
-        returnType = returnType[:-6]
+    constFlag = "const"
+    if returnType.endswith(constFlag):
+        # strip "^const"
+        returnType = returnType[:-(len(constFlag)+1)]
 
     if returnType == None or len(returnType) == 0:
         returnType = "void"

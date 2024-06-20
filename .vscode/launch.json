@@ -44,7 +44,7 @@
       "args": [
         "choiceList-ct",
         "VMOCK_EXAMPLES",
-        "// vmock vmock_examples myClass::operator== "
+        "// vmock vmock_examples myClass::myConstMethod  "
       ],
       "console": "integratedTerminal"
     },
