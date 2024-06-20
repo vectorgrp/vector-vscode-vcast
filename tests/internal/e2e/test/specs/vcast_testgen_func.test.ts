@@ -186,9 +186,10 @@ describe("vTypeCheck VS Code Extension", () => {
       "Validating deletion of all BASIS PATH tests for function DataBase::GetTableRecord"
     );
     await validateTestDeletionForFunction(
-      envName,
       "database",
-      "DataBase::GetTableRecord"
+      "DataBase::GetTableRecord",
+      "BASIS-PATH-001",
+      1
     );
   });
 
@@ -232,9 +233,10 @@ describe("vTypeCheck VS Code Extension", () => {
         "Validate deletion of all ATG tests for function DataBase::GetTableRecord"
       );
       await validateTestDeletionForFunction(
-        envName,
         "database",
-        "DataBase::GetTableRecord"
+        "DataBase::GetTableRecord",
+        "ATG-TEST-1",
+        1
       );
     } else {
       console.log("Skipping ATG tests");

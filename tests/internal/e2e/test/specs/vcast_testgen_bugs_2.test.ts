@@ -104,9 +104,10 @@ describe("vTypeCheck VS Code Extension", () => {
       testGenMethod.BasisPath
     );
     await validateTestDeletionForFunction(
-      QUOTES_ENV,
       QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION
+      QUOTES_EXAMPLE_FUNCTION,
+      "BASIS-PATH-001",
+      1
     );
   });
 
@@ -142,9 +143,10 @@ describe("vTypeCheck VS Code Extension", () => {
         testGenMethod.ATG
       );
       await validateTestDeletionForFunction(
-        QUOTES_ENV,
         QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION
+        QUOTES_EXAMPLE_FUNCTION,
+        "ATG-TEST-1",
+        1
       );
     } else {
       console.log("Skipping ATG tests");

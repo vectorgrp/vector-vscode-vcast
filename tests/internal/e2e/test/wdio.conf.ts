@@ -90,10 +90,9 @@ fullTestSpecs = fullTestSpecs.concat([
   "./**/**/vcast_testgen_bugs_2.test.ts",
   "./**/**/vcast_testgen_func.test.ts",
   "./**/**/vcast_testgen_unit.test.ts",
+  "./**/**/vcast_testgen_env.test.ts"
 ]);
-// this test takes very long and it's not that critical
-// if (process.env["BRANCH_REF"] == "refs/heads/main")
-//   fullTestSpecs = fullTestSpecs.concat(["./**/**/vcast_testgen_env.test.ts"])
+
 export const config: Options.Testrunner = {
   //
   // ====================

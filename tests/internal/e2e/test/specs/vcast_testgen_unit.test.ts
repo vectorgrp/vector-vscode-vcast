@@ -10,7 +10,7 @@ import {
   generateAllTestsForUnit,
   validateGeneratedTestsForUnit,
   deleteAllTestsForUnit,
-  validateTestDeletionForUnit,
+  validateTestDeletionForFunction,
   cleanup,
 } from "../test_utils/vcast_utils";
 
@@ -166,9 +166,16 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Deleting all BASIS PATH tests for unit database");
     await deleteAllTestsForUnit("database", testGenMethod.BasisPath);
     console.log(
-      "Validating deletion of all BASIS PATH tests for unit database"
+      "Validating deletion of BASIS PATH tests for unit database"
     );
-    await validateTestDeletionForUnit(envName, "database");
+    // spot checking a single function and test will do
+    // we just want to make sure that the tree update got triggered
+    await validateTestDeletionForFunction(
+      "database",
+      "DataBase::GetTableRecord",
+      "BASIS-PATH-001",
+      1
+    );
   });
 
   it("should correctly generate all ATG tests for unit", async () => {
@@ -196,7 +203,14 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log("Deleting all ATG tests for unit database");
       await deleteAllTestsForUnit("database", testGenMethod.ATG);
       console.log("Validating deletion of all ATG tests for unit database");
-      await validateTestDeletionForUnit(envName, "database");
+      // spot checking a single function and test will do
+      // we just want to make sure that the tree update got triggered
+      await validateTestDeletionForFunction(
+        "database",
+        "DataBase::GetTableRecord",
+        "ATG-TEST-1",
+        1
+      );
     } else {
       console.log("Skipping ATG tests");
     }

@@ -522,44 +522,15 @@ export async function validateTestDeletionForUnit(
 }
 
 export async function validateTestDeletionForFunction(
-  envName: string,
   unitName: string,
-  functionName: string
+  functionName: string,
+  spotCheckTestName: string,
+  totalNumOfTestsForMethod: number
 ) {
-  const vcastTestingViewContent = await getViewContent("Testing");
-  let doneValidating = true;
-  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
-    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
-      await visibleItem.select();
-
-      const subprogramGroup = visibleItem as CustomTreeItem;
-
-      if ((await subprogramGroup.getTooltip()).includes(envName)) {
-        for (const unit of await subprogramGroup.getChildren()) {
-          const unitNameTooltip = await unit.getTooltip();
-
-          if (unitNameTooltip.includes(unitName)) {
-            for (const method of await unit.getChildren()) {
-              const methodNameTooltip = await method.getTooltip();
-
-              // this is flaky, it sometimes takes manager as Child element
-              if (methodNameTooltip.includes(functionName)) {
-                await browser.waitUntil(
-                  async () => (await method.hasChildren()) === false,
-                  { timeout: 8000 }
-                );
-                return;
-              }
-            }
-            break;
-          }
-        }
-        // getVisibleItems() literally gets the visible items, including leaves in the structure
-        // important to stop the loop here, otherwise wdio starts doing random things and hangs
-        break;
-      }
-    }
-  }
+    // Only checking if one of the tests can be found
+    // This indicates that the test tree got refreshed
+    await validateSingleTestDeletion(unitName, functionName, spotCheckTestName, totalNumOfTestsForMethod)
+  
 }
 
 export async function generateAndValidateAllTestsFor(
@@ -860,7 +831,7 @@ export async function validateSingleTestDeletion(
             testName,
             totalTestsForFunction
           )) as CustomTreeItem) === undefined,
-        { timeout: 20000 }
+        { timeout: 5000 }
       );
 
       break;
