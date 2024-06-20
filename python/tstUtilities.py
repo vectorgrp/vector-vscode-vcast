@@ -15,7 +15,7 @@ from vector.apps.DataAPI.unit_test_models import Function, Global
 globalOutputLog = list()
 
 
-def getNameListFromObjectList(objectList):
+def getNameDictFromObjectList(objectList):
     """
     This will take a list of dataAPI objects and return
     a list of names ... note all objects have name attributes
@@ -294,7 +294,7 @@ def getFunctionList(api, unitName, returnObjects=False):
     # unitName might be invalid ...
     if unitObject:
         functionList = unitObject.functions
-        functionDict = getNameListFromObjectList(functionList)
+        functionDict = getNameDictFromObjectList(functionList)
 
         # Filter out any functions we don't want
         for functionToIgnore in functionsToIgnore:
@@ -383,7 +383,7 @@ def processSlotLines(api, pieces, triggerCharacter):
 
     elif lengthOfCommand == 3 and triggerCharacter == ",":  # Unit
         objectList = api.Unit.all()
-        returnData.choiceList = getNameListFromObjectList(objectList)
+        returnData.choiceList = list(getNameDictFromObjectList(objectList).keys())
         returnData.choiceKind = choiceKindType.File
 
     elif lengthOfCommand == 4 and triggerCharacter == ",":  # function
@@ -419,7 +419,7 @@ def processStandardLines(api, pieces, triggerCharacter):
 
     elif lengthOfCommand == 3 and triggerCharacter == ":":  # Unit
         objectList = api.Unit.all()
-        returnData.choiceList = getNameListFromObjectList(objectList)
+        returnData.choiceList = list(getNameDictFromObjectList(objectList).keys())
         returnData.choiceKind = choiceKindType.File
 
     elif lengthOfCommand == 4 and triggerCharacter == ".":  # Function
@@ -539,8 +539,6 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
             # else return a filtered list that matches the entry so far
             elif unitObject.name.startswith(unitString):
                 returnUnitList.append(unitObject)
-
-    return returnUnitList, returnFunctionList
 
     # if the unit name is an exact match, process the function name
     if len(returnUnitList) == 1:
@@ -828,8 +826,6 @@ def processVMockDefinition(enviroName, lineSoFar):
         returnData.choiceKind = choiceKindType.Snippet
         returnData.choiceList.append(whatToReturn)
 
-    api.close()
-
     return returnData
 
 
@@ -895,7 +891,6 @@ def processTstLine(enviroName, line):
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)
 
-        api.close()
         return returnData
 
     except Exception as err:
