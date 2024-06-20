@@ -56,7 +56,6 @@ import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
   getEnviroDataFromPython,
-  getResultFileForTest,
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
@@ -486,7 +485,7 @@ function findStringInFile(filePath: string, stringToFind: string): number {
 
   for (const [index, line] of fileContents.entries()) {
     if (line.includes(stringToFind)) {
-      returnLineNumber = index+1;
+      returnLineNumber = index + 1;
       break;
     }
   }
@@ -818,15 +817,17 @@ export async function runNode(
       if (status == testStatus.passed) {
         run.passed(node);
       } else if (status == testStatus.failed) {
-
         const currentTestData = globalTestStatusArray[node.id];
 
         // convert the pass fail string from the current test data into a message
         // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
         // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
 
-        const xofy = currentTestData.passfail.split ("(")[0].trim();
-        const percentage = currentTestData.passfail.split ("(")[1].split(")")[0].trim();
+        const xofy = currentTestData.passfail.split("(")[0].trim();
+        const percentage = currentTestData.passfail
+          .split("(")[1]
+          .split(")")[0]
+          .trim();
         const failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
         const failMessage = new TestMessage(failMessageText);
         run.failed(node, failMessage);
@@ -1178,6 +1179,12 @@ function getListOfTestsFromFile(filePath: string, enviroNodeID: string): any {
   return getJsonDataFromTestInterface(commandToRun, enviroPath);
 }
 
+// we keep a cache of what we have sent to the server so we don't 
+// constantly send the same pair, we intentionally over-write the 
+// file path key if it already exists, since the most recent
+// environment association is the most correct.
+let testFilesSentToServer: Map<string, string> = new Map();
+
 function addCodedTestfileToCache(
   enviroNodeID: string,
   functionNodeForCache: testNodeType
@@ -1202,7 +1209,7 @@ function addCodedTestfileToCache(
   fileCacheData.enviroNodeIDSet.add(enviroNodeID);
   codedTestFileCache.set(functionNodeForCache.testFile, fileCacheData);
 
-  // we also need to add this cbt file to the enviro cache
+  // we also need to add this Coded Test file to the enviro cache
   let enviroCacheData: Set<string> | undefined =
     enviroToCBTfilesCache.get(enviroNodeID);
   if (enviroCacheData == undefined) {
@@ -1213,10 +1220,19 @@ function addCodedTestfileToCache(
 
   // we need to tell the language server about the test file to environment mapping
   for (const testFilePath of enviroCacheData) {
-    sendTestFileDataToLangaugeServer(
-      testFilePath,
-      functionNodeForCache.enviroPath
-    );
+    const enviroPath = functionNodeForCache.enviroPath;
+    if (
+      testFilesSentToServer.has(testFilePath) &&
+      testFilesSentToServer.get(testFilePath) == enviroPath
+    ) {
+      continue;
+    } else {
+      sendTestFileDataToLangaugeServer(
+        testFilePath,
+        functionNodeForCache.enviroPath
+      );
+      testFilesSentToServer.set(testFilePath, enviroPath);
+    }
   }
 }
 
