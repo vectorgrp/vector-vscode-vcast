@@ -6,7 +6,11 @@ import traceback
 
 from string import Template
 
-from tstUtilities import functionCanBeVMocked, generateVMockDefitionForUnitAndFunction
+from tstUtilities import (
+    enableStubPrefix,
+    functionCanBeVMocked,
+    generateVMockDefitionForUnitAndFunction,
+)
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
 
@@ -62,9 +66,9 @@ def generateAllVMockDefinitions(enviroPath):
                 line = line.strip()
 
                 # When we've found the usage line
-                if line.startswith("// Usage: "):
+                if line.startswith(enableStubPrefix):
                     # Grab the invocation
-                    invocation = line[len("// Usage: ") :]
+                    invocation = line[len(enableStubPrefix) :]
 
                     # It should now be the vmock_session content
                     assert invocation.startswith("vmock_session.")

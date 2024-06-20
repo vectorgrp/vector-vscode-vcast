@@ -690,7 +690,11 @@ def getReturnType(functionObject):
     return returnType
 
 
-def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
+enableStubPrefix = "// Enable Stub:"
+disableStubPrefix = "// Disable Stub:"
+
+
+def getUsageStrings(functionObject, parameterTypeList, vmockFunctionName):
     """
     There are three variations of code needed to connect a mock definition with the function being mocked
 
@@ -708,7 +712,7 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
     functionName = functionObject.vcast_name
 
     # start with the static part of the expression
-    returnString = "Usage: vmock_session.mock "
+    baseString = "vmock_session.mock "
 
     # add the user function name, there are two special cases as described above
 
@@ -720,7 +724,7 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
 
         # In function object I found: name_with_template_arguments but there is no <> part
         functionNameWithoutParams = functionName.split("(")[0]
-        returnString += f"(&{functionNameWithoutParams}<insert-template-param-types>)"
+        baseString += f"(&{functionNameWithoutParams}<insert-template-param-types>)"
 
     # else if it is an overloaded function
     elif functionObject.is_overloaded:
@@ -738,15 +742,16 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
 
         paramTypeString = ",".join(parameterTypeList)
 
-        returnString += f"<{returnType}({fptrString})({paramTypeString})> (&{functionName.split('(')[0]})"
+        baseString += f"<{returnType}({fptrString})({paramTypeString})> (&{functionName.split('(')[0]})"
 
     else:
-        returnString += f"(&{functionName})"
+        baseString += f"(&{functionName})"
 
-    # add the final piece that contains the mock function name
-    returnString += f".assign (&{vmockFunctionName});"
+    # Now create the enable and disable comments
+    enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
+    disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
 
-    return returnString
+    return enableComment, disableComment
 
 
 def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
@@ -763,7 +768,7 @@ def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
     signatureString = createFunctionSignature(functionObject, parameterTypeList)
     returnType = getReturnType(functionObject)
 
-    usageString = getUsageString(
+    enableComment, disableComment = getUsageStrings(
         functionObject,
         parameterTypeList,
         vmockFunctionName,
@@ -771,8 +776,10 @@ def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
 
     whatToReturn = (
         f"\n{returnType} {vmockFunctionName}({signatureString})"
-        + " {\n  // "
-        + usageString
+        + " {\n   "
+        + enableComment
+        + "\n   "
+        + disableComment
         + "\n\n}"
     )
 

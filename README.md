@@ -231,7 +231,8 @@ Which will look like this:
 // vmock foo foo 
 int vmock_foo_foo(::vunit::CallCtx<> vunit_ctx, int param) {  
   
-  // Usage: vmock_session.mock (&foo).assign (&vmock_foo_foo);
+  // Enable Stub:  vmock_session.mock (&foo).assign (&vmock_foo_foo);
+  // Disable Stub: vmock_session.mock (&foo).assign (nullptr);
 
 }
 ```
