@@ -116,7 +116,7 @@ def getTime(time):
 
 
 def XofYString(numerator, denominator):
-    if numerator == 0 or denominator == 0:
+    if denominator == 0:
         return ""
     else:
         percentageString = "{:.2f}".format((numerator * 100) / denominator)
@@ -133,7 +133,7 @@ def getPassFailString(test):
     denominator = summary.expected_total + summary.control_flow_total
 
     numerator = denominator - (summary.expected_fail + summary.control_flow_fail)
-    return XofYString(numerator, denominator)
+    return XofYString(numerator, denominator) + "\n"
 
 
 def generateTestInfo(enviroPath, test):

@@ -104,6 +104,7 @@ function addTestNodes(
       time: testList[testIndex].time,
       notes: testList[testIndex].notes,
       resultFilePath: "",
+      stdout: "",
       compoundOnly: testList[testIndex].compoundOnly,
       testFile: testList[testIndex].codedTestFile || "",
       testStartLine: testList[testIndex].codedTestLine || 1,
@@ -817,19 +818,17 @@ export async function runNode(
       if (status == testStatus.passed) {
         run.passed(node);
       } else if (status == testStatus.failed) {
-        const textFilePath = getResultFileForTest(node.id);
 
-        // find the summary line that starts with "Expected Results", and add to testMessage
-        const lines = fs.readFileSync(textFilePath, "utf-8").split("\n");
-        let failMessage: TestMessage = new TestMessage("");
-        for (let line of lines) {
-          // start of line, any number of spaces, search text ...
-          if (/^\s*Expected Results matched.*/.test(line)) {
-            // remove the EOL and squash multiple spaces into 1
-            failMessage = new TestMessage(line.trimEnd().replace(/\s+/g, " "));
-            break;
-          }
-        }
+        const currentTestData = globalTestStatusArray[node.id];
+
+        // convert the pass fail string from the current test data into a message
+        // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
+        // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
+
+        const xofy = currentTestData.passfail.split ("(")[0].trim();
+        const percentage = currentTestData.passfail.split ("(")[1].split(")")[0].trim();
+        const failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
+        const failMessage = new TestMessage(failMessageText);
         run.failed(node, failMessage);
       }
 

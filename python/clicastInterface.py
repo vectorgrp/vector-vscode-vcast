@@ -45,6 +45,15 @@ def getStandardArgsFromTestObject(testIDObject, quoteParameters):
     return returnString
 
 
+def convertOutput (rawOutput):
+    """
+    This will convert the raw output and strip the VECTORCAST_DIR warning
+    """
+    convertedOutput = rawOutput.decode("utf-8", errors="ignore")
+    returnText = "Version:" + convertedOutput.split("**Version")[1]
+    return returnText
+
+
 def runClicastCommandCommandLine(commandToRun):
     """
     A wrapper for the subprocess.run() function
@@ -64,7 +73,7 @@ def runClicastCommandCommandLine(commandToRun):
         returnCode = error.returncode
         rawOutput = error.stdout
 
-    return returnCode, rawOutput.decode("utf-8", errors="ignore")
+    return returnCode, convertOutput(rawOutput)
 
 
 def runClicastCommandWithEcho(commandToRun):

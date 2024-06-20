@@ -39,7 +39,7 @@ import {
   executeCommandSync,
   executeVPythonScript,
   getJsonDataFromTestInterface,
-} from "./vcastCommandRunner"
+} from "./vcastCommandRunner";
 
 import { getChecksumCommand } from "./vcastInstallation";
 
@@ -117,6 +117,7 @@ export interface testDataType {
   passfail: string;
   time: string;
   resultFilePath: string;
+  stdout: string;
   notes: string;
   compoundOnly: boolean;
   testFile: string;
@@ -351,38 +352,31 @@ export function getResultFileForTest(testID: string) {
   return resultFile;
 }
 
-interface executeOutputType {
-  status: string;
-  resultsFilePath: string;
-  time: string;
-  passfail: string;
-  stdOut: string;
-}
-
-function processExecutionOutput(commandOutput: string): executeOutputType {
-  let returnData: executeOutputType = {
-    status: "failed",
-    stdOut: "",
-    resultsFilePath: "",
-    time: "",
-    passfail: "",
-  };
+function processExecutionOutput(
+  currentTestData: testDataType,
+  commandOutput: string
+) {
   const outputLineList: string[] = commandOutput.split(EOL);
-
+  let doneProcessingHeader = false
   for (let lineIndex = 0; lineIndex < outputLineList.length; lineIndex++) {
     const line: string = outputLineList[lineIndex];
     console.log(`LINE IS: ${line}`);
     if (line.startsWith("STATUS:"))
-      returnData.status = line.replace("STATUS:", "");
+      currentTestData.status = line.replace("STATUS:", "");
     else if (line.startsWith("REPORT:"))
-      returnData.resultsFilePath = line.replace("REPORT:", "");
+      currentTestData.resultFilePath = line.replace("REPORT:", "");
     else if (line.startsWith("PASSFAIL:"))
-      returnData.passfail = line.replace("PASSFAIL:", "");
-    else if (line.startsWith("TIME:"))
-      returnData.time = line.replace("TIME:", "");
-    else returnData.stdOut += line + EOL;
+      currentTestData.passfail = line.replace("PASSFAIL:", "");
+    else if (line.startsWith("TIME:")) {
+      currentTestData.time = line.replace("TIME:", "");
+      doneProcessingHeader = true;  
+    }
+    else if (doneProcessingHeader) {
+      // save the rest of the output lines as the stdout
+      currentTestData.stdout = outputLineList.slice (lineIndex, outputLineList.length).join("\n");
+      break;
+    }
   }
-  return returnData;
 }
 
 // with the old test case interface we could have a hover-over
@@ -392,7 +386,7 @@ function processExecutionOutput(commandOutput: string): executeOutputType {
 function logTestResults(
   testID: string,
   rawOutput: string,
-  testData: executeOutputType
+  testData: testDataType
 ) {
   vcastMessage("-".repeat(100));
   vcastMessage("stdout for: " + testID);
@@ -465,24 +459,20 @@ export async function runVCTest(
       openMessagePane();
       returnStatus = testStatus.didNotRun;
     } else {
-      const decodedOutput = processExecutionOutput(commandOutputText);
-      logTestResults(nodeID, commandOutputText, decodedOutput);
 
-      let updatedStatusItem = globalTestStatusArray[nodeID];
+      let currentTestData = globalTestStatusArray[nodeID];
+      // update the test data with the results of the test
+      processExecutionOutput(currentTestData, commandOutputText);
+      logTestResults(nodeID, commandOutputText, currentTestData);
 
-      if (updatedStatusItem) {
-        updatedStatusItem.status = decodedOutput.status;
-        updatedStatusItem.resultFilePath = decodedOutput.resultsFilePath;
-        globalTestStatusArray[nodeID] = updatedStatusItem;
+      globalTestStatusArray[nodeID] = currentTestData;
 
-        if (updatedStatusItem.status == "passed") {
-          returnStatus = testStatus.passed;
-        } else {
-          returnStatus = testStatus.failed;
-        }
+      if (currentTestData.status == "passed") {
+        returnStatus = testStatus.passed;
       } else {
-        returnStatus = testStatus.didNotRun;
+        returnStatus = testStatus.failed;
       }
+
     }
   }
   return returnStatus;

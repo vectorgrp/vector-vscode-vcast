@@ -53,14 +53,15 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/SandBox/VCAST/sourceCode/cpp/unitTests",
+      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
       "env": {
         "PYTHONPATH": "C:/vcast/vc22sp7/python"
       },
       "args": [
         "--mode=executeTest",
-        "--path=c:/RDS/SandBox/VCAST-NEW/vcastTutorial/cpp/unitTests/DATABASE-MANAGER",
-        "--test=\"DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest\""
+        "--clicast=C:/vcast/vc24sp2/clicast.exe",
+        "--path=c:/RDS/VectorCAST/FOO/unitTests/FOO",
+        "--test=\"FOO|foo.coded_tests_driver.fooTests.simple\""
       ],
       "console": "integratedTerminal"
     }
