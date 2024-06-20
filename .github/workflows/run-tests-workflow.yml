@@ -1,5 +1,5 @@
 name: Vector Vscode Vcast Tests
-run-name: ${{ github.actor }} running tests
+run-name: ${{ github.ref_name }} is being tested
 on:
   push:
     branches:
@@ -11,6 +11,7 @@ on:
   workflow_dispatch:
 jobs:
   unit-tests:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast]
 
@@ -124,12 +125,13 @@ jobs:
           --data-binary "@${{ env.VSIX_FILE }}"
 
   e2e-tests-23:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
-      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+      options: --user vcast_user
 
     steps:
       - name: Start forward proxy
@@ -221,9 +223,10 @@ jobs:
           if [ $count != 0 ] ; then
             cd tests/internal/e2e
             tar -cvzf e2e_vcast23_screenshots.tar.gz *.png > /dev/null
-            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $ARTIFACTORY_URL/e2e_vcast23_screenshots.tar.gz -T e2e_vcast23_screenshots.tar.gz
+            URL="$ARTIFACTORY_URL/e2e_vcast23_screenshots/"
+            curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T e2e_vcast23_screenshots.tar.gz
             cd ../../..
-            echo "[Screenshots]($ARTIFACTORY_URL/e2e_vcast23_screenshots.tar.gz)" >> $GITHUB_STEP_SUMMARY
+            echo "[Screenshots]($URL)" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Save dependencies - node
@@ -243,12 +246,13 @@ jobs:
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
   e2e-tests-24:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
-      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+      options: --user vcast_user
 
     steps:
       - name: Start forward proxy
@@ -340,9 +344,10 @@ jobs:
           if [ $count != 0 ] ; then
             cd tests/internal/e2e
             tar -cvzf e2e_vcast24_screenshots.tar.gz *.png > /dev/null
-            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $ARTIFACTORY_URL/e2e_vcast24_screenshots.tar.gz -T e2e_vcast24_screenshots.tar.gz
+            URL="$ARTIFACTORY_URL/e2e_vcast24_screenshots/"
+            curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T e2e_vcast24_screenshots.tar.gz
             cd ../../..
-            echo "[Screenshots]($ARTIFACTORY_URL/e2e_vcast24_screenshots.tar.gz)" >> $GITHUB_STEP_SUMMARY
+            echo "[Screenshots]($URL)" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Save dependencies - node
@@ -360,3 +365,33 @@ jobs:
           path: |
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
+
+  code-formatting:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      options: --user vcast_user
+
+    steps:
+      - name: Start forward proxy
+        run: |
+          sudo /usr/sbin/squid
+          NEW_PROXY="http://$(hostname --ip-address):3128"
+          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Black
+        shell: bash
+        run: |
+          /home/vcast_user/.venv/bin/python -m black . --check
+          exit $?
