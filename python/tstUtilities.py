@@ -20,15 +20,15 @@ def getNameListFromObjectList(objectList):
     This will take a list of dataAPI objects and return
     a list of names ... note all objects have name attributes
     """
-    returnList = list()
+    returnDict = {}
     for object in objectList:
         if isinstance(object, Function):
             # vcast_name has the overloaded name if needed.
-            returnList.append(object.vcast_name)
+            returnDict[object.vcast_name] = object
         else:
-            returnList.append(object.name)
+            returnDict[object.name] = object
 
-    return returnList
+    return returnDict
 
 
 def getNameListFromItemList(paramOrObjectList):
@@ -275,22 +275,39 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
 tagForGlobals = "<<GLOBAL>>"
 tagForInit = "<<INIT>>"
 
+# see comment below for what the patterns this matches
+unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
+# units to not be shown in the unit list
+unitsToIgnore = ["USER_GLOBALS_VCAST"]
+# function to not be shown in the functions list
+# TBD today - these <<INIT>> functions should not be in the list
+# Waiting for PCT fix of FB: 101353 - vc24sp3?
+functionsToIgnore = ["coded_tests_driver", tagForInit]
 
-def getFunctionList(api, unitName):
+
+def getFunctionList(api, unitName, returnObjects=False):
     """
     common code to generate list of functions ...
     """
-    returnList = list()
+    returnList = []
     unitObject = getObjectFromName(api.Unit.all(), unitName)
     # unitName might be invalid ...
     if unitObject:
         functionList = unitObject.functions
-        returnList = getNameListFromObjectList(functionList)
-        # seems like a vcast dataAPI bug, that <<INIT>> is in this list
-        if tagForInit in returnList:
-            returnList.remove(tagForInit)
+        functionDict = getNameListFromObjectList(functionList)
+
+        # Filter out any functions we don't want
+        for functionToIgnore in functionsToIgnore:
+            if functionToIgnore in functionDict:
+                del functionDict[functionToIgnore]
+
         if len(unitObject.globals) > 0:
-            returnList.append(tagForGlobals)
+            functionDict[tagForGlobals] = None
+
+    if returnObjects:
+        returnList = list(functionDict.values())
+    else:
+        returnList = list(functionDict.keys())
 
     return returnList
 
@@ -470,16 +487,6 @@ def splitExistingLine(line):
     return [x.strip() for x in pieces]
 
 
-# see comment below for what the patterns this matches
-unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
-# units to not be shown in the unit list
-unitsToIgnore = ["USER_GLOBALS_VCAST"]
-# function to not be shown in the functions list
-# TBD today - these <<INIT>> functions should not be in the list
-# Waiting for PCT fix of FB: 101353 - vc24sp3?
-functionsToIgnore = ["coded_tests_driver", tagForInit]
-
-
 def getUnitAneFunctionStrings(lineSoFar):
     # using a regex is the simplest way to extract the unit and function names
     match = re.match(unitAndFunctionRegex, lineSoFar)
@@ -519,7 +526,6 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
 
     #  first build the unit list
     for unitObject in unitList:
-
         if unitObject.name not in unitsToIgnore:
             # if no unit string was entered, return all unit objects
             if unitString == None:
@@ -534,27 +540,30 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
             elif unitObject.name.startswith(unitString):
                 returnUnitList.append(unitObject)
 
+    return returnUnitList, returnFunctionList
+
     # if the unit name is an exact match, process the function name
     if len(returnUnitList) == 1:
         # check if the function name matches any of the functions in the unit
-        for functionObject in unitObject.functions:
+        for functionObject in getFunctionList(api, unitObject.name, returnObjects=True):
+            # If we're a global
+            if functionObject is None:
+                continue
 
-            if functionObject.vcast_name not in functionsToIgnore:
+            # vcast name will have the parameterization if the function is overloaded
+            parameterizedName = functionObject.vcast_name
 
-                # vcast name will have the parameterization if the function is overloaded
-                parameterizedName = functionObject.vcast_name
+            # if no function name was entered, return all function objects
+            if functionString == None:
+                returnFunctionList.append(functionObject)
 
-                # if no function name was entered, return all function objects
-                if functionString == None:
-                    returnFunctionList.append(functionObject)
+            # if there is an exact match, return a list with a single object
+            elif parameterizedName == functionString:
+                returnFunctionList = [functionObject]
+                break
 
-                # if there is an exact match, return a list with a single object
-                elif parameterizedName == functionString:
-                    returnFunctionList = [functionObject]
-                    break
-
-                elif parameterizedName.startswith(functionString):
-                    returnFunctionList.append(functionObject)
+            elif parameterizedName.startswith(functionString):
+                returnFunctionList.append(functionObject)
 
     # for an exact match of what the user entered, we will return
     # lists with a single object for each
@@ -578,9 +587,7 @@ def createFunctionSignature(functionObject, parameterTypeList):
 
     paramIndex = 0
     for parameterObject in functionObject.parameters:
-
         if parameterObject.name != "return":
-
             # TBD today - need new type string from vcast
             # Waiting for PCT fix of FB: 101295 - vc24sp3?
             typeString = parameterTypeList[paramIndex]
@@ -664,7 +671,6 @@ def getParameterTypesFromParameterization(functionObject):
 
 
 def getReturnType(functionObject):
-
     # get the return type from the parameterized name
     parameterizedName = functionObject.parameterization
     returnType = parameterizedName.split(")")[1]
@@ -699,7 +705,6 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
 
     # if this is a function template
     if functionObject.prototype_instantiation:
-
         # TBD today - need new template support from vcast
         # Waiting for PCT fix of FB: 101345 - vc224sp3?
 
@@ -735,7 +740,6 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
 
 
 def generateVMockDefinitionForUnitAndFunction(unitObject, functionObject):
-
     vmockFunctionName = getFunctionName(unitObject.name, functionObject.vcast_name)
 
     # TBD today - need new type string from vcast
@@ -814,7 +818,6 @@ def processVMockDefinition(enviroName, lineSoFar):
 
     # else the unit and function names are both valid so build the definition
     elif len(unitObjectList) == 1 and len(functionObjectList) == 1:
-
         unitObject = unitObjectList[0]
         functionObject = functionObjectList[0]
 
@@ -831,7 +834,6 @@ def processVMockDefinition(enviroName, lineSoFar):
 
 
 def processVMockSession(enviroName, lineSoFar):
-
     returnData = choiceDataType()
     returnData.choiceKind = choiceKindType.Variable
     returnData.choiceList.append(" ::vunit::MockSession();")
