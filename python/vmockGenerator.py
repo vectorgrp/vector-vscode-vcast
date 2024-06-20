@@ -49,22 +49,9 @@ def generateAllVMockDefinitions(enviroPath):
             #
             # Note: we're doing this with string processing here to avoid
             # changing too much of the actual code
-            try:
-                mock_content = generateVMockDefitionForUnitAndFunction(
-                    unitObject, functionObject
-                )
-            except IndexError as exc:
-                # We have at least one know, crash, so let's see if we can find
-                # others
-                #
-                # This code means we "accept" the one, known crash
-                tb = traceback.format_tb(exc.__traceback__)
-                last_code_line = tb[-1].strip().split("\n")[-1].strip()
-                if last_code_line == "typeString = parameterTypeList[paramIndex]":
-                    continue
-
-                # If it isn't the above, let's raise
-                raise
+            mock_content = generateVMockDefitionForUnitAndFunction(
+                unitObject, functionObject
+            )
 
             # The vmock usage line
             invocation = None

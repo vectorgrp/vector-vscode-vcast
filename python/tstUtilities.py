@@ -629,7 +629,7 @@ def findCommas(parameterString):
     for index, char in enumerate(parameterString):
         if openTemplate > 0:
             if char == ">":
-                openTemplate + -1
+                openTemplate -= 1
         elif char == "<":
             openTemplate += 1
         elif char == ",":
