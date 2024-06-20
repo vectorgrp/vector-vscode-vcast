@@ -24,6 +24,7 @@ This script must be run under vpython
 """
 
 import clicastInterface
+from clicastInterface import codeTestCompileErrorCode
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
@@ -391,7 +392,8 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         returnText = ""
 
         returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
-        if generateReport:
+        # If the coded test failed to compile it makes no sense to build the reports.
+        if generateReport and returnCode != codeTestCompileErrorCode:
             commandOutput += clicastInterface.generateExecutionReport(testIDObject)
 
         if "TEST RESULT: pass" in commandOutput:
