@@ -49,7 +49,6 @@ class UsageError(Exception):
 modeChoices = [
     "getEnviroData",
     "executeTest",
-    "executeTestReport",
     "report",
     "parseCBT",
     "rebuild",
@@ -386,13 +385,11 @@ def getCoverageData(sourceObject):
     return coveredString, uncoveredString, checksum
 
 
-def executeVCtest(enviroPath, testIDObject, generateReport):
+def executeVCtest(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         returnText = ""
 
         returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
-        if generateReport:
-            commandOutput += clicastInterface.generateExecutionReport(testIDObject)
 
         if "TEST RESULT: pass" in commandOutput:
             returnText += "STATUS:passed\n"
@@ -489,7 +486,7 @@ def validateClicastCommand(command, mode):
     The --clicast arg is only required for a sub-set of modes, so we do
     those checks here, and throw usage error if there is a probelem
     """
-    if mode.startswith("executeTest") or mode == "rebuild":
+    if mode in ["executeTest", "rebuild"]:
         if command is None or len(command) == 0:
             print(f"Arg --clicast is required for mode: {mode}")
             raise UsageError()
@@ -538,15 +535,17 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
         topLevel["unitData"] = getUnitData(pathToUse)
         returnObject = topLevel
 
-    elif mode.startswith("executeTest"):
+    elif mode == "executeTest":
         try:
             testIDObject = testID(pathToUse, testString)
+            # remove any left over report file ...
+            textReportPath = testIDObject.reportName + ".txt"
+            if os.path.isfile(textReportPath):
+                os.remove(textReportPath)
         except:
             print("Invalid test ID, provide a valid --test argument")
             raise UsageError()
-        returnCode, returnText = executeVCtest(
-            pathToUse, testIDObject, mode == "executeTestReport"
-        )
+        returnCode, returnText = executeVCtest(pathToUse, testIDObject)
         returnObject = {"text": returnText.split("\n")}
 
     elif mode == "report":

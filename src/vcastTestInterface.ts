@@ -413,7 +413,6 @@ const { performance } = require("perf_hooks");
 export async function runVCTest(
   enviroPath: string,
   nodeID: string,
-  generateReport: boolean
 ) {
   // Initially, I called clicast directly here, but I switched to the python binding to give
   // more flexibility for things like: running, and generating the execution report in one action
@@ -423,17 +422,9 @@ export async function runVCTest(
   // script and communicate with stdin/stdout
 
   let returnStatus: testStatus = testStatus.didNotRun;
-  // The executeTest command will run the test AND generate the execution report
   let commandToRun: string = "";
-  if (generateReport) {
-    commandToRun = testInterfaceCommand(
-      "executeTestReport",
-      enviroPath,
-      nodeID
-    );
-  } else {
-    commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
-  }
+  commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
+
   const startTime: number = performance.now();
   const commandStatus = executeVPythonScript(commandToRun, enviroPath);
 
