@@ -734,7 +734,7 @@ def getUsageString(functionObject, parameterTypeList, vmockFunctionName):
     return returnString
 
 
-def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
+def generateVMockDefinitionForUnitAndFunction(unitObject, functionObject):
 
     vmockFunctionName = getFunctionName(unitObject.name, functionObject.vcast_name)
 
@@ -818,7 +818,7 @@ def processVMockDefinition(enviroName, lineSoFar):
         unitObject = unitObjectList[0]
         functionObject = functionObjectList[0]
 
-        whatToReturn = generateVMockDefitionForUnitAndFunction(
+        whatToReturn = generateVMockDefinitionForUnitAndFunction(
             unitObject, functionObject
         )
 
