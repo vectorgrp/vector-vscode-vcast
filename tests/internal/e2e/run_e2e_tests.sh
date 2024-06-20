@@ -26,9 +26,20 @@ if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
         Xvfb :99 -screen 0 1920x1080x24 &
     fi
     xvfb-run --server-num=99 --auto-servernum --server-args="-screen 0 1920x1080x24+32" npx wdio run test/wdio.conf.ts | tee output.txt
-    if [ "$GITHUB_ACTIONS" = "true" ] && [ -f output.txt ] ; then
-      export LANG="C.UTF-8"
-      python3 get_e2e_summary_for_gh_actions.py output.txt
+    if [ "$GITHUB_ACTIONS" = "true" ] ; then
+      if [ -f output.txt ] ; then
+        export LANG="C.UTF-8"
+        python3 get_e2e_summary_for_gh_actions.py output.txt
+        failed_tests=$(sed -n 's/.*Spec Files:.* \([0-9]\+\) failed,.*/\1/p' output.txt)
+        for failed in $failed_tests; do
+            if [[ $failed -ne 0 ]]; then
+                exit 1
+            fi
+        done
+      else
+        echo "output.txt not found"
+        exit 1
+      fi
     fi
 else
     npx wdio run test/wdio.conf.ts
