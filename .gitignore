@@ -2,3 +2,4 @@ node_modules
 tests/unit/vcast
 *.tar.gz
 coverage
+.vscode/launch.json

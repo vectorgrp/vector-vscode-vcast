@@ -114,7 +114,8 @@ export function updateTestDecorator() {
     const filePath = activeEditor.document.fileName;
     const unitData = unitAndFunctionMap.get(filePath);
 
-    if (unitData) {
+    // check if there are testable functions in this file
+    if (unitData && unitData.lineMap.size > 0) {
       // We don't want to display the icon and context menu if the
       // file has been edited.  This is the easiest way to check that
       if (checksumMatchesEnvironment(filePath, unitData.enviroPath)) {
@@ -125,7 +126,10 @@ export function updateTestDecorator() {
         });
       }
     }
+
     // update the flask icon decorations
+    // if we this is not a unit of interest, th lists will be empty
+    // and this will remove the decorations
     activeEditor.setDecorations(
       testableFunctionDecorationType,
       testableFunctionsDecorations

@@ -210,6 +210,9 @@ def rebuildEnvironment(enviroPath, jsonOptions):
         rebuildEnvironmentUsingClicastReBuild(enviroPath)
 
 
+codeTestCompileErrorCode = 98
+
+
 def executeTest(testIDObject):
     # since we are doing a direct call to clicast, we need to quote the parameters
     # separate variable because in the future there will be additional parameters
@@ -225,7 +228,7 @@ def executeTest(testIDObject):
     # so we are using this hack until vcast changes the return code for a failed coded test compile
     if testIDObject.functionName == "coded_tests_driver" and executeReturnCode != 0:
         if "TEST RESULT:" not in stdoutText:
-            executeReturnCode = 98
+            executeReturnCode = codeTestCompileErrorCode
 
     return executeReturnCode, stdoutText
 
