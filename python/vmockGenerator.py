@@ -66,21 +66,27 @@ def generateAllVMockDefinitions(enviroPath):
                 # If it isn't the above, let's raise
                 raise
 
-            # Grab all of the lines
-            parts = mock_content.split("\n")
-            assert len(parts) == 5
+            # The vmock usage line
+            invocation = None
 
-            # The third line has the usage string
-            usage_string = parts[2].strip()
+            # Iterate on all parts of the mock content to find the usage
+            for line in mock_content.split("\n"):
+                # Remove whitespace
+                line = line.strip()
 
-            # It should start with Usage
-            assert usage_string.startswith("// Usage: ")
+                # When we've found the usage line
+                if line.startswith("// Usage: "):
+                    # Grab the invocation
+                    invocation = line[len("// Usage: ") :]
 
-            # Grab the invocation
-            invocation = usage_string[len("// Usage: ") :]
+                    # It should now be the vmock_session content
+                    assert invocation.startswith("vmock_session.")
 
-            # It should now be the vmock_session content
-            assert invocation.startswith("vmock_session.")
+                    # We're done
+                    break
+
+            # If we haven't parsed the invocation line, we have an issue
+            assert invocation is not None
 
             # Save all the data we need
             mock_bodies.append(mock_content)
