@@ -173,6 +173,7 @@ function addTestNodes(
 }
 
 const codedTestFunctionName = "coded_tests_driver";
+// leading space is intentional to force it to the top of the list
 const codedTestDisplayName = " Coded Tests";
 function processVCtestData(
   enviroNodeID: string,

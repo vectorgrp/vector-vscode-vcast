@@ -103,7 +103,7 @@ function getChecksum(filePath: string) {
       } else {
         returnValue = Number(commandOutputString);
       }
-      // only save intot the cache if we get a valid checksum
+      // only save into the cache if we get a valid checksum
       const cacheValue: checksumCacheType = {
         checksum: returnValue,
         modificationtime: fs.statSync(filePath).mtime.toISOString(),

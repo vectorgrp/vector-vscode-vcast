@@ -392,8 +392,7 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         returnText = ""
 
         returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
-        # return code 98 means the the coded test failed to compile so
-        # it makes no sense to build the reports.
+        # If the coded test failed to compile it makes no sense to build the reports.
         if generateReport and returnCode != codeTestCompileErrorCode:
             commandOutput += clicastInterface.generateExecutionReport(testIDObject)
 
