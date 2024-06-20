@@ -306,8 +306,10 @@ def getFunctionList(api, unitName, returnObjects=False):
 
     if returnObjects:
         returnList = list(functionDict.values())
+
         # We don't want our 'None' for the global
-        returnList.remove(None)
+        if None in returnList:
+            returnList.remove(None)
     else:
         returnList = list(functionDict.keys())
 
