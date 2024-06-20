@@ -486,11 +486,12 @@ def functionCanBeVMocked(functionObject):
     """
     if functionObject.vcast_name in functionsToIgnore:
         return False
-
-    # TBD today - do we need a check for destructor?
+    # Constructors are not supported by vmock
     elif functionObject.is_constructor:
         return False
-
+    # Destructors are not supported by vmock
+    elif "~" in functionObject.vcast_name:
+        return False
     else:
         return True
 
@@ -622,8 +623,18 @@ def getFunctionName(unitName, functionName):
     """
     returnName = "vmock_"
     returnName += unitName + "_"
-    # overloaded functions will have the parameterization
+
+    # overloaded functions will have the parameterization, stirp
     functionNameToUse = functionName.split("(")[0]
+
+    # overloaded operators will have the operator symbol, strip
+    if "::operator" in functionNameToUse:
+        startIndex = functionNameToUse.find("::operator")
+        functionNameToUse = (
+            functionNameToUse[: startIndex + len("::operator")] + "_symbol"
+        )
+
+    # class members will have the scope operator, replace
     returnName += functionNameToUse.replace("::", "_")
 
     return returnName
@@ -680,6 +691,7 @@ def getParameterTypesFromParameterization(functionObject):
 
 
 def getReturnType(functionObject):
+    # TBD today, this should all go away when PCT adds the types
     # get the return type from the parameterized name
     parameterizedName = functionObject.parameterization
     openParen = 0
@@ -692,7 +704,11 @@ def getReturnType(functionObject):
         elif char == "(":
             openParen += 1
 
+    # one spcial case, for const functions the return type
+    # will have const appended, so strip this.
     returnType = parameterizedName[index + 1 :]
+    if returnType.endswith("const"):
+        returnType = returnType[:-6]
 
     if returnType == None or len(returnType) == 0:
         returnType = "void"
