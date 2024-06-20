@@ -58,11 +58,11 @@ const path = require("path");
 export const vcastEnviroFile = "UNITDATA.VCD";
 
 // Creating a cache for the checksums so we don't constantly re-run the command
-interface checksumCacheType {
+interface ChecksumCacheType {
   checksum: number;
   modificationtime: string;
 }
-let checksumCache = new Map<string, checksumCacheType>();
+let checksumCache = new Map<string, ChecksumCacheType>();
 
 // Compute the checksum for a source file
 function getChecksum(filePath: string) {
@@ -104,7 +104,7 @@ function getChecksum(filePath: string) {
         returnValue = Number(commandOutputString);
       }
       // only save into the cache if we get a valid checksum
-      const cacheValue: checksumCacheType = {
+      const cacheValue: ChecksumCacheType = {
         checksum: returnValue,
         modificationtime: fs.statSync(filePath).mtime.toISOString(),
       };
