@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Vector Test Explorer",
+      "name": "VectorCAST Test Explorer",
       "type": "extensionHost",
       "request": "launch",
       "runtimeExecutable": "${execPath}",
@@ -19,15 +19,32 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/VectorCAST/FOO",
+      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
       "env": {
-        "PYTHONPATH": "C:/vcast/vc23sp5/python",
-        "VECTORCAST_DIR": "c:/VCAST/vc21sp5"
+        "PYTHONPATH": "C:/vcast/vc24sp2/python",
+        "VECTORCAST_DIR": "c:/VCAST/vc24sp2"
       },
       "args": [
         "--mode=getEnviroData",
-        "--clicast=C:/vcast/vc23sp5/clicast.exe",
-        "--path=c:/RDS/VectorCAST/FOO/unitTests/FOO-VC23SP5"
+        "--clicast=C:/vcast/vc24sp2/clicast.exe",
+        "--path=c:/RDS/VectorCAST/FOO/unitTests/FOO"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "getCompletionData",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/testEditorInterface.py",
+      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
+      "env": {
+        "PYTHONPATH": "C:/vcast/vc24sp2/python",
+        "VECTORCAST_DIR": "c:/VCAST/vc24sp2"
+      },
+      "args": [
+        "choiceList-ct",
+        "FOO",
+        "// vmock foo foo  "
       ],
       "console": "integratedTerminal"
     },
@@ -36,14 +53,16 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
-      "cwd": "C:/RDS/SandBox/VCAST/sourceCode/cpp/unitTests",
+      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
       "env": {
-        "PYTHONPATH": "C:/vcast/vc22sp7/python"
+        "PYTHONPATH": "C:/vcast/vc24sp2/python",
+        "VECTORCAST_DIR": "c:/VCAST/vc24sp2"      
       },
       "args": [
         "--mode=executeTest",
-        "--path=c:/RDS/SandBox/VCAST-NEW/vcastTutorial/cpp/unitTests/DATABASE-MANAGER",
-        "--test=\"DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest\""
+        "--clicast=C:/vcast/vc24sp2/clicast.exe",
+        "--path=c:/RDS/VectorCAST/FOO/unitTests/FOO",
+        "--test=\"FOO|foo.coded_tests_driver.fooTests.simple\""
       ],
       "console": "integratedTerminal"
     }

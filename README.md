@@ -173,7 +173,7 @@ the load command will also perform a save.
 
 Coded test files require an include like this: #include <vunit/vunit.h> so for IntelliSense editing to 
 work nicely for coded test files, you must add an include path to for this file to your workspace.
-IntelliSense include paths can most easily be added to the approrpritate c_cpp_properties.json file.
+IntelliSense include paths can most easily be added to the appropriate c_cpp_properties.json file.
 
 If you enable the VectorCAST test explorer and configure it with a VectorCAST version that supports coded testing, 
 the extension will check for the existence of the correct include path and prompt you to add it if it is not found.  
@@ -203,7 +203,7 @@ of any file that has code coverage data, and will show the x/y code coverage % i
 This feature can be toggled ON and OFF using the command: "VectorCAST Test Explorer: Toggle coverage annotations"
 from the command palette, or using the shortcut ctrl-shift-c.
 
-Note: partial coverage will not be shown, and for MCDC, only the top level condition will be annotated
+Note: partial coverage will not be shown, and for MC/DC, only the top level condition will be annotated
 
 ### Test Case Debugging
 
