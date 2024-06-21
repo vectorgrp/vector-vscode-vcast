@@ -762,7 +762,7 @@ enableStubPrefix = "// Enable Stub:"
 disableStubPrefix = "// Disable Stub:"
 
 
-def getUsageStrings(functionObject, parameterTypeList, vmockFunctionName):
+def getUsageStrings(api, functionObject, parameterTypeList, vmockFunctionName):
     """
     There are three variations of code needed to connect a mock definition with the function being mocked
 
@@ -802,10 +802,15 @@ def getUsageStrings(functionObject, parameterTypeList, vmockFunctionName):
         returnType = getReturnType(functionObject)
 
         # next create the function pointer part ether * or className::*
+        instantiatingClass = ""
         if "::" in functionName:
-            fptrString = functionName.split("::")[0] + "::*"
-        else:
-            fptrString = "*"
+            instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+            # We need to check if we get a class name after splitting; we only use
+            # if it is a class
+            if api.Type.get_by_typemark(instantiatingClass) is None:
+                instantiatingClass = ""
+
+        fptrString = f"{instantiatingClass}*"
 
         paramTypeString = ",".join(parameterTypeList)
 
@@ -835,6 +840,7 @@ def generateVMockDefitionForUnitAndFunction(api, unitObject, functionObject):
     returnType = getReturnType(functionObject)
 
     enableComment, disableComment = getUsageStrings(
+        api,
         functionObject,
         parameterTypeList,
         vmockFunctionName,
