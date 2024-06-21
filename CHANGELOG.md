@@ -102,12 +102,22 @@ This option is new for VectorCAST 23 sp2
 - Improved color scheme for stdout/stderr from driver in execution reports
 - Rearranged the extension options into General, and Build Environment section
 - Added a new extension option for Coverage Kind to the Build Options
+- Added support for environment variables in the uUnit include path #96
+- Forced Coded Tests entry in the test tree to be the first item in the function list
 
+### Code Maintenance
 
+- Ran Prettier and xo linter on typescript files, and Black on Python files
+- Added package-lock.json files which fixes some issues with non-deterministic test results
+- Major code re-organization to improve flow and logical grouping
+- Removed launch.json from the repo, and added a launch.json.example
 
 ### Bug Fixes
 - Improved validation of Unit Test Location option #76
 - Handle the existing of "locked directories" in the Workspace #81
 - Added support for JSON-C for VS Code files: launch.json, settings.json etc. #78
+- Added support for relative paths to the coded test file in test script #106
+- Fixed issue with unrecoverable link error after a coded test compile error #128
+
 
 
