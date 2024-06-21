@@ -40,11 +40,13 @@ def test_getReturnType():
         # Function that takes a template + and int and returns a template
         # containing a void(*)(void) fp
         ("(array<int, 1>,int)array<void (*)(void), 1>", "array<void (*)(void), 1>"),
-        # Const function return const vector
+        # Const function returning const vector
         (
             "()const std::vector<int, std::allocator<int>>const",
             "const std::vector<int, std::allocator<int>>",
         ),
+        # Const function returning const int
+        ("()const int const", "const int"),
     ]
 
     # These tests don't need a mangled name

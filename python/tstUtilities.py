@@ -716,7 +716,7 @@ def getReturnType(functionObject):
     constFlag = "const"
     if returnType.endswith(constFlag):
         # strip "const$"
-        returnType = returnType[: -(len(constFlag))]
+        returnType = returnType[: -(len(constFlag))].strip()
 
     if returnType == None or len(returnType) == 0:
         returnType = "void"
