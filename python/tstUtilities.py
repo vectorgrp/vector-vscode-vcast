@@ -574,7 +574,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
-def createFunctionSignature(functionObject, parameterTypeList):
+def createFunctionSignature(api, functionObject, parameterTypeList):
     """
     Create the signature for a vmock object, something like this:
         ::vunit::CallCtx<myClass> vunit_ctx, const char* param1
@@ -584,6 +584,10 @@ def createFunctionSignature(functionObject, parameterTypeList):
     instantiatingClass = ""
     if "::" in functionObject.name:
         instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+        # We need to check if we get a class name after splitting; we only use
+        # if it is a class
+        if api.Type.get_by_typemark(instantiatingClass) is None:
+            instantiatingClass = ""
 
     # the static part of the signature looks like this,
     # we will append the parameters next
@@ -783,7 +787,7 @@ def getUsageStrings(functionObject, parameterTypeList, vmockFunctionName):
     return enableComment, disableComment
 
 
-def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
+def generateVMockDefitionForUnitAndFunction(api, unitObject, functionObject):
     vmockFunctionName = getFunctionName(functionObject)
 
     # TBD today - need new type string from vcast
@@ -793,7 +797,7 @@ def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
     # the parameterized name, vs using the parameter typemark
     parameterTypeList = getParameterTypesFromParameterization(functionObject)
 
-    signatureString = createFunctionSignature(functionObject, parameterTypeList)
+    signatureString = createFunctionSignature(api, functionObject, parameterTypeList)
     returnType = getReturnType(functionObject)
 
     enableComment, disableComment = getUsageStrings(
@@ -868,7 +872,7 @@ def processVMockDefinition(enviroName, lineSoFar):
         functionObject = functionObjectList[0]
 
         whatToReturn = generateVMockDefitionForUnitAndFunction(
-            unitObject, functionObject
+            api, unitObject, functionObject
         )
 
         returnData.choiceKind = choiceKindType.Snippet
