@@ -5,6 +5,7 @@ this started life as a duplicate of:  dataAPIInterface/tstUtilities.py
 """
 
 from enum import Enum
+import os
 import re
 import sys
 import traceback
@@ -13,6 +14,20 @@ from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
 
 globalOutputLog = list()
+
+#
+# In some instances, it is desirable to always have a unique name generated for
+# a mock function. However, it is very difficult to do this and generate 'nice'
+# names.
+#
+# In places where we might generate mocks with duplicate names (e.g., many
+# different `operator` instances, each with a different operator), we can opt
+# to use the mangled name directly. This makes the mock name less 'visually
+# appealing', but it means we never create duplicate mocks.
+#
+ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR = (
+    "VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR"
+)
 
 
 def getNameListFromObjectList(objectList):
@@ -574,7 +589,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
-def createFunctionSignature(functionObject, parameterTypeList):
+def createFunctionSignature(api, functionObject, parameterTypeList):
     """
     Create the signature for a vmock object, something like this:
         ::vunit::CallCtx<myClass> vunit_ctx, const char* param1
@@ -584,6 +599,10 @@ def createFunctionSignature(functionObject, parameterTypeList):
     instantiatingClass = ""
     if "::" in functionObject.name:
         instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+        # We need to check if we get a class name after splitting; we only use
+        # if it is a class
+        if api.Type.get_by_typemark(instantiatingClass) is None:
+            instantiatingClass = ""
 
     # the static part of the signature looks like this,
     # we will append the parameters next
@@ -616,23 +635,44 @@ def createFunctionSignature(functionObject, parameterTypeList):
     return signatureString
 
 
-def getFunctionName(unitName, functionName):
+def getFunctionName(functionObject):
     """
     We use the vmock with the unit and function names as the default
     stub name, the user can edit this to make it unique
     """
+
+    functionName = functionObject.name
     returnName = "vmock_"
-    returnName += unitName + "_"
+    returnName += functionObject.unit.name + "_"
 
     # overloaded functions will have the parameterization, stirp
     functionNameToUse = functionName.split("(")[0]
 
-    # overloaded operators will have the operator symbol, strip
+    # The presence of operator can have two issues:
+    #
+    #   1) we might generate a mock with an invalid name (e.g., including != in
+    #   the function name)
+    #
+    #   2) If there are multiple operators, then we might generate mocks with
+    #   the same name (this is problematic if you want to generate _all_ mocks
+    #   without human intervention)
+    #
+    # This logic handles what to do
     if "::operator" in functionNameToUse:
-        startIndex = functionNameToUse.find("::operator")
-        functionNameToUse = (
-            functionNameToUse[: startIndex + len("::operator")] + "_symbol"
-        )
+        # If we've opted-in to use mangled names ...
+        if os.environ.get(ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR, None):
+            functionNameToUse = functionObject.mangled_name
+        else:
+            # Otherwise, we just strip the actual operator symbols
+            startIndex = functionNameToUse.find("::operator")
+            functionNameToUse = (
+                functionNameToUse[: startIndex + len("::operator")] + "_symbol"
+            )
+
+    # If the method is templated, don't generate a mock with the template in
+    # the name
+    if "<" in functionNameToUse:
+        functionNameToUse = re.sub("<.*>", "", functionNameToUse)
 
     # class members will have the scope operator, replace
     returnName += functionNameToUse.replace("::", "_")
@@ -709,8 +749,8 @@ def getReturnType(functionObject):
     returnType = parameterizedName[index + 1 :]
     constFlag = "const"
     if returnType.endswith(constFlag):
-        # strip "^const"
-        returnType = returnType[:-(len(constFlag)+1)]
+        # strip "const$"
+        returnType = returnType[: -(len(constFlag))].strip()
 
     if returnType == None or len(returnType) == 0:
         returnType = "void"
@@ -781,8 +821,8 @@ def getUsageStrings(functionObject, parameterTypeList, vmockFunctionName):
     return enableComment, disableComment
 
 
-def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
-    vmockFunctionName = getFunctionName(unitObject.name, functionObject.vcast_name)
+def generateVMockDefitionForUnitAndFunction(api, unitObject, functionObject):
+    vmockFunctionName = getFunctionName(functionObject)
 
     # TBD today - need new type string from vcast
     # Waiting for PCT fix of FB: 101295 - vc24sp3?
@@ -791,7 +831,7 @@ def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
     # the parameterized name, vs using the parameter typemark
     parameterTypeList = getParameterTypesFromParameterization(functionObject)
 
-    signatureString = createFunctionSignature(functionObject, parameterTypeList)
+    signatureString = createFunctionSignature(api, functionObject, parameterTypeList)
     returnType = getReturnType(functionObject)
 
     enableComment, disableComment = getUsageStrings(
@@ -866,7 +906,7 @@ def processVMockDefinition(enviroName, lineSoFar):
         functionObject = functionObjectList[0]
 
         whatToReturn = generateVMockDefitionForUnitAndFunction(
-            unitObject, functionObject
+            api, unitObject, functionObject
         )
 
         returnData.choiceKind = choiceKindType.Snippet

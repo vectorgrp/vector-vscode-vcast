@@ -54,7 +54,7 @@ def generateAllVMockDefinitions(enviroPath):
             # Note: we're doing this with string processing here to avoid
             # changing too much of the actual code
             mock_content = generateVMockDefitionForUnitAndFunction(
-                unitObject, functionObject
+                api, unitObject, functionObject
             )
 
             # The vmock usage line
@@ -68,7 +68,7 @@ def generateAllVMockDefinitions(enviroPath):
                 # When we've found the usage line
                 if line.startswith(enableStubPrefix):
                     # Grab the invocation
-                    invocation = line[len(enableStubPrefix) :]
+                    invocation = line[len(enableStubPrefix) + 2 :]
 
                     # It should now be the vmock_session content
                     assert invocation.startswith("vmock_session.")
