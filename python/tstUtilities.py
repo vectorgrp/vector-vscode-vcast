@@ -800,7 +800,10 @@ def buildCppParameterization(api, functionObject, functionName, parameterTypeLis
         if api.Type.get_by_typemark(instantiatingClass) is None:
             instantiatingClass = ""
 
-    fptrString = f"{instantiatingClass}::*"
+    if len (instantiatingClass) > 0:
+        fptrString = f"{instantiatingClass}::*"
+    else:
+        fptrString = "*"
 
     paramTypeString = ",".join(parameterTypeList)
 
