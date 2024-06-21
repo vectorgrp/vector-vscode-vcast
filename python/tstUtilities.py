@@ -616,23 +616,25 @@ def createFunctionSignature(functionObject, parameterTypeList):
     return signatureString
 
 
-def getFunctionName(unitName, functionName):
+def getFunctionName(functionObject):
     """
     We use the vmock with the unit and function names as the default
     stub name, the user can edit this to make it unique
     """
+
+    functionName = functionObject.name
     returnName = "vmock_"
-    returnName += unitName + "_"
+    returnName += functionObject.unit.name + "_"
 
     # overloaded functions will have the parameterization, stirp
     functionNameToUse = functionName.split("(")[0]
 
-    # overloaded operators will have the operator symbol, strip
+    # Let's use the mangled name for operators to make them unique
     if "::operator" in functionNameToUse:
-        startIndex = functionNameToUse.find("::operator")
-        functionNameToUse = (
-            functionNameToUse[: startIndex + len("::operator")] + "_symbol"
-        )
+        functionNameToUse = functionObject.mangled_name
+
+    if "<" in functionNameToUse:
+        functionNameToUse = re.sub("<.*>", "", functionNameToUse)
 
     # class members will have the scope operator, replace
     returnName += functionNameToUse.replace("::", "_")
@@ -709,8 +711,8 @@ def getReturnType(functionObject):
     returnType = parameterizedName[index + 1 :]
     constFlag = "const"
     if returnType.endswith(constFlag):
-        # strip "^const"
-        returnType = returnType[:-(len(constFlag)+1)]
+        # strip "const$"
+        returnType = returnType[: -(len(constFlag))]
 
     if returnType == None or len(returnType) == 0:
         returnType = "void"
@@ -782,7 +784,7 @@ def getUsageStrings(functionObject, parameterTypeList, vmockFunctionName):
 
 
 def generateVMockDefitionForUnitAndFunction(unitObject, functionObject):
-    vmockFunctionName = getFunctionName(unitObject.name, functionObject.vcast_name)
+    vmockFunctionName = getFunctionName(functionObject)
 
     # TBD today - need new type string from vcast
     # Waiting for PCT fix of FB: 101295 - vc24sp3?
