@@ -5,6 +5,7 @@ this started life as a duplicate of:  dataAPIInterface/tstUtilities.py
 """
 
 from enum import Enum
+import os
 import re
 import sys
 import traceback
@@ -13,6 +14,20 @@ from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
 
 globalOutputLog = list()
+
+#
+# In some instances, it is desirable to always have a unique name generated for
+# a mock function. However, it is very difficult to do this and generate 'nice'
+# names.
+#
+# In places where we might generate mocks with duplicate names (e.g., many
+# different `operator` instances, each with a different operator), we can opt
+# to use the mangled name directly. This makes the mock name less 'visually
+# appealing', but it means we never create duplicate mocks.
+#
+ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR = (
+    "VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR"
+)
 
 
 def getNameListFromObjectList(objectList):
@@ -633,10 +648,29 @@ def getFunctionName(functionObject):
     # overloaded functions will have the parameterization, stirp
     functionNameToUse = functionName.split("(")[0]
 
-    # Let's use the mangled name for operators to make them unique
+    # The presence of operator can have two issues:
+    #
+    #   1) we might generate a mock with an invalid name (e.g., including != in
+    #   the function name)
+    #
+    #   2) If there are multiple operators, then we might generate mocks with
+    #   the same name (this is problematic if you want to generate _all_ mocks
+    #   without human intervention)
+    #
+    # This logic handles what to do
     if "::operator" in functionNameToUse:
-        functionNameToUse = functionObject.mangled_name
+        # If we've opted-in to use mangled names ...
+        if os.environ.get(ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR, None):
+            functionNameToUse = functionObject.mangled_name
+        else:
+            # Otherwise, we just strip the actual operator symbols
+            startIndex = functionNameToUse.find("::operator")
+            functionNameToUse = (
+                functionNameToUse[: startIndex + len("::operator")] + "_symbol"
+            )
 
+    # If the method is templated, don't generate a mock with the template in
+    # the name
     if "<" in functionNameToUse:
         functionNameToUse = re.sub("<.*>", "", functionNameToUse)
 

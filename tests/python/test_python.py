@@ -89,22 +89,37 @@ def test_getParameterTypesFromParameterization():
 def test_getFunctionName():
     to_check = [
         # We want to use the mangled name for operators to make sure the functions are unique
-        ("Moo<int>::operator==", "_ZN3MooIiEeqEi", "vmock_test__ZN3MooIiEeqEi"),
+        (
+            "Moo<int>::operator==",
+            "_ZN3MooIiEeqEi",
+            "vmock_test_Moo_operator_symbol",
+            "vmock_test__ZN3MooIiEeqEi",
+        ),
         # Make sure we drop template params (we don't care about the mangled name in this case)
-        ("Moo<int>::foo", "", "vmock_test_Moo_foo"),
+        ("Moo<int>::foo", "", "vmock_test_Moo_foo", "vmock_test_Moo_foo"),
     ]
 
     # These tests don't need parameterization
     parameterization = None
 
-    for name, mangled_name, expected in to_check:
+    for name, mangled_name, expected_not_mangled, expected_mangled in to_check:
         check_values(
             tstUtilities.getFunctionName,
             parameterization,
             mangled_name,
             name,
-            expected,
+            expected_not_mangled,
         )
+
+        os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR] = "1"
+        check_values(
+            tstUtilities.getFunctionName,
+            parameterization,
+            mangled_name,
+            name,
+            expected_mangled,
+        )
+        del os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR]
 
 
 def main():
