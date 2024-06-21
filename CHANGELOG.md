@@ -66,11 +66,11 @@ This option is new for VectorCAST 23 sp2
 ### Bug Fixes
 - Fixed issue: Do not overwrite an existing `CCAST_.CFG` if one exists #25
 
-## [1.0.8] - 2023-10-06
+## [1.0.8] - 2023-11-15
 
 - Added new right click menu choices for .vce (open environment) and .env (build environment) files #30
 - Added new right click menu choice for test explorer tree to allow you to insert Basis Path and ATG tests #31
-    - Addded Generate ATG and Generate Basis Path choices to the "flask+" icons in the text editor
+    - Added Generate ATG and Generate Basis Path choices to the "flask+" icons in the text editor
 - Added support for TEST.REQUIREMENT_KEY syntax, including a hover-over that displays the requirement text #34
 - Improved the 'open settings' feature to default to the 'Workspace' tab
 
@@ -79,3 +79,35 @@ This option is new for VectorCAST 23 sp2
 - Fixed issue: Cleanup of temporary VectorCAST files #27
 - Fixed issue: Inconsistent activation of the extension #28
 - Fixed Issue: 'Delete Test' not working for environment, unit, and subprogram tree nodes #41
+
+## [1.0.9] - 2023-12-12
+
+### Bug Fixes
+- Fixed issue: Non testable function showing up in the test pane, and have flask icon in editor #12 #44
+- Fixed issue: Improper handling of enviro builder exit code #50
+
+## [1.0.10] - 2024-02-29
+
+- Improved messages shown during ATG test generation to remove extra LF 
+- Added support for VectorCAST Coded Tests - see README.md for complete information
+
+### Bug Fixes
+- Fixed bug with create environment when VectorCAST installation cannot be found #58
+- Improved validation of VectorCAST installation option #61
+- Improved colors for expected values in execution reports #64
+- Added support for test script option IGNORE_NAME_VALUE_ERRORS #57
+- Fixed bug with right click .env to build environment #67
+
+## [1.0.11] - 2024-06-21
+- Improved color scheme for stdout/stderr from driver in execution reports
+- Rearranged the extension options into General, and Build Environment section
+- Added a new extension option for Coverage Kind to the Build Options
+
+
+
+### Bug Fixes
+- Improved validation of Unit Test Location option #76
+- Handle the existing of "locked directories" in the Workspace #81
+- Added support for JSON-C for VS Code files: launch.json, settings.json etc. #78
+
+
