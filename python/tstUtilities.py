@@ -730,6 +730,18 @@ def getParameterTypesFromParameterization(functionObject):
     return paramTypes
 
 
+def stripConstFlag(inputString):
+
+    constFlag = "const"
+    returnString = inputString
+
+    if inputString.endswith(constFlag):
+        # strip "const$"
+        returnString = inputString[: -(len(constFlag))].strip()
+
+    return returnString
+
+
 def getReturnType(functionObject):
     # TBD today, this should all go away when PCT adds the types
     # get the return type from the parameterized name
@@ -747,15 +759,52 @@ def getReturnType(functionObject):
     # one spcial case, for const functions the return type
     # will have const appended, so strip this.
     returnType = parameterizedName[index + 1 :]
-    constFlag = "const"
-    if returnType.endswith(constFlag):
-        # strip "const$"
-        returnType = returnType[: -(len(constFlag))].strip()
+    returnType = stripConstFlag(returnType)
 
     if returnType == None or len(returnType) == 0:
         returnType = "void"
 
     return returnType
+
+
+def isConstFunction(functionObject):
+    """
+    This function will return True if the function is const
+    since there does not seem to be a dataAPI attribute for this
+    I have broken it out to more easily handle edge cases
+    """
+
+    parameterization = functionObject.parameterization
+    returnValue = False
+    if parameterization.endswith(" const") or parameterization.endswith(">const"):
+        returnValue = True
+
+    return returnValue
+
+
+def buildCppParameterization(api, functionObject, functionName, parameterTypeList):
+    """
+    This function will convert the vcast parameterization
+    into the correct C++ style parameterization
+    """
+
+    # first split off the return type, allowing for void
+    returnType = getReturnType(functionObject)
+
+    # next create the function pointer part ether * or className::*
+    instantiatingClass = ""
+    if "::" in functionName:
+        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+        # We need to check if we get a class name after splitting; we only use
+        # if it is a class
+        if api.Type.get_by_typemark(instantiatingClass) is None:
+            instantiatingClass = ""
+
+    fptrString = f"{instantiatingClass}::*"
+
+    paramTypeString = ",".join(parameterTypeList)
+
+    return f"{returnType} ({fptrString})({paramTypeString})"
 
 
 enableStubPrefix = "// Enable Stub:"
@@ -798,23 +847,21 @@ def getUsageStrings(api, functionObject, parameterTypeList, vmockFunctionName):
         # currentFunctionName will have the full name like
         # className::MethodName(int, int)int
 
-        # so first split off the return type, allowing for void
-        returnType = getReturnType(functionObject)
+        cppParameterization = buildCppParameterization(
+            api, functionObject, functionName, parameterTypeList
+        )
+        baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
 
-        # next create the function pointer part ether * or className::*
-        instantiatingClass = ""
-        if "::" in functionName:
-            instantiatingClass = functionObject.name.rsplit("::", 1)[0]
-            # We need to check if we get a class name after splitting; we only use
-            # if it is a class
-            if api.Type.get_by_typemark(instantiatingClass) is None:
-                instantiatingClass = ""
+    elif isConstFunction(functionObject):
+        # for const functions we need to insert a cast to a non const version
 
-        fptrString = f"{instantiatingClass}*"
+        # So for a function like this: int myMethod(int param) const
+        # we need to insert: (int (fooClass::*)(int))
 
-        paramTypeString = ",".join(parameterTypeList)
-
-        baseString += f"<{returnType}({fptrString})({paramTypeString})> (&{functionName.split('(')[0]})"
+        cppParameterization = buildCppParameterization(
+            api, functionObject, functionName, parameterTypeList
+        )
+        baseString += f"(({cppParameterization})&{functionName})"
 
     else:
         baseString += f"(&{functionName})"
