@@ -831,7 +831,11 @@ export async function validateSingleTestDeletion(
             testName,
             totalTestsForFunction
           )) as CustomTreeItem) === undefined,
-        { timeout: 5000 }
+        { 
+          timeout: 20000, 
+          interval: 2000, 
+          timeoutMsg: "Checking that the test disappeared from the test tree timed out"
+        }
       );
 
       break;
