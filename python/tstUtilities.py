@@ -25,9 +25,7 @@ globalOutputLog = list()
 # to use the mangled name directly. This makes the mock name less 'visually
 # appealing', but it means we never create duplicate mocks.
 #
-ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR = (
-    "VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR"
-)
+ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES = "VCAST_TEST_EXPLORER_USE_MANGLED_NAMES"
 
 
 def getNameListFromObjectList(objectList):
@@ -642,32 +640,26 @@ def getFunctionName(functionObject):
     """
 
     functionName = functionObject.name
+
+    # We don't actually need most of the processing in this routine if we're
+    # using the mangled name, but we need to make sure we preserve the prefix,
+    # which is why we don't just return here
+    if os.environ.get(ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES, None):
+        functionName = functionObject.mangled_name
+
     returnName = "vmock_"
     returnName += functionObject.unit.name + "_"
 
     # overloaded functions will have the parameterization, stirp
     functionNameToUse = functionName.split("(")[0]
 
-    # The presence of operator can have two issues:
-    #
-    #   1) we might generate a mock with an invalid name (e.g., including != in
-    #   the function name)
-    #
-    #   2) If there are multiple operators, then we might generate mocks with
-    #   the same name (this is problematic if you want to generate _all_ mocks
-    #   without human intervention)
-    #
-    # This logic handles what to do
-    if "::operator" in functionNameToUse:
-        # If we've opted-in to use mangled names ...
-        if os.environ.get(ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR, None):
-            functionNameToUse = functionObject.mangled_name
-        else:
-            # Otherwise, we just strip the actual operator symbols
-            startIndex = functionNameToUse.find("::operator")
-            functionNameToUse = (
-                functionNameToUse[: startIndex + len("::operator")] + "_symbol"
-            )
+    # Handle if we have an operator function (which will include symbols we
+    # cannot use in a function name)
+    if "::operator" in functionNameToUse or functionNameToUse.startswith("operator"):
+        startIndex = functionNameToUse.find("operator")
+        functionNameToUse = (
+            functionNameToUse[: startIndex + len("operator")] + "_symbol"
+        )
 
     # If the method is templated, don't generate a mock with the template in
     # the name
@@ -731,7 +723,6 @@ def getParameterTypesFromParameterization(functionObject):
 
 
 def stripConstFlag(inputString):
-
     constFlag = "const"
     returnString = inputString
 
@@ -800,7 +791,7 @@ def buildCppParameterization(api, functionObject, functionName, parameterTypeLis
         if api.Type.get_by_typemark(instantiatingClass) is None:
             instantiatingClass = ""
 
-    if len (instantiatingClass) > 0:
+    if len(instantiatingClass) > 0:
         fptrString = f"{instantiatingClass}::*"
     else:
         fptrString = "*"

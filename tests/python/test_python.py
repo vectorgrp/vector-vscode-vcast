@@ -95,14 +95,30 @@ def test_getFunctionName():
             "vmock_test_Moo_operator_symbol",
             "vmock_test__ZN3MooIiEeqEi",
         ),
-        # Make sure we drop template params (we don't care about the mangled name in this case)
-        ("Moo<int>::foo", "", "vmock_test_Moo_foo", "vmock_test_Moo_foo"),
+        # Make sure we drop template params; mangled name should always be the same
+        (
+            "Moo<int>::foo",
+            "_ZN3MooIiE3fooEv",
+            "vmock_test_Moo_foo",
+            "vmock_test__ZN3MooIiE3fooEv",
+        ),
+        #
+        (
+            "operator==(Moo<int>,Moo<int>)bool",
+            "_Zeq3MooIiES0_",
+            "vmock_test_operator_symbol",
+            "vmock_test__Zeq3MooIiES0_",
+        ),
     ]
 
     # These tests don't need parameterization
     parameterization = None
 
     for name, mangled_name, expected_not_mangled, expected_mangled in to_check:
+        # Unset the env var in case someone has it set
+        if tstUtilities.ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES in os.environ:
+            del os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES]
+
         check_values(
             tstUtilities.getFunctionName,
             parameterization,
@@ -111,7 +127,7 @@ def test_getFunctionName():
             expected_not_mangled,
         )
 
-        os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR] = "1"
+        os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES] = "1"
         check_values(
             tstUtilities.getFunctionName,
             parameterization,
@@ -119,7 +135,7 @@ def test_getFunctionName():
             name,
             expected_mangled,
         )
-        del os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_MANGLED_FOR_OPERATOR]
+        del os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES]
 
 
 def main():
