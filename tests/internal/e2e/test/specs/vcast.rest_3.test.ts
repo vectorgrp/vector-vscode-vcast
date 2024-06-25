@@ -186,6 +186,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const bottomBar = workbench.getBottomBar()
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
+    
+    await browser.waitUntil(
+      async () =>
+        await outputView.getText(),
+      { timeout: 30000, interval:1000 }
+    );
 
     await browser.waitUntil(
       async () =>

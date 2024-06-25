@@ -93,6 +93,11 @@ describe("vTypeCheck VS Code Extension", () => {
       "Validating deletion of all BASIS PATH tests for function DataBase::GetTableRecord"
     );
     
+    await browser.waitUntil(
+      async () =>
+        await outputView.getText(),
+      { timeout: 30000, interval:1000 }
+    );
     
     await browser.waitUntil(
       async () =>
