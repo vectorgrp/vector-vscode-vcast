@@ -587,10 +587,10 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
-def createFunctionSignature(api, functionObject, parameterTypeList):
+def createFunctionSignature(api, functionObject):
     """
-    Create the signature for a vmock object, something like this:
-        ::vunit::CallCtx<myClass> vunit_ctx, const char* param1
+    Create the signature for a vmock stub function, something like this:
+        ::vunit::CallCtx<myClass> vunit_ctx, int param
     """
 
     # if this function is a class member, we include the class name
@@ -609,23 +609,9 @@ def createFunctionSignature(api, functionObject, parameterTypeList):
     paramIndex = 0
     for parameterObject in functionObject.parameters:
         if parameterObject.name != "return":
-            # TBD today - need new type string from vcast
-            # Waiting for PCT fix of FB: 101295 - vc24sp3?
-            typeString = parameterTypeList[paramIndex]
-            paramIndex += 1
-
-            # for arrays, the typeString will end with "]"
-            # and we need to change int[] param to int param[]
-            if typeString.endswith("]"):
-                startOfArrayQualifier = typeString.find("[", 1)
-                typeStringOnly = typeString[:startOfArrayQualifier]
-                arraySize = typeString[startOfArrayQualifier:]
-                parameterString = (
-                    f" {typeStringOnly} {parameterObject.name}{arraySize},"
-                )
-            else:
-                parameterString = f" {typeString} {parameterObject.name},"
-            signatureString += parameterString
+            # the  original declaration was added in vc24sp3 and contains
+            # both the type and the parameter name as originally defined.
+            signatureString += f" {parameterObject.orig_declaration},"
 
     # In all cases the returnString will end with a "," so strip this
     signatureString = signatureString[:-1]
@@ -672,92 +658,6 @@ def getFunctionName(functionObject):
     return returnName
 
 
-def findCommas(parameterString):
-    """
-    I know this could probably be done with a complex regex
-    but it would be almost impossible to understand :)
-    """
-    commasOfInterest = list()
-    openTemplate = 0
-    openParam = 0
-    for index, char in enumerate(parameterString):
-        if char == ">":
-            assert openTemplate > 0
-            openTemplate -= 1
-        elif char == "<":
-            openTemplate += 1
-        elif char == ")":
-            assert openParam > 0
-            openParam -= 1
-        elif char == "(":
-            openParam += 1
-        elif not openTemplate and not openParam and char == ",":
-            commasOfInterest.append(index)
-
-    # we return a list of the commas we found and add a
-    # "virtual comma" for the end of the string
-    commasOfInterest.append(len(parameterString))
-    return commasOfInterest
-
-
-def getParameterTypesFromParameterization(functionObject):
-    """
-    This function will take a parameterized name and return a list of types
-    The input string will be something like: '(char*)int'
-    where char* is the parameter, and int is the return
-    """
-
-    # first build the list of parameter types
-    paramTypes = list()
-    parameterizedName = functionObject.parameterization
-    parameterString = parameterizedName.split("(", 1)[1].rsplit(")", 1)[0]
-
-    paramTypes = list()
-    commasOfInterest = findCommas(parameterString)
-    startCharacter = 0
-    for commaIndex in commasOfInterest:
-        paramTypes.append(parameterString[startCharacter:commaIndex])
-        startCharacter = commaIndex + 1
-
-    return paramTypes
-
-
-def stripConstFlag(inputString):
-    constFlag = "const"
-    returnString = inputString
-
-    if inputString.endswith(constFlag):
-        # strip "const$"
-        returnString = inputString[: -(len(constFlag))].strip()
-
-    return returnString
-
-
-def getReturnType(functionObject):
-    # TBD today, this should all go away when PCT adds the types
-    # get the return type from the parameterized name
-    parameterizedName = functionObject.parameterization
-    openParen = 0
-    for index, char in enumerate(parameterizedName):
-        if char == ")":
-            assert openParen > 0
-            openParen -= 1
-            if openParen == 0:
-                break
-        elif char == "(":
-            openParen += 1
-
-    # one spcial case, for const functions the return type
-    # will have const appended, so strip this.
-    returnType = parameterizedName[index + 1 :]
-    returnType = stripConstFlag(returnType)
-
-    if returnType == None or len(returnType) == 0:
-        returnType = "void"
-
-    return returnType
-
-
 def isConstFunction(functionObject):
     """
     This function will return True if the function is const
@@ -773,16 +673,13 @@ def isConstFunction(functionObject):
     return returnValue
 
 
-def buildCppParameterization(api, functionObject, functionName, parameterTypeList):
+def buildCppParameterization(api, functionObject, functionName):
     """
     This function will convert the vcast parameterization
     into the correct C++ style parameterization
     """
 
-    # first split off the return type, allowing for void
-    returnType = getReturnType(functionObject)
-
-    # next create the function pointer part ether * or className::*
+    # create the function pointer part ether * or className::*
     instantiatingClass = ""
     if "::" in functionName:
         instantiatingClass = functionObject.name.rsplit("::", 1)[0]
@@ -796,16 +693,24 @@ def buildCppParameterization(api, functionObject, functionName, parameterTypeLis
     else:
         fptrString = "*"
 
-    paramTypeString = ",".join(parameterTypeList)
+    # original_return_type added to dataAPI in vc24sp3
+    returnType = functionObject.original_return_type
 
-    return f"{returnType} ({fptrString})({paramTypeString})"
+    # TBD today - if we convert to using the new orig_declaration we'll
+    # have to deal with the param names and special cases like int param[]
+
+    # the vcast parameterization string looks like: (char, int[])int
+    # and this will return the "(char, int[])" part
+    parameterString = functionObject.parameterization.split("(", 1)[1].rsplit(")", 1)[0]
+
+    return f"{returnType} ({fptrString})({parameterString})"
 
 
 enableStubPrefix = "// Enable Stub:"
 disableStubPrefix = "// Disable Stub:"
 
 
-def getUsageStrings(api, functionObject, parameterTypeList, vmockFunctionName):
+def getUsageStrings(api, functionObject, vmockFunctionName):
     """
     There are three variations of code needed to connect a mock definition with the function being mocked
 
@@ -841,7 +746,7 @@ def getUsageStrings(api, functionObject, parameterTypeList, vmockFunctionName):
         # className::MethodName(int, int)int
 
         cppParameterization = buildCppParameterization(
-            api, functionObject, functionName, parameterTypeList
+            api, functionObject, functionName
         )
         baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
 
@@ -852,7 +757,7 @@ def getUsageStrings(api, functionObject, parameterTypeList, vmockFunctionName):
         # we need to insert: (int (fooClass::*)(int))
 
         cppParameterization = buildCppParameterization(
-            api, functionObject, functionName, parameterTypeList
+            api, functionObject, functionName
         )
         baseString += f"(({cppParameterization})&{functionName})"
 
@@ -866,26 +771,32 @@ def getUsageStrings(api, functionObject, parameterTypeList, vmockFunctionName):
     return enableComment, disableComment
 
 
-def generateVMockDefitionForUnitAndFunction(api, unitObject, functionObject):
+def generateVMockDefitionForUnitAndFunction(api, functionObject):
+    """
+    For a function like: int simpleFunction (int param);
+
+    This function will generate a stub and some usage hints like this:
+
+    int vmock_vmock_examples_simpleFunction(::vunit::CallCtx<> vunit_ctx, int param) {
+       // Enable Stub:  vmock_session.mock (&simpleFunction).assign (&vmock_vmock_examples_simpleFunction);
+       // Disable Stub: vmock_session.mock (&simpleFunction).assign (nullptr);
+
+    }
+    """
+
+    # get the parameter profile for the stubbed function
+    # e.g -> ::vunit::CallCtx<myClass> vunit_ctx, int param
+    signatureString = createFunctionSignature(api, functionObject)
+
     vmockFunctionName = getFunctionName(functionObject)
-
-    # TBD today - need new type string from vcast
-    # Waiting for PCT fix of FB: 101295 - vc24sp3?
-
-    # To get the original type definition, we need to deconstruct
-    # the parameterized name, vs using the parameter typemark
-    parameterTypeList = getParameterTypesFromParameterization(functionObject)
-
-    signatureString = createFunctionSignature(api, functionObject, parameterTypeList)
-    returnType = getReturnType(functionObject)
-
+    # These are the two comment lines that are added to the stub
     enableComment, disableComment = getUsageStrings(
         api,
         functionObject,
-        parameterTypeList,
         vmockFunctionName,
     )
-
+    # Put it all together
+    returnType = functionObject.original_return_type
     whatToReturn = (
         f"\n{returnType} {vmockFunctionName}({signatureString})"
         + " {\n  "
@@ -951,9 +862,7 @@ def processVMockDefinition(enviroName, lineSoFar):
         unitObject = unitObjectList[0]
         functionObject = functionObjectList[0]
 
-        whatToReturn = generateVMockDefitionForUnitAndFunction(
-            api, unitObject, functionObject
-        )
+        whatToReturn = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
         returnData.choiceKind = choiceKindType.Snippet
         returnData.choiceList.append(whatToReturn)

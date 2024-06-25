@@ -53,9 +53,7 @@ def generateAllVMockDefinitions(enviroPath):
             #
             # Note: we're doing this with string processing here to avoid
             # changing too much of the actual code
-            mock_content = generateVMockDefitionForUnitAndFunction(
-                api, unitObject, functionObject
-            )
+            mock_content = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
             # The vmock usage line
             invocation = None
