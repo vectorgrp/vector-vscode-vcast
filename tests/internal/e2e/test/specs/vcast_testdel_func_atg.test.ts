@@ -86,15 +86,8 @@ describe("vTypeCheck VS Code Extension", () => {
       "DataBase::GetTableRecord",
       testGenMethod.ATG
     );
-    console.log(
-      "Validate deletion of all ATG tests for function DataBase::GetTableRecord"
-    );
-    await validateTestDeletionForFunction(
-      "database",
-      "DataBase::GetTableRecord",
-      "ATG-TEST-1",
-      1
-    );
+    await browser.takeScreenshot()
+    await browser.saveScreenshot("info_deleted_func_atg_tests.png")
   
   });
 

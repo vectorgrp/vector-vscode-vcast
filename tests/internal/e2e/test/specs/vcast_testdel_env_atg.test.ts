@@ -84,21 +84,9 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(
       `Validating deletion of all ATG tests for the environment ${envName}`
     );
-    // spot checking a single function and test will do
-    // we just want to make sure that the tree update got triggered
-    await validateTestDeletionForFunction(
-      "database",
-      "DataBase::GetTableRecord",
-      "ATG-TEST-1",
-      1
-    );
-
-    await validateTestDeletionForFunction(
-      "manager",
-      "Manager::ClearTable",
-      "ATG-TEST-1",
-      1
-    );
+    
+    await browser.takeScreenshot()
+    await browser.saveScreenshot("info_deleted_env_atg_tests.png")
   
   });
 

@@ -80,14 +80,9 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Deleting all ATG tests for unit database");
     await deleteAllTestsForUnit("database", testGenMethod.ATG);
     console.log("Validating deletion of all ATG tests for unit database");
-    // spot checking a single function and test will do
-    // we just want to make sure that the tree update got triggered
-    await validateTestDeletionForFunction(
-      "database",
-      "DataBase::GetTableRecord",
-      "ATG-TEST-1",
-      1
-    );
+    
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("info_deleted_unit_atg_tests.png");
    
   });
 

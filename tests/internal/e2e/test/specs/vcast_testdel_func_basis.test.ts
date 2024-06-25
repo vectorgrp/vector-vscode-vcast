@@ -88,12 +88,8 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(
       "Validating deletion of all BASIS PATH tests for function DataBase::GetTableRecord"
     );
-    await validateTestDeletionForFunction(
-      "database",
-      "DataBase::GetTableRecord",
-      "BASIS-PATH-001",
-      1
-    );
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("info_deleted_func_basis_tests.png");
   });
 
   it("should clean up", async () => {

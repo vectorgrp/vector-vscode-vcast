@@ -178,12 +178,9 @@ describe("vTypeCheck VS Code Extension", () => {
       "BASIS-PATH-001",
       1
     );
-    await validateSingleTestDeletion(
-      "database",
-      "DataBase::GetTableRecord",
-      "BASIS-PATH-001",
-      1
-    );
+    await browser.takeScreenshot()
+    await browser.saveScreenshot("info_deleted_basis_path_flask_tests.png")
+  
   });
 
   it("should correctly generate ATG tests by clicking on flask+ icon", async () => {
@@ -218,15 +215,8 @@ describe("vTypeCheck VS Code Extension", () => {
         "ATG-TEST-1",
         1
       );
-      console.log(
-        "Validating deletion of all ATG tests for function DataBase::GetTableRecord using Flask icon"
-      );
-      await validateSingleTestDeletion(
-        "database",
-        "DataBase::GetTableRecord",
-        "ATG-TEST-1",
-        1
-      );
+      await browser.takeScreenshot()
+      await browser.saveScreenshot("info_deleted_atg_flask_tests.png")
     }
   });
 

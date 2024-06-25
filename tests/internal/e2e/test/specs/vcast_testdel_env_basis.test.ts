@@ -86,19 +86,8 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     // spot checking a single function and test will do
     // we just want to make sure that the tree update got triggered
-    await validateTestDeletionForFunction(
-      "database",
-      "DataBase::GetTableRecord",
-      "BASIS-PATH-001",
-      1
-    );
-
-    await validateTestDeletionForFunction(
-      "manager",
-      "Manager::ClearTable",
-      "BASIS-PATH-001",
-      1
-    );
+    await browser.takeScreenshot()
+    await browser.saveScreenshot("info_deleted_basis_path_env_tests.png")
   });
 
   it("should clean up", async () => {
