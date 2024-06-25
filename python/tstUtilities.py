@@ -829,10 +829,9 @@ def getUsageStrings(api, functionObject, parameterTypeList, vmockFunctionName):
 
     # if this is a function template
     if functionObject.prototype_instantiation:
-        # TBD today - need new template support from vcast
-        # Waiting for PCT fix of FB: 101345 - vc224sp3?
 
-        # Note: name_with_template_arguments is only valid for vc24sp3 and higher
+        # name_with_template_arguments is only valid for vc24sp3 and higher
+        # Original FB: 101345
         functionNameWithoutParams = functionName.split("(")[0]
         baseString += f"(&{functionObject.name_with_template_arguments})"
 
