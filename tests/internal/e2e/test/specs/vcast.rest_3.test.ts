@@ -189,7 +189,7 @@ describe("vTypeCheck VS Code Extension", () => {
     
     await browser.waitUntil(
       async () =>
-        await outputView.getText(),
+      (await outputView.getText()).at(-1) != undefined,
       { timeout: 30000, interval:1000 }
     );
 
