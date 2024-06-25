@@ -76,7 +76,11 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should correctly delete all BASIS PATH tests for function", async () => {
     await updateTestID();
-    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    const bottomBar = workbench.getBottomBar()
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText()
+
     console.log(
       "Deleting all BASIS PATH tests for function DataBase::GetTableRecord"
     );
@@ -88,6 +92,17 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(
       "Validating deletion of all BASIS PATH tests for function DataBase::GetTableRecord"
     );
+    
+    
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .at(-1)
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: 30000, interval:1000 }
+    );
+    await browser.pause(10000)
     await browser.takeScreenshot();
     await browser.saveScreenshot("info_deleted_func_basis_tests.png");
   });

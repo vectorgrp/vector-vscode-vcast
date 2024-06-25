@@ -79,11 +79,7 @@ describe("vTypeCheck VS Code Extension", () => {
     
     console.log("Deleting all ATG tests for unit database");
     await deleteAllTestsForUnit("database", testGenMethod.ATG);
-    console.log("Validating deletion of all ATG tests for unit database");
-    
-    await browser.takeScreenshot();
-    await browser.saveScreenshot("info_deleted_unit_atg_tests.png");
-   
+       
   });
 
   it("should clean up", async () => {

@@ -85,9 +85,6 @@ describe("vTypeCheck VS Code Extension", () => {
       `Validating deletion of all ATG tests for the environment ${envName}`
     );
     
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("info_deleted_env_atg_tests.png")
-  
   });
 
   it("should clean up", async () => {

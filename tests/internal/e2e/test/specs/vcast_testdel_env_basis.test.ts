@@ -81,13 +81,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const envName = "cpp/unitTests/DATABASE-MANAGER";
     console.log(`Deleting all BASIS PATH tests for the environment ${envName}`);
     await deleteAllTestsForEnv(envName);
-    console.log(
-      `Validating deletion of all BASIS PATH tests for the environment ${envName}`
-    );
-    // spot checking a single function and test will do
-    // we just want to make sure that the tree update got triggered
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("info_deleted_basis_path_env_tests.png")
+   
   });
 
   it("should clean up", async () => {

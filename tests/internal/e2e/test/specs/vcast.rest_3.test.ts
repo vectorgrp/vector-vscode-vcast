@@ -182,6 +182,21 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Prepared test deletion");
     await deleteTest(testHandle as CustomTreeItem);
 
+    const workbench = await browser.getWorkbench();
+    const bottomBar = workbench.getBottomBar()
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .at(-1)
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: 30000, interval:1000 }
+    );
+    await browser.pause(10000)
+
     await browser.takeScreenshot()
     await browser.saveScreenshot("info_deleted_third_test.png")
   });

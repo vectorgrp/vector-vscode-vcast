@@ -552,7 +552,6 @@ export async function generateAndValidateAllTestsFor(
           subprogram = await findSubprogram(unitName, vcastTestingViewSection);
           if (subprogram) {
             await subprogram.expand();
-            console.log(`Looking for ${functionName} : ${testName}`)
             await browser.waitUntil(
               async () =>
               await getTestHandle(

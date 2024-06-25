@@ -76,8 +76,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should correctly delete all ATG tests for function", async () => {
     await updateTestID();
-    const envName = "cpp/unitTests/DATABASE-MANAGER";
-
     console.log(
       "Deleting all ATG tests for function DataBase::GetTableRecord"
     );
@@ -86,8 +84,6 @@ describe("vTypeCheck VS Code Extension", () => {
       "DataBase::GetTableRecord",
       testGenMethod.ATG
     );
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("info_deleted_func_atg_tests.png")
   
   });
 

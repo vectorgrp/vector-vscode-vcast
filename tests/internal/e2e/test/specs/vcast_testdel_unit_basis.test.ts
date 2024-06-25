@@ -82,8 +82,6 @@ describe("vTypeCheck VS Code Extension", () => {
       "Validating deletion of BASIS PATH tests for unit database"
     );
     
-    await browser.takeScreenshot();
-    await browser.saveScreenshot("info_deleted_unit_basis_tests.png");
   });
 
   it("should clean up", async () => {
