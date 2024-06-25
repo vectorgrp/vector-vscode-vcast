@@ -841,9 +841,9 @@ def getUsageStrings(api, functionObject, parameterTypeList, vmockFunctionName):
         # TBD today - need new template support from vcast
         # Waiting for PCT fix of FB: 101345 - vc224sp3?
 
-        # In function object I found: name_with_template_arguments but there is no <> part
+        # Note: name_with_template_arguments is only valid for vc24sp3 and higher
         functionNameWithoutParams = functionName.split("(")[0]
-        baseString += f"(&{functionNameWithoutParams}<insert-template-param-types>)"
+        baseString += f"(&{functionObject.name_with_template_arguments})"
 
     # else if it is an overloaded function
     elif functionObject.is_overloaded:
