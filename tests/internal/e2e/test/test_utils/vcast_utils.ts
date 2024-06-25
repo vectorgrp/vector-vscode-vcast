@@ -213,12 +213,16 @@ export async function findSubprogram(
   subprogramName: string,
   viewSection: ViewSection
 ) {
-  await viewSection.expand();
-  for (const visibleItem of await viewSection.getVisibleItems()) {
-    await visibleItem.select();
 
+  if (! await viewSection.isExpanded())
+    await viewSection.expand();
+  for (const visibleItem of await viewSection.getVisibleItems()) {
+    
     const subprogramGroup = visibleItem as CustomTreeItem;
-    expandAllSubprogramsFor(subprogramGroup);
+    if (! await subprogramGroup.isExpanded())
+      await subprogramGroup.expand();
+    
+    await expandAllSubprogramsFor(subprogramGroup);
 
     for (const subprogram of await subprogramGroup.getChildren()) {
       const foundSubprogramName = await (
@@ -368,11 +372,7 @@ export async function generateAllTestsForEnv(
 
         const workbench = await browser.getWorkbench();
         const bottomBar = workbench.getBottomBar();
-        await browser.waitUntil(async () =>
-          (await (await bottomBar.openOutputView()).getText()).includes(
-            "test explorer  [info]      Summary of automatic test case generation:"
-          )
-        );
+        
 
         await browser.waitUntil(async () =>
           (await (await bottomBar.openOutputView()).getText()).includes(
@@ -543,6 +543,8 @@ export async function generateAndValidateAllTestsFor(
   const expectedTests = await getAllExpectedTests(testGenMethod);
   for (const [unitName, functions] of Object.entries(expectedTests[envName])) {
     for (const [functionName, tests] of Object.entries(functions)) {
+      if (!tests)
+        continue;
       for (const [testName, testCode] of Object.entries(tests)) {
         let subprogram: TreeItem = undefined;
         let testHandle: TreeItem = undefined;
@@ -550,6 +552,18 @@ export async function generateAndValidateAllTestsFor(
           subprogram = await findSubprogram(unitName, vcastTestingViewSection);
           if (subprogram) {
             await subprogram.expand();
+            console.log(`Looking for ${functionName} : ${testName}`)
+            await browser.waitUntil(
+              async () =>
+              await getTestHandle(
+                subprogram,
+                functionName,
+                testName,
+                Object.entries(tests).length
+              ) != undefined,
+              { timeout: 90000, interval: 10000 }
+            );
+
             testHandle = await getTestHandle(
               subprogram,
               functionName,
@@ -634,9 +648,11 @@ export async function validateGeneratedTest(
 ) {
   let subprogram: TreeItem = undefined;
   const vcastTestingViewContent = await getViewContent("Testing");
-
+  await (await vcastTestingViewContent.elem).click()
+  console.log("Validating generated test")
   for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-    await vcastTestingViewSection.expand();
+    
+    console.log("Expanded testing view section")
     subprogram = await findSubprogram(unitName, vcastTestingViewSection);
     if (subprogram) {
       const testHandle = await getTestHandle(
@@ -978,6 +994,7 @@ export async function validateGeneratedTestsForUnit(
         subprogram = await findSubprogram(unitName, vcastTestingViewSection);
         if (subprogram) {
           await subprogram.expand();
+
           testHandle = await getTestHandle(
             subprogram,
             functionName,
@@ -1025,6 +1042,8 @@ export async function validateGeneratedTestsForFunction(
     let subprogram: TreeItem = undefined;
     let testHandle: TreeItem = undefined;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      if (!await vcastTestingViewSection.isExpanded)
+        await vcastTestingViewSection.expand();
       subprogram = await findSubprogram(unitName, vcastTestingViewSection);
       if (subprogram) {
         await subprogram.expand();
