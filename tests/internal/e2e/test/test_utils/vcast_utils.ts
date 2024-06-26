@@ -1072,8 +1072,9 @@ export async function validateGeneratedTestsForFunction(
 }
 
 export async function assertEnvHasNoTests(envName:string): Promise<void>{
-  const areTestsDeletedCmd = `$VECTORCAST_DIR/clicast -e ${envName} test script create output.tst`
-    {
+  const areTestsDeletedCmd = `cd test/vcastTutorial/cpp/unitTests && $VECTORCAST_DIR/clicast -e ${envName} test script create output.tst`
+  
+  {
       const { stdout, stderr } = await promisifiedExec(areTestsDeletedCmd);
       if (stderr) {
         console.log(stderr);
@@ -1081,8 +1082,8 @@ export async function assertEnvHasNoTests(envName:string): Promise<void>{
       } else {
         console.log(stdout);
         const fs = require("fs").promises;
-        expect((await fs.readFile("output.tst")).toString()).not.toContain("TEST.NAME");
+        expect((await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")).toString()).not.toContain("TEST.NAME");
       }
-    }
+  }
   
 }

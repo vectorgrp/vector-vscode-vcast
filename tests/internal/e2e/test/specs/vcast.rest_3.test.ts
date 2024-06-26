@@ -203,7 +203,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await browser.pause(10000)
     
-    await assertEnvHasNoTests("DATABASE-MANAGER.env");
+    await assertEnvHasNoTests("DATABASE-MANAGER");
     await browser.takeScreenshot()
     await browser.saveScreenshot("info_deleted_third_test.png")
   });
