@@ -738,7 +738,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         # name_with_template_arguments is only valid for vc24sp3 and higher
         # Original FB: 101345
         functionNameWithoutParams = functionName.split("(")[0]
-        baseString += f"(&{functionObject.name_with_template_arguments})"
+        baseString += f"(&{functionObject.full_prototype_instantiation})"
 
     # else if it is an overloaded function
     elif functionObject.is_overloaded:
