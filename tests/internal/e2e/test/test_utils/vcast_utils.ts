@@ -1071,7 +1071,7 @@ export async function validateGeneratedTestsForFunction(
   }
 }
 
-export async function assertEnvHasNoTests(envName:string): Promise<void>{
+export async function assertTestsDeleted(envName: string, testName = "all"): Promise<void>{
   const areTestsDeletedCmd = `cd test/vcastTutorial/cpp/unitTests && $VECTORCAST_DIR/clicast -e ${envName} test script create output.tst`
   
   {
@@ -1082,7 +1082,13 @@ export async function assertEnvHasNoTests(envName:string): Promise<void>{
       } else {
         console.log(stdout);
         const fs = require("fs").promises;
-        expect((await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")).toString()).not.toContain("TEST.NAME");
+        console.log((await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")).toString())
+        // if we are expecting no tests at all in the environment
+        if (testName === "all"){
+          expect((await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")).toString()).not.toContain("TEST.NAME");
+        } else {
+          expect((await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")).toString()).not.toContain(testName);
+        }
       }
   }
   

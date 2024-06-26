@@ -17,7 +17,7 @@ import {
   deleteTest,
   updateTestID,
   cleanup,
-  assertEnvHasNoTests,
+  assertTestsDeleted,
 } from "../test_utils/vcast_utils";
 
 import { exec } from "child_process";
@@ -203,7 +203,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await browser.pause(10000)
     
-    await assertEnvHasNoTests("DATABASE-MANAGER");
+    await assertTestsDeleted("DATABASE-MANAGER", "myThirdTest");
     await browser.takeScreenshot()
     await browser.saveScreenshot("info_deleted_third_test.png")
   });
