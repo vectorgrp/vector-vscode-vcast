@@ -32,14 +32,4 @@ jobs:
 
       - name: Show image
         run: |
-          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -O https://artifactory.vi.vector.int/artifactory/rds-build-packages-generic-dev/vscode/tests-results/main/2024-06-24T16%3A53%3A05-b277b82ffcf98ced2348e19f6db0d550e0a6aa49/e2e_vcast23_screenshots/error%20in%20test%205%20should%20validate%20test%20deletion.png
-
-      - name: Encode image to base64
-        id: encode_image
-        run: |
-          base64 error%20in%20test%205%20should%20validate%20test%20deletion.png > error%20in%20test%205%20should%20validate%20test%20deletion.base64
-          echo "encoded_image=$(cat error%20in%20test%205%20should%20validate%20test%20deletion.base64)" >> "$GITHUB_OUTPUT"
-      
-      - name: Create summary with image
-        run: |
-          echo "![Test image](data:image/png;base64,${{ steps.encode_image.outputs.encoded_image }})" >> $GITHUB_STEP_SUMMARY
+          echo "![My Image](https://artifactory.vi.vector.int/artifactory/rds-build-packages-generic-dev/vscode/tests-results/main/2024-06-24T16%3A53%3A05-b277b82ffcf98ced2348e19f6db0d550e0a6aa49/e2e_vcast23_screenshots/error%20in%20test%205%20should%20validate%20test%20deletion.png)" >> $GITHUB_STEP_SUMMARY
