@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as jsonc from "jsonc-parser";
 
-import { updateVMockStatus } from "./client";
+import { sendVPythonCommandToServer, updateVMockStatus } from "./client";
 
 import { openMessagePane, vectorMessage } from "./messagePane";
 
@@ -111,7 +111,7 @@ function vcastVersionGreaterThan(
 
 function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
   // The vmock features is only available in vc24sp2 and later
-  return vcastVersionGreaterThan(vcastInstallationPath, 24, 2);
+  return vcastVersionGreaterThan(vcastInstallationPath, 24, 3);
 }
 
 function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
@@ -195,6 +195,7 @@ function findVcastTools(): boolean {
     if (fs.existsSync(candidatePath)) {
       vcastInstallationPath = installationOptionString;
       vPythonCommandToUse = candidatePath;
+      sendVPythonCommandToServer (candidatePath);
       vectorMessage(
         `   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`
       );

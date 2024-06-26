@@ -10,6 +10,7 @@ import {
 import { Hover } from "vscode-languageserver-types";
 
 import { getCodedTestCompletionData } from "./ctCompletions";
+import { updateVPythonCommand } from "./pythonUtilities";
 import { validateTextDocument } from "./tstValidation";
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
@@ -78,6 +79,13 @@ connection.onNotification("vcasttesteditor/vmockstatus", (data) => {
   globalVMockAvailable = data.vmockAvailable;
   connection.console.log(
     "Notification received: vMock Available: " + data.vmockAvailable
+  );
+});
+
+connection.onNotification ("vcasttesteditor/updateVPythonCommand", (data) => {
+  updateVPythonCommand (data.vPythonCommand);
+  connection.console.log(
+    "Notification received: vPython Path: " + data.vPythonCommand
   );
 });
 

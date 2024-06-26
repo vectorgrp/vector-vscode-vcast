@@ -3,7 +3,8 @@ import path = require("path");
 const execSync = require("child_process").execSync;
 
 let testEditorScriptPath: string | undefined = undefined;
-let vPythonCommandToUse: string;
+let vPythonCommandToUse: string | undefined = undefined;
+
 export function setPaths(
   _testEditorScriptPath: string,
   _vPythonCommandToUse: string
@@ -11,12 +12,21 @@ export function setPaths(
   testEditorScriptPath = _testEditorScriptPath;
   vPythonCommandToUse = _vPythonCommandToUse;
 }
+
+export function updateVPythonCommand(newPath: string) {
+  vPythonCommandToUse = newPath;
+}
+
 function initializeScriptPath() {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
   const extensionRoot = process.argv[2];
-  vPythonCommandToUse = process.argv[3];
+  // if we have not been sent the explicit path to use
+  // fetch it from the command line arguments
+  if (vPythonCommandToUse == undefined) {
+    vPythonCommandToUse = process.argv[3];
+  }
   const pathToTestEditorInterface = path.join(
     extensionRoot,
     "python",

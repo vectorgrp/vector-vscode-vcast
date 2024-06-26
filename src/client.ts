@@ -102,6 +102,17 @@ export function updateVMockStatus(vmockAvailable: boolean) {
   }
 }
 
+// This function is used to send an updated path to vPython to the server
+export function sendVPythonCommandToServer(vPythonCommand: string) {
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/updateVPythonCommand", {
+        vPythonCommand,
+      });
+    });
+  }
+}
+
 export function deactivateLanguageServerClient(): Thenable<void> | undefined {
   if (!client) {
     return undefined;
