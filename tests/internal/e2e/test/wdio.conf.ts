@@ -89,24 +89,43 @@ if (process.env["USE_VCAST_24"] == "True")
 fullTestSpecs = fullTestSpecs.concat([
   "./**/**/vcast_testgen_bugs.test.ts",
   "./**/**/vcast_testgen_bugs_2.test.ts",
+]);
+
+fullTestSpecs = fullTestSpecs.concat([
   "./**/**/vcast_testgen_flask_icon.test.ts",
+]);
+
+fullTestSpecs = fullTestSpecs.concat([
   "./**/**/vcast_testgen_func_basis.test.ts",
   "./**/**/vcast_testdel_func_basis.test.ts",
+]);
+
+fullTestSpecs = fullTestSpecs.concat([
   "./**/**/vcast_testgen_unit_basis.test.ts",
   "./**/**/vcast_testdel_unit_basis.test.ts",
+]);
+
+fullTestSpecs = fullTestSpecs.concat([
   "./**/**/vcast_testgen_env_basis.test.ts",
   "./**/**/vcast_testdel_env_basis.test.ts"
 ]);
 
-if (process.env["USE_VCAST_24"] == "True")
+if (process.env["USE_VCAST_24"] == "True"){
   fullTestSpecs = fullTestSpecs.concat([
     "./**/**/vcast_testgen_func_atg.test.ts",
     "./**/**/vcast_testdel_func_atg.test.ts",
+  ]);
+
+  fullTestSpecs = fullTestSpecs.concat([
     "./**/**/vcast_testgen_unit_atg.test.ts",
     "./**/**/vcast_testdel_unit_atg.test.ts",
+  ]);
+
+  fullTestSpecs = fullTestSpecs.concat([
     "./**/**/vcast_testgen_env_atg.test.ts",
     "./**/**/vcast_testdel_env_atg.test.ts"
   ]);
+}
 
 export const config: Options.Testrunner = {
   //
