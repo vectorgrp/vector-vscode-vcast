@@ -14,10 +14,10 @@ import {
   getViewContent,
   findSubprogram,
   getTestHandle,
-  findSubprogramMethod,
   deleteTest,
   updateTestID,
   cleanup,
+  assertEnvHasNoTests,
 } from "../test_utils/vcast_utils";
 
 import { exec } from "child_process";
@@ -202,7 +202,8 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: 30000, interval:1000 }
     );
     await browser.pause(10000)
-
+    
+    await assertEnvHasNoTests("DATABASE-MANAGER.env");
     await browser.takeScreenshot()
     await browser.saveScreenshot("info_deleted_third_test.png")
   });

@@ -5,7 +5,7 @@ import {
   updateTestID,
   testGenMethod,
   deleteAllTestsForFunction,
-  validateTestDeletionForFunction,
+  assertEnvHasNoTests,
   cleanup,
 } from "../test_utils/vcast_utils";
 
@@ -108,6 +108,8 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: 30000, interval:1000 }
     );
     await browser.pause(10000)
+
+    await assertEnvHasNoTests("DATABASE-MANAGER.env");
     await browser.takeScreenshot();
     await browser.saveScreenshot("info_deleted_func_basis_tests.png");
   });
