@@ -38,8 +38,8 @@ jobs:
         id: encode_image
         run: |
           base64 error%20in%20test%205%20should%20validate%20test%20deletion.png > error%20in%20test%205%20should%20validate%20test%20deletion.base64
-          echo "encoded_image=$(cat error%20in%20test%205%20should%20validate%20test%20deletion.base64)" >> $GITHUB_STATE
+          echo "encoded_image=$(cat error%20in%20test%205%20should%20validate%20test%20deletion.base64)" >> "$GITHUB_OUTPUT"
       
       - name: Create summary with image
         run: |
-          echo "![Test image](data:image/png;base64,${{ env.STATE_encoded_image }})" >> $GITHUB_STEP_SUMMARY
+          echo "![Test image](data:image/png;base64,${{ steps.encode_image.outputs.encoded_image }})" >> $GITHUB_STEP_SUMMARY
