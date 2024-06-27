@@ -10,7 +10,7 @@ export function getSpecGroups(vcast24: boolean) {
           "./**/**/vcast.rest.test.ts",
           "./**/**/vcast.rest_2.test.ts",
           "./**/**/vcast.rest_3.test.ts",
-        ].concat(vcast24 ? ["./**/**/vcast_coded_tests.test.ts"] : []),
+        ],
       "bugs": [
           "./**/**/vcast_testgen_bugs.test.ts",
           "./**/**/vcast_testgen_bugs_2.test.ts",
@@ -46,6 +46,10 @@ export function getSpecGroups(vcast24: boolean) {
       specGroups["env_atg"] = [
         "./**/**/vcast_testgen_env_atg.test.ts",
         "./**/**/vcast_testdel_env_atg.test.ts"
+      ];
+
+      specGroups["coded_tests"] = [
+        "./**/**/vcast_coded_tests.test.ts"
       ];
     }
 
