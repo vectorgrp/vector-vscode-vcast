@@ -36,13 +36,16 @@ jobs:
         uses: actions/checkout@v4
         continue-on-error: true
 
-      - name: Retry Checkout if first attempt failed
-        if: steps.checkout.outcome == 'failure'
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
         run: |
           sleep 10
+          exit 1
 
       - name: Check out repository (retry)
-        if: steps.checkout.outcome == 'failure'
+        if: failure()
         uses: actions/checkout@v4
 
       # Run tests
@@ -153,13 +156,16 @@ jobs:
         uses: actions/checkout@v4
         continue-on-error: true
 
-      - name: Retry Checkout if first attempt failed
-        if: steps.checkout.outcome == 'failure'
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
         run: |
           sleep 10
+          exit 1
 
       - name: Check out repository (retry)
-        if: steps.checkout.outcome == 'failure'
+        if: failure()
         uses: actions/checkout@v4
 
       - name: Install dependencies
@@ -211,13 +217,16 @@ jobs:
         uses: actions/checkout@v4
         continue-on-error: true
 
-      - name: Retry Checkout if first attempt failed
-        if: steps.checkout.outcome == 'failure'
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
         run: |
           sleep 10
+          exit 1
 
       - name: Check out repository (retry)
-        if: steps.checkout.outcome == 'failure'
+        if: failure()
         uses: actions/checkout@v4
 
       - name: Restore cached dependencies
@@ -344,13 +353,16 @@ jobs:
         uses: actions/checkout@v4
         continue-on-error: true
 
-      - name: Retry Checkout if first attempt failed
-        if: steps.checkout.outcome == 'failure'
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
         run: |
           sleep 10
+          exit 1
 
       - name: Check out repository (retry)
-        if: steps.checkout.outcome == 'failure'
+        if: failure()
         uses: actions/checkout@v4
 
       - name: Black
