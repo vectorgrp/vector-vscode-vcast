@@ -71,61 +71,8 @@ const proxyObject: ProxyObject = {
   noProxy: noProxyRules,
 };
 
-let coreTestSpecs = [
-  "./**/**/vcast.build_env.test.ts",
-  "./**/**/vcast.create_script_1.test.ts",
-  "./**/**/vcast.create_script_2_and_run.test.ts",
-  "./**/**/vcast.create_second_test_1.test.ts",
-  "./**/**/vcast.create_second_test_2_and_run.test.ts",
-  "./**/**/vcast.third_test.test.ts",
-  "./**/**/vcast.rest.test.ts",
-  "./**/**/vcast.rest_2.test.ts",
-  "./**/**/vcast.rest_3.test.ts",
-];
-let fullTestSpecs = coreTestSpecs;
-if (process.env["USE_VCAST_24"] == "True")
-  fullTestSpecs = coreTestSpecs.concat(["./**/**/vcast_coded_tests.test.ts"]);
-
-fullTestSpecs = fullTestSpecs.concat([
-  "./**/**/vcast_testgen_bugs.test.ts",
-  "./**/**/vcast_testgen_bugs_2.test.ts",
-]);
-
-fullTestSpecs = fullTestSpecs.concat([
-  "./**/**/vcast_testgen_flask_icon.test.ts",
-]);
-
-fullTestSpecs = fullTestSpecs.concat([
-  "./**/**/vcast_testgen_func_basis.test.ts",
-  "./**/**/vcast_testdel_func_basis.test.ts",
-]);
-
-fullTestSpecs = fullTestSpecs.concat([
-  "./**/**/vcast_testgen_unit_basis.test.ts",
-  "./**/**/vcast_testdel_unit_basis.test.ts",
-]);
-
-fullTestSpecs = fullTestSpecs.concat([
-  "./**/**/vcast_testgen_env_basis.test.ts",
-  "./**/**/vcast_testdel_env_basis.test.ts"
-]);
-
-if (process.env["USE_VCAST_24"] == "True"){
-  fullTestSpecs = fullTestSpecs.concat([
-    "./**/**/vcast_testgen_func_atg.test.ts",
-    "./**/**/vcast_testdel_func_atg.test.ts",
-  ]);
-
-  fullTestSpecs = fullTestSpecs.concat([
-    "./**/**/vcast_testgen_unit_atg.test.ts",
-    "./**/**/vcast_testdel_unit_atg.test.ts",
-  ]);
-
-  fullTestSpecs = fullTestSpecs.concat([
-    "./**/**/vcast_testgen_env_atg.test.ts",
-    "./**/**/vcast_testdel_env_atg.test.ts"
-  ]);
-}
+import { getSpecs } from './specs_config.ts';
+const groupNumber = process.env["RUN_BY_GROUP"] === 'True' ? parseInt(process.env["RUN_GROUP_N"], 10) : null;
 
 export const config: Options.Testrunner = {
   //
@@ -177,7 +124,7 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: fullTestSpecs,
+  specs: getSpecs(process.env["USE_VCAST_24"] === 'True', groupNumber),
   // Patterns to exclude.
   // exclude:
   //
