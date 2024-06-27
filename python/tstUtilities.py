@@ -756,7 +756,9 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     if os.environ.get("VMOCK_DEBUG"):
         print (f"    baseString: {baseString}")
         if functionObject.mock_lookup_type:
-            print (f"      mock_lookup_type: {functionObject.mock_lookup_type}")
+            print (f"      mock_lookup_type: '{functionObject.original_return_type}' '{functionObject.mock_lookup_type}'")
+        else:
+            print ("      mock_lookup_type: 'None'")
 
 
     return enableComment, disableComment
