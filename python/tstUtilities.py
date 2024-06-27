@@ -630,8 +630,14 @@ def getFunctionName(functionObject):
     # We don't actually need most of the processing in this routine if we're
     # using the mangled name, but we need to make sure we preserve the prefix,
     # which is why we don't just return here
+    functionHash = ""
     if os.environ.get(ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES, None):
-        functionName = functionObject.mangled_name
+        functionHash = str(hash(functionObject.mangled_name))
+        if functionHash[0] == "-":
+            functionHash = functionHash[1:]
+
+        # TBD today - using a 6 number hash, we can increase this if needed
+        functionHash = functionHash[:6]
 
     returnName = "vmock_"
     returnName += functionObject.unit.name + "_"
@@ -654,8 +660,11 @@ def getFunctionName(functionObject):
 
     # class members will have the scope operator, replace
     returnName += functionNameToUse.replace("::", "_")
+    # now add the hash computed above for uniqueness
+    returnName += f"_{functionHash}"
 
     return returnName
+
 
 def buildCppParameterization(api, functionObject, functionName):
     """
@@ -754,12 +763,13 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
 
     # TBD today - this can be removed once we understand the momck_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
-        print (f"    baseString: {baseString}")
+        print(f"    baseString: {baseString}")
         if functionObject.mock_lookup_type:
-            print (f"      mock_lookup_type: '{functionObject.original_return_type}' '{functionObject.mock_lookup_type}'")
+            print(
+                f"      mock_lookup_type: '{functionObject.original_return_type}' '{functionObject.mock_lookup_type}'"
+            )
         else:
-            print ("      mock_lookup_type: 'None'")
-
+            print("      mock_lookup_type: 'None'")
 
     return enableComment, disableComment
 
