@@ -32,7 +32,18 @@ jobs:
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
 
       - name: Check out repository
-        uses: actions/checkout@v3
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Retry Checkout if first attempt failed
+        if: steps.checkout.outcome == 'failure'
+        run: |
+          sleep 10
+
+      - name: Check out repository (retry)
+        if: steps.checkout.outcome == 'failure'
+        uses: actions/checkout@v4
 
       # Run tests
       - name: Restore cached dependencies
@@ -96,14 +107,14 @@ jobs:
           echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
 
       - name: Upload vectorcasttestexplorer artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: vectorcasttestexplorer
           path: ${{ env.VSIX_FILE }}
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage
@@ -137,8 +148,19 @@ jobs:
       version_group_matrix: ${{ steps.set-matrix.outputs.matrix }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Retry Checkout if first attempt failed
+        if: steps.checkout.outcome == 'failure'
+        run: |
+          sleep 10
+
+      - name: Check out repository (retry)
+        if: steps.checkout.outcome == 'failure'
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: npm install tsx
@@ -185,7 +207,18 @@ jobs:
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
 
       - name: Check out repository
-        uses: actions/checkout@v3
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Retry Checkout if first attempt failed
+        if: steps.checkout.outcome == 'failure'
+        run: |
+          sleep 10
+
+      - name: Check out repository (retry)
+        if: steps.checkout.outcome == 'failure'
+        uses: actions/checkout@v4
 
       - name: Restore cached dependencies
         id: cache-dependencies-restore
@@ -242,7 +275,7 @@ jobs:
             ./tests/internal/e2e/test_results/*.xml
 
       - name: Uploading screenshots
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         env:
           ARTIFACT_NAME: e2e_screenshots_${{ matrix.version }}_${{ matrix.group }}
@@ -307,7 +340,18 @@ jobs:
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
 
       - name: Check out repository
-        uses: actions/checkout@v3
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Retry Checkout if first attempt failed
+        if: steps.checkout.outcome == 'failure'
+        run: |
+          sleep 10
+
+      - name: Check out repository (retry)
+        if: steps.checkout.outcome == 'failure'
+        uses: actions/checkout@v4
 
       - name: Black
         shell: bash
