@@ -657,22 +657,6 @@ def getFunctionName(functionObject):
 
     return returnName
 
-
-def isConstFunction(functionObject):
-    """
-    This function will return True if the function is const
-    since there does not seem to be a dataAPI attribute for this
-    I have broken it out to more easily handle edge cases
-    """
-
-    parameterization = functionObject.parameterization
-    returnValue = False
-    if parameterization.endswith(" const") or parameterization.endswith(">const"):
-        returnValue = True
-
-    return returnValue
-
-
 def buildCppParameterization(api, functionObject, functionName):
     """
     This function will convert the vcast parameterization
@@ -750,7 +734,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         )
         baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
 
-    elif isConstFunction(functionObject):
+    elif functionObject.is_const:
         # for const functions we need to insert a cast to a non const version
 
         # So for a function like this: int myMethod(int param) const
