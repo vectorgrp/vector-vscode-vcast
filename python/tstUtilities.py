@@ -650,7 +650,7 @@ def getFunctionName(functionObject):
     if "::operator" in functionNameToUse or functionNameToUse.startswith("operator"):
         startIndex = functionNameToUse.find("operator")
         functionNameToUse = (
-            functionNameToUse[: startIndex + len("operator")] + "_symbol"
+            functionNameToUse[: startIndex + len("operator")]
         )
 
     # If the method is templated, don't generate a mock with the template in
