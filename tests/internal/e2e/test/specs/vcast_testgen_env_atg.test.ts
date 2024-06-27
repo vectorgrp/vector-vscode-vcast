@@ -151,10 +151,8 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should correctly generate all ATG tests for the environment", async () => {
     await updateTestID();
     const envName = "cpp/unitTests/DATABASE-MANAGER";
-    
+
     console.log(`Generating all ATG tests for the environment ${envName}`);
     await generateAndValidateAllTestsFor(envName, testGenMethod.ATG);
-   
   });
-
 });

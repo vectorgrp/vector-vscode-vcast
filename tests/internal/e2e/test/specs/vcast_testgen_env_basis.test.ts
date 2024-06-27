@@ -153,5 +153,4 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await generateAndValidateAllTestsFor(envName, testGenMethod.BasisPath);
   });
-
 });

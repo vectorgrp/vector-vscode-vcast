@@ -78,10 +78,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
     console.log("Deleting all BASIS PATH tests for unit database");
     await deleteAllTestsForUnit("database", testGenMethod.BasisPath);
-    console.log(
-      "Validating deletion of BASIS PATH tests for unit database"
-    );
-    
+    console.log("Validating deletion of BASIS PATH tests for unit database");
   });
 
   it("should clean up", async () => {

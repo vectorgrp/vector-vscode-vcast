@@ -77,14 +77,13 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should correctly delete all ATG tests for the environment", async () => {
     await updateTestID();
-    
+
     const envName = "cpp/unitTests/DATABASE-MANAGER";
     console.log(`Deleting all ATG tests for the environment ${envName}`);
     await deleteAllTestsForEnv(envName);
     console.log(
       `Validating deletion of all ATG tests for the environment ${envName}`
     );
-    
   });
 
   it("should clean up", async () => {

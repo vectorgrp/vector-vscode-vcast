@@ -148,7 +148,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const envName = "cpp/unitTests/DATABASE-MANAGER";
-  
+
     console.log(
       "Generating all ATG tests for function DataBase::GetTableRecord"
     );
@@ -163,8 +163,5 @@ describe("vTypeCheck VS Code Extension", () => {
       "DataBase::GetTableRecord",
       testGenMethod.ATG
     );
-   
   });
-
-  
 });

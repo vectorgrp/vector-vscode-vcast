@@ -150,12 +150,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const envName = "cpp/unitTests/DATABASE-MANAGER";
     console.log("Generating all ATG tests for unit database");
     await generateAllTestsForUnit("database", testGenMethod.ATG);
-    await validateGeneratedTestsForUnit(
-      envName,
-      "database",
-      testGenMethod.ATG
-    );
-   
+    await validateGeneratedTestsForUnit(envName, "database", testGenMethod.ATG);
   });
-
 });

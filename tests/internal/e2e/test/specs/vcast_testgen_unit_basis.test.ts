@@ -156,5 +156,4 @@ describe("vTypeCheck VS Code Extension", () => {
       testGenMethod.BasisPath
     );
   });
-
 });

@@ -76,15 +76,12 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should correctly delete all ATG tests for function", async () => {
     await updateTestID();
-    console.log(
-      "Deleting all ATG tests for function DataBase::GetTableRecord"
-    );
+    console.log("Deleting all ATG tests for function DataBase::GetTableRecord");
     await deleteAllTestsForFunction(
       "database",
       "DataBase::GetTableRecord",
       testGenMethod.ATG
     );
-  
   });
 
   it("should clean up", async () => {

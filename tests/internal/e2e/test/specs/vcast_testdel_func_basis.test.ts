@@ -76,10 +76,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should correctly delete all BASIS PATH tests for function", async () => {
     await updateTestID();
-    const bottomBar = workbench.getBottomBar()
+    const bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
-    await outputView.clearText()
+    await outputView.clearText();
 
     console.log(
       "Deleting all BASIS PATH tests for function DataBase::GetTableRecord"
@@ -92,22 +92,21 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(
       "Validating deletion of all BASIS PATH tests for function DataBase::GetTableRecord"
     );
-    
+
     await browser.waitUntil(
-      async () =>
-        (await outputView.getText()).at(-1) != undefined,
-      { timeout: 30000, interval:1000 }
+      async () => (await outputView.getText()).at(-1) != undefined,
+      { timeout: 30000, interval: 1000 }
     );
-    
+
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .at(-1)
           .toString()
           .includes("Processing environment data for:"),
-      { timeout: 30000, interval:1000 }
+      { timeout: 30000, interval: 1000 }
     );
-    await browser.pause(10000)
+    await browser.pause(10000);
 
     await assertTestsDeleted("DATABASE-MANAGER");
     await browser.takeScreenshot();

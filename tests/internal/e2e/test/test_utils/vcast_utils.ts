@@ -213,15 +213,11 @@ export async function findSubprogram(
   subprogramName: string,
   viewSection: ViewSection
 ) {
-
-  if (! await viewSection.isExpanded())
-    await viewSection.expand();
+  if (!(await viewSection.isExpanded())) await viewSection.expand();
   for (const visibleItem of await viewSection.getVisibleItems()) {
-    
     const subprogramGroup = visibleItem as CustomTreeItem;
-    if (! await subprogramGroup.isExpanded())
-      await subprogramGroup.expand();
-    
+    if (!(await subprogramGroup.isExpanded())) await subprogramGroup.expand();
+
     await expandAllSubprogramsFor(subprogramGroup);
 
     for (const subprogram of await subprogramGroup.getChildren()) {
@@ -372,7 +368,6 @@ export async function generateAllTestsForEnv(
 
         const workbench = await browser.getWorkbench();
         const bottomBar = workbench.getBottomBar();
-        
 
         await browser.waitUntil(async () =>
           (await (await bottomBar.openOutputView()).getText()).includes(
@@ -527,10 +522,14 @@ export async function validateTestDeletionForFunction(
   spotCheckTestName: string,
   totalNumOfTestsForMethod: number
 ) {
-    // Only checking if one of the tests can be found
-    // This indicates that the test tree got refreshed
-    await validateSingleTestDeletion(unitName, functionName, spotCheckTestName, totalNumOfTestsForMethod)
-  
+  // Only checking if one of the tests can be found
+  // This indicates that the test tree got refreshed
+  await validateSingleTestDeletion(
+    unitName,
+    functionName,
+    spotCheckTestName,
+    totalNumOfTestsForMethod
+  );
 }
 
 export async function generateAndValidateAllTestsFor(
@@ -543,8 +542,7 @@ export async function generateAndValidateAllTestsFor(
   const expectedTests = await getAllExpectedTests(testGenMethod);
   for (const [unitName, functions] of Object.entries(expectedTests[envName])) {
     for (const [functionName, tests] of Object.entries(functions)) {
-      if (!tests)
-        continue;
+      if (!tests) continue;
       for (const [testName, testCode] of Object.entries(tests)) {
         let subprogram: TreeItem = undefined;
         let testHandle: TreeItem = undefined;
@@ -554,12 +552,12 @@ export async function generateAndValidateAllTestsFor(
             await subprogram.expand();
             await browser.waitUntil(
               async () =>
-              await getTestHandle(
-                subprogram,
-                functionName,
-                testName,
-                Object.entries(tests).length
-              ) != undefined,
+                (await getTestHandle(
+                  subprogram,
+                  functionName,
+                  testName,
+                  Object.entries(tests).length
+                )) != undefined,
               { timeout: 90000, interval: 10000 }
             );
 
@@ -647,11 +645,10 @@ export async function validateGeneratedTest(
 ) {
   let subprogram: TreeItem = undefined;
   const vcastTestingViewContent = await getViewContent("Testing");
-  await (await vcastTestingViewContent.elem).click()
-  console.log("Validating generated test")
+  await (await vcastTestingViewContent.elem).click();
+  console.log("Validating generated test");
   for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-    
-    console.log("Expanded testing view section")
+    console.log("Expanded testing view section");
     subprogram = await findSubprogram(unitName, vcastTestingViewSection);
     if (subprogram) {
       const testHandle = await getTestHandle(
@@ -846,10 +843,11 @@ export async function validateSingleTestDeletion(
             testName,
             totalTestsForFunction
           )) as CustomTreeItem) === undefined,
-        { 
-          timeout: 20000, 
-          interval: 2000, 
-          timeoutMsg: "Checking that the test disappeared from the test tree timed out"
+        {
+          timeout: 20000,
+          interval: 2000,
+          timeoutMsg:
+            "Checking that the test disappeared from the test tree timed out",
         }
       );
 
@@ -1041,7 +1039,7 @@ export async function validateGeneratedTestsForFunction(
     let subprogram: TreeItem = undefined;
     let testHandle: TreeItem = undefined;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      if (!await vcastTestingViewSection.isExpanded)
+      if (!(await vcastTestingViewSection.isExpanded))
         await vcastTestingViewSection.expand();
       subprogram = await findSubprogram(unitName, vcastTestingViewSection);
       if (subprogram) {
@@ -1071,25 +1069,39 @@ export async function validateGeneratedTestsForFunction(
   }
 }
 
-export async function assertTestsDeleted(envName: string, testName = "all"): Promise<void>{
-  const areTestsDeletedCmd = `cd test/vcastTutorial/cpp/unitTests && $VECTORCAST_DIR/clicast -e ${envName} test script create output.tst`
-  
+export async function assertTestsDeleted(
+  envName: string,
+  testName = "all"
+): Promise<void> {
+  const areTestsDeletedCmd = `cd test/vcastTutorial/cpp/unitTests && $VECTORCAST_DIR/clicast -e ${envName} test script create output.tst`;
+
   {
-      const { stdout, stderr } = await promisifiedExec(areTestsDeletedCmd);
-      if (stderr) {
-        console.log(stderr);
-        throw `Error when running ${areTestsDeletedCmd}`;
+    const { stdout, stderr } = await promisifiedExec(areTestsDeletedCmd);
+    if (stderr) {
+      console.log(stderr);
+      throw `Error when running ${areTestsDeletedCmd}`;
+    } else {
+      console.log(stdout);
+      const fs = require("fs").promises;
+      console.log(
+        (
+          await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")
+        ).toString()
+      );
+      // if we are expecting no tests at all in the environment
+      if (testName === "all") {
+        expect(
+          (
+            await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")
+          ).toString()
+        ).not.toContain("TEST.NAME");
       } else {
-        console.log(stdout);
-        const fs = require("fs").promises;
-        console.log((await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")).toString())
-        // if we are expecting no tests at all in the environment
-        if (testName === "all"){
-          expect((await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")).toString()).not.toContain("TEST.NAME");
-        } else {
-          expect((await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")).toString()).not.toContain(testName);
-        }
+        expect(
+          (
+            await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")
+          ).toString()
+        ).not.toContain(testName);
       }
+    }
   }
-  
 }

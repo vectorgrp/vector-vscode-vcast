@@ -183,14 +183,13 @@ describe("vTypeCheck VS Code Extension", () => {
     await deleteTest(testHandle as CustomTreeItem);
 
     const workbench = await browser.getWorkbench();
-    const bottomBar = workbench.getBottomBar()
+    const bottomBar = workbench.getBottomBar();
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
-    
+
     await browser.waitUntil(
-      async () =>
-      (await outputView.getText()).at(-1) != undefined,
-      { timeout: 30000, interval:1000 }
+      async () => (await outputView.getText()).at(-1) != undefined,
+      { timeout: 30000, interval: 1000 }
     );
 
     await browser.waitUntil(
@@ -199,13 +198,13 @@ describe("vTypeCheck VS Code Extension", () => {
           .at(-1)
           .toString()
           .includes("Processing environment data for:"),
-      { timeout: 30000, interval:1000 }
+      { timeout: 30000, interval: 1000 }
     );
-    await browser.pause(10000)
-    
+    await browser.pause(10000);
+
     await assertTestsDeleted("DATABASE-MANAGER", "myThirdTest");
-    await browser.takeScreenshot()
-    await browser.saveScreenshot("info_deleted_third_test.png")
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("info_deleted_third_test.png");
   });
 
   it("should build VectorCAST environment from .env", async () => {
