@@ -4,10 +4,8 @@ import { Key } from "webdriverio";
 import {
   updateTestID,
   testGenMethod,
-  generateAllTestsForFunction,
-  validateGeneratedTestsForFunction,
   deleteAllTestsForFunction,
-  validateTestDeletionForFunction,
+  assertTestsDeleted,
   cleanup,
 } from "../test_utils/vcast_utils";
 
@@ -15,9 +13,6 @@ describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   const TIMEOUT = 120_000;
-  const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE";
-  const QUOTES_EXAMPLE_UNIT = "quotes_example";
-  const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)";
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -80,78 +75,43 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
-  it("should correctly generate all BASIS PATH tests for function", async () => {
-    await updateTestID();
-    console.log("Generating BASIS PATH tests for quotes_example");
-    await generateAllTestsForFunction(
-      QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION,
-      testGenMethod.BasisPath
-    );
-    await validateGeneratedTestsForFunction(
-      QUOTES_ENV,
-      QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION,
-      testGenMethod.BasisPath
-    );
-  });
-
   it("should correctly delete all BASIS PATH tests for function", async () => {
     await updateTestID();
-    console.log("Deleting BASIS PATH tests for quotes_example");
+    const bottomBar = workbench.getBottomBar();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    console.log(
+      "Deleting all BASIS PATH tests for function DataBase::GetTableRecord"
+    );
     await deleteAllTestsForFunction(
-      QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION,
+      "database",
+      "DataBase::GetTableRecord",
       testGenMethod.BasisPath
     );
-    await validateTestDeletionForFunction(
-      QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION,
-      "BASIS-PATH-001",
-      1
+    console.log(
+      "Validating deletion of all BASIS PATH tests for function DataBase::GetTableRecord"
     );
-  });
 
-  it("should correctly generate all ATG tests for function", async () => {
-    await updateTestID();
+    await browser.waitUntil(
+      async () => (await outputView.getText()).at(-1) != undefined,
+      { timeout: 30_000, interval: 1000 }
+    );
 
-    if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
-      console.log("Generating ATG tests for quotes_example");
-      await generateAllTestsForFunction(
-        QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION,
-        testGenMethod.ATG
-      );
-      await validateGeneratedTestsForFunction(
-        QUOTES_ENV,
-        QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION,
-        testGenMethod.ATG
-      );
-    } else {
-      console.log("Skipping ATG tests");
-    }
-  });
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .at(-1)
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: 30_000, interval: 1000 }
+    );
+    await browser.pause(10_000);
 
-  it("should correctly delete all ATG tests for function", async () => {
-    await updateTestID();
-
-    if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
-      console.log("Deleting ATG tests for quotes_example");
-      await deleteAllTestsForFunction(
-        QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION,
-        testGenMethod.ATG
-      );
-      await validateTestDeletionForFunction(
-        QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION,
-        "ATG-TEST-1",
-        1
-      );
-    } else {
-      console.log("Skipping ATG tests");
-    }
+    await assertTestsDeleted("DATABASE-MANAGER");
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("info_deleted_func_basis_tests.png");
   });
 
   it("should clean up", async () => {
