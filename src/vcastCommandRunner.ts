@@ -62,9 +62,9 @@ function processExceptionFromExecuteCommand(
 
   // 99 is a warning, like a mismatch opening the environment
   if (error && error.status == 99) {
-    let stdoutString =  error.stdout.toString();
+    let stdoutString = error.stdout.toString();
     // Needed because of the annoying version miss-match message from vcast
-    commandStatus.stdout = stdoutString.split ("ACTUAL-DATA", 2)[1].trim ()
+    commandStatus.stdout = stdoutString.split("ACTUAL-DATA", 2)[1].trim();
     commandStatus.errorCode = 0;
     vectorMessage(commandStatus.stdout);
   } else if (error && error.stdout) {
@@ -78,7 +78,9 @@ function processExceptionFromExecuteCommand(
       openMessagePane();
     }
   } else {
-    vectorMessage("Unexpected error in utilities/processExceptionFromExecuteCommand()");
+    vectorMessage(
+      "Unexpected error in utilities/processExceptionFromExecuteCommand()"
+    );
   }
 
   return commandStatus;
