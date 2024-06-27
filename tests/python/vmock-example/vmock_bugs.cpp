@@ -20,3 +20,8 @@ std::array<void (*)(void), 1> templates(std::array<int, 1>, int) {
 
 
 bool operator==(TemplateClass<int>, TemplateClass<int>) {return true;}
+
+
+int main () {
+  return 0;
+}
