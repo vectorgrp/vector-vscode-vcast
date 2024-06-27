@@ -499,14 +499,12 @@ def functionCanBeVMocked(functionObject):
     """
     if functionObject.vcast_name in functionsToIgnore:
         return False
-
-    # All other "not supported stuff" is handled by this check
-    # vcast will not store the mock_lookup_type unless a mock was created
-    # Things that are not mockable include:
-    #  constructors, destructors, variadic functions, etc.
-    elif len(functionObject.mock_lookup_type) == 0:
+    # Constructors are not supported by vmock
+    elif functionObject.is_constructor:
         return False
-
+    # Destructors are not supported by vmock
+    elif "~" in functionObject.vcast_name:
+        return False
     else:
         return True
 
@@ -660,6 +658,21 @@ def getFunctionName(functionObject):
     return returnName
 
 
+def isConstFunction(functionObject):
+    """
+    This function will return True if the function is const
+    since there does not seem to be a dataAPI attribute for this
+    I have broken it out to more easily handle edge cases
+    """
+
+    parameterization = functionObject.parameterization
+    returnValue = False
+    if parameterization.endswith(" const") or parameterization.endswith(">const"):
+        returnValue = True
+
+    return returnValue
+
+
 def buildCppParameterization(api, functionObject, functionName):
     """
     This function will convert the vcast parameterization
@@ -737,7 +750,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         )
         baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
 
-    elif functionObject.is_const:
+    elif isConstFunction(functionObject):
         # for const functions we need to insert a cast to a non const version
 
         # So for a function like this: int myMethod(int param) const
