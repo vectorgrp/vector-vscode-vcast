@@ -649,9 +649,7 @@ def getFunctionName(functionObject):
     # cannot use in a function name)
     if "::operator" in functionNameToUse or functionNameToUse.startswith("operator"):
         startIndex = functionNameToUse.find("operator")
-        functionNameToUse = (
-            functionNameToUse[: startIndex + len("operator")]
-        )
+        functionNameToUse = functionNameToUse[: startIndex + len("operator")]
 
     # If the method is templated, don't generate a mock with the template in
     # the name
@@ -664,6 +662,21 @@ def getFunctionName(functionObject):
     returnName += f"{functionHash}"
 
     return returnName
+
+
+def isConstFunction(functionObject):
+    """
+    This function will return True if the function is const
+    since there does not seem to be a dataAPI attribute for this
+    I have broken it out to more easily handle edge cases
+    """
+
+    parameterization = functionObject.parameterization
+    returnValue = False
+    if parameterization.endswith(" const") or parameterization.endswith(">const"):
+        returnValue = True
+
+    return returnValue
 
 
 def buildCppParameterization(api, functionObject, functionName):
@@ -743,7 +756,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         )
         baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
 
-    elif functionObject.is_const:
+    elif isConstFunction(functionObject):
         # for const functions we need to insert a cast to a non const version
 
         # So for a function like this: int myMethod(int param) const
