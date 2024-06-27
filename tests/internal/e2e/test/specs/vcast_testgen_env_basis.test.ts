@@ -1,5 +1,9 @@
-// test/specs/vcast.test.ts
-import { BottomBarPanel, EditorView, Workbench } from "wdio-vscode-service";
+// Test/specs/vcast.test.ts
+import {
+  type BottomBarPanel,
+  type EditorView,
+  type Workbench,
+} from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   releaseCtrl,
@@ -14,14 +18,14 @@ describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 120000;
+  const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -42,6 +46,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -106,8 +111,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const cppFolder = workspaceFolderSection.findItem("cpp");
     await (await cppFolder).select();
 
-    let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
-    let databaseCpp = await workspaceFolderSection.findItem("database.cpp");
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
     await executeCtrlClickOn(databaseCpp);
     await executeCtrlClickOn(managerCpp);
     await releaseCtrl();
@@ -115,14 +120,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await databaseCpp.openContextMenu();
     await (await $("aria/Create VectorCAST Environment")).click();
 
-    // making sure notifications are shown
+    // Making sure notifications are shown
     await (await $("aria/Notifications")).click();
 
-    // this will timeout if VectorCAST notification does not appear, resulting in a failed test
-    const vcastNotifSourceElem = await $(
+    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );
-    const vcastNotification = await vcastNotifSourceElem.$("..");
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
     await (await vcastNotification.$("aria/Yes")).click();
 
     console.log(
@@ -141,7 +146,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.saveScreenshot(
       "info_finished_creating_vcast_environment.png"
     );
-    // clearing all notifications
+    // Clearing all notifications
     await (await $(".codicon-notifications-clear-all")).click();
   });
 

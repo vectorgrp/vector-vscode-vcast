@@ -1,5 +1,5 @@
-// test/specs/vcast.test.ts
-import { BottomBarPanel, Workbench } from "wdio-vscode-service";
+// Test/specs/vcast.test.ts
+import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   updateTestID,
@@ -12,13 +12,13 @@ import {
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120000;
+  const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -39,6 +39,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -95,7 +96,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await browser.waitUntil(
       async () => (await outputView.getText()).at(-1) != undefined,
-      { timeout: 30000, interval: 1000 }
+      { timeout: 30_000, interval: 1000 }
     );
 
     await browser.waitUntil(
@@ -104,9 +105,9 @@ describe("vTypeCheck VS Code Extension", () => {
           .at(-1)
           .toString()
           .includes("Processing environment data for:"),
-      { timeout: 30000, interval: 1000 }
+      { timeout: 30_000, interval: 1000 }
     );
-    await browser.pause(10000);
+    await browser.pause(10_000);
 
     await assertTestsDeleted("DATABASE-MANAGER");
     await browser.takeScreenshot();

@@ -1,5 +1,9 @@
-// test/specs/vcast.test.ts
-import { BottomBarPanel, EditorView, Workbench } from "wdio-vscode-service";
+// Test/specs/vcast.test.ts
+import {
+  type BottomBarPanel,
+  type EditorView,
+  type Workbench,
+} from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   releaseCtrl,
@@ -12,15 +16,15 @@ describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 120000;
+  const TIMEOUT = 120_000;
   const QUOTES_EXAMPLE_UNIT = "quotes_example";
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -41,6 +45,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -100,8 +105,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
 
-    let settingsEditor = await workbench.openSettings();
-    let unitTestLocationSetting = await settingsEditor.findSetting(
+    const settingsEditor = await workbench.openSettings();
+    const unitTestLocationSetting = await settingsEditor.findSetting(
       "Unit Test Location",
       "Vectorcast Test Explorer"
     );
@@ -123,7 +128,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const cppFolder = workspaceFolderSection.findItem("cpp");
     await (await cppFolder).select();
 
-    let exampleCpp = await workspaceFolderSection.findItem(
+    const exampleCpp = await workspaceFolderSection.findItem(
       `${QUOTES_EXAMPLE_UNIT}.cpp`
     );
     await executeCtrlClickOn(exampleCpp);
@@ -132,14 +137,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await exampleCpp.openContextMenu();
     await (await $("aria/Create VectorCAST Environment")).click();
 
-    // making sure notifications are shown
+    // Making sure notifications are shown
     await (await $("aria/Notifications")).click();
 
-    // this will timeout if VectorCAST notification does not appear, resulting in a failed test
-    const vcastNotifSourceElem = await $(
+    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );
-    const vcastNotification = await vcastNotifSourceElem.$("..");
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
     await (await vcastNotification.$("aria/Yes")).click();
 
     console.log(
@@ -174,7 +179,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await workspaceFolderSection.expand();
     let resultingFolder = await workspaceFolderSection.findItem("unittests");
     expect(resultingFolder).not.toBe(undefined);
-    // this will auto-expand all the way to c as there are no other nested folders in unittests
+    // This will auto-expand all the way to c as there are no other nested folders in unittests
     await resultingFolder.select();
 
     resultingFolder = await workspaceFolderSection.findItem("c");
@@ -203,15 +208,16 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Executing env build for an existing environment");
     await vceMenu.select("Build VectorCAST Environment");
 
-    // making sure notification is shown
+    // Making sure notification is shown
 
     const notifications = await workbench.getNotifications();
     const expectedMessage = "Environment: QUOTES_EXAMPLE already exists";
     let message = "";
-    for (const notif of notifications) {
-      message = await notif.getMessage();
+    for (const notification of notifications) {
+      message = await notification.getMessage();
       if (message === expectedMessage) break;
     }
+
     expect(message).toBe(expectedMessage);
     console.log("Making sure existing environment folder is not deleted");
     const envFolder = await workspaceFolderSection.findItem("QUOTES_EXAMPLE");
