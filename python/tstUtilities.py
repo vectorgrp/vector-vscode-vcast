@@ -637,7 +637,7 @@ def getFunctionName(functionObject):
             functionHash = functionHash[1:]
 
         # TBD today - using a 6 number hash, we can increase this if needed
-        functionHash = functionHash[:6]
+        functionHash = f"_{functionHash[:6]}"
 
     returnName = "vmock_"
     returnName += functionObject.unit.name + "_"
@@ -661,7 +661,7 @@ def getFunctionName(functionObject):
     # class members will have the scope operator, replace
     returnName += functionNameToUse.replace("::", "_")
     # now add the hash computed above for uniqueness
-    returnName += f"_{functionHash}"
+    returnName += f"{functionHash}"
 
     return returnName
 
