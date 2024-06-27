@@ -1,6 +1,8 @@
 #ifndef SIMPLE_H
 #define SIMPLE_H
 
+#include <vector>
+#include <list>
 
 void noParams ();
 

@@ -1,7 +1,5 @@
 
 #include <iostream>
-#include <vector>
-#include <list>
 using namespace std;
 
 #include "vmock_examples.h"
