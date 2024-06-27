@@ -750,7 +750,14 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
 
     # Now create the enable and disable comments
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
-    disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
+    disableComment = f"  {disableStubPrefix} {baseString}.assign (nullptr);"
+
+    # TBD today - this can be removed once we understand the momck_lookup_type
+    if os.environ.get("VMOCK_DEBUG"):
+        print (f"baseString: {baseString}")
+        if functionObject.mock_lookup_type:
+            print (f"mock_lookup_type: {functionObject.mock_lookup_type}")
+
 
     return enableComment, disableComment
 
