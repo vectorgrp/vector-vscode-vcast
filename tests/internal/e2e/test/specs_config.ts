@@ -61,7 +61,7 @@ export function getSpecs(vcast24: boolean, group: number = null) {
     const specGroups = getSpecGroups(vcast24);
 
     if (group != null) {
-        return specGroups[groupNumber] || [];
+        return specGroups[group] || [];
     }
     return Object.values(specGroups).flat();
 };
