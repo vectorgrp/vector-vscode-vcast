@@ -110,14 +110,14 @@ jobs:
           echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
 
       - name: Upload vectorcasttestexplorer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: vectorcasttestexplorer
           path: ${{ env.VSIX_FILE }}
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: coverage
@@ -284,7 +284,7 @@ jobs:
             ./tests/internal/e2e/test_results/*.xml
 
       - name: Uploading screenshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         env:
           ARTIFACT_NAME: e2e_screenshots_${{ matrix.version }}_${{ matrix.group }}
