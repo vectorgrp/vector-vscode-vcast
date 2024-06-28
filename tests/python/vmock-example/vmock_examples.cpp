@@ -60,6 +60,9 @@ int overLoadedFreeFunction (char param) {
     return param;
 }
 
+int overloadedFreeFunction2 (char param) {
+    return param;
+}
 
 myClass::myClass () {}
 myClass::~myClass () {}

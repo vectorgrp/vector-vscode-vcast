@@ -29,6 +29,11 @@ char constCharReference (const char& param1);
 int overLoadedFreeFunction (int param);
 int overLoadedFreeFunction (char param);
 
+// we are not providing an defintion for this one
+// to check if dataAPI sets is_overloaded
+int overloadedFreeFunction2 (int param);
+int overloadedFreeFunction2 (char param);
+
 
 class myClass {
     public:
