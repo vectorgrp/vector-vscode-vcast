@@ -108,16 +108,9 @@ int useTemplateWithSingleParameter (int param1) {
     return singleParamTemplate ('a', param1);
 }
 
+
 int usePrototypeOnlyFunction (int param1) {
     return prototypeOnlyFunction (param1);
 }
 
-
-int main () {
-
-    cout << charStar ("hello") << endl;
-    cout << charArray ("goodbye") << endl;
-    cout << staticCharArray ("1234567890") << endl;
-
-}
 

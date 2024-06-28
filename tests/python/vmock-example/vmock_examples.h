@@ -68,4 +68,13 @@ int prototypeOnlyFunction (int param);
 int usePrototypeOnlyFunction (int param);
 
 
+template <typename T> class TemplateClass {
+public:
+  // BUG: orig_declaration uses the same parameter name 
+  // for both parameters: __T68210752
+  bool operator==(int other) {return true;}
+  bool foo(void) {return true;}
+};
+
+
 #endif

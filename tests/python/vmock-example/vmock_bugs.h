@@ -38,19 +38,16 @@ public:
   const int const_int() const {return 1;}
 };
 
-template <typename T> class TemplateClass {
-public:
-  // BUG: orig_declaration uses the same parameter name 
-  // for both parameters: __T68210752
-  bool operator==(int other) {return true;}
-  bool foo(void) {return true;}
-};
 
 namespace nm {
 bool operator==(ConstClass, int) {return true;}
 } // namespace nm
 
+template <typename T> class TemplateClass {
+public:
+  bool operator==(int other) {return true;}
+  bool foo(void) {return true;}
+};
 
-bool operator==(TemplateClass<int>, TemplateClass<int>);
 
 #endif
