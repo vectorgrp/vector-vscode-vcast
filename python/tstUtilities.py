@@ -747,6 +747,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         baseString += f"(&{functionObject.full_prototype_instantiation})"
 
     # else if it is an overloaded function
+    # This is correct even if only one overloaded function is testable
     elif functionObject.is_overloaded:
         # currentFunctionName will have the full name like
         # className::MethodName(int, int)int
