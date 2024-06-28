@@ -33,7 +33,7 @@ jobs:
 
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         continue-on-error: true
 
       - name: Wait before retry
@@ -46,7 +46,7 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       # Run tests
       - name: Restore cached dependencies
@@ -153,7 +153,7 @@ jobs:
     steps:
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         continue-on-error: true
 
       - name: Wait before retry
@@ -166,7 +166,7 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Install dependencies
         run: npm install tsx
@@ -214,7 +214,7 @@ jobs:
 
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         continue-on-error: true
 
       - name: Wait before retry
@@ -227,7 +227,7 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Restore cached dependencies
         id: cache-dependencies-restore
@@ -350,7 +350,7 @@ jobs:
 
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         continue-on-error: true
 
       - name: Wait before retry
@@ -363,7 +363,7 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Black
         shell: bash
