@@ -74,16 +74,24 @@ export function activateLanguageServerClient(context: ExtensionContext) {
 
 // This function is used to send the server information about the association between
 // a coded test file and the environmeent that uses that file.
+
+let environmentsWithMockSupport = new Set();
+export function addEnvironmentToMockSupportCache(environmentPath: string) {
+  environmentsWithMockSupport.add(environmentPath);
+}
+
 export function sendTestFileDataToLangaugeServer(
   filePath: string,
   enviroPath: string
 ) {
-  client.onReady().then(() => {
-    client.sendNotification("vcasttesteditor/loadTestfile", {
-      filePath,
-      enviroPath,
+  if (environmentsWithMockSupport.has (enviroPath)) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/loadTestfile", {
+        filePath,
+        enviroPath,
+      });
     });
-  });
+  }
 }
 
 // This function is used to update vmockAvailabe on the server side

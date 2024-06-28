@@ -7,7 +7,10 @@ import * as vscode from "vscode";
 
 import { Position, Range, Uri, TestMessage } from "vscode";
 
-import { sendTestFileDataToLangaugeServer } from "./client";
+import {
+  addEnvironmentToMockSupportCache,
+  sendTestFileDataToLangaugeServer,
+} from "./client";
 
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
@@ -345,7 +348,13 @@ export function updateTestsForEnvironment(
     );
     enviroNode.nodeKind = nodeKind.enviro;
 
-    // if we have data
+    // we need to know if an environment has coded mock support
+    // or not for the LSE server stuff that handles vmock auto-complete
+    // so we save this environment property for use by the client
+    if (jsonData.enviro.mockingSupport) {
+      addEnvironmentToMockSupportCache(enviroPath);
+    }
+
     processVCtestData(enviroNodeID, enviroNode, jsonData);
 
     // this is used by the package.json to control content (right click) menu choices
@@ -1179,8 +1188,8 @@ function getListOfTestsFromFile(filePath: string, enviroPath: string): any {
   return getJsonDataFromTestInterface(commandToRun, enviroPath);
 }
 
-// we keep a cache of what we have sent to the server so we don't 
-// constantly send the same pair, we intentionally over-write the 
+// we keep a cache of what we have sent to the server so we don't
+// constantly send the same pair, we intentionally over-write the
 // file path key if it already exists, since the most recent
 // environment association is the most correct.
 let testFilesSentToServer: Map<string, string> = new Map();

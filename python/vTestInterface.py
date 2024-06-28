@@ -174,9 +174,16 @@ def generateTestInfo(enviroPath, test):
 # knowledge of "testabilty"
 globalListOfTestableFunctions = []
 
+# The extesnsion needs to know if the environment was built
+# with mocking support, not just if the tool supports it
+# If the enviro was not built with mocking then the new mocking
+# fields in the API will be set to None by the migration process
+enviroSupportsMocking = None
+
 
 def getTestDataVCAST(enviroPath):
     global globalListOfTestableFunctions
+    global enviroSupportsMocking
 
     # dataAPI throws if there is a tool/enviro mismatch
     try:
@@ -226,6 +233,19 @@ def getTestDataVCAST(enviroPath):
             unitNode["functions"] = list()
             for function in unit.functions:
                 functionNode = dict()
+
+                # if we have not checked for mocking support yet, do it now
+                if enviroSupportsMocking == None:
+                    try:
+                        # if the field exists, which it will if our vcast version
+                        # is > vc24sp3, then a value of None means we have an
+                        # older enviro without mocking support
+                        enviroSupportsMocking = function.mock_lookup_type != None
+                    except:
+                        # if the field does not exist at all, the we are using an
+                        # older version of the dataAPI, and we don't have mocking anyway
+                        enviroSupportsMocking = False
+
                 # Seems like a vcast dataAPI bug with manager.cpp
                 if (
                     function.vcast_name != tagForInit
@@ -530,10 +550,18 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
 
     if mode == "getEnviroData":
         topLevel = dict()
+
         # it is important that getTetDataVCAST() is called first since it sets up
-        # the global list of tesable functoions that getUnitData() needs
+        # the global list of testable functoions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(pathToUse)
         topLevel["unitData"] = getUnitData(pathToUse)
+
+        # enviroSupportsMocking is set by the gettestDataVCAST() function
+        topLevel["enviro"] = dict()
+        topLevel["enviro"]["mockingSupport"] = (
+            enviroSupportsMocking if enviroSupportsMocking else False
+        )
+
         returnObject = topLevel
 
     elif mode == "executeTest":
