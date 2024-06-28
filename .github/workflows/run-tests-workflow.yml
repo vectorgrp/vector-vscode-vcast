@@ -368,5 +368,5 @@ jobs:
       - name: Black
         shell: bash
         run: |
-          /home/vcast_user/.venv/bin/python -m black . --check
+          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/'
           exit $?
