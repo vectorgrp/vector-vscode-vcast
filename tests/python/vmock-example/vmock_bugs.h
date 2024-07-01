@@ -9,7 +9,8 @@ These dataAPI bugs
 - Duplicate parameter names for the templates and file scope operator
 
 These are extension bugs
-- all fixed
+- Waiting for a reliable way to determine is_mockable 
+  Must manually delete function pointer mock for now.
 */
 
 #include <array>
