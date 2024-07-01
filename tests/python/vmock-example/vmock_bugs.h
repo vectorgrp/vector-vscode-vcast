@@ -9,9 +9,7 @@ These dataAPI bugs
 - Duplicate parameter names for the templates and file scope operator
 
 These are extension bugs
-- We use "&operator==" what is the correct syntax for this?
-- There are some undefined symbol link errors
-
+- all fixed
 */
 
 #include <array>
@@ -49,5 +47,6 @@ public:
   bool foo(void) {return true;}
 };
 
+bool operator==(TemplateClass<int>, TemplateClass<int>);
 
 #endif
