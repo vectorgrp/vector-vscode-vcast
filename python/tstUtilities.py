@@ -587,7 +587,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
-def createFunctionSignature(api, functionObject):
+def getFunctionSignature(api, functionObject):
     """
     Create the signature for a vmock stub function, something like this:
         ::vunit::CallCtx<myClass> vunit_ctx, int param
@@ -611,7 +611,17 @@ def createFunctionSignature(api, functionObject):
         if parameterObject.name != "return":
             # the  original declaration was added in vc24sp3 and contains
             # both the type and the parameter name as originally defined.
-            signatureString += f" {parameterObject.orig_declaration},"
+
+            # A special case is unnamed parameters, where "vcast_param"
+            # is used, so in this case replace with vcast_param1,2,3
+            # TBD today - This should be fixed in FB: 101394
+
+            paramIndex += 1
+            declarationToUse = parameterObject.orig_declaration
+            if "vcast_param" in declarationToUse:
+                uniqueParameterName = f"vcast_param{paramIndex}"
+                declarationToUse = declarationToUse.replace ("vcast_param", uniqueParameterName)
+            signatureString += f" {declarationToUse},"
 
     # In all cases the returnString will end with a "," so strip this
     signatureString = signatureString[:-1]
@@ -803,7 +813,7 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
 
     # get the parameter profile for the stubbed function
     # e.g -> ::vunit::CallCtx<myClass> vunit_ctx, int param
-    signatureString = createFunctionSignature(api, functionObject)
+    signatureString = getFunctionSignature(api, functionObject)
 
     vmockFunctionName = getFunctionName(functionObject)
     # These are the two comment lines that are added to the stub

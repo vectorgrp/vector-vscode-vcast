@@ -114,6 +114,6 @@ int useTemplateWithSingleParameter (int param1) {
 
 int usePrototypeOnlyFunction (int param1) {
     return prototypeOnlyFunction (param1);
+    prototypeOnlyFunctionWithUnnamedParams (param1, 'a');
 }
-
 

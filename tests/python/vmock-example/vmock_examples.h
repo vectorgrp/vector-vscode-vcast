@@ -70,6 +70,7 @@ int useTemplateWithSingleParameter (int param1);
 
 
 int prototypeOnlyFunction (int param);
+int prototypeOnlyFunctionWithUnnamedParams (int, char);
 int usePrototypeOnlyFunction (int param);
 
 

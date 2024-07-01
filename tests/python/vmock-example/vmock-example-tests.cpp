@@ -270,10 +270,6 @@ VTEST(vmockExample, singleParamTemplateTest) {
 // ----------------------------------------------------------------
 // Protytpe Stub Example
 // vmock uut_prototype_stubs prototypeStub 
-int vmock_uut_prototype_stubs_prototypeStub(::vunit::CallCtx<> vunit_ctx, int param) {
-   //Usage: vmock_session.mock (&prototypeStub).assign (&vmock_uut_prototype_stubs_prototypeStub);
-
-}
 
 // vmock uut_prototype_stubs prototypeOnlyFunction 
 int vmock_uut_prototype_stubs_prototypeOnlyFunction(::vunit::CallCtx<> vunit_ctx, int param) {
@@ -282,10 +278,17 @@ int vmock_uut_prototype_stubs_prototypeOnlyFunction(::vunit::CallCtx<> vunit_ctx
   return 100;
 }
 
+// vmock uut_prototype_stubs prototypeOnlyFunctionWithUnnamedParams 
+int  vmock_uut_prototype_stubs_prototypeOnlyFunctionWithUnnamedParams(::vunit::CallCtx<> vunit_ctx, int vcast_param1, char vcast_param2) {
+  // Enable Stub:  vmock_session.mock (&prototypeOnlyFunctionWithUnnamedParams).assign (&vmock_uut_prototype_stubs_prototypeOnlyFunctionWithUnnamedParams);
+  // Disable Stub: vmock_session.mock (&prototypeOnlyFunctionWithUnnamedParams).assign (nullptr);
+
+}
+
 VTEST(vmockExample, prototypeTest) {
   auto vmock_session = ::vunit::MockSession();
   vmock_session.mock (&prototypeOnlyFunction).assign (&vmock_uut_prototype_stubs_prototypeOnlyFunction);
-
+  vmock_session.mock (&prototypeOnlyFunctionWithUnnamedParams).assign (&vmock_uut_prototype_stubs_prototypeOnlyFunctionWithUnnamedParams);
   VASSERT_EQ (100, usePrototypeOnlyFunction (0));
 
 }
@@ -306,4 +309,8 @@ VTEST(vmockExample, constTest)  {
   myClass myClassInstance;
   VASSERT_EQ (100, myClassInstance.myConstMethod (0));
 }
+
+
+
+
 
