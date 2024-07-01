@@ -82,5 +82,8 @@ public:
   bool foo(void) {return true;}
 };
 
+// overloaded operator, with anonymous parameters
+bool operator==(TemplateClass<int>, TemplateClass<int>);
+
 
 #endif

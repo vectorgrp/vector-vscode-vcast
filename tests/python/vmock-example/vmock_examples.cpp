@@ -117,3 +117,4 @@ int usePrototypeOnlyFunction (int param1) {
     prototypeOnlyFunctionWithUnnamedParams (param1, 'a');
 }
 
+bool operator==(TemplateClass<int>, TemplateClass<int>) {return true;};

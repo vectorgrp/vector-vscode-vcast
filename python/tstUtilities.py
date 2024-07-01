@@ -624,6 +624,13 @@ def getFunctionSignature(api, functionObject):
     return signatureString
 
 
+def functionIsOperator (functionName):
+   """
+   So that we have one place to adjust if we find bugs :)
+   """
+   return "::operator" in functionName or functionName.startswith("operator")
+
+
 def getFunctionName(functionObject):
     """
     We use the vmock with the unit and function names as the default
@@ -649,12 +656,12 @@ def getFunctionName(functionObject):
 
     # Handle if we have an operator function (which will include symbols we
     # cannot use in a function name)
-    if "::operator" in functionNameToUse or functionNameToUse.startswith("operator"):
+    if functionIsOperator (functionNameToUse):
         startIndex = functionNameToUse.find("operator")
         functionNameToUse = functionNameToUse[: startIndex + len("operator")]
 
-    # If the method is templated, don't generate a mock with the template in
-    # the name
+    # If the method is templated, don't generate a mock i
+    # with the template in the name
     if "<" in functionNameToUse:
         functionNameToUse = re.sub("<.*>", "", functionNameToUse)
 
@@ -750,7 +757,9 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
 
     # else if it is an overloaded function
     # This is correct even if only one overloaded function is testable
-    elif functionObject.is_overloaded:
+    # We need to also check for operators, because they are overloaded
+    # from the compilers point-of-view but might not be from vcast's
+    elif functionObject.is_overloaded or functionIsOperator (functionName):
         # currentFunctionName will have the full name like
         # className::MethodName(int, int)int
 

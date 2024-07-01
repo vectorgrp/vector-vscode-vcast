@@ -310,7 +310,22 @@ VTEST(vmockExample, constTest)  {
   VASSERT_EQ (100, myClassInstance.myConstMethod (0));
 }
 
+// ----------------------------------------------------------------
+// Free operator function - should always specialize the vmock_session.mock call
+// vmock vmock_examples operator== 
+bool  vmock_vmock_examples_operator(::vunit::CallCtx<> vunit_ctx, class TemplateClass< int>  vcast_param1, class TemplateClass< int>  vcast_param2) {
+  // Enable Stub:  vmock_session.mock <bool  (*)(TemplateClass<int>,TemplateClass<int>)> (&operator==).assign (&vmock_vmock_examples_operator);
+  // Disable Stub: vmock_session.mock <bool  (*)(TemplateClass<int>,TemplateClass<int>)> (&operator==).assign (nullptr);
+  return false;
+}
 
+VTEST(vmockExample, operatorTest) {
 
+  auto vmock_session = ::vunit::MockSession();
+  vmock_session.mock <bool  (*)(TemplateClass<int>,TemplateClass<int>)> (&operator==).assign (&vmock_vmock_examples_operator);
 
-
+  TemplateClass<int> templateClassInstance1;
+  TemplateClass<int> templateClassInstance2;
+  VASSERT_EQ (false, templateClassInstance1 == templateClassInstance2);
+  
+}
