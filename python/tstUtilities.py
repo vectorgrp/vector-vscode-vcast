@@ -16,14 +16,9 @@ from vector.apps.DataAPI.unit_test_models import Function, Global
 globalOutputLog = list()
 
 #
-# In some instances, it is desirable to always have a unique name generated for
-# a mock function. However, it is very difficult to do this and generate 'nice'
-# names.
-#
-# In places where we might generate mocks with duplicate names (e.g., many
-# different `operator` instances, each with a different operator), we can opt
-# to use the mangled name directly. This makes the mock name less 'visually
-# appealing', but it means we never create duplicate mocks.
+# For automated test it is desirable to always have a unique name generated for
+# a mock function, so if you set this variable, we will append a hash of the 
+# mangled function name to the mock name. 
 #
 ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES = "VCAST_TEST_EXPLORER_USE_MANGLED_NAMES"
 
@@ -637,9 +632,6 @@ def getFunctionName(functionObject):
 
     functionName = functionObject.name
 
-    # We don't actually need most of the processing in this routine if we're
-    # using the mangled name, but we need to make sure we preserve the prefix,
-    # which is why we don't just return here
     functionHash = ""
     if os.environ.get(ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES, None):
         functionHash = str(hash(functionObject.mangled_name))
