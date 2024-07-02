@@ -58,6 +58,28 @@ If behind a corporate proxy: Make sure to set `NODE_EXTRA_CA_CERTS` to point to 
 
     Code for end-to-end tests can be found under `internal/e2e/test/specs/vcast.test.ts`. The tests are specified using `Mocha` framework.
 
+#### Grouping tests:
+Tests are conceptually divided in independent groups. The `specs` can be found under `internal/e2e/test/specs_config.ts`. Whenever you want to add a new test or a new group of tests, add it there.
+Groups are defined in the `specGroups` variable in the `getSpecGroups` function, and they are made like this:
+```
+"<group-name>": [
+  <list-of-test.ts-files>
+]
+```
+There are also special groups that run only if testing vcast 24 (ATG features).
+
+Normally all groups are run. In case you want to run a single group, you need to set the following environment variables:
+```
+RUN_BY_GROUP: "True"
+RUN_GROUP_NAME: <group-name>
+```
+To test the ATG features (available with vcast24 only), you'll need this environment variable:
+```
+ENABLE_ATG_FEATURE=TRUE
+```
+
+Please note that groups represent tests for certain features and test files within them depend on each other.
+
 ### Viewing test results:
     
 - Each test step is logged to standard output. 
