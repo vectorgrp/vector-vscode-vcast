@@ -1,0 +1,9 @@
+#!/bin/bash
+
+black . --check --extend-exclude '/(.*venv.*)/'
+BLACK_EXIT_CODE=$?
+if [ $BLACK_EXIT_CODE -ne 0 ]; then
+    echo "Code formatting issues detected. Please run 'black' to format your code."
+    exit 1
+fi
+exit 0
