@@ -490,7 +490,9 @@ functionsToIgnore = ["coded_tests_driver", tagForInit]
 
 def functionCanBeVMocked(functionObject):
     """
-    convenience function
+    Convenience function
+    TBD today - this should be replaced by usage of is_mockable
+    from the dataAPI.  Part of FB 101394 - vc24sp3?
     """
     if functionObject.vcast_name in functionsToIgnore:
         return False
@@ -769,8 +771,10 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
 
     elif isConstFunction(functionObject):
-        # for const functions we need to insert a cast to a non const version
+        # TBD today - this should be replaced with a check of
+        # the dataAPI is_const attribute.  Needs to be fixed in FB: 101394
 
+        # for const functions we need to insert a cast to a non const version
         # So for a function like this: int myMethod(int param) const
         # we need to insert: (int (fooClass::*)(int))
 
@@ -786,7 +790,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
     disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
 
-    # TBD today - this can be removed once we understand the momck_lookup_type
+    # TBD today - this can be removed once we understand the mock_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
         print(f"    baseString: {baseString}")
         if functionObject.mock_lookup_type:

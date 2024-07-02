@@ -60,7 +60,7 @@ CCAST_.CFG file.  To make setting this value easier, you may right click on any 
 file and choose: "Set as VectorCAST Configuration File"
 
 If this option is not set, and you attempt to build an environment, the extension will automatically 
-open the VectorCASTgraphical option editor.
+open the VectorCAST graphical option editor.
 
 ### Creating a New Test Environment
 
