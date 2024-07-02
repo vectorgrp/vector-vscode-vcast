@@ -15,7 +15,7 @@ import { vectorMessage } from "./messagePane";
 import { vPythonCommandToUse } from "./vcastInstallation";
 
 let client: LanguageClient;
-
+let globalvMockAvailable: boolean = false;
 export function activateLanguageServerClient(context: ExtensionContext) {
   // The server is implemented in nodejs also
   let serverModule = context.asAbsolutePath(path.join("out", "server.js"));
@@ -43,8 +43,15 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   };
 
   // Options to control the language client
+  // we register for .tsts and c|cpp files, and do the right thing in the callback
+  // depending on the extension of the file
   let clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", pattern: "**/*.tst" }],
+    documentSelector: [
+      { scheme: "file", pattern: "**/*.tst" },
+      { scheme: "file", language: "c" },
+      { scheme: "file", language: "cpp" },
+      { scheme: "file", language: "cuda-cpp" },
+    ],
   };
 
   // Create the language client and start the client.
@@ -60,6 +67,75 @@ export function activateLanguageServerClient(context: ExtensionContext) {
     "Starting the language server client for test script editing ..."
   );
   client.start();
+
+  // initialize the vMock status to the value set during activation
+  updateVMockStatus(globalvMockAvailable);
+}
+
+
+// we keep a cache of what we have sent to the server so we don't
+// constantly send the same pair, we intentionally over-write the
+// file path key if it already exists, since the most recent
+// environment association is the most correct.
+
+let testFilesSentToServer: Map<string, string> = new Map();
+
+// This function is used to send the server information about the association between
+// a coded test file and the environmeent that uses that file.
+export function sendTestFileDataToLangaugeServer(
+  testFilePath: string,
+  enviroPath: string,
+  enviroHasMockSupport: boolean
+) {
+  // if this test file is in the map for this environment, return
+  if (
+    testFilesSentToServer.has(testFilePath) &&
+    testFilesSentToServer.get(testFilePath) == enviroPath
+  ) {
+    return;
+  } else {
+    // else this is a new test file or a new enviro for an exsiting test file
+    // we always send in in the second case, because we want the server
+    // to have the lastest association.
+    client.onReady().then(() => {
+      testFilesSentToServer.set(testFilePath, enviroPath);
+      // we want the server to know about all test files, because this
+      // allows the server to give helpful error messages when the
+      // enviro does not support mocks.
+      client.sendNotification("vcasttesteditor/loadTestfile", {
+        testFilePath,
+        enviroPath,
+        enviroHasMockSupport,
+      });
+    });
+  }
+}
+
+// This function is used to update vmockAvailabe on the server side
+export function updateVMockStatus(vmockAvailable: boolean) {
+  // during activation, the client may not be ready yet, so we store the value
+  // of the vmockAvailable flag in a global variable and send it to the server
+  // on startup
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/vmockstatus", {
+        vmockAvailable,
+      });
+    });
+  } else {
+    globalvMockAvailable = vmockAvailable;
+  }
+}
+
+// This function is used to send an updated path to vPython to the server
+export function sendVPythonCommandToServer(vPythonCommand: string) {
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/updateVPythonCommand", {
+        vPythonCommand,
+      });
+    });
+  }
 }
 
 export function deactivateLanguageServerClient(): Thenable<void> | undefined {

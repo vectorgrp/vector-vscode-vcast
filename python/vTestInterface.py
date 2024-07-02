@@ -24,7 +24,7 @@ This script must be run under vpython
 """
 
 import clicastInterface
-from clicastInterface import codeTestCompileErrorCode
+from tstUtilities import tagForInit
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
@@ -50,7 +50,6 @@ class UsageError(Exception):
 modeChoices = [
     "getEnviroData",
     "executeTest",
-    "executeTestReport",
     "report",
     "parseCBT",
     "rebuild",
@@ -117,7 +116,7 @@ def getTime(time):
 
 
 def XofYString(numerator, denominator):
-    if numerator == 0 or denominator == 0:
+    if denominator == 0:
         return ""
     else:
         percentageString = "{:.2f}".format((numerator * 100) / denominator)
@@ -134,7 +133,7 @@ def getPassFailString(test):
     denominator = summary.expected_total + summary.control_flow_total
 
     numerator = denominator - (summary.expected_fail + summary.control_flow_fail)
-    return XofYString(numerator, denominator)
+    return XofYString(numerator, denominator) + "\n"
 
 
 def generateTestInfo(enviroPath, test):
@@ -175,9 +174,16 @@ def generateTestInfo(enviroPath, test):
 # knowledge of "testabilty"
 globalListOfTestableFunctions = []
 
+# The extesnsion needs to know if the environment was built
+# with mocking support, not just if the tool supports it
+# If the enviro was not built with mocking then the new mocking
+# fields in the API will be set to None by the migration process
+enviroSupportsMocking = None
+
 
 def getTestDataVCAST(enviroPath):
     global globalListOfTestableFunctions
+    global enviroSupportsMocking
 
     # dataAPI throws if there is a tool/enviro mismatch
     try:
@@ -227,9 +233,22 @@ def getTestDataVCAST(enviroPath):
             unitNode["functions"] = list()
             for function in unit.functions:
                 functionNode = dict()
+
+                # if we have not checked for mocking support yet, do it now
+                if enviroSupportsMocking == None:
+                    try:
+                        # if the field exists, which it will if our vcast version
+                        # is > vc24sp3, then a value of None means we have an
+                        # older enviro without mocking support
+                        enviroSupportsMocking = function.mock_lookup_type != None
+                    except:
+                        # if the field does not exist at all, the we are using an
+                        # older version of the dataAPI, and we don't have mocking anyway
+                        enviroSupportsMocking = False
+
                 # Seems like a vcast dataAPI bug with manager.cpp
                 if (
-                    function.vcast_name != "<<INIT>>"
+                    function.vcast_name != tagForInit
                     and not function.is_non_testable_stub
                 ):
                     # Note: the vcast_name has the parameterization only when there is an overload
@@ -387,14 +406,11 @@ def getCoverageData(sourceObject):
     return coveredString, uncoveredString, checksum
 
 
-def executeVCtest(enviroPath, testIDObject, generateReport):
+def executeVCtest(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         returnText = ""
 
         returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
-        # If the coded test failed to compile it makes no sense to build the reports.
-        if generateReport and returnCode != codeTestCompileErrorCode:
-            commandOutput += clicastInterface.generateExecutionReport(testIDObject)
 
         if "TEST RESULT: pass" in commandOutput:
             returnText += "STATUS:passed\n"
@@ -491,7 +507,7 @@ def validateClicastCommand(command, mode):
     The --clicast arg is only required for a sub-set of modes, so we do
     those checks here, and throw usage error if there is a probelem
     """
-    if mode.startswith("executeTest") or mode == "rebuild":
+    if mode in ["executeTest", "rebuild"]:
         if command is None or len(command) == 0:
             print(f"Arg --clicast is required for mode: {mode}")
             raise UsageError()
@@ -534,21 +550,31 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
 
     if mode == "getEnviroData":
         topLevel = dict()
+
         # it is important that getTetDataVCAST() is called first since it sets up
-        # the global list of tesable functoions that getUnitData() needs
+        # the global list of testable functoions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(pathToUse)
         topLevel["unitData"] = getUnitData(pathToUse)
+
+        # enviroSupportsMocking is set by the gettestDataVCAST() function
+        topLevel["enviro"] = dict()
+        topLevel["enviro"]["mockingSupport"] = (
+            enviroSupportsMocking if enviroSupportsMocking else False
+        )
+
         returnObject = topLevel
 
-    elif mode.startswith("executeTest"):
+    elif mode == "executeTest":
         try:
             testIDObject = testID(pathToUse, testString)
+            # remove any left over report file ...
+            textReportPath = testIDObject.reportName + ".txt"
+            if os.path.isfile(textReportPath):
+                os.remove(textReportPath)
         except:
             print("Invalid test ID, provide a valid --test argument")
             raise UsageError()
-        returnCode, returnText = executeVCtest(
-            pathToUse, testIDObject, mode == "executeTestReport"
-        )
+        returnCode, returnText = executeVCtest(pathToUse, testIDObject)
         returnObject = {"text": returnText.split("\n")}
 
     elif mode == "report":

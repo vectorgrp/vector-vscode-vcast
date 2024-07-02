@@ -169,7 +169,7 @@ When editing a test script file, a "Load Test Script into Environment" right cli
 editor window to load the test script into the VectorCAST test environment. If there are unsaved changes,
 the load command will also perform a save.
 
-### Editing a Coded Test 
+### Coded Test Include File
 
 Coded test files require an include like this: #include <vunit/vunit.h> so for IntelliSense editing to 
 work nicely for coded test files, you must add an include path to for this file to your workspace.
@@ -194,6 +194,69 @@ Here is an example a c_cpp_properties.json file with the vUnit include path adde
             ],
             ...
 ```
+
+### Editing a Coded Test 
+
+Much of what you will do with Coded Test editing will use normal C++ syntax and as a result will be 
+supported by the C/C++ language extension.  Because of the more involved syntax required for mocking
+the extension supports some IntelliSense features dedicated to mocking.
+
+Specifically, to easily define a mock for a function you simply need to use the auto-complete feature
+for mocking to select the file (unit) and function, and the extension will do the rest.
+
+To trigger this feature, just type: "// vmock ", and the extension will display a list of units that are
+valid for the environment associated with the current coded test file.  After the unit is selected, typing 
+another space will display all possible functions and methods that can be stubbed.  As is common with 
+IntelliSense, if you type a few characters after the list is displayed, the editor will filter to choices 
+containing those characters.
+
+After selecting a function or method to be stubbed, the editor will provide the complete stub declaration as well
+as the "usage line" hint for what you need to include in your VTEST.  
+
+Assume you have a file called: "myFile.cpp" and a function called: "foo()" defined like this:  
+
+```
+int foo (int param) {
+  return param;
+  }
+```
+
+Proceed as follows when creating a coded test:
+- type: // vmock <space> and choose myFile form the list of units
+- type <space> and choose foo() as the function to stub
+- type <space> to get the full declaration and a usage note.
+
+Which will look like this:
+
+```
+// vmock foo foo 
+int vmock_foo_foo(::vunit::CallCtx<> vunit_ctx, int param) {  
+  
+  // Enable Stub:  vmock_session.mock (&foo).assign (&vmock_foo_foo);
+  // Disable Stub: vmock_session.mock (&foo).assign (nullptr);
+
+}
+```
+
+You can then edit the mock logic to insert a hard-coded return of 100
+and use the Usage hint to create a test like this:
+
+```
+VTEST(fooTests, simpleTest) {
+  auto vmock_session = ::vunit::MockSession();
+  vmock_session.mock (&foo).assign (&vmock_foo_foo);
+  VASSERT_EQ (foo(1), 100);
+}
+```
+
+Note: This feature is only supported for tool and environment version that are newer than VectorCAST 24 sp3.
+If you type "// vmock" in a file associated with ane enviornment that was built with an older version
+of VectorCAST, you will get the diagnostic message:  
+
+  "This environment does not support mocks, no auto-completion is available",
+
+
+Note: The extension will also auto-complete the: "auto vmock_session =" line
 
 ### Code Coverage Annotations
 

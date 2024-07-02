@@ -7,6 +7,8 @@ import * as vscode from "vscode";
 
 import { Position, Range, Uri, TestMessage } from "vscode";
 
+import { sendTestFileDataToLangaugeServer } from "./client";
+
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
 import { updateTestDecorator } from "./editorDecorator";
@@ -49,20 +51,17 @@ import {
   refreshCodedTests,
 } from "./vcastAdapter";
 
-
-import {  getJsonDataFromTestInterface } from "./vcastCommandRunner"
+import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
   getEnviroDataFromPython,
-  getResultFileForTest,
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
   testDataType,
   vcastEnviroFile,
 } from "./vcastTestInterface";
-
 
 import {
   adjustScriptContentsBeforeLoad,
@@ -104,6 +103,7 @@ function addTestNodes(
       time: testList[testIndex].time,
       notes: testList[testIndex].notes,
       resultFilePath: "",
+      stdout: "",
       compoundOnly: testList[testIndex].compoundOnly,
       testFile: testList[testIndex].codedTestFile || "",
       testStartLine: testList[testIndex].codedTestLine || 1,
@@ -176,16 +176,16 @@ const codedTestFunctionName = "coded_tests_driver";
 // leading space is intentional to force it to the top of the list
 const codedTestDisplayName = " Coded Tests";
 function processVCtestData(
+  enviroPath: string,
   enviroNodeID: string,
   enviroNode: vcastTestItem,
-  enviroData: any
+  jsonData: any
 ) {
   // enviroNodeID, is the parent of the nodes to be added here
 
   // The top level of the JSON is an array ...
-  const unitList = enviroData.testData;
+  const unitList = jsonData.testData;
   for (const unitData of unitList) {
-
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
     // add a cache node for the unit
@@ -230,11 +230,26 @@ function processVCtestData(
           functionNodeForCache
         );
 
+        // if the funciton we are processing is the coded test driver
+        // and if there is a test file associated wtih it ...
         if (
           functionName == codedTestFunctionName &&
           functionNodeForCache.testFile.length > 0
         ) {
           addCodedTestfileToCache(enviroNodeID, functionNodeForCache);
+
+          // we need to tell the language server about the test file to
+          // environment mapping, including whether or not the environment
+          // has coded mock support
+
+          const enviroHasMockSupport = jsonData.enviro.mockingSupport;
+          const testFilePath = functionNodeForCache.testFile;
+
+          sendTestFileDataToLangaugeServer(
+            testFilePath,
+            functionNodeForCache.enviroPath,
+            enviroHasMockSupport
+          );
         }
 
         unitNode.children.add(functionNode);
@@ -346,8 +361,7 @@ export function updateTestsForEnvironment(
     );
     enviroNode.nodeKind = nodeKind.enviro;
 
-    // if we have data
-    processVCtestData(enviroNodeID, enviroNode, jsonData);
+    processVCtestData(enviroPath, enviroNodeID, enviroNode, jsonData);
 
     // this is used by the package.json to control content (right click) menu choices
     if (!vcastEnviroList.includes(enviroNodeID)) {
@@ -487,7 +501,7 @@ function findStringInFile(filePath: string, stringToFind: string): number {
 
   for (const [index, line] of fileContents.entries()) {
     if (line.includes(stringToFind)) {
-      returnLineNumber = index+1;
+      returnLineNumber = index + 1;
       break;
     }
   }
@@ -802,7 +816,7 @@ export async function runNode(
 
   // this does the actual work of running the test
   const enviroPath = getEnviroPathFromID(node.id);
-  return runVCTest(enviroPath, node.id, generateReport).then((status) => {
+  return runVCTest(enviroPath, node.id).then((status) => {
     if (status == testStatus.didNotRun) {
       run.skipped(node);
     } else if (status == testStatus.compileError) {
@@ -819,19 +833,19 @@ export async function runNode(
       if (status == testStatus.passed) {
         run.passed(node);
       } else if (status == testStatus.failed) {
-        const textFilePath = getResultFileForTest(node.id);
+        const currentTestData = globalTestStatusArray[node.id];
 
-        // find the summary line that starts with "Expected Results", and add to testMessage
-        const lines = fs.readFileSync(textFilePath, "utf-8").split("\n");
-        let failMessage: TestMessage = new TestMessage("");
-        for (let line of lines) {
-          // start of line, any number of spaces, search text ...
-          if (/^\s*Expected Results matched.*/.test(line)) {
-            // remove the EOL and squash multiple spaces into 1
-            failMessage = new TestMessage(line.trimEnd().replace(/\s+/g, " "));
-            break;
-          }
-        }
+        // convert the pass fail string from the current test data into a message
+        // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
+        // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
+
+        const xofy = currentTestData.passfail.split("(")[0].trim();
+        const percentage = currentTestData.passfail
+          .split("(")[1]
+          .split(")")[0]
+          .trim();
+        const failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
+        const failMessage = new TestMessage(failMessageText);
         run.failed(node, failMessage);
       }
 
@@ -1140,7 +1154,7 @@ interface codedTestFileDataType {
 // the key is the coded test file path, the value is a codedTestFileDataType
 let codedTestFileCache: Map<string, codedTestFileDataType> = new Map();
 
-// This map is used to cache the list of coded test file in an environment.
+// This map is used to cache the list of coded test files in an environment.
 // we use this when we change an environment to know what cbt files are affected
 // the key is the enviroNodeID, the value is the list of cbt files
 let enviroToCBTfilesCache: Map<string, Set<string>> = new Map();
@@ -1205,7 +1219,7 @@ function addCodedTestfileToCache(
   fileCacheData.enviroNodeIDSet.add(enviroNodeID);
   codedTestFileCache.set(functionNodeForCache.testFile, fileCacheData);
 
-  // we also need to add this cbt file to the enviro cache
+  // we also need to add this Coded Test file to the enviro cache
   let enviroCacheData: Set<string> | undefined =
     enviroToCBTfilesCache.get(enviroNodeID);
   if (enviroCacheData == undefined) {

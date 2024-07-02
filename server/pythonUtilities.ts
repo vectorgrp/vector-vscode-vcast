@@ -3,7 +3,8 @@ import path = require("path");
 const execSync = require("child_process").execSync;
 
 let testEditorScriptPath: string | undefined = undefined;
-let vPythonCommandToUse: string;
+let vPythonCommandToUse: string | undefined = undefined;
+
 export function setPaths(
   _testEditorScriptPath: string,
   _vPythonCommandToUse: string
@@ -11,12 +12,21 @@ export function setPaths(
   testEditorScriptPath = _testEditorScriptPath;
   vPythonCommandToUse = _vPythonCommandToUse;
 }
+
+export function updateVPythonCommand(newPath: string) {
+  vPythonCommandToUse = newPath;
+}
+
 function initializeScriptPath() {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
   const extensionRoot = process.argv[2];
-  vPythonCommandToUse = process.argv[3];
+  // if we have not been sent the explicit path to use
+  // fetch it from the command line arguments
+  if (vPythonCommandToUse == undefined) {
+    vPythonCommandToUse = process.argv[3];
+  }
   const pathToTestEditorInterface = path.join(
     extensionRoot,
     "python",
@@ -35,8 +45,8 @@ function initializeScriptPath() {
 }
 
 export function runPythonScript(
-  enviroName: string,
   action: string,
+  enviroName: string,
   payload: string
 ): any {
   // this is currently not used as the actual server mode is unused
@@ -63,11 +73,16 @@ export function runPythonScript(
   return JSON.parse(pieces[1].trim());
 }
 
+export enum choiceKindType {
+  choiceListTST = "choiceList-tst",
+  choiceListCT = "choiceList-ct",
+}
 export function getChoiceDataFromPython(
+  kind: choiceKindType,
   enviroName: string,
   lineSoFar: string
 ): any {
-  const jsonData = runPythonScript(enviroName, "choiceList", lineSoFar);
+  const jsonData = runPythonScript(kind, enviroName, lineSoFar);
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
@@ -80,8 +95,8 @@ export function getHoverStringForRequirement(
 ): any {
   let returnValue: string = "";
   const jsonData = runPythonScript(
+    "choiceList-tst",
     enviroName,
-    "choiceList",
     "TEST.REQUIREMENT_KEY:"
   );
   for (const msg of jsonData.messages) {

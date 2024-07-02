@@ -5,13 +5,22 @@ this started life as a duplicate of:  dataAPIInterface/tstUtilities.py
 """
 
 from enum import Enum
+import os
 import re
+import sys
 import traceback
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
 
 globalOutputLog = list()
+
+#
+# For automated test it is desirable to always have a unique name generated for
+# a mock function, so if you set this variable, we will append a hash of the 
+# mangled function name to the mock name. 
+#
+ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES = "VCAST_TEST_EXPLORER_USE_MANGLED_NAMES"
 
 
 def getNameListFromObjectList(objectList):
@@ -266,12 +275,13 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
             returnData.choiceKind = choiceKindType.Constant
 
     else:  # "other" case
-        globalOutputLog.append("processtype ignored type: " + type.kind)
+        globalOutputLog.append("process type ignored type: " + type.kind)
 
     return returnData
 
 
 tagForGlobals = "<<GLOBAL>>"
+tagForInit = "<<INIT>>"
 
 
 def getFunctionList(api, unitName):
@@ -285,8 +295,8 @@ def getFunctionList(api, unitName):
         functionList = unitObject.functions
         returnList = getNameListFromObjectList(functionList)
         # seems like a vcast dataAPI bug, that <<INIT>> is in this list
-        if "<<INIT>>" in returnList:
-            returnList.remove("<<INIT>>")
+        if tagForInit in returnList:
+            returnList.remove(tagForInit)
         if len(unitObject.globals) > 0:
             returnList.append(tagForGlobals)
 
@@ -318,18 +328,20 @@ class choiceKindType(str, Enum):
     Function = ("Function",)
     Keyword = ("Keyword",)
     Property = "Property"
+    Snippet = "Snippet"
     Value = "Value"
     Variable = "Variable"
 
 
 class choiceDataType:
     choiceList = list()
+    extraText = ""
     choiceKind = choiceKindType.Keyword
 
 
 def processRequirementLines(api, pieces, triggerCharacter):
     """
-    This funciton will compute the list of possible requirement keys and return
+    This function will compute the list of possible requirement keys and return
     a list of key | description pairs
     """
     returnData = choiceDataType()
@@ -337,7 +349,7 @@ def processRequirementLines(api, pieces, triggerCharacter):
 
     requirements = api.environment.requirement_api.Requirement.all()
     for requirement in requirements:
-        # the description can have multipl
+        # the description can have multiple lines, so we just take the first line
         returnData.choiceList.append(
             f"{requirement.external_key} ||| {requirement.title} ||| {requirement.description}"
         )
@@ -466,7 +478,437 @@ def splitExistingLine(line):
     return [x.strip() for x in pieces]
 
 
-def processLine(enviroName, line):
+# see comment below for what the patterns this matches
+unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
+# units to not be shown in the unit list
+unitsToIgnore = ["USER_GLOBALS_VCAST"]
+# function to not be shown in the functions list
+# TBD today - these <<INIT>> functions should not be in the list
+# Waiting for PCT fix of FB: 101353 - vc24sp3?
+functionsToIgnore = ["coded_tests_driver", tagForInit]
+
+
+def functionCanBeVMocked(functionObject):
+    """
+    convenience function
+    """
+    if functionObject.vcast_name in functionsToIgnore:
+        return False
+    # Constructors are not supported by vmock
+    elif functionObject.is_constructor:
+        return False
+    # Destructors are not supported by vmock
+    elif "~" in functionObject.vcast_name:
+        return False
+    else:
+        return True
+
+
+def getUnitAneFunctionStrings(lineSoFar):
+    # using a regex is the simplest way to extract the unit and function names
+    match = re.match(unitAndFunctionRegex, lineSoFar)
+    if match:
+        unitString = match.group(1)
+        functionString = match.group(2)
+    else:
+        unitString = None
+        functionString = None
+
+    return unitString, functionString
+
+
+def getUnitAndFunctionObjects(api, unitString, functionString):
+    """
+    This function will get called with the lineSoFar for
+    the current line being edited.  When we get here the line
+    will look something like (regex implements this)
+         // vmock                    - return list of units
+         // vmock myUn               - return list of units that start with myUn
+         // vmock myUnit             - return list of functions
+         // vmock myUnit myFunc      - return list of functions that starts with myFunc
+         // vmock myUnit myFunction  - return full declaration
+
+    Other notes:
+        - overloaded names should be parameterized in the vmock style
+
+    The return values will be a list of unitObjects and function objects that
+    match the input strings.  If there is an exact match we will return a
+    single object, for a partial match we'll return the filtered list,
+    and if there is no match we'll return the full list
+    """
+
+    unitList = api.Unit.all()
+    returnUnitList = []
+    returnFunctionList = []
+
+    #  first build the unit list
+    for unitObject in unitList:
+        if unitObject.name not in unitsToIgnore:
+            # if no unit string was entered, return all unit objects
+            if unitString == None:
+                returnUnitList.append(unitObject)
+
+            # if there is an exact match, return a list with a single unit
+            elif unitObject.name == unitString:
+                returnUnitList = [unitObject]
+                break
+
+            # else return a filtered list that matches the entry so far
+            elif unitObject.name.startswith(unitString):
+                returnUnitList.append(unitObject)
+
+    # if the unit name is an exact match, process the function name
+    if len(returnUnitList) == 1:
+        # check if the function name matches any of the functions in the unit
+        for functionObject in unitObject.functions:
+            if functionCanBeVMocked(functionObject):
+                # vcast name will have the parameterization if the function is overloaded
+                parameterizedName = functionObject.vcast_name
+
+                # if no function name was entered, return all function objects
+                if functionString == None:
+                    returnFunctionList.append(functionObject)
+
+                # if there is an exact match, return a list with a single object
+                elif parameterizedName == functionString:
+                    returnFunctionList = [functionObject]
+                    break
+
+                elif parameterizedName.startswith(functionString):
+                    returnFunctionList.append(functionObject)
+
+    # for an exact match of what the user entered, we will return
+    # lists with a single object for each
+    return returnUnitList, returnFunctionList
+
+
+def getFunctionSignature(api, functionObject):
+    """
+    Create the signature for a vmock stub function, something like this:
+        ::vunit::CallCtx<myClass> vunit_ctx, int param
+    """
+
+    # if this function is a class member, we include the class name
+    instantiatingClass = ""
+    if "::" in functionObject.name:
+        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+        # We need to check if we get a class name after splitting; we only use
+        # if it is a class
+        if api.Type.get_by_typemark(instantiatingClass) is None:
+            instantiatingClass = ""
+
+    # the static part of the signature looks like this,
+    # we will append the parameters next
+    signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx,"
+
+    paramIndex = 0
+    for parameterObject in functionObject.parameters:
+        if parameterObject.name != "return":
+            # the  original declaration was added in vc24sp3 and contains
+            # both the type and the parameter name as originally defined.
+
+            # A special case is unnamed parameters, where "vcast_param"
+            # is used, so in this case replace with vcast_param1,2,3
+            # TBD today - This should be fixed in FB: 101394
+
+            paramIndex += 1
+            declarationToUse = parameterObject.orig_declaration
+            if "vcast_param" in declarationToUse:
+                uniqueParameterName = f"vcast_param{paramIndex}"
+                declarationToUse = declarationToUse.replace ("vcast_param", uniqueParameterName)
+            signatureString += f" {declarationToUse},"
+
+    # In all cases the returnString will end with a "," so strip this
+    signatureString = signatureString[:-1]
+
+    return signatureString
+
+
+def functionIsOperator (functionName):
+   """
+   So that we have one place to adjust if we find bugs :)
+   """
+   return "::operator" in functionName or functionName.startswith("operator")
+
+
+def getFunctionName(functionObject):
+    """
+    We use the vmock with the unit and function names as the default
+    stub name, the user can edit this to make it unique
+    """
+
+    functionName = functionObject.name
+
+    functionHash = ""
+    if os.environ.get(ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES, None):
+        functionHash = str(hash(functionObject.mangled_name))
+        if functionHash[0] == "-":
+            functionHash = functionHash[1:]
+
+        # TBD today - using a 6 number hash, we can increase this if needed
+        functionHash = f"_{functionHash[:6]}"
+
+    returnName = "vmock_"
+    returnName += functionObject.unit.name + "_"
+
+    # overloaded functions will have the parameterization, stirp
+    functionNameToUse = functionName.split("(")[0]
+
+    # Handle if we have an operator function (which will include symbols we
+    # cannot use in a function name)
+    if functionIsOperator (functionNameToUse):
+        startIndex = functionNameToUse.find("operator")
+        functionNameToUse = functionNameToUse[: startIndex + len("operator")]
+
+    # If the method is templated, don't generate a mock i
+    # with the template in the name
+    if "<" in functionNameToUse:
+        functionNameToUse = re.sub("<.*>", "", functionNameToUse)
+
+    # class members will have the scope operator, replace
+    returnName += functionNameToUse.replace("::", "_")
+    # now add the hash computed above for uniqueness
+    returnName += f"{functionHash}"
+
+    return returnName
+
+
+def isConstFunction(functionObject):
+    """
+    This function will return True if the function is const
+    since there does not seem to be a dataAPI attribute for this
+    I have broken it out to more easily handle edge cases
+    """
+
+    parameterization = functionObject.parameterization
+    returnValue = False
+    if parameterization.endswith(" const") or parameterization.endswith(">const"):
+        returnValue = True
+
+    return returnValue
+
+
+def buildCppParameterization(api, functionObject, functionName):
+    """
+    This function will convert the vcast parameterization
+    into the correct C++ style parameterization
+    """
+
+    # create the function pointer part ether * or className::*
+    instantiatingClass = ""
+    if "::" in functionName:
+        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+        # We need to check if we get a class name after splitting; we only use
+        # if it is a class
+        if api.Type.get_by_typemark(instantiatingClass) is None:
+            instantiatingClass = ""
+
+    if len(instantiatingClass) > 0:
+        fptrString = f"{instantiatingClass}::*"
+    else:
+        fptrString = "*"
+
+    # original_return_type added to dataAPI in vc24sp3
+    returnType = functionObject.original_return_type
+
+    # TBD today - if we convert to using the new orig_declaration we'll
+    # have to deal with the param names and special cases like int param[]
+
+    # the vcast parameterization string looks like: (char, int[])int
+    # and this will return the "(char, int[])" part
+    parameterString = functionObject.parameterization.split("(", 1)[1].rsplit(")", 1)[0]
+
+    return f"{returnType} ({fptrString})({parameterString})"
+
+
+enableStubPrefix = "// Enable Stub:"
+disableStubPrefix = "// Disable Stub:"
+
+
+def getUsageStrings(api, functionObject, vmockFunctionName):
+    """
+    There are three variations of code needed to connect a mock definition with the function being mocked
+
+    The normal case looks like this
+    vmock_session.mock (&userFunctionName).assign (&vmockFunctionName);
+
+    For an overloaded function, we must add parameterization to the user function name
+    vmock_session.mock <int(myClass::*)(int)> (&userClass::userMethod).assign (&vmockFunctionName);
+
+    For a template mock, we must add the template parameters to the user function name
+    vmock_session.mock (&userFunction<int, int>).assign (&vmockFunctionName);
+
+    """
+
+    functionName = functionObject.vcast_name
+
+    # start with the static part of the expression
+    baseString = "vmock_session.mock "
+
+    # add the user function name, there are two special cases as described above
+
+    # if this is a function template
+    if functionObject.prototype_instantiation:
+
+        # name_with_template_arguments is only valid for vc24sp3 and higher
+        # Original FB: 101345
+        functionNameWithoutParams = functionName.split("(")[0]
+        baseString += f"(&{functionObject.full_prototype_instantiation})"
+
+    # else if it is an overloaded function
+    # This is correct even if only one overloaded function is testable
+    # We need to also check for operators, because they are overloaded
+    # from the compilers point-of-view but might not be from vcast's
+    elif functionObject.is_overloaded or functionIsOperator (functionName):
+        # currentFunctionName will have the full name like
+        # className::MethodName(int, int)int
+
+        cppParameterization = buildCppParameterization(
+            api, functionObject, functionName
+        )
+        baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
+
+    elif isConstFunction(functionObject):
+        # for const functions we need to insert a cast to a non const version
+
+        # So for a function like this: int myMethod(int param) const
+        # we need to insert: (int (fooClass::*)(int))
+
+        cppParameterization = buildCppParameterization(
+            api, functionObject, functionName
+        )
+        baseString += f"(({cppParameterization})&{functionName})"
+
+    else:
+        baseString += f"(&{functionName})"
+
+    # Now create the enable and disable comments
+    enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
+    disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
+
+    # TBD today - this can be removed once we understand the momck_lookup_type
+    if os.environ.get("VMOCK_DEBUG"):
+        print(f"    baseString: {baseString}")
+        if functionObject.mock_lookup_type:
+            print(
+                f"      mock_lookup_type: '{functionObject.original_return_type}' '{functionObject.mock_lookup_type}'"
+            )
+        else:
+            print("      mock_lookup_type: 'None'")
+
+    return enableComment, disableComment
+
+
+def generateVMockDefitionForUnitAndFunction(api, functionObject):
+    """
+    For a function like: int simpleFunction (int param);
+
+    This function will generate a stub and some usage hints like this:
+
+    int vmock_vmock_examples_simpleFunction(::vunit::CallCtx<> vunit_ctx, int param) {
+       // Enable Stub:  vmock_session.mock (&simpleFunction).assign (&vmock_vmock_examples_simpleFunction);
+       // Disable Stub: vmock_session.mock (&simpleFunction).assign (nullptr);
+
+    }
+    """
+
+    # get the parameter profile for the stubbed function
+    # e.g -> ::vunit::CallCtx<myClass> vunit_ctx, int param
+    signatureString = getFunctionSignature(api, functionObject)
+
+    vmockFunctionName = getFunctionName(functionObject)
+    # These are the two comment lines that are added to the stub
+    enableComment, disableComment = getUsageStrings(
+        api,
+        functionObject,
+        vmockFunctionName,
+    )
+    # Put it all together
+    returnType = functionObject.original_return_type
+    whatToReturn = (
+        f"\n{returnType} {vmockFunctionName}({signatureString})"
+        + " {\n  "
+        + enableComment
+        + "\n  "
+        + disableComment
+        + "\n\n}"
+    )
+
+    return whatToReturn
+
+
+def processVMockDefinition(enviroName, lineSoFar):
+    """
+    This function will process vmock_  line completions for coded tests
+    When we get here, the line will always start with vmock, and end
+    with "_" or (, like this:
+
+          // vmock
+          // vmock myUnit
+          // vmock myUnit myFunction
+
+    Our job is to return what comes next.
+
+    """
+
+    returnData = choiceDataType()
+
+    api = UnitTestApi(enviroName)
+
+    # TBD today - need unit tests for this
+
+    # if what the user entered so far is an each match for the unit and function
+    # we will get a single object in each list, else we will get a filtered list
+    # based on what was entered
+
+    # get the unit and function names entered by the user
+    unitString, functionString = getUnitAneFunctionStrings(lineSoFar)
+
+    # use these to get the matching unit and function objects or object lists
+    unitObjectList, functionObjectList = getUnitAndFunctionObjects(
+        api, unitString, functionString
+    )
+
+    # if multiple unit objects match what was entered
+    # of if no unitName was just entered by the user
+    # build the choice list
+    if len(unitObjectList) > 1 or unitString == None:
+        returnData.choiceKind = choiceKindType.File
+        for unitObject in unitObjectList:
+            returnData.choiceList.append(unitObject.name)
+
+    # if multiple function objects match what was entered
+    # or if no functionName was just entered by the user
+    # build choice list
+    elif len(functionObjectList) > 1 or functionString == None:
+        for functionObject in functionObjectList:
+            # vcast_name will be parameterized if the function is overloaded
+            returnData.choiceList.append(functionObject.vcast_name)
+
+    # else the unit and function names are both valid so build the definition
+    elif len(unitObjectList) == 1 and len(functionObjectList) == 1:
+        unitObject = unitObjectList[0]
+        functionObject = functionObjectList[0]
+
+        whatToReturn = generateVMockDefitionForUnitAndFunction(api, functionObject)
+
+        returnData.choiceKind = choiceKindType.Snippet
+        returnData.choiceList.append(whatToReturn)
+
+    api.close()
+
+    return returnData
+
+
+def processVMockSession(enviroName, lineSoFar):
+    returnData = choiceDataType()
+    returnData.choiceKind = choiceKindType.Variable
+    returnData.choiceList.append(" ::vunit::MockSession();")
+
+    return returnData
+
+
+def processTstLine(enviroName, line):
     """
 
     This function will process TEST.<command> line completions
@@ -532,3 +974,12 @@ def processLine(enviroName, line):
                 globalOutputLog.append(traceLine)
         globalOutputLog.append("-" * 100)
         return choiceDataType()
+
+
+# Unit Tests
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    main()

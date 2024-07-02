@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import * as jsonc from "jsonc-parser";
 
+import { sendVPythonCommandToServer, updateVMockStatus } from "./client";
+
 import { openMessagePane, vectorMessage } from "./messagePane";
 
 import {
@@ -82,9 +84,13 @@ function vcastVersionGreaterThan(
   // A general purpose version checker, will be needed for Coded Tests, etc.
 
   let returnValue = false;
-  const toolPath = path.join(vcastInstallationPath, "DATA", "tool_version.txt");
+  const toolVersionPath = path.join(
+    vcastInstallationPath,
+    "DATA",
+    "tool_version.txt"
+  );
 
-  const toolVersion = fs.readFileSync(toolPath).toString().trim();
+  const toolVersion = fs.readFileSync(toolVersionPath).toString().trim();
   // extract version and service pack from toolVersion (23.sp2 date)
   const matched = toolVersion.match(/(\d+)\.sp(\d+).*/);
   if (matched) {
@@ -101,6 +107,11 @@ function vcastVersionGreaterThan(
     returnValue = true;
   }
   return returnValue;
+}
+
+function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
+  // The vmock features is only available in vc24sp2 and later
+  return vcastVersionGreaterThan(vcastInstallationPath, 24, 3);
 }
 
 function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
@@ -184,6 +195,7 @@ function findVcastTools(): boolean {
     if (fs.existsSync(candidatePath)) {
       vcastInstallationPath = installationOptionString;
       vPythonCommandToUse = candidatePath;
+      sendVPythonCommandToServer (candidatePath);
       vectorMessage(
         `   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`
       );
@@ -308,6 +320,14 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
 
       // atg existing or being licensed does NOT affect toolsFound
       checkForATG(vcastInstallationPath);
+
+      // vMock available affects how we do completions in the language server
+      const vMockAvailable = vectorCASTSupportsVMock(vcastInstallationPath);
+      if (vMockAvailable) {
+        vectorMessage(`   vMock is available in this release`);
+      }
+      updateVMockStatus(vMockAvailable);
+      
     } else {
       vectorMessage(
         `   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`
@@ -372,7 +392,7 @@ export function getChecksumCommand() {
   return globalCheckSumCommand;
 }
 
-export const vUnitIncludeSuffix = "/vunit/include"
+export const vUnitIncludeSuffix = "/vunit/include";
 
 export function configFileContainsCorrectInclude(filePath: string): boolean {
   // This function will check if the include path for coded testing is in the
@@ -405,9 +425,12 @@ export function configFileContainsCorrectInclude(filePath: string): boolean {
             returnValue = true;
             break;
           }
-          // allow the use of _any_ environment variable, not just VECTORCAST_DIR 
+          // allow the use of _any_ environment variable, not just VECTORCAST_DIR
           // could have used a regex but this is more clear
-          if (includePath.startsWith("${env:") && includePath.endsWith (vUnitIncludeSuffix)) {
+          if (
+            includePath.startsWith("${env:") &&
+            includePath.endsWith(vUnitIncludeSuffix)
+          ) {
             returnValue = true;
             break;
           }
