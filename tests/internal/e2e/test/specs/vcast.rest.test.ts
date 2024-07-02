@@ -1,11 +1,11 @@
-// test/specs/vcast.test.ts
+// Test/specs/vcast.test.ts
 import {
-  BottomBarPanel,
-  TextEditor,
-  EditorView,
-  CustomTreeItem,
-  Workbench,
-  TreeItem,
+  type BottomBarPanel,
+  type TextEditor,
+  type EditorView,
+  type CustomTreeItem,
+  type Workbench,
+  type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -20,14 +20,14 @@ describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20000;
+  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -47,6 +47,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -54,6 +55,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -98,7 +100,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await settingsEditor.findSetting(
       "vectorcastTestExplorer.showReportOnExecute"
     );
-    // only one setting in search results, so the current way of clicking is correct
+    // Only one setting in search results, so the current way of clicking is correct
     await (await settingsEditor.checkboxSetting$).click();
     // The following would have been cleaner but returns un undefined setting object:
     // const setting = await settingsEditor.findSetting("vectorcastTestExplorer.showReportOnExecute");
@@ -107,8 +109,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -149,7 +151,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(webviews).toHaveLength(0);
 
     await workbench.openSettings();
-    // only one setting in search results, so the current way of clicking is correct
+    // Only one setting in search results, so the current way of clicking is correct
     await (await settingsEditor.checkboxSetting$).click();
   });
 
@@ -160,7 +162,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       await vcastTestingViewSection.expand();
@@ -176,6 +178,7 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw new Error("Subprogram 'Compound Tests' not found");
     }

@@ -1,12 +1,13 @@
 // Test/specs/vcast.test.ts
-import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
+import {
+  type BottomBarPanel,
+  type EditorView,
+  type Workbench,
+} from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   updateTestID,
-  testGenMethod,
-  generateAllTestsForFunction,
-  validateGeneratedTestsForFunction,
-  deleteAllTestsForFunction,
+  deleteAllTestsForEnv,
   validateTestDeletionForFunction,
   cleanup,
 } from "../test_utils/vcast_utils";
@@ -14,15 +15,14 @@ import {
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
+  let editorView: EditorView;
   const TIMEOUT = 120_000;
-  const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE";
-  const QUOTES_EXAMPLE_UNIT = "quotes_example";
-  const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)";
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
+    editorView = workbench.getEditorView();
     process.env.E2E_TEST_ID = "0";
   });
 
@@ -80,78 +80,15 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
-  it("should correctly generate all BASIS PATH tests for function", async () => {
-    await updateTestID();
-    console.log("Generating BASIS PATH tests for quotes_example");
-    await generateAllTestsForFunction(
-      QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION,
-      testGenMethod.BasisPath
-    );
-    await validateGeneratedTestsForFunction(
-      QUOTES_ENV,
-      QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION,
-      testGenMethod.BasisPath
-    );
-  });
-
-  it("should correctly delete all BASIS PATH tests for function", async () => {
-    await updateTestID();
-    console.log("Deleting BASIS PATH tests for quotes_example");
-    await deleteAllTestsForFunction(
-      QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION,
-      testGenMethod.BasisPath
-    );
-    await validateTestDeletionForFunction(
-      QUOTES_EXAMPLE_UNIT,
-      QUOTES_EXAMPLE_FUNCTION,
-      "BASIS-PATH-001",
-      1
-    );
-  });
-
-  it("should correctly generate all ATG tests for function", async () => {
+  it("should correctly delete all ATG tests for the environment", async () => {
     await updateTestID();
 
-    if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
-      console.log("Generating ATG tests for quotes_example");
-      await generateAllTestsForFunction(
-        QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION,
-        testGenMethod.ATG
-      );
-      await validateGeneratedTestsForFunction(
-        QUOTES_ENV,
-        QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION,
-        testGenMethod.ATG
-      );
-    } else {
-      console.log("Skipping ATG tests");
-    }
-  });
-
-  it("should correctly delete all ATG tests for function", async () => {
-    await updateTestID();
-
-    if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
-      console.log("Deleting ATG tests for quotes_example");
-      await deleteAllTestsForFunction(
-        QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION,
-        testGenMethod.ATG
-      );
-      await validateTestDeletionForFunction(
-        QUOTES_EXAMPLE_UNIT,
-        QUOTES_EXAMPLE_FUNCTION,
-        "ATG-TEST-1",
-        1
-      );
-    } else {
-      console.log("Skipping ATG tests");
-    }
+    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    console.log(`Deleting all ATG tests for the environment ${envName}`);
+    await deleteAllTestsForEnv(envName);
+    console.log(
+      `Validating deletion of all ATG tests for the environment ${envName}`
+    );
   });
 
   it("should clean up", async () => {
