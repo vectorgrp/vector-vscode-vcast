@@ -72,23 +72,40 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   updateVMockStatus(globalvMockAvailable);
 }
 
+
+// we keep a cache of what we have sent to the server so we don't
+// constantly send the same pair, we intentionally over-write the
+// file path key if it already exists, since the most recent
+// environment association is the most correct.
+
+let testFilesSentToServer: Map<string, string> = new Map();
+
 // This function is used to send the server information about the association between
 // a coded test file and the environmeent that uses that file.
-
-let environmentsWithMockSupport = new Set();
-export function addEnvironmentToMockSupportCache(environmentPath: string) {
-  environmentsWithMockSupport.add(environmentPath);
-}
-
 export function sendTestFileDataToLangaugeServer(
-  filePath: string,
-  enviroPath: string
+  testFilePath: string,
+  enviroPath: string,
+  enviroHasMockSupport: boolean
 ) {
-  if (environmentsWithMockSupport.has (enviroPath)) {
+  // if this test file is in the map for this environment, return
+  if (
+    testFilesSentToServer.has(testFilePath) &&
+    testFilesSentToServer.get(testFilePath) == enviroPath
+  ) {
+    return;
+  } else {
+    // else this is a new test file or a new enviro for an exsiting test file
+    // we always send in in the second case, because we want the server
+    // to have the lastest association.
     client.onReady().then(() => {
+      testFilesSentToServer.set(testFilePath, enviroPath);
+      // we want the server to know about all test files, because this
+      // allows the server to give helpful error messages when the
+      // enviro does not support mocks.
       client.sendNotification("vcasttesteditor/loadTestfile", {
-        filePath,
+        testFilePath,
         enviroPath,
+        enviroHasMockSupport,
       });
     });
   }

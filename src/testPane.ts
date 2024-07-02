@@ -7,10 +7,7 @@ import * as vscode from "vscode";
 
 import { Position, Range, Uri, TestMessage } from "vscode";
 
-import {
-  addEnvironmentToMockSupportCache,
-  sendTestFileDataToLangaugeServer,
-} from "./client";
+import { sendTestFileDataToLangaugeServer } from "./client";
 
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
@@ -179,14 +176,15 @@ const codedTestFunctionName = "coded_tests_driver";
 // leading space is intentional to force it to the top of the list
 const codedTestDisplayName = " Coded Tests";
 function processVCtestData(
+  enviroPath: string,
   enviroNodeID: string,
   enviroNode: vcastTestItem,
-  enviroData: any
+  jsonData: any
 ) {
   // enviroNodeID, is the parent of the nodes to be added here
 
   // The top level of the JSON is an array ...
-  const unitList = enviroData.testData;
+  const unitList = jsonData.testData;
   for (const unitData of unitList) {
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
@@ -232,11 +230,26 @@ function processVCtestData(
           functionNodeForCache
         );
 
+        // if the funciton we are processing is the coded test driver
+        // and if there is a test file associated wtih it ...
         if (
           functionName == codedTestFunctionName &&
           functionNodeForCache.testFile.length > 0
         ) {
           addCodedTestfileToCache(enviroNodeID, functionNodeForCache);
+
+          // we need to tell the language server about the test file to
+          // environment mapping, including whether or not the environment
+          // has coded mock support
+
+          const enviroHasMockSupport = jsonData.enviro.mockingSupport;
+          const testFilePath = functionNodeForCache.testFile;
+
+          sendTestFileDataToLangaugeServer(
+            testFilePath,
+            functionNodeForCache.enviroPath,
+            enviroHasMockSupport
+          );
         }
 
         unitNode.children.add(functionNode);
@@ -348,14 +361,7 @@ export function updateTestsForEnvironment(
     );
     enviroNode.nodeKind = nodeKind.enviro;
 
-    // we need to know if an environment has coded mock support
-    // or not for the LSE server stuff that handles vmock auto-complete
-    // so we save this environment property for use by the client
-    if (jsonData.enviro.mockingSupport) {
-      addEnvironmentToMockSupportCache(enviroPath);
-    }
-
-    processVCtestData(enviroNodeID, enviroNode, jsonData);
+    processVCtestData(enviroPath, enviroNodeID, enviroNode, jsonData);
 
     // this is used by the package.json to control content (right click) menu choices
     if (!vcastEnviroList.includes(enviroNodeID)) {
@@ -1188,12 +1194,6 @@ function getListOfTestsFromFile(filePath: string, enviroPath: string): any {
   return getJsonDataFromTestInterface(commandToRun, enviroPath);
 }
 
-// we keep a cache of what we have sent to the server so we don't
-// constantly send the same pair, we intentionally over-write the
-// file path key if it already exists, since the most recent
-// environment association is the most correct.
-let testFilesSentToServer: Map<string, string> = new Map();
-
 function addCodedTestfileToCache(
   enviroNodeID: string,
   functionNodeForCache: testNodeType
@@ -1227,23 +1227,6 @@ function addCodedTestfileToCache(
   }
   enviroCacheData.add(functionNodeForCache.testFile);
   enviroToCBTfilesCache.set(enviroNodeID, enviroCacheData);
-
-  // we need to tell the language server about the test file to environment mapping
-  for (const testFilePath of enviroCacheData) {
-    const enviroPath = functionNodeForCache.enviroPath;
-    if (
-      testFilesSentToServer.has(testFilePath) &&
-      testFilesSentToServer.get(testFilePath) == enviroPath
-    ) {
-      continue;
-    } else {
-      sendTestFileDataToLangaugeServer(
-        testFilePath,
-        functionNodeForCache.enviroPath
-      );
-      testFilesSentToServer.set(testFilePath, enviroPath);
-    }
-  }
 }
 
 export function updateCodedTestCases(editor: any) {

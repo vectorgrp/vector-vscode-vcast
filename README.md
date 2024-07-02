@@ -201,13 +201,14 @@ Much of what you will do with Coded Test editing will use normal C++ syntax and 
 supported by the C/C++ language extension.  Because of the more involved syntax required for mocking
 the extension supports some IntelliSense features dedicated to mocking.
 
-Specifically to easily define a mock for a function you simply need to use the auto-complete features
-to select the file (unit) and function, and the extension will do the rest.
+Specifically, to easily define a mock for a function you simply need to use the auto-complete feature
+for mocking to select the file (unit) and function, and the extension will do the rest.
 
-Typing: "//vmock " will cause a display a list of possible units.  After the unit is selected, typing 
+To trigger this feature, just type: "// vmock ", and the extension will display a list of units that are
+valid for the environment associated with the current coded test file.  After the unit is selected, typing 
 another space will display all possible functions and methods that can be stubbed.  As is common with 
-IntelliSense, if you type a few characters after the list is displayed, the editor will filter to choices containing
-those characters.  
+IntelliSense, if you type a few characters after the list is displayed, the editor will filter to choices 
+containing those characters.
 
 After selecting a function or method to be stubbed, the editor will provide the complete stub declaration as well
 as the "usage line" hint for what you need to include in your VTEST.  
@@ -247,6 +248,14 @@ VTEST(fooTests, simpleTest) {
   VASSERT_EQ (foo(1), 100);
 }
 ```
+
+Note: This feature is only supported for tool and environment version that are newer than VectorCAST 24 sp3.
+If you type "// vmock" in a file associated with ane enviornment that was built with an older version
+of VectorCAST, you will get the diagnostic message:  
+
+  "This environment does not support mocks, no auto-completion is available",
+
+
 Note: The extension will also auto-complete the: "auto vmock_session =" line
 
 ### Code Coverage Annotations

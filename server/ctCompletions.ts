@@ -2,49 +2,40 @@ import {
   CompletionParams,
   CompletionItem,
   CompletionItemKind,
-  TextDocuments,
 } from "vscode-languageserver";
 
 import { Position, Range, TextEdit } from "vscode-languageserver-types";
 
 import { choiceKindType, getChoiceDataFromPython } from "./pythonUtilities";
 
-import { completionList, getLineFragment } from "./serverUtilities";
+import { completionList } from "./serverUtilities";
+
+// Lines starting with:  // vmock
+export const vmockStubRegex = /^\s*\/\/\s*vmock\s*/;
+// Lines starting with:  auto vmock_session =
+export const vmockSessionRegex = /^\s*auto\s+vmock_session\s*=\s*/;
 
 export function getCodedTestCompletionData(
-  documents: TextDocuments,
-  enviroPath: string,
-  completionData: CompletionParams
+  lineSoFar: string,
+  completionData: CompletionParams,
+  enviroPath: string
 ): CompletionItem[] {
-
   // variables used to construct the completion item list
   let listToReturn: string[] = [];
-  const document = documents.get(completionData.textDocument.uri);
   let extraText: string = "";
 
-  if (document) {
-    const lineSoFar = getLineFragment(
-      document,
-      completionData.position
-    ).trimEnd();
-
-    // Identify lines of interest, so lines that start with
-    //     // vmock
-    //     auto vmock_session =
-    if (
-      lineSoFar.match(/^\s*\/\/\s*vmock\s*/) ||
-      lineSoFar.match(/^\s*auto\s+vmock_session\s*=\s*/)
-    ) {
-      const jsonData = getChoiceDataFromPython(
-        choiceKindType.choiceListCT,
-        enviroPath,
-        lineSoFar
-      );
-      listToReturn = jsonData.choiceList;
-      // not currently used, left in for future usage
-      extraText = jsonData.extraText;
-    }
+  // If this is a line of interest, get the choice list from Python
+  if (lineSoFar.match(vmockStubRegex) || lineSoFar.match(vmockSessionRegex)) {
+    const jsonData = getChoiceDataFromPython(
+      choiceKindType.choiceListCT,
+      enviroPath,
+      lineSoFar
+    );
+    listToReturn = jsonData.choiceList;
+    // not currently used, left in for future usage
+    extraText = jsonData.extraText;
   }
+
   // create a vscode CompletionItem List for the choices
 
   let completionItemList = completionList(
