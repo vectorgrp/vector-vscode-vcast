@@ -29,6 +29,9 @@ def main():
     # This main can either service one request directly or start the
     # socket based server to field socket based requests
 
+    # See the comment in: runPythonScript()
+    print("ACTUAL-DATA")
+
     # We get here when the user types a "." or ":"
 
     # argv has the name of the script as arg 1 and then user args
@@ -77,8 +80,6 @@ def main():
     outputDictionary["extraText"] = choiceData.extraText
     outputDictionary["messages"] = globalOutputLog
 
-    # See the comment in: runPythonScript()
-    print("ACTUAL-DATA")
     print(json.dumps(outputDictionary, indent=4))
 
     sys.exit(0)

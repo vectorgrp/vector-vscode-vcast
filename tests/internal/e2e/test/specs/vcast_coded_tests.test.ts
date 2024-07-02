@@ -1,10 +1,12 @@
-// test/specs/vcast_coded_tests.test.ts
+// Test/specs/vcast_coded_tests.test.ts
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import {
-  BottomBarPanel,
-  StatusBar,
-  TextEditor,
-  Workbench,
-  TreeItem,
+  type BottomBarPanel,
+  type StatusBar,
+  type TextEditor,
+  type Workbench,
+  type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -19,20 +21,19 @@ import {
   updateTestID,
   cleanup,
 } from "../test_utils/vcast_utils";
-import { exec } from "child_process";
-import { promisify } from "node:util";
+
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let statusBar: StatusBar;
-  const TIMEOUT = 120000;
+  const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
-    // opening bottom bar and problems view before running any tests
+    // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
-    process.env["E2E_TEST_ID"] = "0";
+    process.env.E2E_TEST_ID = "0";
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -52,6 +53,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
@@ -59,6 +61,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -115,7 +118,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await settingsEditor.findSetting(
       "vectorcastTestExplorer.enableCodedTesting"
     );
-    // only one setting in search results, so the current way of clicking is correct
+    // Only one setting in search results, so the current way of clicking is correct
     console.log("Enabling coded tests");
     await (await settingsEditor.checkboxSetting$).click();
     await workbench.getEditorView().closeAllEditors();
@@ -134,8 +137,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const cppFolder = workspaceFolderSection.findItem("cpp");
     await (await cppFolder).select();
 
-    let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
-    let databaseCpp = await workspaceFolderSection.findItem("database.cpp");
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
     await executeCtrlClickOn(databaseCpp);
     await executeCtrlClickOn(managerCpp);
     await releaseCtrl();
@@ -143,14 +146,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await databaseCpp.openContextMenu();
     await (await $("aria/Create VectorCAST Environment")).click();
 
-    // making sure notifications are shown
+    // Making sure notifications are shown
     await (await $("aria/Notifications")).click();
 
-    // this will timeout if VectorCAST notification does not appear, resulting in a failed test
-    const vcastNotifSourceElem = await $(
+    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );
-    const vcastNotification = await vcastNotifSourceElem.$("..");
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
     await (await vcastNotification.$("aria/Yes")).click();
 
     console.log(
@@ -169,7 +172,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.saveScreenshot(
       "info_finished_creating_vcast_environment.png"
     );
-    // clearing all notifications
+    // Clearing all notifications
     await (await $(".codicon-notifications-clear-all")).click();
   });
 
@@ -199,7 +202,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
@@ -218,11 +221,13 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
+
     console.log("Looking for coded tests");
-    let subprogramMethod = await findSubprogramMethod(
+    const subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests"
     );
@@ -234,16 +239,17 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
-    let ctxMenu = await subprogramMethod.openContextMenu();
+    let contextMenu = await subprogramMethod.openContextMenu();
     console.log("Generating template test");
-    await ctxMenu.select("VectorCAST");
-    let menuElem = await $("aria/Generate New Coded Test File");
-    await menuElem.click();
+    await contextMenu.select("VectorCAST");
+    let menuElement = await $("aria/Generate New Coded Test File");
+    await menuElement.click();
 
     await (await $("aria/Save Code Test File")).click();
     for (const character of "TestFiles/manager-template.cpp") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     await bottomBar.openOutputView();
@@ -264,10 +270,10 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     expect(testHandle).not.toBe(undefined);
 
-    ctxMenu = await testHandle.openContextMenu();
-    await ctxMenu.select("VectorCAST");
-    menuElem = await $("aria/Edit Coded Test");
-    await menuElem.click();
+    contextMenu = await testHandle.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    menuElement = await $("aria/Edit Coded Test");
+    await menuElement.click();
 
     const editorView = workbench.getEditorView();
     await browser.waitUntil(
@@ -318,8 +324,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
     console.log("Looking for managerTests.ExampleTestCase");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -354,7 +360,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Validating that debug launch configuration got generated");
 
     await browser.waitUntil(
-      async () => (await editorView.getOpenTabs()).length !== 0,
+      async () => (await editorView.getOpenTabs()).length > 0,
       { timeout: TIMEOUT }
     );
 
@@ -402,7 +408,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
 
-    let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
     await managerCpp.select();
   });
   it("should check the debug prep with coverage turned OFF", async () => {
@@ -420,14 +426,15 @@ describe("vTypeCheck VS Code Extension", () => {
         console.log(stderr);
         throw `Error when running ${turnOffCoverageCmd}`;
       }
+
       console.log(stdout);
     }
 
     const vcastTestingViewContent = await getViewContent("Testing");
     console.log("Expanding all test groups");
     console.log("Looking for managerTests.ExampleTestCase");
-    let subprogram: TreeItem = undefined;
-    let testHandle: TreeItem = undefined;
+    let subprogram: TreeItem;
+    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       subprogram = await findSubprogram("manager", vcastTestingViewSection);
       if (subprogram) {
@@ -496,6 +503,7 @@ describe("vTypeCheck VS Code Extension", () => {
         console.log(stderr);
         throw `Error when running ${turnOffCoverageCmd}`;
       }
+
       console.log(stdout);
     }
 
@@ -506,7 +514,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
     await bottomBar.toggle(false);
-    let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
     await managerCpp.select();
   });
 
@@ -514,7 +522,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
@@ -533,11 +541,13 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
+
     console.log("Looking for coded tests");
-    let subprogramMethod = await findSubprogramMethod(
+    const subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests"
     );
@@ -549,11 +559,11 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
-    let ctxMenu = await subprogramMethod.openContextMenu();
+    const contextMenu = await subprogramMethod.openContextMenu();
     console.log("Deleting coded tests");
-    await ctxMenu.select("VectorCAST");
-    let menuElem = await $("aria/Remove Coded Tests");
-    await menuElem.click();
+    await contextMenu.select("VectorCAST");
+    const menuElement = await $("aria/Remove Coded Tests");
+    await menuElement.click();
 
     const bottomBar = workbench.getBottomBar();
     const outputView = await bottomBar.openOutputView();
@@ -584,7 +594,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
@@ -603,11 +613,13 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
+
     console.log("Looking for coded tests");
-    let subprogramMethod = await findSubprogramMethod(
+    const subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests"
     );
@@ -618,17 +630,19 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!subprogramMethod.isExpanded()) {
       await subprogramMethod.select();
     }
-    console.log("Adding existing coded tests file");
-    let ctxMenu = await subprogramMethod.openContextMenu();
 
-    await ctxMenu.select("VectorCAST");
-    let menuElem = await $("aria/Add Existing Coded Test File");
-    await menuElem.click();
+    console.log("Adding existing coded tests file");
+    const contextMenu = await subprogramMethod.openContextMenu();
+
+    await contextMenu.select("VectorCAST");
+    const menuElement = await $("aria/Add Existing Coded Test File");
+    await menuElement.click();
 
     await (await $("aria/Select Coded Test File")).click();
     for (const character of "TestFiles/manager-Tests.cpp") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     await bottomBar.openOutputView();
@@ -680,10 +694,11 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     const editorView = workbench.getEditorView();
     const openTabs = await editorView.getOpenTabs();
-    let titles: string[] = [];
+    const titles: string[] = [];
     for (const tab of openTabs) {
       titles.push(await tab.getTitle());
     }
+
     const expectedOpenTabTitles: string[] = [
       "manager-Tests.cpp",
       "ACOMPILE.LIS",
@@ -704,7 +719,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
@@ -723,11 +738,13 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
+
     console.log("Looking for coded tests");
-    let subprogramMethod = await findSubprogramMethod(
+    const subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests"
     );
@@ -739,11 +756,11 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
-    let ctxMenu = await subprogramMethod.openContextMenu();
+    const contextMenu = await subprogramMethod.openContextMenu();
     console.log("Deleting coded tests");
-    await ctxMenu.select("VectorCAST");
-    let menuElem = await $("aria/Remove Coded Tests");
-    await menuElem.click();
+    await contextMenu.select("VectorCAST");
+    const menuElement = await $("aria/Remove Coded Tests");
+    await menuElement.click();
 
     const bottomBar = workbench.getBottomBar();
     const outputView = await bottomBar.openOutputView();
@@ -774,7 +791,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
@@ -793,11 +810,13 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
+
     console.log("Looking for Coded Tests");
-    let subprogramMethod = await findSubprogramMethod(
+    const subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Coded Tests"
     );
@@ -809,11 +828,11 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
-    let ctxMenu = await subprogramMethod.openContextMenu();
+    const contextMenu = await subprogramMethod.openContextMenu();
     console.log("Adding existing coded tests file");
-    await ctxMenu.select("VectorCAST");
-    let menuElem = await $("aria/Add Existing Coded Test File");
-    await menuElem.click();
+    await contextMenu.select("VectorCAST");
+    const menuElement = await $("aria/Add Existing Coded Test File");
+    await menuElement.click();
 
     const textbox = await $("aria/Select Coded Test File");
     await textbox.click();
@@ -821,6 +840,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "manager-Tests.cpp") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
 
     await bottomBar.openOutputView();
@@ -872,16 +892,18 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     const editorView = workbench.getEditorView();
     const openTabs = await editorView.getOpenTabs();
-    let titles: string[] = [];
+    const titles: string[] = [];
     for (const tab of openTabs) {
       const tabTitle = await tab.getTitle();
       expect(tabTitle).not.toBe("ACOMPILE.LIS");
       titles.push(tabTitle);
     }
+
     const expectedOpenTabTitles: string[] = ["manager-Tests.cpp"];
     for (const expectedTitle of expectedOpenTabTitles) {
       expect(expectedOpenTabTitles.includes(expectedTitle)).toBe(true);
     }
+
     console.log("Running managerTests.realTest");
     const runButton = await currentTestHandle.getActionButton("Run Test");
     await runButton.elem.click();
@@ -916,7 +938,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
 
-    let managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
     await managerCpp.select();
     statusBar = workbench.getStatusBar();
     console.log("Getting coverage percentage from Status Bar");
@@ -930,7 +952,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should run compileErrorTest and check report", async () => {
     await updateTestID();
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
@@ -949,9 +971,11 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
+
     console.log("Looking for compileErrorTest");
     let currentTestHandle = await getTestHandle(
       subprogram,
@@ -961,11 +985,11 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     expect(currentTestHandle).not.toBe(undefined);
 
-    let ctxMenu = await currentTestHandle.openContextMenu();
+    let contextMenu = await currentTestHandle.openContextMenu();
 
-    await ctxMenu.select("VectorCAST");
-    let menuElem = await $("aria/Edit Coded Test");
-    await menuElem.click();
+    await contextMenu.select("VectorCAST");
+    let menuElement = await $("aria/Edit Coded Test");
+    await menuElement.click();
 
     const editorView = workbench.getEditorView();
     let tab = (await editorView.openEditor("manager-Tests.cpp")) as TextEditor;
@@ -983,6 +1007,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (let index = 0; index < 6; index++) {
       await browser.keys(Key.Enter);
     }
+
     await tab.setTextAtLine(line + 1, "VTEST(managerTests, myTest) {");
     await tab.setTextAtLine(line + 2, "");
     await tab.setTextAtLine(line + 3, "      VASSERT_EQ(10, 20);");
@@ -1062,10 +1087,10 @@ describe("vTypeCheck VS Code Extension", () => {
     await webview.close();
     await editorView.closeAllEditors();
 
-    ctxMenu = await currentTestHandle.openContextMenu();
-    await ctxMenu.select("VectorCAST");
-    menuElem = await $("aria/Edit Coded Test");
-    await menuElem.click();
+    contextMenu = await currentTestHandle.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    menuElement = await $("aria/Edit Coded Test");
+    await menuElement.click();
 
     tab = (await editorView.openEditor("manager-Tests.cpp")) as TextEditor;
     const selectedText = await tab.getSelectedText();
@@ -1119,7 +1144,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem = undefined;
+    let subprogram: TreeItem;
 
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
@@ -1138,9 +1163,11 @@ describe("vTypeCheck VS Code Extension", () => {
         }
       }
     }
+
     if (!subprogram) {
       throw "Subprogram 'manager' not found";
     }
+
     console.log("Looking for managerTests.compileErrorTest");
     let currentTestHandle = await getTestHandle(
       subprogram,
@@ -1150,11 +1177,11 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     expect(currentTestHandle).not.toBe(undefined);
 
-    let ctxMenu = await currentTestHandle.openContextMenu();
+    let contextMenu = await currentTestHandle.openContextMenu();
 
-    await ctxMenu.select("VectorCAST");
-    let menuElem = await $("aria/Edit Coded Test");
-    await menuElem.click();
+    await contextMenu.select("VectorCAST");
+    let menuElement = await $("aria/Edit Coded Test");
+    await menuElement.click();
 
     console.log("Introducing compile error in managerTests.compileErrorTest");
     const editorView = workbench.getEditorView();
@@ -1163,7 +1190,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "VTEST(managerTests, compileErrorTest) {"
     );
     await browser.keys(Key.Escape);
-    let line = await tab.getLineOfText(
+    const line = await tab.getLineOfText(
       "VTEST(managerTests, compileErrorTest) {"
     );
     await tab.moveCursor(
@@ -1182,15 +1209,16 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running managerTests.compileErrorTest");
     await runArrowElement.click({ button: 1 });
 
-    // checking opened tabs
+    // Checking opened tabs
     console.log(
       "Checking both manager-Tests.cpp and ACOMPILE.LIS tabs are opened"
     );
     const openTabs = await editorView.getOpenTabs();
-    let titles: string[] = [];
+    const titles: string[] = [];
     for (const tab of openTabs) {
       titles.push(await tab.getTitle());
     }
+
     const expectedOpenTabTitles: string[] = [
       "manager-Tests.cpp",
       "ACOMPILE.LIS",
@@ -1198,6 +1226,7 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const expectedTitle of expectedOpenTabTitles) {
       expect(expectedOpenTabTitles.includes(expectedTitle)).toBe(true);
     }
+
     console.log("Checking that compile error text squiggle appears");
     const expectedErrorText =
       "Coded Test compile error - see details in file: ACOMPILE.LIS";
@@ -1208,7 +1237,7 @@ describe("vTypeCheck VS Code Extension", () => {
         "Coded Test compile error - see details in file: ACOMPILE.LIS"
       )
     ).toBe(true);
-    // need to close tabs, otherwise can't interact with tab content properly
+    // Need to close tabs, otherwise can't interact with tab content properly
     await browser.keys(Key.Escape);
     await editorView.closeAllEditors();
     currentTestHandle = await getTestHandle(
@@ -1217,10 +1246,10 @@ describe("vTypeCheck VS Code Extension", () => {
       "managerTests.compileErrorTest",
       6
     );
-    ctxMenu = await currentTestHandle.openContextMenu();
-    await ctxMenu.select("VectorCAST");
-    menuElem = await $("aria/Edit Coded Test");
-    await menuElem.click();
+    contextMenu = await currentTestHandle.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    menuElement = await $("aria/Edit Coded Test");
+    await menuElement.click();
 
     console.log("Correcting compile error");
     tab = (await editorView.openEditor("manager-Tests.cpp")) as TextEditor;
@@ -1243,15 +1272,15 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await editorView.closeAllEditors();
 
-    ctxMenu = await currentTestHandle.openContextMenu();
-    await ctxMenu.select("VectorCAST");
-    menuElem = await $("aria/Edit Coded Test");
-    await menuElem.click();
+    contextMenu = await currentTestHandle.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    menuElement = await $("aria/Edit Coded Test");
+    await menuElement.click();
     sourceFileTab = (await editorView.openEditor(
       "manager-Tests.cpp"
     )) as TextEditor;
     await (await sourceFileTab.elem).click();
-    // closing the squiggle
+    // Closing the squiggle
     await browser.keys(Key.Escape);
     await (await sourceFileTab.elem).click();
 

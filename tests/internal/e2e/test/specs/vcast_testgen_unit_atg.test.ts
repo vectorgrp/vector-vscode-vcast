@@ -6,6 +6,9 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
+  testGenMethod,
+  generateAllTestsForUnit,
+  validateGeneratedTestsForUnit,
 } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -31,6 +34,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     await browser.keys([Key.Control, Key.Shift, "p"]);
+
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
     // so just need to hit Enter to activate
@@ -41,10 +45,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
-    const viewControls = await activityBar.getViewControls();
-    for (const viewControl of viewControls) {
-      console.log(await viewControl.getTitle());
-    }
 
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
@@ -143,5 +143,14 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     // Clearing all notifications
     await (await $(".codicon-notifications-clear-all")).click();
+  });
+
+  it("should correctly generate all ATG tests for unit", async () => {
+    await updateTestID();
+
+    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    console.log("Generating all ATG tests for unit database");
+    await generateAllTestsForUnit("database", testGenMethod.ATG);
+    await validateGeneratedTestsForUnit(envName, "database", testGenMethod.ATG);
   });
 });
