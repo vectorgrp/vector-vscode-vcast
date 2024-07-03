@@ -17,8 +17,8 @@ globalOutputLog = list()
 
 #
 # For automated test it is desirable to always have a unique name generated for
-# a mock function, so if you set this variable, we will append a hash of the 
-# mangled function name to the mock name. 
+# a mock function, so if you set this variable, we will append a hash of the
+# mangled function name to the mock name.
 #
 ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES = "VCAST_TEST_EXPLORER_USE_MANGLED_NAMES"
 
@@ -617,7 +617,9 @@ def getFunctionSignature(api, functionObject):
             declarationToUse = parameterObject.orig_declaration
             if "vcast_param" in declarationToUse:
                 uniqueParameterName = f"vcast_param{paramIndex}"
-                declarationToUse = declarationToUse.replace ("vcast_param", uniqueParameterName)
+                declarationToUse = declarationToUse.replace(
+                    "vcast_param", uniqueParameterName
+                )
             signatureString += f" {declarationToUse},"
 
     # In all cases the returnString will end with a "," so strip this
@@ -626,11 +628,11 @@ def getFunctionSignature(api, functionObject):
     return signatureString
 
 
-def functionIsOperator (functionName):
-   """
-   So that we have one place to adjust if we find bugs :)
-   """
-   return "::operator" in functionName or functionName.startswith("operator")
+def functionIsOperator(functionName):
+    """
+    So that we have one place to adjust if we find bugs :)
+    """
+    return "::operator" in functionName or functionName.startswith("operator")
 
 
 def getFunctionName(functionObject):
@@ -658,7 +660,7 @@ def getFunctionName(functionObject):
 
     # Handle if we have an operator function (which will include symbols we
     # cannot use in a function name)
-    if functionIsOperator (functionNameToUse):
+    if functionIsOperator(functionNameToUse):
         startIndex = functionNameToUse.find("operator")
         functionNameToUse = functionNameToUse[: startIndex + len("operator")]
 
@@ -750,19 +752,23 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     # add the user function name, there are two special cases as described above
 
     # if this is a function template
-    # TBD today - the special cases all return the same thing currently 
+    # TBD today - the special cases all return the same thing currently
     # if this works we should combine this code.
 
     if functionObject.prototype_instantiation:
 
         # name_with_template_arguments is only valid for vc24sp3 and higher
         # Original FB: 101345
-        functionNameWithoutParams = functionName.split("(")[0]
-        baseString += f"(&{functionObject.full_prototype_instantiation})"
+        # old baseString += f"(&{functionObject.full_prototype_instantiation})"
+        functionName = functionObject.full_prototype_instantiation
+        cppParameterization = buildCppParameterization(
+            api, functionObject, functionName
+        )
+        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
 
     # else if this is an operator, operators are overloaded
     # from the compilers point-of-view but might not be from vcast's
-    elif functionIsOperator (functionName):
+    elif functionIsOperator(functionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
@@ -801,7 +807,6 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
             api, functionObject, functionName
         )
         baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
-
 
     # Now create the enable and disable comments
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
