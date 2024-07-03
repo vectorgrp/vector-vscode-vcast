@@ -4,6 +4,11 @@
 const fs = require("fs");
 const path = require("path");
 
+export interface enviroDataType {
+  enviroPath: string;
+  hasMockSupport: boolean;
+}
+
 const enviroNameRegEx = /--.*Environment.*:(.*)/;
 export function getEnviroNameFromScript(
   testScriptPath: string

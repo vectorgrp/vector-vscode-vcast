@@ -12,6 +12,7 @@ import { Hover } from "vscode-languageserver-types";
 
 import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver-types";
 
+import { enviroDataType } from "../src-common/commonUtilities";
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 import { updateVPythonCommand } from "./pythonUtilities";
 import { getLineFragment } from "./serverUtilities";
@@ -22,11 +23,6 @@ import { getHoverString } from "./tstHover";
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 let connection = createConnection(ProposedFeatures.all);
-
-interface enviroDataType {
-  enviroPath: string;
-  hasMockSupport: boolean;
-}
 
 let testFileToEnviroMap: Map<string, enviroDataType> = new Map();
 
@@ -134,7 +130,7 @@ function generateCodedTestDiagnostic(documentUri: string, lineNumber: number) {
     lineNumber,
     0,
     1000,
-    "This environment does not support mocks, no auto-completion is available",
+    "This environment does not support mocks, no auto-completion is available.\nRebuild the environment to use mocks   ",
     DiagnosticSeverity.Warning
   );
   connection.sendDiagnostics({
