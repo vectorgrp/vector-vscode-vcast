@@ -766,6 +766,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
+        # old baseString += f"(({cppParameterization})&{functionName})"
         baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
 
     # else if it is an overloaded function
@@ -777,6 +778,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
+        # old baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
         baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
 
     elif isConstFunction(functionObject):
@@ -790,10 +792,16 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
+        # old baseString += f"(({cppParameterization})&{functionName})"
         baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
 
     else:
-        baseString += f"(&{functionName})"
+        # old baseString += f"(&{functionName})"
+        cppParameterization = buildCppParameterization(
+            api, functionObject, functionName
+        )
+        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+
 
     # Now create the enable and disable comments
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
