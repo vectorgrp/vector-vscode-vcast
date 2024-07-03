@@ -662,7 +662,7 @@ def getFunctionName(functionObject):
         startIndex = functionNameToUse.find("operator")
         functionNameToUse = functionNameToUse[: startIndex + len("operator")]
 
-    # If the method is templated, don't generate a mock i
+    # If the method is templated, don't generate a mock
     # with the template in the name
     if "<" in functionNameToUse:
         functionNameToUse = re.sub("<.*>", "", functionNameToUse)
@@ -757,11 +757,17 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         functionNameWithoutParams = functionName.split("(")[0]
         baseString += f"(&{functionObject.full_prototype_instantiation})"
 
+    # else if this is an operator, operators are overloaded
+    # from the compilers point-of-view but might not be from vcast's
+    elif functionIsOperator (functionName):
+        cppParameterization = buildCppParameterization(
+            api, functionObject, functionName
+        )
+        baseString += f"(({cppParameterization})&{functionName})"
+
     # else if it is an overloaded function
     # This is correct even if only one overloaded function is testable
-    # We need to also check for operators, because they are overloaded
-    # from the compilers point-of-view but might not be from vcast's
-    elif functionObject.is_overloaded or functionIsOperator (functionName):
+    elif functionObject.is_overloaded:
         # currentFunctionName will have the full name like
         # className::MethodName(int, int)int
 
