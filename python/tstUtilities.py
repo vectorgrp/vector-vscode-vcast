@@ -763,7 +763,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        baseString += f"(({cppParameterization})&{functionName})"
+        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
 
     # else if it is an overloaded function
     # This is correct even if only one overloaded function is testable
@@ -774,7 +774,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
+        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
 
     elif isConstFunction(functionObject):
         # TBD today - this should be replaced with a check of
@@ -787,7 +787,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        baseString += f"(({cppParameterization})&{functionName})"
+        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
 
     else:
         baseString += f"(&{functionName})"
