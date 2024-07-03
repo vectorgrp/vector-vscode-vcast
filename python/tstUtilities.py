@@ -750,6 +750,9 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     # add the user function name, there are two special cases as described above
 
     # if this is a function template
+    # TBD today - the special cases all return the same thing currently 
+    # if this works we should combine this code.
+
     if functionObject.prototype_instantiation:
 
         # name_with_template_arguments is only valid for vc24sp3 and higher
