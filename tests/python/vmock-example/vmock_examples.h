@@ -85,5 +85,11 @@ public:
 // overloaded operator, with anonymous parameters
 bool operator==(TemplateClass<int>, TemplateClass<int>);
 
+class overLoadedConstMethodClass {
+public:
+  int compare(int* param) const;
+  int compare(int param) const;
+};
+
 
 #endif
