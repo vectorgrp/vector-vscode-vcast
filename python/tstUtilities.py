@@ -846,6 +846,13 @@ def getFunctionNameForAddress(api, functionObject):
     # If we're `operator()`, do nothing
     if "operator()" in functionName:
         functionName = re.split("operator\(\)", functionName)[0] + "operator()"
+    elif "operator" in functionName:
+        # Need to handle operator< and overloads that contain templates, but
+        # where the function itself isn't templated
+        #
+        # This stops the logic below getting hit if we have operator< or
+        # operator>
+        functionName = functionName.split("(")[0]
     elif "<" in functionName and ">" in functionName:
         # Possible FIXME:
         #
