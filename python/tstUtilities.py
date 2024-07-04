@@ -667,6 +667,8 @@ def getFunctionName(functionObject):
     # the template!
     functionNameToUse = functionName
     if "<" in functionNameToUse:
+        # Note, we don't need to check for `>` here, as the regex makes sure
+        # things are balance
         functionNameToUse = re.sub("<.*>", "", functionNameToUse)
 
     # overloaded functions will have the parameterization, stirp
@@ -841,8 +843,13 @@ def getFunctionNameForAddress(api, functionObject):
     if functionObject.prototype_instantiation:
         functionName = functionObject.full_prototype_instantiation
 
+    # Possible FIXME:
+    #
     # Need to careful when splitting the name when we have templates
-    if "<" in functionName:
+    #
+    # Note: we can have things like `operator<=`, so we need to check if we
+    # have _both_ opening and closing <>
+    if "<" in functionName and ">" in functionName:
         in_count = 0
         for idx, char in enumerate(functionName):
             if char == "<":
