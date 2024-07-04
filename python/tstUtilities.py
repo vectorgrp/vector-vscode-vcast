@@ -601,6 +601,10 @@ def getFunctionSignature(api, functionObject):
         if api.Type.get_by_typemark(instantiatingClass) is None:
             instantiatingClass = ""
 
+        # Hack to check if we're a static method or not ...
+        if "::*" not in functionObject.mock_lookup_type:
+            instantiatingClass = ""
+
     # the static part of the signature looks like this,
     # we will append the parameters next
     signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx,"
