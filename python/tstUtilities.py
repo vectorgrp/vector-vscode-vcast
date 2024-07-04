@@ -498,6 +498,11 @@ def functionCanBeVMocked(functionObject):
     """
     if functionObject.vcast_name in functionsToIgnore:
         return False
+
+    # FIXME: this is a hack to avoid generating applys that don't have lookups
+    elif not functionObject.mock_lookup_type:
+        return False
+
     else:
         return functionObject.is_mockable
 
@@ -595,7 +600,7 @@ def getFunctionSignature(api, functionObject):
         if api.Type.get_by_typemark(instantiatingClass) is None:
             instantiatingClass = ""
 
-        # Hack to check if we're a static method or not ...
+        # FIXME: Hack to check if we're a static method or not
         if "::*" not in functionObject.mock_lookup_type:
             instantiatingClass = ""
 
