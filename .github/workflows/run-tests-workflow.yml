@@ -76,7 +76,7 @@ jobs:
         run: npm run gh-test | tee output.txt
 
       - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action/linux@v2
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
           check_name: "Unit Test results"
@@ -273,7 +273,7 @@ jobs:
           ./tests/internal/e2e/run_e2e_tests.sh
 
       - name: Publish e2e tests results
-        uses: EnricoMi/publish-unit-test-result-action/linux@v2
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         env:
           CHECK_NAME: E2e Test results - Vcast ${{ matrix.version }} - Group ${{ matrix.group }}
