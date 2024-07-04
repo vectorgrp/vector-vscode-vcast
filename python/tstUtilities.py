@@ -843,13 +843,16 @@ def getFunctionNameForAddress(api, functionObject):
     if functionObject.prototype_instantiation:
         functionName = functionObject.full_prototype_instantiation
 
-    # Possible FIXME:
-    #
-    # Need to careful when splitting the name when we have templates
-    #
-    # Note: we can have things like `operator<=`, so we need to check if we
-    # have _both_ opening and closing <>
-    if "<" in functionName and ">" in functionName:
+    # If we're `operator()`, do nothing
+    if functionName.endswith("operator()"):
+        pass
+    elif "<" in functionName and ">" in functionName:
+        # Possible FIXME:
+        #
+        # Need to careful when splitting the name when we have templates
+        #
+        # Note: we can have things like `operator<=`, so we need to check if we
+        # have _both_ opening and closing <>
         in_count = 0
         for idx, char in enumerate(functionName):
             if char == "<":
