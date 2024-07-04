@@ -660,19 +660,23 @@ def getFunctionName(functionObject):
     returnName = "vmock_"
     returnName += functionObject.unit.name + "_"
 
+    # If the method is templated, don't generate a mock with the template in
+    # the name
+    #
+    # We need to do this _before_ splitting on `(`, in case there's a `(` in
+    # the template!
+    functionNameToUse = functionName
+    if "<" in functionNameToUse:
+        functionNameToUse = re.sub("<.*>", "", functionNameToUse)
+
     # overloaded functions will have the parameterization, stirp
-    functionNameToUse = functionName.split("(")[0]
+    functionNameToUse = functionNameToUse.split("(")[0]
 
     # Handle if we have an operator function (which will include symbols we
     # cannot use in a function name)
     if functionIsOperator(functionNameToUse):
         startIndex = functionNameToUse.find("operator")
         functionNameToUse = functionNameToUse[: startIndex + len("operator")]
-
-    # If the method is templated, don't generate a mock
-    # with the template in the name
-    if "<" in functionNameToUse:
-        functionNameToUse = re.sub("<.*>", "", functionNameToUse)
 
     # class members will have the scope operator, replace
     returnName += functionNameToUse.replace("::", "_")
@@ -835,7 +839,18 @@ def getFunctionNameForAddress(api, functionObject):
     if functionObject.prototype_instantiation:
         functionName = functionObject.full_prototype_instantiation
 
-    functionName = functionName.split("(")[0]
+    # Need to careful when splitting the name when we have templates
+    if "<" in functionName:
+        in_count = 0
+        for idx, char in enumerate(functionName):
+            if char == "<":
+                in_count += 1
+            elif char == ">":
+                in_count -= 1
+            elif char == "(" and in_count == 0:
+                functionName = functionName[:idx]
+    else:
+        functionName = functionName.split("(")[0]
 
     return functionName
 
