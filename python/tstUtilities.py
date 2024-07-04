@@ -923,14 +923,15 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
     )
     # Put it all together
     returnType = functionObject.original_return_type
-    whatToReturn = (
-        f"\n{returnType} {vmockFunctionName}({signatureString})"
-        + " {\n  "
-        + enableComment
-        + "\n  "
-        + disableComment
-        + "\n\n}"
-    )
+
+    # Need to handle when the function returns a function pointer
+    # FIXME: this is likely very fragile
+    if "(*)" in returnType:
+        decl = returnType.replace("(*)", f"(*{vmockFunctionName}({signatureString}))")
+    else:
+        decl = f"\n{returnType} {vmockFunctionName}({signatureString})"
+
+    whatToReturn = f"{decl} {{\n    {enableComment}\n    {disableComment}\n}}"
 
     return whatToReturn
 
