@@ -844,8 +844,8 @@ def getFunctionNameForAddress(api, functionObject):
         functionName = functionObject.full_prototype_instantiation
 
     # If we're `operator()`, do nothing
-    if functionName.endswith("operator()"):
-        pass
+    if "operator()" in functionName:
+        functionName = re.split("operator\(\)", functionName)[0] + "operator()"
     elif "<" in functionName and ">" in functionName:
         # Possible FIXME:
         #
