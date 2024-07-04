@@ -4,11 +4,13 @@ this started life as a duplicate of:  dataAPIInterface/tstUtilities.py
 //////////////////////////////////////////////////////////////////////////////
 """
 
-from enum import Enum
 import os
 import re
 import sys
 import traceback
+
+from enum import Enum
+from string import Template
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
@@ -756,7 +758,6 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     # if this works we should combine this code.
 
     if functionObject.prototype_instantiation:
-
         # name_with_template_arguments is only valid for vc24sp3 and higher
         # Original FB: 101345
         # old baseString += f"(&{functionObject.full_prototype_instantiation})"
@@ -823,6 +824,71 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
             print("      mock_lookup_type: 'None'")
 
     return enableComment, disableComment
+
+
+def getFunctionNameForAddress(api, functionObject):
+    #
+    # Lots of duplication here, but I want to preserve the logic in
+    # getUsageStrings
+    #
+
+    functionName = functionObject.vcast_name
+
+    if functionObject.prototype_instantiation:
+        functionName = functionObject.full_prototype_instantiation
+
+    elif functionObject.is_overloaded:
+        functionName = functionName.split("(")[0]
+
+    elif isConstFunction(functionObject):
+        functionName = functionName
+
+    else:
+        functionName = functionName
+
+    return functionName
+
+
+mock_template = Template(
+    """
+void ${mock}_apply(vunit::MockSession &vmock_session) {
+    using vcast_mock_rtype = ${original_return} ;
+    ${lookup_decl} ${const} = &${function} ;
+    vmock_session.mock <${lookup_type}> ((${lookup_type})vcast_fn_ptr).assign (&${mock});
+}
+""".strip(
+        "\n"
+    )
+)
+
+
+def generateVMockApplyForUnitAndFunction(api, functionObject):
+    original_return = functionObject.original_return_type
+    lookup_type = functionObject.mock_lookup_type
+
+    # We need to reintroduce the 'vcast_fn_ptr' string, which Richard ommitted
+    # (likely because Andrew asked him to omit it ... doh!)
+    if "::*" in lookup_type:
+        # If we're a method, we only see this in one place
+        lookup_decl = lookup_type.replace("::*)(", "::*vcast_fn_ptr)(", 1)
+    else:
+        # Otherwise, let's guess, but this could convert "too much" (e.g., in
+        # functions that take function pointers)
+        lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
+    const = "const" if functionObject.is_const else ""
+    function_name = getFunctionNameForAddress(api, functionObject)
+    vmock_function_name = getFunctionName(functionObject)
+    mock_apply = mock_template.safe_substitute(
+        original_return=original_return,
+        lookup_decl=lookup_decl,
+        const=const,
+        lookup_type=lookup_type,
+        function=function_name,
+        mock=vmock_function_name,
+    )
+    mock_use = f"{vmock_function_name}_apply(vmock_session);"
+
+    return mock_apply, mock_use
 
 
 def generateVMockDefitionForUnitAndFunction(api, functionObject):

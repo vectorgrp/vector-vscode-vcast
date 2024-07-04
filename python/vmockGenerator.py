@@ -10,6 +10,7 @@ from tstUtilities import (
     enableStubPrefix,
     functionCanBeVMocked,
     generateVMockDefitionForUnitAndFunction,
+    generateVMockApplyForUnitAndFunction,
 )
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
@@ -40,7 +41,7 @@ def generateAllVMockDefinitions(enviroPath):
 
     api = UnitTestApi(enviroPath)
     for unitObject in api.Unit.all():
-        print (f"Processing unit: {unitObject.name}")
+        print(f"Processing unit: {unitObject.name}")
         for functionObject in unitObject.functions:
             # We don't want to handle `<<INIT>>` subprograms (bug in VectorCAST)
             if not functionCanBeVMocked(functionObject):
@@ -54,34 +55,16 @@ def generateAllVMockDefinitions(enviroPath):
             #
             # Note: we're doing this with string processing here to avoid
             # changing too much of the actual code
-            print (f"  function: {functionObject.name}")
+            print(f"  function: {functionObject.name}")
             mock_content = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
-            # The vmock usage line
-            invocation = None
-
-            # Iterate on all parts of the mock content to find the usage
-            for line in mock_content.split("\n"):
-                # Remove whitespace
-                line = line.strip()
-
-                # When we've found the usage line
-                if line.startswith(enableStubPrefix):
-                    # Grab the invocation
-                    invocation = line[len(enableStubPrefix) + 2 :]
-
-                    # It should now be the vmock_session content
-                    assert invocation.startswith("vmock_session.")
-
-                    # We're done
-                    break
-
-            # If we haven't parsed the invocation line, we have an issue
-            assert invocation is not None
+            mock_apply, mock_use = generateVMockApplyForUnitAndFunction(
+                api, functionObject
+            )
 
             # Save all the data we need
-            mock_bodies.append(mock_content)
-            mock_usages.append(invocation)
+            mock_bodies.append(f"{mock_content}\n\n{mock_apply}")
+            mock_usages.append(mock_use)
 
     # Don't run this on a file with no units
     assert first_unit is not None
