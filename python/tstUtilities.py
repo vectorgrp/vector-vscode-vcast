@@ -830,7 +830,9 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         else:
             print("      mock_lookup_type: 'None'")
 
-    return enableComment, disableComment
+    # FIXME: Some of our strings had `\n` in them -- this causes parse errors,
+    # so make sure all comments are on one line
+    return enableComment.replace("\n", ""), disableComment.replace("\n", "")
 
 
 def getFunctionNameForAddress(api, functionObject):
