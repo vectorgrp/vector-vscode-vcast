@@ -830,24 +830,12 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
 
 
 def getFunctionNameForAddress(api, functionObject):
-    #
-    # Lots of duplication here, but I want to preserve the logic in
-    # getUsageStrings
-    #
-
     functionName = functionObject.vcast_name
 
     if functionObject.prototype_instantiation:
         functionName = functionObject.full_prototype_instantiation
 
-    elif functionObject.is_overloaded:
-        functionName = functionName.split("(")[0]
-
-    elif isConstFunction(functionObject):
-        functionName = functionName
-
-    else:
-        functionName = functionName
+    functionName = functionName.split("(")[0]
 
     return functionName
 
