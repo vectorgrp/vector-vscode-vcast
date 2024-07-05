@@ -36,7 +36,7 @@ jobs:
 
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         continue-on-error: true
 
       - name: Wait before retry
@@ -152,7 +152,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_test_ubuntu
       options: --user vcast_user
 
     outputs:
@@ -193,7 +193,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_test_ubuntu
       options: --user vcast_user
 
     strategy:
@@ -347,7 +347,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_test_ubuntu
       options: --user vcast_user
 
     steps:
