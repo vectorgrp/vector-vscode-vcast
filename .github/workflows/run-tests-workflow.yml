@@ -34,11 +34,6 @@ jobs:
           echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
 
-      - name: Node setup
-        run: |
-          . ${{ env.NVM_DIR }}/nvm.sh
-          nvm use v16.15.1
-
       - name: Check out repository
         id: checkout
         uses: actions/checkout@v3
@@ -54,12 +49,17 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Node 16
+        run: |
+          . ${{ env.NVM_DIR }}/nvm.sh
+          nvm use v16.15.1
 
       # Run tests
       - name: Restore cached dependencies
         id: cache-dependencies-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             node_modules
@@ -71,7 +71,7 @@ jobs:
 
       - name: Save dependencies
         if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             node_modules
@@ -118,14 +118,14 @@ jobs:
           echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
 
       - name: Upload vectorcasttestexplorer artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: vectorcasttestexplorer
           path: ${{ env.VSIX_FILE }}
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage
@@ -161,7 +161,7 @@ jobs:
     steps:
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         continue-on-error: true
 
       - name: Wait before retry
@@ -174,7 +174,7 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: npm install tsx
@@ -221,14 +221,9 @@ jobs:
           echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
 
-      - name: Node setup
-        run: |
-          . ${{ env.NVM_DIR }}/nvm.sh
-          nvm use v16.15.1
-
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         continue-on-error: true
 
       - name: Wait before retry
@@ -241,11 +236,16 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Node 16
+        run: |
+          . ${{ env.NVM_DIR }}/nvm.sh
+          nvm use v16.15.1
 
       - name: Restore cached dependencies
         id: cache-dependencies-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             node_modules
@@ -257,7 +257,7 @@ jobs:
 
       - name: Save dependencies
         if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             node_modules
@@ -268,7 +268,7 @@ jobs:
 
       - name: Restore cached dependencies - node
         id: cache-dependencies-restore-node
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             tests/internal/e2e/node_modules
@@ -276,7 +276,7 @@ jobs:
 
       - name: Restore cached dependencies - vscode
         id: cache-dependencies-restore-vscode
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             tests/internal/e2e/.wdio-vscode-service
@@ -298,7 +298,7 @@ jobs:
             ./tests/internal/e2e/test_results/*.xml
 
       - name: Uploading screenshots
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         env:
           ARTIFACT_NAME: e2e_screenshots_${{ matrix.version }}_${{ matrix.group }}
@@ -327,7 +327,7 @@ jobs:
 
       - name: Save dependencies - node
         if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             tests/internal/e2e/node_modules
@@ -335,7 +335,7 @@ jobs:
 
       - name: Save dependencies - vscode
         if: always() && steps.cache-dependencies-restore-vscode.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             tests/internal/e2e/.wdio-vscode-service
@@ -364,7 +364,7 @@ jobs:
 
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         continue-on-error: true
 
       - name: Wait before retry
@@ -377,7 +377,7 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Black
         shell: bash
