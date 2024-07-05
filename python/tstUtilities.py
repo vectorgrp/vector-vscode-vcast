@@ -666,10 +666,22 @@ def getFunctionName(functionObject):
     # We need to do this _before_ splitting on `(`, in case there's a `(` in
     # the template!
     functionNameToUse = functionName
-    if "<" in functionNameToUse:
-        # Note, we don't need to check for `>` here, as the regex makes sure
-        # things are balance
-        functionNameToUse = re.sub("<.*>", "", functionNameToUse)
+    if "<" in functionNameToUse and ">" in functionNameToUse:
+        # Need to have both of these to be in a template
+        #
+        # We need to handle things like:
+        #
+        # ClassName<TypeName>::operator>=
+        oldFunctionNameToUse = functionNameToUse
+        functionNameToUse = ""
+        in_count = 0
+        for idx, char in enumerate(oldFunctionNameToUse):
+            if char == "<":
+                in_count += 1
+            elif char == ">":
+                in_count -= 1
+            elif in_count == 0:
+                functionNameToUse += char
 
     # overloaded functions will have the parameterization, stirp
     functionNameToUse = functionNameToUse.split("(")[0]
