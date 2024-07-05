@@ -19,6 +19,9 @@ jobs:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_test_ubuntu
       options: --user vcast_user
 
+    env:
+      NVM_DIR: /home/vcast_user/.nvm
+
     steps:
       - name: Start forward proxy
         run: |
@@ -33,7 +36,7 @@ jobs:
 
       - name: Node setup
         run: |
-          . /home/vcast_user/.bashrc
+          . ${{ env.NVM_DIR }}/nvm.sh
           nvm use v16.15.1
 
       - name: Check out repository
@@ -204,6 +207,7 @@ jobs:
       USE_VCAST_24: ${{ matrix.version == 24 && 'True' || 'False' }}
       RUN_BY_GROUP: "True"
       RUN_GROUP_NAME: ${{ matrix.group }}
+      NVM_DIR: /home/vcast_user/.nvm
 
     steps:
       - name: Start forward proxy
@@ -219,7 +223,7 @@ jobs:
 
       - name: Node setup
         run: |
-          . /home/vcast_user/.bashrc
+          . ${{ env.NVM_DIR }}/nvm.sh
           nvm use v16.15.1
 
       - name: Check out repository
