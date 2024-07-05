@@ -9,6 +9,8 @@ on:
       - main
   release:
   workflow_dispatch:
+env:
+  NVM_DIR: /home/vcast_user/.nvm
 jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
@@ -18,9 +20,6 @@ jobs:
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_test_ubuntu
       options: --user vcast_user
-
-    env:
-      NVM_DIR: /home/vcast_user/.nvm
 
     steps:
       - name: Start forward proxy
@@ -177,7 +176,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: npm install tsx
+        run: | 
+          . ${{ env.NVM_DIR }}/nvm.sh
+          npm install tsx
 
       - name: Set jobs matrix
         id: set-matrix
@@ -207,7 +208,6 @@ jobs:
       USE_VCAST_24: ${{ matrix.version == 24 && 'True' || 'False' }}
       RUN_BY_GROUP: "True"
       RUN_GROUP_NAME: ${{ matrix.group }}
-      NVM_DIR: /home/vcast_user/.nvm
 
     steps:
       - name: Start forward proxy
@@ -351,16 +351,16 @@ jobs:
       options: --user vcast_user
 
     steps:
-#      - name: Start forward proxy
-#        run: |
-#          sudo /usr/sbin/squid
-#          NEW_PROXY="http://$(hostname --ip-address):3128"
-#          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-#          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-#          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
-#          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
-#          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-#          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+      - name: Start forward proxy
+        run: |
+          sudo /usr/sbin/squid
+          NEW_PROXY="http://$(hostname --ip-address):3128"
+          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
 
       - name: Check out repository
         id: checkout

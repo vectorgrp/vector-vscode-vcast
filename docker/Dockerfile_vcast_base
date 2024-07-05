@@ -34,7 +34,7 @@ RUN mkdir -p /home/${USERNAME}/.config && \
 RUN sudo apt-get install -y wget && \
     sudo apt-get update -y && \
     sudo apt-get install -y \
-    less curl unzip gnupg build-essential git && \
+    less curl unzip gnupg build-essential && \
     sudo apt-get install -y mlocate && sudo updatedb && \
     sudo apt-get install -y software-properties-common && \
     sudo add-apt-repository ppa:ubuntu-toolchain-r/test && \
@@ -58,7 +58,7 @@ SHELL ["/bin/bash", "--login", "-c"]
 
 USER $USERNAME
 RUN sudo apt-get update && \
-    sudo apt-get install -y build-essential software-properties-common && \
+    sudo apt-get install -y software-properties-common && \
     sudo apt-get install -y openssl libssl-dev libbz2-dev libffi-dev liblzma-dev libsecret-1-dev make && \
     sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
     . $NVM_DIR/nvm.sh && nvm use v16.15.1 && \
@@ -82,6 +82,12 @@ RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tg
     sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1 && mkdir ".pip" && \
     echo -e '[global]\ntrusted-host = pypi.org\n               pypi.python.org\n               files.pythonhosted.org' >> .pip/pip.conf && \
     python3 -m venv .venv && source .venv/bin/activate && pip install black && deactivate
+
+RUN sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libexpat1-dev gettext libz-dev perl libperl-dev autoconf && cd && \
+    wget https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.18.0.tar.gz && tar xf git-2.18.0.tar.gz && cd git-2.18.0/ && \
+    make configure && ./configure --prefix=/usr/local && make all && sudo make install && \
+    cd .. && sudo rm -rf git-2.18.0* && \
+    sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
 
 SHELL ["/bin/bash", "--login", "-c"]
 
