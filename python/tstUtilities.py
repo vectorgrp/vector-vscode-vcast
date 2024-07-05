@@ -8,6 +8,8 @@ import os
 import re
 import sys
 import traceback
+import hashlib
+import base64
 
 from enum import Enum
 from string import Template
@@ -640,6 +642,26 @@ def functionIsOperator(functionName):
     return "::operator" in functionName or functionName.startswith("operator")
 
 
+def getShortHash(toHash, requiredLen=8):
+    """
+    Generate a short, unique(ish) hash of a string
+    """
+    # Get the MD5 sum of the string
+    hashed = hashlib.md5(bytes(toHash, "utf8")).digest()
+
+    # Get the base64 "safe" version (does not contain / or +)
+    b64 = base64.urlsafe_b64encode(hashed).decode()
+
+    # Strip off any other chars we don't like
+    sanitized = b64.replace("-", "").replace("_", "").replace("=", "")
+
+    # Find how much from the beginning/end we want
+    offset = int(requiredLen / 2)
+    sanitized = sanitized[:offset] + sanitized[-offset:]
+
+    return sanitized
+
+
 def getFunctionName(functionObject):
     """
     We use the vmock with the unit and function names as the default
@@ -650,12 +672,8 @@ def getFunctionName(functionObject):
 
     functionHash = ""
     if os.environ.get(ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES, None):
-        functionHash = str(hash(functionObject.mangled_name))
-        if functionHash[0] == "-":
-            functionHash = functionHash[1:]
-
-        # TBD today - using a 6 number hash, we can increase this if needed
-        functionHash = f"_{functionHash[:6]}"
+        # We want a leading underscore
+        functionHash = f"_{getShortHash(functionObject.mangled_name)}"
 
     returnName = "vmock_"
     returnName += functionObject.unit.name + "_"
