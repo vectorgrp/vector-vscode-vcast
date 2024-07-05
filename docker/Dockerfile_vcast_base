@@ -1,4 +1,4 @@
-FROM centos:7.5.1804
+FROM ubuntu:20.04
 
 ARG PROXY_URL=http://gateway.zscloud.net:9480
 ARG NO_PROXY="localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/"
@@ -7,18 +7,20 @@ ENV http_proxy=${PROXY_URL} \
     https_proxy=${PROXY_URL} \
     HTTP_PROXY=${PROXY_URL} \
     HTTPS_PROXY=${PROXY_URL} \
-    no_proxy=${NO_PROXY}
+    no_proxy=${NO_PROXY} \
+    DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC
 
 # Install Vector certificates
-ADD https://vistradpart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Root_2.0.crt /etc/pki/ca-trust/source/anchors/vector_root.crt
-ADD https://vistradpart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Issuing_2.0.crt /etc/pki/ca-trust/source/anchors/vector_issuing.crt
+ADD https://vistradpart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Root_2.0.crt /usr/local/share/ca-certificates/vector_root.crt
+ADD https://vistradpart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Issuing_2.0.crt /usr/local/share/ca-certificates/vector_issuing.crt
 ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-RUN chmod 644 /etc/pki/ca-trust/source/anchors/* && \
-    update-ca-trust force-enable; update-ca-trust extract
+RUN apt-get update && apt-get install -y ca-certificates && chmod 644 /usr/local/share/ca-certificates/* && \
+    update-ca-certificates
 
 ARG USERNAME=vcast_user
-RUN groupadd --gid 1006 ${USERNAME} && adduser --uid 1006 --gid 1006 --shell /bin/bash ${USERNAME} && \
-    yum install -y sudo squid && touch /etc/sudoers.d/$USERNAME && \
+RUN groupadd --gid 1006 ${USERNAME} && useradd -m --uid 1006 --gid 1006 --shell /bin/bash -d /home/${USERNAME} ${USERNAME} && \
+    apt-get update && apt-get install -y sudo squid && touch /etc/sudoers.d/$USERNAME && \
     echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME && \
     chmod 0440 /etc/sudoers.d/$USERNAME && \
     echo "cache_peer gateway.zscloud.net parent 9480 0 no-query default" >> /etc/squid/squid.conf && \
@@ -26,71 +28,67 @@ RUN groupadd --gid 1006 ${USERNAME} && adduser --uid 1006 --gid 1006 --shell /bi
 
 USER $USERNAME
 RUN mkdir -p /home/${USERNAME}/.config && \
-    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.config && \
+    sudo chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.config && \
     sudo chown ${USERNAME} /etc/ssl/certs/ca-certificates.crt
 
-RUN sudo yum install -y wget && \
-    sudo yum update -y \
-    && sudo yum install -y \
-    less curl unzip gnupg build-essential && \
-    sudo yum install -y mlocate && sudo updatedb && \
-    sudo yum install -y centos-release-scl && \
-    sudo yum install -y devtoolset-10-gcc* && \
-    sudo yum install -y which && \
-    sudo yum install -y gdb
+RUN sudo apt-get install -y wget && \
+    sudo apt-get update -y && \
+    sudo apt-get install -y \
+    less curl unzip gnupg build-essential git && \
+    sudo apt-get install -y mlocate && sudo updatedb && \
+    sudo apt-get install -y software-properties-common && \
+    sudo add-apt-repository ppa:ubuntu-toolchain-r/test && \
+    sudo apt-get update -y && \
+    sudo apt-get install -y gcc-10 g++-10 && \
+    sudo apt-get install -y gdb
 
 SHELL ["/bin/bash", "-c"]
-RUN echo "export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"  >> /home/${USERNAME}/.bashrc && \
-    echo "source /opt/rh/devtoolset-10/enable" >> /home/${USERNAME}/.bashrc
+RUN echo "export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> /home/${USERNAME}/.bashrc && \
+    echo "export CC=/usr/bin/gcc-10" >> /home/${USERNAME}/.bashrc && \
+    echo "export CXX=/usr/bin/g++-10" >> /home/${USERNAME}/.bashrc
 
 SHELL ["/bin/bash", "--login", "-c"]
 # installing node
-RUN curl -sL https://rpm.nodesource.com/setup_16.x | sudo -E bash - && \
-    sudo yum install -y nodejs && \
-    mkdir /home/${USERNAME}/.npm-global && \
-    npm config set prefix "/home/${USERNAME}/.npm-global" && \
-    sudo yum clean all && sudo rm -rf /var/cache/yum
-
-ENV PATH=/home/${USERNAME}/.npm-global/bin:$PATH
+ENV NVM_DIR=/home/${USERNAME}/.nvm
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash && \
+    . $NVM_DIR/nvm.sh && nvm install v20.15.0 && nvm install v16.15.1 && \
+    echo "export NVM_DIR=$HOME/.nvm" >> /home/${USERNAME}/.bashrc && \
+    echo "source $NVM_DIR/nvm.sh" >> /home/${USERNAME}/.bashrc
 
 SHELL ["/bin/bash", "--login", "-c"]
 
-RUN export DEBIAN_FRONTEND=noninteractive && \
-    sudo yum -y install epel-release && \
-    sudo yum -y groupinstall "Development Tools" && \
-    sudo yum -y install openssl11 openssl11-devel bzip2-devel libffi-devel xz-devel libsecret-devel make && \
-    sudo yum clean all && sudo rm -rf /var/cache/yum && \
-    npm set cafile /etc/ssl/certs/ca-certificates.crt &&  \
-    npm set noproxy localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ &&  \
-    npm set proxy http://gateway.zscloud.net:9480 &&  \
-    npm set https-proxy http://gateway.zscloud.net:9480 &&  \
+USER $USERNAME
+RUN sudo apt-get update && \
+    sudo apt-get install -y build-essential software-properties-common && \
+    sudo apt-get install -y openssl libssl-dev libbz2-dev libffi-dev liblzma-dev libsecret-1-dev make && \
+    sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
+    . $NVM_DIR/nvm.sh && nvm use v16.15.1 && \
+    npm set cafile /etc/ssl/certs/ca-certificates.crt && \
+    npm set noproxy localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ && \
+    npm set proxy http://gateway.zscloud.net:9480 && \
+    npm set https-proxy http://gateway.zscloud.net:9480 && \
     npm set registry https://registry.npmjs.org/ && \
     npm i -g yo && \
     npm install -g @vscode/vsce@^2.15.04 && \
     npm install -g typescript && \
     npm install -g esbuild && \
     npm install -g xo
-RUN sudo alternatives --install /usr/bin/openssl openssl /usr/bin/openssl11 1
 
 WORKDIR /home/${USERNAME}
 # python
 ARG PY_VERSION=3.8.18
 RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tgz && \
-    tar xvf Python-${PY_VERSION}.tgz && cd Python-${PY_VERSION} && sed -i 's/PKG_CONFIG openssl /PKG_CONFIG openssl11 /g' configure && \
+    tar xvf Python-${PY_VERSION}.tgz && cd Python-${PY_VERSION} && sed -i 's/PKG_CONFIG openssl /PKG_CONFIG openssl /g' configure && \
     ./configure --enable-optimizations && sudo make altinstall && cd .. && sudo rm -rf Python-${PY_VERSION}* && \
-    sudo alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1 && mkdir ".pip" && \
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1 && mkdir ".pip" && \
     echo -e '[global]\ntrusted-host = pypi.org\n               pypi.python.org\n               files.pythonhosted.org' >> .pip/pip.conf && \
     python3 -m venv .venv && source .venv/bin/activate && pip install black && deactivate
 
-RUN sudo yum groupinstall 'Development Tools' -y && sudo yum install curl-devel expat-devel gettext-devel zlib-devel perl-CPAN perl-devel -y && cd && \
-    wget https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.18.0.tar.gz && tar xf git-2.18.0.tar.gz && cd git-2.18.0/ && \
-    make configure && ./configure --prefix=/usr/local && make all && sudo make install && \
-    cd .. && sudo rm -rf git-2.18.0* && \
-    sudo yum clean all && sudo rm -rf /var/cache/yum
+SHELL ["/bin/bash", "--login", "-c"]
 
-RUN sudo yum install -y xorg-x11-server-Xvfb && \
-    sudo yum install -y chromium && \
-    sudo yum clean all && sudo rm -rf /var/cache/yum && \
+RUN sudo apt-get update && \
+    sudo apt-get install -y xvfb chromium-browser && \
+    sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
     mkdir -p /home/${USERNAME}/software/vcast/
 
 ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST23.tar.gz /home/${USERNAME}/software/vcast/releaseVectorCAST23.tar.gz
@@ -127,8 +125,10 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
     no_proxy=localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ \
     HTTP_PROXY=http://gateway.zscloud.net:9480 \
     RUNNING_ON_SERVER=False \
-    CPATH=/opt/rh/devtoolset-10/root/usr/include/c++/10:/opt/rh/devtoolset-10/root/usr/include/c++/10/x86_64-redhat-linux:/opt/rh/devtoolset-10/root/usr/include/c++/10/backward:/opt/rh/devtoolset-10/root/usr/lib/gcc/x86_64-redhat-linux/10/include:/opt/rh/devtoolset-10/root/usr/include:$CPATH \
-    PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
+    CPATH=/usr/include/c++/10:/usr/include/c++/10/x86_64-linux-gnu:/usr/include/c++/10/backward:/usr/lib/gcc/x86_64-linux-gnu/10/include:/usr/include:$CPATH \
+    PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf \
+    NVM_DIR=/home/${USERNAME}/.nvm
+
 RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
 
 SHELL ["/bin/bash", "--login", "-c"]

@@ -16,7 +16,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_test_ubuntu
       options: --user vcast_user
 
     steps:
@@ -30,6 +30,11 @@ jobs:
           echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+
+      - name: Node setup
+        run: |
+          source /home/vcast_user/.bashrc
+          nvm use v16.15.1
 
       - name: Check out repository
         id: checkout
@@ -211,6 +216,11 @@ jobs:
           echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+
+      - name: Node setup
+        run: |
+          source /home/vcast_user/.bashrc
+          nvm use v16.15.1
 
       - name: Check out repository
         id: checkout

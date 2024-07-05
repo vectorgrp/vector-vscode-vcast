@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ROOT=$(dirname "$(realpath "$0")")
 
 activate_24_release () {
@@ -17,10 +17,11 @@ if [ "$USE_VCAST_24" = "True" ] ; then
   activate_24_release
 fi
 
+if [ "$GITHUB_ACTIONS" = "true" ] ; then
+  source /home/vcast_user/.bashrc
+fi
+nvm use v16.15.1
 if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
-    if [ "$GITHUB_ACTIONS" = "true" ] ; then
-      source /home/vcast_user/.bashrc
-    fi
     if [ "$(pidof /usr/bin/Xvfb)" == "" ]; then
         echo "Starting xvfb..."
         Xvfb :99 -screen 0 1920x1080x24 &
