@@ -33,7 +33,7 @@ jobs:
 
       - name: Node setup
         run: |
-          source /home/vcast_user/.bashrc
+          . /home/vcast_user/.bashrc
           nvm use v16.15.1
 
       - name: Check out repository
@@ -219,7 +219,7 @@ jobs:
 
       - name: Node setup
         run: |
-          source /home/vcast_user/.bashrc
+          . /home/vcast_user/.bashrc
           nvm use v16.15.1
 
       - name: Check out repository
