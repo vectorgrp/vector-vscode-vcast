@@ -959,6 +959,8 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
     # FIXME: this is likely very fragile
     if "(*)" in returnType:
         decl = returnType.replace("(*)", f"(*{vmockFunctionName}({signatureString}))")
+    elif "(&)" in returnType:
+        decl = returnType.replace("(&)", f"(&{vmockFunctionName}({signatureString}))")
     else:
         decl = f"\n{returnType} {vmockFunctionName}({signatureString})"
 
