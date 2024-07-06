@@ -587,6 +587,21 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
+def checkTemplateClassExists(api, instantiatingClass):
+    # TODO: decide if we actually need this or if the existence of '<'
+    # is enough (you can't really have `<` in namespaces ...)
+
+    validClass = False
+    beforeTemplate = instantiatingClass.split("<", 1)[0]
+    for t in api.Type.all():
+        currName = t.get_name()
+        currNameBeforeTemplate = currName.split("<", 1)[0]
+        if currName.startswith(beforeTemplate):
+            validClass = True
+
+    return validClass
+
+
 def getFunctionSignature(api, functionObject):
     """
     Create the signature for a vmock stub function, something like this:
@@ -597,9 +612,21 @@ def getFunctionSignature(api, functionObject):
     instantiatingClass = ""
     if "::" in functionObject.name:
         instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+
         # We need to check if we get a class name after splitting; we only use
-        # if it is a class
-        if api.Type.get_by_typemark(instantiatingClass) is None:
+        # if it is a class.
+        if "<" in instantiatingClass:
+            # FIXME: we don't store the correct string for `get_by_typemark`.
+            #
+            # However, having `<` in the name, is likely enough to know we are
+            # a class and not a namespace!
+            #
+            # See: checkTemplateClassExists for a more detailed (but probably
+            # pointless!) way to do this.
+
+            pass
+
+        elif api.Type.get_by_typemark(instantiatingClass) is None:
             instantiatingClass = ""
 
         # FIXME: Hack to check if we're a static method or not
