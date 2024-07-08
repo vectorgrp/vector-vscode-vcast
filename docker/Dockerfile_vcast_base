@@ -134,7 +134,6 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
     no_proxy=localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ \
     HTTP_PROXY=http://gateway.zscloud.net:9480 \
     RUNNING_ON_SERVER=False \
-    CPATH=/usr/include/c++/10:/usr/include/c++/10/x86_64-linux-gnu:/usr/include/c++/10/backward:/usr/lib/gcc/x86_64-linux-gnu/10/include:/usr/include:$CPATH \
     PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
 
 RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
