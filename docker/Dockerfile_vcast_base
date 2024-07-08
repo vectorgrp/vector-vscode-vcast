@@ -20,21 +20,20 @@ RUN apt-get update && apt-get install -y ca-certificates && chmod 644 /usr/local
 
 ARG USERNAME=vcast_user
 RUN groupadd --gid 1006 ${USERNAME} && useradd -m --uid 1006 --gid 1006 --shell /bin/bash -d /home/${USERNAME} ${USERNAME} && \
-    apt-get update && apt-get install -y sudo squid && touch /etc/sudoers.d/$USERNAME && \
+    apt-get update && apt-get install -y sudo && touch /etc/sudoers.d/$USERNAME && \
     echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME && \
-    chmod 0440 /etc/sudoers.d/$USERNAME && \
-    echo "cache_peer gateway.zscloud.net parent 9480 0 no-query default" >> /etc/squid/squid.conf && \
-    echo "never_direct allow all" >> /etc/squid/squid.conf
+    chmod 0440 /etc/sudoers.d/$USERNAME
 
 USER $USERNAME
 RUN mkdir -p /home/${USERNAME}/.config && \
     sudo chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.config && \
     sudo chown ${USERNAME} /etc/ssl/certs/ca-certificates.crt
 
-RUN sudo apt-get install -y wget && \
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    export TZ=Etc/UTC && \
+    sudo apt-get install -y wget tzdata && \
     sudo apt-get update -y && \
-    sudo apt-get install -y \
-    less curl unzip gnupg build-essential && \
+    sudo apt-get install -y less curl unzip gnupg build-essential && \
     sudo apt-get install -y mlocate && sudo updatedb && \
     sudo apt-get install -y software-properties-common && \
     sudo add-apt-repository ppa:ubuntu-toolchain-r/test && \
@@ -48,32 +47,36 @@ RUN echo "export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> /home
     echo "export CXX=/usr/bin/g++-10" >> /home/${USERNAME}/.bashrc
 
 SHELL ["/bin/bash", "--login", "-c"]
-# installing node
-ENV NVM_DIR=/home/${USERNAME}/.nvm
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash && \
-    . $NVM_DIR/nvm.sh && nvm install v20.15.0 && nvm install v16.15.1 && \
-    USERNAME=${USERNAME} sed -i "s|export NVM_DIR=\"\$HOME/.nvm\"|export NVM_DIR=\"/home/$USERNAME/.nvm\"|" /home/${USERNAME}/.bashrc
-
-SHELL ["/bin/bash", "--login", "-c"]
 
 USER $USERNAME
 RUN sudo apt-get update && \
     sudo apt-get install -y software-properties-common && \
     sudo apt-get install -y openssl libssl-dev libbz2-dev libffi-dev liblzma-dev libsecret-1-dev make && \
-    sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
-    . $NVM_DIR/nvm.sh && nvm use v16.15.1 && \
-    npm set cafile /etc/ssl/certs/ca-certificates.crt && \
-    npm set noproxy localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ && \
-    npm set proxy http://gateway.zscloud.net:9480 && \
-    npm set https-proxy http://gateway.zscloud.net:9480 && \
-    npm set registry https://registry.npmjs.org/ && \
+    sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+
+WORKDIR /home/${USERNAME}
+SHELL ["/bin/bash", "--login", "-c"]
+
+# installing node
+ENV N_PREFIX=/home/${USERNAME}/.n
+ENV PATH=$N_PREFIX/bin:$PATH
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    sudo apt-get update && sudo apt-get install -y nodejs npm && \
+    sudo npm install -g n && \
+    n 20 && \
+    n 16 && \
+    npm set -g cafile /etc/ssl/certs/ca-certificates.crt && \
+    npm set -g noproxy localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ && \
+    npm set -g proxy http://gateway.zscloud.net:9480 && \
+    npm set -g https-proxy http://gateway.zscloud.net:9480 && \
+    npm set -g registry https://registry.npmjs.org/ && \
     npm i -g yo && \
     npm install -g @vscode/vsce@^2.15.04 && \
     npm install -g typescript && \
     npm install -g esbuild && \
-    npm install -g xo
+    npm install -g xo && \
+    npm install -g tsx
 
-WORKDIR /home/${USERNAME}
 # python
 ARG PY_VERSION=3.8.18
 RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tgz && \
@@ -131,8 +134,7 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
     HTTP_PROXY=http://gateway.zscloud.net:9480 \
     RUNNING_ON_SERVER=False \
     CPATH=/usr/include/c++/10:/usr/include/c++/10/x86_64-linux-gnu:/usr/include/c++/10/backward:/usr/lib/gcc/x86_64-linux-gnu/10/include:/usr/include:$CPATH \
-    PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf \
-    NVM_DIR=/home/${USERNAME}/.nvm
+    PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
 
 RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
 

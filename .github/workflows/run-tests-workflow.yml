@@ -9,8 +9,6 @@ on:
       - main
   release:
   workflow_dispatch:
-env:
-  NVM_DIR: /home/vcast_user/.nvm
 jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
@@ -89,7 +87,7 @@ jobs:
           curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
           chmod +x codecov
           ./codecov -f ./coverage/clover.xml -F Unit -n vscode-vcast-unittests -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -r ${{ github.repository }} -U ${http_proxy} >> out.txt
-          cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
+          cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
           title="Coverage report URL" && \
           [ -z $(cat url.txt) ] && echo "::notice title=$title::URL not found" || echo "::notice title=$title::$(cat url.txt)"
 
