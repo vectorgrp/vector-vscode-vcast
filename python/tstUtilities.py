@@ -759,12 +759,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
 
         # name_with_template_arguments is only valid for vc24sp3 and higher
         # Original FB: 101345
-        # old baseString += f"(&{functionObject.full_prototype_instantiation})"
-        functionName = functionObject.full_prototype_instantiation
-        cppParameterization = buildCppParameterization(
-            api, functionObject, functionName
-        )
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+        baseString += f"(&{functionObject.full_prototype_instantiation})"
 
     # else if this is an operator, operators are overloaded
     # from the compilers point-of-view but might not be from vcast's
@@ -772,8 +767,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        # old baseString += f"(({cppParameterization})&{functionName})"
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+        baseString += f"(({cppParameterization})&{functionName})"
 
     # else if it is an overloaded function
     # This is correct even if only one overloaded function is testable
@@ -784,9 +778,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        # old baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
 
-        # TBD today - tempoary fix for const overloads
         functionName = functionName.split ('(')[0]
         if isConstFunction (functionObject):
             baseString += f"<{cppParameterization}> (({cppParameterization})({cppParameterization} const)&{functionName})"
@@ -804,15 +796,11 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        # old baseString += f"(({cppParameterization})&{functionName})"
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+        baseString += f"(({cppParameterization})&{functionName})"
 
     else:
-        # old baseString += f"(&{functionName})"
-        cppParameterization = buildCppParameterization(
-            api, functionObject, functionName
-        )
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+        baseString += f"(&{functionName})"
+       
 
     # Now create the enable and disable comments
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
