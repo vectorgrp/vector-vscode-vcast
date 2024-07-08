@@ -39,11 +39,6 @@ jobs:
         if: failure()
         uses: actions/checkout@v4
 
-      - name: Node 16
-        run: |
-          . ${{ env.NVM_DIR }}/nvm.sh
-          nvm use v16.15.1
-
       # Run tests
       - name: Restore cached dependencies
         id: cache-dependencies-restore
@@ -164,12 +159,6 @@ jobs:
         if: failure()
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: | 
-          . ${{ env.NVM_DIR }}/nvm.sh
-          nvm use v16.15.1
-          npm install tsx
-
       - name: Set jobs matrix
         id: set-matrix
         run: |
@@ -216,11 +205,6 @@ jobs:
       - name: Check out repository (retry)
         if: failure()
         uses: actions/checkout@v4
-
-      - name: Node 16
-        run: |
-          . ${{ env.NVM_DIR }}/nvm.sh
-          nvm use v16.15.1
 
       - name: Restore cached dependencies
         id: cache-dependencies-restore
