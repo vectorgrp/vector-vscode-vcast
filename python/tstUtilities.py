@@ -496,14 +496,13 @@ def functionCanBeVMocked(functionObject):
     """
     if functionObject.vcast_name in functionsToIgnore:
         return False
-    # Constructors are not supported by vmock
-    elif functionObject.is_constructor:
+
+    # FIXME: this is a hack to avoid generating applys that don't have lookups
+    elif not functionObject.mock_lookup_type:
         return False
-    # Destructors are not supported by vmock
-    elif "~" in functionObject.vcast_name:
-        return False
+
     else:
-        return True
+        return functionObject.is_mockable
 
 
 def getUnitAneFunctionStrings(lineSoFar):
