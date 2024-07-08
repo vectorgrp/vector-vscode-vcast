@@ -21,6 +21,19 @@ jobs:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/test:latest
 
     steps:
+      - name: Start forward proxy
+        run: |
+          sudo /usr/sbin/squid
+          NEW_PROXY="http://$(hostname --ip-address):3128"
+          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          git config --global http.proxy $NEW_PROXY
+          git config --global https.proxy $NEW_PROXY
+
       - name: Check out repository
         id: checkout
         uses: actions/checkout@v4
