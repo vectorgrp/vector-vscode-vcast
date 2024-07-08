@@ -118,3 +118,12 @@ int usePrototypeOnlyFunction (int param1) {
 }
 
 bool operator==(TemplateClass<int>, TemplateClass<int>) {return true;};
+
+
+int overLoadedConstMethodClass::compare(int* param) const {
+    return *param;
+}
+
+int overLoadedConstMethodClass::compare(int param) const {
+    return param;
+}

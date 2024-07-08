@@ -858,7 +858,13 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
             api, functionObject, functionName
         )
         # old baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+
+        # TBD today - tempoary fix for const overloads
+        functionName = functionName.split ('(')[0]
+        if isConstFunction (functionObject):
+            baseString += f"<{cppParameterization}> (({cppParameterization})({cppParameterization} const)&{functionName})"
+        else:
+            baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName})"
 
     elif isConstFunction(functionObject):
         # TBD today - this should be replaced with a check of
