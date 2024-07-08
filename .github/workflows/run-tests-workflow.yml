@@ -32,6 +32,8 @@ jobs:
           echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          git config --global http.proxy $NEW_PROXY
+          git config --global https.proxy $NEW_PROXY
 
       - name: Check out repository
         id: checkout
@@ -178,6 +180,7 @@ jobs:
       - name: Install dependencies
         run: | 
           . ${{ env.NVM_DIR }}/nvm.sh
+          nvm use v16.15.1
           npm install tsx
 
       - name: Set jobs matrix
@@ -220,6 +223,8 @@ jobs:
           echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          git config --global http.proxy $NEW_PROXY
+          git config --global https.proxy $NEW_PROXY
 
       - name: Check out repository
         id: checkout
@@ -361,6 +366,8 @@ jobs:
           echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
           echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
+          git config --global http.proxy $NEW_PROXY
+          git config --global https.proxy $NEW_PROXY
 
       - name: Check out repository
         id: checkout
