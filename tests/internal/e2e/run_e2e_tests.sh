@@ -20,7 +20,6 @@ fi
 if [ "$GITHUB_ACTIONS" = "true" ] ; then
   source /home/vcast_user/.bashrc
 fi
-nvm use v16.15.1
 if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
     if [ "$(pidof /usr/bin/Xvfb)" == "" ]; then
         echo "Starting xvfb..."

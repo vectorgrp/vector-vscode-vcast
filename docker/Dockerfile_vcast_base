@@ -136,6 +136,7 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
     CPATH=/usr/include/c++/10:/usr/include/c++/10/x86_64-linux-gnu:/usr/include/c++/10/backward:/usr/lib/gcc/x86_64-linux-gnu/10/include:/usr/include:$CPATH \
     PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
 
-RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
+RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w && \
+    sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /etc/X11
 
 SHELL ["/bin/bash", "--login", "-c"]
