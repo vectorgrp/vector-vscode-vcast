@@ -95,6 +95,7 @@ RUN sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libexpat
 SHELL ["/bin/bash", "--login", "-c"]
 
 RUN sudo apt-get update && \
+    sudo apt-get install -y libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev libasound2 && \
     sudo apt-get install -y xvfb chromium-browser && \
     sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
     mkdir -p /home/${USERNAME}/software/vcast/
@@ -136,7 +137,6 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
     CPATH=/usr/include/c++/10:/usr/include/c++/10/x86_64-linux-gnu:/usr/include/c++/10/backward:/usr/lib/gcc/x86_64-linux-gnu/10/include:/usr/include:$CPATH \
     PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
 
-RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w && \
-    sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /etc/X11
+RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
 
 SHELL ["/bin/bash", "--login", "-c"]

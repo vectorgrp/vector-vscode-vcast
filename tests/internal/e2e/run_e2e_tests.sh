@@ -23,9 +23,9 @@ fi
 if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
     if [ "$(pidof /usr/bin/Xvfb)" == "" ]; then
         echo "Starting xvfb..."
-        Xvfb :99 -screen 0 1920x1080x24 -nolisten unix &
+        Xvfb :99 -screen 0 1920x1080x24 &
     fi
-    xvfb-run --server-num=99 --auto-servernum --server-args="-screen 0 1920x1080x24+32 -nolisten unix" npx wdio run test/wdio.conf.ts | tee output.txt
+    xvfb-run --server-num=99 --auto-servernum --server-args="-screen 0 1920x1080x24+32" npx wdio run test/wdio.conf.ts | tee output.txt
     if [ "$GITHUB_ACTIONS" = "true" ] ; then
       if [ -f output.txt ] ; then
         export LANG="C.UTF-8"
