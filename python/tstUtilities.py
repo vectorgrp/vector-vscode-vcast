@@ -493,6 +493,8 @@ def functionCanBeVMocked(functionObject):
     Convenience function
     TBD today - this should be replaced by usage of is_mockable
     from the dataAPI.  Part of FB 101394 - vc24sp3?
+
+    TBD today - is_mockable is currently set for coded_tests_driver
     """
     if functionObject.vcast_name in functionsToIgnore:
         return False
@@ -502,6 +504,8 @@ def functionCanBeVMocked(functionObject):
     # Destructors are not supported by vmock
     elif "~" in functionObject.vcast_name:
         return False
+    elif hasattr (functionObject, "is_mockable"):
+        return functionObject.is_mockable
     else:
         return True
 
