@@ -70,15 +70,7 @@ RUN sudo apt-get update && \
     sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
     mkdir -p /home/${USERNAME}/software/vcast/
 
-ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST23.tar.gz /home/${USERNAME}/software/vcast/releaseVectorCAST23.tar.gz
-ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/releaseVectorCAST24.tar.gz /home/${USERNAME}/software/vcast/releaseVectorCAST24.tar.gz
-ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast_test_explorer/vector-DEMO-2025.lic /home/${USERNAME}/software/vcast/vector-license.lic
-RUN cd /home/${USERNAME}/software/vcast && \
-    sudo chown ${USERNAME} releaseVectorCAST23.tar.gz && \
-    sudo chown ${USERNAME} releaseVectorCAST24.tar.gz && \
-    sudo chown ${USERNAME} vector-license.lic && \
-    tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz && mv release release23 && \
-    tar -xvzf releaseVectorCAST24.tar.gz && rm releaseVectorCAST24.tar.gz && mv release release24
+RUN sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /vcast
 
 ENV TESTING_IN_CONTAINER=True \
     RUNNING_ON_SERVER=False \
