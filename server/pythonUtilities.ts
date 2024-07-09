@@ -2,6 +2,8 @@ import fs = require("fs");
 import path = require("path");
 const execSync = require("child_process").execSync;
 
+import { cleanVcastOutput } from "../src-common/commonUtilities";
+
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
 export function setPaths(
@@ -52,15 +54,9 @@ export function runPythonScript(
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${action} ${enviroName} "${payload}"`;
   const commandOutputBuffer = execSync(commandToRun).toString();
 
-  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
-  // message to stdout when VC_DIR does not match the vcast distro being run.
-  // Since this happens before our script even starts so we cannot suppress it.
-  // We could send the json data to a temp file, but the create/open file operations
-  // have overhead.
-
-  // to make debugging easier
-  const pieces = commandOutputBuffer.split("ACTUAL-DATA", 2);
-  return JSON.parse(pieces[1].trim());
+  // two steps to make debugging easier
+  const outputString = cleanVcastOutput(commandOutputBuffer);
+  return JSON.parse(outputString);
 }
 
 export function getChoiceDataFromPython(
