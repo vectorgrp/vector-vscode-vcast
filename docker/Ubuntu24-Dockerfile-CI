@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 ARG PROXY_URL=http://gateway.zscloud.net:9480
 ARG NO_PROXY="localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/"
@@ -34,7 +34,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     sudo apt-get install -y wget tzdata && \
     sudo apt-get update -y && \
     sudo apt-get install -y less curl unzip gnupg build-essential && \
-    sudo apt-get install -y mlocate && sudo updatedb && \
+    sudo apt-get update -y && \
+    sudo apt-get install -y plocate && sudo updatedb && \
     sudo apt-get install -y software-properties-common && \
     sudo add-apt-repository ppa:ubuntu-toolchain-r/test && \
     sudo apt-get update -y && \
@@ -66,9 +67,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     n 20 && \
     n 16 && \
     npm set -g cafile /etc/ssl/certs/ca-certificates.crt && \
-    npm set -g noproxy localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ && \
-    npm set -g proxy http://gateway.zscloud.net:9480 && \
-    npm set -g https-proxy http://gateway.zscloud.net:9480 && \
+    npm set -g noproxy ${NO_PROXY} && \
+    npm set -g proxy ${PROXY_URL} && \
+    npm set -g https-proxy ${PROXY_URL} && \
     npm set -g registry https://registry.npmjs.org/ && \
     npm i -g yo && \
     npm install -g @vscode/vsce@^2.15.04 && \
@@ -95,7 +96,8 @@ RUN sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libexpat
 SHELL ["/bin/bash", "--login", "-c"]
 
 RUN sudo apt-get update && \
-    sudo apt-get install -y libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev libasound2 && \
+    sudo apt-get install -y libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev && \
+    sudo apt-get update && sudo apt-get install -y libasound2-dev && \
     sudo apt-get install -y xvfb chromium-browser && \
     sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
     mkdir -p /home/${USERNAME}/software/vcast/
@@ -125,14 +127,14 @@ ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
     SSL_CERT_DIR=/etc/ssl/certs \
     CA_BUNDLE_PATH=/etc/ssl/certs/ca-certificates.crt \
     CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-    GLOBAL_AGENT_HTTP_PROXY=http://gateway.zscloud.net:9480 \
-    http_proxy=http://gateway.zscloud.net:9480 \
-    GLOBAL_AGENT_HTTPS_PROXY=http://gateway.zscloud.net:9480 \
-    GLOBAL_AGENT_NO_PROXY=localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ \
-    HTTPS_PROXY=http://gateway.zscloud.net:9480 \
-    https_proxy=http://gateway.zscloud.net:9480 \
-    no_proxy=localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/ \
-    HTTP_PROXY=http://gateway.zscloud.net:9480 \
+    GLOBAL_AGENT_HTTP_PROXY=${PROXY_URL} \
+    http_proxy=${PROXY_URL} \
+    GLOBAL_AGENT_HTTPS_PROXY=${PROXY_URL} \
+    GLOBAL_AGENT_NO_PROXY=${NO_PROXY} \
+    HTTPS_PROXY=${PROXY_URL} \
+    https_proxy=${PROXY_URL} \
+    no_proxy=${NO_PROXY} \
+    HTTP_PROXY=${PROXY_URL} \
     RUNNING_ON_SERVER=False \
     PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
 
