@@ -4,6 +4,7 @@ import { execSync, spawn } from "child_process";
 
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
+import { cleanVcastOutput } from "../src-common/commonUtilities";
 
 const path = require("path");
 
@@ -17,20 +18,14 @@ export function executeVPythonScript(
   commandToRun: string,
   whereToRun: string
 ): commandStatusType {
-  // we use this common function to run the vpython and process the output because
-  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
-  // Since this happens before our script even starts so we cannot suppress it.
-  // We could send the json data to a temp file, but the create/open file operations
-  // have overhead.
-
   let returnData: commandStatusType = { errorCode: 0, stdout: "" };
   if (commandToRun) {
     const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
       whereToRun
     );
-    const pieces = commandStatus.stdout.split("ACTUAL-DATA", 2);
-    returnData.stdout = pieces[1].trim();
+    // remove extraneous text from the output
+    returnData.stdout = cleanVcastOutput(commandStatus.stdout);
     returnData.errorCode = commandStatus.errorCode;
   }
   return returnData;
@@ -63,8 +58,9 @@ function processExceptionFromExecuteCommand(
   // 99 is a warning, like a mismatch opening the environment
   if (error && error.status == 99) {
     let stdoutString = error.stdout.toString();
-    // Needed because of the annoying version miss-match message from vcast
-    commandStatus.stdout = stdoutString.split("ACTUAL-DATA", 2)[1].trim();
+
+    // Remmove annoying version miss-match message from vcast
+    commandStatus.stdout = cleanVcastOutput(stdoutString);
     commandStatus.errorCode = 0;
     vectorMessage(commandStatus.stdout);
   } else if (error && error.stdout) {

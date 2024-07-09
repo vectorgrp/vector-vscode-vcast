@@ -67,3 +67,19 @@ export function getVcastOptionValues(enviroPath: string): cfgOptionType {
     return cachedObject;
   }
 }
+
+const splitString = "ACTUAL-DATA";
+export function cleanVcastOutput(outputString: string): string {
+  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
+  // message to stdout when VC_DIR does not match the vcast distro being run.
+  // Since this happens before our script even starts so we cannot suppress it.
+  // We could send the json data to a temp file, but the create/open file operations
+  // have overhead.
+
+  if (outputString.includes(splitString)) {
+    const pieces = outputString.split(splitString, 2);
+    return pieces[1].trim();
+  } else {
+    return outputString;
+  }
+}
