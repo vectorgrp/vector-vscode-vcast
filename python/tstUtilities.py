@@ -487,16 +487,17 @@ unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
 # units to not be shown in the unit list
 unitsToIgnore = ["USER_GLOBALS_VCAST"]
 # function to not be shown in the functions list
-# TBD today - these <<INIT>> functions should not be in the list
-# Waiting for PCT fix of FB: 101353 - vc24sp3?
+# PCT-FIX-NEEDED - issue #8 - constructors listed as <<init>> function
+# these <<INIT>> functions should not be in the list
+# Waiting for PCT fix of FB: 101353.
 functionsToIgnore = ["coded_tests_driver", tagForInit]
 
 
 def functionCanBeVMocked(functionObject):
     """
     Convenience function
-    TBD today - this should be replaced by usage of is_mockable
-    from the dataAPI.  Part of FB 101394 - vc24sp3?
+    # PCT-FIX-NEEDED - issue #7 - is_mockable not dependable
+    this should be replaced by usage of is_mockable from the dataAPI
     """
     if functionObject.vcast_name in functionsToIgnore:
         return False
@@ -504,9 +505,10 @@ def functionCanBeVMocked(functionObject):
     # FIXME: this is a hack to avoid generating applys that don't have lookups
     elif not functionObject.mock_lookup_type:
         return False
-
-    else:
+    elif hasattr (functionObject, "is_mockable"):
         return functionObject.is_mockable
+    else:
+        return True
 
 
 def getUnitAneFunctionStrings(lineSoFar):
@@ -649,9 +651,9 @@ def getFunctionSignature(api, functionObject):
             # the  original declaration was added in vc24sp3 and contains
             # both the type and the parameter name as originally defined.
 
+            # PCT-FIX-NEEDED - issue #1 - duplicate parameter names
             # A special case is unnamed parameters, where "vcast_param"
             # is used, so in this case replace with vcast_param1,2,3
-            # TBD today - This should be fixed in FB: 101394
 
             paramIndex += 1
             declarationToUse = parameterObject.orig_declaration
@@ -786,8 +788,9 @@ def buildCppParameterization(api, functionObject, functionName):
     else:
         fptrString = "*"
 
+    # PCT-FIX-NEEDED - issue #5 - return type has extra space
     # original_return_type added to dataAPI in vc24sp3
-    returnType = functionObject.original_return_type
+    returnType = functionObject.original_return_type.rstrip()
 
     # TBD today - if we convert to using the new orig_declaration we'll
     # have to deal with the param names and special cases like int param[]
@@ -826,18 +829,10 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     # add the user function name, there are two special cases as described above
 
     # if this is a function template
-    # TBD today - the special cases all return the same thing currently
-    # if this works we should combine this code.
-
     if functionObject.prototype_instantiation:
         # name_with_template_arguments is only valid for vc24sp3 and higher
         # Original FB: 101345
-        # old baseString += f"(&{functionObject.full_prototype_instantiation})"
-        functionName = functionObject.full_prototype_instantiation
-        cppParameterization = buildCppParameterization(
-            api, functionObject, functionName
-        )
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+        baseString += f"(&{functionObject.full_prototype_instantiation})"
 
     # else if this is an operator, operators are overloaded
     # from the compilers point-of-view but might not be from vcast's
@@ -845,8 +840,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        # old baseString += f"(({cppParameterization})&{functionName})"
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+        baseString += f"(({cppParameterization})&{functionName})"
 
     # else if it is an overloaded function
     # This is correct even if only one overloaded function is testable
@@ -857,9 +851,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        # old baseString += f"<{cppParameterization}> (&{functionName.split('(')[0]})"
 
-        # TBD today - tempoary fix for const overloads
         functionName = functionName.split ('(')[0]
         if isConstFunction (functionObject):
             baseString += f"<{cppParameterization}> (({cppParameterization})({cppParameterization} const)&{functionName})"
@@ -867,8 +859,10 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
             baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName})"
 
     elif isConstFunction(functionObject):
-        # TBD today - this should be replaced with a check of
-        # the dataAPI is_const attribute.  Needs to be fixed in FB: 101394
+
+        # PCT-FIX-NEEDED - issue #2 - is_const not dependable
+        # this should be replaced with a check of the dataAPI is_const attribute
+        # but is_const is has some bugs
 
         # for const functions we need to insert a cast to a non const version
         # So for a function like this: int myMethod(int param) const
@@ -877,26 +871,24 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         cppParameterization = buildCppParameterization(
             api, functionObject, functionName
         )
-        # old baseString += f"(({cppParameterization})&{functionName})"
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+        baseString += f"(({cppParameterization})&{functionName})"
 
     else:
-        # old baseString += f"(&{functionName})"
-        cppParameterization = buildCppParameterization(
-            api, functionObject, functionName
-        )
-        baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName.split('(')[0]})"
+        baseString += f"(&{functionName})"
+       
 
     # Now create the enable and disable comments
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
     disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
 
-    # TBD today - this can be removed once we understand the mock_lookup_type
+    # TBD today - This could be removed once we understand the mock_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
         print(f"    baseString: {baseString}")
+        # PCT-FIX-NEEDED - issue #5 - trailing space
+        returnType = functionObject.original_return_type.rstrip()
         if functionObject.mock_lookup_type:
             print(
-                f"      mock_lookup_type: '{functionObject.original_return_type}' '{functionObject.mock_lookup_type}'"
+                f"      mock_lookup_type: '{returnType}' '{functionObject.mock_lookup_type}'"
             )
         else:
             print("      mock_lookup_type: 'None'")
@@ -1010,7 +1002,8 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
         vmockFunctionName,
     )
     # Put it all together
-    returnType = functionObject.original_return_type
+    # PCT-FIX-NEEDED - issue #5 - trailing space
+    returnType = functionObject.original_return_type.rstrip()
 
     # Need to handle when the function returns a function pointer
     # FIXME: this is likely very fragile
