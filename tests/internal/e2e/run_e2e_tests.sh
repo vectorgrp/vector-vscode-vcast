@@ -2,8 +2,8 @@
 ROOT=$(dirname "$(realpath "$0")")
 
 activate_24_release () {
-  export VECTORCAST_DIR=/home/vcast_user/software/vcast/release24
-  export PATH=/home/vcast_user/software/vcast/release24:$PATH
+  export VECTORCAST_DIR=/vcast/release24
+  export PATH=/vcast/release24:$PATH
   export ENABLE_ATG_FEATURE=TRUE
   echo "Vcast 24 is activated"
 }

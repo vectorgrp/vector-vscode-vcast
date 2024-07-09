@@ -1,22 +1,4 @@
-FROM ubuntu:24.04
-
-ARG PROXY_URL=http://gateway.zscloud.net:9480
-ARG NO_PROXY="localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,http://vapvdatg01.vi.vector.int/,https://vistrrdeart1.vi.vector.int/artifactory/"
-
-ENV http_proxy=${PROXY_URL} \
-    https_proxy=${PROXY_URL} \
-    HTTP_PROXY=${PROXY_URL} \
-    HTTPS_PROXY=${PROXY_URL} \
-    no_proxy=${NO_PROXY} \
-    DEBIAN_FRONTEND=noninteractive \
-    TZ=Etc/UTC
-
-# Install Vector certificates
-ADD https://vistradpart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Root_2.0.crt /usr/local/share/ca-certificates/vector_root.crt
-ADD https://vistradpart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Issuing_2.0.crt /usr/local/share/ca-certificates/vector_issuing.crt
-ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-RUN apt-get update && apt-get install -y ca-certificates && chmod 644 /usr/local/share/ca-certificates/* && \
-    update-ca-certificates
+FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vector_ubuntu24:latest
 
 ARG USERNAME=vcast_user
 RUN groupadd --gid 1006 ${USERNAME} && useradd -m --uid 1006 --gid 1006 --shell /bin/bash -d /home/${USERNAME} ${USERNAME} && \
@@ -29,21 +11,6 @@ RUN mkdir -p /home/${USERNAME}/.config && \
     sudo chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.config && \
     sudo chown ${USERNAME} /etc/ssl/certs/ca-certificates.crt
 
-RUN export DEBIAN_FRONTEND=noninteractive && \
-    export TZ=Etc/UTC && \
-    sudo apt-get install -y wget tzdata && \
-    sudo apt-get update -y && \
-    sudo apt-get install -y less curl unzip gnupg build-essential && \
-    sudo apt-get update -y && \
-    sudo apt-get install -y plocate && sudo updatedb && \
-    sudo apt-get install -y software-properties-common && \
-    sudo add-apt-repository ppa:ubuntu-toolchain-r/test && \
-    sudo apt-get update -y && \
-    sudo apt-get install -y gcc-10 g++-10 && \
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 10 && \
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 10 && \
-    sudo apt-get install -y gdb
-
 SHELL ["/bin/bash", "-c"]
 RUN echo "export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> /home/${USERNAME}/.bashrc && \
     echo "export CC=/usr/bin/gcc-10" >> /home/${USERNAME}/.bashrc && \
@@ -53,7 +20,6 @@ SHELL ["/bin/bash", "--login", "-c"]
 
 USER $USERNAME
 RUN sudo apt-get update && \
-    sudo apt-get install -y software-properties-common && \
     sudo apt-get install -y openssl libssl-dev libbz2-dev libffi-dev liblzma-dev libsecret-1-dev make && \
     sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
 
@@ -69,9 +35,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     n 20 && \
     n 16 && \
     npm set -g cafile /etc/ssl/certs/ca-certificates.crt && \
-    npm set -g noproxy ${NO_PROXY} && \
-    npm set -g proxy ${PROXY_URL} && \
-    npm set -g https-proxy ${PROXY_URL} && \
+    npm set -g noproxy $NO_PROXY && \
+    npm set -g proxy $HTTP_PROXY && \
+    npm set -g https-proxy $HTTPS_PROXY && \
     npm set -g registry https://registry.npmjs.org/ && \
     npm i -g yo && \
     npm install -g @vscode/vsce@^2.15.04 && \
@@ -114,29 +80,7 @@ RUN cd /home/${USERNAME}/software/vcast && \
     tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz && mv release release23 && \
     tar -xvzf releaseVectorCAST24.tar.gz && rm releaseVectorCAST24.tar.gz && mv release release24
 
-ENV VECTORCAST_DIR=/home/${USERNAME}/software/vcast/release23 \
-    PATH=/home/${USERNAME}/software/vcast/release23:/opt/rh/devtoolset-10/root/usr/bin:$PATH \
-    LM_LICENSE_FILE=/home/${USERNAME}/software/vcast/vector-license.lic \
-    VECTOR_LICENSE_FILE=/home/${USERNAME}/software/vcast/vector-license.lic \
-    VCAST_TEST_PATH=/home/${USERNAME}/project/vscode-vcast/E2E-test \
-    VCAST_EXTENSION_PATH=/home/${USERNAME}/project/vscode-vcast \
-    RDS_REPO_PATH=/home/${USERNAME}/project \
-    SHARED_LIB_PATH=/home/${USERNAME}/project/sharedLib \
-    TESTING_IN_CONTAINER=True \
-    NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/vector_root.crt \
-    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
-    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-    SSL_CERT_DIR=/etc/ssl/certs \
-    CA_BUNDLE_PATH=/etc/ssl/certs/ca-certificates.crt \
-    CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-    GLOBAL_AGENT_HTTP_PROXY=${PROXY_URL} \
-    http_proxy=${PROXY_URL} \
-    GLOBAL_AGENT_HTTPS_PROXY=${PROXY_URL} \
-    GLOBAL_AGENT_NO_PROXY=${NO_PROXY} \
-    HTTPS_PROXY=${PROXY_URL} \
-    https_proxy=${PROXY_URL} \
-    no_proxy=${NO_PROXY} \
-    HTTP_PROXY=${PROXY_URL} \
+ENV TESTING_IN_CONTAINER=True \
     RUNNING_ON_SERVER=False \
     PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
 
