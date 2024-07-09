@@ -483,18 +483,17 @@ unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
 # units to not be shown in the unit list
 unitsToIgnore = ["USER_GLOBALS_VCAST"]
 # function to not be shown in the functions list
-# TBD today - these <<INIT>> functions should not be in the list
-# Waiting for PCT fix of FB: 101353 - vc24sp3?
+# PCT-FIX-NEEDED - issue #8 - constructors listed as <<init>> function
+# these <<INIT>> functions should not be in the list
+# Waiting for PCT fix of FB: 101353.
 functionsToIgnore = ["coded_tests_driver", tagForInit]
 
 
 def functionCanBeVMocked(functionObject):
     """
     Convenience function
-    TBD today - this should be replaced by usage of is_mockable
-    from the dataAPI.  Part of FB 101394 - vc24sp3?
-
-    TBD today - is_mockable is currently set for coded_tests_driver
+    # PCT-FIX-NEEDED - issue #7 - is_mockable not dependable
+    this should be replaced by usage of is_mockable from the dataAPI
     """
     if functionObject.vcast_name in functionsToIgnore:
         return False
@@ -613,9 +612,9 @@ def getFunctionSignature(api, functionObject):
             # the  original declaration was added in vc24sp3 and contains
             # both the type and the parameter name as originally defined.
 
+            # PCT-FIX-NEEDED - issue #1 - duplicate parameter names
             # A special case is unnamed parameters, where "vcast_param"
             # is used, so in this case replace with vcast_param1,2,3
-            # TBD today - This should be fixed in FB: 101394
 
             paramIndex += 1
             declarationToUse = parameterObject.orig_declaration
@@ -716,8 +715,9 @@ def buildCppParameterization(api, functionObject, functionName):
     else:
         fptrString = "*"
 
+    # PCT-FIX-NEEDED - issue #5 - return type has extra space
     # original_return_type added to dataAPI in vc24sp3
-    returnType = functionObject.original_return_type
+    returnType = functionObject.original_return_type.rstrip()
 
     # TBD today - if we convert to using the new orig_declaration we'll
     # have to deal with the param names and special cases like int param[]
@@ -787,8 +787,10 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
             baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName})"
 
     elif isConstFunction(functionObject):
-        # TBD today - this should be replaced with a check of
-        # the dataAPI is_const attribute.  Needs to be fixed in FB: 101394
+
+        # PCT-FIX-NEEDED - issue #2 - is_const not dependable
+        # this should be replaced with a check of the dataAPI is_const attribute
+        # but is_const is has some bugs
 
         # for const functions we need to insert a cast to a non const version
         # So for a function like this: int myMethod(int param) const
@@ -807,12 +809,14 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
     disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
 
-    # TBD today - this can be removed once we understand the mock_lookup_type
+    # TBD today - This could be removed once we understand the mock_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
         print(f"    baseString: {baseString}")
+        # PCT-FIX-NEEDED - issue #5 - trailing space
+        returnType = functionObject.original_return_type.rstrip()
         if functionObject.mock_lookup_type:
             print(
-                f"      mock_lookup_type: '{functionObject.original_return_type}' '{functionObject.mock_lookup_type}'"
+                f"      mock_lookup_type: '{returnType}' '{functionObject.mock_lookup_type}'"
             )
         else:
             print("      mock_lookup_type: 'None'")
@@ -845,7 +849,8 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
         vmockFunctionName,
     )
     # Put it all together
-    returnType = functionObject.original_return_type
+    # PCT-FIX-NEEDED - issue #5 - trailing space
+    returnType = functionObject.original_return_type.rstrip()
     whatToReturn = (
         f"\n{returnType} {vmockFunctionName}({signatureString})"
         + " {\n  "
