@@ -16,24 +16,13 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
       options: --user vcast_user
 
     steps:
-      - name: Start forward proxy
-        run: |
-          sudo /usr/sbin/squid
-          NEW_PROXY="http://$(hostname --ip-address):3128"
-          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         continue-on-error: true
 
       - name: Wait before retry
@@ -46,12 +35,12 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Run tests
       - name: Restore cached dependencies
         id: cache-dependencies-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             node_modules
@@ -63,7 +52,7 @@ jobs:
 
       - name: Save dependencies
         if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             node_modules
@@ -98,7 +87,7 @@ jobs:
           curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
           chmod +x codecov
           ./codecov -f ./coverage/clover.xml -F Unit -n vscode-vcast-unittests -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -r ${{ github.repository }} -U ${http_proxy} >> out.txt
-          cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
+          cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
           title="Coverage report URL" && \
           [ -z $(cat url.txt) ] && echo "::notice title=$title::URL not found" || echo "::notice title=$title::$(cat url.txt)"
 
@@ -110,14 +99,14 @@ jobs:
           echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
 
       - name: Upload vectorcasttestexplorer artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: vectorcasttestexplorer
           path: ${{ env.VSIX_FILE }}
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage
@@ -144,7 +133,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
       options: --user vcast_user
 
     outputs:
@@ -153,7 +142,7 @@ jobs:
     steps:
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         continue-on-error: true
 
       - name: Wait before retry
@@ -166,10 +155,7 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: npm install tsx
+        uses: actions/checkout@v4
 
       - name: Set jobs matrix
         id: set-matrix
@@ -185,7 +171,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
       options: --user vcast_user
 
     strategy:
@@ -201,20 +187,9 @@ jobs:
       RUN_GROUP_NAME: ${{ matrix.group }}
 
     steps:
-      - name: Start forward proxy
-        run: |
-          sudo /usr/sbin/squid
-          NEW_PROXY="http://$(hostname --ip-address):3128"
-          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         continue-on-error: true
 
       - name: Wait before retry
@@ -227,11 +202,11 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Restore cached dependencies
         id: cache-dependencies-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             node_modules
@@ -243,7 +218,7 @@ jobs:
 
       - name: Save dependencies
         if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             node_modules
@@ -254,7 +229,7 @@ jobs:
 
       - name: Restore cached dependencies - node
         id: cache-dependencies-restore-node
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             tests/internal/e2e/node_modules
@@ -262,7 +237,7 @@ jobs:
 
       - name: Restore cached dependencies - vscode
         id: cache-dependencies-restore-vscode
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             tests/internal/e2e/.wdio-vscode-service
@@ -284,7 +259,7 @@ jobs:
             ./tests/internal/e2e/test_results/*.xml
 
       - name: Uploading screenshots
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         env:
           ARTIFACT_NAME: e2e_screenshots_${{ matrix.version }}_${{ matrix.group }}
@@ -313,7 +288,7 @@ jobs:
 
       - name: Save dependencies - node
         if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             tests/internal/e2e/node_modules
@@ -321,7 +296,7 @@ jobs:
 
       - name: Save dependencies - vscode
         if: always() && steps.cache-dependencies-restore-vscode.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             tests/internal/e2e/.wdio-vscode-service
@@ -333,24 +308,13 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
       options: --user vcast_user
 
     steps:
-      - name: Start forward proxy
-        run: |
-          sudo /usr/sbin/squid
-          NEW_PROXY="http://$(hostname --ip-address):3128"
-          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         continue-on-error: true
 
       - name: Wait before retry
@@ -363,7 +327,7 @@ jobs:
 
       - name: Check out repository (retry)
         if: failure()
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Black
         shell: bash
