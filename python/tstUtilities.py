@@ -906,7 +906,7 @@ def generateVMockApplyForUnitAndFunction(api, functionObject):
         # Otherwise, let's guess, but this could convert "too much" (e.g., in
         # functions that take function pointers)
         lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
-    const = "const" if functionObject.is_const else ""
+    const = "const" if isConstFunction (functionObject) else ""
     function_name = getFunctionNameForAddress(api, functionObject)
     vmock_function_name = getFunctionName(functionObject)
     mock_apply = mock_template.safe_substitute(
