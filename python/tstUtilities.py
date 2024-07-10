@@ -660,6 +660,7 @@ def getShortHash(toHash, requiredLen=8):
 
     return sanitized
 
+
 def dropTemplates(originalName):
     droppedName = ""
     in_count = 0
@@ -672,6 +673,7 @@ def dropTemplates(originalName):
             droppedName += char
 
     return droppedName
+
 
 def getFunctionName(functionObject):
     """
@@ -740,8 +742,8 @@ def buildCppParameterization(api, functionObject, functionName):
     else:
         fptrString = "*"
 
-    # original_return_type 
-    returnType = getReturnType (functionObject)
+    # original_return_type
+    returnType = getReturnType(functionObject)
 
     # TBD today - if we convert to using the new orig_declaration we'll
     # have to deal with the param names and special cases like int param[]
@@ -812,7 +814,6 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
             )
 
     elif isConstFunction(functionObject):
-
         # for const functions we need to insert a cast to a non const version
         # So for a function like this: int myMethod(int param) const
         # we need to insert: (int (fooClass::*)(int))
@@ -832,7 +833,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     # TBD today - This could be removed once we understand the mock_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
         print(f"    baseString: {baseString}")
-        returnType = getReturnType (functionObject)
+        returnType = getReturnType(functionObject)
         if functionObject.mock_lookup_type:
             print(
                 f"      mock_lookup_type: '{returnType}' '{functionObject.mock_lookup_type}'"
@@ -908,7 +909,7 @@ def generateVMockApplyForUnitAndFunction(api, functionObject):
         # Otherwise, let's guess, but this could convert "too much" (e.g., in
         # functions that take function pointers)
         lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
-    const = "const" if isConstFunction (functionObject) else ""
+    const = "const" if isConstFunction(functionObject) else ""
     function_name = getFunctionNameForAddress(api, functionObject)
     vmock_function_name = getFunctionName(functionObject)
     mock_apply = mock_template.safe_substitute(
@@ -949,7 +950,7 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
         vmockFunctionName,
     )
     # Put it all together
-    returnType = getReturnType (functionObject)
+    returnType = getReturnType(functionObject)
 
     # Need to handle when the function returns a function pointer
     # FIXME: this is likely very fragile
