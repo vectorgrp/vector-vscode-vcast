@@ -24,7 +24,7 @@ This script must be run under vpython
 """
 
 import clicastInterface
-from tstUtilities import tagForInit
+from dataAPIutilities import tagForInit
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd

@@ -14,6 +14,14 @@ import base64
 from enum import Enum
 from string import Template
 
+from dataAPIutilities import (
+    functionCanBeVMocked,
+    getReturnType,
+    getParameterList,
+    isConstFunction,
+    tagForInit,
+)
+
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
 
@@ -285,7 +293,6 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
 
 
 tagForGlobals = "<<GLOBAL>>"
-tagForInit = "<<INIT>>"
 
 
 def getFunctionList(api, unitName):
@@ -486,29 +493,6 @@ def splitExistingLine(line):
 unitAndFunctionRegex = "^\s*\/\/\s*vmock\s*(\S+)\s*(\S+)?.*"
 # units to not be shown in the unit list
 unitsToIgnore = ["USER_GLOBALS_VCAST"]
-# function to not be shown in the functions list
-# PCT-FIX-NEEDED - issue #8 - constructors listed as <<init>> function
-# these <<INIT>> functions should not be in the list
-# Waiting for PCT fix of FB: 101353.
-functionsToIgnore = ["coded_tests_driver", tagForInit]
-
-
-def functionCanBeVMocked(functionObject):
-    """
-    Convenience function
-    # PCT-FIX-NEEDED - issue #7 - is_mockable not dependable
-    this should be replaced by usage of is_mockable from the dataAPI
-    """
-    if functionObject.vcast_name in functionsToIgnore:
-        return False
-
-    # FIXME: this is a hack to avoid generating applys that don't have lookups
-    elif not functionObject.mock_lookup_type:
-        return False
-    elif hasattr (functionObject, "is_mockable"):
-        return functionObject.is_mockable
-    else:
-        return True
 
 
 def getUnitAneFunctionStrings(lineSoFar):
@@ -643,29 +627,10 @@ def getFunctionSignature(api, functionObject):
 
     # the static part of the signature looks like this,
     # we will append the parameters next
-    signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx,"
-
-    paramIndex = 0
-    for parameterObject in functionObject.parameters:
-        if parameterObject.name != "return":
-            # the  original declaration was added in vc24sp3 and contains
-            # both the type and the parameter name as originally defined.
-
-            # PCT-FIX-NEEDED - issue #1 - duplicate parameter names
-            # A special case is unnamed parameters, where "vcast_param"
-            # is used, so in this case replace with vcast_param1,2,3
-
-            paramIndex += 1
-            declarationToUse = parameterObject.orig_declaration
-            if "vcast_param" in declarationToUse:
-                uniqueParameterName = f"vcast_param{paramIndex}"
-                declarationToUse = declarationToUse.replace(
-                    "vcast_param", uniqueParameterName
-                )
-            signatureString += f" {declarationToUse},"
+    signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx"
 
     # In all cases the returnString will end with a "," so strip this
-    signatureString = signatureString[:-1]
+    signatureString += getParameterList(functionObject)
 
     return signatureString
 
@@ -753,21 +718,6 @@ def getFunctionName(functionObject):
     return returnName
 
 
-def isConstFunction(functionObject):
-    """
-    This function will return True if the function is const
-    since there does not seem to be a dataAPI attribute for this
-    I have broken it out to more easily handle edge cases
-    """
-
-    parameterization = functionObject.parameterization
-    returnValue = False
-    if parameterization.endswith(" const") or parameterization.endswith(">const"):
-        returnValue = True
-
-    return returnValue
-
-
 def buildCppParameterization(api, functionObject, functionName):
     """
     This function will convert the vcast parameterization
@@ -788,9 +738,8 @@ def buildCppParameterization(api, functionObject, functionName):
     else:
         fptrString = "*"
 
-    # PCT-FIX-NEEDED - issue #5 - return type has extra space
-    # original_return_type added to dataAPI in vc24sp3
-    returnType = functionObject.original_return_type.rstrip()
+    # original_return_type 
+    returnType = getReturnType (functionObject)
 
     # TBD today - if we convert to using the new orig_declaration we'll
     # have to deal with the param names and special cases like int param[]
@@ -852,17 +801,15 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
             api, functionObject, functionName
         )
 
-        functionName = functionName.split ('(')[0]
-        if isConstFunction (functionObject):
+        functionName = functionName.split("(")[0]
+        if isConstFunction(functionObject):
             baseString += f"<{cppParameterization}> (({cppParameterization})({cppParameterization} const)&{functionName})"
         else:
-            baseString += f"<{cppParameterization}> (({cppParameterization})&{functionName})"
+            baseString += (
+                f"<{cppParameterization}> (({cppParameterization})&{functionName})"
+            )
 
     elif isConstFunction(functionObject):
-
-        # PCT-FIX-NEEDED - issue #2 - is_const not dependable
-        # this should be replaced with a check of the dataAPI is_const attribute
-        # but is_const is has some bugs
 
         # for const functions we need to insert a cast to a non const version
         # So for a function like this: int myMethod(int param) const
@@ -875,7 +822,6 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
 
     else:
         baseString += f"(&{functionName})"
-       
 
     # Now create the enable and disable comments
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
@@ -884,8 +830,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     # TBD today - This could be removed once we understand the mock_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
         print(f"    baseString: {baseString}")
-        # PCT-FIX-NEEDED - issue #5 - trailing space
-        returnType = functionObject.original_return_type.rstrip()
+        returnType = getReturnType (functionObject)
         if functionObject.mock_lookup_type:
             print(
                 f"      mock_lookup_type: '{returnType}' '{functionObject.mock_lookup_type}'"
@@ -1002,8 +947,7 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
         vmockFunctionName,
     )
     # Put it all together
-    # PCT-FIX-NEEDED - issue #5 - trailing space
-    returnType = functionObject.original_return_type.rstrip()
+    returnType = getReturnType (functionObject)
 
     # Need to handle when the function returns a function pointer
     # FIXME: this is likely very fragile

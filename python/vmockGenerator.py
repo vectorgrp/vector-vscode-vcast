@@ -6,12 +6,15 @@ import traceback
 
 from string import Template
 
+
+from dataAPIutilities import functionCanBeVMocked
+
 from tstUtilities import (
     enableStubPrefix,
-    functionCanBeVMocked,
     generateVMockDefitionForUnitAndFunction,
     generateVMockApplyForUnitAndFunction,
 )
+
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
 
