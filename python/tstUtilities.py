@@ -4,15 +4,20 @@ this started life as a duplicate of:  dataAPIInterface/tstUtilities.py
 //////////////////////////////////////////////////////////////////////////////
 """
 
-from enum import Enum
 import os
 import re
 import sys
 import traceback
+import hashlib
+import base64
+
+from enum import Enum
 
 from dataAPIutilities import (
+    dropTemplates,
     functionCanBeVMocked,
     getInstantiatingClass,
+    getMockDeclaration,
     getReturnType,
     getParameterList,
     isConstFunction,
@@ -595,39 +600,70 @@ def functionIsOperator(functionName):
     return "::operator" in functionName or functionName.startswith("operator")
 
 
+def getShortHash(toHash, requiredLen=8):
+    """
+    Generate a short, unique(ish) hash of a string
+    """
+    # Get the MD5 sum of the string
+    hashed = hashlib.md5(bytes(toHash, "utf8")).digest()
+
+    # Get the base64 "safe" version (does not contain / or +)
+    b64 = base64.urlsafe_b64encode(hashed).decode()
+
+    # Strip off any other chars we don't like
+    sanitized = b64.replace("-", "").replace("_", "").replace("=", "")
+
+    # Find how much from the beginning/end we want
+    offset = int(requiredLen / 2)
+    sanitized = sanitized[:offset] + sanitized[-offset:]
+
+    return sanitized
+
+
 def getFunctionName(functionObject):
     """
-    We use the vmock with the unit and function names as the default
-    stub name, the user can edit this to make it unique
+    This function generates the name of the mock function
+
+    We use "vmock" along with the unit and function names as the default
+    stub name, the user can edit this to make it unique.
+
+    For automated testing, we support an environment variable
+    to append a unique hash to this name to guarantee that we won't
+    have name collisions
     """
 
     functionName = functionObject.name
 
     functionHash = ""
     if os.environ.get(ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES, None):
-        functionHash = str(hash(functionObject.mangled_name))
-        if functionHash[0] == "-":
-            functionHash = functionHash[1:]
-
-        # TBD today - using a 6 number hash, we can increase this if needed
-        functionHash = f"_{functionHash[:6]}"
+        # We want a leading underscore
+        functionHash = f"_{getShortHash(functionObject.mangled_name)}"
 
     returnName = "vmock_"
     returnName += functionObject.unit.name + "_"
 
+    # If the method is templated, don't generate a mock with the template in
+    # the name
+    #
+    # We need to do this _before_ splitting on `(`, in case there's a `(` in
+    # the template!
+    functionNameToUse = functionName
+    if "<" in functionNameToUse and ">" in functionNameToUse:
+        # Need to have both of these to be in a template
+        #
+        # We need to handle things like:
+        #
+        # ClassName<TypeName>::operator>=
+        functionNameToUse = dropTemplates(functionNameToUse)
+
     # overloaded functions will have the parameterization, stirp
-    functionNameToUse = functionName.split("(")[0]
+    functionNameToUse = functionNameToUse.split("(")[0]
 
     # Handle if we have an operator function (which will include symbols we
     # cannot use in a function name)
     if functionIsOperator(functionNameToUse):
         startIndex = functionNameToUse.find("operator")
         functionNameToUse = functionNameToUse[: startIndex + len("operator")]
-
-    # If the method is templated, don't generate a mock
-    # with the template in the name
-    if "<" in functionNameToUse:
-        functionNameToUse = re.sub("<.*>", "", functionNameToUse)
 
     # class members will have the scope operator, replace
     returnName += functionNameToUse.replace("::", "_")
@@ -646,13 +682,7 @@ def buildCppParameterization(api, functionObject, functionName):
     # create the function pointer part ether * or className::*
     instantiatingClass = ""
     if "::" in functionName:
-        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
-        # We need to check if we get a class name after splitting; we only use
-        # if it is a class
-        if api.Type.get_by_typemark(instantiatingClass) is None:
-            instantiatingClass = ""
-
-    if len(instantiatingClass) > 0:
+        instantiatingClass = getInstantiatingClass(api, functionObject)
         fptrString = f"{instantiatingClass}::*"
     else:
         fptrString = "*"
@@ -698,7 +728,6 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
 
     # if this is a function template
     if functionObject.prototype_instantiation:
-
         # name_with_template_arguments is only valid for vc24sp3 and higher
         # Original FB: 101345
         baseString += f"(&{functionObject.full_prototype_instantiation})"
@@ -730,7 +759,6 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
             )
 
     elif isConstFunction(functionObject):
-
         # for const functions we need to insert a cast to a non const version
         # So for a function like this: int myMethod(int param) const
         # we need to insert: (int (fooClass::*)(int))
@@ -758,7 +786,13 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         else:
             print("      mock_lookup_type: 'None'")
 
-    return enableComment, disableComment
+    # FIXME: Some of our strings had `\n` in them -- this causes parse errors,
+    # so make sure all comments are on one line
+    # Andrew we should find an example that caused this, because we are
+    # simply assembling strings here, and we should not have any newlines
+    # could it be that one of the dataAPI fields has a \n in it?  If so
+    # we should write that up as a bug.
+    return enableComment.replace("\n", ""), disableComment.replace("\n", "")
 
 
 def generateVMockDefitionForUnitAndFunction(api, functionObject):
@@ -785,10 +819,15 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
         functionObject,
         vmockFunctionName,
     )
-    # Put it all together
-    returnType = getReturnType(functionObject)
+
+    stubDeclaration = getMockDeclaration(
+        functionObject, vmockFunctionName, signatureString
+    )
+
+    # Put it all together, I like it this way because it ie easy to read
+    # and it looks more like the code that will be generated with LF's
     whatToReturn = (
-        f"\n{returnType} {vmockFunctionName}({signatureString})"
+        f"\n{stubDeclaration}"
         + " {\n  "
         + enableComment
         + "\n  "
@@ -851,7 +890,6 @@ def processVMockDefinition(enviroName, lineSoFar):
     elif len(unitObjectList) == 1 and len(functionObjectList) == 1:
         unitObject = unitObjectList[0]
         functionObject = functionObjectList[0]
-
         whatToReturn = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
         returnData.choiceKind = choiceKindType.Snippet

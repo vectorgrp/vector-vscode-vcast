@@ -10,9 +10,11 @@ from string import Template
 from dataAPIutilities import functionCanBeVMocked
 
 from tstUtilities import (
-    enableStubPrefix,
+    getFunctionName,
     generateVMockDefitionForUnitAndFunction,
 )
+
+from dataAPIutilities import generateVMockApplyForUnitAndFunction
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
@@ -60,31 +62,14 @@ def generateAllVMockDefinitions(enviroPath):
             print(f"  function: {functionObject.name}")
             mock_content = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
-            # The vmock usage line
-            invocation = None
-
-            # Iterate on all parts of the mock content to find the usage
-            for line in mock_content.split("\n"):
-                # Remove whitespace
-                line = line.strip()
-
-                # When we've found the usage line
-                if line.startswith(enableStubPrefix):
-                    # Grab the invocation
-                    invocation = line[len(enableStubPrefix) + 2 :]
-
-                    # It should now be the vmock_session content
-                    assert invocation.startswith("vmock_session.")
-
-                    # We're done
-                    break
-
-            # If we haven't parsed the invocation line, we have an issue
-            assert invocation is not None
+            vmock_function_name = getFunctionName(functionObject)
+            mock_apply, mock_use = generateVMockApplyForUnitAndFunction(
+                api, functionObject, vmock_function_name
+            )
 
             # Save all the data we need
-            mock_bodies.append(mock_content)
-            mock_usages.append(invocation)
+            mock_bodies.append(f"{mock_content}\n\n{mock_apply}")
+            mock_usages.append(mock_use)
 
     # Don't run this on a file with no units
     assert first_unit is not None
