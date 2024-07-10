@@ -704,13 +704,7 @@ def buildCppParameterization(api, functionObject, functionName):
     # create the function pointer part ether * or className::*
     instantiatingClass = ""
     if "::" in functionName:
-        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
-        # We need to check if we get a class name after splitting; we only use
-        # if it is a class
-        if api.Type.get_by_typemark(instantiatingClass) is None:
-            instantiatingClass = ""
-
-    if len(instantiatingClass) > 0:
+        instantiatingClass = getInstantiatingClass(api, functionObject)
         fptrString = f"{instantiatingClass}::*"
     else:
         fptrString = "*"
