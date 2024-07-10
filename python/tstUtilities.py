@@ -12,7 +12,6 @@ import hashlib
 import base64
 
 from enum import Enum
-from string import Template
 
 from dataAPIutilities import (
     dropTemplates,
@@ -623,8 +622,14 @@ def getShortHash(toHash, requiredLen=8):
 
 def getFunctionName(functionObject):
     """
-    We use the vmock with the unit and function names as the default
-    stub name, the user can edit this to make it unique
+    This function generates the name of the mock function
+
+    We use "vmock" along with the unit and function names as the default
+    stub name, the user can edit this to make it unique.
+
+    For automated testing, we support an environment variable
+    to append a unique hash to this name to guarantee that we won't
+    have name collisions
     """
 
     functionName = functionObject.name
@@ -783,86 +788,11 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
 
     # FIXME: Some of our strings had `\n` in them -- this causes parse errors,
     # so make sure all comments are on one line
+    # Andrew we should find an example that caused this, because we are
+    # simply assembling strings here, and we should not have any newlines
+    # could it be that one of the dataAPI fields has a \n in it?  If so
+    # we should write that up as a bug.
     return enableComment.replace("\n", ""), disableComment.replace("\n", "")
-
-
-def getFunctionNameForAddress(api, functionObject):
-    functionName = functionObject.vcast_name
-
-    if functionObject.prototype_instantiation:
-        functionName = functionObject.full_prototype_instantiation
-
-    # If we're `operator()`, do nothing
-    if "operator()" in functionName:
-        functionName = re.split("operator\(\)", functionName)[0] + "operator()"
-    elif "operator" in functionName:
-        # Need to handle operator< and overloads that contain templates, but
-        # where the function itself isn't templated
-        #
-        # This stops the logic below getting hit if we have operator< or
-        # operator>
-        functionName = functionName.split("(")[0]
-    elif "<" in functionName and ">" in functionName:
-        # Possible FIXME:
-        #
-        # Need to careful when splitting the name when we have templates
-        #
-        # Note: we can have things like `operator<=`, so we need to check if we
-        # have _both_ opening and closing <>
-        in_count = 0
-        for idx, char in enumerate(functionName):
-            if char == "<":
-                in_count += 1
-            elif char == ">":
-                in_count -= 1
-            elif char == "(" and in_count == 0:
-                functionName = functionName[:idx]
-    else:
-        functionName = functionName.split("(")[0]
-
-    return functionName
-
-
-mock_template = Template(
-    """
-void ${mock}_apply(vunit::MockSession &vmock_session) {
-    using vcast_mock_rtype = ${original_return} ;
-    ${lookup_decl} ${const} = &${function} ;
-    vmock_session.mock <${lookup_type}> ((${lookup_type})vcast_fn_ptr).assign (&${mock});
-}
-""".strip(
-        "\n"
-    )
-)
-
-
-def generateVMockApplyForUnitAndFunction(api, functionObject):
-    original_return = functionObject.original_return_type
-    lookup_type = functionObject.mock_lookup_type
-
-    # We need to reintroduce the 'vcast_fn_ptr' string, which Richard ommitted
-    # (likely because Andrew asked him to omit it ... doh!)
-    if "::*" in lookup_type:
-        # If we're a method, we only see this in one place
-        lookup_decl = lookup_type.replace("::*)(", "::*vcast_fn_ptr)(", 1)
-    else:
-        # Otherwise, let's guess, but this could convert "too much" (e.g., in
-        # functions that take function pointers)
-        lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
-    const = "const" if isConstFunction(functionObject) else ""
-    function_name = getFunctionNameForAddress(api, functionObject)
-    vmock_function_name = getFunctionName(functionObject)
-    mock_apply = mock_template.safe_substitute(
-        original_return=original_return,
-        lookup_decl=lookup_decl,
-        const=const,
-        lookup_type=lookup_type,
-        function=function_name,
-        mock=vmock_function_name,
-    )
-    mock_use = f"{vmock_function_name}_apply(vmock_session);"
-
-    return mock_apply, mock_use
 
 
 def generateVMockDefitionForUnitAndFunction(api, functionObject):
@@ -960,7 +890,6 @@ def processVMockDefinition(enviroName, lineSoFar):
     elif len(unitObjectList) == 1 and len(functionObjectList) == 1:
         unitObject = unitObjectList[0]
         functionObject = functionObjectList[0]
-
         whatToReturn = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
         returnData.choiceKind = choiceKindType.Snippet

@@ -3,6 +3,10 @@ This file contains all the special stuff we need to do to compute the LSE stuff 
 along with all of the work arounds for existing bugs or missing features
 """
 
+import re
+
+from string import Template
+
 
 def getParameterList(functionObject):
     # "orig_declaration" contains both the type and the
@@ -131,8 +135,8 @@ def functionCanBeVMocked(functionObject):
 
 def getInstantiatingClass(api, functionObject):
 
-    # PCT-FIX-NEEDED - would like them to provide this string in a functionObject
-    # Should be an empty string or None if static class method
+    # PCT-FIX-NEEDED - would like them to provide this string in functionObject
+    # Should be an empty string or None if static class method.
 
     instantiatingClass = ""
     if "::" in functionObject.name:
@@ -160,3 +164,92 @@ def getInstantiatingClass(api, functionObject):
             instantiatingClass = ""
 
     return instantiatingClass
+
+
+# ----------------------------------------------------------------------------------------
+# PCT-FIX-NEEDED - would be nice if Ian would generate the apply functions for us
+# so that we don't have to do any of the processing below these lines
+# ----------------------------------------------------------------------------------------
+
+
+def getFunctionNameForAddress(api, functionObject):
+    functionName = functionObject.vcast_name
+
+    if functionObject.prototype_instantiation:
+        functionName = functionObject.full_prototype_instantiation
+
+    # If we're `operator()`, do nothing
+    if "operator()" in functionName:
+        functionName = re.split("operator\(\)", functionName)[0] + "operator()"
+    elif "operator" in functionName:
+        # Need to handle operator< and overloads that contain templates, but
+        # where the function itself isn't templated
+        #
+        # This stops the logic below getting hit if we have operator< or
+        # operator>
+        functionName = functionName.split("(")[0]
+    elif "<" in functionName and ">" in functionName:
+        # Possible FIXME:
+        #
+        # Need to careful when splitting the name when we have templates
+        #
+        # Note: we can have things like `operator<=`, so we need to check if we
+        # have _both_ opening and closing <>
+        in_count = 0
+        for idx, char in enumerate(functionName):
+            if char == "<":
+                in_count += 1
+            elif char == ">":
+                in_count -= 1
+            elif char == "(" and in_count == 0:
+                functionName = functionName[:idx]
+    else:
+        functionName = functionName.split("(")[0]
+
+    return functionName
+
+
+mock_template = Template(
+    """
+void ${mock}_apply(vunit::MockSession &vmock_session) {
+    using vcast_mock_rtype = ${original_return} ;
+    ${lookup_decl} ${const} = &${function} ;
+    vmock_session.mock <${lookup_type}> ((${lookup_type})vcast_fn_ptr).assign (&${mock});
+}
+""".strip(
+        "\n"
+    )
+)
+
+
+def generateVMockApplyForUnitAndFunction(api, functionObject, vmockFunctionName):
+    """
+    Note that we pass in vmockFunctionName because we want getFunctionName()
+    to remain in tstUtilitie.py
+    """
+
+    original_return = functionObject.original_return_type
+    lookup_type = functionObject.mock_lookup_type
+
+    # We need to reintroduce the 'vcast_fn_ptr' string, which Richard ommitted
+    # (likely because Andrew asked him to omit it ... doh!)
+    if "::*" in lookup_type:
+        # If we're a method, we only see this in one place
+        lookup_decl = lookup_type.replace("::*)(", "::*vcast_fn_ptr)(", 1)
+    else:
+        # Otherwise, let's guess, but this could convert "too much" (e.g., in
+        # functions that take function pointers)
+        lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
+    const = "const" if isConstFunction(functionObject) else ""
+    function_name = getFunctionNameForAddress(api, functionObject)
+    mock_apply = mock_template.safe_substitute(
+        original_return=original_return,
+        lookup_decl=lookup_decl,
+        const=const,
+        lookup_type=lookup_type,
+        function=function_name,
+        mock=vmockFunctionName,
+    )
+    mock_use = f"{vmockFunctionName}_apply(vmock_session);"
+
+    return mock_apply, mock_use

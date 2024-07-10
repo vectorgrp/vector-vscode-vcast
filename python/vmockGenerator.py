@@ -10,10 +10,11 @@ from string import Template
 from dataAPIutilities import functionCanBeVMocked
 
 from tstUtilities import (
-    enableStubPrefix,
+    getFunctionName,
     generateVMockDefitionForUnitAndFunction,
-    generateVMockApplyForUnitAndFunction,
 )
+
+from dataAPIutilities import generateVMockApplyForUnitAndFunction
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
@@ -61,8 +62,9 @@ def generateAllVMockDefinitions(enviroPath):
             print(f"  function: {functionObject.name}")
             mock_content = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
+            vmock_function_name = getFunctionName(functionObject)
             mock_apply, mock_use = generateVMockApplyForUnitAndFunction(
-                api, functionObject
+                api, functionObject, vmock_function_name
             )
 
             # Save all the data we need
