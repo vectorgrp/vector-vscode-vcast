@@ -88,6 +88,7 @@ def getInstantiatingClass(api, functionObject):
 
     # PCT-FIX-NEEDED - would like them to provide this string in a functionObject
     # Should be an empty string or None if static class method
+
     instantiatingClass = ""
     if "::" in functionObject.name:
         instantiatingClass = functionObject.name.rsplit("::", 1)[0]
@@ -100,13 +101,8 @@ def getInstantiatingClass(api, functionObject):
             instantiatingClass = instantiatingClass[:idxOfOperatorFollowedBySpace]
         elif "<" in instantiatingClass:
             # FIXME: we don't store the correct string for `get_by_typemark`.
-            #
             # However, having `<` in the name, is likely enough to know we are
             # a class and not a namespace!
-            #
-            # See: checkTemplateClassExists for a more detailed (but probably
-            # pointless!) way to do this.
-
             pass
 
         elif api.Type.get_by_typemark(instantiatingClass) is None:

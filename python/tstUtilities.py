@@ -574,21 +574,6 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
-def checkTemplateClassExists(api, instantiatingClass):
-    # TODO: decide if we actually need this or if the existence of '<'
-    # is enough (you can't really have `<` in namespaces ...)
-
-    validClass = False
-    beforeTemplate = instantiatingClass.split("<", 1)[0]
-    for t in api.Type.all():
-        currName = t.get_name()
-        currNameBeforeTemplate = currName.split("<", 1)[0]
-        if currName.startswith(beforeTemplate):
-            validClass = True
-
-    return validClass
-
-
 def getFunctionSignature(api, functionObject):
     """
     Create the signature for a vmock stub function, something like this:
