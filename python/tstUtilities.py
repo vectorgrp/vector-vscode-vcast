@@ -660,6 +660,18 @@ def getShortHash(toHash, requiredLen=8):
 
     return sanitized
 
+def dropTemplates(originalName):
+    droppedName = ""
+    in_count = 0
+    for idx, char in enumerate(originalName):
+        if char == "<":
+            in_count += 1
+        elif char == ">":
+            in_count -= 1
+        elif in_count == 0:
+            droppedName += char
+
+    return droppedName
 
 def getFunctionName(functionObject):
     """
@@ -689,16 +701,7 @@ def getFunctionName(functionObject):
         # We need to handle things like:
         #
         # ClassName<TypeName>::operator>=
-        oldFunctionNameToUse = functionNameToUse
-        functionNameToUse = ""
-        in_count = 0
-        for idx, char in enumerate(oldFunctionNameToUse):
-            if char == "<":
-                in_count += 1
-            elif char == ">":
-                in_count -= 1
-            elif in_count == 0:
-                functionNameToUse += char
+        functionNameToUse = dropTemplates(functionNameToUse)
 
     # overloaded functions will have the parameterization, stirp
     functionNameToUse = functionNameToUse.split("(")[0]
@@ -950,7 +953,7 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
 
     # Need to handle when the function returns a function pointer
     # FIXME: this is likely very fragile
-    if "(*)" in returnType:
+    if "(*)" in dropTemplates(returnType):
         decl = returnType.replace("(*)", f"(*{vmockFunctionName}({signatureString}))")
     elif "(&)" in returnType:
         decl = returnType.replace("(&)", f"(&{vmockFunctionName}({signatureString}))")
