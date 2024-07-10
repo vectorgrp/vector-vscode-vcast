@@ -584,11 +584,10 @@ def getFunctionSignature(api, functionObject):
         if api.Type.get_by_typemark(instantiatingClass) is None:
             instantiatingClass = ""
 
-    # the static part of the signature looks like this,
-    # we will append the parameters next
+    # the static part of the signature looks like this ...
     signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx"
 
-    # In all cases the returnString will end with a "," so strip this
+    # now append the parameters (if any)
     signatureString += getParameterList(functionObject)
 
     return signatureString
