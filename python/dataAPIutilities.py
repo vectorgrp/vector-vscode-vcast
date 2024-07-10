@@ -73,11 +73,13 @@ def functionCanBeVMocked(functionObject):
     # Destructors are not supported by vmock
     elif "~" in functionObject.vcast_name:
         return False
-    # FIXME: this is a hack to avoid generating applys that don't have lookups
-    # Andrew: Which example that causes this issue?
-    elif not functionObject.mock_lookup_type:
-        return False
     elif hasattr(functionObject, "is_mockable"):
-        return functionObject.is_mockable
+
+        # FIXME: this is a hack to avoid generating applys that don't have lookups
+        # Andrew: Which example that causes this issue?
+        if not functionObject.mock_lookup_type:
+            return False
+        else:
+            return functionObject.is_mockable
     else:
         return True
