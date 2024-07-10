@@ -77,3 +77,16 @@ def functionCanBeVMocked(functionObject):
         return functionObject.is_mockable
     else:
         return True
+
+
+def getInstantiatingClass(api, functionObject):
+
+    instantiatingClass = ""
+    if "::" in functionObject.name:
+        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+        # We need to check if we get a class name after splitting; we only use
+        # if it is a class
+        if api.Type.get_by_typemark(instantiatingClass) is None:
+            instantiatingClass = ""
+
+    return instantiatingClass

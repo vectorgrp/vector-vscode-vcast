@@ -12,6 +12,7 @@ import traceback
 
 from dataAPIutilities import (
     functionCanBeVMocked,
+    getInstantiatingClass,
     getReturnType,
     getParameterList,
     isConstFunction,
@@ -576,13 +577,7 @@ def getFunctionSignature(api, functionObject):
     """
 
     # if this function is a class member, we include the class name
-    instantiatingClass = ""
-    if "::" in functionObject.name:
-        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
-        # We need to check if we get a class name after splitting; we only use
-        # if it is a class
-        if api.Type.get_by_typemark(instantiatingClass) is None:
-            instantiatingClass = ""
+    instantiatingClass = getInstantiatingClass(api, functionObject)
 
     # the static part of the signature looks like this ...
     signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx"
@@ -662,8 +657,8 @@ def buildCppParameterization(api, functionObject, functionName):
     else:
         fptrString = "*"
 
-    # original_return_type 
-    returnType = getReturnType (functionObject)
+    # original_return_type
+    returnType = getReturnType(functionObject)
 
     # TBD today - if we convert to using the new orig_declaration we'll
     # have to deal with the param names and special cases like int param[]
@@ -755,7 +750,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     # TBD today - This could be removed once we understand the mock_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
         print(f"    baseString: {baseString}")
-        returnType = getReturnType (functionObject)
+        returnType = getReturnType(functionObject)
         if functionObject.mock_lookup_type:
             print(
                 f"      mock_lookup_type: '{returnType}' '{functionObject.mock_lookup_type}'"
@@ -791,7 +786,7 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
         vmockFunctionName,
     )
     # Put it all together
-    returnType = getReturnType (functionObject)
+    returnType = getReturnType(functionObject)
     whatToReturn = (
         f"\n{returnType} {vmockFunctionName}({signatureString})"
         + " {\n  "
