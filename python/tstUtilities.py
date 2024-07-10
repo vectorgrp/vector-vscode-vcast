@@ -16,6 +16,7 @@ from string import Template
 
 from dataAPIutilities import (
     functionCanBeVMocked,
+    getInstantiatingClass,
     getReturnType,
     getParameterList,
     isConstFunction,
@@ -595,35 +596,7 @@ def getFunctionSignature(api, functionObject):
     """
 
     # if this function is a class member, we include the class name
-    instantiatingClass = ""
-    if "::" in functionObject.name:
-        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
-
-        # Operators can take a type, and that type can have `::` in it, so we
-        # need to break before the `::operator`
-        operatorFollowedBySpace = "::operator "
-        if operatorFollowedBySpace in instantiatingClass:
-            idxOfOperatorFollowedBySpace = instantiatingClass.find("::operator ")
-            instantiatingClass = instantiatingClass[:idxOfOperatorFollowedBySpace]
-        elif "<" in instantiatingClass:
-            # FIXME: we don't store the correct string for `get_by_typemark`.
-            #
-            # However, having `<` in the name, is likely enough to know we are
-            # a class and not a namespace!
-            #
-            # See: checkTemplateClassExists for a more detailed (but probably
-            # pointless!) way to do this.
-
-            pass
-
-        elif api.Type.get_by_typemark(instantiatingClass) is None:
-            # We need to check if we get a class name after splitting; we only use
-            # if it is a class.
-            instantiatingClass = ""
-
-        # FIXME: Hack to check if we're a static method or not
-        if "::*" not in functionObject.mock_lookup_type:
-            instantiatingClass = ""
+    instantiatingClass = getInstantiatingClass(api, functionObject)
 
     # the static part of the signature looks like this ...
     signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx"
@@ -737,8 +710,8 @@ def buildCppParameterization(api, functionObject, functionName):
     else:
         fptrString = "*"
 
-    # original_return_type 
-    returnType = getReturnType (functionObject)
+    # original_return_type
+    returnType = getReturnType(functionObject)
 
     # TBD today - if we convert to using the new orig_declaration we'll
     # have to deal with the param names and special cases like int param[]
@@ -829,7 +802,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     # TBD today - This could be removed once we understand the mock_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
         print(f"    baseString: {baseString}")
-        returnType = getReturnType (functionObject)
+        returnType = getReturnType(functionObject)
         if functionObject.mock_lookup_type:
             print(
                 f"      mock_lookup_type: '{returnType}' '{functionObject.mock_lookup_type}'"

@@ -83,3 +83,38 @@ def functionCanBeVMocked(functionObject):
             return functionObject.is_mockable
     else:
         return True
+
+
+def getInstantiatingClass(api, functionObject):
+
+    instantiatingClass = ""
+    if "::" in functionObject.name:
+        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+
+        # Operators can take a type, and that type can have `::` in it, so we
+        # need to break before the `::operator`
+        operatorFollowedBySpace = "::operator "
+        if operatorFollowedBySpace in instantiatingClass:
+            idxOfOperatorFollowedBySpace = instantiatingClass.find("::operator ")
+            instantiatingClass = instantiatingClass[:idxOfOperatorFollowedBySpace]
+        elif "<" in instantiatingClass:
+            # FIXME: we don't store the correct string for `get_by_typemark`.
+            #
+            # However, having `<` in the name, is likely enough to know we are
+            # a class and not a namespace!
+            #
+            # See: checkTemplateClassExists for a more detailed (but probably
+            # pointless!) way to do this.
+
+            pass
+
+        elif api.Type.get_by_typemark(instantiatingClass) is None:
+            # We need to check if we get a class name after splitting; we only use
+            # if it is a class.
+            instantiatingClass = ""
+
+        # FIXME: Hack to check if we're a static method or not
+        if "::*" not in functionObject.mock_lookup_type:
+            instantiatingClass = ""
+
+    return instantiatingClass
