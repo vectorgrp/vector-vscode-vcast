@@ -27,7 +27,7 @@ void (*fptr(void (*)(int, int)))(int, int);
 void fptr_2(int, int, void (*)(int, int), void (*)(int, int));
 
 // BUG: array of function pointers is returned here
-std::array<void (*)(void), 1> templates(std::array<int, 1>, int);
+std::array<void (*)(void), 1> getArrayOfFPtrs(std::array<int, 1>, int);
 
 class ConstClass {
 public:
