@@ -56,6 +56,51 @@ def getReturnType(functionObject):
     return functionObject.original_return_type.rstrip()
 
 
+def dropTemplates(originalName):
+    """
+    FIXME: Andrew please add a comment for what this is doiing, and why,
+    as well as what we need from PCT to make this not necessary
+    """
+    droppedName = ""
+    in_count = 0
+    for idx, char in enumerate(originalName):
+        if char == "<":
+            in_count += 1
+        elif char == ">":
+            in_count -= 1
+        elif in_count == 0:
+            droppedName += char
+
+    return droppedName
+
+
+def getMockDeclaration(functionObject, vmockFunctionName, signatureString):
+    """
+    This handles the special cases for the return of the mock which
+    cannot always match the return type of the original function
+
+    FIXME: this is likely very fragile
+    Andrew please add more details here for what's going on
+    and what we want from PCT to make this fool proof
+    """
+
+    returnType = getReturnType(functionObject)
+
+    # Need to handle when the function returns a function pointer
+    if "(*)" in dropTemplates(returnType):
+        stubDeclaration = returnType.replace(
+            "(*)", f"(*{vmockFunctionName}({signatureString}))"
+        )
+    elif "(&)" in returnType:
+        stubDeclaration = returnType.replace(
+            "(&)", f"(&{vmockFunctionName}({signatureString}))"
+        )
+    else:
+        stubDeclaration = f"\n{returnType} {vmockFunctionName}({signatureString})"
+
+    return stubDeclaration
+
+
 def functionCanBeVMocked(functionObject):
     """
     # PCT-FIX-NEEDED - issue #7 - is_mockable not dependable

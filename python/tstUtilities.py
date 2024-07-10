@@ -15,8 +15,10 @@ from enum import Enum
 from string import Template
 
 from dataAPIutilities import (
+    dropTemplates,
     functionCanBeVMocked,
     getInstantiatingClass,
+    getMockDeclaration,
     getReturnType,
     getParameterList,
     isConstFunction,
@@ -619,20 +621,6 @@ def getShortHash(toHash, requiredLen=8):
     return sanitized
 
 
-def dropTemplates(originalName):
-    droppedName = ""
-    in_count = 0
-    for idx, char in enumerate(originalName):
-        if char == "<":
-            in_count += 1
-        elif char == ">":
-            in_count -= 1
-        elif in_count == 0:
-            droppedName += char
-
-    return droppedName
-
-
 def getFunctionName(functionObject):
     """
     We use the vmock with the unit and function names as the default
@@ -901,19 +889,21 @@ def generateVMockDefitionForUnitAndFunction(api, functionObject):
         functionObject,
         vmockFunctionName,
     )
-    # Put it all together
-    returnType = getReturnType(functionObject)
 
-    # Need to handle when the function returns a function pointer
-    # FIXME: this is likely very fragile
-    if "(*)" in dropTemplates(returnType):
-        decl = returnType.replace("(*)", f"(*{vmockFunctionName}({signatureString}))")
-    elif "(&)" in returnType:
-        decl = returnType.replace("(&)", f"(&{vmockFunctionName}({signatureString}))")
-    else:
-        decl = f"\n{returnType} {vmockFunctionName}({signatureString})"
+    stubDeclaration = getMockDeclaration(
+        functionObject, vmockFunctionName, signatureString
+    )
 
-    whatToReturn = f"{decl} {{\n    {enableComment}\n    {disableComment}\n}}"
+    # Put it all together, I like it this way because it ie easy to read
+    # and it looks more like the code that will be generated with LF's
+    whatToReturn = (
+        f"\n{stubDeclaration}"
+        + " {\n  "
+        + enableComment
+        + "\n  "
+        + disableComment
+        + "\n\n}"
+    )
 
     return whatToReturn
 
