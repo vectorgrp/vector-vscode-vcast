@@ -14,7 +14,7 @@ void (*fptr(void (*)(int, int)))(int, int) {
 void fptr_2(int, int, void (*)(int, int), void (*)(int, int)) {}
 
 
-std::array<void (*)(void), 1> templates(std::array<int, 1>, int) {
+std::array<void (*)(void), 1> getArrayOfFPtrs(std::array<int, 1>, int) {
   return std::array<void (*)(void), 1>();
 }
 
