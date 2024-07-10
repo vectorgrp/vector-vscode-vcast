@@ -6,11 +6,14 @@ import traceback
 
 from string import Template
 
+
+from dataAPIutilities import functionCanBeVMocked
+
 from tstUtilities import (
     enableStubPrefix,
-    functionCanBeVMocked,
     generateVMockDefitionForUnitAndFunction,
 )
+
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
 
@@ -40,7 +43,7 @@ def generateAllVMockDefinitions(enviroPath):
 
     api = UnitTestApi(enviroPath)
     for unitObject in api.Unit.all():
-        print (f"Processing unit: {unitObject.name}")
+        print(f"Processing unit: {unitObject.name}")
         for functionObject in unitObject.functions:
             # We don't want to handle `<<INIT>>` subprograms (bug in VectorCAST)
             if not functionCanBeVMocked(functionObject):
@@ -54,7 +57,7 @@ def generateAllVMockDefinitions(enviroPath):
             #
             # Note: we're doing this with string processing here to avoid
             # changing too much of the actual code
-            print (f"  function: {functionObject.name}")
+            print(f"  function: {functionObject.name}")
             mock_content = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
             # The vmock usage line
