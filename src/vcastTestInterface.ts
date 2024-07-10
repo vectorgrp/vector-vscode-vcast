@@ -2,6 +2,7 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
+import { cleanVcastOutput } from "../src-common/commonUtilities";
 import {
   configFilename,
   getUnitTestLocationForPath,
@@ -97,12 +98,8 @@ function getChecksum(filePath: string) {
     // convert the to a number and return
     // this will throw if something is wrong with the result
     try {
-      if (commandOutputString.includes("ACTUAL-DATA")) {
-        const pieces = commandOutputString.split("ACTUAL-DATA", 2);
-        returnValue = Number(pieces[1].trim());
-      } else {
-        returnValue = Number(commandOutputString);
-      }
+      commandOutputString = cleanVcastOutput(commandOutputString);
+      returnValue = Number(commandOutputString);
       // only save into the cache if we get a valid checksum
       const cacheValue: ChecksumCacheType = {
         checksum: returnValue,
