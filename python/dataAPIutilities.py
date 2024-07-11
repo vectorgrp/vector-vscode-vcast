@@ -219,13 +219,12 @@ def getFunctionNameForAddress(api, functionObject):
     return functionName
 
 
-# FIXME: we cannot use a ternary opertor for disable because the compiler generates
-# an error when the ${function} is overloaded
 mock_template = Template(
     """
 void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
     using vcast_mock_rtype = ${original_return} ;
-    ${lookup_decl} ${const} = &${function} ;
+    ${lookup_decl} ${const} = nullptr;
+    if (enable) { vcast_fn_ptr = &${function}; }
     vmock_session.mock <${lookup_type}> ((${lookup_type})vcast_fn_ptr).assign (&${mock});
 }
 """.strip(
