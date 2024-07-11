@@ -38,10 +38,14 @@ export function generateHoverData(
   );
   const uri = URI.file(tstFilepath).toString();
 
-  const textDocument = TextDocument.create(uri, languageId, 1, tstText);
+  let textDocument;
+  if (emptyDocument) {
+    textDocument = undefined;
+  } else {
+    textDocument = TextDocument.create(uri, languageId, 1, tstText);
+  }
   const documents = new TextDocuments();
-
-  storeNewDocument(documents, uri, emptyDocument ? undefined : textDocument);
+  storeNewDocument(documents, uri, textDocument);
 
   const completion = asHoverParameters(textDocument, position);
 
@@ -54,8 +58,8 @@ export function generateHoverData(
     "vpython"
   );
 
-  if (documents.all()?.[0]) {
-    console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
+  if (textDocument) {
+    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
   }
 
   return getHoverString(documents, completion);
@@ -109,10 +113,15 @@ export function generateCompletionData(
   );
   const uri = URI.file(tstFilepath).toString();
 
-  const textDocument = TextDocument.create(uri, languageId, 1, tstText);
+  let textDocument;
+  if (emptyDocument) {
+    textDocument = undefined;
+  } else {
+    textDocument = TextDocument.create(uri, languageId, 1, tstText);
+  }
   const documents = new TextDocuments();
 
-  storeNewDocument(documents, uri, emptyDocument ? undefined : textDocument);
+  storeNewDocument(documents, uri, textDocument);
 
   const completion = asCompletionParameters(
     textDocument,
@@ -129,10 +138,10 @@ export function generateCompletionData(
   );
 
   if (documents.all()?.[0]) {
-    console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
+    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
   }
 
-  return getTstCompletionData(documents, completion);
+  return getTstCompletionData(textDocument, completion);
 }
 
 export function asCompletionParameters(
