@@ -143,7 +143,6 @@ def functionCanBeVMocked(functionObject):
 
 
 def getInstantiatingClass(api, functionObject):
-
     # PCT-FIX-NEEDED - would like them to provide this string in functionObject
     # Should be an empty string or None if static class method.
 

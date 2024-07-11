@@ -45,7 +45,7 @@ def getStandardArgsFromTestObject(testIDObject, quoteParameters):
     return returnString
 
 
-def convertOutput (rawOutput):
+def convertOutput(rawOutput):
     """
     This will convert the raw output and strip the VECTORCAST_DIR warning
     """

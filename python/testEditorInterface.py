@@ -36,7 +36,6 @@ def main():
 
     # argv has the name of the script as arg 1 and then user args
     if len(sys.argv) == 4:
-
         # What to do choiceList-ct or choiceList-tst
         mode = sys.argv[1]
 
@@ -47,7 +46,6 @@ def main():
         inputLine = sys.argv[3]
 
         if mode == "choiceList-ct":
-
             # if the line starts with "void vmock" then we are processing vmock definition
             if re.match("^\s*\/\/\s*vmock", inputLine):
                 choiceData = processVMockDefinition(enviroName, inputLine)
