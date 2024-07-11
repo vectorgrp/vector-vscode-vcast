@@ -17,7 +17,7 @@ import sys
 from tstUtilities import (
     choiceDataType,
     processTstLine,
-    processVMockDefinition,
+    processMockDefinition,
     processVMockSession,
 )
 from tstUtilities import globalOutputLog
@@ -48,7 +48,7 @@ def main():
         if mode == "choiceList-ct":
             # if the line starts with "void vmock" then we are processing vmock definition
             if re.match("^\s*\/\/\s*vmock", inputLine):
-                choiceData = processVMockDefinition(enviroName, inputLine)
+                choiceData = processMockDefinition(enviroName, inputLine)
 
             # of if the line starts with auto vmock_session =
             elif re.match("^\s*auto\s+vmock_session\s*=", inputLine):
