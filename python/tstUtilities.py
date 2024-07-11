@@ -786,13 +786,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
         else:
             print("      mock_lookup_type: 'None'")
 
-    # FIXME: Some of our strings had `\n` in them -- this causes parse errors,
-    # so make sure all comments are on one line
-    # Andrew we should find an example that caused this, because we are
-    # simply assembling strings here, and we should not have any newlines
-    # could it be that one of the dataAPI fields has a \n in it?  If so
-    # we should write that up as a bug.
-    return enableComment.replace("\n", ""), disableComment.replace("\n", "")
+    return enableComment, disableComment
 
 
 def generateVMockDefitionForUnitAndFunction(api, functionObject):

@@ -21,7 +21,8 @@ def getParameterList(functionObject):
     for parameterObject in functionObject.parameters:
         if parameterObject.name != "return":
             paramIndex += 1
-            declarationToUse = parameterObject.orig_declaration
+            # get parameterObject.orig_declaration
+            declarationToUse = getOriginalDeclaration(parameterObject)
             if "vcast_param" in declarationToUse:
                 uniqueParameterName = f"vcast_param{paramIndex}"
                 declarationToUse = declarationToUse.replace(
@@ -56,8 +57,16 @@ def isConstFunction(functionObject):
 def getReturnType(functionObject):
     """
     # PCT-FIX-NEEDED - issue #5 - return type has trailing space
+    # PCT-FIX-NEEDED - issue #9 - original_return_type sometimes has \n
     """
-    return functionObject.original_return_type.rstrip()
+    return functionObject.original_return_type.rstrip().replace("\n", "")
+
+
+def getOriginalDeclaration(parameterObject):
+    """
+    # PCT-FIX-NEEDED - issue #9 - orig_declaration sometimes has \n
+    """
+    return parameterObject.orig_declaration.replace("\n", "")
 
 
 def dropTemplates(originalName):
@@ -228,7 +237,7 @@ def generateVMockApplyForUnitAndFunction(api, functionObject, vmockFunctionName)
     to remain in tstUtilitie.py
     """
 
-    original_return = functionObject.original_return_type
+    original_return = getReturnType(functionObject)
     lookup_type = functionObject.mock_lookup_type
 
     # We need to reintroduce the 'vcast_fn_ptr' string, which Richard ommitted
