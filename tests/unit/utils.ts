@@ -20,8 +20,7 @@ export type HoverPosition = {
 export function generateHoverData(
   tstText: string,
   position: HoverPosition,
-  envName?: string,
-  emptyDocument?: boolean
+  envName?: string
 ) {
   envName ||= "vcast";
 
@@ -38,12 +37,8 @@ export function generateHoverData(
   );
   const uri = URI.file(tstFilepath).toString();
 
-  let textDocument;
-  if (emptyDocument) {
-    textDocument = undefined;
-  } else {
-    textDocument = TextDocument.create(uri, languageId, 1, tstText);
-  }
+  const textDocument = TextDocument.create(uri, languageId, 1, tstText);
+
   const documents = new TextDocuments();
   storeNewDocument(documents, uri, textDocument);
 
