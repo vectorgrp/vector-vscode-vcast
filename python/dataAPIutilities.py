@@ -88,7 +88,8 @@ def getMockDeclaration(functionObject, vmockFunctionName, signatureString):
     and what we want from PCT to make this fool proof
     """
 
-    returnType = getReturnType(functionObject)
+    # PCT-FIX-NEEDED - issue XXX - return type contains new lines?
+    returnType = getReturnType(functionObject).replace("\n", "")
 
     # Need to handle when the function returns a function pointer
     if "(*)" in dropTemplates(returnType):
