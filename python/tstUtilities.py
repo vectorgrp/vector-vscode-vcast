@@ -690,8 +690,8 @@ def buildCppParameterization(api, functionObject, functionName):
     # original_return_type
     returnType = getReturnType(functionObject)
 
-    # TBD today - if we convert to using the new orig_declaration we'll
-    # have to deal with the param names and special cases like int param[]
+    # : should we convert to using the new orig_declaration?
+    # IF we do we'll have to deal with the param names and special cases like int param[]
 
     # the vcast parameterization string looks like: (char, int[])int
     # and this will return the "(char, int[])" part
@@ -775,7 +775,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
     disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
 
-    # TBD today - This could be removed once we understand the mock_lookup_type
+    # FIXME - This could be removed once we understand the mock_lookup_type
     if os.environ.get("VMOCK_DEBUG"):
         print(f"    baseString: {baseString}")
         returnType = getReturnType(functionObject)
@@ -850,7 +850,7 @@ def processVMockDefinition(enviroName, lineSoFar):
 
     api = UnitTestApi(enviroName)
 
-    # TBD today - need unit tests for this
+    # FIXME: need unit tests for this
 
     # if what the user entered so far is an each match for the unit and function
     # we will get a single object in each list, else we will get a filtered list

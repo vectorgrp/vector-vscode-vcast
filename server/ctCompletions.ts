@@ -57,7 +57,7 @@ function addAdditionalEdits(
   textToInsert: string,
   location: number
 ) {
-  // TBD today - why do we need a range, seems like insert in one place is fine
+  // Not sure why we need a range, seems like insert in one place is fine
   const insertPosition: Position = Position.create(location, 0);
   const insertRange: Range = { start: insertPosition, end: insertPosition };
   const edit: TextEdit = { range: insertRange, newText: "// " + textToInsert };

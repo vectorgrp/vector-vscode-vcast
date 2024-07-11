@@ -140,7 +140,7 @@ def test_getFunctionName():
 
 def main():
 
-    # TBD TODAY - unit tests need to be updated
+    # FIXME: unit tests need to be updated
     # test_getReturnType()
     # test_getParameterTypesFromParameterization()
     test_getFunctionName()

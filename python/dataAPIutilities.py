@@ -71,7 +71,7 @@ def getOriginalDeclaration(parameterObject):
 
 def dropTemplates(originalName):
     """
-    FIXME: Andrew please add a comment for what this is doiing, and why,
+    # FIXME: Andrew please add a comment for what this is doiing, and why,
     as well as what we need from PCT to make this not necessary
     """
     droppedName = ""
@@ -92,7 +92,7 @@ def getMockDeclaration(functionObject, vmockFunctionName, signatureString):
     This handles the special cases for the return of the mock which
     cannot always match the return type of the original function
 
-    FIXME: this is likely very fragile
+    # FIXME: this is likely very fragile
     Andrew please add more details here for what's going on
     and what we want from PCT to make this fool proof
     """
@@ -145,6 +145,8 @@ def functionCanBeVMocked(functionObject):
 def getInstantiatingClass(api, functionObject):
     # PCT-FIX-NEEDED - would like them to provide this string in functionObject
     # Should be an empty string or None if static class method.
+    # Andrew please add exactly what we want to the Confluence page
+    # and then update this comment with the issue number
 
     instantiatingClass = ""
     if "::" in functionObject.name:
@@ -197,7 +199,7 @@ def getFunctionNameForAddress(api, functionObject):
         # operator>
         functionName = functionName.split("(")[0]
     elif "<" in functionName and ">" in functionName:
-        # Possible FIXME:
+        # FIXME: Do we need something different here?
         #
         # Need to careful when splitting the name when we have templates
         #
