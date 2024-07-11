@@ -7,15 +7,14 @@ import traceback
 from string import Template
 
 
-from dataAPIutilities import functionCanBeVMocked
+from dataAPIutilities import functionCanBeMocked
 
 import tstUtilities
 from tstUtilities import (
+    generateMockDataForFunction,
+    generateMockForFunction,
     getFunctionName,
-    generateVMockDefitionForUnitAndFunction,
 )
-
-from dataAPIutilities import generateVMockApplyForUnitAndFunction
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
@@ -49,7 +48,7 @@ def generateAllVMockDefinitions(enviroPath):
         print(f"Processing unit: {unitObject.name}")
         for functionObject in unitObject.functions:
             # We don't want to handle `<<INIT>>` subprograms (bug in VectorCAST)
-            if not functionCanBeVMocked(functionObject):
+            if not functionCanBeMocked(functionObject):
                 continue
 
             if first_unit is None:
@@ -61,16 +60,15 @@ def generateAllVMockDefinitions(enviroPath):
             # Note: we're doing this with string processing here to avoid
             # changing too much of the actual code
             print(f"  function: {functionObject.name}")
-            mock_content = generateVMockDefitionForUnitAndFunction(api, functionObject)
 
-            vmock_function_name = getFunctionName(functionObject)
-            mock_apply, mock_use = generateVMockApplyForUnitAndFunction(
-                api, functionObject, vmock_function_name
-            )
+            # First generate the mock data
+            mock_data = generateMockDataForFunction(api, functionObject)
+            # then generate the mock defintion that we will return
+            mock_definition = generateMockForFunction(mock_data)
 
             # Save all the data we need
-            mock_bodies.append(f"{mock_content}\n\n{mock_apply}")
-            mock_usages.append(mock_use)
+            mock_bodies.append(f"{mock_definition}")
+            mock_usages.append(mock_data.enableFunctionCall)
 
     # Don't run this on a file with no units
     assert first_unit is not None

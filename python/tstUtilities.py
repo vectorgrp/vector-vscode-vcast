@@ -15,7 +15,8 @@ from enum import Enum
 
 from dataAPIutilities import (
     dropTemplates,
-    functionCanBeVMocked,
+    functionCanBeMocked,
+    generateMockEnableForUnitAndFunction,
     getInstantiatingClass,
     getMockDeclaration,
     getReturnType,
@@ -557,7 +558,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     if len(returnUnitList) == 1:
         # check if the function name matches any of the functions in the unit
         for functionObject in unitObject.functions:
-            if functionCanBeVMocked(functionObject):
+            if functionCanBeMocked(functionObject):
                 # vcast name will have the parameterization if the function is overloaded
                 parameterizedName = functionObject.vcast_name
 
@@ -705,137 +706,98 @@ def buildCppParameterization(api, functionObject, functionName):
 
 enableStubPrefix = "// Enable Stub:"
 disableStubPrefix = "// Disable Stub:"
+logicComment = "// Insert mock logic here!"
 
 
-def getUsageStrings(api, functionObject, vmockFunctionName):
+class mockDataClass:
+    def __init__(self):
+        self.mockDeclaration = ""
+        self.enableFunctionDefinition = ""
+        self.enableComment = ""
+        self.disableComment = ""
+        self.enableFunctionCall = ""
+
+
+def generateMockDataForFunction(api, functionObject):
     """
-    There are three variations of code needed to connect a mock definition with the function being mocked
-
-    The normal case looks like this
-    vmock_session.mock (&userFunctionName).assign (&vmockFunctionName);
-
-    For an overloaded function, we must add parameterization to the user function name
-    vmock_session.mock <int(myClass::*)(int)> (&userClass::userMethod).assign (&vmockFunctionName);
-
-    For a template mock, we must add the template parameters to the user function name
-    vmock_session.mock (&userFunction<int, int>).assign (&vmockFunctionName);
-
+    This function will generate mockDataClass object containing
+    all of the information needed to by the vmock completion processing
+    or the vmockGenerator
     """
 
-    functionName = functionObject.vcast_name
+    whatToReturn = mockDataClass()
 
-    # start with the static part of the expression
-    baseString = "vmock_session.mock "
+    # First generate the mock definition
 
-    # add the user function name, there are two special cases as described above
+    # get the parameter profile for the stubbed function
+    # e.g -> ::vunit::CallCtx<myClass> vunit_ctx, int param, ...
+    signatureString = getFunctionSignature(api, functionObject)
 
-    # if this is a function template
-    if functionObject.prototype_instantiation:
-        # name_with_template_arguments is only valid for vc24sp3 and higher
-        # Original FB: 101345
-        baseString += f"(&{functionObject.full_prototype_instantiation})"
+    # get the name to be used for the mock itself
+    mockFunctionName = getFunctionName(functionObject)
 
-    # else if this is an operator, operators are overloaded
-    # from the compilers point-of-view but might not be from vcast's
-    elif functionIsOperator(functionName):
-        cppParameterization = buildCppParameterization(
-            api, functionObject, functionName
-        )
-        baseString += f"(({cppParameterization})&{functionName})"
+    # generate the complete declaration
+    mockDeclaration = getMockDeclaration(
+        functionObject, mockFunctionName, signatureString
+    )
 
-    # else if it is an overloaded function
-    # This is correct even if only one overloaded function is testable
-    elif functionObject.is_overloaded:
-        # currentFunctionName will have the full name like
-        # className::MethodName(int, int)int
+    whatToReturn.mockDeclaration = mockDeclaration
 
-        cppParameterization = buildCppParameterization(
-            api, functionObject, functionName
-        )
+    # Next generate the enable function declaration,  which includes
+    # all of the logic to associate the mock with the original function
+    enableFunctionDefinition, enableFunctionCall = generateMockEnableForUnitAndFunction(
+        api, functionObject, mockFunctionName
+    )
+    whatToReturn.enableFunctionDefinition = enableFunctionDefinition
+    whatToReturn.enableFunctionCall = enableFunctionCall
 
-        functionName = functionName.split("(")[0]
-        if isConstFunction(functionObject):
-            baseString += f"<{cppParameterization}> (({cppParameterization})({cppParameterization} const)&{functionName})"
-        else:
-            baseString += (
-                f"<{cppParameterization}> (({cppParameterization})&{functionName})"
-            )
+    # And finally generate the usage comments that will be inserted into the mock
+    whatToReturn.enableComment = f"{enableStubPrefix} {enableFunctionCall}"
+    disableFunctionCall = enableFunctionCall[:-2] + ", false);"
+    whatToReturn.disableComment = f"{disableStubPrefix} {disableFunctionCall}"
 
-    elif isConstFunction(functionObject):
-        # for const functions we need to insert a cast to a non const version
-        # So for a function like this: int myMethod(int param) const
-        # we need to insert: (int (fooClass::*)(int))
-
-        cppParameterization = buildCppParameterization(
-            api, functionObject, functionName
-        )
-        baseString += f"(({cppParameterization})&{functionName})"
-
-    else:
-        baseString += f"(&{functionName})"
-
-    # Now create the enable and disable comments
-    enableComment = f"{enableStubPrefix}  {baseString}.assign (&{vmockFunctionName});"
-    disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
-
-    # FIXME - This could be removed once we understand the mock_lookup_type
-    if vmockVerboseOutput:
-        print(f"    baseString: {baseString}")
-        returnType = getReturnType(functionObject)
-        if functionObject.mock_lookup_type:
-            print(
-                f"      mock_lookup_type: '{returnType}' '{functionObject.mock_lookup_type}'"
-            )
-        else:
-            print("      mock_lookup_type: 'None'")
-
-    return enableComment, disableComment
+    return whatToReturn
 
 
-def generateVMockDefitionForUnitAndFunction(api, functionObject):
+def generateMockForFunction(mockData):
     """
     For a function like: int simpleFunction (int param);
 
-    This function will generate a stub and some usage hints like this:
+    This function will generate a stub declaration and insert some
+    usage hints into the declaration like this:
 
     int vmock_vmock_examples_simpleFunction(::vunit::CallCtx<> vunit_ctx, int param) {
-       // Enable Stub:  vmock_session.mock (&simpleFunction).assign (&vmock_vmock_examples_simpleFunction);
-       // Disable Stub: vmock_session.mock (&simpleFunction).assign (nullptr);
+       // Enable Stub:  ...
+       // Disable Stub: ...
+
+       // Insert mock logic here!
 
     }
+    void vmock_vmock_examples_simpleFunction_enable_disable (...) {
+        ...
+    }
+
     """
 
-    # get the parameter profile for the stubbed function
-    # e.g -> ::vunit::CallCtx<myClass> vunit_ctx, int param
-    signatureString = getFunctionSignature(api, functionObject)
-
-    vmockFunctionName = getFunctionName(functionObject)
-    # These are the two comment lines that are added to the stub
-    enableComment, disableComment = getUsageStrings(
-        api,
-        functionObject,
-        vmockFunctionName,
-    )
-
-    stubDeclaration = getMockDeclaration(
-        functionObject, vmockFunctionName, signatureString
-    )
-
-    # Put it all together, I like it this way because it ie easy to read
-    # and it looks more like the code that will be generated with LF's
+    # Then put it all together, I like it this way because it ie easy to read
+    # and it looks more like the code that will be generated (with LF's)
     whatToReturn = (
-        f"\n{stubDeclaration}"
+        f"{mockData.mockDeclaration}"
         + " {\n  "
-        + enableComment
+        + mockData.enableComment
         + "\n  "
-        + disableComment
-        + "\n\n}"
+        + mockData.disableComment
+        + "\n\n  "
+        + logicComment
+        + "\n}\n"
+        + mockData.enableFunctionDefinition
+        + "\n\n"
     )
 
     return whatToReturn
 
 
-def processVMockDefinition(enviroName, lineSoFar):
+def processMockDefinition(enviroName, lineSoFar):
     """
     This function will process vmock_  line completions for coded tests
     When we get here, the line will always start with vmock, and end
@@ -887,7 +849,11 @@ def processVMockDefinition(enviroName, lineSoFar):
     elif len(unitObjectList) == 1 and len(functionObjectList) == 1:
         unitObject = unitObjectList[0]
         functionObject = functionObjectList[0]
-        whatToReturn = generateVMockDefitionForUnitAndFunction(api, functionObject)
+
+        # First generate the mock data
+        mockData = generateMockDataForFunction(api, functionObject)
+        # then generate the mock defintion that we will return
+        whatToReturn = generateMockForFunction(mockData)
 
         returnData.choiceKind = choiceKindType.Snippet
         returnData.choiceList.append(whatToReturn)

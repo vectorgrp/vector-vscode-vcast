@@ -87,7 +87,7 @@ def dropTemplates(originalName):
     return droppedName
 
 
-def getMockDeclaration(functionObject, vmockFunctionName, signatureString):
+def getMockDeclaration(functionObject, mockFunctionName, signatureString):
     """
     This handles the special cases for the return of the mock which
     cannot always match the return type of the original function
@@ -102,19 +102,19 @@ def getMockDeclaration(functionObject, vmockFunctionName, signatureString):
     # Need to handle when the function returns a function pointer
     if "(*)" in dropTemplates(returnType):
         stubDeclaration = returnType.replace(
-            "(*)", f"(*{vmockFunctionName}({signatureString}))"
+            "(*)", f"(*{mockFunctionName}({signatureString}))"
         )
     elif "(&)" in returnType:
         stubDeclaration = returnType.replace(
-            "(&)", f"(&{vmockFunctionName}({signatureString}))"
+            "(&)", f"(&{mockFunctionName}({signatureString}))"
         )
     else:
-        stubDeclaration = f"\n{returnType} {vmockFunctionName}({signatureString})"
+        stubDeclaration = f"\n{returnType} {mockFunctionName}({signatureString})"
 
     return stubDeclaration
 
 
-def functionCanBeVMocked(functionObject):
+def functionCanBeMocked(functionObject):
     """
     # PCT-FIX-NEEDED - issue #7 - is_mockable not dependable
     # Should be replaced by a single check of is_mockable
@@ -219,9 +219,11 @@ def getFunctionNameForAddress(api, functionObject):
     return functionName
 
 
+# FIXME: we cannot use a ternary opertor for disable because the compiler generates
+# an error when the ${function} is overloaded
 mock_template = Template(
     """
-void ${mock}_apply(vunit::MockSession &vmock_session) {
+void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
     using vcast_mock_rtype = ${original_return} ;
     ${lookup_decl} ${const} = &${function} ;
     vmock_session.mock <${lookup_type}> ((${lookup_type})vcast_fn_ptr).assign (&${mock});
@@ -232,9 +234,9 @@ void ${mock}_apply(vunit::MockSession &vmock_session) {
 )
 
 
-def generateVMockApplyForUnitAndFunction(api, functionObject, vmockFunctionName):
+def generateMockEnableForUnitAndFunction(api, functionObject, mockFunctionName):
     """
-    Note that we pass in vmockFunctionName because we want getFunctionName()
+    Note that we pass in mockFunctionName because we want getFunctionName()
     to remain in tstUtilitie.py
     """
 
@@ -252,14 +254,14 @@ def generateVMockApplyForUnitAndFunction(api, functionObject, vmockFunctionName)
         lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
     const = "const" if isConstFunction(functionObject) else ""
     function_name = getFunctionNameForAddress(api, functionObject)
-    mock_apply = mock_template.safe_substitute(
+    mock_enable_disable = mock_template.safe_substitute(
         original_return=original_return,
         lookup_decl=lookup_decl,
         const=const,
         lookup_type=lookup_type,
         function=function_name,
-        mock=vmockFunctionName,
+        mock=mockFunctionName,
     )
-    mock_use = f"{vmockFunctionName}_apply(vmock_session);"
+    mock_enable_call = f"{mockFunctionName}_enable_disable(vmock_session);"
 
-    return mock_apply, mock_use
+    return mock_enable_disable, mock_enable_call
