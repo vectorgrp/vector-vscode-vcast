@@ -603,7 +603,7 @@
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-server -- --sourcemap",
     "package": "vsce package",
     "publish": "vsce publish",
-    "test": "vitest run --reporter verbose --coverage",
+    "test": "tsc --project tsconfig_test.json && vitest run --reporter verbose --coverage",
     "gh-test": "vitest run --reporter=junit --outputFile=./test-output.xml --coverage"
   },
   "devDependencies": {
