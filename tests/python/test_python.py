@@ -115,9 +115,9 @@ def test_getFunctionName():
     parameterization = None
 
     for name, mangled_name, expected_not_mangled, expected_mangled in to_check:
-        # Unset the env var in case someone has it set
-        if tstUtilities.ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES in os.environ:
-            del os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES]
+
+        # Make sure we don't add a hash to the mock function names
+        tstUtilities.addHashToMockFunctionNames = False
 
         check_values(
             tstUtilities.getFunctionName,
@@ -127,7 +127,8 @@ def test_getFunctionName():
             expected_not_mangled,
         )
 
-        os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES] = "1"
+        # turn the hash back on
+        tstUtilities.addHashToMockFunctionNames = True
         check_values(
             tstUtilities.getFunctionName,
             parameterization,
@@ -135,7 +136,7 @@ def test_getFunctionName():
             name,
             expected_mangled,
         )
-        del os.environ[tstUtilities.ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES]
+        tstUtilities.addHashToMockFunctionNames = False
 
 
 def main():

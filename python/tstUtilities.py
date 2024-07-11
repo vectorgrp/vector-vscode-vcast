@@ -29,12 +29,15 @@ from vector.apps.DataAPI.unit_test_models import Function, Global
 
 globalOutputLog = list()
 
-#
-# For automated test it is desirable to always have a unique name generated for
+
+# For automated testing it is desirable to always have a unique name generated for
 # a mock function, so if you set this variable, we will append a hash of the
-# mangled function name to the mock name.
-#
-ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES = "VCAST_TEST_EXPLORER_USE_MANGLED_NAMES"
+# mangled function name to the mock name.  Some users might prefer this also
+# so we will expose this in the extension
+addHashToMockFunctionNames = False
+
+# for debug purposes, we might want to see more verbose output
+vmockVerboseOutput = False
 
 
 def getNameListFromObjectList(objectList):
@@ -635,7 +638,7 @@ def getFunctionName(functionObject):
     functionName = functionObject.name
 
     functionHash = ""
-    if os.environ.get(ENV_VCAST_TEST_EXPLORER_USE_MANGLED_NAMES, None):
+    if addHashToMockFunctionNames:
         # We want a leading underscore
         functionHash = f"_{getShortHash(functionObject.mangled_name)}"
 
@@ -776,7 +779,7 @@ def getUsageStrings(api, functionObject, vmockFunctionName):
     disableComment = f"{disableStubPrefix} {baseString}.assign (nullptr);"
 
     # FIXME - This could be removed once we understand the mock_lookup_type
-    if os.environ.get("VMOCK_DEBUG"):
+    if vmockVerboseOutput:
         print(f"    baseString: {baseString}")
         returnType = getReturnType(functionObject)
         if functionObject.mock_lookup_type:

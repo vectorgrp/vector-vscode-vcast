@@ -9,6 +9,7 @@ from string import Template
 
 from dataAPIutilities import functionCanBeVMocked
 
+import tstUtilities
 from tstUtilities import (
     getFunctionName,
     generateVMockDefitionForUnitAndFunction,
@@ -82,6 +83,7 @@ TEST_CPP_TEMPLATE = Template(
     """
 #include <vunit/vunit.h>
 ${mock_bodies}
+
 VTEST(${env_name}, ${env_name}TestCase)
 {
     auto vmock_session = ::vunit::MockSession();
@@ -139,12 +141,16 @@ def generate_test(env_name, first_unit, mock_bodies, mock_usages):
 
 
 def main():
+
     # Condition to only run this on a build environment
     if (
         len(sys.argv) == 2
         and (env_name := sys.argv[1])
         and os.path.exists(os.path.join(env_name, "master.db"))
     ):
+        tstUtilities.addHashToMockFunctionNames = True
+        tstUtilities.vmockVerboseOutput = True
+
         # Use DataAPI + the extension code to generate all of the bodies we want to write-out
         first_unit, mock_bodies, mock_usages = generateAllVMockDefinitions(env_name)
 
