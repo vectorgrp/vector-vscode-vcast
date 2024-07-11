@@ -139,7 +139,6 @@ def generate_test(env_name, first_unit, mock_bodies, mock_usages):
 
 
 def main():
-
     # Condition to only run this on a build environment
     if (
         len(sys.argv) == 2
