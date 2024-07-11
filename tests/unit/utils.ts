@@ -91,8 +91,7 @@ export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
-  envName?: string,
-  emptyDocument?: boolean
+  envName?: string
 ) {
   envName ||= "vcast";
   const languageId = "VectorCAST Test Script";
@@ -108,16 +107,7 @@ export function generateCompletionData(
   );
   const uri = URI.file(tstFilepath).toString();
 
-  let textDocument;
-  if (emptyDocument) {
-    textDocument = undefined;
-  } else {
-    textDocument = TextDocument.create(uri, languageId, 1, tstText);
-  }
-  const documents = new TextDocuments();
-
-  storeNewDocument(documents, uri, textDocument);
-
+  const textDocument = TextDocument.create(uri, languageId, 1, tstText);
   const completion = asCompletionParameters(
     textDocument,
     position,
@@ -132,9 +122,7 @@ export function generateCompletionData(
     "vpython"
   );
 
-  if (documents.all()?.[0]) {
-    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
-  }
+  console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
 
   return getTstCompletionData(textDocument, completion);
 }
