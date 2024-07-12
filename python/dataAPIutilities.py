@@ -75,8 +75,14 @@ def getOriginalDeclaration(parameterObject):
 
 def dropTemplates(originalName):
     """
-    # FIXME: Andrew please add a comment for what this is doiing, and why,
-    as well as what we need from PCT to make this not necessary
+    In some instances, we need to remove all template arguments before doing processing.
+
+    For example, if we have a template that returns a function pointer, then we
+    see `<(*)>` in the template arguments, this means we cannot correctly
+    determine if our mock should return a function pointer or not.
+
+    By dropping all function templates from a given string, we can see if it is
+    only the "return" of a function is a function pointer.
     """
     droppedName = ""
     in_count = 0
@@ -94,11 +100,29 @@ def dropTemplates(originalName):
 def getMockDeclaration(functionObject, mockFunctionName, signatureString):
     """
     This handles the special cases for the return of the mock which
-    cannot always match the return type of the original function
+    cannot simply "just" return the return type, as per DataAPI.
 
-    # FIXME: this is likely very fragile
-    Andrew please add more details here for what's going on
-    and what we want from PCT to make this fool proof
+    This code handles two edge-cases (and the "happy path"):
+
+        1) If the function returns a function pointer, e.g.,:
+
+            `void (*get_fptr(void))(void)`
+
+           then the mock looks like this:
+
+            `void (*vmock_unit_get_fptr(::vunit::CallCtx<> vunit_ctx))(void)`
+
+        2) If the function returns a reference to a fixed-sized array, e.g.,:
+
+            `char const (&get())[100]`
+
+           then the mock looks like this:
+
+            `const char (&vmock_unit_get(::vunit::CallCtx<> vunit_ctx))[100]`
+
+        3) Otherwise, the mock is "very normal" and looks like this:
+
+            `void vmock_unit_foo(::vunit::CallCtx<> vunit_ctx)`
     """
 
     returnType = getReturnType(functionObject)
@@ -108,7 +132,7 @@ def getMockDeclaration(functionObject, mockFunctionName, signatureString):
         stubDeclaration = returnType.replace(
             "(*)", f"(*{mockFunctionName}({signatureString}))"
         )
-    elif "(&)" in returnType:
+    elif "(&)" in dropTemplates(returnType):
         stubDeclaration = returnType.replace(
             "(&)", f"(&{mockFunctionName}({signatureString}))"
         )
@@ -242,8 +266,9 @@ def generateMockEnableForUnitAndFunction(api, functionObject, mockFunctionName):
     original_return = getReturnType(functionObject)
     lookup_type = functionObject.mock_lookup_type
 
-    # We need to reintroduce the 'vcast_fn_ptr' string, which Richard ommitted
-    # (likely because Andrew asked him to omit it ... doh!)
+    # We need to reintroduce the 'vcast_fn_ptr' string into the look-up, when
+    # first declaring the function pointer (but when use the type later on, we
+    # don't want the variable name in there)
     if "::*" in lookup_type:
         # If we're a method, we only see this in one place
         lookup_decl = lookup_type.replace("::*)(", "::*vcast_fn_ptr)(", 1)
