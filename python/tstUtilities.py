@@ -21,7 +21,6 @@ from dataAPIutilities import (
     getMockDeclaration,
     getReturnType,
     getParameterList,
-    isConstFunction,
     tagForInit,
 )
 

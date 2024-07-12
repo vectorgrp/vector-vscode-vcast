@@ -41,23 +41,6 @@ tagForInit = "<<INIT>>"
 functionsToIgnore = ["coded_tests_driver", tagForInit]
 
 
-def isConstFunction(functionObject):
-    """
-    # PCT-FIX-NEEDED - issue #2 - is_const not dependable
-    """
-
-    parameterization = functionObject.parameterization
-    returnValue = False
-    if (
-        parameterization.endswith(" const")
-        or parameterization.endswith(">const")
-        or parameterization.endswith("]const")
-    ):
-        returnValue = True
-
-    return returnValue
-
-
 def getReturnType(functionObject):
     """
     # PCT-FIX-NEEDED - issue #5 - return type has trailing space
@@ -265,7 +248,7 @@ def generateMockEnableForUnitAndFunction(api, functionObject, mockFunctionName):
         # Otherwise, let's guess, but this could convert "too much" (e.g., in
         # functions that take function pointers)
         lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
-    const = "const" if isConstFunction(functionObject) else ""
+    const = "const" if functionObject.is_const else ""
     function_name = getFunctionNameForAddress(api, functionObject)
     mock_enable_disable = mock_template.safe_substitute(
         original_return=original_return,
