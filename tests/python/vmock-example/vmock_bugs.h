@@ -50,17 +50,4 @@ public:
 
 bool operator==(TemplateClass<int>, TemplateClass<int>);
 
-typedef char ClassReturnRefArrayType[242];
-
-class ClassReturnRefArray {
-public:
-  /*
-   * functionObject.parameterization is going to be:
-   *     `()const char[242]const`
-   *
-   * Notice: no space before the training `const`
-   */
-  ClassReturnRefArrayType const &get() const;
-};
-
 #endif

@@ -329,3 +329,16 @@ VTEST(vmockExample, operatorTest) {
   VASSERT_EQ (false, templateClassInstance1 == templateClassInstance2);
   
 }
+
+// vmock vmock_examples operator== 
+bool vmock_vmock_examples_operator(::vunit::CallCtx<> vunit_ctx, class TemplateClass< int>  vcast_param1, class TemplateClass< int>  vcast_param2) {
+  // Enable Stub: vmock_vmock_examples_operator_enable_disable(vmock_session);
+  // Disable Stub: vmock_vmock_examples_operator_enable_disable(vmock_session, false);
+
+}
+void vmock_vmock_examples_operator_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
+    using vcast_mock_rtype = bool ;
+    vcast_mock_rtype (*vcast_fn_ptr)(class ::TemplateClass< int>  VCAST_PARAM_1, class ::TemplateClass< int>  VCAST_PARAM_2)  = &operator== ;
+    vmock_session.mock <vcast_mock_rtype (*)(class ::TemplateClass< int>  VCAST_PARAM_1, class ::TemplateClass< int>  VCAST_PARAM_2)> ((vcast_mock_rtype (*)(class ::TemplateClass< int>  VCAST_PARAM_1, class ::TemplateClass< int>  VCAST_PARAM_2))vcast_fn_ptr).assign (&vmock_vmock_examples_operator);
+}
+

@@ -21,16 +21,4 @@ std::array<void (*)(void), 1> getArrayOfFPtrs(std::array<int, 1>, int) {
 
 bool operator==(TemplateClass<int>, TemplateClass<int>) {return true;}
 
-ClassReturnRefArrayType const &ClassReturnRefArray::get() const {
-  /*
-   * Do not make `local` be a member of the class!
-   *
-   * If you do that, the parameterisation changes to:
-   *
-   *     ()const ClassReturnRefArrayType const
-   *
-   * which then does not reproduce the bug.
-   */
-  ClassReturnRefArrayType local;
-  return local;
-}
+

@@ -113,8 +113,9 @@ int useTemplateWithSingleParameter (int param1) {
 
 
 int usePrototypeOnlyFunction (int param1) {
-    return prototypeOnlyFunction (param1);
-    prototypeOnlyFunctionWithUnnamedParams (param1, 'a');
+    int local1 = prototypeOnlyFunctionWithUnnamedParams (param1, 'a');
+    int local2 = prototypeOnlyFunction (param1);
+    return local1 + local2;
 }
 
 bool operator==(TemplateClass<int>, TemplateClass<int>) {return true;};
