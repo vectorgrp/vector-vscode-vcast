@@ -48,7 +48,11 @@ def isConstFunction(functionObject):
 
     parameterization = functionObject.parameterization
     returnValue = False
-    if parameterization.endswith(" const") or parameterization.endswith(">const"):
+    if (
+        parameterization.endswith(" const")
+        or parameterization.endswith(">const")
+        or parameterization.endswith("]const")
+    ):
         returnValue = True
 
     return returnValue
