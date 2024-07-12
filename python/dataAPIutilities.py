@@ -215,20 +215,8 @@ def getFunctionNameForAddress(api, functionObject):
     # If we're `operator()`, do nothing
     if "operator()" in functionName:
         functionName = re.split("operator\(\)", functionName)[0] + "operator()"
-    elif "operator" in functionName:
-        # Need to handle operator< and overloads that contain templates, but
-        # where the function itself isn't templated
-        #
-        # This stops the logic below getting hit if we have operator< or
-        # operator>
-        functionName = functionName.split("(")[0]
     elif "<" in functionName and ">" in functionName:
-        # FIXME: Do we need something different here?
-        #
-        # Need to careful when splitting the name when we have templates
-        #
-        # Note: we can have things like `operator<=`, so we need to check if we
-        # have _both_ opening and closing <>
+        # Don't split on "(" in parens
         in_count = 0
         for idx, char in enumerate(functionName):
             if char == "<":
@@ -237,6 +225,7 @@ def getFunctionNameForAddress(api, functionObject):
                 in_count -= 1
             elif char == "(" and in_count == 0:
                 functionName = functionName[:idx]
+                break
     else:
         functionName = functionName.split("(")[0]
 
