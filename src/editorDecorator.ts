@@ -86,11 +86,14 @@ export function buildTestNodeForFunction(args: any): testNodeType | undefined {
     const functionName = unitData.lineMap.get(args.lineNumber);
     if (functionName) {
       testNode = {
+        enviroNodeID: "",
         enviroPath: unitData.enviroPath,
         enviroName: unitData.enviroName,
         unitName: unitData.unitName,
         functionName: functionName,
         testName: "",
+        testFile: "",
+        testStartLine: 0,
       };
     }
   }

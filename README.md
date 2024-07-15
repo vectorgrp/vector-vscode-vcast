@@ -342,12 +342,12 @@ This extension is open-source, released under the MIT license, and we welcome yo
 - To install the dependencies necessary for building VectorCAST Test Explorer, run `npm install` in the root of the repository.
 - Make sure you have `vsce` installed globally
   - To install `vsce`, run `npm install -g @vscode/vsce@^2.15.0`
-- To build VectorCAST Test Explorer, run `vsce package` in the root of the repository
+- To build VectorCAST Test Explorer, run `npm run package` in the root of the repository
 - To run existing unit tests for VectorCAST Test Explorer, run `npm test` in the root of the repository
   - Code and resources for unit tests can be found in `tests/unit`
 - To run end-to-end tests (the end-to-end tests are meant for Vector internal usage):
   - If behind a corporate proxy, point `NODE_EXTRA_CA_CERTS` to your certificate bundle
-  - Make sure you had built the extension already (run `vsce package` to build the extension)
+  - Make sure you had built the extension already (run `npm run package` to build the extension)
   - Run `npm install` in `tests/internal/e2e` to install necessary dependencies
   - Run `npm test` in `tests/internal/e2e` to run the end-to-end tests
   - More detailed instructions can be found in `tests/internal/e2e`
