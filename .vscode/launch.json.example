@@ -49,6 +49,21 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "vmockGenerator",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/vmockGenerator.py",
+      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
+      "env": {
+        "PYTHONPATH": "C:/vcast/vc24sp2/python",
+        "VECTORCAST_DIR": "c:/VCAST/vc24sp2"
+      },
+      "args": [
+        "FOO",
+      ],
+      "console": "integratedTerminal"
+    },
+    {
       "name": "runTest",
       "type": "python",
       "request": "launch",
