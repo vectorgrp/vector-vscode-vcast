@@ -1,7 +1,9 @@
 # A skeleton for the generating all vmock definitions for an environment
 
-import sys
+import glob
 import os
+import subprocess
+import sys
 import traceback
 
 from string import Template
@@ -17,6 +19,14 @@ from tstUtilities import (
 )
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
+
+
+trace_enabled = True
+
+
+def trace(message):
+    if trace_enabled:
+        print(message)
 
 
 def generateAllVMockDefinitions(enviroPath):
@@ -45,7 +55,7 @@ def generateAllVMockDefinitions(enviroPath):
 
     api = UnitTestApi(enviroPath)
     for unitObject in api.Unit.all():
-        print(f"Processing unit: {unitObject.name}")
+        trace(f"Processing unit: {unitObject.name}")
         for functionObject in unitObject.functions:
             # We don't want to handle `<<INIT>>` subprograms (bug in VectorCAST)
             if not functionCanBeMocked(functionObject):
@@ -59,7 +69,7 @@ def generateAllVMockDefinitions(enviroPath):
             #
             # Note: we're doing this with string processing here to avoid
             # changing too much of the actual code
-            print(f"  function: {functionObject.name}")
+            trace(f"  function: {functionObject.name}")
 
             # First generate the mock data
             mock_data = generateMockDataForFunction(api, functionObject)
@@ -104,18 +114,28 @@ TEST.END
 )
 
 
-def generate_test(env_name, first_unit, mock_bodies, mock_usages):
+# filenames are hard-coded for now
+basename = "tests"
+test_file = f"{basename}.cpp"
+script_file = f"{basename}.tst"
+
+
+def generate_test_file(enviro_path, prepend=[]):
     """
-    Generates an instantiated C++ test file and its associated test script
+    Generates an instantiated C++ test file and its associated test script.
+
+    "prepend" allows the caller to pass in some extra text to insert at the
+    start of the file
     """
 
-    # How we're going to name our output files
-    cpp_unit_name = "tests"
-    cpp_name = f"{cpp_unit_name}.cpp"
-    tst_name = f"{cpp_unit_name}.tst"
+    env_name = os.path.basename(enviro_path)
+
+    # Use DataAPI + the extension code to generate all of the bodies we want to write-out
+    first_unit, mock_bodies, mock_usages = generateAllVMockDefinitions(enviro_path)
 
     # Generate the C++ file
-    with open(cpp_name, "w") as test_cpp_file:
+    with open(test_file, "w") as test_cpp_file:
+        test_cpp_file.write("\n".join(prepend) + "\n")
         test_cpp_file.write(
             TEST_CPP_TEMPLATE.safe_substitute(
                 mock_bodies="\n".join(mock_bodies),
@@ -124,38 +144,130 @@ def generate_test(env_name, first_unit, mock_bodies, mock_usages):
             )
         )
 
-    # Generate the .tst file
-    with open(tst_name, "w") as test_tst_file:
+    return first_unit
+
+
+def generate_test_script(env_name, first_unit):
+
+    with open(script_file, "w") as test_tst_file:
         test_tst_file.write(
             TEST_TST_TEMPLATE.safe_substitute(
-                cpp_unit_name=cpp_unit_name, first_unit=first_unit
+                cpp_unit_name=basename, first_unit=first_unit
             )
         )
 
     # Tell the user how to load it
     print(
-        f"$VECTORCAST_DIR/clicast -e {env_name} test script run {tst_name} && $VECTORCAST_DIR/clicast -e {env_name} execute batch"
+        f"$VECTORCAST_DIR/clicast -e {env_name} test script run {script_file} && $VECTORCAST_DIR/clicast -e {env_name} execute batch"
     )
 
 
+def generate_tests_for_environment(env_name):
+    """
+    Use Case:  vpython vmockGenerator.py <path-to-enviro-directory>
+
+    In this mode we will generate a tests.cpp for the environment
+    that was passed to us as an argument
+    """
+
+    tstUtilities.addHashToMockFunctionNames = True
+    tstUtilities.vmockVerboseOutput = True
+
+    # Generate our coded test ...
+    first_unit = generate_test_file(env_name)
+    # ... and the test script to load the coded test
+    generate_test_script(env_name, first_unit)
+
+
+def save_errors_to_file (errors):
+    with open('errors.txt', 'w') as f:
+        for error in errors:
+            f.write(f"{error}\n")
+
+
+def generate_tests_and_compile():
+    """
+    Use Case: vpython vmockGenerator.py batch
+
+    In this mode we will search for all directories that contain a master.db and unit.cpp file.
+    For each directory we will generate a tests.cpp file insert a #include "unit.cpp" at the top
+    and then try to compile it with g++ ... keeping track of the files that work and the ones
+    that do not in $CWD/worked.txt, $CWD/failed.txt
+    """
+
+    # disable trace in batch mode
+    global trace_enabled
+    trace_enabled = False
+
+    print("Looking for directories with a master.db and unit.cpp file ...")
+
+    # Find all the directories with a master.db and unit.cpp file
+    enviroDirs = []
+    for root, dirs, files in os.walk("."):
+        if "master.db" in files and "unit.cpp" in files:
+            enviroDirs.append(root)
+
+    print(f"Found {len(enviroDirs)} directories to process")
+
+    for enviro_path in enviroDirs:
+
+        enviro_path = os.path.abspath(enviro_path)
+
+        print(f"Processing: {enviro_path}")
+        try:
+            # cd to the enviro directory
+            cwd = os.getcwd()
+            os.chdir(enviro_path)
+
+
+            # generate the tests.cpp
+            generate_test_file(enviro_path, prepend=['#include "unit.cpp"'])
+
+            # now try to compile it
+            # compile the tests.cpp file using g++
+            vcast_dir = os.environ.get("VECTORCAST_DIR", "C:/vcast/")
+            include_path = os.path.join(vcast_dir, "vunit/include")
+            compile_command = (
+                f"g++ -std=c++17 -I{include_path} -c -w tests.cpp"
+            )
+
+            try:
+                subprocess.check_output(compile_command, stderr=subprocess.STDOUT)
+                exit_code = 0
+            except subprocess.CalledProcessError as error:
+                stdout = error.output
+                save_errors_to_file (stdout.decode('utf-8').split('\n'))
+                exit_code = error.returncode
+
+
+            print(f"Command: {compile_command} returned: {exit_code}")
+
+            # return to original cwd
+            os.chdir(cwd)
+
+        except Exception as e:
+            print(f"Failed to process: {enviro_path}")
+            print(traceback.format_exc())
+
+
 def main():
-    # Condition to only run this on a build environment
+    """
+    This can be used in two modes
+        - Pass the path to an environment directory
+        -
+    """
     if (
         len(sys.argv) == 2
         and (env_name := sys.argv[1])
         and os.path.exists(os.path.join(env_name, "master.db"))
     ):
-        tstUtilities.addHashToMockFunctionNames = True
-        tstUtilities.vmockVerboseOutput = True
+        generate_tests_for_environment(env_name)
 
-        # Use DataAPI + the extension code to generate all of the bodies we want to write-out
-        first_unit, mock_bodies, mock_usages = generateAllVMockDefinitions(env_name)
-
-        # Generate our coded test + the test script to load the coded test
-        generate_test(env_name, first_unit, mock_bodies, mock_usages)
+    elif len(sys.argv) == 2 and sys.argv[1] == "batch":
+        generate_tests_and_compile()
 
     else:
-        print("Pass enviro path as an argument")
+        print("Usage: vpython vmockGenerator.py <path-to-enviro-directory> | batch")
 
 
 if __name__ == "__main__":
