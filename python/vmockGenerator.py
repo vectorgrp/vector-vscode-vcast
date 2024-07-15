@@ -232,7 +232,7 @@ def generate_tests_and_compile():
             )
 
             try:
-                subprocess.check_output(compile_command, stderr=subprocess.STDOUT)
+                subprocess.check_output(compile_command, shell=True, stderr=subprocess.STDOUT)
                 exit_code = 0
             except subprocess.CalledProcessError as error:
                 stdout = error.output
