@@ -59,7 +59,7 @@ jobs:
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
       - name: Package with VSCE
-        run: vsce package
+        run: npm run package
 
       - name: Run unit tests
         run: npm run gh-test | tee output.txt
@@ -225,7 +225,7 @@ jobs:
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
       - name: Package with VSCE
-        run: vsce package
+        run: npm run package
 
       - name: Restore cached dependencies - node
         id: cache-dependencies-restore-node
