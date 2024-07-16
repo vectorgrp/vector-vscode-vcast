@@ -185,6 +185,17 @@ def save_errors_to_file(errors):
             f.write(f"{error}\n")
 
 
+def compile_file(command):
+    try:
+        stdout = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
+        exit_code = 0
+    except subprocess.CalledProcessError as error:
+        stdout = error.output
+        exit_code = error.returncode
+
+    return exit_code, stdout
+
+
 def generate_tests_and_compile():
     """
     Use Case: vpython vmockGenerator.py batch
@@ -224,42 +235,35 @@ def generate_tests_and_compile():
             os.chdir(enviro_path)
 
             # first try to compile the unit.cpp file using g++
-            print ("  compiling unit.cpp ...")
+            print("  compiling unit.cpp ...")
             compile_command = f"g++ -std=c++17 -c -w unit.cpp"
-            exit_code = subprocess.call (compile_command, shell=True)
+            exit_code, stdout = compile_file (compile_command)
 
             if exit_code != 0:
-                print(f"    failed to compile unit.cpp: {exit_code}")
+                print ("  unit.cpp does not compile")
                 unit_file_does_not_compile.append(enviro_path)
-                continue
 
-            # generate the tests.cpp
-            print ("  generating tests ...")
-            generate_test_file(enviro_path, prepend=['#include "unit.cpp"'])
+            else:
+                # generate the tests.cpp
+                print("  generating tests ...")
+                generate_test_file(enviro_path, prepend=['#include "unit.cpp"'])
 
-            # now try to compile it
-            # compile the tests.cpp file using g++
-            vcast_dir = os.environ.get("VECTORCAST_DIR", "C:/vcast/")
-            include_path = os.path.join(vcast_dir, "vunit/include")
-            compile_command = f"g++ -std=c++17 -I{include_path} -c -w tests.cpp"
+                # now try to compile it
+                # compile the tests.cpp file using g++
+                vcast_dir = os.environ.get("VECTORCAST_DIR", "C:/vcast/")
+                include_path = os.path.join(vcast_dir, "vunit/include")
+                compile_command = f"g++ -std=c++17 -I{include_path} -c -w tests.cpp"
 
-            try:
-                print ("  compiling tests file ...")
-                subprocess.check_output(
-                    compile_command, shell=True, stderr=subprocess.STDOUT
-                )
-                exit_code = 0
-                tests_compile.append(enviro_path)
-                # errors file from a previous run might exist
-                if os.path.isfile(error_file):
-                    os.remove(error_file)
-            except subprocess.CalledProcessError as error:
-                stdout = error.output
-                save_errors_to_file(stdout.decode("utf-8").split("\n"))
-                exit_code = error.returncode
-                tests_do_not_compile.append(enviro_path)
+                print("  compiling tests file ...")
+                exit_code, stdout = compile_file (compile_command)
 
-            print(f"  command: {compile_command} returned: {exit_code}")
+                if exit_code==0:
+                    tests_compile.append(enviro_path)
+                else:
+                    save_errors_to_file(stdout.decode("utf-8").split("\n"))
+                    tests_do_not_compile.append(enviro_path)
+
+                print(f"  command: {compile_command} returned: {exit_code}")
 
             # return to original cwd
             os.chdir(cwd)
@@ -268,11 +272,13 @@ def generate_tests_and_compile():
             print(f"Failed to process: {enviro_path}")
             print(traceback.format_exc())
 
-    print ("\nSummary:")
-    print (f"  Total directories processed: {len(enviroDirs)}")
-    print (F"  Test files compiled successfully: {len(tests_compile)}")
-    print (F"  Test files that did not compile: {len(tests_do_not_compile)}")
-    print (F"  Unit files that did not compile: {len(unit_file_does_not_compile)}")
+    print("\nSummary:")
+    print(f"  Total directories processed: {len(enviroDirs)}")
+    print(f"  Test files compiled successfully: {len(tests_compile)}")
+    if len (tests_do_not_compile) > 0:
+        print(f"  Test files that did not compile: {len(tests_do_not_compile)}")
+    if len (unit_file_does_not_compile) > 0:
+        print(f"  Unit files that did not compile: {len(unit_file_does_not_compile)}")
 
 
 def main():
