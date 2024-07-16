@@ -209,6 +209,10 @@ def generate_tests_and_compile():
 
     print(f"Found {len(enviroDirs)} directories to process")
 
+    unit_file_does_not_compile = []
+    tests_compile = []
+    tests_do_not_compile = []
+
     for enviro_path in enviroDirs:
 
         enviro_path = os.path.abspath(enviro_path)
@@ -219,7 +223,18 @@ def generate_tests_and_compile():
             cwd = os.getcwd()
             os.chdir(enviro_path)
 
+            # first try to compile the unit.cpp file using g++
+            print ("  compiling unit.cpp ...")
+            compile_command = f"g++ -std=c++17 -c -w unit.cpp"
+            exit_code = subprocess.call (compile_command, shell=True)
+
+            if exit_code != 0:
+                print(f"    failed to compile unit.cpp: {exit_code}")
+                unit_file_does_not_compile.append(enviro_path)
+                continue
+
             # generate the tests.cpp
+            print ("  generating tests ...")
             generate_test_file(enviro_path, prepend=['#include "unit.cpp"'])
 
             # now try to compile it
@@ -229,10 +244,12 @@ def generate_tests_and_compile():
             compile_command = f"g++ -std=c++17 -I{include_path} -c -w tests.cpp"
 
             try:
+                print ("  compiling tests file ...")
                 subprocess.check_output(
                     compile_command, shell=True, stderr=subprocess.STDOUT
                 )
                 exit_code = 0
+                tests_compile.append(enviro_path)
                 # errors file from a previous run might exist
                 if os.path.isfile(error_file):
                     os.remove(error_file)
@@ -240,8 +257,9 @@ def generate_tests_and_compile():
                 stdout = error.output
                 save_errors_to_file(stdout.decode("utf-8").split("\n"))
                 exit_code = error.returncode
+                tests_do_not_compile.append(enviro_path)
 
-            print(f"Command: {compile_command} returned: {exit_code}")
+            print(f"  command: {compile_command} returned: {exit_code}")
 
             # return to original cwd
             os.chdir(cwd)
@@ -249,6 +267,12 @@ def generate_tests_and_compile():
         except Exception as e:
             print(f"Failed to process: {enviro_path}")
             print(traceback.format_exc())
+
+    print ("\nSummary:")
+    print (f"  Total directories processed: {len(enviroDirs)}")
+    print (F"  Test files compiled successfully: {len(tests_compile)}")
+    print (F"  Test files that did not compile: {len(tests_do_not_compile)}")
+    print (F"  Unit files that did not compile: {len(unit_file_does_not_compile)}")
 
 
 def main():
