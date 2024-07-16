@@ -839,12 +839,20 @@ export async function runNode(
         // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
         // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
 
-        const xofy = currentTestData.passfail.split("(")[0].trim();
-        const percentage = currentTestData.passfail
-          .split("(")[1]
-          .split(")")[0]
-          .trim();
-        const failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
+        // We have seen the passfail string be empty so guard i
+        // against that and any malformed strings 
+        let failMessageText = "";
+        try {
+          const xofy = currentTestData.passfail.split("(")[0].trim();
+          const percentage = currentTestData.passfail
+            .split("(")[1]
+            .split(")")[0]
+            .trim();
+          failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
+        }
+        catch {
+          failMessageText = "No expected results exist Fail"
+        }
         const failMessage = new TestMessage(failMessageText);
         run.failed(node, failMessage);
       }
