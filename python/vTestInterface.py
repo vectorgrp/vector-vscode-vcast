@@ -133,7 +133,7 @@ def getPassFailString(test):
     denominator = summary.expected_total + summary.control_flow_total
 
     numerator = denominator - (summary.expected_fail + summary.control_flow_fail)
-    return XofYString(numerator, denominator) + "\n"
+    return XofYString(numerator, denominator)
 
 
 def generateTestInfo(enviroPath, test):
