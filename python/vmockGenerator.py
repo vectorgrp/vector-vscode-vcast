@@ -114,7 +114,7 @@ TEST.END
 )
 
 
-# filenames are hard-coded for now
+# filenames are hard-coded for now, tests.cpp and tests.tst
 basename = "tests"
 test_file = f"{basename}.cpp"
 script_file = f"{basename}.tst"
@@ -170,17 +170,17 @@ def generate_tests_for_environment(env_name):
     that was passed to us as an argument
     """
 
-    tstUtilities.addHashToMockFunctionNames = True
-    tstUtilities.vmockVerboseOutput = True
-
     # Generate our coded test ...
     first_unit = generate_test_file(env_name)
     # ... and the test script to load the coded test
     generate_test_script(env_name, first_unit)
 
 
-def save_errors_to_file (errors):
-    with open('errors.txt', 'w') as f:
+error_file = f"{test_file}.errors.txt"
+
+
+def save_errors_to_file(errors):
+    with open(error_file, "w") as f:
         for error in errors:
             f.write(f"{error}\n")
 
@@ -219,7 +219,6 @@ def generate_tests_and_compile():
             cwd = os.getcwd()
             os.chdir(enviro_path)
 
-
             # generate the tests.cpp
             generate_test_file(enviro_path, prepend=['#include "unit.cpp"'])
 
@@ -227,18 +226,20 @@ def generate_tests_and_compile():
             # compile the tests.cpp file using g++
             vcast_dir = os.environ.get("VECTORCAST_DIR", "C:/vcast/")
             include_path = os.path.join(vcast_dir, "vunit/include")
-            compile_command = (
-                f"g++ -std=c++17 -I{include_path} -c -w tests.cpp"
-            )
+            compile_command = f"g++ -std=c++17 -I{include_path} -c -w tests.cpp"
 
             try:
-                subprocess.check_output(compile_command, shell=True, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    compile_command, shell=True, stderr=subprocess.STDOUT
+                )
                 exit_code = 0
+                # errors file from a previous run might exist
+                if os.path.isfile(error_file):
+                    os.remove(error_file)
             except subprocess.CalledProcessError as error:
                 stdout = error.output
-                save_errors_to_file (stdout.decode('utf-8').split('\n'))
+                save_errors_to_file(stdout.decode("utf-8").split("\n"))
                 exit_code = error.returncode
-
 
             print(f"Command: {compile_command} returned: {exit_code}")
 
@@ -256,6 +257,10 @@ def main():
         - Pass the path to an environment directory
         -
     """
+
+    tstUtilities.addHashToMockFunctionNames = True
+    tstUtilities.vmockVerboseOutput = True
+
     if (
         len(sys.argv) == 2
         and (env_name := sys.argv[1])
