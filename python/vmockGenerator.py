@@ -196,6 +196,40 @@ def compile_file(command):
     return exit_code, stdout
 
 
+def get_list_of_directories_to_process():
+    """
+    When we get here we are in batch mode, and now the question is whether
+    to walk the directory tree looking for directories with a master.db and unit.cpp file
+    or to use a list of directories that we have been given.
+    """
+
+    what_to_return = []
+
+    if len(sys.argv) == 3:
+        if os.path.isfile(sys.argv[2]):
+            with open(sys.argv[2], "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if os.path.exists(line):
+                        what_to_return.append(line)
+                    else:
+                        print(f"Directory {line} does not exist")
+        else:
+            print(
+                "The third argument should be a file with a list of directories to process"
+            )
+
+    else:
+        print("Looking for directories with a master.db and unit.cpp file ...")
+        for root, dirs, files in os.walk("."):
+            if "master.db" in files and "unit.cpp" in files:
+                what_to_return.append(root)
+
+        print(f"Found {len(what_to_return)} directories to process")
+
+    return what_to_return
+
+
 def generate_tests_and_compile():
     """
     Use Case: vpython vmockGenerator.py batch
@@ -210,15 +244,8 @@ def generate_tests_and_compile():
     global trace_enabled
     trace_enabled = False
 
-    print("Looking for directories with a master.db and unit.cpp file ...")
-
     # Find all the directories with a master.db and unit.cpp file
-    enviroDirs = []
-    for root, dirs, files in os.walk("."):
-        if "master.db" in files and "unit.cpp" in files:
-            enviroDirs.append(root)
-
-    print(f"Found {len(enviroDirs)} directories to process")
+    enviroDirs = get_list_of_directories_to_process()
 
     unit_file_does_not_compile = []
     tests_compile = []
@@ -237,10 +264,10 @@ def generate_tests_and_compile():
             # first try to compile the unit.cpp file using g++
             print("  compiling unit.cpp ...")
             compile_command = f"g++ -std=c++17 -c -w unit.cpp"
-            exit_code, stdout = compile_file (compile_command)
+            exit_code, stdout = compile_file(compile_command)
 
             if exit_code != 0:
-                print ("  unit.cpp does not compile")
+                print("  unit.cpp does not compile")
                 unit_file_does_not_compile.append(enviro_path)
 
             else:
@@ -255,9 +282,9 @@ def generate_tests_and_compile():
                 compile_command = f"g++ -std=c++17 -I{include_path} -c -w tests.cpp"
 
                 print("  compiling tests file ...")
-                exit_code, stdout = compile_file (compile_command)
+                exit_code, stdout = compile_file(compile_command)
 
-                if exit_code==0:
+                if exit_code == 0:
                     tests_compile.append(enviro_path)
                 else:
                     save_errors_to_file(stdout.decode("utf-8").split("\n"))
@@ -275,13 +302,13 @@ def generate_tests_and_compile():
     print("\nSummary:")
     print(f"  Total directories processed: {len(enviroDirs)}")
     print(f"  Test files compiled successfully: {len(tests_compile)}")
-    if len (tests_do_not_compile) > 0:
+    if len(tests_do_not_compile) > 0:
         print(f"  Test files that did not compile: {len(tests_do_not_compile)}")
-    if len (unit_file_does_not_compile) > 0:
+    if len(unit_file_does_not_compile) > 0:
         print(f"  Unit files that did not compile: {len(unit_file_does_not_compile)}")
 
     summary_file = "summary.txt"
-    print (f"\nSave details into {summary_file}")
+    print(f"\nSave details into {summary_file}")
     with open(summary_file, "w") as f:
         f.write(f"Total directories processed: {len(enviroDirs)}\n")
         f.write(f"\nTest files compiled successfully: {len(tests_compile)}\n")
@@ -290,7 +317,9 @@ def generate_tests_and_compile():
         f.write(f"\nTest files that did not compile: {len(tests_do_not_compile)}\n")
         for enviro_path in tests_do_not_compile:
             f.write(f"  {enviro_path}\n")
-        f.write(f"\nUnit files that did not compile: {len(unit_file_does_not_compile)}\n")
+        f.write(
+            f"\nUnit files that did not compile: {len(unit_file_does_not_compile)}\n"
+        )
         for enviro_path in unit_file_does_not_compile:
             f.write(f"  {enviro_path}\n")
 
@@ -312,7 +341,7 @@ def main():
     ):
         generate_tests_for_environment(env_name)
 
-    elif len(sys.argv) == 2 and sys.argv[1] == "batch":
+    elif len(sys.argv) >= 2 and sys.argv[1] == "batch":
         generate_tests_and_compile()
 
     else:
