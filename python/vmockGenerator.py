@@ -280,6 +280,20 @@ def generate_tests_and_compile():
     if len (unit_file_does_not_compile) > 0:
         print(f"  Unit files that did not compile: {len(unit_file_does_not_compile)}")
 
+    summary_file = "summary.txt"
+    print (f"\nSave details into {summary_file}")
+    with open(summary_file, "w") as f:
+        f.write(f"Total directories processed: {len(enviroDirs)}\n")
+        f.write(f"\nTest files compiled successfully: {len(tests_compile)}\n")
+        for enviro_path in tests_compile:
+            f.write(f"  {enviro_path}\n")
+        f.write(f"\nTest files that did not compile: {len(tests_do_not_compile)}\n")
+        for enviro_path in tests_do_not_compile:
+            f.write(f"  {enviro_path}\n")
+        f.write(f"\nUnit files that did not compile: {len(unit_file_does_not_compile)}\n")
+        for enviro_path in unit_file_does_not_compile:
+            f.write(f"  {enviro_path}\n")
+
 
 def main():
     """
