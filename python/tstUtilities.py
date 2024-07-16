@@ -703,7 +703,7 @@ def buildCppParameterization(api, functionObject, functionName):
     return f"{returnType} ({fptrString})({parameterString})"
 
 
-enableStubPrefix = "// Enable Stub:"
+enableStubPrefix = "// Enable Stub: "
 disableStubPrefix = "// Disable Stub:"
 logicComment = "// Insert mock logic here!"
 
@@ -744,7 +744,7 @@ def generateMockDataForFunction(api, functionObject):
 
     # Next generate the enable function declaration,  which includes
     # all of the logic to associate the mock with the original function
-    enableFunctionDefinition, enableFunctionCall = generateMockEnableForUnitAndFunction(
+    enableFunctionDefinition, enableFunctionCall, disable_function_call = generateMockEnableForUnitAndFunction(
         api, functionObject, mockFunctionName
     )
     whatToReturn.enableFunctionDefinition = enableFunctionDefinition
@@ -752,8 +752,7 @@ def generateMockDataForFunction(api, functionObject):
 
     # And finally generate the usage comments that will be inserted into the mock
     whatToReturn.enableComment = f"{enableStubPrefix} {enableFunctionCall}"
-    disableFunctionCall = enableFunctionCall[:-2] + ", false);"
-    whatToReturn.disableComment = f"{disableStubPrefix} {disableFunctionCall}"
+    whatToReturn.disableComment = f"{disableStubPrefix} {disable_function_call}"
 
     return whatToReturn
 

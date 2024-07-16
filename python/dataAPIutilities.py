@@ -217,10 +217,10 @@ def getFunctionNameForAddress(api, functionObject):
 
 mock_template = Template(
     """
-void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
+void ${mock}_connect(vunit::MockSession &vmock_session, auto mock_address) {
     using vcast_mock_rtype = ${original_return} ;
     ${lookup_decl} ${const} = &${function};
-    vmock_session.mock <${lookup_type}> ((${lookup_type})vcast_fn_ptr).assign (enable ? &${mock} : nullptr);
+    vmock_session.mock <${lookup_type}> ((${lookup_type})original_function).assign (mock_address);
 }
 """.strip(
         "\n"
@@ -237,16 +237,16 @@ def generateMockEnableForUnitAndFunction(api, functionObject, mockFunctionName):
     original_return = getReturnType(functionObject)
     lookup_type = functionObject.mock_lookup_type
 
-    # We need to reintroduce the 'vcast_fn_ptr' string into the look-up, when
+    # We need to reintroduce the 'lhs' string into the look-up, when
     # first declaring the function pointer (but when use the type later on, we
     # don't want the variable name in there)
     if "::*" in lookup_type:
         # If we're a method, we only see this in one place
-        lookup_decl = lookup_type.replace("::*)(", "::*vcast_fn_ptr)(", 1)
+        lookup_decl = lookup_type.replace("::*)(", "::*original_function)(", 1)
     else:
         # Otherwise, let's guess, but this could convert "too much" (e.g., in
         # functions that take function pointers)
-        lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
+        lookup_decl = lookup_type.replace("*)(", "*original_function)(", 1)
     const = "const" if functionObject.is_const else ""
     function_name = getFunctionNameForAddress(api, functionObject)
     mock_enable_disable = mock_template.safe_substitute(
@@ -257,6 +257,9 @@ def generateMockEnableForUnitAndFunction(api, functionObject, mockFunctionName):
         function=function_name,
         mock=mockFunctionName,
     )
-    mock_enable_call = f"{mockFunctionName}_enable_disable(vmock_session);"
+    mock_enable_call = (
+        f"{mockFunctionName}_connect(vmock_session, &{mockFunctionName});"
+    )
+    mock_disable_call = f"{mockFunctionName}_connect(vmock_session, nullptr);"
 
-    return mock_enable_disable, mock_enable_call
+    return mock_enable_disable, mock_enable_call, mock_disable_call
