@@ -851,7 +851,7 @@ export async function runNode(
           failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
         }
         catch {
-          failMessageText = "No expected results exist Fail"
+          failMessageText = "No expected results exist"
         }
         const failMessage = new TestMessage(failMessageText);
         run.failed(node, failMessage);
