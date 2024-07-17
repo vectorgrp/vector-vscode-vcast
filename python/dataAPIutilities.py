@@ -134,6 +134,8 @@ def functionCanBeMocked(functionObject):
     # these <<INIT>> functions should not be in the list
     # Waiting for PCT fix of FB: 101353.
     """
+    functionsToIgnore.append("pthread_cond_clockwait")
+    functionsToIgnore.append("pthread_mutex_clocklock")
     if functionObject.vcast_name in functionsToIgnore:
         return False
     # Constructors are not supported by vmock
@@ -144,6 +146,8 @@ def functionCanBeMocked(functionObject):
         return False
     # This allows us to support older versions of VectorCAST
     elif hasattr(functionObject, "is_mockable"):
+        if "vcast_concrete_" in functionObject.mock_lookup_type:
+            return False
         return functionObject.is_mockable
     else:
         return True

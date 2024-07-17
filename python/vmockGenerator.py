@@ -171,7 +171,7 @@ def generate_tests_for_environment(env_name):
     """
 
     # Generate our coded test ...
-    first_unit = generate_test_file(env_name)
+    first_unit = generate_test_file(env_name, prepend=['#include "unit.cpp"'])
     # ... and the test script to load the coded test
     generate_test_script(env_name, first_unit)
 
@@ -335,10 +335,12 @@ def main():
     tstUtilities.vmockVerboseOutput = True
 
     if (
-        len(sys.argv) == 2
+        len(sys.argv) == 3
         and (env_name := sys.argv[1])
         and os.path.exists(os.path.join(env_name, "master.db"))
     ):
+        global test_file
+        test_file = sys.argv[2]
         generate_tests_for_environment(env_name)
 
     elif len(sys.argv) >= 2 and sys.argv[1] == "batch":
