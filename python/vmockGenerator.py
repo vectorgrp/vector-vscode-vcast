@@ -263,7 +263,7 @@ def generate_tests_and_compile():
 
             # first try to compile the unit.cpp file using g++
             print("  compiling unit.cpp ...")
-            compile_command = f"g++ -std=c++17 -c -w unit.cpp"
+            compile_command = f"g++ -std=c++14 -c -w unit.cpp"
             exit_code, stdout = compile_file(compile_command)
 
             if exit_code != 0:
@@ -279,7 +279,7 @@ def generate_tests_and_compile():
                 # compile the tests.cpp file using g++
                 vcast_dir = os.environ.get("VECTORCAST_DIR", "C:/vcast/")
                 include_path = os.path.join(vcast_dir, "vunit/include")
-                compile_command = f"g++ -std=c++17 -I{include_path} -c -w tests.cpp"
+                compile_command = f"g++ -std=c++14 -I{include_path} -c -w tests.cpp"
 
                 print("  compiling tests file ...")
                 exit_code, stdout = compile_file(compile_command)
