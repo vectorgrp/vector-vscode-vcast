@@ -11,6 +11,10 @@ export function getSpecGroups(vcast24: boolean) {
           "./**/**/vcast.rest_2.test.ts",
           "./**/**/vcast.rest_3.test.ts",
         ],
+      "build_env_failure":[
+        "./**/**/vcast_build_env_failure.test.ts",
+        "./**/**/vcast_build_env_after_failure.test.ts"
+        ],
       "bugs": [
           "./**/**/vcast_testgen_bugs.test.ts",
           "./**/**/vcast_testgen_bugs_2.test.ts",
