@@ -161,31 +161,42 @@ def getInstantiatingClass(api, functionObject):
     # Andrew please add exactly what we want to the Confluence page
     # and then update this comment with the issue number
 
-    instantiatingClass = ""
-    if "::" in functionObject.name:
-        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+    # Get the mock lookup type -- this now *does not* have the return type
+    mockLookupType = functionObject.mock_lookup_type
 
-        # Operators can take a type, and that type can have `::` in it, so we
-        # need to break before the `::operator`
-        operatorFollowedBySpace = "::operator "
-        if operatorFollowedBySpace in instantiatingClass:
-            idxOfOperatorFollowedBySpace = instantiatingClass.find("::operator ")
-            instantiatingClass = instantiatingClass[:idxOfOperatorFollowedBySpace]
-        elif "<" in instantiatingClass:
-            # FIXME: we don't store the correct string for `get_by_typemark`.
-            # However, having `<` in the name, is likely enough to know we are
-            # a class and not a namespace!
-            pass
+    # It should start with `(`
+    assert mockLookupType[0] == "("
 
-        elif api.Type.get_by_typemark(instantiatingClass) is None:
-            # We need to check if we get a class name after splitting; we only use
-            # if it is a class.
-            instantiatingClass = ""
+    # We now want to find the place where we have an even number of round
+    # brackets, with the last closing bracket signifying the end the "context"
+    #
+    # endIdx is then the position in the string where the context type ends
+    endIdx = -1
+    openParen = 0
+    for idx, char in enumerate(mockLookupType):
+        if char == "(":
+            openParen += 1
+        elif openParen == 1 and char == ")":
+            endIdx = idx
+            break
+        elif char == ")":
+            openParen -= 1
 
-        # FIXME: Hack to check if we're a static method or not
-        if "::*" not in functionObject.mock_lookup_type:
-            instantiatingClass = ""
+    # endIdx should now be a `*`
+    assert mockLookupType[endIdx - 1] == "*"
 
+    # Grab the string from after the opening `(` to before the `*`
+    instantiatingClass = mockLookupType[1 : endIdx - 1]
+
+    # Remove trailing whitespace
+    instantiatingClass = instantiatingClass.strip()
+
+    # If we happened to be a class, we're going to have `::`, so we want to
+    # remove that
+    if instantiatingClass.endswith("::"):
+        instantiatingClass = instantiatingClass.rstrip(":")
+
+    # Now we have our instantiating class
     return instantiatingClass
 
 
@@ -205,7 +216,6 @@ def getFunctionNameForAddress(api, functionObject):
     if "operator()" in functionName:
         functionName = re.split("operator\(\)", functionName)[0] + "operator()"
     elif "operator" in functionName:
-
         # Need to handle operator< and overloads that contain templates, but
         # where the function itself isn't templated
         #
