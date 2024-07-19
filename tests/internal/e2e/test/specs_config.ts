@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+
 export function getSpecGroups(vcast24: boolean) {
     const specGroups = {
       "basic_user_interactions": {"specs":[
@@ -14,7 +16,10 @@ export function getSpecGroups(vcast24: boolean) {
       "build_env_failure":{"specs":[
         "./**/**/vcast_build_env_failure.test.ts",
         "./**/**/vcast_build_env_after_failure.test.ts"
-        ], "params": {"VECTORCAST_DIR": process.env.VECTORCAST_DIR_TEST_DUPLICATE}},
+        ], "env": {"VECTORCAST_DIR": "", 
+                  "VECTORCAST_ATG_DIR": "",
+                  "PATH": "/home/denis/.nvm/versions/node/v18.18.0/bin:/home/denis/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
+        }},
       "bugs": {"specs":[
           "./**/**/vcast_testgen_bugs.test.ts",
           "./**/**/vcast_testgen_bugs_2.test.ts",
@@ -57,6 +62,12 @@ export function getSpecGroups(vcast24: boolean) {
       ], "params": {}}
     }
 
+    // Convert specs object to JSON string
+    const jsonString = JSON.stringify(specGroups, null, 4);
+
+    // Write JSON string to a file
+    fs.writeFileSync('spec_groups.json', jsonString);
+
     return specGroups;
 }
 
@@ -81,6 +92,6 @@ export function getSpecs(vcast24: boolean, group: string = null) {
 
 export function getSpecGroupParameters(group: string, vcast24: boolean = false){
   const specGroup = getSpecGroups(vcast24);
-
+  
   return specGroup[group].params
 }

@@ -77,7 +77,6 @@ const proxyObject: ProxyObject = {
 
 import { getSpecs, getSpecGroupParameters} from './specs_config.ts';
 const groupName = process.env["RUN_BY_GROUP"] === 'True' ? process.env["RUN_GROUP_NAME"] : null;
-const groupNameParams = getSpecGroupParameters(groupName)
 
 export const config: Options.Testrunner = {
   //
@@ -343,8 +342,12 @@ export const config: Options.Testrunner = {
     );
 
 
-    if(!groupNameParams["VECTORCAST_DIR"]){
-
+    //if(!groupNameParams["VECTORCAST_DIR"]){
+    console.log("ENV:::::::")
+    console.log(process.env.VECTORCAST_DIR)
+    console.log(process.env.VECTORCAST_ATG_DIR)
+    console.log(process.env.PATH)
+    if(process.env.VECTORCAST_DIR){
     let checkVPython: string;
     checkVPython =
       process.platform == "win32" ? "where vpython" : "which vpython";
@@ -423,11 +426,14 @@ export const config: Options.Testrunner = {
 
     
     }else{
-    vectorcastDir = groupNameParams["VECTORCAST_DIR"]
+    console.log("I AM IN THE ELSE")
+    vectorcastDir = process.env.VECTORCAST_DIR_TEST_DUPLICATE
+    console.log(vectorcastDir)
+
     }
     
     process.env.VC_DIR = vectorcastDir;
-
+    console.log(process.env.VC_DIR)
 
 
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
@@ -490,11 +496,7 @@ ENVIRO.END
       envFile
     );
 
-    if(!groupNameParams["VECTORCAST_DIR"]){
 
-      
-      
-    }
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
     await mkdir(pathToTutorial, { recursive: true });
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
