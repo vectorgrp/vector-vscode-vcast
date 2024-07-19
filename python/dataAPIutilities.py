@@ -22,12 +22,7 @@ def getParameterList(functionObject):
         if parameterObject.name != "return":
             paramIndex += 1
             # get parameterObject.orig_declaration
-            declarationToUse = getOriginalDeclaration(parameterObject)
-            if "vcast_param" in declarationToUse:
-                uniqueParameterName = f"vcast_param{paramIndex}"
-                declarationToUse = declarationToUse.replace(
-                    "vcast_param", uniqueParameterName
-                )
+            declarationToUse = parameterObject.bare_orig_declaration
             parameterString += f" {declarationToUse},"
 
     if len(parameterString) == 0:
@@ -81,6 +76,17 @@ def dropTemplates(originalName):
 
 
 def getMockDeclaration(functionObject, mockFunctionName, signatureString):
+    # PCT-FIX-NEEDED - issue #13 - generate_mock_declaration is incorrect when
+    # the function is a free function in a namespace
+    #
+    # This whole function should be replaced with:
+    #
+    #       functionObject.generate_mock_declaration(mockFunctionName)
+    #
+    # Once #13 is fixed.
+    #
+    # You should then remove: getParameterList and getFunctionSignature
+
     """
     This handles the special cases for the return of the mock which
     cannot simply "just" return the return type, as per DataAPI.
@@ -219,8 +225,8 @@ mock_template = Template(
     """
 void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
     using vcast_mock_rtype = ${original_return} ;
-    ${lookup_decl} ${const} = &${function};
-    vmock_session.mock <${lookup_type}> ((${lookup_type})vcast_fn_ptr).assign (enable ? &${mock} : nullptr);
+    vcast_mock_rtype ${lookup_decl} ${const} = &${function};
+    vmock_session.mock <vcast_mock_rtype ${lookup_type}> ((vcast_mock_rtype ${lookup_type})vcast_fn_ptr).assign (enable ? &${mock} : nullptr);
 }
 """.strip(
         "\n"
