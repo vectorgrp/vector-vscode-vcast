@@ -8,29 +8,6 @@ import re
 from string import Template
 
 
-def getParameterList(functionObject):
-    # "orig_declaration" contains both the type and the
-    # parameter name as originally defined.
-
-    # PCT-FIX-NEEDED - issue #1 - duplicate parameter names
-    # A special case is unnamed parameters, where "vcast_param"
-    # is used, so in this case replace with vcast_param1,2,3
-
-    paramIndex = 0
-    parameterString = ""
-    for parameterObject in functionObject.parameters:
-        if parameterObject.name != "return":
-            paramIndex += 1
-            # get parameterObject.orig_declaration
-            declarationToUse = parameterObject.bare_orig_declaration
-            parameterString += f" {declarationToUse},"
-
-    if len(parameterString) == 0:
-        return ""
-    else:
-        return f",{parameterString[:-1]}"
-
-
 # function to not be shown in the functions list
 tagForInit = "<<INIT>>"
 functionsToIgnore = ["coded_tests_driver", tagForInit]
@@ -75,60 +52,8 @@ def dropTemplates(originalName):
     return droppedName
 
 
-def getMockDeclaration(functionObject, mockFunctionName, signatureString):
-    # PCT-FIX-NEEDED - issue #13 - generate_mock_declaration is incorrect when
-    # the function is a free function in a namespace
-    #
-    # This whole function should be replaced with:
-    #
-    #       functionObject.generate_mock_declaration(mockFunctionName)
-    #
-    # Once #13 is fixed.
-    #
-    # You should then remove: getParameterList and getFunctionSignature
-
-    """
-    This handles the special cases for the return of the mock which
-    cannot simply "just" return the return type, as per DataAPI.
-
-    This code handles two edge-cases (and the "happy path"):
-
-        1) If the function returns a function pointer, e.g.,:
-
-            `void (*get_fptr(void))(void)`
-
-           then the mock looks like this:
-
-            `void (*vmock_unit_get_fptr(::vunit::CallCtx<> vunit_ctx))(void)`
-
-        2) If the function returns a reference to a fixed-sized array, e.g.,:
-
-            `char const (&get())[100]`
-
-           then the mock looks like this:
-
-            `const char (&vmock_unit_get(::vunit::CallCtx<> vunit_ctx))[100]`
-
-        3) Otherwise, the mock is "very normal" and looks like this:
-
-            `void vmock_unit_foo(::vunit::CallCtx<> vunit_ctx)`
-    """
-
-    returnType = getReturnType(functionObject)
-
-    # Need to handle when the function returns a function pointer
-    if "(*)" in dropTemplates(returnType):
-        stubDeclaration = returnType.replace(
-            "(*)", f"(*{mockFunctionName}({signatureString}))"
-        )
-    elif "(&)" in dropTemplates(returnType):
-        stubDeclaration = returnType.replace(
-            "(&)", f"(&{mockFunctionName}({signatureString}))"
-        )
-    else:
-        stubDeclaration = f"\n{returnType} {mockFunctionName}({signatureString})"
-
-    return stubDeclaration
+def getMockDeclaration(functionObject, mockFunctionName):
+    return functionObject.generate_mock_declaration(mockFunctionName)
 
 
 def functionCanBeMocked(functionObject):
@@ -153,40 +78,6 @@ def functionCanBeMocked(functionObject):
         return functionObject.is_mockable
     else:
         return True
-
-
-def getInstantiatingClass(api, functionObject):
-    # PCT-FIX-NEEDED - would like them to provide this string in functionObject
-    # Should be an empty string or None if static class method.
-    # Andrew please add exactly what we want to the Confluence page
-    # and then update this comment with the issue number
-
-    instantiatingClass = ""
-    if "::" in functionObject.name:
-        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
-
-        # Operators can take a type, and that type can have `::` in it, so we
-        # need to break before the `::operator`
-        operatorFollowedBySpace = "::operator "
-        if operatorFollowedBySpace in instantiatingClass:
-            idxOfOperatorFollowedBySpace = instantiatingClass.find("::operator ")
-            instantiatingClass = instantiatingClass[:idxOfOperatorFollowedBySpace]
-        elif "<" in instantiatingClass:
-            # FIXME: we don't store the correct string for `get_by_typemark`.
-            # However, having `<` in the name, is likely enough to know we are
-            # a class and not a namespace!
-            pass
-
-        elif api.Type.get_by_typemark(instantiatingClass) is None:
-            # We need to check if we get a class name after splitting; we only use
-            # if it is a class.
-            instantiatingClass = ""
-
-        # FIXME: Hack to check if we're a static method or not
-        if "::*" not in functionObject.mock_lookup_type:
-            instantiatingClass = ""
-
-    return instantiatingClass
 
 
 # ----------------------------------------------------------------------------------------

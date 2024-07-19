@@ -17,10 +17,8 @@ from dataAPIutilities import (
     dropTemplates,
     functionCanBeMocked,
     generateMockEnableForUnitAndFunction,
-    getInstantiatingClass,
     getMockDeclaration,
     getReturnType,
-    getParameterList,
     tagForInit,
 )
 
@@ -578,24 +576,6 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
-def getFunctionSignature(api, functionObject):
-    """
-    Create the signature for a vmock stub function, something like this:
-        ::vunit::CallCtx<myClass> vunit_ctx, int param
-    """
-
-    # if this function is a class member, we include the class name
-    instantiatingClass = getInstantiatingClass(api, functionObject)
-
-    # the static part of the signature looks like this ...
-    signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx"
-
-    # now append the parameters (if any)
-    signatureString += getParameterList(functionObject)
-
-    return signatureString
-
-
 def functionIsOperator(functionName):
     """
     So that we have one place to adjust if we find bugs :)
@@ -676,33 +656,6 @@ def getFunctionName(functionObject):
     return returnName
 
 
-def buildCppParameterization(api, functionObject, functionName):
-    """
-    This function will convert the vcast parameterization
-    into the correct C++ style parameterization
-    """
-
-    # create the function pointer part ether * or className::*
-    instantiatingClass = ""
-    if "::" in functionName:
-        instantiatingClass = getInstantiatingClass(api, functionObject)
-        fptrString = f"{instantiatingClass}::*"
-    else:
-        fptrString = "*"
-
-    # original_return_type
-    returnType = getReturnType(functionObject)
-
-    # : should we convert to using the new orig_declaration?
-    # IF we do we'll have to deal with the param names and special cases like int param[]
-
-    # the vcast parameterization string looks like: (char, int[])int
-    # and this will return the "(char, int[])" part
-    parameterString = functionObject.parameterization.split("(", 1)[1].rsplit(")", 1)[0]
-
-    return f"{returnType} ({fptrString})({parameterString})"
-
-
 enableStubPrefix = "// Enable Stub:"
 disableStubPrefix = "// Disable Stub:"
 logicComment = "// Insert mock logic here!"
@@ -728,17 +681,11 @@ def generateMockDataForFunction(api, functionObject):
 
     # First generate the mock definition
 
-    # get the parameter profile for the stubbed function
-    # e.g -> ::vunit::CallCtx<myClass> vunit_ctx, int param, ...
-    signatureString = getFunctionSignature(api, functionObject)
-
     # get the name to be used for the mock itself
     mockFunctionName = getFunctionName(functionObject)
 
     # generate the complete declaration
-    mockDeclaration = getMockDeclaration(
-        functionObject, mockFunctionName, signatureString
-    )
+    mockDeclaration = getMockDeclaration(functionObject, mockFunctionName)
 
     whatToReturn.mockDeclaration = mockDeclaration
 
