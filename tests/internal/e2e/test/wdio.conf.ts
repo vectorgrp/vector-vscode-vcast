@@ -75,8 +75,9 @@ const proxyObject: ProxyObject = {
   noProxy: noProxyRules,
 };
 
-import { getSpecs } from './specs_config.ts';
+import { getSpecs, getSpecGroupParameters} from './specs_config.ts';
 const groupName = process.env["RUN_BY_GROUP"] === 'True' ? process.env["RUN_GROUP_NAME"] : null;
+const groupNameParams = getSpecGroupParameters(groupName)
 
 export const config: Options.Testrunner = {
   //
@@ -332,48 +333,7 @@ export const config: Options.Testrunner = {
     const promisifiedExec = promisify(exec);
 
     process.env.WORKSPACE_FOLDER = "vcastTutorial";
-
-    // let checkVPython: string;
-    // checkVPython =
-    //   process.platform == "win32" ? "where vpython" : "which vpython";
-
-    // {
-    //   const { stdout, stderr } = await promisifiedExec(checkVPython);
-    //   if (stderr) {
-    //     console.log(stderr);
-    //     throw `Error when running ${checkVPython}`;
-    //   } else {
-    //     console.log(`vpython found in ${stdout}`);
-    //   }
-    // }
-
-    // let checkClicast: string;
-    // checkClicast =
-    //   process.platform == "win32" ? "where clicast" : "which clicast";
-
-    // let clicastExecutablePath: string;
-    // {
-    //   const { stdout, stderr } = await promisifiedExec(checkClicast);
-    //   if (stderr) {
-    //     console.log(stderr);
-    //     throw `Error when running ${checkClicast}`;
-    //   } else {
-    //     clicastExecutablePath = stdout;
-    //     console.log(`clicast found in ${clicastExecutablePath}`);
-    //   }
-    // }
-
-    // process.env.CLICAST_PATH = clicastExecutablePath;
-
-    //const vectorcastDir = path.dirname(clicastExecutablePath);
-    //const vectorcastDir = process.env.VECTORCAST_DIR
-    const vectorcastDir = "/home/denis/software/releaseVectorCAST24/release"
-    process.env.VC_DIR = vectorcastDir;
-
-    // let clearScreenshots: string;
-    // clearScreenshots =
-    //   process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
-    // await promisifiedExec(clearScreenshots);
+    let vectorcastDir : string;
 
     const testInputVcastTutorial = path.join(
       initialWorkdir,
@@ -381,6 +341,95 @@ export const config: Options.Testrunner = {
       "test_input",
       "vcastTutorial"
     );
+
+
+    if(!groupNameParams["VECTORCAST_DIR"]){
+
+    let checkVPython: string;
+    checkVPython =
+      process.platform == "win32" ? "where vpython" : "which vpython";
+
+    {
+      const { stdout, stderr } = await promisifiedExec(checkVPython);
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${checkVPython}`;
+      } else {
+        console.log(`vpython found in ${stdout}`);
+      }
+    }
+
+    let checkClicast: string;
+    checkClicast =
+      process.platform == "win32" ? "where clicast" : "which clicast";
+
+    let clicastExecutablePath: string;
+    {
+      const { stdout, stderr } = await promisifiedExec(checkClicast);
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${checkClicast}`;
+      } else {
+        clicastExecutablePath = stdout;
+        console.log(`clicast found in ${clicastExecutablePath}`);
+      }
+    }
+
+    process.env.CLICAST_PATH = clicastExecutablePath;
+    vectorcastDir = path.dirname(clicastExecutablePath);
+    
+    let clearScreenshots: string;
+    clearScreenshots =
+      process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
+    await promisifiedExec(clearScreenshots);
+
+    const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
+      await promisifiedExec(createCFG);
+
+      const requestTutorialPath = path.join(
+        vectorcastDir,
+        "examples",
+        "RequirementsGW",
+        "CSV_Requirements_For_Tutorial.csv"
+      );
+      const commandPrefix = `cd ${testInputVcastTutorial} && ${process.env.CLICAST_PATH.trimEnd()} -lc`;
+      const rgwPrepCommands = [
+        `${commandPrefix} option VCAST_REPOSITORY ${path.join(
+          initialWorkdir,
+          "test",
+          "vcastTutorial"
+        )}`,
+        `${commandPrefix} RGw INitialize`,
+        `${commandPrefix} Rgw Set Gateway CSV`,
+        `${commandPrefix} RGw Configure Set CSV csv_path ${requestTutorialPath}`,
+        `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
+        `${commandPrefix} RGw Configure Set CSV filter_attribute`,
+        `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
+        `${commandPrefix} RGw Configure Set CSV id_attribute ID`,
+        `${commandPrefix} RGw Configure Set CSV key_attribute Key`,
+        `${commandPrefix} RGw Configure Set CSV title_attribute Title `,
+        `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
+        `${commandPrefix} RGw Import`,
+      ];
+      for (const rgwPrepCommand of rgwPrepCommands) {
+        const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${rgwPrepCommand}`;
+        }
+
+        console.log(stdout);
+      }
+
+    
+    }else{
+    vectorcastDir = groupNameParams["VECTORCAST_DIR"]
+    }
+    
+    process.env.VC_DIR = vectorcastDir;
+
+
+
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
     await mkdir(testInputEnvPath, { recursive: true });
 
@@ -441,44 +490,11 @@ ENVIRO.END
       envFile
     );
 
-    //const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
-    //await promisifiedExec(createCFG);
+    if(!groupNameParams["VECTORCAST_DIR"]){
 
-    // const requestTutorialPath = path.join(
-    //   vectorcastDir,
-    //   "examples",
-    //   "RequirementsGW",
-    //   "CSV_Requirements_For_Tutorial.csv"
-    // );
-    // const commandPrefix = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc`;
-    // const rgwPrepCommands = [
-    //   `${commandPrefix} option VCAST_REPOSITORY ${path.join(
-    //     initialWorkdir,
-    //     "test",
-    //     "vcastTutorial"
-    //   )}`,
-    //   `${commandPrefix} RGw INitialize`,
-    //   `${commandPrefix} Rgw Set Gateway CSV`,
-    //   `${commandPrefix} RGw Configure Set CSV csv_path ${requestTutorialPath}`,
-    //   `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
-    //   `${commandPrefix} RGw Configure Set CSV filter_attribute`,
-    //   `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
-    //   `${commandPrefix} RGw Configure Set CSV id_attribute ID`,
-    //   `${commandPrefix} RGw Configure Set CSV key_attribute Key`,
-    //   `${commandPrefix} RGw Configure Set CSV title_attribute Title `,
-    //   `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
-    //   `${commandPrefix} RGw Import`,
-    // ];
-    // for (const rgwPrepCommand of rgwPrepCommands) {
-    //   const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
-    //   if (stderr) {
-    //     console.log(stderr);
-    //     throw `Error when running ${rgwPrepCommand}`;
-    //   }
-
-    //   console.log(stdout);
-    // }
-
+      
+      
+    }
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
     await mkdir(pathToTutorial, { recursive: true });
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
@@ -514,8 +530,8 @@ ENVIRO.END
       );
     } else {
       await promisifiedExec(`cp ${examplesToCopy} ${testInputEnvPath}`);
-      // await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
-      // await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
+      await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
+      await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
       await promisifiedExec(`cp ${codedTestsExamplesToCopy} ${codedTestsPath}`);
       await promisifiedExec(
         `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`

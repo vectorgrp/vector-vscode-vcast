@@ -1,5 +1,4 @@
 import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
-import { Key } from "webdriverio";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,

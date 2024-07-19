@@ -4,9 +4,7 @@ import { Key } from "webdriverio";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  cleanup
 } from "../test_utils/vcast_utils";
-import path from "path";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
