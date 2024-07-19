@@ -101,7 +101,19 @@ def getFunctionNameForAddress(api, functionObject):
         #
         # This stops the logic below getting hit if we have operator< or
         # operator>
-        functionName = functionName.split("(")[0]
+        #
+        # We also need to handle: scope::scope::template<args
+        # (*)>::scope::operator, so we can't just split on `(`
+
+        parts = functionName.split("operator")
+
+        # FIXME: remove this once we've done a run and we know we only get one!
+        assert len(parts) == 2
+
+        before, after = parts
+
+        functionName = before + "operator" + after.split("(")[0]
+
     elif "<" in functionName and ">" in functionName:
         # Don't split on "(" in parens
         in_count = 0
