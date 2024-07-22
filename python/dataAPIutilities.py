@@ -21,13 +21,7 @@ def getParameterList(functionObject):
     for parameterObject in functionObject.parameters:
         if parameterObject.name != "return":
             paramIndex += 1
-            # get parameterObject.orig_declaration
-            declarationToUse = getOriginalDeclaration(parameterObject)
-            if "vcast_param" in declarationToUse:
-                uniqueParameterName = f"vcast_param{paramIndex}"
-                declarationToUse = declarationToUse.replace(
-                    "vcast_param", uniqueParameterName
-                )
+            declarationToUse = parameterObject.bare_orig_declaration
             parameterString += f" {declarationToUse},"
 
     if len(parameterString) == 0:
@@ -43,17 +37,9 @@ functionsToIgnore = ["coded_tests_driver", tagForInit]
 
 def getReturnType(functionObject):
     """
-    # PCT-FIX-NEEDED - issue #5 - return type has trailing space
-    # PCT-FIX-NEEDED - issue #9 - original_return_type sometimes has \n
+    # PCT-FIX-NEEDED - issue #14 - Function call needs empty string
     """
-    return functionObject.original_return_type.rstrip().replace("\n", "")
-
-
-def getOriginalDeclaration(parameterObject):
-    """
-    # PCT-FIX-NEEDED - issue #9 - orig_declaration sometimes has \n
-    """
-    return parameterObject.orig_declaration.replace("\n", "")
+    return functionObject.named_original_return_type("")
 
 
 def dropTemplates(originalName):
@@ -215,12 +201,13 @@ def getFunctionNameForAddress(api, functionObject):
     return functionName
 
 
+
 mock_template = Template(
     """
 void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
     using vcast_mock_rtype = ${original_return} ;
-    ${lookup_decl} ${const} = &${function};
-    vmock_session.mock <${lookup_type}> ((${lookup_type})vcast_fn_ptr).assign (enable ? &${mock} : nullptr);
+    vcast_mock_rtype ${lookup_decl} ${const} = &${function};
+    vmock_session.mock <vcast_mock_rtype ${lookup_type}> ((vcast_mock_rtype ${lookup_type})vcast_fn_ptr).assign (enable ? &${mock} : nullptr);
 }
 """.strip(
         "\n"
