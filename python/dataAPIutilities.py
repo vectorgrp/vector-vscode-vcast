@@ -79,58 +79,6 @@ def functionCanBeMocked(functionObject):
 # ----------------------------------------------------------------------------------------
 
 
-def getFunctionNameForAddress(api, functionObject):
-    # PCT-FIX-NEEDED - feature request for 'getFunctionNameForAddress'
-    # (includes detailed example)
-    #
-    # Currently we do lots of processing to ensure we use the right string for
-    # a function's address, given VectorCAST already calculates this, it would
-    # be good if this could be stored in DataAPI as well.
-
-    functionName = functionObject.vcast_name
-
-    if functionObject.prototype_instantiation:
-        functionName = functionObject.full_prototype_instantiation
-
-    # If we're `operator()`, do nothing
-    if "operator()" in functionName:
-        functionName = re.split("operator\(\)", functionName)[0] + "operator()"
-    elif "operator" in functionName:
-        # Need to handle operator< and overloads that contain templates, but
-        # where the function itself isn't templated
-        #
-        # This stops the logic below getting hit if we have operator< or
-        # operator>
-        #
-        # We also need to handle: scope::scope::template<args
-        # (*)>::scope::operator, so we can't just split on `(`
-
-        parts = functionName.split("operator")
-
-        # FIXME: remove this once we've done a run and we know we only get one!
-        assert len(parts) == 2
-
-        before, after = parts
-
-        functionName = before + "operator" + after.split("(")[0]
-
-    elif "<" in functionName and ">" in functionName:
-        # Don't split on "(" in parens
-        in_count = 0
-        for idx, char in enumerate(functionName):
-            if char == "<":
-                in_count += 1
-            elif char == ">":
-                in_count -= 1
-            elif char == "(" and in_count == 0:
-                functionName = functionName[:idx]
-                break
-    else:
-        functionName = functionName.split("(")[0]
-
-    return functionName
-
-
 mock_template = Template(
     """
 void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
@@ -164,7 +112,11 @@ def generateMockEnableForUnitAndFunction(api, functionObject, mockFunctionName):
         # functions that take function pointers)
         lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
     const = "const" if functionObject.is_const else ""
-    function_name = getFunctionNameForAddress(api, functionObject)
+
+    # FIXME: this is gets renamed to cpp_ref_name in a subsequent commit (and
+    # then *does not* have the leading '&')
+    function_name = functionObject.mock_address.lstrip("&")
+
     mock_enable_disable = mock_template.safe_substitute(
         original_return=original_return,
         lookup_decl=lookup_decl,
