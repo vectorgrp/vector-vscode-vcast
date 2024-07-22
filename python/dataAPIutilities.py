@@ -15,10 +15,9 @@ functionsToIgnore = ["coded_tests_driver", tagForInit]
 
 def getReturnType(functionObject):
     """
-    # PCT-FIX-NEEDED - issue #5 - return type has trailing space
-    # PCT-FIX-NEEDED - issue #9 - original_return_type sometimes has \n
+    # PCT-FIX-NEEDED - issue #14 - Function call needs empty string
     """
-    return functionObject.original_return_type.rstrip().replace("\n", "")
+    return functionObject.named_original_return_type("")
 
 
 def dropTemplates(originalName):
@@ -73,10 +72,6 @@ def functionCanBeMocked(functionObject):
         return True
 
 
-# ----------------------------------------------------------------------------------------
-# PCT-FIX-NEEDED - would be nice if Ian would generate the apply functions for us
-# so that we don't have to do any of the processing below these lines
-# ----------------------------------------------------------------------------------------
 
 
 mock_template = Template(
