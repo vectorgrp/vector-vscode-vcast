@@ -227,13 +227,14 @@ describe("vTypeCheck VS Code Extension", () => {
       .getContent()
       .getSection(workspaceName.toUpperCase());
 
-    const vscodeFolderItem = await workspaceFolderSection.findItem('.vscode');
+    // Open.vscode folder 
+    let vscodeFolderItem = await workspaceFolderSection.findItem('.vscode');
+    vscodeFolderItem.select()
 
-    // Select the .vscode folder item and open context menu
-    await vscodeFolderItem.select();
-    const contextMenu = await vscodeFolderItem.openContextMenu();
-
-    // Click on the "Delete" option in the context menu
+    // Select the settings.json and open context menu and delete it
+    const settingsFile = await workspaceFolderSection.findItem("settings.json");
+    await settingsFile.select();
+    const contextMenu = await settingsFile.openContextMenu();
     const deleteMenuItem = await contextMenu.getItem('Delete');
     await deleteMenuItem.select();
   });

@@ -75,7 +75,7 @@ const proxyObject: ProxyObject = {
   noProxy: noProxyRules,
 };
 
-import { getSpecs, getSpecGroupParameters} from './specs_config.ts';
+import { getSpecs} from './specs_config.ts';
 const groupName = process.env["RUN_BY_GROUP"] === 'True' ? process.env["RUN_GROUP_NAME"] : null;
 
 export const config: Options.Testrunner = {
@@ -244,7 +244,7 @@ export const config: Options.Testrunner = {
   //
   // Default timeout in milliseconds for request
   // if browser driver or grid doesn"t send response
-  connectionRetryTimeout: 22_000,
+  connectionRetryTimeout: 40_000,
   //
   // Default request retries count
   connectionRetryCount: 2,
@@ -341,12 +341,7 @@ export const config: Options.Testrunner = {
       "vcastTutorial"
     );
 
-
-    //if(!groupNameParams["VECTORCAST_DIR"]){
-    console.log("ENV:::::::")
-    console.log(process.env.VECTORCAST_DIR)
-    console.log(process.env.VECTORCAST_ATG_DIR)
-    console.log(process.env.PATH)
+    // If VECTORCAST_DIR is not defined (E2E test), we can not execute clicast
     if(process.env.VECTORCAST_DIR){
     let checkVPython: string;
     checkVPython =
@@ -426,15 +421,10 @@ export const config: Options.Testrunner = {
 
     
     }else{
-    console.log("I AM IN THE ELSE")
-    vectorcastDir = process.env.VECTORCAST_DIR_TEST_DUPLICATE
-    console.log(vectorcastDir)
-
+      vectorcastDir = process.env.VECTORCAST_DIR_TEST_DUPLICATE
     }
     
     process.env.VC_DIR = vectorcastDir;
-    console.log(process.env.VC_DIR)
-
 
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
     await mkdir(testInputEnvPath, { recursive: true });

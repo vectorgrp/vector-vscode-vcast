@@ -2,6 +2,7 @@ import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
+  cleanup
 } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -56,5 +57,10 @@ describe("vTypeCheck VS Code Extension", () => {
     const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
     await configFile.openContextMenu();
     await (await $("aria/Set as VectorCAST Configuration File")).click();
+  });
+
+  it("should clean up", async () => {
+    await updateTestID();
+    await cleanup();
   });
 });

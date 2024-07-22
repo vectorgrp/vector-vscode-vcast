@@ -12,65 +12,107 @@ export function getSpecGroups(vcast24: boolean) {
           "./**/**/vcast.rest.test.ts",
           "./**/**/vcast.rest_2.test.ts",
           "./**/**/vcast.rest_3.test.ts",
-        ],"params": {}},
+        ],"env": {},
+          "params": {}},
       "build_env_failure":{"specs":[
         "./**/**/vcast_build_env_failure.test.ts",
         "./**/**/vcast_build_env_after_failure.test.ts"
-        ], "env": {"VECTORCAST_DIR": "", 
+        ], "env": {"VECTORCAST_DIR_TEST_DUPLICATE": process.env.VECTORCAST_DIR,
+                  "VECTORCAST_DIR": "", 
                   "VECTORCAST_ATG_DIR": "",
-                  "PATH": "/home/denis/.nvm/versions/node/v18.18.0/bin:/home/denis/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
-        }},
+        }, "params": {
+          "path_on_release" : false
+        }}, 
       "bugs": {"specs":[
           "./**/**/vcast_testgen_bugs.test.ts",
           "./**/**/vcast_testgen_bugs_2.test.ts",
-        ],"params": {}},
+        ],"env": {},
+          "params": {}},
       "flask_icon": {"specs":[
           "./**/**/vcast_testgen_flask_icon.test.ts",
-        ],"params": {}},
+        ],"env": {},
+          "params": {}},
       "func_basis": {"specs":[
           "./**/**/vcast_testgen_func_basis.test.ts",
           "./**/**/vcast_testdel_func_basis.test.ts",
-        ],"params": {}},
+        ],"env": {},
+          "params": {}},
       "unit_basis": {"specs":[
           "./**/**/vcast_testgen_unit_basis.test.ts",
           "./**/**/vcast_testdel_unit_basis.test.ts",
-        ],"params": {}},
+        ],"env": {},
+          "params": {}},
       "env_basis": {"specs":[
           "./**/**/vcast_testgen_env_basis.test.ts",
           "./**/**/vcast_testdel_env_basis.test.ts"
-        ],"params": {}},
+        ],"env": {},
+          "params": {}},
     };
 
     if (vcast24) {
       specGroups["func_atg"] = {"specs":[
         "./**/**/vcast_testgen_func_atg.test.ts",
         "./**/**/vcast_testdel_func_atg.test.ts",
-      ], "params": {}}
+      ],  "env": {},
+          "params": {}}
 
       specGroups["unit_atg"] = {"specs":[
         "./**/**/vcast_testgen_unit_atg.test.ts",
         "./**/**/vcast_testdel_unit_atg.test.ts",
-      ], "params": {}}
+      ],  "env": {},
+          "params": {}}
 
       specGroups["env_atg"] = {"specs":[
         "./**/**/vcast_testgen_env_atg.test.ts",
         "./**/**/vcast_testdel_env_atg.test.ts"
-      ], "params": {}}
+      ],  "env": {},
+          "params": {}}
 
       specGroups["coded_tests"] = {"specs":[
         "./**/**/vcast_coded_tests.test.ts"
-      ], "params": {}}
+      ],  "env": {},
+          "params": {}}
     }
-
-    // Convert specs object to JSON string
-    const jsonString = JSON.stringify(specGroups, null, 4);
-
-    // Write JSON string to a file
-    fs.writeFileSync('spec_groups.json', jsonString);
 
     return specGroups;
 }
 
+export function getSpecsWithEnv(){
+  const specGroups = getSpecGroups(true)
+
+  Object.keys(specGroups).forEach(group => {
+    const groupObj = specGroups[group];
+
+    // In that case we don t want the release path
+    if (groupObj.params?.path_on_release === false) {
+      const pathWithoutRelease = processPathEnv();
+      if (pathWithoutRelease !== undefined) {
+        groupObj.env.PATH = pathWithoutRelease;
+      }
+    }
+  });
+
+return specGroups
+
+}
+
+export function getEnvVarsForGroup(groupName: string): string {
+  // Fetch spec groups with environment variables
+  const specGroups = getSpecsWithEnv();
+  // Check if the specified group exists
+  if (!specGroups[groupName] || !specGroups[groupName].env) {
+    console.error(`Group "${groupName}" not found or has no environment variables.`);
+    return '';
+  }
+
+  // Extract environment variables
+  const envVars = specGroups[groupName].env;
+  
+  // Convert environment variables to KEY=VALUE format
+  return Object.entries(envVars)
+    .map(([key, value]) => `${key}=${value || ''}`)
+    .join('\n');
+}
 
 export function getSpecs(vcast24: boolean, group: string = null) {
   const specGroups = getSpecGroups(vcast24);
@@ -90,8 +132,23 @@ export function getSpecs(vcast24: boolean, group: string = null) {
       .flat();
 };
 
-export function getSpecGroupParameters(group: string, vcast24: boolean = false){
-  const specGroup = getSpecGroups(vcast24);
+function processPathEnv(): string | undefined {
+  // Get the PATH environment variable
+  const envPath = process.env.PATH;
   
-  return specGroup[group].params
+  if (!envPath) {
+    console.error("PATH environment variable is not defined.");
+    return undefined;
+  }
+
+  // Split the PATH on ":"
+  const paths = envPath.split(':');
+
+  // Filter out paths that contain "release"
+  const filteredPaths = paths.filter(path => !path.includes("release"));
+
+  // Join the remaining paths back together with ":"
+  const newPath = filteredPaths.join(':');
+
+  return newPath;
 }

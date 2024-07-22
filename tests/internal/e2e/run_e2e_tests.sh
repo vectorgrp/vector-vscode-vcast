@@ -1,6 +1,12 @@
 #!/bin/bash
 ROOT=$(dirname "$(realpath "$0")")
 
+# Compile specs file to retrieve its config
+npx tsc ./test/specs_config.ts --outDir ./test --module commonjs --target ES2020 --esModuleInterop
+
+# Path to the compiled JavaScript file
+JS_FILE="./test/specs_config.js"
+
 activate_24_release () {
   export VECTORCAST_DIR=/vcast/release24
   export PATH=/vcast/release24:$PATH
@@ -9,32 +15,36 @@ activate_24_release () {
 }
 
 set_specs_params() {
-  # Path to the JSON file
-  JSON_FILE="spec_groups.json"
-
   # Check if RUN_GROUP_NAME is set
   if [ -z "$RUN_GROUP_NAME" ]; then
     echo "RUN_GROUP_NAME is not set. Please set it and try again."
     exit 1
   fi
 
-  # Check if the JSON file exists
-  if [ ! -f "$JSON_FILE" ]; then
-    echo "spec_groups.json file not found!"
+  # Check if the compiled JavaScript file exists
+  if [ ! -f "$JS_FILE" ]; then
+    echo "Compiled JavaScript file not found! Please compile the TypeScript file first."
     exit 1
   fi
 
-  # Extract environment variables for the given group using jq
-  # Handle cases where the 'env' might be null or missing
-  env_vars=$(jq -r --arg group "$RUN_GROUP_NAME" '
-    .[$group].env // {} | 
-    to_entries | 
-    .[] | 
-    "\(.key)=\(.value // "")"' "$JSON_FILE")
+  # Extract environment variables for the given group using the compiled JavaScript file
+  env_vars=$(node -e "
+    const { getEnvVarsForGroup } = require('$JS_FILE');
+    const groupName = process.env.RUN_GROUP_NAME;
+    console.log(groupName)
+    const envVars = getEnvVarsForGroup(groupName);
+    if (envVars) {
+      console.log(envVars);
+    } else {
+      console.error('No environment variables found or group not found.');
+      process.exit(1); // Exit with an error code if no variables found
+    }
+  ")
 
   # Check if env_vars is empty, indicating either the group or env section might be missing
   if [ -z "$env_vars" ]; then
-    echo "Spec group $RUN_GROUP_NAME not found or has no environment variables in spec_groups.json."
+    echo "Spec group $RUN_GROUP_NAME not found or has no environment variables."
+    exit 1
   fi
 
   # Export each environment variable
@@ -42,7 +52,7 @@ set_specs_params() {
     export "$line"
   done <<< "$env_vars"
 
-  # Print the values to verify (optional)
+  # Print the values to verify exported env variables
   echo "Environment variables for $RUN_GROUP_NAME have been set:"
   while IFS= read -r line; do
     echo "$line"
@@ -86,4 +96,5 @@ if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
 else
     set_specs_params
     npx wdio run test/wdio.conf.ts
+    rm $JS_FILE
 fi
