@@ -149,10 +149,13 @@ def functionCanBeMocked(functionObject):
 
 
 def getInstantiatingClass(api, functionObject):
-    # PCT-FIX-NEEDED - would like them to provide this string in functionObject
-    # Should be an empty string or None if static class method.
-    # Andrew please add exactly what we want to the Confluence page
-    # and then update this comment with the issue number
+    # PCT-FIX-NEEDED - feature request for 'getInstantiatingClass' (includes
+    # detailed example)
+    #
+    # Currently we do lots of processing to ensure we use the right string for
+    # a function's 'callCtx' (e.g., if the function is a free function, or if
+    # it is a static method), given VectorCAST already calculates this, it
+    # would be good if this could be stored in DataAPI as well.
 
     # Get the mock lookup type -- this now *does not* have the return type
     mockLookupType = functionObject.mock_lookup_type
