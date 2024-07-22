@@ -77,6 +77,8 @@ def getMockDeclaration(functionObject, mockFunctionName, signatureString):
     #
     # Once #13 is fixed.
     #
+    # Also see, #15 for the overarching issue.
+    #
     # You should then remove: getParameterList and getFunctionSignature
 
     """
@@ -148,8 +150,7 @@ def functionCanBeMocked(functionObject):
 
 
 def getInstantiatingClass(api, functionObject):
-    # PCT-FIX-NEEDED - feature request for 'getInstantiatingClass' (includes
-    # detailed example)
+    # PCT-FIX-NEEDED - issue #16
     #
     # Currently we do lots of processing to ensure we use the right string for
     # a function's 'callCtx' (e.g., if the function is a free function, or if
@@ -196,8 +197,7 @@ def getInstantiatingClass(api, functionObject):
 
 
 def getFunctionNameForAddress(api, functionObject):
-    # PCT-FIX-NEEDED - feature request for 'getFunctionNameForAddress'
-    # (includes detailed example)
+    # PCT-FIX-NEEDED - issue #17
     #
     # Currently we do lots of processing to ensure we use the right string for
     # a function's address, given VectorCAST already calculates this, it would
