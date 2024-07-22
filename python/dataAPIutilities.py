@@ -44,13 +44,6 @@ def getReturnType(functionObject):
     return functionObject.original_return_type.rstrip().replace("\n", "")
 
 
-def getOriginalDeclaration(parameterObject):
-    """
-    # PCT-FIX-NEEDED - issue #9 - orig_declaration sometimes has \n
-    """
-    return parameterObject.orig_declaration.replace("\n", "")
-
-
 def dropTemplates(originalName):
     """
     In some instances, we need to remove all template arguments before doing processing.
