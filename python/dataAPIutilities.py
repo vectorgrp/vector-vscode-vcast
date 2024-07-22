@@ -21,6 +21,7 @@ def getParameterList(functionObject):
     for parameterObject in functionObject.parameters:
         if parameterObject.name != "return":
             paramIndex += 1
+            # get parameterObject.orig_declaration
             declarationToUse = parameterObject.bare_orig_declaration
             parameterString += f" {declarationToUse},"
 
@@ -67,6 +68,19 @@ def dropTemplates(originalName):
 
 
 def getMockDeclaration(functionObject, mockFunctionName, signatureString):
+    # PCT-FIX-NEEDED - issue #13 - generate_mock_declaration is incorrect when
+    # the function is a free function in a namespace
+    #
+    # This whole function should be replaced with:
+    #
+    #       functionObject.generate_mock_declaration(mockFunctionName)
+    #
+    # Once #13 is fixed.
+    #
+    # Also see, #15 for the overarching issue.
+    #
+    # You should then remove: getParameterList and getFunctionSignature
+
     """
     This handles the special cases for the return of the mock which
     cannot simply "just" return the return type, as per DataAPI.
@@ -136,46 +150,59 @@ def functionCanBeMocked(functionObject):
 
 
 def getInstantiatingClass(api, functionObject):
-    # PCT-FIX-NEEDED - would like them to provide this string in functionObject
-    # Should be an empty string or None if static class method.
-    # Andrew please add exactly what we want to the Confluence page
-    # and then update this comment with the issue number
+    # PCT-FIX-NEEDED - issue #16
+    #
+    # Currently we do lots of processing to ensure we use the right string for
+    # a function's 'callCtx' (e.g., if the function is a free function, or if
+    # it is a static method), given VectorCAST already calculates this, it
+    # would be good if this could be stored in DataAPI as well.
 
-    instantiatingClass = ""
-    if "::" in functionObject.name:
-        instantiatingClass = functionObject.name.rsplit("::", 1)[0]
+    # Get the mock lookup type -- this now *does not* have the return type
+    mockLookupType = functionObject.mock_lookup_type
 
-        # Operators can take a type, and that type can have `::` in it, so we
-        # need to break before the `::operator`
-        operatorFollowedBySpace = "::operator "
-        if operatorFollowedBySpace in instantiatingClass:
-            idxOfOperatorFollowedBySpace = instantiatingClass.find("::operator ")
-            instantiatingClass = instantiatingClass[:idxOfOperatorFollowedBySpace]
-        elif "<" in instantiatingClass:
-            # FIXME: we don't store the correct string for `get_by_typemark`.
-            # However, having `<` in the name, is likely enough to know we are
-            # a class and not a namespace!
-            pass
+    # It should start with `(`
+    assert mockLookupType[0] == "("
 
-        elif api.Type.get_by_typemark(instantiatingClass) is None:
-            # We need to check if we get a class name after splitting; we only use
-            # if it is a class.
-            instantiatingClass = ""
+    # We now want to find the place where we have an even number of round
+    # brackets, with the last closing bracket signifying the end the "context"
+    #
+    # endIdx is then the position in the string where the context type ends
+    endIdx = -1
+    openParen = 0
+    for idx, char in enumerate(mockLookupType):
+        if char == "(":
+            openParen += 1
+        elif openParen == 1 and char == ")":
+            endIdx = idx
+            break
+        elif char == ")":
+            openParen -= 1
 
-        # FIXME: Hack to check if we're a static method or not
-        if "::*" not in functionObject.mock_lookup_type:
-            instantiatingClass = ""
+    # endIdx should now be a `*`
+    assert mockLookupType[endIdx - 1] == "*"
 
+    # Grab the string from after the opening `(` to before the `*`
+    instantiatingClass = mockLookupType[1 : endIdx - 1]
+
+    # Remove trailing whitespace
+    instantiatingClass = instantiatingClass.strip()
+
+    # If we happened to be a class, we're going to have `::`, so we want to
+    # remove that
+    if instantiatingClass.endswith("::"):
+        instantiatingClass = instantiatingClass.rstrip(":")
+
+    # Now we have our instantiating class
     return instantiatingClass
 
 
-# ----------------------------------------------------------------------------------------
-# PCT-FIX-NEEDED - would be nice if Ian would generate the apply functions for us
-# so that we don't have to do any of the processing below these lines
-# ----------------------------------------------------------------------------------------
-
-
 def getFunctionNameForAddress(api, functionObject):
+    # PCT-FIX-NEEDED - issue #17
+    #
+    # Currently we do lots of processing to ensure we use the right string for
+    # a function's address, given VectorCAST already calculates this, it would
+    # be good if this could be stored in DataAPI as well.
+
     functionName = functionObject.vcast_name
 
     if functionObject.prototype_instantiation:
@@ -184,6 +211,25 @@ def getFunctionNameForAddress(api, functionObject):
     # If we're `operator()`, do nothing
     if "operator()" in functionName:
         functionName = re.split("operator\(\)", functionName)[0] + "operator()"
+    elif "operator" in functionName:
+        # Need to handle operator< and overloads that contain templates, but
+        # where the function itself isn't templated
+        #
+        # This stops the logic below getting hit if we have operator< or
+        # operator>
+        #
+        # We also need to handle: scope::scope::template<args
+        # (*)>::scope::operator, so we can't just split on `(`
+
+        parts = functionName.split("operator")
+
+        # FIXME: remove this once we've done a run and we know we only get one!
+        assert len(parts) == 2
+
+        before, after = parts
+
+        functionName = before + "operator" + after.split("(")[0]
+
     elif "<" in functionName and ">" in functionName:
         # Don't split on "(" in parens
         in_count = 0

@@ -148,7 +148,6 @@ def generate_test_file(enviro_path, prepend=[]):
 
 
 def generate_test_script(env_name, first_unit):
-
     with open(script_file, "w") as test_tst_file:
         test_tst_file.write(
             TEST_TST_TEMPLATE.safe_substitute(
@@ -252,7 +251,6 @@ def generate_tests_and_compile():
     tests_do_not_compile = []
 
     for enviro_path in enviroDirs:
-
         enviro_path = os.path.abspath(enviro_path)
 
         print(f"Processing: {enviro_path}")
