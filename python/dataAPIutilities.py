@@ -21,13 +21,6 @@ def getReturnType(functionObject):
     return functionObject.original_return_type.rstrip().replace("\n", "")
 
 
-def getOriginalDeclaration(parameterObject):
-    """
-    # PCT-FIX-NEEDED - issue #9 - orig_declaration sometimes has \n
-    """
-    return parameterObject.orig_declaration.replace("\n", "")
-
-
 def dropTemplates(originalName):
     """
     In some instances, we need to remove all template arguments before doing processing.
@@ -87,6 +80,13 @@ def functionCanBeMocked(functionObject):
 
 
 def getFunctionNameForAddress(api, functionObject):
+    # PCT-FIX-NEEDED - feature request for 'getFunctionNameForAddress'
+    # (includes detailed example)
+    #
+    # Currently we do lots of processing to ensure we use the right string for
+    # a function's address, given VectorCAST already calculates this, it would
+    # be good if this could be stored in DataAPI as well.
+
     functionName = functionObject.vcast_name
 
     if functionObject.prototype_instantiation:
