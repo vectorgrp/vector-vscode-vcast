@@ -200,13 +200,11 @@ def getInstantiatingClass(api, functionObject):
     return instantiatingClass
 
 
-# ----------------------------------------------------------------------------------------
-# PCT-FIX-NEEDED - would be nice if Ian would generate the apply functions for us
-# so that we don't have to do any of the processing below these lines
-# ----------------------------------------------------------------------------------------
-
-
 def getFunctionNameForAddress(api, functionObject):
+    # PCT-FIX-NEEDED - 
+    # Andrew - Add a descriptio of what we want an an issue#
+
+
     functionName = functionObject.vcast_name
 
     if functionObject.prototype_instantiation:
