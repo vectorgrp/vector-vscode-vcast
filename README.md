@@ -230,26 +230,30 @@ Which will look like this:
 
 ```
 // vmock foo foo 
-int vmock_foo_foo(::vunit::CallCtx<> vunit_ctx, int param) {  
-  
-  // Enable Stub:  vmock_session.mock (&foo).assign (&vmock_foo_foo);
-  // Disable Stub: vmock_session.mock (&foo).assign (nullptr);
+int vmock_foo_foo(::vunit::CallCtx<> vunit_ctx, int param) {
+  // Enable Stub: vmock_foo_foo_enable_disable(vmock_session);
+  // Disable Stub: vmock_foo_foo_enable_disable(vmock_session, false);
 
+  // Insert mock logic here!
+}
+void vmock_foo_foo_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
+  ...
 }
 ```
 
-You can then edit the mock logic to insert a hard-coded return of 100
+You can then edit the mock logic to insert a hard-coded return of 123, by adding
+"return 123;" below the "Insert mock logic here"
 and use the Usage hint to create a test like this:
 
 ```
 VTEST(fooTests, simpleTest) {
   auto vmock_session = ::vunit::MockSession();
-  vmock_session.mock (&foo).assign (&vmock_foo_foo);
+  vmock_foo_foo_enable_disable(vmock_session);
   VASSERT_EQ (foo(1), 100);
 }
 ```
 
-Note: This feature is only supported for tool and environment version that are newer than VectorCAST 24 sp3.
+Note: This feature is only supported for tool and environment version that are newer than VectorCAST 24 sp4.
 If you type "// vmock" in a file associated with ane enviornment that was built with an older version
 of VectorCAST, you will get the diagnostic message:  
 

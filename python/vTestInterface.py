@@ -237,7 +237,7 @@ def getTestDataVCAST(enviroPath):
                 # if we have not checked for mocking support yet, do it now
                 if enviroSupportsMocking == None:
                     # if the field exists, which it will if our vcast version
-                    # is > vc24sp3, then a value of None means we have an
+                    # is > vc24sp4, then a value of None means we have an
                     # older enviro without mocking support
                     enviroSupportsMocking = hasattr(function, "mock_lookup_type")
 
