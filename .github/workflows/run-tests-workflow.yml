@@ -332,8 +332,7 @@ jobs:
       - name: Run black
         shell: bash
         run: |
-          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/' > output.log 2>&1
-          echo $? > exitcode.txt
+          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/' > output.log 2>&1; echo $? > exitcode.txt || true
           echo "### Black output" >> $GITHUB_STEP_SUMMARY
           {
             echo '```'
@@ -373,8 +372,7 @@ jobs:
         shell: bash
         run: |
           npm install prettier@$(node -pe "require('./package').devDependencies.prettier")
-          npx prettier -c . > output.log 2>&1
-          echo $? > exitcode.txt
+          npx prettier -c . > output.log 2>&1; echo $? > exitcode.txt || true
           echo "### Prettier output" >> $GITHUB_STEP_SUMMARY
           {
             echo '```'
@@ -413,12 +411,8 @@ jobs:
       - name: Run xo
         shell: bash
         run: |
-          npm install xo@$(node -pe "require('./package').dependencies.xo") || true
-          npx xo tests/unit > output.log 2>&1
-          echo $? > exitcode.txt
-          ls
-          cat exitcode.txt
-          cat output.log
+          npm install xo@$(node -pe "require('./package').dependencies.xo")
+          npx xo tests/unit > output.log 2>&1; echo $? > exitcode.txt || true
           echo "### Xo output" >> $GITHUB_STEP_SUMMARY
           {
             echo '```'
