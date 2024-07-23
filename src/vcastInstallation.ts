@@ -372,7 +372,7 @@ export function getChecksumCommand() {
   return globalCheckSumCommand;
 }
 
-export const vUnitIncludeSuffix = "/vunit/include"
+export const vUnitIncludeSuffix = "/vunit/include";
 
 export function configFileContainsCorrectInclude(filePath: string): boolean {
   // This function will check if the include path for coded testing is in the
@@ -405,9 +405,12 @@ export function configFileContainsCorrectInclude(filePath: string): boolean {
             returnValue = true;
             break;
           }
-          // allow the use of _any_ environment variable, not just VECTORCAST_DIR 
+          // allow the use of _any_ environment variable, not just VECTORCAST_DIR
           // could have used a regex but this is more clear
-          if (includePath.startsWith("${env:") && includePath.endsWith (vUnitIncludeSuffix)) {
+          if (
+            includePath.startsWith("${env:") &&
+            includePath.endsWith(vUnitIncludeSuffix)
+          ) {
             returnValue = true;
             break;
           }

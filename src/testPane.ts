@@ -49,8 +49,7 @@ import {
   refreshCodedTests,
 } from "./vcastAdapter";
 
-
-import {  getJsonDataFromTestInterface } from "./vcastCommandRunner"
+import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
@@ -62,7 +61,6 @@ import {
   testDataType,
   vcastEnviroFile,
 } from "./vcastTestInterface";
-
 
 import {
   adjustScriptContentsBeforeLoad,
@@ -185,7 +183,6 @@ function processVCtestData(
   // The top level of the JSON is an array ...
   const unitList = enviroData.testData;
   for (const unitData of unitList) {
-
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
     // add a cache node for the unit
@@ -487,7 +484,7 @@ function findStringInFile(filePath: string, stringToFind: string): number {
 
   for (const [index, line] of fileContents.entries()) {
     if (line.includes(stringToFind)) {
-      returnLineNumber = index+1;
+      returnLineNumber = index + 1;
       break;
     }
   }
@@ -765,9 +762,8 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
           }
         });
       } else {
-        const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
-          launchJsonUri
-        );
+        const debugFileAsTextDoc =
+          await vscode.workspace.openTextDocument(launchJsonUri);
         vscode.window.showTextDocument(debugFileAsTextDoc, { preview: false });
         // Prompt the user for what to do next!
         vscode.window.showWarningMessage(

@@ -75,8 +75,9 @@ const proxyObject: ProxyObject = {
   noProxy: noProxyRules,
 };
 
-import { getSpecs } from './specs_config.ts';
-const groupName = process.env["RUN_BY_GROUP"] === 'True' ? process.env["RUN_GROUP_NAME"] : null;
+import { getSpecs } from "./specs_config.ts";
+const groupName =
+  process.env["RUN_BY_GROUP"] === "True" ? process.env["RUN_GROUP_NAME"] : null;
 
 export const config: Options.Testrunner = {
   //
@@ -128,7 +129,7 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: getSpecs(process.env["USE_VCAST_24"] === 'True', groupName),
+  specs: getSpecs(process.env["USE_VCAST_24"] === "True", groupName),
   // Patterns to exclude.
   // exclude:
   //
