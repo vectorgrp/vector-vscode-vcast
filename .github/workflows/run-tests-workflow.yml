@@ -302,7 +302,7 @@ jobs:
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
-  code-formatting:
+  black:
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [ self-hosted, vscode-vcast]
@@ -329,8 +329,55 @@ jobs:
         if: failure()
         uses: actions/checkout@v4
 
-      - name: Black
+      - name: Run black
         shell: bash
         run: |
-          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/'
-          exit $?
+          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/' > output.log 2>&1
+          echo $? > exitcode.txt
+          echo "### Black output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+          exit $(cat exitcode.txt)
+
+  prettier:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      options: --user vcast_user
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Run prettier
+        shell: bash
+        run: |
+          npx prettier --check $(echo **/*.ts | tr ' ' '\n' | grep -v "node_modules" | xargs) > output.log 2>&1
+          echo $? > exitcode.txt
+          echo "### Prettier output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+          exit $(cat exitcode.txt)
