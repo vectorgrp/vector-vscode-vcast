@@ -1,8 +1,20 @@
 #!/bin/bash
 ROOT=$(dirname "$(realpath "$0")")
 
-# Compile specs file to retrieve its config
-npx tsc ./test/specs_config.ts --outDir ./test --module commonjs --target ES2020 --esModuleInterop
+# Get the directory of the current script
+SCRIPT_DIR=$(dirname "$0")
+
+# Define the path to the specs file relative to the script directory
+SPEC_PATH="$SCRIPT_DIR/test/specs_config.ts"
+
+# Check if the specs file exists
+if [ ! -f "$SPEC_PATH" ]; then
+  echo "The file $SPEC_PATH does not exist."
+  exit 1
+fi
+
+# Compile the specs file 
+npx tsc "$SPEC_PATH"
 
 # Path to the compiled JavaScript file
 JS_FILE="./test/specs_config.js"
