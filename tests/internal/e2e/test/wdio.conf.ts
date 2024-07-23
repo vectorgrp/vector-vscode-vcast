@@ -75,8 +75,9 @@ const proxyObject: ProxyObject = {
   noProxy: noProxyRules,
 };
 
-import { getSpecs} from './specs_config.ts';
-const groupName = process.env["RUN_BY_GROUP"] === 'True' ? process.env["RUN_GROUP_NAME"] : null;
+import { getSpecs } from "./specs_config.ts";
+const groupName =
+  process.env["RUN_BY_GROUP"] === "True" ? process.env["RUN_GROUP_NAME"] : null;
 
 export const config: Options.Testrunner = {
   //
@@ -128,7 +129,7 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: getSpecs(process.env["USE_VCAST_24"] === 'True', groupName),
+  specs: getSpecs(process.env["USE_VCAST_24"] === "True", groupName),
   // Patterns to exclude.
   // exclude:
   //
@@ -201,7 +202,7 @@ export const config: Options.Testrunner = {
           commandTimeout:
             // capabilitiesJson["wdio:vscodeOptions"].vscodeProxyOptions
             //   .commandTimeout,
-            30000
+            30000,
         },
       },
     },
@@ -332,7 +333,7 @@ export const config: Options.Testrunner = {
     const promisifiedExec = promisify(exec);
 
     process.env.WORKSPACE_FOLDER = "vcastTutorial";
-    let vectorcastDir : string;
+    let vectorcastDir: string;
     const examplesDir = path.join(initialWorkdir, "test", "examples");
     const testInputVcastTutorial = path.join(
       initialWorkdir,
@@ -342,46 +343,46 @@ export const config: Options.Testrunner = {
     );
 
     // If VECTORCAST_DIR is not defined (E2E test), we can not execute clicast
-    if(process.env.VECTORCAST_DIR){
-    let checkVPython: string;
-    checkVPython =
-      process.platform == "win32" ? "where vpython" : "which vpython";
+    if (process.env.VECTORCAST_DIR) {
+      let checkVPython: string;
+      checkVPython =
+        process.platform == "win32" ? "where vpython" : "which vpython";
 
-    {
-      const { stdout, stderr } = await promisifiedExec(checkVPython);
-      if (stderr) {
-        console.log(stderr);
-        throw `Error when running ${checkVPython}`;
-      } else {
-        console.log(`vpython found in ${stdout}`);
+      {
+        const { stdout, stderr } = await promisifiedExec(checkVPython);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${checkVPython}`;
+        } else {
+          console.log(`vpython found in ${stdout}`);
+        }
       }
-    }
 
-    let checkClicast: string;
-    checkClicast =
-      process.platform == "win32" ? "where clicast" : "which clicast";
+      let checkClicast: string;
+      checkClicast =
+        process.platform == "win32" ? "where clicast" : "which clicast";
 
-    let clicastExecutablePath: string;
-    {
-      const { stdout, stderr } = await promisifiedExec(checkClicast);
-      if (stderr) {
-        console.log(stderr);
-        throw `Error when running ${checkClicast}`;
-      } else {
-        clicastExecutablePath = stdout;
-        console.log(`clicast found in ${clicastExecutablePath}`);
+      let clicastExecutablePath: string;
+      {
+        const { stdout, stderr } = await promisifiedExec(checkClicast);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${checkClicast}`;
+        } else {
+          clicastExecutablePath = stdout;
+          console.log(`clicast found in ${clicastExecutablePath}`);
+        }
       }
-    }
 
-    process.env.CLICAST_PATH = clicastExecutablePath;
-    vectorcastDir = path.dirname(clicastExecutablePath);
-    
-    let clearScreenshots: string;
-    clearScreenshots =
-      process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
-    await promisifiedExec(clearScreenshots);
+      process.env.CLICAST_PATH = clicastExecutablePath;
+      vectorcastDir = path.dirname(clicastExecutablePath);
 
-    const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
+      let clearScreenshots: string;
+      clearScreenshots =
+        process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
+      await promisifiedExec(clearScreenshots);
+
+      const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
 
       const requestTutorialPath = path.join(
@@ -418,26 +419,13 @@ export const config: Options.Testrunner = {
 
         console.log(stdout);
       }
+    } else {
+      vectorcastDir = process.env.VECTORCAST_DIR_TEST_DUPLICATE;
 
-    
-    }else{
-      vectorcastDir = process.env.VECTORCAST_DIR_TEST_DUPLICATE
-
-      // In the test group build_env_failure where PATH 
-      // is not defined we need to copy the config file
-      const cfgConfigToCopy = path.join(examplesDir, "*.CFG");
-      if (process.platform == "win32") {
-        await promisifiedExec(
-          `xcopy /s /i /y $${cfgConfigToCopy} ${testInputVcastTutorial} > NUL 2> NUL`
-        );
-      }else{
-        await promisifiedExec(
-          `cp ${cfgConfigToCopy} ${testInputVcastTutorial}`
-        );
-      }
-
+      const createCFG = `cd ${testInputVcastTutorial} && $VECTORCAST_DIR_TEST_DUPLICATE/clicast -lc template GNU_CPP_X`;
+      await promisifiedExec(createCFG);
     }
-    
+
     process.env.VC_DIR = vectorcastDir;
 
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
@@ -499,7 +487,6 @@ ENVIRO.END
       path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),
       envFile
     );
-
 
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
     await mkdir(pathToTutorial, { recursive: true });
