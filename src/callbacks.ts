@@ -16,12 +16,10 @@ import {
   updateTestPane,
 } from "./testPane";
 
-
 import { removeFilePattern } from "./utilities";
 import { commandStatusType } from "./vcastCommandRunner";
 import { loadScriptIntoEnvironment } from "./vcastAdapter";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
-
 
 const fs = require("fs");
 const path = require("path");
