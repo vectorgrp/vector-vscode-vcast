@@ -372,7 +372,7 @@ jobs:
       - name: Run prettier
         shell: bash
         run: |
-          npx prettier --check $(echo **/*.ts | tr ' ' '\n' | grep -v "node_modules" | xargs) > output.log 2>&1
+          npx prettier -c . > output.log 2>&1
           echo $? > exitcode.txt
           echo "### Prettier output" >> $GITHUB_STEP_SUMMARY
           {
