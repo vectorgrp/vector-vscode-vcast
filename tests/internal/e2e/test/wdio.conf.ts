@@ -333,7 +333,7 @@ export const config: Options.Testrunner = {
 
     process.env.WORKSPACE_FOLDER = "vcastTutorial";
     let vectorcastDir : string;
-
+    const examplesDir = path.join(initialWorkdir, "test", "examples");
     const testInputVcastTutorial = path.join(
       initialWorkdir,
       "test",
@@ -422,6 +422,20 @@ export const config: Options.Testrunner = {
     
     }else{
       vectorcastDir = process.env.VECTORCAST_DIR_TEST_DUPLICATE
+
+      // In the test group build_env_failure where PATH 
+      // is not defined we need to copy the config file
+      const cfgConfigToCopy = path.join(examplesDir, "*.CFG");
+      if (process.platform == "win32") {
+        await promisifiedExec(
+          `xcopy /s /i /y $${cfgConfigToCopy} ${testInputVcastTutorial} > NUL 2> NUL`
+        );
+      }else{
+        await promisifiedExec(
+          `cp ${cfgConfigToCopy} ${testInputVcastTutorial}`
+        );
+      }
+
     }
     
     process.env.VC_DIR = vectorcastDir;
@@ -492,7 +506,6 @@ ENVIRO.END
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
     const headerFilesToCopy = path.join(pathToTutorial, "*.h");
 
-    const examplesDir = path.join(initialWorkdir, "test", "examples");
     const examplesToCopy = path.join(examplesDir, "*.cpp");
     const codedTestsExamplesToCopy = path.join(
       examplesDir,
