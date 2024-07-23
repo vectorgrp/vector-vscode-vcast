@@ -119,7 +119,7 @@ module.exports = async () => {
   const tstFilePath = path.join(vcastEnvPath, tstFilename);
   const createTstFile = `echo -- Environment: TEST > ${tstFilePath}`;
   {
-    const { stderr: stderr } = await promisifiedExec(createTstFile);
+    const { stderr } = await promisifiedExec(createTstFile);
     if (stderr) {
       console.log(stderr);
       throw new Error(`Error when running ${createTstFile}`);
