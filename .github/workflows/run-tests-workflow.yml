@@ -382,3 +382,44 @@ jobs:
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
           exit $(cat exitcode.txt)
+
+  xo:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      options: --user vcast_user
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Run xo
+        shell: bash
+        run: |
+          npm install xo@$(node -pe "require('./package').dependencies.xo")
+          npx xo tests/unit > output.log 2>&1
+          echo $? > exitcode.txt
+          echo "### Xo output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+          exit $(cat exitcode.txt)
