@@ -43,9 +43,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     npm install -g @vscode/vsce@^2.15.04 && \
     npm install -g typescript && \
     npm install -g esbuild && \
-    npm install -g xo && \
-    npm install -g tsx && \
-    npm install -g prettier
+    npm install -g tsx
 
 # python
 ARG PY_VERSION=3.8.18
