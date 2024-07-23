@@ -413,7 +413,7 @@ jobs:
       - name: Run xo
         shell: bash
         run: |
-          npm install xo@$(node -pe "require('./package').dependencies.xo")
+          npm install xo@$(node -pe "require('./package').dependencies.xo") || true
           npx xo tests/unit > output.log 2>&1
           echo $? > exitcode.txt
           ls
