@@ -348,7 +348,10 @@ jobs:
       - name: Exit with code
         shell: bash
         if: always()
-        run: exit $(cat exitcode.txt)
+        run: |
+          if [ -f exitcode.txt ]; then
+              exit $(cat exitcode.txt)
+          fi
 
   prettier:
     if: github.event.pull_request.draft == false
@@ -397,7 +400,10 @@ jobs:
       - name: Exit with code
         shell: bash
         if: always()
-        run: exit $(cat exitcode.txt)
+        run: |
+          if [ -f exitcode.txt ]; then
+              exit $(cat exitcode.txt)
+          fi
 
   xo:
     if: github.event.pull_request.draft == false
@@ -446,4 +452,7 @@ jobs:
       - name: Exit with code
         shell: bash
         if: always()
-        run: exit $(cat exitcode.txt)
+        run: |
+          if [ -f exitcode.txt ]; then
+              exit $(cat exitcode.txt)
+          fi
