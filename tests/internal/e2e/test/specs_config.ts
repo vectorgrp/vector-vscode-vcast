@@ -1,5 +1,3 @@
-import * as fs from "fs";
-
 export function getSpecGroups(vcast24: boolean) {
   const specGroups = {
     basic_user_interactions: {
@@ -105,7 +103,7 @@ export function getSpecGroups(vcast24: boolean) {
     };
   }
 
-  return specGroups;
+  return specGroups
 }
 
 export function getSpecsWithEnv() {
