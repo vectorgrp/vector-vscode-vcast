@@ -416,6 +416,9 @@ jobs:
           npm install xo@$(node -pe "require('./package').dependencies.xo")
           npx xo tests/unit > output.log 2>&1
           echo $? > exitcode.txt
+          ls
+          cat exitcode.txt
+          cat output.log
           echo "### Xo output" >> $GITHUB_STEP_SUMMARY
           {
             echo '```'
