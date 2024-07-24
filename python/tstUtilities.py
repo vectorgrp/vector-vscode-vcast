@@ -43,7 +43,7 @@ vmockVerboseOutput = False
 def shouldAddHashToMockFunctionNames(functionObject):
     """
     Automated testing sets vmockVerboseOutput to True to force the hash ussage
-    But  for normal usage, we only want to do this  if we have an 
+    But  for normal usage, we only want to do this  if we have an
     overload, which is indicated by a parameterized name
     """
 

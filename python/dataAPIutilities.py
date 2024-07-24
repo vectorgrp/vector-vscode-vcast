@@ -247,7 +247,6 @@ def getFunctionNameForAddress(api, functionObject):
     return functionName
 
 
-
 mock_template = Template(
     """
 void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
