@@ -38,6 +38,19 @@ addHashToMockFunctionNames = False
 vmockVerboseOutput = False
 
 
+def shouldAddHashToMockFunctionNames(functionObject):
+    """
+    Automated testing sets vmockVerboseOutput to True to force the hash ussage
+    But  for normal usage, we only want to do this  if we have an 
+    overload, which is indicated by a parameterized name
+    """
+
+    if addHashToMockFunctionNames or "(" in functionObject.vcast_name:
+        return True
+    else:
+        return False
+
+
 def getNameListFromObjectList(objectList):
     """
     This will take a list of dataAPI objects and return
@@ -618,7 +631,7 @@ def getFunctionName(functionObject):
     functionName = functionObject.name
 
     functionHash = ""
-    if addHashToMockFunctionNames:
+    if shouldAddHashToMockFunctionNames(functionObject):
         # We want a leading underscore
         functionHash = f"_{getShortHash(functionObject.mangled_name)}"
 
