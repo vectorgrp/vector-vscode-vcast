@@ -29,10 +29,6 @@ activate_24_release () {
 }
 
 set_specs_params() {
-  export VECTORCAST_ATG_DIR=/home/denis/software/releaseVectorCAST24/release
-  export VECTORCAST_DIR=/home/denis/software/releaseVectorCAST24/release
-  export PATH=$PATH:~/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/denis/software/releaseVectorCAST24/release
-    
   # Check if RUN_GROUP_NAME is set
   if [ -z "$RUN_GROUP_NAME" ]; then
     echo "RUN_GROUP_NAME is not set. Please set it and try again."
