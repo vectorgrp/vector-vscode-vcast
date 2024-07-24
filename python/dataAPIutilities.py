@@ -104,11 +104,12 @@ def generateMockEnableForUnitAndFunction(api, functionObject, mockFunctionName):
         # Otherwise, let's guess, but this could convert "too much" (e.g., in
         # functions that take function pointers)
         lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
+
+    # Is it const?
     const = "const" if functionObject.is_const else ""
 
-    # FIXME: this is gets renamed to cpp_ref_name in a subsequent commit (and
-    # then *does not* have the leading '&')
-    function_name = functionObject.mock_address.lstrip("&")
+    # What's the function name to use?
+    function_name = functionObject.cpp_ref_name
 
     mock_enable_disable = mock_template.safe_substitute(
         original_return=original_return,
