@@ -311,13 +311,22 @@ export const config: Options.Testrunner = {
    * @param {Array.<Object>} capabilities list of capabilities details
    */
   async onPrepare(config, capabilities) {
+    console.log("ENV varibales at the beginning of onPrepare: ");
+    console.log(process.env.PATH);
+    console.log(process.env.VECTORCAST_DIR);
+
     const initialWorkdir = process.env.INIT_CWD;
+    console.log("Initial workdir");
+    console.log(initialWorkdir);
 
     const vcastTutorialPath = path.join(
       initialWorkdir,
       "test",
       "vcastTutorial"
     );
+
+    console.log("vcastTutorialPath");
+    console.log(vcastTutorialPath);
 
     await rm(vcastTutorialPath, { recursive: true, force: true });
 
@@ -349,6 +358,9 @@ export const config: Options.Testrunner = {
 
     // If VECTORCAST_DIR is not defined (E2E test), we can not execute clicast
     if (process.env.VECTORCAST_DIR) {
+      console.log("VECTORCAST_DIR should be defined: ");
+      console.log(process.env.VECTORCAST_DIR);
+
       checkVPython =
         process.platform == "win32" ? "where vpython" : "which vpython";
 
@@ -376,6 +388,10 @@ export const config: Options.Testrunner = {
           console.log(`clicast found in ${clicastExecutablePath}`);
         }
       }
+      console.log("checkVPython:");
+      console.log(checkVPython);
+      console.log("checkClicast:");
+      console.log(clicastExecutablePath);
 
       const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
@@ -385,6 +401,14 @@ export const config: Options.Testrunner = {
 
       const createCFG = `cd ${testInputVcastTutorial} && $VECTORCAST_DIR_TEST_DUPLICATE/clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
+
+      console.log("VECTORCAST_DIR should be undefined: ");
+      console.log(process.env.VECTORCAST_DIR);
+
+      console.log("checkVPython:");
+      console.log(checkVPython);
+      console.log("checkClicast:");
+      console.log(clicastExecutablePath);
     }
 
     process.env.CLICAST_PATH = clicastExecutablePath;
@@ -401,7 +425,15 @@ export const config: Options.Testrunner = {
       "RequirementsGW",
       "CSV_Requirements_For_Tutorial.csv"
     );
+
+    console.log("requestTutorialPath");
+    console.log(requestTutorialPath);
+
     const commandPrefix = `cd ${testInputVcastTutorial} && ${process.env.CLICAST_PATH.trimEnd()} -lc`;
+
+    console.log("commandPrefix");
+    console.log(commandPrefix);
+
     const rgwPrepCommands = [
       `${commandPrefix} option VCAST_REPOSITORY ${path.join(
         initialWorkdir,
@@ -435,6 +467,9 @@ export const config: Options.Testrunner = {
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
     await mkdir(testInputEnvPath, { recursive: true });
 
+    console.log("testInputEnvPath");
+    console.log(testInputEnvPath);
+
     const codedTestsPath = path.join(
       testInputVcastTutorial,
       "cpp",
@@ -445,6 +480,9 @@ export const config: Options.Testrunner = {
     const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
     await mkdir(vscodeSettingsPath, { recursive: true });
     const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
+
+    console.log("vscodeSettingsPath");
+    console.log(vscodeSettingsPath);
 
     let createLaunchJson: string;
     createLaunchJson =
@@ -494,6 +532,9 @@ ENVIRO.END
 
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
 
+    console.log("pathToTutorial");
+    console.log(pathToTutorial);
+
     await mkdir(pathToTutorial, { recursive: true });
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
     const headerFilesToCopy = path.join(pathToTutorial, "*.h");
@@ -534,6 +575,8 @@ ENVIRO.END
         `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`
       );
     }
+
+    console.log("Files copied");
 
     const extensionUnderTest = path.join(initialWorkdir, "test", "extension");
     await mkdir(extensionUnderTest, { recursive: true });
