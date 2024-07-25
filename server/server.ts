@@ -139,13 +139,12 @@ function generateCodedTestDiagnostic(documentUri: string, lineNumber: number) {
   });
 }
 
-function clearCodedTestDiagnostics (documentUri: string) {
+function clearCodedTestDiagnostics(documentUri: string) {
   connection.sendDiagnostics({
     uri: documentUri,
-    diagnostics: []
+    diagnostics: [],
   });
 }
-
 
 function performCompletionProcessing(
   currentDocument: TextDocument,
@@ -181,12 +180,12 @@ function performCompletionProcessing(
           completionData.textDocument.uri,
           completionData.position.line
         );
-      }else {
+      } else {
         // clear any left over diagnostics.
-        // We don't need to keep these on every line where the user 
+        // We don't need to keep these on every line where the user
         // types // vmock, so this will clear the previous message
         // when the user types anything else.
-        clearCodedTestDiagnostics (completionData.textDocument.uri);
+        clearCodedTestDiagnostics(completionData.textDocument.uri);
       } // coded test file for enviro without mock support
     } // not a coded test file
   } // vcast does not support mocking
