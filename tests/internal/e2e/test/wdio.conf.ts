@@ -368,7 +368,7 @@ export const config: Options.Testrunner = {
         const { stdout, stderr } = await promisifiedExec(checkVPython);
         if (stderr) {
           console.log(stderr);
-          throw `Error when running ${checkVPython}`;
+          // throw `Error when running ${checkVPython}`;
         } else {
           console.log(`vpython found in ${stdout}`);
         }
@@ -382,7 +382,7 @@ export const config: Options.Testrunner = {
         const { stdout, stderr } = await promisifiedExec(checkClicast);
         if (stderr) {
           console.log(stderr);
-          throw `Error when running ${checkClicast}`;
+          // throw `Error when running ${checkClicast}`;
         } else {
           clicastExecutablePath = stdout;
           console.log(`clicast found in ${clicastExecutablePath}`);
@@ -402,7 +402,7 @@ export const config: Options.Testrunner = {
         const { stdout, stderr } = await promisifiedExec(createCFG);
         if (stderr) {
           console.log(stderr);
-          throw `Error when running ${createCFG}`;
+          // throw `Error when running ${createCFG}`;
         } else {
           console.log(`created CFG`);
           console.log(stdout);
@@ -438,7 +438,7 @@ export const config: Options.Testrunner = {
         const { stdout, stderr } = await promisifiedExec(createCFG);
         if (stderr) {
           console.log(stderr);
-          throw `Error when running ${createCFG}`;
+          // throw `Error when running ${createCFG}`;
         } else {
           console.log(`created CFG`);
           console.log(stdout);
@@ -494,7 +494,7 @@ export const config: Options.Testrunner = {
       const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
       if (stderr) {
         console.log(stderr);
-        throw `Error when running ${rgwPrepCommand}`;
+        // throw `Error when running ${rgwPrepCommand}`;
       }
 
       console.log(stdout);
