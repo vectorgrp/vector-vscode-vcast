@@ -51,21 +51,18 @@ set_specs_params() {
   env_vars=$(node $JS_FILE)
 
   # Check if env_vars is empty, indicating either the group or env section might be missing
-  if [ -z "$env_vars" ]; then
-    echo "Spec group $RUN_GROUP_NAME not found or has no environment variables."
-    exit 1
-  else
-    # Export every env from the group
-    for env_var_val in $env_vars; do
-      export "$env_var_val"
-    done
 
-    # Print the values to verify exported env variables
-    echo "Environment variables for $RUN_GROUP_NAME have been set:"
-    while IFS= read -r line; do
-      echo "$line"
-    done <<< "$env_vars"
-  fi
+  # Export every env from the group
+  for env_var_val in $env_vars; do
+    export "$env_var_val"
+  done
+
+  # Print the values to verify exported env variables
+  echo "Environment variables for $RUN_GROUP_NAME have been set:"
+  while IFS= read -r line; do
+    echo "$line"
+  done <<< "$env_vars"
+
 }
 
 

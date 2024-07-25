@@ -313,17 +313,11 @@ export const config: Options.Testrunner = {
   async onPrepare(config, capabilities) {
     const initialWorkdir = process.env.INIT_CWD;
 
-    console.log("initial work dir: ");
-    console.log(initialWorkdir);
-
     const vcastTutorialPath = path.join(
       initialWorkdir,
       "test",
       "vcastTutorial"
     );
-
-    console.log("vcastTutorialPath: ");
-    console.log(vcastTutorialPath);
 
     await rm(vcastTutorialPath, { recursive: true, force: true });
 
@@ -350,13 +344,11 @@ export const config: Options.Testrunner = {
       "vcastTutorial"
     );
 
+    let checkVPython: string;
+    let clicastExecutablePath: string;
+
     // If VECTORCAST_DIR is not defined (E2E test), we can not execute clicast
     if (process.env.VECTORCAST_DIR) {
-
-      console.log("VECTORCAST_DIR is defined:");
-      console.log(process.env.VECTORCAST_DIR);
-
-      let checkVPython: string;
       checkVPython =
         process.platform == "win32" ? "where vpython" : "which vpython";
 
@@ -374,7 +366,6 @@ export const config: Options.Testrunner = {
       checkClicast =
         process.platform == "win32" ? "where clicast" : "which clicast";
 
-      let clicastExecutablePath: string;
       {
         const { stdout, stderr } = await promisifiedExec(checkClicast);
         if (stderr) {
@@ -386,22 +377,16 @@ export const config: Options.Testrunner = {
         }
       }
 
-      console.log("clicastExecutablePath: ");
-      console.log(clicastExecutablePath);
-
       process.env.CLICAST_PATH = clicastExecutablePath;
       vectorcastDir = path.dirname(clicastExecutablePath);
+
+      const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
+      await promisifiedExec(createCFG);
 
       let clearScreenshots: string;
       clearScreenshots =
         process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
       await promisifiedExec(clearScreenshots);
-
-      console.log("testInputVcastTutorial: ");
-      console.log(testInputVcastTutorial);
-
-      const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
-      await promisifiedExec(createCFG);
 
       const requestTutorialPath = path.join(
         vectorcastDir,
@@ -438,13 +423,8 @@ export const config: Options.Testrunner = {
         console.log(stdout);
       }
     } else {
-
-      console.log("VECOTRCAST_DIR is not defined");
-
       vectorcastDir = process.env.VECTORCAST_DIR_TEST_DUPLICATE;
-      
-      console.log("VECTORCAST_DIR_TEST_DUPLICATE: ");
-      console.log(process.env.VECTORCAST_DIR_TEST_DUPLICATE);
+      checkVPython = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/vpython`;
 
       const createCFG = `cd ${testInputVcastTutorial} && $VECTORCAST_DIR_TEST_DUPLICATE/clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
@@ -452,14 +432,8 @@ export const config: Options.Testrunner = {
 
     process.env.VC_DIR = vectorcastDir;
 
-    console.log("vectorcastDir after clicast execute:");
-    console.log(vectorcastDir);
-
     const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
     await mkdir(testInputEnvPath, { recursive: true });
-
-    console.log("Path to cpp folder: ");
-    console.log(testInputEnvPath);
 
     const codedTestsPath = path.join(
       testInputVcastTutorial,
@@ -520,9 +494,6 @@ ENVIRO.END
 
     const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
 
-    console.log("Path to tutorial: ");
-    console.log(pathToTutorial);
-
     await mkdir(pathToTutorial, { recursive: true });
     const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
     const headerFilesToCopy = path.join(pathToTutorial, "*.h");
@@ -564,8 +535,6 @@ ENVIRO.END
       );
     }
 
-    console.log("Files copied.");
-
     const extensionUnderTest = path.join(initialWorkdir, "test", "extension");
     await mkdir(extensionUnderTest, { recursive: true });
 
@@ -601,8 +570,6 @@ ENVIRO.END
         `cp ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
       );
     }
-
-    console.log("onPrepare finished.");
   },
   /**
    * Gets executed before a worker process is spawned and can be used to initialise specific service
