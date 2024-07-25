@@ -394,7 +394,21 @@ export const config: Options.Testrunner = {
       console.log(clicastExecutablePath);
 
       const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
-      await promisifiedExec(createCFG);
+
+      console.log("createCFG string: ");
+      console.log(createCFG);
+
+      {
+        const { stdout, stderr } = await promisifiedExec(createCFG);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${createCFG}`;
+        } else {
+          console.log(`created CFG`);
+          console.log(stdout);
+        }
+      }
+
       console.log("CFG creation finished.");
     } else {
       console.log("VECTORCAST_DIR should be undefined: ");
@@ -417,7 +431,19 @@ export const config: Options.Testrunner = {
       console.log(checkVPython);
 
       const createCFG = `cd ${testInputVcastTutorial} && $VECTORCAST_DIR_TEST_DUPLICATE/clicast -lc template GNU_CPP_X`;
-      await promisifiedExec(createCFG);
+      console.log("createCFG string: ");
+      console.log(createCFG);
+
+      {
+        const { stdout, stderr } = await promisifiedExec(createCFG);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${createCFG}`;
+        } else {
+          console.log(`created CFG`);
+          console.log(stdout);
+        }
+      }
       console.log("CFG creation finished.");
     }
 
