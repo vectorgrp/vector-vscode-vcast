@@ -41,7 +41,7 @@ vmockVerboseOutput = False
 def shouldAddHashToMockFunctionNames(functionObject):
     """
     Automated testing sets vmockVerboseOutput to True to force the hash ussage
-    But  for normal usage, we only want to do this  if we have an 
+    But for normal usage, we only want to do this if we have an
     overload, which is indicated by a parameterized name
     """
 
@@ -589,11 +589,44 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
+def isOperator(operatorSuffix):
+    """
+    This will get called with what comes after "operator" or "::operator"
+    in a function name.  We are trying to differentiate between a real opeator
+    like operator++ and a function name that starts with "operator" like
+            operator_to_do_something
+            operator123
+            operators
+    """
+
+    if len(operatorSuffix) > 0:
+        firstCharacter = operatorSuffix[0]
+        if (
+            firstCharacter.isalpha()
+            or firstCharacter.isdigit()
+            or firstCharacter == "_"
+        ):
+            return False
+        else:
+            return True
+    else:
+        return False
+
+
 def functionIsOperator(functionName):
     """
     So that we have one place to adjust if we find bugs :)
     """
-    return "::operator" in functionName or functionName.startswith("operator")
+    returnValue = False
+    if "::operator" in functionName:
+        operatorIndex = functionName.find("::operator")
+        returnValue = isOperator(functionName[operatorIndex + len("::operator") :])
+    elif functionName.startswith("operator"):
+        returnValue = isOperator(functionName[len("operator"):])
+    else:
+        returnValue = False
+
+    return returnValue
 
 
 def getShortHash(toHash, requiredLen=8):

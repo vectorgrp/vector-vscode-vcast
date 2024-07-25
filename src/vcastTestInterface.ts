@@ -386,7 +386,7 @@ function processExecutionOutput(
   commandOutput: string
 ) {
   const outputLineList: string[] = commandOutput.split(EOL);
-  let doneProcessingHeader = false
+  let doneProcessingHeader = false;
   for (let lineIndex = 0; lineIndex < outputLineList.length; lineIndex++) {
     const line: string = outputLineList[lineIndex];
     console.log(`LINE IS: ${line}`);
@@ -398,11 +398,12 @@ function processExecutionOutput(
       currentTestData.passfail = line.replace("PASSFAIL:", "");
     else if (line.startsWith("TIME:")) {
       currentTestData.time = line.replace("TIME:", "");
-      doneProcessingHeader = true;  
-    }
-    else if (doneProcessingHeader) {
+      doneProcessingHeader = true;
+    } else if (doneProcessingHeader) {
       // save the rest of the output lines as the stdout
-      currentTestData.stdout = outputLineList.slice (lineIndex, outputLineList.length).join("\n");
+      currentTestData.stdout = outputLineList
+        .slice(lineIndex, outputLineList.length)
+        .join("\n");
       break;
     }
   }
@@ -439,10 +440,7 @@ function logTestResults(
 
 const { performance } = require("perf_hooks");
 
-export async function runVCTest(
-  enviroPath: string,
-  nodeID: string,
-) {
+export async function runVCTest(enviroPath: string, nodeID: string) {
   // Initially, I called clicast directly here, but I switched to the python binding to give
   // more flexibility for things like: running, and generating the execution report in one action
 
@@ -479,7 +477,6 @@ export async function runVCTest(
       openMessagePane();
       returnStatus = testStatus.didNotRun;
     } else {
-
       let currentTestData = globalTestStatusArray[nodeID];
       // update the test data with the results of the test
       processExecutionOutput(currentTestData, commandOutputText);
@@ -492,7 +489,6 @@ export async function runVCTest(
       } else {
         returnStatus = testStatus.failed;
       }
-
     }
   }
   return returnStatus;

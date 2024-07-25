@@ -195,7 +195,7 @@ function findVcastTools(): boolean {
     if (fs.existsSync(candidatePath)) {
       vcastInstallationPath = installationOptionString;
       vPythonCommandToUse = candidatePath;
-      sendVPythonCommandToServer (candidatePath);
+      sendVPythonCommandToServer(candidatePath);
       vectorMessage(
         `   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`
       );
@@ -327,7 +327,6 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
         vectorMessage(`   vMock is available in this release`);
       }
       updateVMockStatus(vMockAvailable);
-      
     } else {
       vectorMessage(
         `   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`

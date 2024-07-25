@@ -86,7 +86,6 @@ export type CompletionPosition = {
   character: number;
 };
 
-// eslint-disable-next-line max-params
 export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
