@@ -395,20 +395,30 @@ export const config: Options.Testrunner = {
 
       const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
+      console.log("CFG creation finished.");
     } else {
-      clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
-      checkVPython = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/vpython`;
-
-      const createCFG = `cd ${testInputVcastTutorial} && $VECTORCAST_DIR_TEST_DUPLICATE/clicast -lc template GNU_CPP_X`;
-      await promisifiedExec(createCFG);
-
       console.log("VECTORCAST_DIR should be undefined: ");
       console.log(process.env.VECTORCAST_DIR);
 
-      console.log("checkVPython:");
-      console.log(checkVPython);
+      // Add vpython path since every release path is deleted
+      const currentPath = process.env.PATH || "";
+      const newPath = path.join(
+        process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
+        "vpython"
+      );
+      process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
+
+      clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
+      checkVPython = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/vpython`;
+
       console.log("checkClicast:");
       console.log(clicastExecutablePath);
+      console.log("checkVPython:");
+      console.log(checkVPython);
+
+      const createCFG = `cd ${testInputVcastTutorial} && $VECTORCAST_DIR_TEST_DUPLICATE/clicast -lc template GNU_CPP_X`;
+      await promisifiedExec(createCFG);
+      console.log("CFG creation finished.");
     }
 
     process.env.CLICAST_PATH = clicastExecutablePath;
@@ -418,6 +428,8 @@ export const config: Options.Testrunner = {
     clearScreenshots =
       process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
     await promisifiedExec(clearScreenshots);
+
+    console.log("Screenshots cleared");
 
     const requestTutorialPath = path.join(
       vectorcastDir,
