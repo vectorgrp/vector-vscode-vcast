@@ -377,57 +377,57 @@ export const config: Options.Testrunner = {
         }
       }
 
-      process.env.CLICAST_PATH = clicastExecutablePath;
-      vectorcastDir = path.dirname(clicastExecutablePath);
-
       const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
-
-      let clearScreenshots: string;
-      clearScreenshots =
-        process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
-      await promisifiedExec(clearScreenshots);
-
-      const requestTutorialPath = path.join(
-        vectorcastDir,
-        "examples",
-        "RequirementsGW",
-        "CSV_Requirements_For_Tutorial.csv"
-      );
-      const commandPrefix = `cd ${testInputVcastTutorial} && ${process.env.CLICAST_PATH.trimEnd()} -lc`;
-      const rgwPrepCommands = [
-        `${commandPrefix} option VCAST_REPOSITORY ${path.join(
-          initialWorkdir,
-          "test",
-          "vcastTutorial"
-        )}`,
-        `${commandPrefix} RGw INitialize`,
-        `${commandPrefix} Rgw Set Gateway CSV`,
-        `${commandPrefix} RGw Configure Set CSV csv_path ${requestTutorialPath}`,
-        `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
-        `${commandPrefix} RGw Configure Set CSV filter_attribute`,
-        `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
-        `${commandPrefix} RGw Configure Set CSV id_attribute ID`,
-        `${commandPrefix} RGw Configure Set CSV key_attribute Key`,
-        `${commandPrefix} RGw Configure Set CSV title_attribute Title `,
-        `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
-        `${commandPrefix} RGw Import`,
-      ];
-      for (const rgwPrepCommand of rgwPrepCommands) {
-        const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
-        if (stderr) {
-          console.log(stderr);
-          throw `Error when running ${rgwPrepCommand}`;
-        }
-
-        console.log(stdout);
-      }
     } else {
-      vectorcastDir = process.env.VECTORCAST_DIR_TEST_DUPLICATE;
+      clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
       checkVPython = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/vpython`;
 
       const createCFG = `cd ${testInputVcastTutorial} && $VECTORCAST_DIR_TEST_DUPLICATE/clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
+    }
+
+    process.env.CLICAST_PATH = clicastExecutablePath;
+    vectorcastDir = path.dirname(clicastExecutablePath);
+
+    let clearScreenshots: string;
+    clearScreenshots =
+      process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
+    await promisifiedExec(clearScreenshots);
+
+    const requestTutorialPath = path.join(
+      vectorcastDir,
+      "examples",
+      "RequirementsGW",
+      "CSV_Requirements_For_Tutorial.csv"
+    );
+    const commandPrefix = `cd ${testInputVcastTutorial} && ${process.env.CLICAST_PATH.trimEnd()} -lc`;
+    const rgwPrepCommands = [
+      `${commandPrefix} option VCAST_REPOSITORY ${path.join(
+        initialWorkdir,
+        "test",
+        "vcastTutorial"
+      )}`,
+      `${commandPrefix} RGw INitialize`,
+      `${commandPrefix} Rgw Set Gateway CSV`,
+      `${commandPrefix} RGw Configure Set CSV csv_path ${requestTutorialPath}`,
+      `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
+      `${commandPrefix} RGw Configure Set CSV filter_attribute`,
+      `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
+      `${commandPrefix} RGw Configure Set CSV id_attribute ID`,
+      `${commandPrefix} RGw Configure Set CSV key_attribute Key`,
+      `${commandPrefix} RGw Configure Set CSV title_attribute Title `,
+      `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
+      `${commandPrefix} RGw Import`,
+    ];
+    for (const rgwPrepCommand of rgwPrepCommands) {
+      const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
+      if (stderr) {
+        console.log(stderr);
+        throw `Error when running ${rgwPrepCommand}`;
+      }
+
+      console.log(stdout);
     }
 
     process.env.VC_DIR = vectorcastDir;
