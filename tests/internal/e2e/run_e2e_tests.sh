@@ -29,7 +29,6 @@ activate_24_release () {
 }
 
 set_specs_params() {
-  activate_24_release
   # Check if RUN_GROUP_NAME is set
   if [ -z "$RUN_GROUP_NAME" ]; then
     echo "RUN_GROUP_NAME is not set. Please set it and try again."
