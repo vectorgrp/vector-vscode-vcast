@@ -234,7 +234,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Open.vscode folder
     let vscodeFolderItem = await workspaceFolderSection.findItem(".vscode");
-    vscodeFolderItem.select();
+    await vscodeFolderItem.select();
 
     // Select the settings.json and open context menu and delete it
     const settingsFile = await workspaceFolderSection.findItem("settings.json");

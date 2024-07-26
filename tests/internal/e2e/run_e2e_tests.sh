@@ -78,12 +78,12 @@ fi
 if [ "$GITHUB_ACTIONS" = "true" ] ; then
   source /home/vcast_user/.bashrc
 fi
+set_specs_params
 if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
     if [ "$(pidof /usr/bin/Xvfb)" == "" ]; then
         echo "Starting xvfb..."
         Xvfb :99 -screen 0 1920x1080x24 &
     fi
-    set_specs_params
     xvfb-run --server-num=99 --auto-servernum --server-args="-screen 0 1920x1080x24+32" npx wdio run test/wdio.conf.ts | tee output.txt
     if [ "$GITHUB_ACTIONS" = "true" ] ; then
       if [ -f output.txt ] ; then
@@ -101,7 +101,6 @@ if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
       fi
     fi
 else
-    set_specs_params
     npx wdio run test/wdio.conf.ts
     rm "$JS_FILE" 
     rm "$SPECS_CONFIG_FILE"

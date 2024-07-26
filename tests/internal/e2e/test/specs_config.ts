@@ -1,4 +1,4 @@
-export function getSpecGroups(vcast24: boolean) {
+export function getSpecGroups(useVcast24: boolean) {
   const specGroups = {
     basic_user_interactions: {
       specs: [
@@ -26,7 +26,7 @@ export function getSpecGroups(vcast24: boolean) {
         VECTORCAST_ATG_DIR: "",
       },
       params: {
-        path_on_release: false,
+        vcReleaseOnPath: false,
       },
     },
     bugs: {
@@ -68,7 +68,7 @@ export function getSpecGroups(vcast24: boolean) {
     },
   };
 
-  if (vcast24) {
+  if (useVcast24) {
     specGroups["func_atg"] = {
       specs: [
         "./**/**/vcast_testgen_func_atg.test.ts",
@@ -106,14 +106,14 @@ export function getSpecGroups(vcast24: boolean) {
   return specGroups;
 }
 
-export function getSpecsWithEnv() {
-  const specGroups = getSpecGroups(true);
+export function getSpecsWithEnv(useVcast24: boolean) {
+  const specGroups = getSpecGroups(useVcast24);
 
   Object.keys(specGroups).forEach((group) => {
     const groupObj = specGroups[group];
 
     // In that case we don t want the release path
-    if (groupObj.params?.path_on_release === false) {
+    if (groupObj.params?.vcReleaseOnPath === false) {
       const pathWithoutRelease = processPathEnv();
       if (pathWithoutRelease !== undefined) {
         groupObj.env.PATH = pathWithoutRelease;
@@ -124,9 +124,12 @@ export function getSpecsWithEnv() {
   return specGroups;
 }
 
-export function getEnvVarsForGroup(groupName: string): string {
+export function getEnvVarsForGroup(
+  useVcast24: boolean,
+  groupName: string
+): string {
   // Fetch spec groups with environment variables
-  const specGroups = getSpecsWithEnv();
+  const specGroups = getSpecsWithEnv(useVcast24);
   // Check if the specified group exists
   if (!specGroups[groupName] || !specGroups[groupName].env) {
     console.error(
