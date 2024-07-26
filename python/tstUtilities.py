@@ -642,7 +642,7 @@ def functionIsOperator(functionName):
         operatorIndex = functionName.find("::operator")
         returnValue = isOperator(functionName[operatorIndex + len("::operator") :])
     elif functionName.startswith("operator"):
-        returnValue = isOperator(functionName[len("operator"):])
+        returnValue = isOperator(functionName[len("operator") :])
     else:
         returnValue = False
 
@@ -756,7 +756,6 @@ logicComment = "// Insert mock logic here!"
 
 class mockDataClass:
     def __init__(self):
-        self.userFunctionName = ""
         self.mockFunctionName = ""
         self.mockDeclaration = ""
         self.enableFunctionDefinition = ""
@@ -844,7 +843,7 @@ def generateMockForFunction(mockData):
         + mockData.enableFunctionDefinition
         + "\n"
         + endComment
-        + "-"*(120-len(endComment))
+        + "-" * (120 - len(endComment))
         + "\n\n"
     )
 
