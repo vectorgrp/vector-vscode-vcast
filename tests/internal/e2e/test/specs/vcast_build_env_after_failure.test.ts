@@ -2,7 +2,7 @@ import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  cleanup
+  cleanup,
 } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -16,7 +16,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
   });
-
 
   it("should activate vcastAdapter", async () => {
     await updateTestID();
@@ -38,7 +37,9 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Starting the language server client for test script editing"),
+          .includes(
+            "Starting the language server client for test script editing"
+          ),
       { timeout: TIMEOUT }
     );
   });
@@ -59,8 +60,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
 
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
-  });
+  // it("should clean up", async () => {
+  //   await updateTestID();
+  //   await cleanup();
+  // });
 });
