@@ -756,6 +756,7 @@ logicComment = "// Insert mock logic here!"
 
 class mockDataClass:
     def __init__(self):
+        self.userFunctionName = ""
         self.mockFunctionName = ""
         self.mockDeclaration = ""
         self.enableFunctionDefinition = ""

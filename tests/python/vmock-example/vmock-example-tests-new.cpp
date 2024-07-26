@@ -2,8 +2,7 @@
 #include "vmock_examples.h"
 #include <vunit/vunit.h>
 
-
-VTEST(vmockTests, ExampleTestCase) {
+VTEST(vmockExamples, simpleTest) {
   VASSERT(true);
 }
 
@@ -66,31 +65,36 @@ VTEST(vmockTests, constCharReference) {
 
 // ---------------------------------------------------------------------------------------
 // Typedefs and Macros - New
-// vmock vmock_examples typedefExample 
+// vmock vmock_examples typedefExample  
 int vmock_vmock_examples_typedefExample(::vunit::CallCtx<> vunit_ctx, int *param1) {
   // Enable Stub: vmock_vmock_examples_typedefExample_enable_disable(vmock_session);
   // Disable Stub: vmock_vmock_examples_typedefExample_enable_disable(vmock_session, false);
 
+  // Insert mock logic here!
   return 123;
 }
 void vmock_vmock_examples_typedefExample_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
     using vcast_mock_rtype = int ;
-    vcast_mock_rtype (*vcast_fn_ptr)(int *param1)  = &typedefExample;
-    vmock_session.mock <vcast_mock_rtype (*)(int *param1)> ((vcast_mock_rtype (*)(int *param1))vcast_fn_ptr).assign (enable ? &vmock_vmock_examples_typedefExample : nullptr);
+    vcast_mock_rtype (*vcast_fn_ptr)(int *)  = &typedefExample;
+    vmock_session.mock <vcast_mock_rtype (*)(int *)> ((vcast_mock_rtype (*)(int *))vcast_fn_ptr).assign (enable ? &vmock_vmock_examples_typedefExample : nullptr);
 }
 
-// vmock vmock_examples macroExample 
+
+
+// vmock vmock_examples macroExample  
 int vmock_vmock_examples_macroExample(::vunit::CallCtx<> vunit_ctx, int *param1) {
   // Enable Stub: vmock_vmock_examples_macroExample_enable_disable(vmock_session);
   // Disable Stub: vmock_vmock_examples_macroExample_enable_disable(vmock_session, false);
 
+  // Insert mock logic here!
   return 234;
 }
 void vmock_vmock_examples_macroExample_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
     using vcast_mock_rtype = int ;
-    vcast_mock_rtype (*vcast_fn_ptr)(int *param1)  = &macroExample;
-    vmock_session.mock <vcast_mock_rtype (*)(int *param1)> ((vcast_mock_rtype (*)(int *param1))vcast_fn_ptr).assign (enable ? &vmock_vmock_examples_macroExample : nullptr);
+    vcast_mock_rtype (*vcast_fn_ptr)(int *)  = &macroExample;
+    vmock_session.mock <vcast_mock_rtype (*)(int *)> ((vcast_mock_rtype (*)(int *))vcast_fn_ptr).assign (enable ? &vmock_vmock_examples_macroExample : nullptr);
 }
+
 
 VTEST(vmockExamples, typedefAndMacros) {
 
@@ -369,6 +373,7 @@ VTEST(vmockExample, operatorTest) {
 }
 
 
+
 // ---------------------------------------------------------------------------------------
 // Template Stuff - Waiting for PCT Bug Fix
 // ---------------------------------------------------------------------------------------
@@ -424,3 +429,20 @@ VTEST(vmockExample, singleParamTemplateTest) {
 
   VASSERT_EQ (321, singleParamTemplate ('a', 2));
 }
+
+// vmock vmock_examples myClass::operator== 
+bool vmock_vmock_examples_myClass_operator(::vunit::CallCtx<myClass> vunit_ctx, class myClass &param1) {
+  // Enable Stub: vmock_vmock_examples_myClass_operator_enable_disable(vmock_session);
+  // Disable Stub: vmock_vmock_examples_myClass_operator_enable_disable(vmock_session, false);
+
+  // Insert mock logic here!
+}
+void vmock_vmock_examples_myClass_operator_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
+    using vcast_mock_rtype = bool ;
+    vcast_mock_rtype (myClass::*vcast_fn_ptr)(class ::myClass &)  = &myClass::operator==;
+    vmock_session.mock <vcast_mock_rtype (myClass::*)(class ::myClass &)> ((vcast_mock_rtype (myClass::*)(class ::myClass &))vcast_fn_ptr).assign (enable ? &vmock_vmock_examples_myClass_operator : nullptr);
+}
+
+
+
+// ---------------------------------------------------------------------------------------
