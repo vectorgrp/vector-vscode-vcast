@@ -59,9 +59,4 @@ describe("vTypeCheck VS Code Extension", () => {
     await configFile.openContextMenu();
     await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
-
-  // it("should clean up", async () => {
-  //   await updateTestID();
-  //   await cleanup();
-  // });
 });

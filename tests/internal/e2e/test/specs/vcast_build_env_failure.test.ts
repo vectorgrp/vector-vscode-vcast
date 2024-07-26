@@ -219,7 +219,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Finished creating vcast environment");
   });
 
-  it("should delete .vscode folder", async () => {
+  it("should delete settings.json in .vscode folder", async () => {
     await updateTestID();
 
     const workbench = await browser.getWorkbench();

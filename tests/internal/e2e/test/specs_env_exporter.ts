@@ -1,13 +1,14 @@
 import { getEnvVarsForGroup } from "./specs_config";
 
+// logs the env var of a spec group so that the runner can catch them.
+
 const groupName = process.env.RUN_GROUP_NAME;
 let envVars: string;
 
-if (process.env.USE_VCAST_24 === "True") {
-  envVars = getEnvVarsForGroup(true, groupName);
-} else {
-  envVars = getEnvVarsForGroup(false, groupName);
-}
+envVars =
+  process.env.USE_VCAST_24 === "True"
+    ? getEnvVarsForGroup(true, groupName)
+    : getEnvVarsForGroup(false, groupName);
 
 if (envVars) {
   console.log(envVars);

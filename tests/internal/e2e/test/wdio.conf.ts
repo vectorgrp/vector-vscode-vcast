@@ -375,69 +375,7 @@ export const config: Options.Testrunner = {
 
       process.env.CLICAST_PATH = clicastExecutablePath;
 
-      vectorcastDir = path.dirname(clicastExecutablePath);
-      process.env.VC_DIR = vectorcastDir;
-
-      let clearScreenshots: string;
-      clearScreenshots =
-        process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
-      await promisifiedExec(clearScreenshots);
-
-      testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
-      await mkdir(testInputEnvPath, { recursive: true });
-
-      codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
-      await mkdir(codedTestsPath, { recursive: true });
-
-      const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
-      await mkdir(vscodeSettingsPath, { recursive: true });
-      const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
-
-      let createLaunchJson: string;
-      createLaunchJson =
-        process.platform == "win32"
-          ? `copy /b NUL ${launchJsonPath}`
-          : `touch ${launchJsonPath}`;
-      await promisifiedExec(createLaunchJson);
-
-      const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
-      const c_cpp_properties = {
-        configurations: [
-          {
-            name: "Linux",
-            includePath: ["${workspaceFolder}/**", `${pathTovUnitInclude}`],
-            defines: [],
-            compilerPath: "/usr/bin/clang",
-            cStandard: "c17",
-            cppStandard: "c++14",
-            intelliSenseMode: "linux-clang-x64",
-          },
-        ],
-        version: 4,
-      };
-
-      const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
-      const c_cpp_properties_JSONPath = path.join(
-        vscodeSettingsPath,
-        "c_cpp_properties.json"
-      );
-      await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
-
-      const envFile = `ENVIRO.NEW
-ENVIRO.NAME: DATABASE-MANAGER-test
-ENVIRO.COVERAGE_TYPE: Statement
-ENVIRO.WHITE_BOX: YES
-ENVIRO.COMPILER: CC
-ENVIRO.STUB: ALL_BY_PROTOTYPE
-ENVIRO.SEARCH_LIST: cpp
-ENVIRO.STUB_BY_FUNCTION: database
-ENVIRO.STUB_BY_FUNCTION: manager
-ENVIRO.END
-      `;
-      await writeFile(
-        path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),
-        envFile
-      );
+      prepareCVG(initialWorkdir);
 
       const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
@@ -453,75 +391,7 @@ ENVIRO.END
 
       process.env.CLICAST_PATH = clicastExecutablePath;
 
-      vectorcastDir = path.dirname(clicastExecutablePath);
-      process.env.VC_DIR = vectorcastDir;
-
-      let clearScreenshots: string;
-      clearScreenshots =
-        process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
-      await promisifiedExec(clearScreenshots);
-
-      const testInputVcastTutorial = path.join(
-        initialWorkdir,
-        "test",
-        "test_input",
-        "vcastTutorial"
-      );
-      testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
-      await mkdir(testInputEnvPath, { recursive: true });
-
-      codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
-      await mkdir(codedTestsPath, { recursive: true });
-
-      const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
-      await mkdir(vscodeSettingsPath, { recursive: true });
-      const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
-
-      let createLaunchJson: string;
-      createLaunchJson =
-        process.platform == "win32"
-          ? `copy /b NUL ${launchJsonPath}`
-          : `touch ${launchJsonPath}`;
-      await promisifiedExec(createLaunchJson);
-
-      const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
-      const c_cpp_properties = {
-        configurations: [
-          {
-            name: "Linux",
-            includePath: ["${workspaceFolder}/**", `${pathTovUnitInclude}`],
-            defines: [],
-            compilerPath: "/usr/bin/clang",
-            cStandard: "c17",
-            cppStandard: "c++14",
-            intelliSenseMode: "linux-clang-x64",
-          },
-        ],
-        version: 4,
-      };
-
-      const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
-      const c_cpp_properties_JSONPath = path.join(
-        vscodeSettingsPath,
-        "c_cpp_properties.json"
-      );
-      await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
-
-      const envFile = `ENVIRO.NEW
-  ENVIRO.NAME: DATABASE-MANAGER-test
-  ENVIRO.COVERAGE_TYPE: Statement
-  ENVIRO.WHITE_BOX: YES
-  ENVIRO.COMPILER: CC
-  ENVIRO.STUB: ALL_BY_PROTOTYPE
-  ENVIRO.SEARCH_LIST: cpp
-  ENVIRO.STUB_BY_FUNCTION: database
-  ENVIRO.STUB_BY_FUNCTION: manager
-  ENVIRO.END
-      `;
-      await writeFile(
-        path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),
-        envFile
-      );
+      prepareCVG(initialWorkdir);
 
       const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
@@ -641,6 +511,84 @@ ENVIRO.END
         `cp ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
       );
     }
+
+    /**
+     * Prepares the execution of clicast and the creation of the CFG config file.
+     * @param initialWorkdir Path of the initial work dir.
+     */
+    async function prepareCVG(initialWorkdir: string): Promise<void> {
+      vectorcastDir = path.dirname(process.env.CLICAST_PATH);
+      process.env.VC_DIR = vectorcastDir;
+
+      let clearScreenshots: string;
+      clearScreenshots =
+        process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
+      await promisifiedExec(clearScreenshots);
+
+      const testInputVcastTutorial = path.join(
+        initialWorkdir,
+        "test",
+        "test_input",
+        "vcastTutorial"
+      );
+
+      testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
+      await mkdir(testInputEnvPath, { recursive: true });
+
+      codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
+      await mkdir(codedTestsPath, { recursive: true });
+
+      const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
+      await mkdir(vscodeSettingsPath, { recursive: true });
+
+      const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
+
+      let createLaunchJson: string;
+      createLaunchJson =
+        process.platform == "win32"
+          ? `copy /b NUL ${launchJsonPath}`
+          : `touch ${launchJsonPath}`;
+      await promisifiedExec(createLaunchJson);
+
+      const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
+      const c_cpp_properties = {
+        configurations: [
+          {
+            name: "Linux",
+            includePath: ["${workspaceFolder}/**", `${pathTovUnitInclude}`],
+            defines: [],
+            compilerPath: "/usr/bin/clang",
+            cStandard: "c17",
+            cppStandard: "c++14",
+            intelliSenseMode: "linux-clang-x64",
+          },
+        ],
+        version: 4,
+      };
+
+      const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
+      const c_cpp_properties_JSONPath = path.join(
+        vscodeSettingsPath,
+        "c_cpp_properties.json"
+      );
+      await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
+
+      const envFile = `ENVIRO.NEW
+ENVIRO.NAME: DATABASE-MANAGER-test
+ENVIRO.COVERAGE_TYPE: Statement
+ENVIRO.WHITE_BOX: YES
+ENVIRO.COMPILER: CC
+ENVIRO.STUB: ALL_BY_PROTOTYPE
+ENVIRO.SEARCH_LIST: cpp
+ENVIRO.STUB_BY_FUNCTION: database
+ENVIRO.STUB_BY_FUNCTION: manager
+ENVIRO.END
+    `;
+      await writeFile(
+        path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),
+        envFile
+      );
+    }
   },
   /**
    * Gets executed before a worker process is spawned and can be used to initialise specific service
@@ -681,6 +629,7 @@ ENVIRO.END
       await promisifiedExec("pkill code");
     }
   },
+
   /**
    * Gets executed just before initialising the webdriver session and test framework. It allows you
    * to manipulate configurations depending on the capability or spec.

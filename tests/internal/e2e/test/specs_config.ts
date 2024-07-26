@@ -1,3 +1,8 @@
+/**
+ * Returns all spec groups.
+ * @param useVcast24 Boolean whether release 24 is used or not.
+ * @returns Returns all spec groups.
+ */
 export function getSpecGroups(useVcast24: boolean) {
   const specGroups = {
     basic_user_interactions: {
@@ -23,7 +28,6 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
         VECTORCAST_DIR: "",
-        VECTORCAST_ATG_DIR: "",
       },
       params: {
         vcReleaseOnPath: false,
@@ -106,15 +110,20 @@ export function getSpecGroups(useVcast24: boolean) {
   return specGroups;
 }
 
+/**
+ * Returns the spec groups including their env variables and handles group params.
+ * @param useVcast24 Boolean whether release 24 is used or not.
+ * @returns Spec groups with env variables.
+ */
 export function getSpecsWithEnv(useVcast24: boolean) {
   const specGroups = getSpecGroups(useVcast24);
 
   Object.keys(specGroups).forEach((group) => {
     const groupObj = specGroups[group];
 
-    // In that case we don t want the release path
+    // In that case we don t want the release to be on PATH
     if (groupObj.params?.vcReleaseOnPath === false) {
-      const pathWithoutRelease = processPathEnv();
+      const pathWithoutRelease = removeReleaseOnPath();
       if (pathWithoutRelease !== undefined) {
         groupObj.env.PATH = pathWithoutRelease;
       }
@@ -124,12 +133,19 @@ export function getSpecsWithEnv(useVcast24: boolean) {
   return specGroups;
 }
 
+/**
+ * Returns the env variables for spec a group.
+ * @param useVcast24 Boolean whether release 24 is used or not.
+ * @param groupName Name of a spec group.
+ * @returns Env var for a spec group.
+ */
 export function getEnvVarsForGroup(
   useVcast24: boolean,
   groupName: string
 ): string {
   // Fetch spec groups with environment variables
   const specGroups = getSpecsWithEnv(useVcast24);
+
   // Check if the specified group exists
   if (!specGroups[groupName] || !specGroups[groupName].env) {
     console.error(
@@ -147,6 +163,12 @@ export function getEnvVarsForGroup(
     .join("\n");
 }
 
+/**
+ * Get all specs or from a group (if contained in the params).
+ * @param vcast24 Boolean whether release 24 is used or not.
+ * @param group Name of a spec group.
+ * @returns
+ */
 export function getSpecs(vcast24: boolean, group: string = null) {
   const specGroups = getSpecGroups(vcast24);
 
@@ -165,7 +187,11 @@ export function getSpecs(vcast24: boolean, group: string = null) {
     .flat();
 }
 
-function processPathEnv(): string | undefined {
+/**
+ * Splits all paths from the PATH env variable that contain a "release".
+ * @returns New PATH env var without "release" paths
+ */
+function removeReleaseOnPath(): string | undefined {
   // Get the PATH environment variable
   const envPath = process.env.PATH;
 
