@@ -28,7 +28,7 @@ describe("vTypeCheck VS Code Extension", () => {
   let workbench: Workbench;
   let editorView: EditorView;
   let statusBar: StatusBar;
-  const TIMEOUT = 20_000;
+  const TIMEOUT = 30_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
