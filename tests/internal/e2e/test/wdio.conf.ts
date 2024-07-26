@@ -375,7 +375,7 @@ export const config: Options.Testrunner = {
 
       process.env.CLICAST_PATH = clicastExecutablePath;
 
-      prepareCVG(initialWorkdir);
+      await prepareCVG(initialWorkdir);
 
       const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
@@ -391,7 +391,7 @@ export const config: Options.Testrunner = {
 
       process.env.CLICAST_PATH = clicastExecutablePath;
 
-      prepareCVG(initialWorkdir);
+      await prepareCVG(initialWorkdir);
 
       const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
       await promisifiedExec(createCFG);
