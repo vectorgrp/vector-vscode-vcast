@@ -26,18 +26,12 @@ export async function cleanup() {
   console.log("Deleting all environments");
 
   const workbench = await browser.getWorkbench();
-  console.log("Got workbench");
   const bottomBar = workbench.getBottomBar();
-  console.log("got bottomBar");
   const vcastTestingViewContent = await getViewContent("Testing");
-  console.log("Got testing view content");
   await (await vcastTestingViewContent.elem).click();
-  console.log("clicked on testing view content");
   const sections = await vcastTestingViewContent.getSections();
-  console.log("Got sections");
   const testExplorerSection = sections[0];
   const testEnvironments = await testExplorerSection.getVisibleItems();
-  console.log("Got test environments");
   for (const testEnvironment of testEnvironments) {
     let testEnvironmentContextMenu;
 
@@ -52,18 +46,16 @@ export async function cleanup() {
 
     if (testEnvironmentContextMenu != undefined) {
       await testEnvironmentContextMenu.select("VectorCAST");
-      console.log("test environment context menu selected");
       const deleteButton = await $("aria/Delete Environment");
       if (deleteButton == undefined) break;
 
       await deleteButton.click();
-      console.log("delete button clicked");
+
       const vcastNotificationSourceElement = await $(
         "aria/VectorCAST Test Explorer (Extension)"
       );
       const vcastNotification = await vcastNotificationSourceElement.$("..");
       await (await vcastNotification.$("aria/Delete")).click();
-      console.log("notifications clicked");
       await bottomBar.maximize();
 
       await browser.waitUntil(

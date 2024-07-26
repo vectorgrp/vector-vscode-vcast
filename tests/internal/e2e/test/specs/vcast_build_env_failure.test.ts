@@ -52,7 +52,9 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Please refer to the installation and configuration instructions for details on resolving these issues"),
+          .includes(
+            "Please refer to the installation and configuration instructions for details on resolving these issues"
+          ),
       { timeout: TIMEOUT }
     );
   });
@@ -82,11 +84,12 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Please refer to the installation and configuration instructions for details on resolving these issues"),
+          .includes(
+            "Please refer to the installation and configuration instructions for details on resolving these issues"
+          ),
       { timeout: TIMEOUT }
     );
   });
-
 
   it("should create VectorCAST environment and fail", async () => {
     await updateTestID();
@@ -104,8 +107,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Get file and "Create VectorCAST Environment"
     const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
-    await managerCpp.select()
-    console.log("Selected File: " + managerCpp)
+    await managerCpp.select();
+    console.log("Selected File: " + managerCpp);
 
     await managerCpp.openContextMenu();
     await (await $("aria/Create VectorCAST Environment")).click();
@@ -117,7 +120,9 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Please refer to the installation and configuration instructions for details on resolving these issues"),
+          .includes(
+            "Please refer to the installation and configuration instructions for details on resolving these issues"
+          ),
       { timeout: TIMEOUT }
     );
   });
@@ -136,7 +141,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Vectorcast Test Explorer"
     );
     await unitTestLocationSetting.setValue(process.env.VC_DIR);
-    
+
     await (await workbench.openNotificationsCenter()).clearAllNotifications();
 
     // Await last expected sentence
@@ -144,7 +149,9 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Starting the language server client for test script editing"),
+          .includes(
+            "Starting the language server client for test script editing"
+          ),
       { timeout: TIMEOUT }
     );
   });
@@ -175,7 +182,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerSideBarView = await explorerView?.openView();
 
     // Don't open folder again since its already expanded
-    const workspaceName = "vcastTutorial"
+    const workspaceName = "vcastTutorial";
     const workspaceFolderSection = await explorerSideBarView
       .getContent()
       .getSection(workspaceName.toUpperCase());
@@ -188,7 +195,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Making sure notifications are shown
     await (await $("aria/Notifications")).click();
 
-    console.log("Notifications are shown")
+    console.log("Notifications are shown");
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
     const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
@@ -197,7 +204,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await (await vcastNotification.$("aria/Yes")).click();
 
-    console.log("Notifications clicked yes")
+    console.log("Notifications clicked yes");
     console.log(
       "Waiting for clicast and waiting for environment to get processed"
     );
@@ -208,7 +215,6 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT }
     );
-
 
     console.log("Finished creating vcast environment");
   });
@@ -221,22 +227,20 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerView = await activityBar.getViewControl("Explorer");
     const explorerSideBarView = await explorerView?.openView();
 
-
-    const workspaceName = "vcastTutorial"
+    const workspaceName = "vcastTutorial";
     const workspaceFolderSection = await explorerSideBarView
       .getContent()
       .getSection(workspaceName.toUpperCase());
 
-    // Open.vscode folder 
-    let vscodeFolderItem = await workspaceFolderSection.findItem('.vscode');
-    vscodeFolderItem.select()
+    // Open.vscode folder
+    let vscodeFolderItem = await workspaceFolderSection.findItem(".vscode");
+    vscodeFolderItem.select();
 
     // Select the settings.json and open context menu and delete it
     const settingsFile = await workspaceFolderSection.findItem("settings.json");
     await settingsFile.select();
     const contextMenu = await settingsFile.openContextMenu();
-    const deleteMenuItem = await contextMenu.getItem('Delete');
+    const deleteMenuItem = await contextMenu.getItem("Delete");
     await deleteMenuItem.select();
   });
-
 });

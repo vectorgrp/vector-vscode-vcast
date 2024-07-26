@@ -103,7 +103,7 @@ export function getSpecGroups(vcast24: boolean) {
     };
   }
 
-  return specGroups
+  return specGroups;
 }
 
 export function getSpecsWithEnv() {

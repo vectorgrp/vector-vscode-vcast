@@ -6,6 +6,6 @@ const envVars = getEnvVarsForGroup(groupName);
 if (envVars) {
   console.log(envVars);
 } else {
-  console.error("No environment variables found or group not found.");
-  process.exit(1); // Exit with an error code if no variables found
+  // Exit with an error code if no variables found
+  process.exit(1);
 }
