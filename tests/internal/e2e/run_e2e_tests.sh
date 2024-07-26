@@ -9,6 +9,7 @@ activate_24_release () {
 }
 
 cd $ROOT
+n 18
 if [ ! -d "node_modules" ]; then
   npm install
 fi
