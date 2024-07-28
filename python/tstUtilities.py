@@ -622,7 +622,7 @@ def functionIsOperator(functionName):
         operatorIndex = functionName.find("::operator")
         returnValue = isOperator(functionName[operatorIndex + len("::operator") :])
     elif functionName.startswith("operator"):
-        returnValue = isOperator(functionName[len("operator"):])
+        returnValue = isOperator(functionName[len("operator") :])
     else:
         returnValue = False
 
@@ -709,6 +709,7 @@ logicComment = "// Insert mock logic here!"
 
 class mockDataClass:
     def __init__(self):
+        self.mockFunctionName = ""
         self.mockDeclaration = ""
         self.enableFunctionDefinition = ""
         self.enableComment = ""
@@ -729,6 +730,9 @@ def generateMockDataForFunction(api, functionObject):
 
     # get the name to be used for the mock itself
     mockFunctionName = getFunctionName(functionObject)
+
+    # save the function name
+    whatToReturn.mockFunctionName = mockFunctionName
 
     # generate the complete declaration
     mockDeclaration = getMockDeclaration(functionObject, mockFunctionName)
@@ -773,6 +777,7 @@ def generateMockForFunction(mockData):
 
     # Then put it all together, I like it this way because it ie easy to read
     # and it looks more like the code that will be generated (with LF's)
+    endComment = f"// end of moock for: {mockData.mockFunctionName} "
     whatToReturn = (
         f"{mockData.mockDeclaration}"
         + " {\n  "
@@ -783,6 +788,9 @@ def generateMockForFunction(mockData):
         + logicComment
         + "\n}\n"
         + mockData.enableFunctionDefinition
+        + "\n"
+        + endComment
+        + "-" * (120 - len(endComment))
         + "\n\n"
     )
 
