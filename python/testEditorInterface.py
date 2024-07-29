@@ -49,11 +49,6 @@ def main():
             # if the line starts with "void vmock" then we are processing vmock definition
             if re.match("^\s*\/\/\s*vmock", inputLine):
                 choiceData = processMockDefinition(enviroName, inputLine)
-
-            # of if the line starts with auto vmock_session =
-            elif re.match("^\s*auto\s+vmock_session\s*=", inputLine):
-                choiceData = processVMockSession(enviroName, inputLine)
-
             else:
                 # noting to be done
                 choiceData = choiceDataType()

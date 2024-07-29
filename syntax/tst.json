@@ -1,7 +1,7 @@
 {
   "newtest": {
     "scope": "vcast.tst",
-    "prefix": "vcast-test",
+    "prefix": ["vcast-test", "new"],
     "body": [
       "\nTEST.UNIT$1\nTEST.SUBPROGRAM$2\nTEST.REPLACE\nTEST.NAME:$3\nTEST.NOTES:\n $4\nTEST.END_NOTES:\nTEST.VALUE$5\nTEST.END\n\n"
     ],

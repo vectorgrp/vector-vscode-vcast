@@ -591,7 +591,15 @@
     "snippets": [
       {
         "language": "vcast.tst",
-        "path": "./syntax/snippets.json"
+        "path": "./syntax/tst.json"
+      },
+      {
+        "language": "c",
+        "path": "./syntax/mock.json"
+      },
+      {
+        "language": "cpp",
+        "path": "./syntax/mock.json"
       }
     ]
   },

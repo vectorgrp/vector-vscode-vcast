@@ -884,14 +884,6 @@ def processMockDefinition(enviroName, lineSoFar):
     return returnData
 
 
-def processVMockSession(enviroName, lineSoFar):
-    returnData = choiceDataType()
-    returnData.choiceKind = choiceKindType.Variable
-    returnData.choiceList.append(" ::vunit::MockSession();")
-
-    return returnData
-
-
 def processTstLine(enviroName, line):
     """
 

@@ -152,7 +152,7 @@ and choose: "Edit Test Script" from the VectorCAST right-click context menu
 The extension provides Language Sensitive Editing (LSE) features to support the VectorCAST Test Script syntax.
 The LSE features are activated, whenever the extension is active and a file with a '.tst' extension is opened in the editor.
 
-You can easily create the framework for a new test by using the 'vcast-test' snippet.
+You can easily create the framework for a new test by using the 'new' snippet.
 Just type 'vcast-test' anywhere in the '.tst' file, and then return, and the minimum commands to create a test will be inserted
 
 To add a single script line, type TEST. and a list of all possible commands will be displayed.
@@ -256,7 +256,8 @@ of VectorCAST, you will get the diagnostic message:
   "This environment does not support mocks, no auto-completion is available",
 
 
-Note: The extension will also auto-complete the: "auto vmock_session =" line
+Note: The extension will has a code snippet for the : "auto vmock_session = ..." line, so if
+you simply type "vsession" it will generate the correct variable declaration
 
 ### Code Coverage Annotations
 
