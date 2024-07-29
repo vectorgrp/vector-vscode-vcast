@@ -5,8 +5,7 @@ along with all of the work arounds for existing bugs or missing features
 
 from string import Template
 
-
-# function to not be shown in the functions list
+TAG_FOR_INIT = "<<INIT>>"
 
 
 def functionCanBeMocked(functionObject):
@@ -19,8 +18,8 @@ def functionCanBeMocked(functionObject):
     # Waiting for PCT fix of FB: 101353.
     """
 
-    # We want to ignore these functions
-    functionsToIgnore = {"coded_tests_driver", "<<INIT>>"}
+    # function to not be shown in the functions list
+    functionsToIgnore = {"coded_tests_driver", TAG_FOR_INIT}
     if functionObject.vcast_name in functionsToIgnore:
         return False
 
