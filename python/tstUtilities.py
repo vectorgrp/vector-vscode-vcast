@@ -14,13 +14,8 @@ import base64
 from enum import Enum
 
 from dataAPIutilities import (
-    dropTemplates,
     functionCanBeMocked,
     generateMockEnableForUnitAndFunction,
-    getInstantiatingClass,
-    getMockDeclaration,
-    getReturnType,
-    getParameterList,
     tagForInit,
 )
 
@@ -591,24 +586,6 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     return returnUnitList, returnFunctionList
 
 
-def getFunctionSignature(api, functionObject):
-    """
-    Create the signature for a vmock stub function, something like this:
-        ::vunit::CallCtx<myClass> vunit_ctx, int param
-    """
-
-    # if this function is a class member, we include the class name
-    instantiatingClass = getInstantiatingClass(api, functionObject)
-
-    # the static part of the signature looks like this ...
-    signatureString = f"::vunit::CallCtx<{instantiatingClass}> vunit_ctx"
-
-    # now append the parameters (if any)
-    signatureString += getParameterList(functionObject)
-
-    return signatureString
-
-
 def isOperator(operatorSuffix):
     """
     This will get called with what comes after "operator" or "::operator"
@@ -669,6 +646,30 @@ def getShortHash(toHash, requiredLen=8):
     return sanitized
 
 
+def dropTemplates(originalName):
+    """
+    In some instances, we need to remove all template arguments before doing processing.
+
+    For example, if we have a template that returns a function pointer, then we
+    see `<(*)>` in the template arguments, this means we cannot correctly
+    determine if our mock should return a function pointer or not.
+
+    By dropping all function templates from a given string, we can see if it is
+    only the "return" of a function is a function pointer.
+    """
+    droppedName = ""
+    in_count = 0
+    for idx, char in enumerate(originalName):
+        if char == "<":
+            in_count += 1
+        elif char == ">":
+            in_count -= 1
+        elif in_count == 0:
+            droppedName += char
+
+    return droppedName
+
+
 def getFunctionName(functionObject):
     """
     This function generates the name of the mock function
@@ -722,33 +723,6 @@ def getFunctionName(functionObject):
     return returnName
 
 
-def buildCppParameterization(api, functionObject, functionName):
-    """
-    This function will convert the vcast parameterization
-    into the correct C++ style parameterization
-    """
-
-    # create the function pointer part ether * or className::*
-    instantiatingClass = ""
-    if "::" in functionName:
-        instantiatingClass = getInstantiatingClass(api, functionObject)
-        fptrString = f"{instantiatingClass}::*"
-    else:
-        fptrString = "*"
-
-    # original_return_type
-    returnType = getReturnType(functionObject)
-
-    # : should we convert to using the new orig_declaration?
-    # IF we do we'll have to deal with the param names and special cases like int param[]
-
-    # the vcast parameterization string looks like: (char, int[])int
-    # and this will return the "(char, int[])" part
-    parameterString = functionObject.parameterization.split("(", 1)[1].rsplit(")", 1)[0]
-
-    return f"{returnType} ({fptrString})({parameterString})"
-
-
 enableStubPrefix = "// Enable Stub:"
 disableStubPrefix = "// Disable Stub:"
 logicComment = "// Insert mock logic here!"
@@ -775,10 +749,6 @@ def generateMockDataForFunction(api, functionObject):
 
     # First generate the mock definition
 
-    # get the parameter profile for the stubbed function
-    # e.g -> ::vunit::CallCtx<myClass> vunit_ctx, int param, ...
-    signatureString = getFunctionSignature(api, functionObject)
-
     # get the name to be used for the mock itself
     mockFunctionName = getFunctionName(functionObject)
 
@@ -786,16 +756,14 @@ def generateMockDataForFunction(api, functionObject):
     whatToReturn.mockFunctionName = mockFunctionName
 
     # generate the complete declaration
-    mockDeclaration = getMockDeclaration(
-        functionObject, mockFunctionName, signatureString
-    )
+    mockDeclaration = functionObject.generate_mock_declaration(mockFunctionName)
 
     whatToReturn.mockDeclaration = mockDeclaration
 
     # Next generate the enable function declaration,  which includes
     # all of the logic to associate the mock with the original function
     enableFunctionDefinition, enableFunctionCall = generateMockEnableForUnitAndFunction(
-        api, functionObject, mockFunctionName
+        functionObject, mockFunctionName
     )
     whatToReturn.enableFunctionDefinition = enableFunctionDefinition
     whatToReturn.enableFunctionCall = enableFunctionCall
