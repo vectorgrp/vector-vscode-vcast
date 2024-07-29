@@ -1,6 +1,6 @@
 """
 This file contains all the special stuff we need to do to compute the LSE stuff for Coded Mocks,
-along with all of the work around's for existing bugs or missing features
+along with any of the work around's for existing bugs or missing features
 """
 
 from string import Template
