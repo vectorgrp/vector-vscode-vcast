@@ -79,7 +79,7 @@ def generateAllVMockDefinitions(enviroPath):
             # Save all the data we need
             # Add a comment to the start of the declaration, so it looks the same
             # as if the user used the intellisense auto-complete to create the mock
-            mock_comment = f"// vmock {unitObject.name} {functionObject.vcast_name}\n"
+            mock_comment = f"// vmock {unitObject.name} {functionObject.vcast_name}"
             mock_definition = mock_comment + mock_definition
             mock_bodies.append(f"{mock_definition}")
             mock_usages.append(mock_data.enableFunctionCall)

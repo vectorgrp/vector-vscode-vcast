@@ -796,11 +796,13 @@ def generateMockForFunction(mockData):
 
     """
 
-    # Then put it all together, I like it this way because it ie easy to read
+    # Then put it all together, I like it this way because it is easy to read
     # and it looks more like the code that will be generated (with LF's)
     endComment = f"// end of moock for: {mockData.mockFunctionName} "
+    # Note that we need the leading CR to force the declaration to a new line
     whatToReturn = (
-        f"{mockData.mockDeclaration}"
+        "\n"
+        + f"{mockData.mockDeclaration}"
         + " {\n  "
         + mockData.enableComment
         + "\n  "
@@ -835,8 +837,6 @@ def processMockDefinition(enviroName, lineSoFar):
     returnData = choiceDataType()
 
     api = UnitTestApi(enviroName)
-
-    # FIXME: need unit tests for this
 
     # if what the user entered so far is an each match for the unit and function
     # we will get a single object in each list, else we will get a filtered list
