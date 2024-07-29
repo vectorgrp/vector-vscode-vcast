@@ -18,7 +18,6 @@ from tstUtilities import (
     choiceDataType,
     processTstLine,
     processMockDefinition,
-    processVMockSession,
 )
 from tstUtilities import globalOutputLog
 
