@@ -7,8 +7,6 @@ from string import Template
 
 
 # function to not be shown in the functions list
-tagForInit = "<<INIT>>"
-functionsToIgnore = ["coded_tests_driver", tagForInit]
 
 
 def functionCanBeMocked(functionObject):
@@ -20,19 +18,25 @@ def functionCanBeMocked(functionObject):
     # these <<INIT>> functions should not be in the list
     # Waiting for PCT fix of FB: 101353.
     """
+
+    # We want to ignore these functions
+    functionsToIgnore = {"coded_tests_driver", "<<INIT>>"}
     if functionObject.vcast_name in functionsToIgnore:
         return False
+
     # Constructors are not supported by vmock
-    elif functionObject.is_constructor:
+    if functionObject.is_constructor:
         return False
+
     # Destructors are not supported by vmock
-    elif "~" in functionObject.vcast_name:
+    if "~" in functionObject.vcast_name:
         return False
+
     # This allows us to support older versions of VectorCAST
-    elif hasattr(functionObject, "is_mockable"):
+    if hasattr(functionObject, "is_mockable"):
         return functionObject.is_mockable
-    else:
-        return True
+
+    return True
 
 
 mock_template = Template(

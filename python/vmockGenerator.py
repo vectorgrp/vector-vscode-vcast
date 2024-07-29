@@ -1,6 +1,5 @@
 # A skeleton for the generating all vmock definitions for an environment
 
-import glob
 import os
 import subprocess
 import sys
@@ -15,7 +14,6 @@ import tstUtilities
 from tstUtilities import (
     generateMockDataForFunction,
     generateMockForFunction,
-    getFunctionName,
 )
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
@@ -124,13 +122,16 @@ test_file = f"{basename}.cpp"
 script_file = f"{basename}.tst"
 
 
-def generate_test_file(enviro_path, prepend=[]):
+def generate_test_file(enviro_path, prepend=None):
     """
     Generates an instantiated C++ test file and its associated test script.
 
     "prepend" allows the caller to pass in some extra text to insert at the
     start of the file
     """
+
+    if prepend is None:
+        prepend = []
 
     env_name = os.path.basename(enviro_path)
 
@@ -224,7 +225,7 @@ def get_list_of_directories_to_process():
 
     else:
         print("Looking for directories with a master.db and unit.cpp file ...")
-        for root, dirs, files in os.walk("."):
+        for root, _, files in os.walk("."):
             if "master.db" in files and "unit.cpp" in files:
                 what_to_return.append(root)
 
@@ -265,7 +266,7 @@ def generate_tests_and_compile():
 
             # first try to compile the unit.cpp file using g++
             print("  compiling unit.cpp ...")
-            compile_command = f"g++ -std=c++14 -c -w unit.cpp"
+            compile_command = "g++ -std=c++14 -c -w unit.cpp"
             exit_code, stdout = compile_file(compile_command)
 
             if exit_code != 0:
@@ -297,7 +298,7 @@ def generate_tests_and_compile():
             # return to original cwd
             os.chdir(cwd)
 
-        except Exception as e:
+        except Exception:
             print(f"Failed to process: {enviro_path}")
             print(traceback.format_exc())
 
@@ -334,7 +335,6 @@ def main():
     """
 
     tstUtilities.addHashToMockFunctionNames = True
-    tstUtilities.vmockVerboseOutput = True
 
     if (
         len(sys.argv) == 2

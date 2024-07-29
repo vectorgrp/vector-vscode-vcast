@@ -29,20 +29,15 @@ globalOutputLog = list()
 # a mock function, so if you set this variable, we will append a hash of the
 # mangled function name to the mock name.  Some users might prefer this also
 # so we will expose this in the extension
-addHashToMockFunctionNames = False
-
-# for debug purposes, we might want to see more verbose output
-vmockVerboseOutput = False
+ADD_HASH_TO_MOCK_FUNCTION_NAMES = False
 
 
 def shouldAddHashToMockFunctionNames(functionObject):
     """
-    Automated testing sets vmockVerboseOutput to True to force the hash ussage
-    But for normal usage, we only want to do this if we have an
-    overload, which is indicated by a parameterized name
+    Add a hash to the generated function name if the function is parameterized
     """
 
-    if addHashToMockFunctionNames or "(" in functionObject.vcast_name:
+    if ADD_HASH_TO_MOCK_FUNCTION_NAMES or "(" in functionObject.vcast_name:
         return True
     else:
         return False
@@ -659,7 +654,7 @@ def dropTemplates(originalName):
     """
     droppedName = ""
     in_count = 0
-    for idx, char in enumerate(originalName):
+    for _, char in enumerate(originalName):
         if char == "<":
             in_count += 1
         elif char == ">":
