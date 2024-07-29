@@ -1,4 +1,5 @@
 // Test/specs/vcast.test.ts
+import process from "node:process";
 import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -20,7 +21,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
-    expect(await workbench.getTitleBar().getTitle()).toBe(
+    const title = await workbench.getTitleBar().getTitle();
+    expect(title).toBe(
       "[Extension Development Host] vcastTutorial - Visual Studio Code"
     );
   });
@@ -32,6 +34,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
     // so just need to hit Enter to activate
+    const characters = "vector";
     for (const character of "vector") {
       await browser.keys(character);
     }
@@ -74,7 +77,8 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await unitTestLocationSetting.setValue("some/invalid/path");
 
-    await (await workbench.openNotificationsCenter()).clearAllNotifications();
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
 
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
@@ -102,16 +106,17 @@ describe("vTypeCheck VS Code Extension", () => {
     // Expand vcastTutorial and cpp folder
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-    const cppFolder = workspaceFolderSection.findItem("cpp");
-    await (await cppFolder).select();
+    const cppFolder = await workspaceFolderSection.findItem("cpp");
+    await cppFolder.select();
 
     // Get file and "Create VectorCAST Environment"
     const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
     await managerCpp.select();
-    console.log("Selected File: " + managerCpp);
 
     await managerCpp.openContextMenu();
-    await (await $("aria/Create VectorCAST Environment")).click();
+
+    const createButton = await $("aria/Create VectorCAST Environment");
+    await createButton.click();
 
     // Await last expected sentence
     await bottomBar.toggle(true);
@@ -130,7 +135,6 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should activate vcastAdapter with correct path", async () => {
     await updateTestID();
 
-    const activityBar = workbench.getActivityBar();
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
@@ -142,7 +146,8 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await unitTestLocationSetting.setValue(process.env.VC_DIR);
 
-    await (await workbench.openNotificationsCenter()).clearAllNotifications();
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
 
     // Await last expected sentence
     await browser.waitUntil(
@@ -169,8 +174,14 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
     await configFile.openContextMenu();
-    await (await $("aria/Set as VectorCAST Configuration File")).click();
-    await (await workbench.openNotificationsCenter()).clearAllNotifications();
+
+    const setConfigButton = await $(
+      "aria/Set as VectorCAST Configuration File"
+    );
+    await setConfigButton.click();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
   });
 
   it("should create VectorCAST environment and succeed", async () => {
@@ -190,19 +201,23 @@ describe("vTypeCheck VS Code Extension", () => {
     const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
 
     await managerCpp.openContextMenu();
-    await (await $("aria/Create VectorCAST Environment")).click();
+
+    const createButton = await $("aria/Create VectorCAST Environment");
+    await createButton.click();
 
     // Making sure notifications are shown
-    await (await $("aria/Notifications")).click();
+    const notifications = await $("aria/Notifications");
+    await notifications.click();
 
     console.log("Notifications are shown");
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
     const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );
-    const vcastNotification = await vcastNotificationSourceElement.$("..");
 
-    await (await vcastNotification.$("aria/Yes")).click();
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
+    const yesButton = await vcastNotification.$("aria/Yes");
+    await yesButton.click();
 
     console.log("Notifications clicked yes");
     console.log(
@@ -233,7 +248,7 @@ describe("vTypeCheck VS Code Extension", () => {
       .getSection(workspaceName.toUpperCase());
 
     // Open.vscode folder
-    let vscodeFolderItem = await workspaceFolderSection.findItem(".vscode");
+    const vscodeFolderItem = await workspaceFolderSection.findItem(".vscode");
     await vscodeFolderItem.select();
 
     // Select the settings.json and open context menu and delete it

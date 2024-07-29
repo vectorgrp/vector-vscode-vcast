@@ -1,8 +1,8 @@
+import process from "node:process";
 import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  cleanup,
 } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -23,14 +23,16 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
-    //Open Settings and put in valid path
+    // Open Settings and put in valid path
     const settingsEditor = await workbench.openSettings();
     const unitTestLocationSetting = await settingsEditor.findSetting(
       "Vectorcast Installation Location",
       "Vectorcast Test Explorer"
     );
     await unitTestLocationSetting.setValue(process.env.VC_DIR);
-    await (await workbench.openNotificationsCenter()).clearAllNotifications();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
 
     // Await last expected sentence
     await browser.waitUntil(
@@ -57,6 +59,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
     await configFile.openContextMenu();
-    await (await $("aria/Set as VectorCAST Configuration File")).click();
+
+    const setConfigButton = await $(
+      "aria/Set as VectorCAST Configuration File"
+    );
+    await setConfigButton.click();
   });
 });
