@@ -14,11 +14,8 @@ import base64
 from enum import Enum
 
 from dataAPIutilities import (
-    dropTemplates,
     functionCanBeMocked,
     generateMockEnableForUnitAndFunction,
-    getMockDeclaration,
-    getReturnType,
     tagForInit,
 )
 
@@ -649,6 +646,30 @@ def getShortHash(toHash, requiredLen=8):
     return sanitized
 
 
+def dropTemplates(originalName):
+    """
+    In some instances, we need to remove all template arguments before doing processing.
+
+    For example, if we have a template that returns a function pointer, then we
+    see `<(*)>` in the template arguments, this means we cannot correctly
+    determine if our mock should return a function pointer or not.
+
+    By dropping all function templates from a given string, we can see if it is
+    only the "return" of a function is a function pointer.
+    """
+    droppedName = ""
+    in_count = 0
+    for idx, char in enumerate(originalName):
+        if char == "<":
+            in_count += 1
+        elif char == ">":
+            in_count -= 1
+        elif in_count == 0:
+            droppedName += char
+
+    return droppedName
+
+
 def getFunctionName(functionObject):
     """
     This function generates the name of the mock function
@@ -735,14 +756,14 @@ def generateMockDataForFunction(api, functionObject):
     whatToReturn.mockFunctionName = mockFunctionName
 
     # generate the complete declaration
-    mockDeclaration = getMockDeclaration(functionObject, mockFunctionName)
+    mockDeclaration = functionObject.generate_mock_declaration(mockFunctionName)
 
     whatToReturn.mockDeclaration = mockDeclaration
 
     # Next generate the enable function declaration,  which includes
     # all of the logic to associate the mock with the original function
     enableFunctionDefinition, enableFunctionCall = generateMockEnableForUnitAndFunction(
-        api, functionObject, mockFunctionName
+        functionObject, mockFunctionName
     )
     whatToReturn.enableFunctionDefinition = enableFunctionDefinition
     whatToReturn.enableFunctionCall = enableFunctionCall
