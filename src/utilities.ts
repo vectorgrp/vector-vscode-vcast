@@ -19,7 +19,7 @@ export const jsoncParseOptions: jsonc.ParseOptions = {
   allowEmptyContent: false,
 };
 // note: we don't use this programmatically but it is useful for debugging
-export var jsoncParseErrors: jsonc.ParseError[] = []; // not using programatically, for debug only
+export var jsoncParseErrors: jsonc.ParseError[] = []; // not using programmatically, for debug only
 export const jsoncModificationOptions: jsonc.ModificationOptions = {
   formattingOptions: { tabSize: 4, insertSpaces: true },
 };
@@ -286,7 +286,7 @@ export function quote(name: string) {
 export function showSettings() {
   console.log("VectorCAST Test Explorer show settings called ...");
   // previously, I was using: "VectorCAST Test Explorer" as the "filter" in this call, but
-  // that resulted in a coupld of extra settings, and the wrong order being displayed
+  // that resulted in a couple of extra settings, and the wrong order being displayed
   // through trial and error, I found that this gives what we want
   vscode.commands.executeCommand(
     "workbench.action.openWorkspaceSettings",

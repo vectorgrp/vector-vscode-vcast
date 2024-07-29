@@ -104,7 +104,7 @@ function shouldSendFileInfoToServer(
 
 // This function is used to send the server information about the association between
 // a coded test file and the environment that uses that file.
-export function sendTestFileDataToLangaugeServer(
+export function sendTestFileDataToLanguageServer(
   testFilePath: string,
   enviroPath: string,
   enviroHasMockSupport: boolean
@@ -113,9 +113,9 @@ export function sendTestFileDataToLangaugeServer(
   if (
     shouldSendFileInfoToServer(testFilePath, enviroPath, enviroHasMockSupport)
   ) {
-    // else this is a new test file or a new enviro for an exsiting test file
+    // else this is a new test file or a new enviro for an existing test file
     // we always send in in the second case, because we want the server
-    // to have the lastest association.
+    // to have the latest association.
     client.onReady().then(() => {
       testFilesSentToServer.set(testFilePath, {
         enviroPath: enviroPath,
@@ -133,7 +133,7 @@ export function sendTestFileDataToLangaugeServer(
   }
 }
 
-// This function is used to update vmockAvailabe on the server side
+// This function is used to update vmockAvailable on the server side
 export function updateVMockStatus(vmockAvailable: boolean) {
   // during activation, the client may not be ready yet, so we store the value
   // of the vmockAvailable flag in a global variable and send it to the server

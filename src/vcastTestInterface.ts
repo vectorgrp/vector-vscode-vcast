@@ -147,7 +147,7 @@ export interface testDataType {
   testStartLine: number;
 }
 
-// This allows us to get diret access to the test nodes via the ID
+// This allows us to get direct access to the test nodes via the ID
 export interface testStatusArrayType {
   [id: string]: testDataType;
 }
@@ -526,7 +526,7 @@ function createVcastEnvironmentScript(
   fileList: string[]
 ) {
   // This will take a list of files and create the enviroName.env
-  // in the locaiton pointed to by unitTestLocation
+  // in the location pointed to by unitTestLocation
 
   // compute the UUT and SEARCH_LIST lists
   // Improvement needed: Add source locations for include paths from cpp_properties

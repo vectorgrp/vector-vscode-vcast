@@ -80,9 +80,9 @@ function insertIncludePath(filePath: string) {
     existingJSON.configurations &&
     existingJSON.configurations.length > 0
   ) {
-    const numberOfCofigurations = existingJSON.configurations.length;
+    const numberOfConfigurations = existingJSON.configurations.length;
     statusMessages.push(
-      `{configurationFile} file has ${numberOfCofigurations} configurations ... `
+      `{configurationFile} file has ${numberOfConfigurations} configurations ... `
     );
   } else {
     statusMessages.push(
@@ -218,7 +218,7 @@ export async function adjustScriptContentsBeforeLoad(scriptPath: string) {
 
 export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
-  // In all caeses, we need to do the following:
+  // In all cases, we need to do the following:
   //  - Call clicast <-e -u -s options> tool auto_test temp.tst  [creates tests]
   //  - Call loadScriptIntoEnvironment() to do the actual load
   //
@@ -241,7 +241,7 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
 
 export function generateAndLoadATGTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
-  // In all caeses, we need to do the following:
+  // In all cases, we need to do the following:
   //  - Call atg <-e -u -s options> temp.tst  [creates tests]
   //  - Call loadScriptIntoEnvironment() to do the actual load
 
@@ -325,7 +325,7 @@ export async function closeAnyOpenErrorFiles() {
 }
 
 export function getEnviroNameFromFile(filePath: string): string | undefined {
-  // This funciton will extract the enviro name from
+  // This function will extract the enviro name from
   // the ENVIRO.NAME: <name> line of the provided file
 
   let enviroName: string | undefined = undefined;

@@ -67,7 +67,7 @@ def main():
 
     else:
         choiceData = choiceDataType()
-        # first arg is the name of the scropt, so we subtract 1
+        # first arg is the name of the script, so we subtract 1
         globalOutputLog.append(
             f"Invalid number of arguments: {len(sys.argv)-1}, 3 expected"
         )

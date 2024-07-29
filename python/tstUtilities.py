@@ -37,7 +37,7 @@ vmockVerboseOutput = False
 
 def shouldAddHashToMockFunctionNames(functionObject):
     """
-    Automated testing sets vmockVerboseOutput to True to force the hash ussage
+    Automated testing sets vmockVerboseOutput to True to force the hash usage
     But for normal usage, we only want to do this if we have an
     overload, which is indicated by a parameterized name
     """
@@ -589,7 +589,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
 def isOperator(operatorSuffix):
     """
     This will get called with what comes after "operator" or "::operator"
-    in a function name.  We are trying to differentiate between a real opeator
+    in a function name.  We are trying to differentiate between a real operator
     like operator++ and a function name that starts with "operator" like
             operator_to_do_something
             operator123
@@ -706,7 +706,7 @@ def getFunctionName(functionObject):
         # ClassName<TypeName>::operator>=
         functionNameToUse = dropTemplates(functionNameToUse)
 
-    # overloaded functions will have the parameterization, stirp
+    # overloaded functions will have the parameterization, strip
     functionNameToUse = functionNameToUse.split("(")[0]
 
     # Handle if we have an operator function (which will include symbols we
@@ -798,7 +798,7 @@ def generateMockForFunction(mockData):
 
     # Then put it all together, I like it this way because it is easy to read
     # and it looks more like the code that will be generated (with LF's)
-    endComment = f"// end of moock for: {mockData.mockFunctionName} "
+    endComment = f"// end of mock for: {mockData.mockFunctionName} "
     # Note that we need the leading CR to force the declaration to a new line
     whatToReturn = (
         "\n"
@@ -873,7 +873,7 @@ def processMockDefinition(enviroName, lineSoFar):
 
         # First generate the mock data
         mockData = generateMockDataForFunction(api, functionObject)
-        # then generate the mock defintion that we will return
+        # then generate the mock definition that we will return
         whatToReturn = generateMockForFunction(mockData)
 
         returnData.choiceKind = choiceKindType.Snippet

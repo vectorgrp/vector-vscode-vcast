@@ -150,7 +150,7 @@ function checkForATG(vcastInstallationPath: string) {
       atgCommandToUse != undefined &&
       vectorCASTSupportsATG(vcastInstallationPath);
 
-    // atgAvailabel is used by package.json to control the existance of the atg command in the context menus
+    // atgAvailable is used by package.json to control the existence of the atg command in the context menus
     vscode.commands.executeCommand(
       "setContext",
       "vectorcastTestExplorer.atgAvailable",

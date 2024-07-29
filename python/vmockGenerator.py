@@ -73,7 +73,7 @@ def generateAllVMockDefinitions(enviroPath):
 
             # First generate the mock data
             mock_data = generateMockDataForFunction(api, functionObject)
-            # then generate the mock defintion that we will return
+            # then generate the mock definition that we will return
             mock_definition = generateMockForFunction(mock_data)
 
             # Save all the data we need
