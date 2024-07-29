@@ -34,7 +34,8 @@ ADD_HASH_TO_MOCK_FUNCTION_NAMES = False
 
 def shouldAddHashToMockFunctionNames(functionObject):
     """
-    Add a hash to the generated function name if the function is parameterized
+    Add a hash to the generated function name if the function is overloaded,
+    which is indicated by a parameterized name
     """
 
     if ADD_HASH_TO_MOCK_FUNCTION_NAMES or "(" in functionObject.vcast_name:
@@ -584,7 +585,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
 def isOperator(operatorSuffix):
     """
     This will get called with what comes after "operator" or "::operator"
-    in a function name.  We are trying to differentiate between a real opeator
+    in a function name.  We are trying to differentiate between a real operator
     like operator++ and a function name that starts with "operator" like
             operator_to_do_something
             operator123
@@ -701,7 +702,7 @@ def getFunctionName(functionObject):
         # ClassName<TypeName>::operator>=
         functionNameToUse = dropTemplates(functionNameToUse)
 
-    # overloaded functions will have the parameterization, stirp
+    # overloaded functions will have the parameterization, strip
     functionNameToUse = functionNameToUse.split("(")[0]
 
     # Handle if we have an operator function (which will include symbols we
@@ -791,11 +792,13 @@ def generateMockForFunction(mockData):
 
     """
 
-    # Then put it all together, I like it this way because it ie easy to read
+    # Then put it all together, I like it this way because it is easy to read
     # and it looks more like the code that will be generated (with LF's)
-    endComment = f"// end of moock for: {mockData.mockFunctionName} "
+    endComment = f"// end of mock for: {mockData.mockFunctionName} "
+    # Note that we need the leading CR to force the declaration to a new line
     whatToReturn = (
-        f"{mockData.mockDeclaration}"
+        "\n"
+        + f"{mockData.mockDeclaration}"
         + " {\n  "
         + mockData.enableComment
         + "\n  "
@@ -830,8 +833,6 @@ def processMockDefinition(enviroName, lineSoFar):
     returnData = choiceDataType()
 
     api = UnitTestApi(enviroName)
-
-    # FIXME: need unit tests for this
 
     # if what the user entered so far is an each match for the unit and function
     # we will get a single object in each list, else we will get a filtered list
@@ -868,7 +869,7 @@ def processMockDefinition(enviroName, lineSoFar):
 
         # First generate the mock data
         mockData = generateMockDataForFunction(api, functionObject)
-        # then generate the mock defintion that we will return
+        # then generate the mock definition that we will return
         whatToReturn = generateMockForFunction(mockData)
 
         returnData.choiceKind = choiceKindType.Snippet

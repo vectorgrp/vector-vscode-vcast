@@ -40,7 +40,7 @@ export function getPieceAtColumn(pieces: string[], columnIndex: number) {
 }
 
 function addSpecialChoices(returnList: CompletionItem[]) {
-  // This adds all of the special choise for scalars like
+  // This adds all of the special choice for scalars like
   // min, mid, max and vary
   returnList.push({
     label: "vary",
@@ -89,7 +89,7 @@ export function completionList(
         kind: choiceKind,
         detail: "",
       });
-      // add the spcial choices for scalars:
+      // add the special choices for scalars:
       // min, mind, max, vary
       addSpecialChoices(returnList);
     } else
@@ -189,7 +189,7 @@ export const commonEnviroCommandList = [
   "NEW", // *
   "NAME", // * All caps enviro directory name
   "BASE_DIRECTORY", //   Variable:Path
-  "COVERAGE_TYPE", // * Statement, Branch, MCDC, Funciton, Function+Function_call, Statement+Branch, Statement+MCDC
+  "COVERAGE_TYPE", // * Statement, Branch, MCDC, Function, Function+Function_call, Statement+Branch, Statement+MCDC
   "INDUSTRY_MODE", //   DO-178 B/C, ISO-26262, IEC-61508, EN-50128, IEC-62304
   "STUB_BY_FUNCTION", // * Name of UUT
   "WHITEBOX", // * YES | NO

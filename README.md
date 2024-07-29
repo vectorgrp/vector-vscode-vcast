@@ -250,7 +250,7 @@ VTEST(fooTests, simpleTest) {
 ```
 
 Note: This feature is only supported for tool and environment version that are newer than VectorCAST 24 sp3.
-If you type "// vmock" in a file associated with ane enviornment that was built with an older version
+If you type "// vmock" in a file associated with ane environment that was built with an older version
 of VectorCAST, you will get the diagnostic message:  
 
   "This environment does not support mocks, no auto-completion is available",

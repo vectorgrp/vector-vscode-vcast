@@ -1,6 +1,6 @@
 """
 This file contains all the special stuff we need to do to compute the LSE stuff for Coded Mocks,
-along with all of the work arounds for existing bugs or missing features
+along with any of the work around's for existing bugs or missing features
 """
 
 from string import Template
@@ -54,7 +54,7 @@ void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = tru
 def generateMockEnableForUnitAndFunction(functionObject, mockFunctionName):
     """
     Note that we pass in mockFunctionName because we want getFunctionName()
-    to remain in tstUtilitie.py
+    to remain in tstUtilities.py
     """
 
     original_return = functionObject.named_original_return_type("")

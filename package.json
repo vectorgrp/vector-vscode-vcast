@@ -270,7 +270,7 @@
             ],
             "order": 1,
             "default": "Statement",
-            "description": "Sets the coveage kind when building a new environments"
+            "description": "Sets the coverage kind when building a new environments"
           },
           "vectorcastTestExplorer.build.enableCodedTesting": {
             "type": "boolean",

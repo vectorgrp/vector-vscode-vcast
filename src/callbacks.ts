@@ -32,7 +32,7 @@ export function buildEnvironmentCallback(enviroPath: string, code: number) {
     updateDataForEnvironment(enviroPath);
   } else {
     try {
-      // remove the envionment directory, as well as the .vce file
+      // remove the environment directory, as well as the .vce file
       vectorMessage("Environment build failed, removing artifacts ...");
       fs.rmSync(enviroPath, { recursive: true, force: true });
       fs.unlinkSync(enviroPath + ".vce");
@@ -100,7 +100,7 @@ export function loadScriptCallBack(
     loadScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
-    vectorMessage(`Deleteting script file: ${path.basename(scriptPath)}`);
+    vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
     updateTestPane(enviroPath);
     fs.unlinkSync(scriptPath);
   } else {

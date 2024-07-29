@@ -94,7 +94,7 @@ def runClicastCommandWithEcho(commandToRun):
 
 
 def runClicastCommand(commandToRun):
-    # In preperation for server mode ...
+    # In preparation for server mode ...
     return runClicastCommandCommandLine(commandToRun)
 
 
@@ -117,7 +117,7 @@ def runClicastScriptCommandLine(commandFileName, echoToStdout):
 
 
 def runClicastScript(commandFileName, echoToStdout=False):
-    # In preperation for server mode ...
+    # In preparation for server mode ...
     return runClicastScriptCommandLine(commandFileName, echoToStdout)
 
 
@@ -127,7 +127,7 @@ def updateEnvironment(enviroPath, jsonOptions):
     jsonOptions has the new values of ENVIRO.* commands for the enviro script
     e.g.  ENVIRO.COVERAGE_TYPE: Statement
 
-    We overwrite any matching ENVIRO commands with the new values befoe rebuild
+    We overwrite any matching ENVIRO commands with the new values before rebuild
     """
 
     tempEnviroScript = "rebuild.env"
@@ -170,7 +170,7 @@ def updateEnvironment(enviroPath, jsonOptions):
                         whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
                         jsonOptions.pop(enviroCommand)
 
-                # write the orignal or updated line
+                # write the original or updated line
                 enviroFile.write(whatToWrite)
 
         # Finally delete and re-build the environment using the updated script
@@ -189,7 +189,7 @@ def updateEnvironment(enviroPath, jsonOptions):
 
 def rebuildEnvironmentUsingClicastReBuild(enviroPath):
     """
-    This dowes a "normal" rebuild environment, when there are no
+    This does a "normal" rebuild environment, when there are no
     edits to be made to the enviro script
     """
     with cd(os.path.dirname(enviroPath)):

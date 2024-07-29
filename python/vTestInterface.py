@@ -154,7 +154,7 @@ def generateTestInfo(enviroPath, test):
     # New to support coded tests in vc24
     if vpythonHasCodedTestSupport and test.coded_tests_file:
         # guard against the case where the coded test file has been renamed or deleted
-        # or dataAPI has a bad line nuumber for the test, and return None in this case.
+        # or dataAPI has a bad line number for the test, and return None in this case.
         enclosingDirectory = os.path.dirname(enviroPath)
         codedTestFilePath = os.path.abspath(
             os.path.join(enclosingDirectory, test.coded_tests_file)
@@ -174,7 +174,7 @@ def generateTestInfo(enviroPath, test):
 # knowledge of "testabilty"
 globalListOfTestableFunctions = []
 
-# The extesnsion needs to know if the environment was built
+# The extension needs to know if the environment was built
 # with mocking support, not just if the tool supports it
 # If the enviro was not built with mocking then the new mocking
 # fields in the API will be set to None by the migration process
@@ -222,7 +222,7 @@ def getTestDataVCAST(enviroPath):
 
     # Now do normal tests
     for unit in api.Unit.all():
-        # we used to add these and throw them away in the typescript, nowe we don't add them
+        # we used to add these and throw them away in the typescript, now we don't add them
         if unit.name != "uut_prototype_stubs":
             unitNode = dict()
             unitNode["name"] = unit.name
@@ -346,7 +346,7 @@ def getCoverageKind(sourceObject):
     """
 
     # vc23sp2 added a function called get_coverage_type_text, but to support
-    # older versoon of vcast, we do the interpretation of the enum manually here
+    # older version of vcast, we do the interpretation of the enum manually here
     if sourceObject.coverage_type in statementCoverList:
         return CoverageKind.statement
     elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.BRANCH:
@@ -500,7 +500,7 @@ class testID:
 def validateClicastCommand(command, mode):
     """
     The --clicast arg is only required for a sub-set of modes, so we do
-    those checks here, and throw usage error if there is a probelem
+    those checks here, and throw usage error if there is a problem
     """
     if mode in ["executeTest", "rebuild"]:
         if command is None or len(command) == 0:
@@ -547,7 +547,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
         topLevel = dict()
 
         # it is important that getTetDataVCAST() is called first since it sets up
-        # the global list of testable functoions that getUnitData() needs
+        # the global list of testable functions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(pathToUse)
         topLevel["unitData"] = getUnitData(pathToUse)
 

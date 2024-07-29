@@ -7,7 +7,7 @@ import * as vscode from "vscode";
 
 import { Position, Range, Uri, TestMessage } from "vscode";
 
-import { sendTestFileDataToLangaugeServer } from "./client";
+import { sendTestFileDataToLanguageServer } from "./client";
 
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
@@ -28,7 +28,7 @@ import {
   addTestNodeToCache,
   clearTestNodeCache,
   compoundOnlyString,
-  createTestNodeinCache,
+  createTestNodeInCache,
   duplicateTestNode,
   getEnviroPathFromID,
   getEnviroNodeIDFromID,
@@ -230,8 +230,8 @@ function processVCtestData(
           functionNodeForCache
         );
 
-        // if the funciton we are processing is the coded test driver
-        // and if there is a test file associated wtih it ...
+        // if the function we are processing is the coded test driver
+        // and if there is a test file associated with it ...
         if (
           functionName == codedTestFunctionName &&
           functionNodeForCache.testFile.length > 0
@@ -245,7 +245,7 @@ function processVCtestData(
           const enviroHasMockSupport = jsonData.enviro.mockingSupport;
           const testFilePath = functionNodeForCache.testFile;
 
-          sendTestFileDataToLangaugeServer(
+          sendTestFileDataToLanguageServer(
             testFilePath,
             functionNodeForCache.enviroPath,
             enviroHasMockSupport
@@ -351,7 +351,7 @@ export function updateTestsForEnvironment(
     // when the VectorCAST context menu should be shown
     const enviroNodeID: string = "vcast:" + enviroDisplayName;
 
-    createTestNodeinCache(enviroNodeID, enviroPath, path.basename(enviroPath));
+    createTestNodeInCache(enviroNodeID, enviroPath, path.basename(enviroPath));
 
     // crateTestItem, takes ID,Label, the ID must be unique, so
     // we add a _index-value to it ...
@@ -390,7 +390,7 @@ async function loadAllVCTests(
   progress: vscode.Progress<{ message?: string; increment?: number }>,
   token: vscode.CancellationToken
 ) {
-  // loads all vcast test environemnts found in the workspace
+  // loads all vcast test environments found in the workspace
 
   // throw away the existing items
   globalController.items.replace([]);
@@ -431,7 +431,7 @@ async function loadAllVCTests(
           break;
         }
         updateTestsForEnvironment(enviroPath, workspaceRoot);
-      } // for each enviropath
+      } // for each environment path
       if (cancelled) {
         break;
       }
@@ -1242,12 +1242,12 @@ export function updateCodedTestCases(editor: any) {
   // update the environment and then update the tree.  If the file changed
   // but the tests did not change we will only ask clicast to re-load the file
 
-  // if this file is a coded test file for any enviornment in the workspace
+  // if this file is a coded test file for any environment in the workspace
   const filePath = editor.fileName;
   const codedTestFileData: codedTestFileDataType | undefined =
     codedTestFileCache.get(filePath);
   if (codedTestFileData) {
-    // then check if the file has changed (checksum is differnt)
+    // then check if the file has changed (checksum is different)
     // if it hasn't then we're done
     const currentChecksum = computeChecksum(filePath);
     if (currentChecksum != codedTestFileData.checksum) {
