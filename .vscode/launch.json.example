@@ -1,0 +1,70 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "VectorCAST Test Explorer",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "autoAttachChildProcesses": true,
+      "outFiles": ["${workspaceFolder}/out/*.js"],
+      "preLaunchTask": {
+        "type": "npm",
+        "script": "esbuild"
+      }
+    },
+    {
+      "name": "getEnviroData",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/vTestInterface.py",
+      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
+      "env": {
+        "PYTHONPATH": "C:/vcast/vc24sp2/python",
+        "VECTORCAST_DIR": "c:/VCAST/vc24sp2"
+      },
+      "args": [
+        "--mode=getEnviroData",
+        "--clicast=C:/vcast/vc24sp2/clicast.exe",
+        "--path=c:/RDS/VectorCAST/FOO/unitTests/FOO"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "getCompletionData",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/testEditorInterface.py",
+      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
+      "env": {
+        "PYTHONPATH": "C:/vcast/vc24sp2/python",
+        "VECTORCAST_DIR": "c:/VCAST/vc24sp2"
+      },
+      "args": [
+        "choiceList-ct",
+        "FOO",
+        "// vmock foo foo  "
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "runTest",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/vTestInterface.py",
+      "cwd": "C:/RDS/VectorCAST/FOO/unitTests",
+      "env": {
+        "PYTHONPATH": "C:/vcast/vc24sp2/python",
+        "VECTORCAST_DIR": "c:/VCAST/vc24sp2"      
+      },
+      "args": [
+        "--mode=executeTest",
+        "--clicast=C:/vcast/vc24sp2/clicast.exe",
+        "--path=c:/RDS/VectorCAST/FOO/unitTests/FOO",
+        "--test=\"FOO|foo.coded_tests_driver.fooTests.simple\""
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 name: Vector Vscode Vcast Tests
-run-name: ${{ github.actor }} running tests
+run-name: ${{ github.ref_name }} is being tested
 on:
   push:
     branches:
@@ -8,34 +8,39 @@ on:
     branches:
       - main
   release:
+  workflow_dispatch:
 jobs:
   unit-tests:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
       options: --user vcast_user
 
     steps:
-      - name: Start forward proxy
-        run: |
-          sudo /usr/sbin/squid
-          NEW_PROXY="http://$(hostname --ip-address):3128"
-          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-
       - name: Check out repository
-        uses: actions/checkout@v3
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
 
       # Run tests
       - name: Restore cached dependencies
         id: cache-dependencies-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             node_modules
@@ -47,20 +52,20 @@ jobs:
 
       - name: Save dependencies
         if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
       - name: Package with VSCE
-        run: vsce package
+        run: npm run package
 
       - name: Run unit tests
         run: npm run gh-test | tee output.txt
 
       - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        uses: EnricoMi/publish-unit-test-result-action/linux@v2
         if: always()
         with:
           check_name: "Unit Test results"
@@ -82,7 +87,7 @@ jobs:
           curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
           chmod +x codecov
           ./codecov -f ./coverage/clover.xml -F Unit -n vscode-vcast-unittests -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -r ${{ github.repository }} -U ${http_proxy} >> out.txt
-          cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
+          cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
           title="Coverage report URL" && \
           [ -z $(cat url.txt) ] && echo "::notice title=$title::URL not found" || echo "::notice title=$title::$(cat url.txt)"
 
@@ -94,14 +99,14 @@ jobs:
           echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
 
       - name: Upload vectorcasttestexplorer artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: vectorcasttestexplorer
           path: ${{ env.VSIX_FILE }}
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage
@@ -122,32 +127,86 @@ jobs:
           $upload_url \
           --data-binary "@${{ env.VSIX_FILE }}"
 
-  e2e-tests-23:
+  generate-matrix:
+    if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
-      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      options: --user vcast_user
+
+    outputs:
+      version_group_matrix: ${{ steps.set-matrix.outputs.matrix }}
 
     steps:
-      - name: Start forward proxy
-        run: |
-          sudo /usr/sbin/squid
-          NEW_PROXY="http://$(hostname --ip-address):3128"
-          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-
       - name: Check out repository
-        uses: actions/checkout@v3
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Set jobs matrix
+        id: set-matrix
+        run: |
+          cd tests/internal/e2e/test
+          npx tsx get_gha_matrix.ts
+          echo "matrix=$(cat gha_matrix.json)" >> "$GITHUB_OUTPUT"
+
+  e2e-tests:
+    needs: generate-matrix
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [self-hosted, vscode-vcast]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      options: --user vcast_user
+
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.generate-matrix.outputs.version_group_matrix) }}
+
+    env:
+      BRANCH_REF: ${{ github.ref }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_SHA: ${{ github.sha }}
+      USE_VCAST_24: ${{ matrix.version == 24 && 'True' || 'False' }}
+      RUN_BY_GROUP: "True"
+      RUN_GROUP_NAME: ${{ matrix.group }}
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
 
       - name: Restore cached dependencies
         id: cache-dependencies-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             node_modules
@@ -159,18 +218,18 @@ jobs:
 
       - name: Save dependencies
         if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
       - name: Package with VSCE
-        run: vsce package
+        run: npm run package
 
       - name: Restore cached dependencies - node
         id: cache-dependencies-restore-node
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             tests/internal/e2e/node_modules
@@ -178,39 +237,40 @@ jobs:
 
       - name: Restore cached dependencies - vscode
         id: cache-dependencies-restore-vscode
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
       - name: Run tests
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SHA: ${{ github.sha }}
         run: |
-          export BRANCH_REF=${{ github.ref }} && ./tests/internal/e2e/run_e2e_tests.sh
+          ./tests/internal/e2e/run_e2e_tests.sh
 
       - name: Publish e2e tests results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        uses: EnricoMi/publish-unit-test-result-action/linux@v2
         if: always()
+        env:
+          CHECK_NAME: E2e Test results - Vcast ${{ matrix.version }} - Group ${{ matrix.group }}
         with:
-          check_name: "E2e Test results - Vcast 23"
+          check_name: ${{ env.CHECK_NAME }}
           large_files: true
           files: |
             ./tests/internal/e2e/test_results/*.xml
 
       - name: Uploading screenshots
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
+        env:
+          ARTIFACT_NAME: e2e_screenshots_${{ matrix.version }}_${{ matrix.group }}
         with:
-          name: e2e_screenshots_23
+          name: ${{ env.ARTIFACT_NAME }}
           path: ./tests/internal/e2e/*.png
 
       - name: Show run summary
         if: always()
         run: |
-          echo "### Run summary - Vcast 23" >> $GITHUB_STEP_SUMMARY
+          echo "### Run summary - Vcast ${{ matrix.version }} - Group ${{ matrix.group }}" >> $GITHUB_STEP_SUMMARY
           content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
           echo "${content}" >> $GITHUB_STEP_SUMMARY
           
@@ -219,15 +279,16 @@ jobs:
           count=`ls -1 tests/internal/e2e/*.png 2>/dev/null | wc -l`
           if [ $count != 0 ] ; then
             cd tests/internal/e2e
-            tar -cvzf e2e_vcast23_screenshots.tar.gz *.png > /dev/null
-            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $ARTIFACTORY_URL/e2e_vcast23_screenshots.tar.gz -T e2e_vcast23_screenshots.tar.gz
+            tar -cvzf e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots.tar.gz *.png > /dev/null
+            URL="$ARTIFACTORY_URL/e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots/"
+            curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots.tar.gz
             cd ../../..
-            echo "[Screenshots]($ARTIFACTORY_URL/e2e_vcast23_screenshots.tar.gz)" >> $GITHUB_STEP_SUMMARY
+            echo "[Screenshots]($URL)" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Save dependencies - node
         if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             tests/internal/e2e/node_modules
@@ -235,127 +296,163 @@ jobs:
 
       - name: Save dependencies - vscode
         if: always() && steps.cache-dependencies-restore-vscode.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
-  e2e-tests-24:
+  black:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vcast_base
-      options: --user vcast_user -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:rw
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      options: --user vcast_user
 
     steps:
-      - name: Start forward proxy
-        run: |
-          sudo /usr/sbin/squid
-          NEW_PROXY="http://$(hostname --ip-address):3128"
-          echo "HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "http_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "https_proxy=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTP_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-          echo "GLOBAL_AGENT_HTTPS_PROXY=$NEW_PROXY" >> $GITHUB_ENV
-
       - name: Check out repository
-        uses: actions/checkout@v3
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
 
-      - name: Restore cached dependencies
-        id: cache-dependencies-restore
-        uses: actions/cache/restore@v3
-        with:
-          path: |
-            node_modules
-          key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
-
-      - name: Install dependencies
-        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        run: npm install
-
-      - name: Save dependencies
-        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            node_modules
-          key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
-
-      - name: Package with VSCE
-        run: vsce package
-
-      - name: Restore cached dependencies - node
-        id: cache-dependencies-restore-node
-        uses: actions/cache/restore@v3
-        with:
-          path: |
-            tests/internal/e2e/node_modules
-          key: ${{ runner.os }}-dependencies-${{ hashFiles('tests/internal/e2e/package.json') }}
-
-      - name: Restore cached dependencies - vscode
-        id: cache-dependencies-restore-vscode
-        uses: actions/cache/restore@v3
-        with:
-          path: |
-            tests/internal/e2e/.wdio-vscode-service
-          key: ${{ runner.os }}-dependencies-webdriver-vscode
-
-      - name: Run tests
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SHA: ${{ github.sha }}
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
         run: |
-          export USE_VCAST_24=True && export BRANCH_REF=${{ github.ref }} && ./tests/internal/e2e/run_e2e_tests.sh
+          sleep 10
+          exit 1
 
-      - name: Publish e2e tests results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: always()
-        with:
-          check_name: "E2e Test results - Vcast 24"
-          large_files: true
-          files: |
-            ./tests/internal/e2e/test_results/*.xml
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
 
-      - name: Uploading screenshots
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: e2e_screenshots_24
-          path: ./tests/internal/e2e/*.png
+      - name: Run black
+        shell: bash
+        run: |
+          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/' > output.log 2>&1; echo $? > exitcode.txt
 
-      - name: Show run summary
+      - name: Summary
+        shell: bash
         if: always()
         run: |
-          echo "### Run summary - Vcast 24" >> $GITHUB_STEP_SUMMARY
-          content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
-          echo "${content}" >> $GITHUB_STEP_SUMMARY
-          
-          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}"
-          count=`ls -1 tests/internal/e2e/*.png 2>/dev/null | wc -l`
-          if [ $count != 0 ] ; then
-            cd tests/internal/e2e
-            tar -cvzf e2e_vcast24_screenshots.tar.gz *.png > /dev/null
-            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $ARTIFACTORY_URL/e2e_vcast24_screenshots.tar.gz -T e2e_vcast24_screenshots.tar.gz
-            cd ../../..
-            echo "[Screenshots]($ARTIFACTORY_URL/e2e_vcast24_screenshots.tar.gz)" >> $GITHUB_STEP_SUMMARY
+          echo "### Black output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Exit with code
+        shell: bash
+        if: always()
+        run: |
+          if [ -f exitcode.txt ]; then
+              exit $(cat exitcode.txt)
           fi
 
-      - name: Save dependencies - node
-        if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            tests/internal/e2e/node_modules
-          key: ${{ runner.os }}-dependencies-${{ hashFiles('tests/internal/e2e/package.json') }}
+  prettier:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast]
 
-      - name: Save dependencies - vscode
-        if: always() && steps.cache-dependencies-restore-vscode.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            tests/internal/e2e/.wdio-vscode-service
-          key: ${{ runner.os }}-dependencies-webdriver-vscode
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      options: --user vcast_user
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Run prettier
+        shell: bash
+        run: |
+          npm install prettier@$(node -pe "require('./package').devDependencies.prettier")
+          npx prettier -c . > output.log 2>&1; echo $? > exitcode.txt
+
+      - name: Summary
+        shell: bash
+        if: always()
+        run: |
+          echo "### Prettier output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Exit with code
+        shell: bash
+        if: always()
+        run: |
+          if [ -f exitcode.txt ]; then
+              exit $(cat exitcode.txt)
+          fi
+
+  xo:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      options: --user vcast_user
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Run xo
+        shell: bash
+        run: |
+          npm install xo@$(node -pe "require('./package').dependencies.xo")
+          npx xo tests/unit > output.log 2>&1; echo $? > exitcode.txt
+
+      - name: Summary
+        shell: bash
+        if: always()
+        run: |
+          echo "### Xo output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Exit with code
+        shell: bash
+        if: always()
+        run: |
+          if [ -f exitcode.txt ]; then
+              exit $(cat exitcode.txt)
+          fi

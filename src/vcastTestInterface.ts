@@ -2,6 +2,7 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
+import { cleanVcastOutput } from "../src-common/commonUtilities";
 import {
   configFilename,
   getUnitTestLocationForPath,
@@ -52,15 +53,33 @@ import {
   testStatus,
 } from "./vcastUtilities";
 
-import { cleanOutputString } from "../src-common/commonUtilities";
-
 const fs = require("fs");
 const path = require("path");
 
 export const vcastEnviroFile = "UNITDATA.VCD";
 
+// Creating a cache for the checksums so we don't constantly re-run the command
+interface ChecksumCacheType {
+  checksum: number;
+  modificationtime: string;
+}
+let checksumCache = new Map<string, ChecksumCacheType>();
+
 // Compute the checksum for a source file
 function getChecksum(filePath: string) {
+  // I am assuming that doing the fstat is faster than
+  // running the checksum command, but I did not check
+
+  // Return the cache value if the file has not changed
+  let cacheValue = checksumCache.get(filePath);
+  if (cacheValue) {
+    const currentMtime = fs.statSync(filePath).mtime.toISOString();
+    if (currentMtime == cacheValue.modificationtime) {
+      return cacheValue.checksum;
+    }
+  }
+
+  // if we did not return the cached value, compute the cksum
   let returnValue = 0;
   const checksumCommand = checksumCommandToUse;
   if (checksumCommand) {
@@ -77,11 +96,16 @@ function getChecksum(filePath: string) {
       ).stdout;
 
     // convert the to a number and return
-    // this will crash if something is wrong with the result
+    // this will throw if something is wrong with the result
     try {
-      // see comment about ACTUAL-DATA in cleanOutputString
-      commandOutputString = cleanOutputString(commandOutputString);
+      commandOutputString = cleanVcastOutput(commandOutputString);
       returnValue = Number(commandOutputString);
+      // only save into the cache if we get a valid checksum
+      const cacheValue: ChecksumCacheType = {
+        checksum: returnValue,
+        modificationtime: fs.statSync(filePath).mtime.toISOString(),
+      };
+      checksumCache.set(filePath, cacheValue);
     } catch {
       returnValue = 0;
     }
@@ -167,9 +191,8 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   // .statusString will be null if there is at least one environment
   // that that matches the checksum for this file
 
-  // .statusString will be "out-of-date" if ALL no enviro checksums match this file
+  // .statusString will be "out-of-date" if NO enviro checksums match this file
 
-  const checksum: number = getChecksum(filePath);
   let returnData: coverageSummaryType = {
     statusString: "No Coverage Data",
     covered: [],
@@ -177,7 +200,12 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   };
 
   const dataForThisFile = globalCoverageData.get(filePath);
-  if (dataForThisFile && dataForThisFile.enviroList.size > 0) {
+  if (
+    dataForThisFile &&
+    dataForThisFile.hasCoverage &&
+    dataForThisFile.enviroList.size > 0
+  ) {
+    const checksum: number = getChecksum(filePath);
     let coveredList: number[] = [];
     let uncoveredList: number[] = [];
     for (const enviroData of dataForThisFile.enviroList.values()) {
@@ -270,7 +298,9 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     }
 
     fileData.hasCoverage =
-      fileData.hasCoverage || coverageData.covered.length > 0;
+      fileData.hasCoverage ||
+      coverageData.covered.length > 0 ||
+      coverageData.uncovered.length > 0;
     fileData.enviroList.set(enviroPath, coverageData);
 
     // if we are displaying the file decoration in the explorer view

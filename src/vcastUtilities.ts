@@ -422,7 +422,6 @@ export function getClientRequestObject(
 }
 
 export function getRebuildOptionsString(): string {
-
   // this returns the --options=jsonString that is used to rebuild the environment
 
   // read the settings that affect enviro build
@@ -433,6 +432,6 @@ export function getRebuildOptionsString(): string {
     "None"
   );
   const jsonOptions: string = JSON.stringify(optionsDict);
- 
+
   return jsonOptions;
 }

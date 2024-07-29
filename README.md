@@ -173,7 +173,7 @@ the load command will also perform a save.
 
 Coded test files require an include like this: #include <vunit/vunit.h> so for IntelliSense editing to 
 work nicely for coded test files, you must add an include path to for this file to your workspace.
-IntelliSense include paths can most easily be added to the approrpritate c_cpp_properties.json file.
+IntelliSense include paths can most easily be added to the appropriate c_cpp_properties.json file.
 
 If you enable the VectorCAST test explorer and configure it with a VectorCAST version that supports coded testing, 
 the extension will check for the existence of the correct include path and prompt you to add it if it is not found.  
@@ -202,6 +202,8 @@ of any file that has code coverage data, and will show the x/y code coverage % i
 
 This feature can be toggled ON and OFF using the command: "VectorCAST Test Explorer: Toggle coverage annotations"
 from the command palette, or using the shortcut ctrl-shift-c.
+
+Note: partial coverage will not be shown, and for MC/DC, only the top level condition will be annotated
 
 ### Test Case Debugging
 
@@ -277,12 +279,12 @@ This extension is open-source, released under the MIT license, and we welcome yo
 - To install the dependencies necessary for building VectorCAST Test Explorer, run `npm install` in the root of the repository.
 - Make sure you have `vsce` installed globally
   - To install `vsce`, run `npm install -g @vscode/vsce@^2.15.0`
-- To build VectorCAST Test Explorer, run `vsce package` in the root of the repository
+- To build VectorCAST Test Explorer, run `npm run package` in the root of the repository
 - To run existing unit tests for VectorCAST Test Explorer, run `npm test` in the root of the repository
   - Code and resources for unit tests can be found in `tests/unit`
 - To run end-to-end tests (the end-to-end tests are meant for Vector internal usage):
   - If behind a corporate proxy, point `NODE_EXTRA_CA_CERTS` to your certificate bundle
-  - Make sure you had built the extension already (run `vsce package` to build the extension)
+  - Make sure you had built the extension already (run `npm run package` to build the extension)
   - Run `npm install` in `tests/internal/e2e` to install necessary dependencies
   - Run `npm test` in `tests/internal/e2e` to run the end-to-end tests
   - More detailed instructions can be found in `tests/internal/e2e`

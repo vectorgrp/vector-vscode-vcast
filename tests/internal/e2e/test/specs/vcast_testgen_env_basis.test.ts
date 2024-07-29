@@ -1,22 +1,30 @@
 // Test/specs/vcast.test.ts
-import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
+import {
+  type BottomBarPanel,
+  type EditorView,
+  type Workbench,
+} from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   releaseCtrl,
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
+  testGenMethod,
+  generateAndValidateAllTestsFor,
 } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
+  let editorView: EditorView;
   const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
+    editorView = workbench.getEditorView();
     process.env.E2E_TEST_ID = "0";
   });
 
@@ -31,6 +39,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     await browser.keys([Key.Control, Key.Shift, "p"]);
+
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
     // so just need to hit Enter to activate
@@ -41,10 +50,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
-    const viewControls = await activityBar.getViewControls();
-    for (const viewControl of viewControls) {
-      console.log(await viewControl.getTitle());
-    }
 
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
@@ -143,5 +148,14 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     // Clearing all notifications
     await (await $(".codicon-notifications-clear-all")).click();
+  });
+
+  it("should correctly generate all BASIS PATH tests for the environment", async () => {
+    await updateTestID();
+    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    console.log(
+      `Generating all BASIS PATH tests for the environment ${envName}`
+    );
+    await generateAndValidateAllTestsFor(envName, testGenMethod.BasisPath);
   });
 });

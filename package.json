@@ -601,9 +601,9 @@
     "esbuild-server": "esbuild ./server/server.ts --bundle --outfile=out/server.js --external:vscode --format=cjs --platform=node",
     "esbuild-watch": "npm-run-all --parallel esbuild-base esbuild-server -- --sourcemap --watch",
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-server -- --sourcemap",
-    "package": "vsce package",
+    "package": "tsc --project tsconfig.json && vsce package",
     "publish": "vsce publish",
-    "test": "vitest run --reporter verbose --coverage",
+    "test": "tsc --project tsconfig_test.json && vitest run --reporter verbose --coverage",
     "gh-test": "vitest run --reporter=junit --outputFile=./test-output.xml --coverage"
   },
   "devDependencies": {
@@ -622,7 +622,7 @@
     "eslint-plugin-prettier": "^4.2.1",
     "inject-markdown": "^1.5.0",
     "mocha": "^9.1.3",
-    "prettier": "^2.8.8",
+    "prettier": "^3.3.3",
     "typescript": "^4.9.5",
     "typescript-eslint": "^7.7.1",
     "unzipper": "^0.10.11",

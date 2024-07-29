@@ -4,6 +4,7 @@ import { execSync, spawn } from "child_process";
 
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
+import { cleanVcastOutput } from "../src-common/commonUtilities";
 
 import {
   clientRequestType,
@@ -12,7 +13,6 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 
-import { cleanOutputString } from "../src-common/commonUtilities";
 
 const path = require("path");
 
@@ -44,12 +44,6 @@ export function executeVPythonScript(
   whereToRun: string,
   printErrorDetails: boolean = true
 ): commandStatusType {
-  // we use this common function to run the vpython and process the output because
-  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
-  // Since this happens before our script even starts so we cannot suppress it.
-  // We could send the json data to a temp file, but the create/open file operations
-  // have overhead.
-
   let returnData: commandStatusType = { errorCode: 0, stdout: "" };
   if (commandToRun) {
     const commandStatus: commandStatusType = executeCommandSync(
@@ -57,8 +51,8 @@ export function executeVPythonScript(
       whereToRun,
       printErrorDetails
     );
-    // see comment about ACTUAL-DATA in cleanOutputString
-    returnData.stdout = cleanOutputString(commandStatus.stdout);
+    // remove extraneous text from the output
+    returnData.stdout = cleanVcastOutput(commandStatus.stdout);
     returnData.errorCode = commandStatus.errorCode;
   }
   return returnData;
@@ -86,20 +80,32 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-  // see comment about ACTUAL-DATA in cleanOutputString
-  let stdout = cleanOutputString(error.stdout.toString());
+  // see comment about ACTUAL-DATA in cleanVcastOutput
+  let stdout = cleanVcastOutput(error.stdout.toString());
   let commandStatus = { stdout: stdout, errorCode: error.status };
 
   // 998 is an interface error
-  if (error.status == 998) {
-    vectorMessage(`Failure running ${command}`);
-    vectorMessage(stdout);
-  } else if (error.stdout && printErrorDetails) {
-    vectorMessage("Exception while running command:");
-    vectorMessage(command);
-    vectorMessage(stdout);
-    vectorMessage(error.stderr.toString());
-    openMessagePane();
+  if (error && error.status == 998) {
+    let stdoutString = error.stdout.toString();
+
+    // Remmove annoying version miss-match message from vcast
+    commandStatus.stdout = cleanVcastOutput(stdoutString);
+    commandStatus.errorCode = 0;
+    vectorMessage(commandStatus.stdout);
+  } else if (error && error.stdout) {
+    commandStatus.stdout = error.stdout.toString();
+    commandStatus.errorCode = error.status;
+    if (printErrorDetails) {
+      vectorMessage("Exception while running command:");
+      vectorMessage(command);
+      vectorMessage(commandStatus.stdout);
+      vectorMessage(error.stderr.toString());
+      openMessagePane();
+    }
+  } else {
+    vectorMessage(
+      "Unexpected error in utilities/processExceptionFromExecuteCommand()"
+    );
   }
 
   return commandStatus;

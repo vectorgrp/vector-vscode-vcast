@@ -27,6 +27,9 @@ def main():
     # This main can either service one request directly or start the
     # socket based server to field socket based requests
 
+    # See the comment in: runPythonScript()
+    print("ACTUAL-DATA")
+
     # We get here when the user types a "." or ":"
 
     mode = sys.argv[1]
@@ -47,8 +50,6 @@ def main():
 
     outputDictionary = buildChoiceResponse(choiceData)
 
-    # See the comment in: runPythonScript()
-    print("ACTUAL-DATA")
     print(json.dumps(outputDictionary, indent=4))
 
     sys.exit(0)

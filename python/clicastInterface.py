@@ -124,8 +124,17 @@ def terminateClicastProcess(enviroPath):
 enviroNameRegex = "-e\s*([^\s]*)"
 
 
-def getStandardArgsFromTestObject(testIDObject, quoteParameters):
+def getEnviroPathFromCommand(command):
+    # TBD in the future we will change the caller to pass in the environment path
+    # No error handling because the caller will guarantee that we have a valid command
+    match = re.search(enviroNameRegex, command)
+    enviroName = match.group(1)
+    enviroPath = os.path.join(os.getcwd(), enviroName)
 
+    return enviroPath
+
+
+def getStandardArgsFromTestObject(testIDObject, quoteParameters):
     returnString = f"-e{testIDObject.enviroName}"
     if testIDObject.unitName != "not-used":
         returnString += f" -u{testIDObject.unitName}"
@@ -255,7 +264,6 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
     tempTestScript = "rebuild.tst"
 
     with cd(os.path.dirname(enviroPath)):
-
         # first we generate a .env and .tst for the existing environment
         # we do this using a clicast script
         enviroName = os.path.basename(enviroPath)
@@ -317,7 +325,7 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
         os.remove(tempEnviroScript)
         os.remove(tempTestScript)
 
-        # we use the return code from the rebuild itself, because the 
+        # we use the return code from the rebuild itself, because the
         # command to generate the scripts is unlikely to fail
         # but we concatenate the output from both commands for completeness
         return returnCode, f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
@@ -353,8 +361,10 @@ def rebuildEnvironment(enviroPath, jsonOptions):
         return rebuildEnvironmentUsingClicastReBuild(enviroPath)
 
 
-def executeTest(enviroPath, testIDObject):
+codeTestCompileErrorCode = 997
 
+
+def executeTest(enviroPath, testIDObject):
     # since we are doing a direct call to clicast, we need to quote the parameters
     # separate variable because in the future there will be additional parameters
     shouldQuoteParameters = True and not USE_SERVER
@@ -369,7 +379,7 @@ def executeTest(enviroPath, testIDObject):
     # so we are using this hack until vcast changes the return code for a failed coded test compile
     if testIDObject.functionName == "coded_tests_driver" and executeReturnCode != 0:
         if "TEST RESULT:" not in stdoutText:
-            executeReturnCode = 997
+            executeReturnCode = codeTestCompileErrorCode
 
     return executeReturnCode, stdoutText
 

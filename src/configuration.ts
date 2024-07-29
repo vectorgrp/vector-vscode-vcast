@@ -39,7 +39,7 @@ export function initializeConfigurationFile(CWD: string): boolean {
     );
 
     vectorMessage(`Opening the VectorCAST options editor ...`);
-    openVcastOptionsDialog (CWD);
+    openVcastOptionsDialog(CWD);
 
     // if the user simply closes the options dialog, no CFG file will get created so we will abort ...
     if (!fs.existsSync(localConfigurationFilePath)) {

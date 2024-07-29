@@ -46,7 +46,7 @@ If behind a corporate proxy: Make sure to set `NODE_EXTRA_CA_CERTS` to point to 
     Install npm dependencies by running `npm install` inside `internal/e2e` folder
 
 2) 
-    Make sure the extension is built by running `vsce package` in the root of the repository
+    Make sure the extension is built by running `npm run package` in the root of the repository
    
     The build script will create `vectorcasttestexplorer-<version>.vsix`, as well as `out/extension.js` and `out/server.js`. End-to-end tests are run directly on `out/extension.js` and `out/server.js`, together with necessary resources like `.svg` files.
 
@@ -57,6 +57,28 @@ If behind a corporate proxy: Make sure to set `NODE_EXTRA_CA_CERTS` to point to 
     End-to-end tests are executed using `WebdriverIO` framework and its `wdio-vscode-service` ( https://webdriver.io/docs/wdio-vscode-service/ ). The `wdio-vscode-service` simplifies automating interactions with VS-Code UI and verifying the produced states. The interactions being tested will be logged to standard output. Tests take approximately 4 minutes to execute.
 
     Code for end-to-end tests can be found under `internal/e2e/test/specs/vcast.test.ts`. The tests are specified using `Mocha` framework.
+
+#### Grouping tests:
+Tests are conceptually divided in independent groups. The `specs` can be found under `internal/e2e/test/specs_config.ts`. Whenever you want to add a new test or a new group of tests, add it there.
+Groups are defined in the `specGroups` variable in the `getSpecGroups` function, and they are made like this:
+```
+"<group-name>": [
+  <list-of-test.ts-files>
+]
+```
+There are also special groups that run only if testing vcast 24 (ATG features).
+
+Normally all groups are run. In case you want to run a single group, you need to set the following environment variables:
+```
+RUN_BY_GROUP: "True"
+RUN_GROUP_NAME: <group-name>
+```
+To test the ATG features (available with vcast24 only), you'll need this environment variable:
+```
+ENABLE_ATG_FEATURE=TRUE
+```
+
+Please note that groups represent tests for certain features and test files within them depend on each other.
 
 ### Viewing test results:
     

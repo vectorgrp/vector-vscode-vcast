@@ -1,5 +1,4 @@
-
-import { cleanOutputString } from "../src-common/commonUtilities";
+import { cleanVcastOutput } from "../src-common/commonUtilities";
 
 import {
   vcastCommandType,
@@ -22,7 +21,11 @@ let globalEnviroServerActive: boolean = false;
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
 
-export function initializePaths(extensionRoot:string, vpythonPath:string, useServer:boolean) {
+export function initializePaths(
+  extensionRoot: string,
+  vpythonPath: string,
+  useServer: boolean
+) {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
@@ -94,8 +97,8 @@ function getChoiceDataFromPython(
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} choiceList ${enviroPath} "${lineSoFar}"`;
   let commandOutputBuffer = execSync(commandToRun).toString();
 
-  // see comment about ACTUAL-DATA in cleanOutputString
-  commandOutputBuffer = cleanOutputString (commandOutputBuffer);
+  // see comment about ACTUAL-DATA in cleanVcastOutput
+  commandOutputBuffer = cleanVcastOutput(commandOutputBuffer);
 
   // two statement to make debugging easy
   const returnData = JSON.parse(commandOutputBuffer);

@@ -176,7 +176,8 @@ function addTestNodes(
 }
 
 const codedTestFunctionName = "coded_tests_driver";
-const codedTestDisplayName = "Coded Tests";
+// leading space is intentional to force it to the top of the list
+const codedTestDisplayName = " Coded Tests";
 function processVCtestData(
   enviroNodeID: string,
   enviroNode: vcastTestItem,
@@ -492,7 +493,7 @@ function findStringInFile(filePath: string, stringToFind: string): number {
 
   for (const [index, line] of fileContents.entries()) {
     if (line.includes(stringToFind)) {
-      returnLineNumber = index;
+      returnLineNumber = index + 1;
       break;
     }
   }
@@ -1182,14 +1183,13 @@ function computeChecksum(filePath: string): number {
   return crypto.createHash("md5").update(content, "utf8").digest("hex");
 }
 
-function getListOfTestsFromFile(filePath: string, enviroNodeID: string): any {
+function getListOfTestsFromFile(filePath: string, enviroPath: string): any {
   // this function calls the vTestInterface.py to get the list of tests from a cbt file
 
   const commandToRun = getVcastInterfaceCommand(
     vcastCommandType.parseCBT,
     filePath
   );
-  const enviroPath = getEnviroPathFromID(enviroNodeID);
   return getJsonDataFromTestInterface(commandToRun, enviroPath);
 }
 
@@ -1203,12 +1203,13 @@ function addCodedTestfileToCache(
   );
 
   if (!fileCacheData) {
+    const enviroPath: string = getEnviroPathFromID(enviroNodeID);
     fileCacheData = {
       checksum: computeChecksum(functionNodeForCache.testFile),
       enviroNodeIDSet: new Set(),
       testNames: getListOfTestsFromFile(
         functionNodeForCache.testFile,
-        enviroNodeID
+        enviroPath
       ),
     };
   }
@@ -1245,13 +1246,13 @@ export async function updateCodedTestCases(editor: any) {
     if (currentChecksum != codedTestFileData.checksum) {
       // we need to do a refresh for every enviro node that uses this file
       // and then if the test names changed, also update the test pane
-      let newTestNames: string[] | undefined;
+      let newTestNames: string[] | undefined = undefined;
       for (let enviroNodeID of codedTestFileData.enviroNodeIDSet.values()) {
         const enviroPath: string = getEnviroPathFromID(enviroNodeID);
 
         // update newTestNames if we have not yet computed them ...
         if (!newTestNames) {
-          newTestNames = getListOfTestsFromFile(filePath, enviroNodeID);
+          newTestNames = getListOfTestsFromFile(filePath, enviroPath);
         }
 
         vectorMessage(
