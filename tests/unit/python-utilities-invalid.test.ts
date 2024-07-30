@@ -29,7 +29,7 @@ describe("Testing pythonUtilities (invalid)", () => {
   beforeEach(() => {
     // Spy on console.log
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
-      /* no-op */
+      /* No-op */
     });
   });
 
