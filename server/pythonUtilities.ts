@@ -1,5 +1,3 @@
-import { cleanVcastOutput } from "../src-common/commonUtilities";
-
 import {
   vcastCommandType,
   clientRequestType,
@@ -10,7 +8,8 @@ import {
 import fs = require("fs");
 import path = require("path");
 
-const execSync = require("child_process").execSync;
+import { execSync } from "child_process";
+import { cleanVcastOutput } from "../src-common/commonUtilities";
 
 // This is the language server version of the flag, set when
 // the server is started.  If the user changes the value
