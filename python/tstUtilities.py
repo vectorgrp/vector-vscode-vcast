@@ -521,8 +521,9 @@ def getUnitAneFunctionStrings(lineSoFar):
 #  uut_prototype_stubs for the user interactions :)
 PROTOTYPE_STUB_VCAST_NAME = "uut_prototype_stubs"
 PROTOTYPE_STUB_DISPLAY_NAME = "Prototype-Stubs"
-def unitObjectName(realName):
 
+
+def unitObjectName(realName):
     if realName == PROTOTYPE_STUB_VCAST_NAME:
         return PROTOTYPE_STUB_DISPLAY_NAME
     else:
@@ -556,7 +557,6 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
     #  first build the unit list
     for unitObject in unitList:
         if unitObject.name not in unitsToIgnore:
-
             # special for uut_prototype_stubs
             if unitString == PROTOTYPE_STUB_DISPLAY_NAME:
                 unitString = PROTOTYPE_STUB_VCAST_NAME
@@ -869,7 +869,7 @@ def processMockDefinition(enviroName, lineSoFar):
     if len(unitObjectList) > 1 or unitString == None:
         returnData.choiceKind = choiceKindType.File
         for unitObject in unitObjectList:
-            returnData.choiceList.append(unitObjectName (unitObject.name))
+            returnData.choiceList.append(unitObjectName(unitObject.name))
 
     # if multiple function objects match what was entered
     # or if no functionName was just entered by the user
