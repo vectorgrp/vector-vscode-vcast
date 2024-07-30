@@ -19,7 +19,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should activate vcastAdapter", async () => {
     await updateTestID();
-    const activityBar = workbench.getActivityBar();
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 

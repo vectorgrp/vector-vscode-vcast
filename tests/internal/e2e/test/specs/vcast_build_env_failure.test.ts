@@ -34,7 +34,6 @@ describe("vTypeCheck VS Code Extension", () => {
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
     // so just need to hit Enter to activate
-    const characters = "vector";
     for (const character of "vector") {
       await browser.keys(character);
     }
