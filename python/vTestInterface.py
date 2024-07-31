@@ -187,8 +187,7 @@ def getTestDataVCAST(enviroPath):
     try:
         api = UnitTestApi(enviroPath)
     except Exception as err:
-        print(err)
-        raise InvalidEnviro()
+        raise InvalidEnviro(err)
 
     # Not currently used.
     # returns "None" if coverage is not initialized,
@@ -269,8 +268,7 @@ def getUnitData(enviroPath):
         # this can throw an error of the coverDB is too old!
         api = UnitTestApi(enviroPath)
     except Exception as err:
-        print(err)
-        raise InvalidEnviro()
+        raise InvalidEnviro(err)
 
     sourceObjects = api.SourceFile.all()
     for sourceObject in sourceObjects:
@@ -613,11 +611,11 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
 
     # because vpython and clicast use a large range of positive return codes
     # we use -1 for internal tool errors
-    except InvalidEnviro:
+    except InvalidEnviro as error:
         returnCode = 998
-        returnObject = {
-            "text": ["Miss-match between Environment and VectorCAST versions"]
-        }
+        whatToReturn = ["Miss-match between Environment and VectorCAST versions"]
+        whatToReturn.extend(str(error).split("\n"))
+        returnObject = {"text": whatToReturn}
     except UsageError as error:
         # for usage error we print the issue where we see it
         returnCode = 998

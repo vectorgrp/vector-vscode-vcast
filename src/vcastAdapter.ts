@@ -60,7 +60,7 @@ const path = require("path");
 export async function initializeServerState() {
   globalEnviroServerActive = await serverIsAlive();
   if (globalEnviroServerActive) {
-    vectorMessage ("VectorCAST Environment Data Server is Active ...");
+    vectorMessage("VectorCAST Environment Data Server is Active ...");
   }
 }
 
@@ -508,8 +508,16 @@ async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
   );
 
   // tansmitResponse.returnData is an object with exitCode and data properties
+  // for getEnviroData we might have a version missmatch if the enviro is newer
+  // than the version of vcast we are using, so handle that here
   if (transmitResponse.success) {
-    return transmitResponse.returnData.data;
+    const returnData = transmitResponse.returnData;
+    if (returnData.exitCode == 0) {
+      return returnData.data;
+    } else {
+      vectorMessage(returnData.data.text.join("\n"));
+      return undefined;
+    }
   } else {
     await vectorMessage(transmitResponse.statusText);
     openMessagePane();
@@ -646,15 +654,9 @@ export async function rebuildEnvironment(
   setCodedTestOption(path.dirname(enviroPath));
 
   if (globalEnviroServerActive) {
-    return rebuildEnvironmentUsingServer(
-      enviroPath,
-      rebuildEnvironmentCallback
-    );
+    rebuildEnvironmentUsingServer(enviroPath, rebuildEnvironmentCallback);
   } else {
-    return rebuildEnvironmentUsingPython(
-      enviroPath,
-      rebuildEnvironmentCallback
-    );
+    rebuildEnvironmentUsingPython(enviroPath, rebuildEnvironmentCallback);
   }
 }
 

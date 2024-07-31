@@ -13,7 +13,6 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 
-
 const path = require("path");
 
 export interface commandStatusType {
@@ -82,7 +81,7 @@ function processExceptionFromExecuteCommand(
 ): commandStatusType {
   // see comment about ACTUAL-DATA in cleanVcastOutput
   let stdout = cleanVcastOutput(error.stdout.toString());
-  let commandStatus = { stdout: stdout, errorCode: error.status };
+  let commandStatus = { errorCode: error.status, stdout: stdout };
 
   // 998 is an interface error
   if (error && error.status == 998) {
