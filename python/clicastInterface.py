@@ -53,7 +53,7 @@ def runClicastServerCommand(enviroPath, commandString):
         )
 
     else:
-        # this is in case the clicast server crashes ...
+        # An old instance might exist if the server crashed, so clean that up
         if enviroPath in clicastInstances:
             logMessage(f"  previous clicast server seems to have died ...")
 
