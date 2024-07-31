@@ -108,9 +108,13 @@ export async function transmitCommand(requestObject: clientRequestType, route="v
       }
     })
     .catch((error) => {
-      transmitResponse.statusText = `Enviro server error: ${
-        error.message.split("reason:")[1]
-      }`;
+      let errorDetails = error.message.split("reason:")[1].trim();
+      // for some reason, when the server is down, the reason is blank
+      // so we insert a generic message in this case.
+      if (errorDetails.length === 0) {
+        errorDetails = "Server is not running";
+      }
+      transmitResponse.statusText = `Enviro server error: ${errorDetails}`;
     });
   return transmitResponse;
 }

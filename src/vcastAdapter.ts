@@ -61,6 +61,8 @@ export async function initializeServerState() {
   globalEnviroServerActive = await serverIsAlive();
   if (globalEnviroServerActive) {
     vectorMessage("VectorCAST Environment Data Server is Active ...");
+  } else {
+    vectorMessage("VectorCAST Environment Data Server is NOT Active ...");
   }
 }
 
