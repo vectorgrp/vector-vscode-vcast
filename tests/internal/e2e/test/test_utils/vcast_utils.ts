@@ -688,7 +688,7 @@ export async function validateGeneratedTest(
 }
 
 export async function getExpectedTestCode(
-  expectedTests: Record<string, unknown>,
+  expectedTests: any,
   envName: string,
   unitName: string,
   functionName: string,
@@ -710,7 +710,7 @@ export async function getExpectedTestCode(
 }
 
 export async function getExpectedUnitInfo(
-  expectedTests: Record<string, unknown>,
+  expectedTests: any,
   envName: string,
   unitName: string
 ) {
@@ -728,7 +728,7 @@ export async function getExpectedUnitInfo(
 }
 
 export async function getExpectedFunctionInfo(
-  expectedTests: Record<string, unknown>,
+  expectedTests: any,
   envName: string,
   unitName: string,
   functionName: string

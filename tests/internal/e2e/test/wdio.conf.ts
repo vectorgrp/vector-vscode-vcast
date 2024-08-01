@@ -75,7 +75,7 @@ const proxyObject: ProxyObject = {
   noProxy: noProxyRules,
 };
 
-import { getSpecs } from "./specs_config.ts";
+import { getSpecs } from "./specs_config";
 const groupName =
   process.env["RUN_BY_GROUP"] === "True" ? process.env["RUN_GROUP_NAME"] : null;
 
@@ -166,6 +166,10 @@ export const config: Options.Testrunner = {
       proxy: proxyObject,
       browserVersion: capabilitiesJson.browserVersion,
       acceptInsecureCerts: capabilitiesJson.acceptInsecureCerts,
+      'wdio:chromedriverOptions': {
+        binary: path.join(__dirname, ".wdio-vscode-service", "chromedriver-108.0.5359.71.exe"),
+        cacheDir: path.join(__dirname, ".wdio-vscode-service")
+      },
       "wdio:vscodeOptions": {
         extensionPath: path.join(__dirname, "extension"),
         workspacePath: path.join(__dirname, "vcastTutorial"),
@@ -212,7 +216,7 @@ export const config: Options.Testrunner = {
   // Define all options that are relevant for the WebdriverIO instance here
   //
   // Level of logging verbosity: trace | debug | info | warn | error | silent
-  logLevel: "error",
+  logLevel: "trace",
   //
   // Set specific log levels per logger
   // loggers:
@@ -490,17 +494,19 @@ export const config: Options.Testrunner = {
     ];
 
     if (process.platform == "win32") {
+      await promisifiedExec(
+        `copy /y ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
+      );
       foldersToCopy.forEach(async (folderName) => {
         const folderPath = path.join(repoRoot, folderName);
+        
         await promisifiedExec(
           `xcopy /s /i /y ${folderPath} ${path.join(
             extensionUnderTest,
             folderName
           )} > NUL 2> NUL`
         );
-        await promisifiedExec(
-          `copy /y ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
-        );
+     
       });
     } else {
       foldersToCopy.forEach(async (folderName) => {
