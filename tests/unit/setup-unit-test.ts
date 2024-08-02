@@ -8,6 +8,8 @@ module.exports = async () => {
   const promisifiedExec = promisify(exec);
 
   const tstFilename = "firstTest.tst";
+  const cppFilename = "firstUnit.cpp";
+
   process.env.PACKAGE_PATH = process.env.INIT_CWD;
   process.env.TST_FILENAME = tstFilename;
   process.env.VECTORCAST_DIR = "";
@@ -118,8 +120,20 @@ module.exports = async () => {
 
   const tstFilePath = path.join(vcastEnvPath, tstFilename);
   const createTstFile = `echo -- Environment: TEST > ${tstFilePath}`;
+
   {
     const { stderr } = await promisifiedExec(createTstFile);
+    if (stderr) {
+      console.log(stderr);
+      throw new Error(`Error when running ${createTstFile}`);
+    }
+  }
+
+  const cppFilePath = path.join(vcastEnvPath, cppFilename);
+  const createCppFile = `echo -- Environment: TEST > ${cppFilePath}`;
+
+  {
+    const { stderr } = await promisifiedExec(createCppFile);
     if (stderr) {
       console.log(stderr);
       throw new Error(`Error when running ${createTstFile}`);
