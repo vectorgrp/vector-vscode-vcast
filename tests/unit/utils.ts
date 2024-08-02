@@ -7,12 +7,12 @@ import {
 } from "vscode-languageserver";
 import { CompletionTriggerKind } from "vscode-languageserver-protocol";
 import URI from "vscode-uri";
-import { getHoverString } from "../../server/tstHover.js";
-import { setPaths } from "../../server/pythonUtilities.js";
-import { getTstCompletionData } from "../../server/tstCompletion.js";
-import { validateTextDocument } from "../../server/tstValidation.js";
-import { getCodedTestCompletionData } from "../../server/ctCompletions.js";
-import { getEnviroNameFromTestScript } from "../../server/serverUtilities.js";
+import { getHoverString } from "../../server/tstHover";
+import { setPaths } from "../../server/pythonUtilities";
+import { getTstCompletionData } from "../../server/tstCompletion";
+import { validateTextDocument } from "../../server/tstValidation";
+import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 
 export type HoverPosition = {
   line: number;
@@ -135,10 +135,9 @@ export function generateCompletionData(
         completion,
         enviroPath
       );
+    } else {
+      throw new ReferenceError("enviroPath is undefined.");
     }
-
-    console.log("Enviro Path is undefined.");
-
     // TST test
   } else {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
