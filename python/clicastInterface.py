@@ -115,6 +115,7 @@ def terminateClicastProcess(enviroPath):
             f"  terminating clicast instance [{clicastInstances[enviroPath].pid}] for environment: {enviroPath}"
         )
         process = clicastInstances[enviroPath]
+        # tell clicast to shutdown gracefully
         process.stdin.write("clicast-server-shutdown\n")
         process.stdin.flush()
         process.wait()
