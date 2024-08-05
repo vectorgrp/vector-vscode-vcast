@@ -12,8 +12,6 @@ import { completionList } from "./serverUtilities";
 
 // Lines starting with:  // vmock
 export const vmockStubRegex = /^\s*\/\/\s*vmock\s*/;
-// Lines starting with:  auto vmock_session =
-export const vmockSessionRegex = /^\s*auto\s+vmock_session\s*=\s*/;
 
 export function getCodedTestCompletionData(
   lineSoFar: string,
@@ -25,7 +23,7 @@ export function getCodedTestCompletionData(
   let extraText: string = "";
 
   // If this is a line of interest, get the choice list from Python
-  if (lineSoFar.match(vmockStubRegex) || lineSoFar.match(vmockSessionRegex)) {
+  if (lineSoFar.match(vmockStubRegex)) {
     const jsonData = getChoiceDataFromPython(
       choiceKindType.choiceListCT,
       enviroPath,
