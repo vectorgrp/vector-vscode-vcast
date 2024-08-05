@@ -7,7 +7,7 @@ import {
   getCompletionPositionForLine,
   generateCompletionData,
   storeNewDocument,
-} from "./utils.js";
+} from "./utils";
 
 const timeout = 30_000; // 30 seconds
 
