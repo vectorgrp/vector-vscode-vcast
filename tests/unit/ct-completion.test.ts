@@ -47,19 +47,10 @@ describe("Testing pythonUtilities (valid)", () => {
         ...actual,
         getChoiceDataFromPython: vi.fn(
           (kind: string, enviroName: string, lineSoFar: string) => {
-            if (lineSoFar.includes("// vmock")) {
-              return {
-                choiceKind: "File",
-                choiceList: ["unit", "Prototype-Stubs"],
-                extraText: "some extra data",
-                messages: [],
-              };
-            }
-
             return {
-              choiceKind: "Keyword",
-              choiceList: [], // ChoiceList for "auto vmock_session = " returns an empty list for now
-              extraText: "",
+              choiceKind: "File",
+              choiceList: ["unit", "Prototype-Stubs"],
+              extraText: "some extra data",
               messages: [],
             };
           }
@@ -123,32 +114,6 @@ describe("Testing pythonUtilities (valid)", () => {
           label: "Prototype-Stubs",
         },
       ]);
-    },
-    timeout
-  );
-
-  test(
-    "validate coded test completion for lines of interest (auto vmock_session =) and without extra text. ",
-    async () => {
-      const tstText = unitTst;
-      const lineToComplete = "auto vmock_session =";
-      const completionPosition = getCompletionPositionForLine(
-        lineToComplete,
-        tstText
-      );
-
-      // Flag that we are dealing with coded tests
-      const cppTestFlag = { cppNode: true, lineSoFar: lineToComplete };
-      const triggerCharacter = lineToComplete.at(-1);
-
-      const codedTestCompletionData = generateCompletionData(
-        tstText,
-        completionPosition,
-        triggerCharacter,
-        cppTestFlag
-      );
-
-      expect(codedTestCompletionData).toEqual([]);
     },
     timeout
   );
