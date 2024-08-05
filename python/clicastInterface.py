@@ -102,24 +102,31 @@ def terminateClicastProcess(enviroPath):
     This function will terminate any clicast process that exists for enviroPath
     It is used before things like delete and re-build environment, since we need
     to delete the environment directory, and the running process will have it locked
-    if we are in server mode
+    if we are in server mode, we return True if we terminated a process, False otherwise
     """
 
     global clicastInstances
 
     # normalize the enviroPath
     enviroPath = cleanEnviroPath(enviroPath)
-
-    if USE_SERVER and enviroPath in clicastInstances:
-        logMessage(
-            f"  terminating clicast instance [{clicastInstances[enviroPath].pid}] for environment: {enviroPath}"
-        )
-        process = clicastInstances[enviroPath]
-        # tell clicast to shutdown gracefully
-        process.stdin.write("clicast-server-shutdown\n")
-        process.stdin.flush()
-        process.wait()
-        del clicastInstances[enviroPath]
+    returnValue = False
+    if USE_SERVER:
+        if enviroPath in clicastInstances:
+            logMessage(
+                f"  terminating clicast instance [{clicastInstances[enviroPath].pid}] for environment: {enviroPath}"
+            )
+            process = clicastInstances[enviroPath]
+            # tell clicast to shutdown gracefully
+            process.stdin.write("clicast-server-shutdown\n")
+            process.stdin.flush()
+            process.wait()
+            del clicastInstances[enviroPath]
+            returnValue = True
+        else:
+            logMessage(
+                f"  no clicast instance exists for environment: {enviroPath}"
+            )
+    return returnValue
 
 
 enviroNameRegex = "-e\s*([^\s]*)"
