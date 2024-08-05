@@ -1,10 +1,10 @@
 import fs = require("fs");
 import path = require("path");
-import { execSync } from "child_process";
-import { cleanVcastOutput } from "../src-common/commonUtilities";
+import { execSync } from "node:child_process";
+import { cleanVcastOutput } from "../src-common/commonUtilities.js";
 
-let testEditorScriptPath: string | undefined = undefined;
-let vPythonCommandToUse: string | undefined = undefined;
+let testEditorScriptPath: string | undefined;
+let vPythonCommandToUse: string | undefined;
 
 export function setPaths(
   _testEditorScriptPath: string,
@@ -18,16 +18,19 @@ export function updateVPythonCommand(newPath: string) {
   vPythonCommandToUse = newPath;
 }
 
+export function getVPythonCommand() {
+  return vPythonCommandToUse;
+}
+
 function initializeScriptPath() {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
   const extensionRoot = process.argv[2];
-  // if we have not been sent the explicit path to use
+  // If we have not been sent the explicit path to use
   // fetch it from the command line arguments
-  if (vPythonCommandToUse == undefined) {
-    vPythonCommandToUse = process.argv[3];
-  }
+  vPythonCommandToUse ??= process.argv[3];
+
   const pathToTestEditorInterface = path.join(
     extensionRoot,
     "python",
@@ -50,11 +53,10 @@ export function runPythonScript(
   enviroName: string,
   payload: string
 ): any {
-  // this is currently not used as the actual server mode is unused
+  // This is currently not used as the actual server mode is unused
   if (testEditorScriptPath == undefined) {
     initializeScriptPath();
   }
-
   // As an alternative to using a server, we call vpython each time we need some data
 
   // NOTE: we cannot use executeCommand() here because it is in the client only!
@@ -63,7 +65,7 @@ export function runPythonScript(
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${action} ${enviroName} "${payload}"`;
   const commandOutputBuffer = execSync(commandToRun).toString();
 
-  // two steps to make debugging easier
+  // Two steps to make debugging easier
   const outputString = cleanVcastOutput(commandOutputBuffer);
   return JSON.parse(outputString);
 }
@@ -78,9 +80,10 @@ export function getChoiceDataFromPython(
   lineSoFar: string
 ): any {
   const jsonData = runPythonScript(kind, enviroName, lineSoFar);
-  for (const msg of jsonData.messages) {
-    console.log(msg);
+  for (const message of jsonData.messages) {
+    console.log(message);
   }
+
   return jsonData;
 }
 
@@ -88,25 +91,27 @@ export function getHoverStringForRequirement(
   enviroName: string,
   requirementKey: string
 ): any {
-  let returnValue: string = "";
+  let returnValue = "";
   const jsonData = runPythonScript(
     "choiceList-tst",
     enviroName,
     "TEST.REQUIREMENT_KEY:"
   );
-  for (const msg of jsonData.messages) {
-    console.log(msg);
+  for (const message of jsonData.messages) {
+    console.log(message);
   }
+
   for (const line of jsonData.choiceList) {
     if (line.startsWith(requirementKey)) {
-      // raw data looks like:  <key> ||| <title> ||| <description>
+      // Raw data looks like:  <key> ||| <title> ||| <description>
       const pieces = line.split("|||");
-      // title often has double quotes in our examples so strip those too
-      const title = pieces[1].trim().replace(/['"]+/g, "");
+      // Title often has double quotes in our examples so strip those too
+      const title = pieces[1].trim().replaceAll(/['"]+/g, "");
       const description = pieces[2].trim();
       returnValue = `${title} \n\n ${description}`;
       break;
     }
   }
+
   return returnValue;
 }

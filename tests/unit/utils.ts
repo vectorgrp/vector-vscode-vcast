@@ -11,6 +11,8 @@ import { getHoverString } from "../../server/tstHover";
 import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
+import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 
 export type HoverPosition = {
   line: number;
@@ -90,6 +92,7 @@ export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
+  cppTest: { cppNode: boolean; lineSoFar: string },
   envName?: string
 ) {
   envName ||= "vcast";
@@ -104,6 +107,7 @@ export function generateCompletionData(
     testEnvPath,
     process.env.TST_FILENAME as string
   );
+
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
@@ -121,9 +125,24 @@ export function generateCompletionData(
     "vpython"
   );
 
-  console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
-
-  return getTstCompletionData(textDocument, completion);
+  // If Coded test
+  if (cppTest.cppNode && cppTest.lineSoFar) {
+    console.log(`Input .cpp script: \n ${textDocument.getText()} \n`);
+    const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+    if (enviroPath) {
+      return getCodedTestCompletionData(
+        cppTest.lineSoFar,
+        completion,
+        enviroPath
+      );
+    } else {
+      throw new ReferenceError("enviroPath is undefined.");
+    }
+    // TST test
+  } else {
+    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
+    return getTstCompletionData(textDocument, completion);
+  }
 }
 
 export function asCompletionParameters(

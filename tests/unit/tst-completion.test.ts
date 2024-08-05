@@ -7,7 +7,7 @@ import {
   getCompletionPositionForLine,
   generateCompletionData,
   storeNewDocument,
-} from "./utils";
+} from "./utils.js";
 
 const timeout = 30_000; // 30 seconds
 
@@ -147,6 +147,9 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
+// Json to tell the function that its processing a .tst test
+const cppFlagForTstTest = { cppNode: false, lineSoFar: "" };
+
 describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.SUBPROGRAM:",
@@ -162,7 +165,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
 
       expect(generatedCompletionData).toEqual([
@@ -203,7 +207,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
 
       expect(generatedCompletionData).toEqual([
@@ -244,7 +249,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
 
       expect(generatedCompletionData).toEqual([
@@ -364,7 +370,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
 
       expect(generatedCompletionData).toEqual([
@@ -495,7 +502,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
 
       expect(generatedCompletionData).toEqual([
@@ -525,7 +533,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -691,7 +700,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -725,7 +735,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -759,7 +770,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -799,7 +811,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -839,7 +852,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -870,7 +884,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
 
       expect(generatedCompletionData).toEqual([
@@ -917,7 +932,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -965,7 +981,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -1010,6 +1027,7 @@ describe("Text Completion", () => {
         tstText,
         completionPosition,
         triggerCharacter,
+        cppFlagForTstTest,
         "fake_vcast"
       );
       expect(generatedCompletionData).toEqual([]);
@@ -1030,7 +1048,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([]);
     },
@@ -1053,7 +1072,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -1095,7 +1115,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -1153,7 +1174,8 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter
+        triggerCharacter,
+        cppFlagForTstTest
       );
 
       expect(generatedCompletionData).toEqual([
