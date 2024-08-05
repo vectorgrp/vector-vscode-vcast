@@ -135,9 +135,9 @@ export function generateCompletionData(
         completion,
         enviroPath
       );
-    } else {
-      throw new ReferenceError("enviroPath is undefined.");
     }
+    throw new ReferenceError("enviroPath is undefined.");
+
     // TST test
   } else {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);

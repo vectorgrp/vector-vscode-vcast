@@ -1,8 +1,6 @@
 import { describe, expect, test, vi, afterEach, beforeEach } from "vitest";
-import {
-  getCompletionPositionForLine,
-  generateCompletionData,
-} from "./utils.js";
+import type * as PythonUtilities from "../../server/pythonUtilities";
+import { getCompletionPositionForLine, generateCompletionData } from "./utils";
 
 const unitTst = `
 // ---------------------------------------------------------------------------------------
@@ -40,9 +38,9 @@ describe("Testing pythonUtilities (valid)", () => {
     // To achieve 100% coverage
     // --> Need to mock getChoiceDataFromPython, since "extraText" is not implemented yet
     vi.mock("../../server/pythonUtilities", async () => {
-      const actual = await vi.importActual<
-        typeof import("../../server/pythonUtilities")
-      >("../../server/pythonUtilities");
+      const actual = (await vi.importActual(
+        "../../server/pythonUtilities"
+      )) as typeof PythonUtilities;
       return {
         ...actual,
         getChoiceDataFromPython: vi.fn(
