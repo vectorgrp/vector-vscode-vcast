@@ -1327,8 +1327,4 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.restore();
   });
 
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
-  });
 });

@@ -216,8 +216,4 @@ describe("vTypeCheck VS Code Extension", () => {
     }
   });
 
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
-  });
 });

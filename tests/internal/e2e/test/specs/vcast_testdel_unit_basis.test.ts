@@ -82,8 +82,4 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Validating deletion of BASIS PATH tests for unit database");
   });
 
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
-  });
 });

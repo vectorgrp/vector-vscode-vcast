@@ -82,8 +82,4 @@ describe("vTypeCheck VS Code Extension", () => {
     await deleteAllTestsForUnit("database", testGenMethod.ATG);
   });
 
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
-  });
 });

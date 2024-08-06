@@ -88,8 +88,4 @@ describe("vTypeCheck VS Code Extension", () => {
     await deleteAllTestsForEnv(envName);
   });
 
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
-  });
 });

@@ -114,8 +114,4 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.saveScreenshot("info_deleted_func_basis_tests.png");
   });
 
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
-  });
 });
