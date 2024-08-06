@@ -1,7 +1,6 @@
 import fs = require("fs");
 import path = require("path");
-const execSync = require("child_process").execSync;
-
+import { execSync } from "child_process";
 import { cleanVcastOutput } from "../src-common/commonUtilities";
 
 let testEditorScriptPath: string | undefined = undefined;
