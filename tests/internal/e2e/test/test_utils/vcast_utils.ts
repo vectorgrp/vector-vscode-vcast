@@ -23,54 +23,6 @@ export async function updateTestID() {
 
 export async function cleanup() {
   console.log("Cleanup");
-  console.log("Deleting all environments");
-
-  const workbench = await browser.getWorkbench();
-  const bottomBar = workbench.getBottomBar();
-  const vcastTestingViewContent = await getViewContent("Testing");
-  await (await vcastTestingViewContent.elem).click();
-  const sections = await vcastTestingViewContent.getSections();
-  const testExplorerSection = sections[0];
-  const testEnvironments = await testExplorerSection.getVisibleItems();
-  for (const testEnvironment of testEnvironments) {
-    let testEnvironmentContextMenu;
-
-    try {
-      testEnvironmentContextMenu = await (
-        testEnvironment as CustomTreeItem
-      ).openContextMenu();
-    } catch {
-      console.log("Cannot open context menu, not an environment");
-      break;
-    }
-
-    if (testEnvironmentContextMenu != undefined) {
-      await testEnvironmentContextMenu.select("VectorCAST");
-      const deleteButton = await $("aria/Delete Environment");
-      if (deleteButton == undefined) break;
-
-      await deleteButton.click();
-
-      const vcastNotificationSourceElement = await $(
-        "aria/VectorCAST Test Explorer (Extension)"
-      );
-      const vcastNotification = await vcastNotificationSourceElement.$("..");
-      await (await vcastNotification.$("aria/Delete")).click();
-      await bottomBar.maximize();
-
-      await browser.waitUntil(
-        async () =>
-          (await (await bottomBar.openOutputView()).getText())
-            .toString()
-            .includes("Successful deletion of environment"),
-        { timeout: 30_000 }
-      );
-      await (await bottomBar.openOutputView()).clearText();
-      await bottomBar.restore();
-    }
-  }
-
-  console.log("Done deleting all environments");
   console.log("Removing folders");
 
   const initialWorkdir = process.env.INIT_CWD;
@@ -1096,8 +1048,10 @@ export async function assertTestsDeleted(
   envName: string,
   testName = "all"
 ): Promise<void> {
-  const areTestsDeletedCmd = `cd test/vcastTutorial/cpp/unitTests && $VECTORCAST_DIR/clicast -e ${envName} test script create output.tst`;
-
+  const relPathToUnitTests = path.join("test", "vcastTutorial", "cpp", "unitTests")
+  const pathToClicastExe = path.join(process.env.VECTORCAST_DIR, "clicast")
+  let areTestsDeletedCmd = `cd ${relPathToUnitTests} && ${pathToClicastExe} -e ${envName} test script create output.tst`;
+  const pathToOuputTst = path.join(relPathToUnitTests, "output.tst")
   {
     const { stdout, stderr } = await promisifiedExec(areTestsDeletedCmd);
     if (stderr) {
@@ -1108,20 +1062,20 @@ export async function assertTestsDeleted(
       const fs = require("node:fs").promises;
       console.log(
         (
-          await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")
+          await fs.readFile(pathToOuputTst)
         ).toString()
       );
       // If we are expecting no tests at all in the environment
       if (testName === "all") {
         expect(
           (
-            await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")
+            await fs.readFile(pathToOuputTst)
           ).toString()
         ).not.toContain("TEST.NAME");
       } else {
         expect(
           (
-            await fs.readFile("test/vcastTutorial/cpp/unitTests/output.tst")
+            await fs.readFile(pathToOuputTst)
           ).toString()
         ).not.toContain(testName);
       }
