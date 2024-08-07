@@ -1,5 +1,4 @@
-import { describe, expect, test, vi, afterEach, beforeEach } from "vitest";
-import type * as PythonUtilities from "../../server/pythonUtilities";
+import { describe, expect, test, vi, afterEach } from "vitest";
 import { getCompletionPositionForLine, generateCompletionData } from "./utils";
 
 const unitTst = `
@@ -34,29 +33,6 @@ VTEST(vmockExamples, simpleTest2) {
 const timeout = 30_000; // 30 seconds
 
 describe("Testing pythonUtilities (valid)", () => {
-  beforeEach(() => {
-    // To achieve 100% coverage
-    // --> Need to mock getChoiceDataFromPython, since "extraText" is not implemented yet
-    vi.mock("../../server/pythonUtilities", async () => {
-      const actual = (await vi.importActual(
-        "../../server/pythonUtilities"
-      )) as typeof PythonUtilities;
-      return {
-        ...actual,
-        getChoiceDataFromPython: vi.fn(
-          (kind: string, enviroName: string, lineSoFar: string) => {
-            return {
-              choiceKind: "File",
-              choiceList: ["unit", "Prototype-Stubs"],
-              extraText: "some extra data",
-              messages: [],
-            };
-          }
-        ),
-      };
-    });
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -64,6 +40,16 @@ describe("Testing pythonUtilities (valid)", () => {
   test(
     "validate coded test completion for lines of interest (// vmock) and extra text. ",
     async () => {
+      // To achieve 100% coverage
+      // --> Need to mock getChoiceDataFromPython, since "extraText" is not implemented yet
+      const pythonUtilities = await import("../../server/pythonUtilities");
+      vi.spyOn(pythonUtilities, "getChoiceDataFromPython").mockReturnValue({
+        choiceKind: "File",
+        choiceList: ["unit", "Prototype-Stubs"],
+        extraText: "some extra data",
+        messages: [],
+      });
+
       const tstText = unitTst;
       const lineToComplete = "// vmock";
 
@@ -100,6 +86,47 @@ describe("Testing pythonUtilities (valid)", () => {
               },
             },
           ],
+          data: 0,
+          detail: "",
+          kind: 1,
+          label: "unit",
+        },
+        {
+          data: 1,
+          detail: "",
+          kind: 1,
+          label: "Prototype-Stubs",
+        },
+      ]);
+    },
+    timeout
+  );
+
+  test(
+    "validate coded test completion for lines of interest (// vmock) and without extra text. ",
+    async () => {
+      // No mock for this test to let it excercise the actual python but without extra text
+      const tstText = unitTst;
+      const lineToComplete = "// vmock";
+
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+
+      // Flag that we are dealing with coded tests
+      const cppTestFlag = { cppNode: true, lineSoFar: lineToComplete };
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const codedTestCompletionData = generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter,
+        cppTestFlag
+      );
+
+      expect(codedTestCompletionData).toEqual([
+        {
           data: 0,
           detail: "",
           kind: 1,
