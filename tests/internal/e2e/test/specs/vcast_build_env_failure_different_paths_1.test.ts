@@ -3,8 +3,11 @@ import process from "node:process";
 import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
+  executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
+  releaseCtrl,
   updateTestID,
+  clickOnButtonInTestingHeader,
 } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -71,8 +74,89 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Starting the language server"),
       { timeout: TIMEOUT }
     );
-
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
+  });
+
+  it("should set default config file", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+    const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
+    await configFile.openContextMenu();
+    await (await $("aria/Set as VectorCAST Configuration File")).click();
+  });
+
+  it("should create VectorCAST environment", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+    const cppFolder = workspaceFolderSection.findItem("cpp");
+    await (await cppFolder).select();
+
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
+    await executeCtrlClickOn(databaseCpp);
+    await executeCtrlClickOn(managerCpp);
+    await releaseCtrl();
+
+    await databaseCpp.openContextMenu();
+    await (await $("aria/Create VectorCAST Environment")).click();
+
+    // Making sure notifications are shown
+    await (await $("aria/Notifications")).click();
+
+    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    const vcastNotificationSourceElement = await $(
+      "aria/VectorCAST Test Explorer (Extension)"
+    );
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
+    await (await vcastNotification.$("aria/Yes")).click();
+
+    console.log(
+      "Waiting for clicast and waiting for environment to get processed"
+    );
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Environment built Successfully"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Finished creating vcast environment");
+    await browser.takeScreenshot();
+    await browser.saveScreenshot(
+      "info_finished_creating_vcast_environment.png"
+    );
+    // Clearing all notifications
+    await (await $(".codicon-notifications-clear-all")).click();
+  });
+
+  it("should expand test pane to", async () => {
+    //const envName = "cpp/unitTests/DATABASE-MANAGER-test"
+    const envName2 = "vcastTutorial"
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    const explorerSideBarView = await explorerView?.openView();
+    const workspaceFolderSection = await explorerSideBarView
+      .getContent()
+      .getSection(envName2.toUpperCase());
+  
+    await workspaceFolderSection.expand();
   });
 });
