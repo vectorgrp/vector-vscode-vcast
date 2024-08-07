@@ -390,14 +390,16 @@ export const config: Options.Testrunner = {
         process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
         "vpython"
       );
-      process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
-      clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
+      process.env.PATH = `"${newPath}"${path.delimiter}${currentPath}`;
+      console.log(process.env.PATH)
+      clicastExecutablePath = path.join(`${process.env.VECTORCAST_DIR_TEST_DUPLICATE}`,"clicast");
 
       process.env.CLICAST_PATH = clicastExecutablePath;
-
+      console.log("PREPARING CFG")
       await prepareConfig(initialWorkdir);
 
-      const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
+      const createCFG = `cd ${testInputVcastTutorial} && ${clicastExecutablePath} -lc template GNU_CPP_X`;
+      console.log("CREATING CFG")
       await promisifiedExec(createCFG);
     }
 

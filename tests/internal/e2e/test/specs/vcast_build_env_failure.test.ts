@@ -49,6 +49,21 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
+    console.log("Waiting for VectorCAST activation");
+    await $("aria/VectorCAST Test Pane Initialization");
+    console.log("WAITING FOR TESTING");
+    await browser.waitUntil(
+      async () => (await activityBar.getViewControl("Testing")) !== undefined,
+      { timeout: TIMEOUT }
+    );
+    console.log("WAITING FOR TEST EXPLORER");
+    await browser.waitUntil(async () =>
+      (await outputView.getChannelNames())
+        .toString()
+        .includes("VectorCAST Test Explorer")
+    );
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    
     // Await last expected sentence
     await browser.waitUntil(
       async () =>
