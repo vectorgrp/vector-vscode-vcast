@@ -52,14 +52,14 @@ import {
 
 // This is the core extension version of the flag, set on
 // initialization or when the setting value is changed.
-export let globalEnviroServerActive: boolean = false;
+export let globalEnviroDataServerActive: boolean = false;
 
 const path = require("path");
 
 // Allow extenal modules to set server active
 export async function initializeServerState() {
-  globalEnviroServerActive = await serverIsAlive();
-  if (globalEnviroServerActive) {
+  globalEnviroDataServerActive = await serverIsAlive();
+  if (globalEnviroDataServerActive) {
     vectorMessage("VectorCAST Environment Data Server is Active ...");
   } else {
     vectorMessage("VectorCAST Environment Data Server is NOT Active ...");
@@ -111,7 +111,7 @@ export async function deleteEnvironment(
   const enclosingDirectory = path.dirname(enviroPath);
 
   // if we are in server mode, close any existing connection to the environment
-  if (globalEnviroServerActive) await closeConnection(enviroPath);
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e" + getEnviroNameFromID(enviroNodeID)];
@@ -137,7 +137,7 @@ export async function loadTestScriptIntoEnvironment(
 
   let commandStatus: commandStatusType;
   // using server ....
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
     commandStatus = await executeClicastCommandUsingServer(
       clicastCommandToUse,
@@ -182,7 +182,7 @@ export async function deleteSingleTest(
 
   // using server ....
   let commandStatus: commandStatusType;
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
       clicastCommandToUse,
       testNode.enviroPath,
@@ -238,7 +238,7 @@ export async function addCodedTestToEnvironment(
   let codedTestArgs: string = `${clicastArgs} test coded ${action} ${userFilePath}`;
 
   let commandStatus: commandStatusType;
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
       clicastCommandToUse,
       enviroPath,
@@ -266,7 +266,7 @@ export async function dumptestScriptFile(
   let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
   let commandStatus: commandStatusType;
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
       clicastCommandToUse,
       testNode.enviroPath,
@@ -296,7 +296,7 @@ export async function refreshCodedTests(
   let refreshCodedArgs: string = `${clicastArgs} test coded refresh`;
 
   let commandStatus: commandStatusType;
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
       clicastCommandToUse,
       enviroPath,
@@ -331,7 +331,7 @@ export async function runBasisPathCommands(
     path.dirname(testScriptPath),
     testNode.enviroName
   );
-  if (globalEnviroServerActive) await closeConnection(enviroPath);
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   // Since it can be slow to generate basis path tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a
@@ -381,7 +381,7 @@ export async function runATGCommands(
     path.dirname(testScriptPath),
     testNode.enviroName
   );
-  if (globalEnviroServerActive) await closeConnection(enviroPath);
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   // Since it can be slow to generate ATG tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a
@@ -422,7 +422,7 @@ export async function openVcastFromEnviroNode(
   const enclosingDirectory = path.dirname(enviroPath);
 
   // close any existing clicast connection to this environment
-  if (globalEnviroServerActive) await closeConnection(enviroPath);
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
@@ -449,7 +449,7 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   const enclosingDirectory = path.dirname(vcePath);
 
   // close any existing clicast connection to this environment
-  if (globalEnviroServerActive) await closeConnection(enviroPath);
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
@@ -475,7 +475,7 @@ export async function getDataForEnvironment(enviroPath: string): Promise<any> {
   vectorMessage("Processing environment data for: " + enviroPath);
 
   let jsonData: any;
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     jsonData = await getEnviroDataFromServer(enviroPath);
   } else {
     jsonData = getEnviroDataFromPython(enviroPath);
@@ -542,7 +542,7 @@ export async function executeTest(
 
   let commandStatus: commandStatusType;
   const startTime: number = performance.now();
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     commandStatus = await executeTestViaServer(
       vcastCommand,
       enviroPath,
@@ -603,7 +603,7 @@ export async function getTestExecutionReport(
   enviroPath: string,
   testID: string
 ): Promise<commandStatusType> {
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     return await getTestExecutionReportFromServer(testID, enviroPath);
   } else {
     return getTestExecutionReportFromPython(testID, enviroPath);
@@ -655,7 +655,7 @@ export async function rebuildEnvironment(
 ) {
   setCodedTestOption(path.dirname(enviroPath));
 
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     rebuildEnvironmentUsingServer(enviroPath, rebuildEnvironmentCallback);
   } else {
     rebuildEnvironmentUsingPython(enviroPath, rebuildEnvironmentCallback);

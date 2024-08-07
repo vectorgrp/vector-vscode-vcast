@@ -15,7 +15,7 @@ import { cleanVcastOutput } from "../src-common/commonUtilities";
 // the server is started.  If the user changes the value
 // of use server in the settings, if will not affect the
 // language server until the extension is re-started
-let globalEnviroServerActive: boolean = false;
+let globalEnviroDataServerActive: boolean = false;
 
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
@@ -29,7 +29,7 @@ export function initializePaths(
   // see: client.ts:activateLanguageServerClient()
 
   vPythonCommandToUse = vpythonPath;
-  globalEnviroServerActive = useServer;
+  globalEnviroDataServerActive = useServer;
 
   const pathToTestEditorInterface = path.join(
     extensionRoot,
@@ -112,7 +112,7 @@ export async function getChoiceData(
   //
 
   let jsonData: any;
-  if (globalEnviroServerActive) {
+  if (globalEnviroDataServerActive) {
     jsonData = await getChoiceDataFromServer(enviroPath, lineSoFar);
   } else {
     jsonData = getChoiceDataFromPython(enviroPath, lineSoFar);
