@@ -1292,6 +1292,12 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running corrected test");
     await runArrowElement.click({ button: 1 });
 
+    await browser.waitUntil(
+      async () =>
+        (await workbench.getAllWebviews()).length === 1,
+      { timeout: TIMEOUT }
+    );
+
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
     const webview = webviews[0];

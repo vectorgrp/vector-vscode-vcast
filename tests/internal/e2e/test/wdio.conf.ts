@@ -557,7 +557,35 @@ export const config: Options.Testrunner = {
       await promisifiedExec(createLaunchJson);
 
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
-      const c_cpp_properties = {
+      let c_cpp_properties = {}
+      if (process.platform == "win32"){
+        const pathToMingwInclude = path.join(vectorcastDir, "MinGW", "x86_64-w64-mingw32", "include");
+        const pathToCompiler = path.join(vectorcastDir, "MinGW", "bin", "g++.exe");
+        const pathToVcastMinGW = path.join(vectorcastDir, "MinGW", "bin");
+        const currentPath = process.env.PATH || "";
+        // putting VectorCAST MinGW on PATH so that we can get the right headers for coded tests
+        process.env.PATH = `${pathToVcastMinGW}${path.delimiter}${currentPath}`
+        c_cpp_properties = {
+          configurations: [
+            {
+              name: "Windows",
+              includePath: [
+                  "${workspaceFolder}/**",
+                  `${pathTovUnitInclude}`,
+                  `${pathToMingwInclude}`,
+              ],
+              defines: [],
+              compilerPath: `${pathToCompiler}`,
+              cStandard: "c17",
+              cppStandard: "c++14",
+              intelliSenseMode: "windows-gcc-x64"
+          },
+          ],
+          version: 4,
+        };
+
+      }else{ 
+      c_cpp_properties = {
         configurations: [
           {
             name: "Linux",
@@ -571,7 +599,7 @@ export const config: Options.Testrunner = {
         ],
         version: 4,
       };
-
+    }
       const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
       const c_cpp_properties_JSONPath = path.join(
         vscodeSettingsPath,
