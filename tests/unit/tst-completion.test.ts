@@ -147,9 +147,6 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-// Json to tell the function that its processing a .tst test
-const cppFlagForTstTest = { cppNode: false, lineSoFar: "" };
-
 describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.SUBPROGRAM:",
@@ -1033,8 +1030,7 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter,
-        cppFlagForTstTest
+        triggerCharacter
       );
       expect(generatedCompletionData).toEqual([]);
     },
@@ -1057,8 +1053,7 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter,
-        cppFlagForTstTest
+        triggerCharacter
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -1100,8 +1095,7 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter,
-        cppFlagForTstTest
+        triggerCharacter
       );
       expect(generatedCompletionData).toEqual([
         {
@@ -1159,8 +1153,7 @@ describe("Text Completion", () => {
       const generatedCompletionData = generateCompletionData(
         tstText,
         completionPosition,
-        triggerCharacter,
-        cppFlagForTstTest
+        triggerCharacter
       );
 
       expect(generatedCompletionData).toEqual([
