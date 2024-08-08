@@ -7,12 +7,13 @@ import {
   CompletionItem,
   CompletionParams,
 } from "vscode-languageserver";
+
 import { Hover } from "vscode-languageserver-types";
 
-import { validateTextDocument } from "./tstValidation";
-
+import { initializePaths } from "./pythonUtilities";
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
+import { validateTextDocument } from "./tstValidation";
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -26,7 +27,15 @@ let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
 
 connection.onInitialize((params: InitializeParams) => {
-  // initializePython(); - this was called with if(false) inside
+
+  // reads the params passed to the server 
+  // and initializes globals for vpyton path etc.
+  initializePaths (
+    process.argv[2],                          // extensionRoot
+    process.argv[3],                          // vpythonPath
+    process.argv[4].toLowerCase() === "true", // useServer
+  );
+
   return {
     capabilities: {
       textDocumentSync: documents.syncKind,
@@ -74,8 +83,8 @@ documents.onDidChangeContent((change) => {
 // the characters in the "triggerCharacters" array that onInitialize sets
 
 connection.onCompletion(
-  (completionData: CompletionParams): CompletionItem[] => {
-    return getTstCompletionData(documents, completionData);
+  async (completionData: CompletionParams): Promise<CompletionItem[]> => {
+    return await getTstCompletionData(documents, completionData);
   }
 );
 
@@ -86,13 +95,15 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
 
-connection.onHover((completionData: CompletionParams): Hover | undefined => {
-  // This function gets called when the user hovers over a line section
-  const hoverString = getHoverString(documents, completionData);
+connection.onHover(
+  async (completionData: CompletionParams): Promise <Hover | undefined> => {
+    // This function gets called when the user hovers over a line section
+    const hoverString = await getHoverString(documents, completionData);
 
-  var hover: Hover = { contents: hoverString };
-  return hover;
-});
+    var hover: Hover = { contents: hoverString };
+    return hover;
+  }
+);
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

@@ -45,7 +45,8 @@ import {
 
 import {
   deleteSingleTest,
-  loadScriptIntoEnvironment,
+  getDataForEnvironment,
+  loadTestScriptIntoEnvironment,
   refreshCodedTests,
 } from "./vcastAdapter";
 
@@ -53,23 +54,25 @@ import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
-  getEnviroDataFromPython,
-  getResultFileForTest,
+  addResultFileToStatusArray,
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
   testDataType,
+  updateGlobalDataForFile,
   vcastEnviroFile,
 } from "./vcastTestInterface";
 
 import {
   adjustScriptContentsBeforeLoad,
   closeAnyOpenErrorFiles,
+  getVcastInterfaceCommand,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
-  parseCBTCommand,
   testStatus,
 } from "./vcastUtilities";
+
+import { vcastCommandType } from "../src-common/vcastServer";
 
 import {
   cfgOptionType,
@@ -135,6 +138,8 @@ function addTestNodes(
         new Position(startLine - 1, 0),
         new Position(startLine - 1, 0)
       );
+    } else {
+      testURI = undefined;
     }
 
     let testNode: vcastTestItem = globalController.createTestItem(
@@ -309,7 +314,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
 let vcastEnviroList: string[] = [];
 let vcastHasCodedTestsList: string[] = [];
 
-export function updateTestsForEnvironment(
+export async function updateTestsForEnvironment(
   enviroPath: string,
   workspaceRoot: string
 ) {
@@ -317,7 +322,11 @@ export function updateTestsForEnvironment(
   // this includes all units, functions, and tests for that environment
 
   // This is all of the data for a single environment
-  let jsonData = getEnviroDataFromPython(enviroPath);
+  const jsonData = await getDataForEnvironment(enviroPath);
+
+  if (jsonData) {
+    updateGlobalDataForFile(enviroPath, jsonData.unitData);
+  }
 
   if (jsonData) {
     let enviroDisplayName: string = "";
@@ -413,7 +422,7 @@ async function loadAllVCTests(
         if (cancelled) {
           break;
         }
-        updateTestsForEnvironment(enviroPath, workspaceRoot);
+        await updateTestsForEnvironment(enviroPath, workspaceRoot);
       } // for each enviropath
       if (cancelled) {
         break;
@@ -762,8 +771,9 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
           }
         });
       } else {
-        const debugFileAsTextDoc =
-          await vscode.workspace.openTextDocument(launchJsonUri);
+        const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
+          launchJsonUri
+        );
         vscode.window.showTextDocument(debugFileAsTextDoc, { preview: false });
         // Prompt the user for what to do next!
         vscode.window.showWarningMessage(
@@ -798,45 +808,45 @@ export async function runNode(
 
   // this does the actual work of running the test
   const enviroPath = getEnviroPathFromID(node.id);
-  return runVCTest(enviroPath, node.id, generateReport).then((status) => {
-    if (status == testStatus.didNotRun) {
-      run.skipped(node);
-    } else if (status == testStatus.compileError) {
-      const failMessage: TestMessage = new TestMessage(
-        "Coded Test compile error - see details in file: ACOMPILE.LIS"
-      );
-      run.errored(node, failMessage);
-    } else if (status == testStatus.linkError) {
-      const failMessage: TestMessage = new TestMessage(
-        "Coded Test link error - see details in file: AALINKER.LIS"
-      );
-      run.errored(node, failMessage);
-    } else {
-      if (status == testStatus.passed) {
-        run.passed(node);
-      } else if (status == testStatus.failed) {
-        const textFilePath = getResultFileForTest(node.id);
-
-        // find the summary line that starts with "Expected Results", and add to testMessage
-        const lines = fs.readFileSync(textFilePath, "utf-8").split("\n");
-        let failMessage: TestMessage = new TestMessage("");
-        for (let line of lines) {
-          // start of line, any number of spaces, search text ...
-          if (/^\s*Expected Results matched.*/.test(line)) {
-            // remove the EOL and squash multiple spaces into 1
-            failMessage = new TestMessage(line.trimEnd().replace(/\s+/g, " "));
-            break;
-          }
+  return await runVCTest(enviroPath, node.id, generateReport).then(
+    async (executionResult) => {
+      const status = executionResult.status;
+      if (status == testStatus.didNotRun) {
+        run.skipped(node);
+      } else if (status == testStatus.compileError) {
+        const failMessage: TestMessage = new TestMessage(
+          "Coded Test compile error - see details in file: ACOMPILE.LIS"
+        );
+        run.errored(node, failMessage);
+      } else if (status == testStatus.linkError) {
+        const failMessage: TestMessage = new TestMessage(
+          "Coded Test link error - see details in file: AALINKER.LIS"
+        );
+        run.errored(node, failMessage);
+      } else {
+        if (status == testStatus.passed) {
+          run.passed(node);
+        } else if (status == testStatus.failed) {
+          const textMessage = `Expected results do not match actuals [${executionResult.details.passfail}]`;
+          const failMessage = new TestMessage(textMessage);
+          run.failed(node, failMessage);
         }
-        run.failed(node, failMessage);
-      }
 
-      if (generateReport) {
-        viewResultsReport(node.id);
+        if (generateReport) {
+          // if the showReportOnExecute option is active, then the
+          // execution report path was returned in the executionResult
+          // object, so we add this to the global status array,
+          // which saves a call to vpython or data server.
+          addResultFileToStatusArray(
+            node.id,
+            executionResult.details.resultsFilePath
+          );
+          viewResultsReport(node.id);
+        }
       }
+      return status;
     }
-    return status;
-  });
+  );
 }
 
 function getTestNodes(
@@ -862,14 +872,16 @@ function getTestNodes(
   return returnQueue;
 }
 
-export function updateDataForEnvironment(enviroPath: string) {
+export async function updateDataForEnvironment(enviroPath: string) {
   // this function does all of the "common" work when an environment is updated
   // sources of environment update are things like:
   //   - opening the environment in the vcast gui
   //   - building a new environment
   //   - ...
 
-  updateTestPane(enviroPath);
+  // we need await on this call because ther other update function
+  // require the data that is loaded downstream of this call
+  await updateTestPane(enviroPath);
   updateDisplayedCoverage();
   updateExploreDecorations();
   updateTestDecorator();
@@ -884,6 +896,8 @@ function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {
 }
 
 // this does the actual work of running the tests
+const { performance } = require("perf_hooks");
+
 async function runTests(
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken
@@ -926,7 +940,7 @@ async function runTests(
   vectorMessage(`Execution event took: ${deltaString} seconds`);
 
   for (let enviroPath of enviroPathList) {
-    updateDataForEnvironment(enviroPath);
+    await updateDataForEnvironment(enviroPath);
   }
   updateDisplayedCoverage();
   run.end();
@@ -986,7 +1000,7 @@ export async function deleteTests(nodeList: any[]) {
     await vectorMessage(`Deleting tests for node: ${node.id} ...`);
 
     // call clicast to delete the test case
-    const commandStatus = deleteSingleTest(node.id);
+    const commandStatus = await deleteSingleTest(node.id);
 
     if (commandStatus.errorCode == 0) {
       changedEnvironmentIDList.add(getEnviroNodeIDFromID(node.id));
@@ -1002,7 +1016,7 @@ export async function deleteTests(nodeList: any[]) {
     // remove any coded test files from the cache since
     // they will be re-added by the update
     removeCBTfilesCacheForEnviro(enviroNodeID);
-    updateDataForEnvironment(getEnviroPathFromID(enviroNodeID));
+    await updateDataForEnvironment(getEnviroPathFromID(enviroNodeID));
   }
 }
 
@@ -1043,7 +1057,7 @@ export async function loadTestScript() {
       const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
       // call clicast to load the test script
-      loadScriptIntoEnvironment(enviroName, scriptPath);
+      await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
       // update the test pane for this environment after the script is loaded
       // we are reading the data back from the environment with this call
@@ -1112,7 +1126,7 @@ export function buildTestPaneContents() {
   );
 }
 
-export function updateTestPane(enviroPath: string) {
+export async function updateTestPane(enviroPath: string) {
   // this function updates what is displayed in the test tree
 
   // Need to find the workspace root for this environment
@@ -1123,7 +1137,7 @@ export function updateTestPane(enviroPath: string) {
     );
     if (workspaceFolder) workspaceRoot = workspaceFolder.uri.fsPath;
   }
-  updateTestsForEnvironment(enviroPath, workspaceRoot);
+  await updateTestsForEnvironment(enviroPath, workspaceRoot);
 }
 
 interface codedTestFileDataType {
@@ -1172,7 +1186,10 @@ function computeChecksum(filePath: string): number {
 function getListOfTestsFromFile(filePath: string, enviroPath: string): any {
   // this function calls the vTestInterface.py to get the list of tests from a cbt file
 
-  const commandToRun = parseCBTCommand(filePath);
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.parseCBT,
+    filePath
+  );
   return getJsonDataFromTestInterface(commandToRun, enviroPath);
 }
 
@@ -1211,7 +1228,7 @@ function addCodedTestfileToCache(
   enviroToCBTfilesCache.set(enviroNodeID, enviroCacheData);
 }
 
-export function updateCodedTestCases(editor: any) {
+export async function updateCodedTestCases(editor: any) {
   // This function will compare the editor that was just saved against
   // the known coded test files in the workspace.  If there is a match,
   // and if the test cases in the file changed we will use clicast to
@@ -1243,7 +1260,7 @@ export function updateCodedTestCases(editor: any) {
         );
 
         // call clicast to update the coded tests
-        const refreshCommandStatus = refreshCodedTests(
+        const refreshCommandStatus = await refreshCodedTests(
           enviroPath,
           enviroNodeID
         );
