@@ -22,7 +22,7 @@ import {
   commandStatusType,
   convertServerResponseToCommandStatus,
   executeClicastCommandUsingServer,
-  executeClicastWithProgress,
+  executeCommandWithProgress,
   executeCommandSync,
   executeVPythonScript,
   executeWithRealTimeEcho,
@@ -338,7 +338,7 @@ export async function runBasisPathCommands(
   // regex filter for what to show
   const messageFilter = /.*Generating test cases for.*/;
 
-  executeClicastWithProgress(
+  executeCommandWithProgress(
     "Generating Basis Path Tests: ",
     argList,
     testNode.enviroName,
@@ -388,7 +388,7 @@ export async function runATGCommands(
   // regex filter for what to show
   const messageFilter = /Subprogram:.*/;
 
-  executeClicastWithProgress(
+  executeCommandWithProgress(
     "Generating ATG Tests: ",
     argList,
     testNode.enviroName,

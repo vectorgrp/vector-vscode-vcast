@@ -90,7 +90,7 @@ export async function loadScriptCallBack(
   enviroName: string,
   scriptPath: string
 ) {
-  // This is the callback that should be passed to executeClicastWithProgress() when
+  // This is the callback that should be passed to executeCommandWithProgress() when
   // we are computing basis path or ATG tests, this gets called when the command completes
 
   if (commandStatus.errorCode == 0) {

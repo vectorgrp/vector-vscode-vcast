@@ -190,8 +190,7 @@ export function executeWithRealTimeEcho(
   });
 }
 
-// A command runner for commands where we want to show progress like ATG and Basis Path Test Generation
-export function executeClicastWithProgress(
+export function executeCommandWithProgress(
   title: string,
   commandAndArgs: string[],
   enviroName: string,
