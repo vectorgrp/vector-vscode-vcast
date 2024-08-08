@@ -19,6 +19,12 @@ export type HoverPosition = {
   character: number;
 };
 
+export type OptionalCompletionParams = {
+  lineSoFar?: string;
+  cppTest?: boolean;
+  envName?: string;
+};
+
 export function generateHoverData(
   tstText: string,
   position: HoverPosition,
@@ -92,10 +98,10 @@ export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
-  cppTest: { cppNode: boolean; lineSoFar: string },
-  envName?: string
+  optParameters?: OptionalCompletionParams
 ) {
-  envName ||= "vcast";
+  // OptParams can be undefined
+  const envName = optParameters?.envName ?? "vcast";
   const languageId = "VectorCAST Test Script";
   const testEnvPath = path.join(
     process.env.PACKAGE_PATH as string,
@@ -125,20 +131,21 @@ export function generateCompletionData(
     "vpython"
   );
 
-  // If Coded test
-  if (cppTest.cppNode && cppTest.lineSoFar) {
-    console.log(`Input .cpp script: \n ${textDocument.getText()} \n`);
+  // Coded test
+  if (optParameters?.cppTest && optParameters?.lineSoFar) {
+    console.log(`Input .cpp file: \n ${textDocument.getText()} \n`);
     const enviroPath = getEnviroNameFromTestScript(tstFilepath);
     if (enviroPath) {
       return getCodedTestCompletionData(
-        cppTest.lineSoFar,
+        optParameters.lineSoFar,
         completion,
         enviroPath
       );
     }
+
     throw new ReferenceError("enviroPath is undefined.");
 
-    // TST test
+    // TST
   } else {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
     return getTstCompletionData(textDocument, completion);

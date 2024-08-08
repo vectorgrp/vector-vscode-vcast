@@ -1,6 +1,8 @@
 import { describe, expect, test, vi, afterEach } from "vitest";
 import { getCompletionPositionForLine, generateCompletionData } from "./utils";
 
+// Whole coded test
+
 const unitTst = `
 // ---------------------------------------------------------------------------------------
 // Simple Example - new
@@ -29,6 +31,87 @@ VTEST(vmockExamples, simpleTest2) {
 
 }
 `;
+
+// Expected results for tests suites
+
+const extraTextMockExpected = [
+  {
+    additionalTextEdits: [
+      {
+        newText: "// some extra data",
+        range: {
+          end: {
+            character: 0,
+            line: 0,
+          },
+          start: {
+            character: 0,
+            line: 0,
+          },
+        },
+      },
+    ],
+    data: 0,
+    detail: "",
+    kind: 1,
+    label: "unit",
+  },
+  {
+    data: 1,
+    detail: "",
+    kind: 1,
+    label: "Prototype-Stubs",
+  },
+];
+
+const vmockExpected = [
+  {
+    data: 0,
+    detail: "",
+    kind: 1,
+    label: "unit",
+  },
+  {
+    data: 1,
+    detail: "",
+    kind: 1,
+    label: "Prototype-Stubs",
+  },
+];
+
+const vmockUnitBarExpected = `
+int vmock_unit_bar(::vunit::CallCtx<> vunit_ctx, int z) {
+  // Enable Stub: vmock_unit_bar_enable_disable(vmock_session);
+  // Disable Stub: vmock_unit_bar_enable_disable(vmock_session, false);
+
+  // Insert mock logic here!
+}
+void vmock_unit_bar_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
+    using vcast_mock_rtype = int ;
+    vcast_mock_rtype (*vcast_fn_ptr)(int)  = &bar;
+    vmock_session.mock <vcast_mock_rtype (*)(int)> ((vcast_mock_rtype (*)(int))vcast_fn_ptr).assign (enable ? &vmock_unit_bar : nullptr);
+}
+// end of mock for: vmock_unit_bar -------------------------------------------------------------------------------------
+
+`;
+
+const vmockUnitBarExpectedComplete = [
+  {
+    data: 0,
+    detail: "",
+    kind: 1,
+    label: vmockUnitBarExpected,
+  },
+];
+
+const vmockUnitExpected = [
+  {
+    data: 0,
+    detail: "",
+    kind: 1,
+    label: "bar",
+  },
+];
 
 const timeout = 30_000; // 30 seconds
 
@@ -59,7 +142,7 @@ describe("Testing pythonUtilities (valid)", () => {
       );
 
       // Flag that we are dealing with coded tests
-      const cppTestFlag = { cppNode: true, lineSoFar: lineToComplete };
+      const cppTestFlag = { cppTest: true, lineSoFar: lineToComplete };
       const triggerCharacter = lineToComplete.at(-1);
 
       const codedTestCompletionData = generateCompletionData(
@@ -69,35 +152,7 @@ describe("Testing pythonUtilities (valid)", () => {
         cppTestFlag
       );
 
-      expect(codedTestCompletionData).toEqual([
-        {
-          additionalTextEdits: [
-            {
-              newText: "// some extra data",
-              range: {
-                end: {
-                  character: 0,
-                  line: 0,
-                },
-                start: {
-                  character: 0,
-                  line: 0,
-                },
-              },
-            },
-          ],
-          data: 0,
-          detail: "",
-          kind: 1,
-          label: "unit",
-        },
-        {
-          data: 1,
-          detail: "",
-          kind: 1,
-          label: "Prototype-Stubs",
-        },
-      ]);
+      expect(codedTestCompletionData).toEqual(extraTextMockExpected);
     },
     timeout
   );
@@ -107,15 +162,15 @@ describe("Testing pythonUtilities (valid)", () => {
     async () => {
       // No mock for this test to let it excercise the actual python but without extra text
       const tstText = unitTst;
-      const lineToComplete = "// vmock";
+      const lineToComplete = "// vmock ";
 
+      // Flag that we are dealing with coded tests
+      const cppTestFlag = { cppTest: true, lineSoFar: lineToComplete };
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
         tstText
       );
 
-      // Flag that we are dealing with coded tests
-      const cppTestFlag = { cppNode: true, lineSoFar: lineToComplete };
       const triggerCharacter = lineToComplete.at(-1);
 
       const codedTestCompletionData = generateCompletionData(
@@ -125,20 +180,63 @@ describe("Testing pythonUtilities (valid)", () => {
         cppTestFlag
       );
 
-      expect(codedTestCompletionData).toEqual([
-        {
-          data: 0,
-          detail: "",
-          kind: 1,
-          label: "unit",
-        },
-        {
-          data: 1,
-          detail: "",
-          kind: 1,
-          label: "Prototype-Stubs",
-        },
-      ]);
+      expect(codedTestCompletionData).toEqual(vmockExpected);
+    },
+    timeout
+  );
+
+  test(
+    "validate coded test completion for lines of interest (// vmock unit ) and without extra text. ",
+    async () => {
+      // No mock for this test to let it excercise the actual python but without extra text
+      const tstText = unitTst;
+      const lineToComplete = "// vmock unit ";
+
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+
+      // Flag that we are dealing with coded tests
+      const cppTestFlag = { cppTest: true, lineSoFar: lineToComplete };
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const codedTestCompletionData = generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter,
+        cppTestFlag
+      );
+
+      expect(codedTestCompletionData).toEqual(vmockUnitExpected);
+    },
+    timeout
+  );
+
+  test(
+    "validate coded test completion for lines of interest (// vmock unit bar ) and without extra text. ",
+    async () => {
+      // No mock for this test to let it excercise the actual python but without extra text
+      const tstText = unitTst;
+      const lineToComplete = "// vmock unit bar ";
+
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+
+      // Flag that we are dealing with coded tests
+      const cppTestFlag = { cppTest: true, lineSoFar: lineToComplete };
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const codedTestCompletionData = generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter,
+        cppTestFlag
+      );
+
+      expect(codedTestCompletionData).toEqual(vmockUnitBarExpectedComplete);
     },
     timeout
   );

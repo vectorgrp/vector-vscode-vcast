@@ -8,7 +8,6 @@ module.exports = async () => {
   const promisifiedExec = promisify(exec);
 
   const tstFilename = "firstTest.tst";
-  const cppFilename = "firstUnit.cpp";
 
   process.env.PACKAGE_PATH = process.env.INIT_CWD;
   process.env.TST_FILENAME = tstFilename;
@@ -76,7 +75,12 @@ module.exports = async () => {
     path.join(vcastEnvPath, "unit.cpp")
   );
 
-  const clicastTemplateCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -l C template GNU_CPP11_X`;
+  const clicastTemplateCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -l C template GNU_CPP11_X option VCAST_CODED_TESTS_SUPPORT TRUE`;
+
+  await promisifiedExec(
+    `cd ${vcastEnvPath} &&  ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`
+  );
+
   const { stdout, stderr } = await promisifiedExec(clicastTemplateCommand);
   if (stderr) {
     console.log(stderr);
@@ -123,17 +127,6 @@ module.exports = async () => {
 
   {
     const { stderr } = await promisifiedExec(createTstFile);
-    if (stderr) {
-      console.log(stderr);
-      throw new Error(`Error when running ${createTstFile}`);
-    }
-  }
-
-  const cppFilePath = path.join(vcastEnvPath, cppFilename);
-  const createCppFile = `echo -- Environment: TEST > ${cppFilePath}`;
-
-  {
-    const { stderr } = await promisifiedExec(createCppFile);
     if (stderr) {
       console.log(stderr);
       throw new Error(`Error when running ${createTstFile}`);
