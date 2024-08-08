@@ -769,7 +769,7 @@ def generateMockDataForFunction(api, functionObject):
     whatToReturn.mockFunctionName = mockFunctionName
 
     # generate the complete declaration
-    mockDeclaration = functionObject.generate_mock_declaration(mockFunctionName)
+    mockDeclaration = functionObject.mock.generate_mock_declaration(mockFunctionName)
 
     whatToReturn.mockDeclaration = mockDeclaration
 

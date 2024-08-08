@@ -4,12 +4,10 @@ along with any of the work around's for existing bugs or missing features
 """
 
 from string import Template
+from vector.apps.DataAPI import mock_helper
 
 # Tag for the init, which we want to ignore
 TAG_FOR_INIT = "<<INIT>>"
-
-# list of functions not to be shown in the functions list
-FUNCTIONS_TO_IGNORE = {"coded_tests_driver", TAG_FOR_INIT}
 
 
 def functionCanBeMocked(functionObject):
@@ -22,30 +20,23 @@ def functionCanBeMocked(functionObject):
     # Waiting for PCT fix of FB: 101353.
     """
 
-    if functionObject.vcast_name in FUNCTIONS_TO_IGNORE:
-        return False
-
-    # Constructors are not supported by vmock
-    if functionObject.is_constructor:
-        return False
-
-    # Destructors are not supported by vmock
-    if "~" in functionObject.vcast_name:
+    # FIXME: 'coded_tests_driver' claims it has mock info
+    if functionObject.vcast_name == "coded_tests_driver":
         return False
 
     # This allows us to support older versions of VectorCAST
-    if hasattr(functionObject, "is_mockable"):
-        return functionObject.is_mockable
+    if hasattr(functionObject, "mock"):
+        return functionObject.mock is not None
 
-    return True
+    # FIXME: this now says unless we have a mock attribute, that we _do not_
+    # support mocking
+    return False
 
 
-mock_template = Template(
+MOCK_ENABLE_DISABLE_TEMPLATE = Template(
     """
 void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
-    using vcast_mock_rtype = ${original_return} ;
-    vcast_mock_rtype ${lookup_decl} ${const} = &${function};
-    vmock_session.mock <vcast_mock_rtype ${lookup_type}> ((vcast_mock_rtype ${lookup_type})vcast_fn_ptr).assign (enable ? &${mock} : nullptr);
+    ${mock_enable_body}
 }
 """.strip(
         "\n"
@@ -59,33 +50,14 @@ def generateMockEnableForUnitAndFunction(functionObject, mockFunctionName):
     to remain in tstUtilities.py
     """
 
-    original_return = functionObject.named_original_return_type("")
-    lookup_type = functionObject.mock_lookup_type
+    # FIXME: we should be passing in an `expr` and not `mockFunctionName`
+    mock_enable_body = mock_helper.generateMockEnableBody(
+        functionObject, mockFunctionName=mockFunctionName
+    ).lstrip()
 
-    # We need to reintroduce the 'vcast_fn_ptr' string into the look-up, when
-    # first declaring the function pointer (but when use the type later on, we
-    # don't want the variable name in there)
-    if "::*" in lookup_type:
-        # If we're a method, we only see this in one place
-        lookup_decl = lookup_type.replace("::*)(", "::*vcast_fn_ptr)(", 1)
-    else:
-        # Otherwise, let's guess, but this could convert "too much" (e.g., in
-        # functions that take function pointers)
-        lookup_decl = lookup_type.replace("*)(", "*vcast_fn_ptr)(", 1)
-
-    # Is it const?
-    const = "const" if functionObject.is_const else ""
-
-    # What's the function name to use?
-    function_name = functionObject.cpp_ref_name
-
-    mock_enable_disable = mock_template.safe_substitute(
-        original_return=original_return,
-        lookup_decl=lookup_decl,
-        const=const,
-        lookup_type=lookup_type,
-        function=function_name,
+    mock_enable_disable = MOCK_ENABLE_DISABLE_TEMPLATE.safe_substitute(
         mock=mockFunctionName,
+        mock_enable_body=mock_enable_body,
     )
     mock_enable_call = f"{mockFunctionName}_enable_disable(vmock_session);"
 
