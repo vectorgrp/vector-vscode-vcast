@@ -3,6 +3,7 @@ import process from "node:process";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { rm, mkdir, copyFile } from "node:fs/promises";
+import fs from "node:fs";
 
 module.exports = async () => {
   const promisifiedExec = promisify(exec);
@@ -77,17 +78,40 @@ module.exports = async () => {
 
   const clicastTemplateCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -l C template GNU_CPP11_X option VCAST_CODED_TESTS_SUPPORT TRUE`;
 
-  await promisifiedExec(
-    `cd ${vcastEnvPath} &&  ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`
-  );
-
-  const { stdout, stderr } = await promisifiedExec(clicastTemplateCommand);
-  if (stderr) {
-    console.log(stderr);
+  // Clicast execution
+  const { stdout: stdoutClicast, stderr: stderrClicast } =
+    await promisifiedExec(clicastTemplateCommand);
+  if (stderrClicast) {
+    console.log(stderrClicast);
     throw new Error(`Error when running ${clicastTemplateCommand}`);
   }
 
-  console.log(stdout);
+  console.log(stdoutClicast);
+
+  // Construct the path to the tool_version.txt file
+  const toolVersionPath = path.join(
+    clicastExecutablePath,
+    "..",
+    "DATA",
+    "tool_version.txt"
+  );
+  const toolVersion = fs.readFileSync(toolVersionPath).toString().trim();
+
+  // Activate coded tests support only for version 24
+  if (!toolVersion.startsWith("23")) {
+    const { stdout: stdoutClicastOption, stderr: stderrClicastOption } =
+      await promisifiedExec(
+        `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`
+      );
+    if (stderrClicastOption) {
+      console.log(stderrClicastOption);
+      throw new Error(
+        `Error when running first command: ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`
+      );
+    }
+
+    console.log(stdoutClicastOption);
+  }
 
   const vectorcastDirectory = path.dirname(clicastExecutablePath);
   const requestTutorialPath = path.join(

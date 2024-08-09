@@ -100,7 +100,9 @@ export function generateCompletionData(
 ) {
   // OptParams can be undefined
   const envName = optParameters?.envName ?? "vcast";
-  const languageId = "VectorCAST Test Script";
+
+  const languageId = optParameters?.cppTest ? "cpp" : "VectorCAST Test Script";
+
   const testEnvPath = path.join(
     process.env.PACKAGE_PATH as string,
     "tests",
@@ -142,9 +144,7 @@ export function generateCompletionData(
     }
 
     throw new ReferenceError("enviroPath is undefined.");
-
-    // TST
-  } else {
+  } /* tst */ else {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
     return getTstCompletionData(textDocument, completion);
   }
