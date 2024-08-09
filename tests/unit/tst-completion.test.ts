@@ -1010,7 +1010,7 @@ describe("Text Completion", () => {
         tstText,
         completionPosition,
         triggerCharacter,
-        "fake_vcast"
+        { envName: "fake_vcast" }
       );
       expect(generatedCompletionData).toEqual([]);
     },

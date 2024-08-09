@@ -18,6 +18,10 @@ export function updateVPythonCommand(newPath: string) {
   vPythonCommandToUse = newPath;
 }
 
+export function getVPythonCommand() {
+  return vPythonCommandToUse;
+}
+
 function initializeScriptPath() {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()

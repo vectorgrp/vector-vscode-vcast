@@ -11,6 +11,8 @@ import { getHoverString } from "../../server/tstHover";
 import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
+import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 
 export type HoverPosition = {
   line: number;
@@ -90,10 +92,17 @@ export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
-  envName?: string
+  optParameters?: {
+    lineSoFar?: string;
+    cppTest?: boolean;
+    envName?: string;
+  }
 ) {
-  envName ||= "vcast";
-  const languageId = "VectorCAST Test Script";
+  // OptParams can be undefined
+  const envName = optParameters?.envName ?? "vcast";
+
+  const languageId = optParameters?.cppTest ? "cpp" : "VectorCAST Test Script";
+
   const testEnvPath = path.join(
     process.env.PACKAGE_PATH as string,
     "tests",
@@ -104,6 +113,7 @@ export function generateCompletionData(
     testEnvPath,
     process.env.TST_FILENAME as string
   );
+
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
@@ -121,9 +131,23 @@ export function generateCompletionData(
     "vpython"
   );
 
-  console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
+  // Coded test
+  if (optParameters?.cppTest && optParameters?.lineSoFar) {
+    console.log(`Input .cpp file: \n ${textDocument.getText()} \n`);
+    const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+    if (enviroPath) {
+      return getCodedTestCompletionData(
+        optParameters.lineSoFar,
+        completion,
+        enviroPath
+      );
+    }
 
-  return getTstCompletionData(textDocument, completion);
+    throw new ReferenceError("enviroPath is undefined.");
+  } /* tst */ else {
+    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
+    return getTstCompletionData(textDocument, completion);
+  }
 }
 
 export function asCompletionParameters(
