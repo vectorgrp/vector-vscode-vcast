@@ -281,6 +281,19 @@ function processVCtestData(
   }
 }
 
+function getWorkspaceFolderList(): string[] {
+  // This function will covert the workspace folders into a 
+  // string list of folders to be used in getEnvironmentList
+
+  let returnList: string[] = [];
+  for (const workspace of vscode.workspace.workspaceFolders || []) {
+    const workspaceRoot = workspace.uri.fsPath;
+    // doing the path separate replacement here to avoid compexity bwlow
+    returnList.push(workspaceRoot.replaceAll("\\", "/"));
+  }
+  return returnList;
+}
+
 const glob = require("glob");
 function getEnvironmentList(baseDirectory: string): string[] {
   // This function will find all of the VectorCAST and vTest
@@ -292,10 +305,16 @@ function getEnvironmentList(baseDirectory: string): string[] {
   // now we have a list of the UNITDATA.VCD files downstream of us
   // so turn this into a list of the enclosing directories only
   let returnList: string[] = [];
+  const workspaceFolderList = getWorkspaceFolderList();
   for (const file of fileList) {
     // note that glob always uses / as path separator ...
     if (!file.includes(".BAK")) {
-      returnList.push(path.dirname(file));
+      const candidatePath = path.dirname(file);
+      // we don't want to support users who add an enviro
+      // directory to the workspace - someone did this :()
+      if (!workspaceFolderList?.includes(candidatePath)) {
+        returnList.push(candidatePath);
+      }
     }
   }
 
@@ -762,8 +781,9 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
           }
         });
       } else {
-        const debugFileAsTextDoc =
-          await vscode.workspace.openTextDocument(launchJsonUri);
+        const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
+          launchJsonUri
+        );
         vscode.window.showTextDocument(debugFileAsTextDoc, { preview: false });
         // Prompt the user for what to do next!
         vscode.window.showWarningMessage(
@@ -1016,7 +1036,6 @@ export async function insertATGTests(testNode: testNodeType) {
   // this will insert basis path tests for the given test node
 
   generateAndLoadATGTests(testNode);
-  updateTestPane(testNode.enviroPath);
 }
 
 const url = require("url");
