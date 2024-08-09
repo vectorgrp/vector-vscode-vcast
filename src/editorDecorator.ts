@@ -73,7 +73,7 @@ export function updateFunctionDataForFile(
 }
 
 export function buildTestNodeForFunction(args: any): testNodeType | undefined {
-  // this functon will take the file path and function index and return a test node
+  // this function will take the file path and function index and return a test node
   // with the correct data for the function
 
   // args comes from the call back and has the file URI and the line number

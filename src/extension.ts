@@ -666,7 +666,7 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
   // Specifically for the case where the user does a create environment action
   // and vcast installation is invalid.
 
-  // Note: there is no existing API to do variable subsctitution for configuration
+  // Note: there is no existing API to do variable substitution for configuration
   // values that could contain things like ${workspaceFolder} so we don't provide support.
   // Here is a starting point for research: https://github.com/microsoft/vscode/issues/46471
 

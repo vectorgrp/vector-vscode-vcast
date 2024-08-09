@@ -111,7 +111,7 @@ export async function loadScriptIntoEnvironment(
     vscode.window.showInformationMessage(`Test script loaded successfully`);
 
     // this API allows a timeout for the message, but I think its too subtle
-    // becuase it is only shown in the status bar
+    // because it is only shown in the status bar
     //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
   }
 }

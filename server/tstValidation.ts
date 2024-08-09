@@ -1,26 +1,30 @@
-import { TextDocument, Diagnostic, Position } from "vscode-languageserver";
+import {
+  TextDocument,
+  Diagnostic,
+  DiagnosticSeverity,
+  Position,
+} from "vscode-languageserver";
 
 import { testCommandList, scriptFeatureList } from "./serverUtilities";
 
-const vscode_languageserver = require("vscode-languageserver");
-
-function diagnostic(
+export function getDiagnosticObject(
   line: number,
   start: number,
   end: number,
-  message: string
+  message: string,
+  severity: DiagnosticSeverity = DiagnosticSeverity.Warning
 ): Diagnostic {
   let startPosition: Position = { line: line, character: start };
   let endPosition: Position = { line: line, character: end };
 
   let diagnostic: Diagnostic = {
-    severity: vscode_languageserver.DiagnosticSeverity.Warning,
+    severity: severity,
     range: {
       start: startPosition,
       end: endPosition,
     },
     message: message,
-    source: "TST Editor",
+    source: "VectorCAST Test Explorer",
   };
   return diagnostic;
 }
@@ -60,18 +64,19 @@ export function validateTextDocument(textDocument: TextDocument) {
           if (command == "END_NOTES") withinNotes = false;
           else
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
-                'Commands cannot be nested in a "NOTES" block'
+                'Commands cannot be nested in a "NOTES" block',
+                DiagnosticSeverity.Warning
               )
             );
         } else if (withinFlow) {
           if (command == "END_FLOW") withinFlow = false;
           else
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
@@ -82,7 +87,7 @@ export function validateTextDocument(textDocument: TextDocument) {
           if (command == "END_VALUE_USER_CODE") withinValueUserCode = false;
           else
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
@@ -94,7 +99,7 @@ export function validateTextDocument(textDocument: TextDocument) {
             withinExpectedUserCode = false;
           else
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
@@ -105,7 +110,7 @@ export function validateTextDocument(textDocument: TextDocument) {
           if (command == "END_IMPORT_FAILURES") withinImportFailures = false;
           else
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
@@ -139,7 +144,7 @@ export function validateTextDocument(textDocument: TextDocument) {
       else {
         if (testCommandList.indexOf(command) < 0) {
           diagnosticList.push(
-            diagnostic(
+            getDiagnosticObject(
               lineIndex,
               0,
               1000,
@@ -155,7 +160,7 @@ export function validateTextDocument(textDocument: TextDocument) {
             !specialSubprogramNames.includes(currentFunction)
           )
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
@@ -169,7 +174,7 @@ export function validateTextDocument(textDocument: TextDocument) {
         ) {
           if (currentFunction == "") {
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
@@ -181,7 +186,7 @@ export function validateTextDocument(textDocument: TextDocument) {
         } else if (command == "END") {
           if (!withinTest) {
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
@@ -193,7 +198,7 @@ export function validateTextDocument(textDocument: TextDocument) {
           const featureName = pieces[2].trim();
           if (scriptFeatureList.indexOf(featureName) < 0) {
             diagnosticList.push(
-              diagnostic(
+              getDiagnosticObject(
                 lineIndex,
                 0,
                 1000,
@@ -204,7 +209,7 @@ export function validateTextDocument(textDocument: TextDocument) {
         } else {
           // this is a valid TEST command, but it does not belong in the file scope
           diagnosticList.push(
-            diagnostic(
+            getDiagnosticObject(
               lineIndex,
               0,
               1000,
@@ -230,7 +235,7 @@ export function validateTextDocument(textDocument: TextDocument) {
       )
     ) {
       let message = "Illegal line, comments must start with -- or //";
-      diagnosticList.push(diagnostic(lineIndex, 0, 1000, message));
+      diagnosticList.push(getDiagnosticObject(lineIndex, 0, 1000, message));
     }
   } // end for loop
 

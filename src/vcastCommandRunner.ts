@@ -47,7 +47,7 @@ export function getJsonDataFromTestInterface(
   return returnData;
 }
 
-// Makes the excuteCommand logic easier to understand
+// Makes the executeCommand logic easier to understand
 function processExceptionFromExecuteCommand(
   command: string,
   error: any,
@@ -59,7 +59,7 @@ function processExceptionFromExecuteCommand(
   if (error && error.status == 99) {
     let stdoutString = error.stdout.toString();
 
-    // Remmove annoying version miss-match message from vcast
+    // Remove annoying version miss-match message from vcast
     commandStatus.stdout = cleanVcastOutput(stdoutString);
     commandStatus.errorCode = 0;
     vectorMessage(commandStatus.stdout);
@@ -106,7 +106,7 @@ export function executeCommandSync(
   return commandStatus;
 }
 
-// A command runner for long running commands like build and rebukld environment
+// A command runner for long running commands like build and rebuild environment
 export function executeWithRealTimeEcho(
   command: string,
   argList: string[],

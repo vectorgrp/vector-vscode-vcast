@@ -1,0 +1,7 @@
+{
+    "vsession-decl": {
+      "prefix": "vsession",
+      "body": ["auto vmock_session = ::vunit::MockSession();"],
+      "description": "Define VectorCAST Mock Session"
+    }
+}

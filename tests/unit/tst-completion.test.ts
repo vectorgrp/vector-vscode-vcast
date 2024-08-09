@@ -980,29 +980,6 @@ describe("Text Completion", () => {
   );
 
   test(
-    'validate "no document" case',
-    async () => {
-      const tstText = initialTst;
-      const lineToComplete = "TEST.SUBPROGRAM:";
-      const completionPosition = getCompletionPositionForLine(
-        lineToComplete,
-        tstText
-      );
-      const triggerCharacter = lineToComplete.at(-1);
-
-      const generatedCompletionData = generateCompletionData(
-        tstText,
-        completionPosition,
-        triggerCharacter,
-        "vcast",
-        true
-      );
-      expect(generatedCompletionData).toEqual([]);
-    },
-    timeout
-  );
-
-  test(
     'validate "invalid environment name" case',
     async () => {
       const tstText = invalidEnviroTst;

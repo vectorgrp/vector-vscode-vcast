@@ -24,7 +24,7 @@ This script must be run under vpython
 """
 
 import clicastInterface
-from clicastInterface import codeTestCompileErrorCode
+from dataAPIutilities import TAG_FOR_INIT
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
@@ -50,7 +50,6 @@ class UsageError(Exception):
 modeChoices = [
     "getEnviroData",
     "executeTest",
-    "executeTestReport",
     "report",
     "parseCBT",
     "rebuild",
@@ -117,7 +116,7 @@ def getTime(time):
 
 
 def XofYString(numerator, denominator):
-    if numerator == 0 or denominator == 0:
+    if denominator == 0:
         return ""
     else:
         percentageString = "{:.2f}".format((numerator * 100) / denominator)
@@ -155,7 +154,7 @@ def generateTestInfo(enviroPath, test):
     # New to support coded tests in vc24
     if vpythonHasCodedTestSupport and test.coded_tests_file:
         # guard against the case where the coded test file has been renamed or deleted
-        # or dataAPI has a bad line nuumber for the test, and return None in this case.
+        # or dataAPI has a bad line number for the test, and return None in this case.
         enclosingDirectory = os.path.dirname(enviroPath)
         codedTestFilePath = os.path.abspath(
             os.path.join(enclosingDirectory, test.coded_tests_file)
@@ -175,9 +174,16 @@ def generateTestInfo(enviroPath, test):
 # knowledge of "testabilty"
 globalListOfTestableFunctions = []
 
+# The extension needs to know if the environment was built
+# with mocking support, not just if the tool supports it
+# If the enviro was not built with mocking then the new mocking
+# fields in the API will be set to None by the migration process
+enviroSupportsMocking = None
+
 
 def getTestDataVCAST(enviroPath):
     global globalListOfTestableFunctions
+    global enviroSupportsMocking
 
     # dataAPI throws if there is a tool/enviro mismatch
     try:
@@ -216,7 +222,7 @@ def getTestDataVCAST(enviroPath):
 
     # Now do normal tests
     for unit in api.Unit.all():
-        # we used to add these and throw them away in the typescript, nowe we don't add them
+        # we used to add these and throw them away in the typescript, now we don't add them
         if unit.name != "uut_prototype_stubs":
             unitNode = dict()
             unitNode["name"] = unit.name
@@ -227,9 +233,17 @@ def getTestDataVCAST(enviroPath):
             unitNode["functions"] = list()
             for function in unit.functions:
                 functionNode = dict()
+
+                # if we have not checked for mocking support yet, do it now
+                if enviroSupportsMocking == None:
+                    # if the field exists, which it will if our vcast version
+                    # is > vc24sp3, then a value of None means we have an
+                    # older enviro without mocking support
+                    enviroSupportsMocking = hasattr(function, "mock_lookup_type")
+
                 # Seems like a vcast dataAPI bug with manager.cpp
                 if (
-                    function.vcast_name != "<<INIT>>"
+                    function.vcast_name != TAG_FOR_INIT
                     and not function.is_non_testable_stub
                 ):
                     # Note: the vcast_name has the parameterization only when there is an overload
@@ -332,7 +346,7 @@ def getCoverageKind(sourceObject):
     """
 
     # vc23sp2 added a function called get_coverage_type_text, but to support
-    # older versoon of vcast, we do the interpretation of the enum manually here
+    # older version of vcast, we do the interpretation of the enum manually here
     if sourceObject.coverage_type in statementCoverList:
         return CoverageKind.statement
     elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.BRANCH:
@@ -387,14 +401,11 @@ def getCoverageData(sourceObject):
     return coveredString, uncoveredString, checksum
 
 
-def executeVCtest(enviroPath, testIDObject, generateReport):
+def executeVCtest(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         returnText = ""
 
         returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
-        # If the coded test failed to compile it makes no sense to build the reports.
-        if generateReport and returnCode != codeTestCompileErrorCode:
-            commandOutput += clicastInterface.generateExecutionReport(testIDObject)
 
         if "TEST RESULT: pass" in commandOutput:
             returnText += "STATUS:passed\n"
@@ -406,7 +417,7 @@ def executeVCtest(enviroPath, testIDObject, generateReport):
         api = UnitTestApi(enviroPath)
         testList = api.TestCase.filter(name=testIDObject.testName)
         if len(testList) > 0:
-            returnText += f"PASSFAIL:" + getPassFailString(testList[0])
+            returnText += f"PASSFAIL: {getPassFailString(testList[0])}\n"
             returnText += f"TIME:{getTime(testList[0].start_time)}\n"
         api.close()
 
@@ -489,9 +500,9 @@ class testID:
 def validateClicastCommand(command, mode):
     """
     The --clicast arg is only required for a sub-set of modes, so we do
-    those checks here, and throw usage error if there is a probelem
+    those checks here, and throw usage error if there is a problem
     """
-    if mode.startswith("executeTest") or mode == "rebuild":
+    if mode in ["executeTest", "rebuild"]:
         if command is None or len(command) == 0:
             print(f"Arg --clicast is required for mode: {mode}")
             raise UsageError()
@@ -534,21 +545,31 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
 
     if mode == "getEnviroData":
         topLevel = dict()
+
         # it is important that getTetDataVCAST() is called first since it sets up
-        # the global list of tesable functoions that getUnitData() needs
+        # the global list of testable functions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(pathToUse)
         topLevel["unitData"] = getUnitData(pathToUse)
+
+        # enviroSupportsMocking is set by the gettestDataVCAST() function
+        topLevel["enviro"] = dict()
+        topLevel["enviro"]["mockingSupport"] = (
+            enviroSupportsMocking if enviroSupportsMocking else False
+        )
+
         returnObject = topLevel
 
-    elif mode.startswith("executeTest"):
+    elif mode == "executeTest":
         try:
             testIDObject = testID(pathToUse, testString)
+            # remove any left over report file ...
+            textReportPath = testIDObject.reportName + ".txt"
+            if os.path.isfile(textReportPath):
+                os.remove(textReportPath)
         except:
             print("Invalid test ID, provide a valid --test argument")
             raise UsageError()
-        returnCode, returnText = executeVCtest(
-            pathToUse, testIDObject, mode == "executeTestReport"
-        )
+        returnCode, returnText = executeVCtest(pathToUse, testIDObject)
         returnObject = {"text": returnText.split("\n")}
 
     elif mode == "report":
