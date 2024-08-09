@@ -14,7 +14,6 @@ import base64
 from enum import Enum
 
 from dataAPIutilities import (
-    functionCanBeMocked,
     generateMockEnableForUnitAndFunction,
     TAG_FOR_INIT,
 )
@@ -30,6 +29,10 @@ globalOutputLog = list()
 # mangled function name to the mock name.  Some users might prefer this also
 # so we will expose this in the extension
 ADD_HASH_TO_MOCK_FUNCTION_NAMES = False
+
+
+def functionCanBeMocked(functionObject):
+    return hasattr(functionObject, "mock") and functionObject.mock is not None
 
 
 def shouldAddHashToMockFunctionNames(functionObject):
@@ -769,7 +772,7 @@ def generateMockDataForFunction(api, functionObject):
     whatToReturn.mockFunctionName = mockFunctionName
 
     # generate the complete declaration
-    mockDeclaration = functionObject.generate_mock_declaration(mockFunctionName)
+    mockDeclaration = functionObject.mock.generate_mock_declaration(mockFunctionName)
 
     whatToReturn.mockDeclaration = mockDeclaration
 

@@ -8,12 +8,11 @@ import traceback
 from string import Template
 
 
-from dataAPIutilities import functionCanBeMocked
-
 import tstUtilities
 from tstUtilities import (
     generateMockDataForFunction,
     generateMockForFunction,
+    functionCanBeMocked,
 )
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
@@ -333,8 +332,6 @@ def main():
         - Pass the path to an environment directory
         -
     """
-
-    tstUtilities.addHashToMockFunctionNames = True
 
     if (
         len(sys.argv) == 2
