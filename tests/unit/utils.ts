@@ -19,12 +19,6 @@ export type HoverPosition = {
   character: number;
 };
 
-export type OptionalCompletionParams = {
-  lineSoFar?: string;
-  cppTest?: boolean;
-  envName?: string;
-};
-
 export function generateHoverData(
   tstText: string,
   position: HoverPosition,
@@ -98,7 +92,11 @@ export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
-  optParameters?: OptionalCompletionParams
+  optParameters?: {
+    lineSoFar?: string;
+    cppTest?: boolean;
+    envName?: string;
+  }
 ) {
   // OptParams can be undefined
   const envName = optParameters?.envName ?? "vcast";
