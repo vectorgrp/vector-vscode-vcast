@@ -314,6 +314,9 @@ function getEnvironmentList(baseDirectory: string): string[] {
       // directory to the workspace - someone did this :()
       if (!workspaceFolderList?.includes(candidatePath)) {
         returnList.push(candidatePath);
+      } else {
+        vectorMessage (`Ignoring environment: ${candidatePath} ...`);
+        vectorMessage (`   environments should not be added to the workspace.`);
       }
     }
   }
@@ -378,7 +381,7 @@ export function updateTestsForEnvironment(
     globalController.items.delete(enviroNode.id);
     globalController.items.add(enviroNode);
   } else {
-    vectorMessage(`Ignoring environment: ${enviroPath}\n`);
+    vectorMessage(`Ignoring environment: ${enviroPath}`);
   }
 }
 
