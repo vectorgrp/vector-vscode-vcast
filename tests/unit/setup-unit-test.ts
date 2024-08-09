@@ -79,12 +79,11 @@ module.exports = async () => {
   const clicastTemplateCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -l C template GNU_CPP11_X`;
 
   // Clicast execution
-  const errorClicastExecution = `Error when running ${clicastTemplateCommand}`;
   const { stdout: stdoutClicast, stderr: stderrClicast } =
     await promisifiedExec(clicastTemplateCommand);
   if (stderrClicast) {
     console.log(stderrClicast);
-    throw new Error(errorClicastExecution);
+    throw new Error(`Error when running ${clicastTemplateCommand}`);
   }
 
   console.log(stdoutClicast);
@@ -100,14 +99,12 @@ module.exports = async () => {
 
   // Activate coded tests support only for version 24
   if (!toolVersion.startsWith("23")) {
-    const errorLogClicastOption = `Error when running command: ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+    const clicastOptionCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
     const { stdout: stdoutClicastOption, stderr: stderrClicastOption } =
-      await promisifiedExec(
-        `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`
-      );
+      await promisifiedExec(clicastOptionCommand);
     if (stderrClicastOption) {
       console.log(stderrClicastOption);
-      throw new Error(errorLogClicastOption);
+      throw new Error(`Error when running ${clicastOptionCommand}`);
     }
 
     console.log(stdoutClicastOption);
