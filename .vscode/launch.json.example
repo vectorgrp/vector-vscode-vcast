@@ -65,6 +65,21 @@
         "--test=\"FOO|foo.coded_tests_driver.fooTests.simple\""
       ],
       "console": "integratedTerminal"
-    }
+    },
+    {
+        "name": "client-test",
+        "type": "python",
+        "console": "integratedTerminal",
+        "request": "launch",
+        "program": "${workspaceFolder}/tests/clicast-server/client.py",
+        "cwd": "C:/RDS/VectorCAST/FOO/",
+        "env": {
+            "NO_PROXY": "localhost",
+            "VECTORCAST_DIR": "c:/VCAST/vc24sp2",
+        },
+        "args":[
+            "--test=full"
+        ]
+    },
   ]
 }

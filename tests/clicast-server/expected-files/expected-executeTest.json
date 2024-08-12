@@ -1,0 +1,14 @@
+{
+    "data": {
+        "text": [
+            "STATUS:passed",
+            "REPORT: report.txt",
+            "PASSFAIL:3/3 (100.00%)",
+            "TIME: 00:00:00",
+            "=== Running command: clicast -eDEMO1 execute run ",
+            "    [  PASS  ] manager.Manager::PlaceOrder - Test1",
+            "    TEST RESULT: pass"
+        ]
+    },
+    "exitCode": "0"
+}
