@@ -3,7 +3,7 @@
 import * as path from "path";
 import { ExtensionContext } from "vscode";
 
-import { globalEnviroDataServerActive } from "./vcastAdapter";
+import { globalEnviroDataServerActive } from "../src-common/vcastServer";
 
 import {
   LanguageClient,

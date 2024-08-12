@@ -44,21 +44,19 @@ import {
 import {
   clientRequestType,
   closeConnection,
+  globalEnviroDataServerActive,
   serverIsAlive,
+  setServerState,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
 } from "../src-common/vcastServer";
 
-// This is the core extension version of the flag, set on
-// initialization or when the setting value is changed.
-export let globalEnviroDataServerActive: boolean = false;
-
 const path = require("path");
 
 // Allow extenal modules to set server active
 export async function initializeServerState() {
-  globalEnviroDataServerActive = await serverIsAlive();
+  setServerState(await serverIsAlive());
   if (globalEnviroDataServerActive) {
     vectorMessage("VectorCAST Environment Data Server is Active ...");
   } else {

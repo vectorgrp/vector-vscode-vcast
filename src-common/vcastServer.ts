@@ -38,6 +38,14 @@ function serverURL() {
   return `http://${HOST}:${PORT}`;
 }
 
+// This is the core extension version of the flag, set on
+// initialization or when the setting value is changed.
+export let globalEnviroDataServerActive: boolean = false;
+
+export function setServerState(newState: boolean) {
+  globalEnviroDataServerActive = newState;
+}
+
 export interface transmitResponseType {
   success: boolean;
   returnData: any;
@@ -118,7 +126,11 @@ export async function transmitCommand(
       if (errorDetails.length === 0) {
         errorDetails = "Server is not running";
       }
-      transmitResponse.statusText = `Enviro server error: ${errorDetails}`;
+      transmitResponse.statusText = `\nEnviro server error: ${errorDetails}, disabling server for this session\n`;
+
+      // IMPORTANT: If the server is not running, set the global flag to false
+      // so that the extension falls back to non-server mode
+      globalEnviroDataServerActive = false;
     });
   return transmitResponse;
 }
