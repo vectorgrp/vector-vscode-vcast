@@ -282,7 +282,7 @@ function processVCtestData(
 }
 
 function getWorkspaceFolderList(): string[] {
-  // This function will covert the workspace folders into a 
+  // This function will covert the workspace folders into a
   // string list of folders to be used in getEnvironmentList
 
   let returnList: string[] = [];
@@ -315,8 +315,8 @@ function getEnvironmentList(baseDirectory: string): string[] {
       if (!workspaceFolderList?.includes(candidatePath)) {
         returnList.push(candidatePath);
       } else {
-        vectorMessage (`Ignoring environment: ${candidatePath} ...`);
-        vectorMessage (`   environments should not be added to the workspace.`);
+        vectorMessage(`Ignoring environment: ${candidatePath} ...`);
+        vectorMessage(`   environments should not be added to the workspace.`);
       }
     }
   }
@@ -784,9 +784,8 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
           }
         });
       } else {
-        const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
-          launchJsonUri
-        );
+        const debugFileAsTextDoc =
+          await vscode.workspace.openTextDocument(launchJsonUri);
         vscode.window.showTextDocument(debugFileAsTextDoc, { preview: false });
         // Prompt the user for what to do next!
         vscode.window.showWarningMessage(
