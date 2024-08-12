@@ -551,7 +551,6 @@ def timingTest(clicastPath, enviroPath):
 
 def fullTest(enviroPath, clicastPath, testString):
 
-    pingServerTest()
     getEnviroDataTest(clicastPath, enviroPath)
     testCaseTests(clicastPath, enviroPath, testString)
     codedTestTests(clicastPath, enviroPath)
@@ -701,6 +700,9 @@ def main():
     # process port arg if it exists
     # Note that PORT gets used by function serverURL()
     vcastDataServerTypes.processPortArg(args)
+
+    # first we run the ping test, because if this fails ... what's the point
+    pingServerTest()
 
     # Build the VectorCAST environment
     clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
