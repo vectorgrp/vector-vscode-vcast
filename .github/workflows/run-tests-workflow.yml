@@ -19,6 +19,10 @@ jobs:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
       options: --user vcast_user
 
+    strategy:
+      matrix:
+        vcast: [ 23, 24 ]
+
     steps:
       - name: Check out repository
         id: checkout
@@ -61,18 +65,28 @@ jobs:
       - name: Package with VSCE
         run: npm run package
 
+      - name: Activate Vcast 24
+        if: ${{ matrix.vcast == '24' }}
+        run: |
+          export VECTORCAST_DIR=/vcast/release24
+          export PATH=/vcast/release24:$PATH
+          export ENABLE_ATG_FEATURE=TRUE
+
       - name: Run unit tests
         run: npm run gh-test | tee output.txt
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action/linux@v2
         if: always()
+        env:
+          CHECK_NAME: Unit Test results - Vcast ${{ matrix.vcast }}
         with:
-          check_name: "Unit Test results"
+          check_name: ${{ env.CHECK_NAME }}
           files: |
             ./test-output.xml
 
       - name: Show coverage summary
+        if: ${{ always() && matrix.vcast == '24' }}
         run: |
           echo "### Coverage summary - Unit tests" >> $GITHUB_STEP_SUMMARY
           {
@@ -82,7 +96,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage artifacts
-        if: always()
+        if: ${{ always() && matrix.vcast == '24' }}
         run: |
           curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
           chmod +x codecov
@@ -100,21 +114,21 @@ jobs:
 
       - name: Upload vectorcasttestexplorer artifact
         uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && matrix.vcast == '24' }}
         with:
           name: vectorcasttestexplorer
           path: ${{ env.VSIX_FILE }}
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && matrix.vcast == '24' }}
         with:
           name: coverage
           path: ./coverage
 
       # Upload release asset
       - name: Upload release asset
-        if: github.event_name == 'release'
+        if: ${{ github.event_name == 'release' && matrix.vcast == '24' }}
         run: |
           url="${{ github.event.release.upload_url }}" && \
           export upload_url=${url%%\{*}?name=vectorcasttestexplorer-${{ github.event.release.tag_name }}.vsix && \
@@ -127,7 +141,7 @@ jobs:
           $upload_url \
           --data-binary "@${{ env.VSIX_FILE }}"
 
-  generate-matrix:
+  generate-e2e-matrix:
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast]
@@ -165,7 +179,7 @@ jobs:
           echo "matrix=$(cat gha_matrix.json)" >> "$GITHUB_OUTPUT"
 
   e2e-tests:
-    needs: generate-matrix
+    needs: generate-e2e-matrix
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast]
@@ -176,7 +190,7 @@ jobs:
 
     strategy:
       matrix:
-        include: ${{ fromJSON(needs.generate-matrix.outputs.version_group_matrix) }}
+        include: ${{ fromJSON(needs.generate-e2e-matrix.outputs.version_group_matrix) }}
 
     env:
       BRANCH_REF: ${{ github.ref }}
