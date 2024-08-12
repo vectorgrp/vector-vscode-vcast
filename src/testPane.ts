@@ -316,7 +316,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
         returnList.push(candidatePath);
       } else {
         vectorMessage(`Ignoring environment: ${candidatePath} ...`);
-        vectorMessage(`   environments should not be added to the workspace.`);
+        vectorMessage(`   environments should not be at the workspace root, open the enclosing directory`);
       }
     }
   }
