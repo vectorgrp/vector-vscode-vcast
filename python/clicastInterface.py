@@ -91,8 +91,6 @@ def runClicastServerCommand(enviroPath, commandString):
 
     errorCode = responseLine.split("|")[1].strip()
     logMessage(f"    server return code: {errorCode}")
-    if errorCode != "0":
-        logMessage(f"    server return text: {returnText}")
 
     return errorCode, returnText
 
