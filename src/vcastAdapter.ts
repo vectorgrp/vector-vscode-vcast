@@ -54,8 +54,12 @@ import {
 
 const path = require("path");
 
-// Allow extenal modules to set server active
 export async function initializeServerState() {
+  // This function is called during initialization to check if the enviro
+  // data server is alive and if so configure the extension to use it
+
+  // Set the client instance of the globalEnviroDataServerActive
+  // flag if we can ping the server
   setServerState(await serverIsAlive());
   if (globalEnviroDataServerActive) {
     vectorMessage("VectorCAST Environment Data Server is Active ...");

@@ -1,8 +1,10 @@
 import {
-  vcastCommandType,
   clientRequestType,
+  globalEnviroDataServerActive,
+  setServerState,
   transmitCommand,
   transmitResponseType,
+  vcastCommandType,
 } from "../src-common/vcastServer";
 
 import fs = require("fs");
@@ -10,12 +12,6 @@ import path = require("path");
 
 import { execSync } from "child_process";
 import { cleanVcastOutput } from "../src-common/commonUtilities";
-
-// This is the language server version of the flag, set when
-// the server is started.  If the user changes the value
-// of use server in the settings, if will not affect the
-// language server until the extension is re-started
-let globalEnviroDataServerActive: boolean = false;
 
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
@@ -29,7 +25,9 @@ export function initializePaths(
   // see: client.ts:activateLanguageServerClient()
 
   vPythonCommandToUse = vpythonPath;
-  globalEnviroDataServerActive = useServer;
+  // set the server instance of the globalEnviroDataServerActive flag
+  // based on the value passed to us by the client.
+  setServerState(useServer);
 
   const pathToTestEditorInterface = path.join(
     extensionRoot,

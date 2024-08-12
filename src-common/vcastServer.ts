@@ -38,8 +38,16 @@ function serverURL() {
   return `http://${HOST}:${PORT}`;
 }
 
-// This is the core extension version of the flag, set on
-// initialization or when the setting value is changed.
+// IMPORTANT: This global data object is used in two different
+// places in the extension. It is used by:
+//    The Language Server via pythonUtilities.ts
+//    The Core Extension via vcastAdapter.ts, client.ts etc.
+//
+// Since therse are two different executables, they are 
+// not sharing the same instance of this object.  But since 
+// they both use transmitCommand() defind below, the 
+// auto-off processing works for both.
+//
 export let globalEnviroDataServerActive: boolean = false;
 
 export function setServerState(newState: boolean) {
