@@ -6,4 +6,11 @@ if [ $BLACK_EXIT_CODE -ne 0 ]; then
     echo "Code formatting issues detected. Please run 'black' to format your code."
     exit 1
 fi
+
+npx prettier -c .
+PRETTIER_EXIT_CODE=$?
+if [ $PRETTIER_EXIT_CODE -ne 0 ]; then
+    echo "Code formatting issues detected. Please run 'prettier' to format your code."
+    exit 1
+fi
 exit 0
