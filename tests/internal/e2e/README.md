@@ -46,7 +46,7 @@ If behind a corporate proxy: Make sure to set `NODE_EXTRA_CA_CERTS` to point to 
     Install npm dependencies by running `npm install` inside `internal/e2e` folder
 
 2) 
-    Make sure the extension is built by running `vsce package` in the root of the repository
+    Make sure the extension is built by running `npm run package` in the root of the repository
    
     The build script will create `vectorcasttestexplorer-<version>.vsix`, as well as `out/extension.js` and `out/server.js`. End-to-end tests are run directly on `out/extension.js` and `out/server.js`, together with necessary resources like `.svg` files.
 

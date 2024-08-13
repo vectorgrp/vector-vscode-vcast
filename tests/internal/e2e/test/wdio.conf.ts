@@ -75,8 +75,9 @@ const proxyObject: ProxyObject = {
   noProxy: noProxyRules,
 };
 
-import { getSpecs } from './specs_config.ts';
-const groupName = process.env["RUN_BY_GROUP"] === 'True' ? process.env["RUN_GROUP_NAME"] : null;
+import { getSpecs } from "./specs_config.ts";
+const groupName =
+  process.env["RUN_BY_GROUP"] === "True" ? process.env["RUN_GROUP_NAME"] : null;
 
 export const config: Options.Testrunner = {
   //
@@ -128,7 +129,7 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: getSpecs(process.env["USE_VCAST_24"] === 'True', groupName),
+  specs: getSpecs(process.env["USE_VCAST_24"] === "True", groupName),
   // Patterns to exclude.
   // exclude:
   //
@@ -330,46 +331,12 @@ export const config: Options.Testrunner = {
     const promisifiedExec = promisify(exec);
 
     process.env.WORKSPACE_FOLDER = "vcastTutorial";
-
     let checkVPython: string;
-    checkVPython =
-      process.platform == "win32" ? "where vpython" : "which vpython";
-
-    {
-      const { stdout, stderr } = await promisifiedExec(checkVPython);
-      if (stderr) {
-        console.log(stderr);
-        throw `Error when running ${checkVPython}`;
-      } else {
-        console.log(`vpython found in ${stdout}`);
-      }
-    }
-
     let checkClicast: string;
-    checkClicast =
-      process.platform == "win32" ? "where clicast" : "which clicast";
-
+    let vectorcastDir: string;
     let clicastExecutablePath: string;
-    {
-      const { stdout, stderr } = await promisifiedExec(checkClicast);
-      if (stderr) {
-        console.log(stderr);
-        throw `Error when running ${checkClicast}`;
-      } else {
-        clicastExecutablePath = stdout;
-        console.log(`clicast found in ${clicastExecutablePath}`);
-      }
-    }
-
-    process.env.CLICAST_PATH = clicastExecutablePath;
-
-    const vectorcastDir = path.dirname(clicastExecutablePath);
-    process.env.VC_DIR = vectorcastDir;
-
-    let clearScreenshots: string;
-    clearScreenshots =
-      process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
-    await promisifiedExec(clearScreenshots);
+    let testInputEnvPath: string;
+    let codedTestsPath: string;
 
     const testInputVcastTutorial = path.join(
       initialWorkdir,
@@ -377,68 +344,58 @@ export const config: Options.Testrunner = {
       "test_input",
       "vcastTutorial"
     );
-    const testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
-    await mkdir(testInputEnvPath, { recursive: true });
 
-    const codedTestsPath = path.join(
-      testInputVcastTutorial,
-      "cpp",
-      "TestFiles"
-    );
-    await mkdir(codedTestsPath, { recursive: true });
+    if (process.env.VECTORCAST_DIR) {
+      checkVPython =
+        process.platform == "win32" ? "where vpython" : "which vpython";
 
-    const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
-    await mkdir(vscodeSettingsPath, { recursive: true });
-    const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
+      {
+        const { stdout, stderr } = await promisifiedExec(checkVPython);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${checkVPython}`;
+        } else {
+          console.log(`vpython found in ${stdout}`);
+        }
+      }
 
-    let createLaunchJson: string;
-    createLaunchJson =
-      process.platform == "win32"
-        ? `copy /b NUL ${launchJsonPath}`
-        : `touch ${launchJsonPath}`;
-    await promisifiedExec(createLaunchJson);
+      checkClicast =
+        process.platform == "win32" ? "where clicast" : "which clicast";
 
-    const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
-    const c_cpp_properties = {
-      configurations: [
-        {
-          name: "Linux",
-          includePath: ["${workspaceFolder}/**", `${pathTovUnitInclude}`],
-          defines: [],
-          compilerPath: "/usr/bin/clang",
-          cStandard: "c17",
-          cppStandard: "c++14",
-          intelliSenseMode: "linux-clang-x64",
-        },
-      ],
-      version: 4,
-    };
+      {
+        const { stdout, stderr } = await promisifiedExec(checkClicast);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${checkClicast}`;
+        } else {
+          clicastExecutablePath = stdout;
+          console.log(`clicast found in ${clicastExecutablePath}`);
+        }
+      }
 
-    const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
-    const c_cpp_properties_JSONPath = path.join(
-      vscodeSettingsPath,
-      "c_cpp_properties.json"
-    );
-    await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
+      process.env.CLICAST_PATH = clicastExecutablePath;
 
-    const envFile = `ENVIRO.NEW
-ENVIRO.NAME: DATABASE-MANAGER-test
-ENVIRO.COVERAGE_TYPE: Statement
-ENVIRO.WHITE_BOX: YES
-ENVIRO.COMPILER: CC
-ENVIRO.STUB: ALL_BY_PROTOTYPE
-ENVIRO.SEARCH_LIST: cpp
-ENVIRO.STUB_BY_FUNCTION: database
-ENVIRO.STUB_BY_FUNCTION: manager
-ENVIRO.END
-    `;
-    await writeFile(
-      path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),
-      envFile
-    );
+      await prepareConfig(initialWorkdir);
 
-    const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
-    await promisifiedExec(createCFG);
+      const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
+      await promisifiedExec(createCFG);
+    } else {
+      // Add vpython path since every release path is deleted
+      const currentPath = process.env.PATH || "";
+      const newPath = path.join(
+        process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
+        "vpython"
+      );
+      process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
+      clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
+
+      process.env.CLICAST_PATH = clicastExecutablePath;
+
+      await prepareConfig(initialWorkdir);
+
+      const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
+      await promisifiedExec(createCFG);
+    }
 
     const requestTutorialPath = path.join(
       vectorcastDir,
@@ -447,6 +404,7 @@ ENVIRO.END
       "CSV_Requirements_For_Tutorial.csv"
     );
     const commandPrefix = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc`;
+
     const rgwPrepCommands = [
       `${commandPrefix} option VCAST_REPOSITORY ${path.join(
         initialWorkdir,
@@ -553,6 +511,84 @@ ENVIRO.END
         `cp ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
       );
     }
+
+    /**
+     * Prepares the execution of clicast and the creation of the CFG config file.
+     * @param initialWorkdir Path of the initial work dir.
+     */
+    async function prepareConfig(initialWorkdir: string): Promise<void> {
+      vectorcastDir = path.dirname(process.env.CLICAST_PATH);
+      process.env.VC_DIR = vectorcastDir;
+
+      let clearScreenshots: string;
+      clearScreenshots =
+        process.platform == "win32" ? "del /s /q *.png" : "rm -rf *.png";
+      await promisifiedExec(clearScreenshots);
+
+      const testInputVcastTutorial = path.join(
+        initialWorkdir,
+        "test",
+        "test_input",
+        "vcastTutorial"
+      );
+
+      testInputEnvPath = path.join(testInputVcastTutorial, "cpp");
+      await mkdir(testInputEnvPath, { recursive: true });
+
+      codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
+      await mkdir(codedTestsPath, { recursive: true });
+
+      const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
+      await mkdir(vscodeSettingsPath, { recursive: true });
+
+      const launchJsonPath = path.join(vscodeSettingsPath, "launch.json");
+
+      let createLaunchJson: string;
+      createLaunchJson =
+        process.platform == "win32"
+          ? `copy /b NUL ${launchJsonPath}`
+          : `touch ${launchJsonPath}`;
+      await promisifiedExec(createLaunchJson);
+
+      const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
+      const c_cpp_properties = {
+        configurations: [
+          {
+            name: "Linux",
+            includePath: ["${workspaceFolder}/**", `${pathTovUnitInclude}`],
+            defines: [],
+            compilerPath: "/usr/bin/clang",
+            cStandard: "c17",
+            cppStandard: "c++14",
+            intelliSenseMode: "linux-clang-x64",
+          },
+        ],
+        version: 4,
+      };
+
+      const c_cpp_properties_JSON = JSON.stringify(c_cpp_properties, null, 4);
+      const c_cpp_properties_JSONPath = path.join(
+        vscodeSettingsPath,
+        "c_cpp_properties.json"
+      );
+      await writeFile(c_cpp_properties_JSONPath, c_cpp_properties_JSON);
+
+      const envFile = `ENVIRO.NEW
+ENVIRO.NAME: DATABASE-MANAGER-test
+ENVIRO.COVERAGE_TYPE: Statement
+ENVIRO.WHITE_BOX: YES
+ENVIRO.COMPILER: CC
+ENVIRO.STUB: ALL_BY_PROTOTYPE
+ENVIRO.SEARCH_LIST: cpp
+ENVIRO.STUB_BY_FUNCTION: database
+ENVIRO.STUB_BY_FUNCTION: manager
+ENVIRO.END
+    `;
+      await writeFile(
+        path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),
+        envFile
+      );
+    }
   },
   /**
    * Gets executed before a worker process is spawned and can be used to initialise specific service
@@ -593,6 +629,7 @@ ENVIRO.END
       await promisifiedExec("pkill code");
     }
   },
+
   /**
    * Gets executed just before initialising the webdriver session and test framework. It allows you
    * to manipulate configurations depending on the capability or spec.
