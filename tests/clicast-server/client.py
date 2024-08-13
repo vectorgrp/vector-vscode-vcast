@@ -238,7 +238,7 @@ def getEnviroDataTest(clicastPath, enviroPath):
     print("   getEnviroData Test Passed")
 
 
-def parseCBTTest(clicastPath, enviroPath):
+def parseCBTTest(clicastPath):
 
     print("  parseCBT Test")
     codedTestFilePath = os.path.join(ENVIRO_PATH, codedTestFile)
@@ -407,7 +407,7 @@ def codedTestTests(clicastPath, enviroPath):
     print("     refresehCodedTestPassed")
 
     # This will ensure that the coded test file was updated
-    parseCBTTest(clicastPath, enviroPath)
+    parseCBTTest(clicastPath)
 
     print("  Execute New Coded Test")
     testString = "DEMO1|manager.coded_tests_driver.managerTests.pass"
@@ -659,9 +659,6 @@ def initializeEnvironment(clicastPath):
 
     print("Starting Client Initialization Processing ...")
 
-    global ENVIRO_PATH
-    ENVIRO_PATH = os.path.join(os.getcwd(), "Environments")
-
     # Design to work in the clean directory case only
     if os.path.isdir(ENVIRO_PATH) == True:
         print(
@@ -692,6 +689,7 @@ def main():
     - full: the basic automated tests
 
     """
+    global ENVIRO_PATH
 
     # If no arg is provided, the full tests will be run
     argParser = setupArgs()
@@ -706,6 +704,13 @@ def main():
 
     # Build the VectorCAST environment
     clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
+    ENVIRO_PATH = os.path.join(os.getcwd(), "Environments")
+
+    # cbt test does not need an enviro
+    if args.test == "cbt":
+        parseCBTTest(clicastPath)
+        sys.exit(0)
+
     initializeEnvironment(clicastPath)
 
     enviroUnderTest = os.path.join(ENVIRO_PATH, "DEMO1")
