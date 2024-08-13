@@ -316,7 +316,9 @@ function getEnvironmentList(baseDirectory: string): string[] {
         returnList.push(candidatePath);
       } else {
         vectorMessage(`Ignoring environment: ${candidatePath} ...`);
-        vectorMessage(`   environments should not be at the workspace root, open the enclosing directory`);
+        vectorMessage(
+          `   environments should not be at the workspace root, open the enclosing directory`
+        );
       }
     }
   }
@@ -784,8 +786,9 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
           }
         });
       } else {
-        const debugFileAsTextDoc =
-          await vscode.workspace.openTextDocument(launchJsonUri);
+        const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
+          launchJsonUri
+        );
         vscode.window.showTextDocument(debugFileAsTextDoc, { preview: false });
         // Prompt the user for what to do next!
         vscode.window.showWarningMessage(
