@@ -587,13 +587,6 @@ ENVIRO.END
           .toString()
           .replace(placeholder, envName);
         await writeFile(envFile, envContent);
-
-        // Copy env and cpp file to testing dir
-        const destinationEnvFile = path.join(workspacePath, `${envName}.env`);
-        await copyFile(envFile, destinationEnvFile);
-
-        const destinationUnitFile = path.join(workspacePath, "unit.cpp");
-        await copyFile(unitFile, destinationUnitFile);
       }
 
       // Initial build with the old version

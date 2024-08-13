@@ -36,7 +36,7 @@ export function getSpecGroups(useVcast24: boolean) {
     build_different_envs: {
       specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
       env: {
-        VECTORCAST_DIR: "/vcast/release23:/home/denis/vcast/release23",
+        VECTORCAST_DIR: `/vcast/release23:${process.env.HOME}/vcast/release23`,
         BUILD_MULTIPLE_ENVS: "True",
       },
       params: {},
