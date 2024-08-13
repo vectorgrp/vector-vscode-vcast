@@ -8,13 +8,15 @@ import {
   ViewSection,
   type BottomBarPanel,
   type Workbench,
+  CustomTreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
   getViewContent,
-  findSubprogram,
+  expandTopEnvInTestPane,
+  retrieveTestingTopItems,
 } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -76,48 +78,53 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
 
-  it("should confirm the presence of ENV_01 and ENV_03", async () => {
+  it("should confirm the presence of ENV_23_01 and ENV_23_03", async () => {
     await updateTestID();
 
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
+
+    // Open Testing
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
 
-    // Open Testing
-    const vcastTestingViewContent: ViewContent =
-      await getViewContent("Testing");
-    let subprogram: TreeItem;
+    let vcastTestingViewContent: ViewContent;
+    let env1Item: ViewItem;
+    let env3Item: ViewItem;
+    let env2Item: ViewItem;
+    let env4Item: ViewItem;
 
-    // Iterate through Testing and try to expand required Envs (1 & 3)
-    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      if (!(await vcastTestingViewSection.isExpanded())) {
-        await vcastTestingViewSection.expand();
-      }
+    // Iterate through Testing and try to expand builded Envs (2 & 4)
+    vcastTestingViewContent = await getViewContent("Testing");
+    const topLevelItems = await retrieveTestingTopItems(
+      vcastTestingViewContent
+    );
 
-      // Expand envs if found
-      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
-        console.log(await vcastTestingViewContentSection.getTitle());
-        await vcastTestingViewContentSection.expand();
+    // Expand and check ENV_01 and ENV_03 exist and ENV_02 and ENV_04 not
+    env1Item = await expandTopEnvInTestPane(
+      "ENV_23_01",
+      topLevelItems as CustomTreeItem[]
+    );
+    env3Item = await expandTopEnvInTestPane(
+      "ENV_23_03",
+      topLevelItems as CustomTreeItem[]
+    );
+    env2Item = await expandTopEnvInTestPane(
+      "ENV_24_02",
+      topLevelItems as CustomTreeItem[]
+    );
+    env4Item = await expandTopEnvInTestPane(
+      "ENV_24_04",
+      topLevelItems as CustomTreeItem[]
+    );
 
-        subprogram = await findSubprogram(
-          "ENV_01",
-          vcastTestingViewContentSection
-        );
-        if (subprogram && !(await subprogram.isExpanded()))
-          await subprogram.expand();
-
-        subprogram = await findSubprogram(
-          "ENV_03",
-          vcastTestingViewContentSection
-        );
-        if (subprogram && !(await subprogram.isExpanded()))
-          await subprogram.expand();
-      }
-    }
+    expect(env1Item).not.toBe(undefined);
+    expect(env3Item).not.toBe(undefined);
+    expect(env2Item).toBe(undefined);
+    expect(env4Item).toBe(undefined);
   });
 
-  it("should change release to 24", async () => {
+  it("should change to release 24 and confirm the presence of ENV_24_02 and ENV_24_04", async () => {
     // Release 24
     const vcastRoot = path.join(process.env.HOME, "vcast");
     const newVersion = "release24";
@@ -178,33 +185,38 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
 
     let vcastTestingViewContent: ViewContent;
-    let subprogram: TreeItem;
+    let env2Item: ViewItem;
+    let env4Item: ViewItem;
+    let env1Item: ViewItem;
+    let env3Item: ViewItem;
 
     // Iterate through Testing and try to expand builded Envs (2 & 4)
     vcastTestingViewContent = await getViewContent("Testing");
-    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      if (!(await vcastTestingViewSection.isExpanded())) {
-        await vcastTestingViewSection.expand();
-      }
+    const topLevelItems = await retrieveTestingTopItems(
+      vcastTestingViewContent
+    );
 
-      // Expand envs if found
-      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
-        await vcastTestingViewContentSection.expand();
+    // Expand and check ENV_02 and ENV_04 exist and ENV_01 and ENV_03 not
+    env2Item = await expandTopEnvInTestPane(
+      "ENV_24_02",
+      topLevelItems as CustomTreeItem[]
+    );
+    env4Item = await expandTopEnvInTestPane(
+      "ENV_24_04",
+      topLevelItems as CustomTreeItem[]
+    );
+    env1Item = await expandTopEnvInTestPane(
+      "ENV_23_01",
+      topLevelItems as CustomTreeItem[]
+    );
+    env3Item = await expandTopEnvInTestPane(
+      "ENV_23_03",
+      topLevelItems as CustomTreeItem[]
+    );
 
-        subprogram = await findSubprogram(
-          "ENV_02",
-          vcastTestingViewContentSection
-        );
-        if (subprogram && !(await subprogram.isExpanded()))
-          await subprogram.expand();
-
-        subprogram = await findSubprogram(
-          "ENV_04",
-          vcastTestingViewContentSection
-        );
-        if (subprogram && !(await subprogram.isExpanded()))
-          await subprogram.expand();
-      }
-    }
+    expect(env2Item).not.toBe(undefined);
+    expect(env4Item).not.toBe(undefined);
+    expect(env1Item).toBe(undefined);
+    expect(env3Item).toBe(undefined);
   });
 });

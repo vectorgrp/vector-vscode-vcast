@@ -576,13 +576,19 @@ ENVIRO.END
 
       // Create correct dir for the tests
       await mkdir(workspacePath, { recursive: true });
+      let envName: string;
 
       // Create envs and copy them to workspacePath
       for (let i = 1; i <= totalEnvCount; i++) {
-        // ENV_0i
-        const envName = `ENV_${i.toString().padStart(2, "0")}`;
-        const envFile = path.join(workspacePath, `${envName}.env`);
+        // Env for release 24
+        if (i % 2 === 0) {
+          envName = `ENV_24_${i.toString().padStart(2, "0")}`;
+        } else {
+          // Env for release 23
+          envName = `ENV_23_${i.toString().padStart(2, "0")}`;
+        }
 
+        const envFile = path.join(workspacePath, `${envName}.env`);
         const envContent = (await readFile(envTemplate))
           .toString()
           .replace(placeholder, envName);
@@ -598,19 +604,19 @@ ENVIRO.END
 
       // Build environments based on the iteration index
       for (let i = 1; i <= totalEnvCount; i++) {
-        // ENV_0i
-        const envName = `ENV_${i.toString().padStart(2, "0")}`;
-        const envFile = path.join(workspacePath, `${envName}.env`);
-
+        let envName: string;
         // Switch VectorCAST version based on iteration (build 1,3 --> release 23, 2,4 --> release 24)
         if (i % 2 === 0) {
           process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+          envName = `ENV_24_${i.toString().padStart(2, "0")}`;
           console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
         } else {
           process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+          envName = `ENV_23_${i.toString().padStart(2, "0")}`;
           console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
         }
 
+        const envFile = path.join(workspacePath, `${envName}.env`);
         const buildEnv = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc environment script run ${envFile}`;
         try {
           await promisifiedExec(buildEnv);
@@ -866,6 +872,3 @@ ENVIRO.END
   // onReload: function(oldSessionId, newSessionId) {
   // }
 };
-function copyDirectory(sourceFile: string, destinationFile: string) {
-  throw new Error("Function not implemented.");
-}
