@@ -33,6 +33,14 @@ export function getSpecGroups(useVcast24: boolean) {
         vcReleaseOnPath: false,
       },
     },
+    build_different_envs: {
+      specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
+      env: {
+        VECTORCAST_DIR: "/vcast/release23:/home/denis/vcast/release23",
+        BUILD_MULTIPLE_ENVS: "True",
+      },
+      params: {},
+    },
     bugs: {
       specs: [
         "./**/**/vcast_testgen_bugs.test.ts",

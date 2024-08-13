@@ -3,7 +3,14 @@
 import path from "node:path";
 import { URL } from "node:url";
 import { exec } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { promisify } from "node:util";
 import {
   type ProxyTypes,
@@ -18,6 +25,7 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
+import { getSpecs } from "./specs_config.ts";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -74,10 +82,8 @@ const proxyObject: ProxyObject = {
   httpProxy: process.env.http_proxy,
   noProxy: noProxyRules,
 };
-
-import { getSpecs } from "./specs_config.ts";
 const groupName =
-  process.env["RUN_BY_GROUP"] === "True" ? process.env["RUN_GROUP_NAME"] : null;
+  process.env.RUN_BY_GROUP === "True" ? process.env.RUN_GROUP_NAME : null;
 
 export const config: Options.Testrunner = {
   //
@@ -129,7 +135,7 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: getSpecs(process.env["USE_VCAST_24"] === "True", groupName),
+  specs: getSpecs(process.env.USE_VCAST_24 === "True", groupName),
   // Patterns to exclude.
   // exclude:
   //
@@ -309,207 +315,324 @@ export const config: Options.Testrunner = {
    * @param {Array.<Object>} capabilities list of capabilities details
    */
   async onPrepare(config, capabilities) {
-    const initialWorkdir = process.env.INIT_CWD;
-    const vcastTutorialPath = path.join(
-      initialWorkdir,
-      "test",
-      "vcastTutorial"
-    );
-    await rm(vcastTutorialPath, { recursive: true, force: true });
-
-    const logPath = path.join(initialWorkdir, "test", "log");
-    await rm(logPath, { recursive: true, force: true });
-    await mkdir(logPath, { recursive: true });
-
-    await mkdir(path.join(initialWorkdir, "test", "vcastTutorial"));
-    const extensionPath = path.join(initialWorkdir, "test", "extension");
-    await rm(extensionPath, { recursive: true, force: true });
-
-    const testResultsPath = path.join(initialWorkdir, "test_results");
-    await rm(testResultsPath, { recursive: true, force: true });
-
-    const promisifiedExec = promisify(exec);
-
-    process.env.WORKSPACE_FOLDER = "vcastTutorial";
-    let checkVPython: string;
-    let checkClicast: string;
     let vectorcastDir: string;
     let clicastExecutablePath: string;
     let testInputEnvPath: string;
     let codedTestsPath: string;
+    let checkVPython: string;
+    let checkClicast: string;
+    const promisifiedExec = promisify(exec);
 
-    const testInputVcastTutorial = path.join(
-      initialWorkdir,
-      "test",
-      "test_input",
-      "vcastTutorial"
-    );
-
-    if (process.env.VECTORCAST_DIR) {
-      checkVPython =
-        process.platform == "win32" ? "where vpython" : "which vpython";
-
-      {
-        const { stdout, stderr } = await promisifiedExec(checkVPython);
-        if (stderr) {
-          console.log(stderr);
-          throw `Error when running ${checkVPython}`;
-        } else {
-          console.log(`vpython found in ${stdout}`);
-        }
-      }
-
-      checkClicast =
-        process.platform == "win32" ? "where clicast" : "which clicast";
-
-      {
-        const { stdout, stderr } = await promisifiedExec(checkClicast);
-        if (stderr) {
-          console.log(stderr);
-          throw `Error when running ${checkClicast}`;
-        } else {
-          clicastExecutablePath = stdout;
-          console.log(`clicast found in ${clicastExecutablePath}`);
-        }
-      }
-
-      process.env.CLICAST_PATH = clicastExecutablePath;
-
-      await prepareConfig(initialWorkdir);
-
-      const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
-      await promisifiedExec(createCFG);
+    // Specific test case to build multiple envs.
+    if (process.env.BUILD_MULTIPLE_ENVS) {
+      await setupMultipleEnvironments();
     } else {
-      // Add vpython path since every release path is deleted
-      const currentPath = process.env.PATH || "";
-      const newPath = path.join(
-        process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
-        "vpython"
-      );
-      process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
-      clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
-
-      process.env.CLICAST_PATH = clicastExecutablePath;
-
-      await prepareConfig(initialWorkdir);
-
-      const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
-      await promisifiedExec(createCFG);
+      // Other test cases with only one env.
+      await setupSingleEnv();
     }
 
-    const requestTutorialPath = path.join(
-      vectorcastDir,
-      "examples",
-      "RequirementsGW",
-      "CSV_Requirements_For_Tutorial.csv"
-    );
-    const commandPrefix = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc`;
-
-    const rgwPrepCommands = [
-      `${commandPrefix} option VCAST_REPOSITORY ${path.join(
+    /**
+     * Builds a single env based on VECTORCAST_DIR
+     */
+    async function setupSingleEnv() {
+      const initialWorkdir = process.env.INIT_CWD;
+      const vcastTutorialPath = path.join(
         initialWorkdir,
         "test",
         "vcastTutorial"
-      )}`,
-      `${commandPrefix} RGw INitialize`,
-      `${commandPrefix} Rgw Set Gateway CSV`,
-      `${commandPrefix} RGw Configure Set CSV csv_path ${requestTutorialPath}`,
-      `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
-      `${commandPrefix} RGw Configure Set CSV filter_attribute`,
-      `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
-      `${commandPrefix} RGw Configure Set CSV id_attribute ID`,
-      `${commandPrefix} RGw Configure Set CSV key_attribute Key`,
-      `${commandPrefix} RGw Configure Set CSV title_attribute Title `,
-      `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
-      `${commandPrefix} RGw Import`,
-    ];
-    for (const rgwPrepCommand of rgwPrepCommands) {
-      const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
-      if (stderr) {
-        console.log(stderr);
-        throw `Error when running ${rgwPrepCommand}`;
+      );
+      await rm(vcastTutorialPath, { recursive: true, force: true });
+
+      const logPath = path.join(initialWorkdir, "test", "log");
+      await rm(logPath, { recursive: true, force: true });
+      await mkdir(logPath, { recursive: true });
+
+      await mkdir(path.join(initialWorkdir, "test", "vcastTutorial"));
+      const extensionPath = path.join(initialWorkdir, "test", "extension");
+      await rm(extensionPath, { recursive: true, force: true });
+
+      const testResultsPath = path.join(initialWorkdir, "test_results");
+      await rm(testResultsPath, { recursive: true, force: true });
+
+      process.env.WORKSPACE_FOLDER = "vcastTutorial";
+
+      const testInputVcastTutorial = path.join(
+        initialWorkdir,
+        "test",
+        "test_input",
+        "vcastTutorial"
+      );
+
+      if (process.env.VECTORCAST_DIR) {
+        checkVPython =
+          process.platform == "win32" ? "where vpython" : "which vpython";
+
+        {
+          const { stdout, stderr } = await promisifiedExec(checkVPython);
+          if (stderr) {
+            console.log(stderr);
+            throw `Error when running ${checkVPython}`;
+          } else {
+            console.log(`vpython found in ${stdout}`);
+          }
+        }
+
+        checkClicast =
+          process.platform == "win32" ? "where clicast" : "which clicast";
+
+        {
+          const { stdout, stderr } = await promisifiedExec(checkClicast);
+          if (stderr) {
+            console.log(stderr);
+            throw `Error when running ${checkClicast}`;
+          } else {
+            clicastExecutablePath = stdout;
+            console.log(`clicast found in ${clicastExecutablePath}`);
+          }
+        }
+
+        process.env.CLICAST_PATH = clicastExecutablePath;
+
+        await prepareConfig(initialWorkdir);
+
+        const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
+        await promisifiedExec(createCFG);
+      } else {
+        // Add vpython path since every release path is deleted
+        const currentPath = process.env.PATH || "";
+        const newPath = path.join(
+          process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
+          "vpython"
+        );
+        process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
+        clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
+
+        process.env.CLICAST_PATH = clicastExecutablePath;
+
+        await prepareConfig(initialWorkdir);
+
+        const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
+        await promisifiedExec(createCFG);
       }
 
-      console.log(stdout);
-    }
+      const requestTutorialPath = path.join(
+        vectorcastDir,
+        "examples",
+        "RequirementsGW",
+        "CSV_Requirements_For_Tutorial.csv"
+      );
+      const commandPrefix = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc`;
 
-    const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
-    await mkdir(pathToTutorial, { recursive: true });
-    const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
-    const headerFilesToCopy = path.join(pathToTutorial, "*.h");
-
-    const examplesDir = path.join(initialWorkdir, "test", "examples");
-    const examplesToCopy = path.join(examplesDir, "*.cpp");
-    const codedTestsExamplesToCopy = path.join(
-      examplesDir,
-      "coded_tests",
-      "*.cpp"
-    );
-    // Copying didn't work with cp from fs
-    if (process.platform == "win32") {
-      await promisifiedExec(
-        `xcopy /s /i /y ${examplesToCopy} ${testInputEnvPath} > NUL 2> NUL`
-      );
-      await promisifiedExec(
-        `xcopy /s /i /y ${cppFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`
-      );
-      await promisifiedExec(
-        `xcopy /s /i /y ${headerFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`
-      );
-      await promisifiedExec(
-        `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`
-      );
-      await promisifiedExec(
-        `xcopy /s /i /y ${testInputVcastTutorial} ${path.join(
+      const rgwPrepCommands = [
+        `${commandPrefix} option VCAST_REPOSITORY ${path.join(
           initialWorkdir,
           "test",
           "vcastTutorial"
-        )}`
+        )}`,
+        `${commandPrefix} RGw INitialize`,
+        `${commandPrefix} Rgw Set Gateway CSV`,
+        `${commandPrefix} RGw Configure Set CSV csv_path ${requestTutorialPath}`,
+        `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
+        `${commandPrefix} RGw Configure Set CSV filter_attribute`,
+        `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,
+        `${commandPrefix} RGw Configure Set CSV id_attribute ID`,
+        `${commandPrefix} RGw Configure Set CSV key_attribute Key`,
+        `${commandPrefix} RGw Configure Set CSV title_attribute Title `,
+        `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
+        `${commandPrefix} RGw Import`,
+      ];
+      for (const rgwPrepCommand of rgwPrepCommands) {
+        const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${rgwPrepCommand}`;
+        }
+
+        console.log(stdout);
+      }
+
+      const pathToTutorial = path.join(vectorcastDir, "tutorial", "cpp");
+      await mkdir(pathToTutorial, { recursive: true });
+      const cppFilesToCopy = path.join(pathToTutorial, "*.cpp");
+      const headerFilesToCopy = path.join(pathToTutorial, "*.h");
+
+      const examplesDir = path.join(initialWorkdir, "test", "examples");
+      const examplesToCopy = path.join(examplesDir, "*.cpp");
+      const codedTestsExamplesToCopy = path.join(
+        examplesDir,
+        "coded_tests",
+        "*.cpp"
       );
-    } else {
-      await promisifiedExec(`cp ${examplesToCopy} ${testInputEnvPath}`);
-      await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
-      await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
-      await promisifiedExec(`cp ${codedTestsExamplesToCopy} ${codedTestsPath}`);
-      await promisifiedExec(
-        `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`
-      );
+      // Copying didn't work with cp from fs
+      if (process.platform == "win32") {
+        await promisifiedExec(
+          `xcopy /s /i /y ${examplesToCopy} ${testInputEnvPath} > NUL 2> NUL`
+        );
+        await promisifiedExec(
+          `xcopy /s /i /y ${cppFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`
+        );
+        await promisifiedExec(
+          `xcopy /s /i /y ${headerFilesToCopy} ${testInputEnvPath} > NUL 2> NUL`
+        );
+        await promisifiedExec(
+          `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`
+        );
+        await promisifiedExec(
+          `xcopy /s /i /y ${testInputVcastTutorial} ${path.join(
+            initialWorkdir,
+            "test",
+            "vcastTutorial"
+          )}`
+        );
+      } else {
+        await promisifiedExec(`cp ${examplesToCopy} ${testInputEnvPath}`);
+        await promisifiedExec(`cp ${cppFilesToCopy} ${testInputEnvPath}`);
+        await promisifiedExec(`cp ${headerFilesToCopy} ${testInputEnvPath}`);
+        await promisifiedExec(
+          `cp ${codedTestsExamplesToCopy} ${codedTestsPath}`
+        );
+        await promisifiedExec(
+          `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`
+        );
+      }
+
+      const extensionUnderTest = path.join(initialWorkdir, "test", "extension");
+      await mkdir(extensionUnderTest, { recursive: true });
+
+      const repoRoot = path.join(".", "..", "..", "..");
+      const foldersToCopy = [
+        "images",
+        "out",
+        "python",
+        "resources",
+        "supportFiles",
+        "syntax",
+      ];
+
+      if (process.platform == "win32") {
+        foldersToCopy.forEach(async (folderName) => {
+          const folderPath = path.join(repoRoot, folderName);
+          await promisifiedExec(
+            `xcopy /s /i /y ${folderPath} ${path.join(
+              extensionUnderTest,
+              folderName
+            )} > NUL 2> NUL`
+          );
+          await promisifiedExec(
+            `copy /y ${path.join(
+              repoRoot,
+              "package.json"
+            )} ${extensionUnderTest}`
+          );
+        });
+      } else {
+        foldersToCopy.forEach(async (folderName) => {
+          const folderPath = path.join(repoRoot, folderName);
+          await promisifiedExec(`cp -r ${folderPath} ${extensionUnderTest}`);
+        });
+        await promisifiedExec(
+          `cp ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
+        );
+      }
     }
 
-    const extensionUnderTest = path.join(initialWorkdir, "test", "extension");
-    await mkdir(extensionUnderTest, { recursive: true });
+    /**
+     * Builds multiple envs for release 23 and release 24
+     */
+    async function setupMultipleEnvironments() {
+      // Old and new VectorCAST versions
+      const vcastRoot = path.join(process.env.HOME, "vcast");
+      const oldVersion = "release23";
+      const newVersion = "release24";
 
-    const repoRoot = path.join(".", "..", "..", "..");
-    const foldersToCopy = [
-      "images",
-      "out",
-      "python",
-      "resources",
-      "supportFiles",
-      "syntax",
-    ];
+      // Total amount of envs to be build
+      const totalEnvCount = 4;
 
-    if (process.platform == "win32") {
-      foldersToCopy.forEach(async (folderName) => {
-        const folderPath = path.join(repoRoot, folderName);
-        await promisifiedExec(
-          `xcopy /s /i /y ${folderPath} ${path.join(
-            extensionUnderTest,
-            folderName
-          )} > NUL 2> NUL`
-        );
-        await promisifiedExec(
-          `copy /y ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
-        );
-      });
-    } else {
-      foldersToCopy.forEach(async (folderName) => {
-        const folderPath = path.join(repoRoot, folderName);
-        await promisifiedExec(`cp -r ${folderPath} ${extensionUnderTest}`);
-      });
-      await promisifiedExec(
-        `cp ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
-      );
+      const placeholder = "%%REPLACE%%";
+      const unit = "unit";
+
+      const workspacePath = path.join(__dirname, "vcastTutorial");
+      const envTemplate = path.join(workspacePath, "TEST.template");
+      const unitFile = path.join(workspacePath, "unit.cpp");
+
+      const envTemplateContent = `
+ENVIRO.NEW
+ENVIRO.NAME: ${placeholder}
+ENVIRO.STUB_BY_FUNCTION: ${unit}
+ENVIRO.WHITE_BOX: NO
+ENVIRO.VCDB_FILENAME:
+ENVIRO.COVERAGE_TYPE: NONE
+ENVIRO.LIBRARY_STUBS:
+ENVIRO.STUB: ALL_BY_PROTOTYPE
+ENVIRO.COMPILER: CC
+ENVIRO.SEARCH_LIST: .
+ENVIRO.END
+`;
+
+      // Write template and cpp to file
+      await writeFile(envTemplate, envTemplateContent.trim());
+      const unitFileContent = "void foo(void) {}";
+      await writeFile(unitFile, unitFileContent);
+
+      // Create correct dir for the tests
+      await mkdir(workspacePath, { recursive: true });
+
+      // Create envs and copy them to workspacePath
+      for (let i = 1; i <= totalEnvCount; i++) {
+        // ENV_0i
+        const envName = `ENV_${i.toString().padStart(2, "0")}`;
+        const envFile = path.join(workspacePath, `${envName}.env`);
+
+        const envContent = (await readFile(envTemplate))
+          .toString()
+          .replace(placeholder, envName);
+        await writeFile(envFile, envContent);
+
+        // Copy env and cpp file to testing dir
+        const destinationEnvFile = path.join(workspacePath, `${envName}.env`);
+        await copyFile(envFile, destinationEnvFile);
+
+        const destinationUnitFile = path.join(workspacePath, "unit.cpp");
+        await copyFile(unitFile, destinationUnitFile);
+      }
+
+      // Initial build with the old version
+      process.env.VCAST_FORCE_OVERWRITE_ENV_DIR = "1";
+      process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+
+      const createCFG = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP17_X`;
+      await promisifiedExec(createCFG);
+
+      // Build environments based on the iteration index
+      for (let i = 1; i <= totalEnvCount; i++) {
+        // ENV_0i
+        const envName = `ENV_${i.toString().padStart(2, "0")}`;
+        const envFile = path.join(workspacePath, `${envName}.env`);
+
+        // Switch VectorCAST version based on iteration (build 1,3 --> release 23, 2,4 --> release 24)
+        if (i % 2 === 0) {
+          process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+          console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
+        } else {
+          process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+          console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
+        }
+
+        const buildEnv = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc environment script run ${envFile}`;
+        try {
+          await promisifiedExec(buildEnv);
+          console.log(
+            `${envName} is getting built with: ${process.env.VECTORCAST_DIR}`
+          );
+        } catch (error) {
+          console.error(`Error building ${envName}:`, error);
+        }
+      }
+
+      // Clean up VSCode settings
+      const vscodeDir = path.join(workspacePath, ".vscode");
+      await rm(vscodeDir, { recursive: true, force: true });
+      await mkdir(vscodeDir, { recursive: true });
     }
 
     /**
@@ -583,7 +706,7 @@ ENVIRO.SEARCH_LIST: cpp
 ENVIRO.STUB_BY_FUNCTION: database
 ENVIRO.STUB_BY_FUNCTION: manager
 ENVIRO.END
-    `;
+      `;
       await writeFile(
         path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),
         envFile
@@ -750,3 +873,6 @@ ENVIRO.END
   // onReload: function(oldSessionId, newSessionId) {
   // }
 };
+function copyDirectory(sourceFile: string, destinationFile: string) {
+  throw new Error("Function not implemented.");
+}
