@@ -333,6 +333,8 @@ def main():
         -
     """
 
+    tstUtilities.ADD_HASH_TO_MOCK_FUNCTION_NAMES = True
+
     if (
         len(sys.argv) == 2
         and (env_name := sys.argv[1])
