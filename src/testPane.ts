@@ -45,6 +45,7 @@ import {
 
 import {
   deleteSingleTest,
+  getCBTNamesFromFile,
   getDataForEnvironment,
   loadTestScriptIntoEnvironment,
   refreshCodedTests,
@@ -795,9 +796,8 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
           }
         });
       } else {
-        const debugFileAsTextDoc = await vscode.workspace.openTextDocument(
-          launchJsonUri
-        );
+        const debugFileAsTextDoc =
+          await vscode.workspace.openTextDocument(launchJsonUri);
         vscode.window.showTextDocument(debugFileAsTextDoc, { preview: false });
         // Prompt the user for what to do next!
         vscode.window.showWarningMessage(
@@ -1206,17 +1206,7 @@ function computeChecksum(filePath: string): number {
   return crypto.createHash("md5").update(content, "utf8").digest("hex");
 }
 
-function getListOfTestsFromFile(filePath: string, enviroPath: string): any {
-  // this function calls the vTestInterface.py to get the list of tests from a cbt file
-
-  const commandToRun = getVcastInterfaceCommand(
-    vcastCommandType.parseCBT,
-    filePath
-  );
-  return getJsonDataFromTestInterface(commandToRun, enviroPath);
-}
-
-function addCodedTestfileToCache(
+async function addCodedTestfileToCache(
   enviroNodeID: string,
   functionNodeForCache: testNodeType
 ) {
@@ -1230,7 +1220,7 @@ function addCodedTestfileToCache(
     fileCacheData = {
       checksum: computeChecksum(functionNodeForCache.testFile),
       enviroNodeIDSet: new Set(),
-      testNames: getListOfTestsFromFile(
+      testNames: await getCBTNamesFromFile(
         functionNodeForCache.testFile,
         enviroPath
       ),
@@ -1275,7 +1265,7 @@ export async function updateCodedTestCases(editor: any) {
 
         // update newTestNames if we have not yet computed them ...
         if (!newTestNames) {
-          newTestNames = getListOfTestsFromFile(filePath, enviroPath);
+          newTestNames = await getCBTNamesFromFile(filePath, enviroPath);
         }
 
         vectorMessage(

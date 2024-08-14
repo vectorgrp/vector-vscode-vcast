@@ -284,6 +284,36 @@ export async function dumptestScriptFile(
   return commandStatus;
 }
 
+// Get CBT Test Names - server logic included ----------------------------------------
+export async function getCBTNamesFromFile(
+  filePath: string,
+  enviroPath: string
+): Promise<any> {
+  // this function will return the CBT test names as a JSON object
+  // containing a "tests" field that is a list of
+
+  let returnData;
+  if (globalEnviroDataServerActive) {
+    const requestObject = getClientRequestObject(
+      vcastCommandType.parseCBT,
+      filePath
+    );
+
+    let transmitResponse: transmitResponseType =
+      await transmitCommand(requestObject);
+
+    returnData = transmitResponse.returnData.data;
+  } else {
+    const commandToRun = getVcastInterfaceCommand(
+      vcastCommandType.parseCBT,
+      filePath
+    );
+    returnData = getJsonDataFromTestInterface(commandToRun, enviroPath);
+  }
+
+  return returnData;
+}
+
 // Refresh Coded Test List From File - server logic included -------------------------
 export async function refreshCodedTests(
   enviroPath: string,
@@ -507,9 +537,8 @@ async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
     path: enviroPath,
   };
 
-  let transmitResponse: transmitResponseType = await transmitCommand(
-    requestObject
-  );
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
 
   // tansmitResponse.returnData is an object with exitCode and data properties
   // for getEnviroData we might have a version missmatch if the enviro is newer
@@ -575,9 +604,8 @@ async function executeTestViaServer(
     nodeID
   );
 
-  let transmitResponse: transmitResponseType = await transmitCommand(
-    requestObject
-  );
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
 
   return convertServerResponseToCommandStatus(transmitResponse);
 }
@@ -624,9 +652,8 @@ async function getTestExecutionReportFromServer(
     nodeID
   );
 
-  let transmitResponse: transmitResponseType = await transmitCommand(
-    requestObject
-  );
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
 
   return convertServerResponseToCommandStatus(transmitResponse);
 }

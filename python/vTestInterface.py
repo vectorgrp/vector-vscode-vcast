@@ -457,7 +457,7 @@ def getResults(enviroPath, testIDObject):
 
 def getCodeBasedTestNames(filePath):
     """
-    This function will use the same file parser that the vcast
+    This function will use the same file parser that vcast
     uses to extract the test names from the CBT file.  It will return
     a list of dictionaries that contain the test name, the file path
     and the starting line for he test

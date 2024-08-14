@@ -401,7 +401,7 @@ export function getVcastInterfaceCommand(
 
 export function getClientRequestObject(
   command: vcastCommandType,
-  enviroPath: string,
+  path: string,
   testID: string = ""
 ): clientRequestType {
   //
@@ -414,7 +414,7 @@ export function getClientRequestObject(
   const requestObject: clientRequestType = {
     command: command,
     clicast: clicastCommandToUse,
-    path: enviroPath,
+    path: path,
     test: testArgWitoutQuotes,
   };
 
