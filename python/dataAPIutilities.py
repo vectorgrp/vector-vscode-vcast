@@ -8,8 +8,11 @@ from string import Template
 # Tag for the init, which we want to ignore
 TAG_FOR_INIT = "<<INIT>>"
 
+# Coded Test Subprogram Name
+CODED_TEST_SUBPROGRAM_NAME = "coded_tests_driver"
+
 # list of functions not to be shown in the functions list
-FUNCTIONS_TO_IGNORE = {"coded_tests_driver", TAG_FOR_INIT}
+FUNCTIONS_TO_IGNORE = {CODED_TEST_SUBPROGRAM_NAME, TAG_FOR_INIT}
 
 
 def functionCanBeMocked(functionObject):
