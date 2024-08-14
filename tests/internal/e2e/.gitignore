@@ -9,3 +9,6 @@ trace
 test/*.tar.gz
 test/*.log
 test/test_input
+test/vcastTutorial
+test_results
+test/*.js

@@ -3,7 +3,8 @@
 import path from "node:path";
 import { URL } from "node:url";
 import { exec } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile, rename, access } from "node:fs/promises";
+import { createWriteStream } from "node:fs";  
 import { promisify } from "node:util";
 import {
   type ProxyTypes,
@@ -78,6 +79,35 @@ const proxyObject: ProxyObject = {
 import { getSpecs } from "./specs_config";
 const groupName =
   process.env["RUN_BY_GROUP"] === "True" ? process.env["RUN_GROUP_NAME"] : null;
+
+
+
+import axios from "axios"
+
+async function downloadFile (url: string, path: string) {
+  const response = await axios({
+    method: 'GET',
+    url: url,
+    responseType: 'stream',
+  });
+
+const fileStream = createWriteStream(path);
+  await new Promise((resolve, reject) => {
+      response.data.pipe(fileStream);
+      response.data.on("error", reject);
+      fileStream.on("finish", resolve);
+  });
+};
+
+async function checkFileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 
 export const config: Options.Testrunner = {
   //
@@ -349,6 +379,46 @@ export const config: Options.Testrunner = {
       "vcastTutorial"
     );
 
+    
+    // downloading vs-code and chromedriver manually in order to support testing on older VS-Code versions
+    // see the diff and discussion on https://github.com/webdriverio-community/wdio-vscode-service/pull/105
+    if (process.platform == "win32" && process.env.GITHUB_ACTIONS !== "true"){
+      
+      
+      const pathToVscodeFolder = path.join(initialWorkdir, ".wdio-vscode-service");
+      const pathToChromedriverFolder = path.join(initialWorkdir, "test",".wdio-vscode-service");
+      
+      mkdir(pathToVscodeFolder,{recursive:true});
+      mkdir(pathToChromedriverFolder,{recursive:true});
+      const chromedriverExists = await checkFileExists(path.join(pathToChromedriverFolder, "chromedriver-108.0.5359.71.exe"));
+      const vscodeExists = await checkFileExists(path.join(pathToVscodeFolder, "vscode-win32-x64-archive-1.78.0", "Code.exe"));
+      if (!vscodeExists){
+        console.log("Downloading VS-Code");
+        await downloadFile(
+          "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast_test_explorer/vscode-win32-x64-archive-1.78.0.zip", 
+          path.join(pathToVscodeFolder, "vscode-win32-x64-archive-1.78.0.zip")
+        );
+      }
+      if (!chromedriverExists){
+          console.log("Downloading Chromedriver");
+          await downloadFile(
+          "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast_test_explorer/chromedriver_win32.zip", 
+          path.join(initialWorkdir, "test", ".wdio-vscode-service", "chromedriver_win32.zip")
+        );
+      }
+      
+      try {
+        const extract = require('extract-zip');
+        await extract(path.join(pathToVscodeFolder, "vscode-win32-x64-archive-1.78.0.zip"), { dir: pathToVscodeFolder });
+        await extract(path.join(pathToChromedriverFolder, "chromedriver_win32.zip"), { dir: pathToChromedriverFolder });
+        await rename(path.join(pathToChromedriverFolder, "chromedriver.exe"), path.join(pathToChromedriverFolder, "chromedriver-108.0.5359.71.exe"));
+        console.log('VS-Code and Chromedriver extraction complete');
+      } catch (err) {
+        console.error(err)
+      }
+  
+    }
+    
     if (process.env.VECTORCAST_DIR) {
       checkVPython =
         process.platform == "win32" ? "where vpython" : "which vpython";

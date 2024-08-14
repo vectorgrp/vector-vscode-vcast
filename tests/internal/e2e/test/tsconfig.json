@@ -10,6 +10,7 @@
     ],
     "target": "es2019",
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true
   }
 }
