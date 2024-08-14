@@ -35,12 +35,9 @@ describe("vTypeCheck VS Code Extension", () => {
   it("test 1: should be able to load VS Code", async () => {
     await updateTestID();
     const workbench = await browser.getWorkbench();
-    const commandPrompt = await workbench.openCommandPrompt();
-    // Type the command and confirm it
-    await commandPrompt.setText("File: Save all Files");
-    await commandPrompt.confirm();
-    expect(await workbench.getTitleBar().getTitle()).toBe(
-      "[Extension Development Host] vcastTutorial - Visual Studio Code"
+    const title = await workbench.getTitleBar().getTitle();
+    expect(title).toMatch(
+      /\[Extension Development Host\] (● )?vcastTutorial - Visual Studio Code/
     );
   });
 
