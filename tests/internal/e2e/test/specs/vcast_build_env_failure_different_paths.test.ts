@@ -102,6 +102,8 @@ describe("vTypeCheck VS Code Extension", () => {
       vcastTestingViewContent
     );
 
+    console.log("VC_DIR IN TEST");
+    console.log(process.env.VECTORCAST_DIR);
     // Expand and check ENV_01 and ENV_03 exist and ENV_02 and ENV_04 not
     env1Item = await expandTopEnvInTestPane(
       "ENV_23_01",
@@ -128,11 +130,20 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should change to release 24 and confirm the presence of ENV_24_02 and ENV_24_04", async () => {
     // Release 24
-    const vcastRoot = path.join(process.env.HOME, "vcast");
+    await updateTestID();
+
+    // Check if we are on CI
+    let vcastRoot: string;
+    if (process.env.HOME.startsWith("/github")) {
+      vcastRoot = "/vcast";
+    } else {
+      // Assuming that locally release is on this path.
+      vcastRoot = path.join(process.env.HOME, "vcast");
+    }
+
     const newVersion = "release24";
     const release24Path = path.join(vcastRoot, newVersion);
 
-    await updateTestID();
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
@@ -151,34 +162,46 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Ignore ENV_01
     await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Ignoring environment"),
+      async () => {
+        const outputText = (await outputView.getText()).toString();
+        return (
+          outputText.includes("Ignoring environment") &&
+          outputText.includes("ENV_23_01")
+        );
+      },
       { timeout: TIMEOUT }
     );
     // Build ENV_02
     await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Processing environment"),
+      async () => {
+        const outputText = (await outputView.getText()).toString();
+        return (
+          outputText.includes("Processing environment") &&
+          outputText.includes("ENV_24_02")
+        );
+      },
       { timeout: TIMEOUT }
     );
     // Ignore ENV_03
     await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Ignoring environment"),
+      async () => {
+        const outputText = (await outputView.getText()).toString();
+        return (
+          outputText.includes("Ignoring environment") &&
+          outputText.includes("ENV_23_03")
+        );
+      },
       { timeout: TIMEOUT }
     );
     // Build ENV_04
     await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Processing environment"),
+      async () => {
+        const outputText = (await outputView.getText()).toString();
+        return (
+          outputText.includes("Processing environment") &&
+          outputText.includes("ENV_24_04")
+        );
+      },
       { timeout: TIMEOUT }
     );
 

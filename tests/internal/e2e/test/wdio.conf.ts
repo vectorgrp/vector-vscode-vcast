@@ -615,6 +615,8 @@ ENVIRO.END
         }
       }
 
+      process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+
       // Clean up VSCode settings
       const vscodeDir = path.join(workspacePath, ".vscode");
       await rm(vscodeDir, { recursive: true, force: true });
