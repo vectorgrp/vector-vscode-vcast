@@ -515,8 +515,9 @@ export const config: Options.Testrunner = {
 
       // Check if we are on CI
       if (process.env.HOME.startsWith("/github")) {
-        vcastRoot = "vcast";
+        vcastRoot = "/vcast";
       } else {
+        // Assuming that locally release is on this path.
         vcastRoot = path.join(process.env.HOME, "vcast");
       }
 
