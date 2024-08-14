@@ -20,10 +20,7 @@ import {
 import { choiceKindType, getChoiceDataFromPython } from "./pythonUtilities";
 
 function filterArray(currentArray: string[], whatToRemove: string) {
-  const index = currentArray.indexOf(whatToRemove);
-  if (index > -1) {
-    currentArray.splice(index, 1); // 2nd parameter means remove one item only
-  }
+  return currentArray.filter((element) => element !== whatToRemove);
 }
 
 export function getTstCompletionData(
@@ -93,7 +90,7 @@ export function getTstCompletionData(
         choiceArray = choiceArray.concat(choiceData.choiceList);
         choiceKind = convertKind(choiceData.choiceKind);
         // <<GLOBAL>> is valid on VALUE lines but not as a function name!
-        filterArray(choiceArray, "<<GLOBAL>>");
+        choiceArray = filterArray(choiceArray, "<<GLOBAL>>");
       }
       return completionList(choiceArray, choiceKind);
     } else if (upperCaseLine.startsWith("TEST.SLOT:")) {
