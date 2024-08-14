@@ -20,8 +20,7 @@ export type HoverPosition = {
 export function generateHoverData(
   tstText: string,
   position: HoverPosition,
-  envName?: string,
-  emptyDocument?: boolean
+  envName?: string
 ) {
   envName ||= "vcast";
 
@@ -39,9 +38,9 @@ export function generateHoverData(
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
-  const documents = new TextDocuments();
 
-  storeNewDocument(documents, uri, emptyDocument ? undefined : textDocument);
+  const documents = new TextDocuments();
+  storeNewDocument(documents, uri, textDocument);
 
   const completion = asHoverParameters(textDocument, position);
 
@@ -54,8 +53,8 @@ export function generateHoverData(
     "vpython"
   );
 
-  if (documents.all()?.[0]) {
-    console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
+  if (textDocument) {
+    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
   }
 
   return getHoverString(documents, completion);
@@ -87,13 +86,11 @@ export type CompletionPosition = {
   character: number;
 };
 
-// eslint-disable-next-line max-params
 export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
-  envName?: string,
-  emptyDocument?: boolean
+  envName?: string
 ) {
   envName ||= "vcast";
   const languageId = "VectorCAST Test Script";
@@ -110,10 +107,6 @@ export function generateCompletionData(
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
-  const documents = new TextDocuments();
-
-  storeNewDocument(documents, uri, emptyDocument ? undefined : textDocument);
-
   const completion = asCompletionParameters(
     textDocument,
     position,
@@ -128,11 +121,9 @@ export function generateCompletionData(
     "vpython"
   );
 
-  if (documents.all()?.[0]) {
-    console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
-  }
+  console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
 
-  return getTstCompletionData(documents, completion);
+  return getTstCompletionData(textDocument, completion);
 }
 
 export function asCompletionParameters(

@@ -7,6 +7,8 @@ import * as vscode from "vscode";
 
 import { Position, Range, Uri, TestMessage } from "vscode";
 
+import { sendTestFileDataToLanguageServer } from "./client";
+
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
 import { updateTestDecorator } from "./editorDecorator";
@@ -26,7 +28,7 @@ import {
   addTestNodeToCache,
   clearTestNodeCache,
   compoundOnlyString,
-  createTestNodeinCache,
+  createTestNodeInCache,
   duplicateTestNode,
   getEnviroPathFromID,
   getEnviroNodeIDFromID,
@@ -54,7 +56,6 @@ import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
 import {
   getEnviroDataFromPython,
-  getResultFileForTest,
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
@@ -102,6 +103,7 @@ function addTestNodes(
       time: testList[testIndex].time,
       notes: testList[testIndex].notes,
       resultFilePath: "",
+      stdout: "",
       compoundOnly: testList[testIndex].compoundOnly,
       testFile: testList[testIndex].codedTestFile || "",
       testStartLine: testList[testIndex].codedTestLine || 1,
@@ -174,14 +176,15 @@ const codedTestFunctionName = "coded_tests_driver";
 // leading space is intentional to force it to the top of the list
 const codedTestDisplayName = " Coded Tests";
 function processVCtestData(
+  enviroPath: string,
   enviroNodeID: string,
   enviroNode: vcastTestItem,
-  enviroData: any
+  jsonData: any
 ) {
   // enviroNodeID, is the parent of the nodes to be added here
 
   // The top level of the JSON is an array ...
-  const unitList = enviroData.testData;
+  const unitList = jsonData.testData;
   for (const unitData of unitList) {
     const unitNodeID = `${enviroNodeID}|${unitData.name}`;
 
@@ -227,11 +230,26 @@ function processVCtestData(
           functionNodeForCache
         );
 
+        // if the function we are processing is the coded test driver
+        // and if there is a test file associated with it ...
         if (
           functionName == codedTestFunctionName &&
           functionNodeForCache.testFile.length > 0
         ) {
           addCodedTestfileToCache(enviroNodeID, functionNodeForCache);
+
+          // we need to tell the language server about the test file to
+          // environment mapping, including whether or not the environment
+          // has coded mock support
+
+          const enviroHasMockSupport = jsonData.enviro.mockingSupport;
+          const testFilePath = functionNodeForCache.testFile;
+
+          sendTestFileDataToLanguageServer(
+            testFilePath,
+            functionNodeForCache.enviroPath,
+            enviroHasMockSupport
+          );
         }
 
         unitNode.children.add(functionNode);
@@ -357,7 +375,7 @@ export function updateTestsForEnvironment(
     // when the VectorCAST context menu should be shown
     const enviroNodeID: string = "vcast:" + enviroDisplayName;
 
-    createTestNodeinCache(enviroNodeID, enviroPath, path.basename(enviroPath));
+    createTestNodeInCache(enviroNodeID, enviroPath, path.basename(enviroPath));
 
     // crateTestItem, takes ID,Label, the ID must be unique, so
     // we add a _index-value to it ...
@@ -367,8 +385,7 @@ export function updateTestsForEnvironment(
     );
     enviroNode.nodeKind = nodeKind.enviro;
 
-    // if we have data
-    processVCtestData(enviroNodeID, enviroNode, jsonData);
+    processVCtestData(enviroPath, enviroNodeID, enviroNode, jsonData);
 
     // this is used by the package.json to control content (right click) menu choices
     if (!vcastEnviroList.includes(enviroNodeID)) {
@@ -397,7 +414,7 @@ async function loadAllVCTests(
   progress: vscode.Progress<{ message?: string; increment?: number }>,
   token: vscode.CancellationToken
 ) {
-  // loads all vcast test environemnts found in the workspace
+  // loads all vcast test environments found in the workspace
 
   // throw away the existing items
   globalController.items.replace([]);
@@ -438,7 +455,7 @@ async function loadAllVCTests(
           break;
         }
         updateTestsForEnvironment(enviroPath, workspaceRoot);
-      } // for each enviropath
+      } // for each environment path
       if (cancelled) {
         break;
       }
@@ -822,7 +839,7 @@ export async function runNode(
 
   // this does the actual work of running the test
   const enviroPath = getEnviroPathFromID(node.id);
-  return runVCTest(enviroPath, node.id, generateReport).then((status) => {
+  return runVCTest(enviroPath, node.id).then((status) => {
     if (status == testStatus.didNotRun) {
       run.skipped(node);
     } else if (status == testStatus.compileError) {
@@ -839,19 +856,26 @@ export async function runNode(
       if (status == testStatus.passed) {
         run.passed(node);
       } else if (status == testStatus.failed) {
-        const textFilePath = getResultFileForTest(node.id);
+        const currentTestData = globalTestStatusArray[node.id];
 
-        // find the summary line that starts with "Expected Results", and add to testMessage
-        const lines = fs.readFileSync(textFilePath, "utf-8").split("\n");
-        let failMessage: TestMessage = new TestMessage("");
-        for (let line of lines) {
-          // start of line, any number of spaces, search text ...
-          if (/^\s*Expected Results matched.*/.test(line)) {
-            // remove the EOL and squash multiple spaces into 1
-            failMessage = new TestMessage(line.trimEnd().replace(/\s+/g, " "));
-            break;
-          }
+        // convert the pass fail string from the current test data into a message
+        // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
+        // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
+
+        // We have seen the passfail string be empty so guard i
+        // against that and any malformed strings
+        let failMessageText = "";
+        try {
+          const xofy = currentTestData.passfail.split("(")[0].trim();
+          const percentage = currentTestData.passfail
+            .split("(")[1]
+            .split(")")[0]
+            .trim();
+          failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
+        } catch {
+          failMessageText = "No expected results exist";
         }
+        const failMessage = new TestMessage(failMessageText);
         run.failed(node, failMessage);
       }
 
@@ -1159,7 +1183,7 @@ interface codedTestFileDataType {
 // the key is the coded test file path, the value is a codedTestFileDataType
 let codedTestFileCache: Map<string, codedTestFileDataType> = new Map();
 
-// This map is used to cache the list of coded test file in an environment.
+// This map is used to cache the list of coded test files in an environment.
 // we use this when we change an environment to know what cbt files are affected
 // the key is the enviroNodeID, the value is the list of cbt files
 let enviroToCBTfilesCache: Map<string, Set<string>> = new Map();
@@ -1224,7 +1248,7 @@ function addCodedTestfileToCache(
   fileCacheData.enviroNodeIDSet.add(enviroNodeID);
   codedTestFileCache.set(functionNodeForCache.testFile, fileCacheData);
 
-  // we also need to add this cbt file to the enviro cache
+  // we also need to add this Coded Test file to the enviro cache
   let enviroCacheData: Set<string> | undefined =
     enviroToCBTfilesCache.get(enviroNodeID);
   if (enviroCacheData == undefined) {
@@ -1241,12 +1265,12 @@ export function updateCodedTestCases(editor: any) {
   // update the environment and then update the tree.  If the file changed
   // but the tests did not change we will only ask clicast to re-load the file
 
-  // if this file is a coded test file for any enviornment in the workspace
+  // if this file is a coded test file for any environment in the workspace
   const filePath = editor.fileName;
   const codedTestFileData: codedTestFileDataType | undefined =
     codedTestFileCache.get(filePath);
   if (codedTestFileData) {
-    // then check if the file has changed (checksum is differnt)
+    // then check if the file has changed (checksum is different)
     // if it hasn't then we're done
     const currentChecksum = computeChecksum(filePath);
     if (currentChecksum != codedTestFileData.checksum) {

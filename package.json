@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -270,7 +270,7 @@
             ],
             "order": 1,
             "default": "Statement",
-            "description": "Sets the coveage kind when building a new environments"
+            "description": "Sets the coverage kind when building a new environments"
           },
           "vectorcastTestExplorer.build.enableCodedTesting": {
             "type": "boolean",
@@ -591,7 +591,15 @@
     "snippets": [
       {
         "language": "vcast.tst",
-        "path": "./syntax/snippets.json"
+        "path": "./syntax/tst.json"
+      },
+      {
+        "language": "c",
+        "path": "./syntax/mock.json"
+      },
+      {
+        "language": "cpp",
+        "path": "./syntax/mock.json"
       }
     ]
   },

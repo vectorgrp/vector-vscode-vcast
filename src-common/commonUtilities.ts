@@ -4,6 +4,11 @@
 const fs = require("fs");
 const path = require("path");
 
+export interface enviroDataType {
+  enviroPath: string;
+  hasMockSupport: boolean;
+}
+
 const enviroNameRegEx = /--.*Environment.*:(.*)/;
 export function getEnviroNameFromScript(
   testScriptPath: string
@@ -22,7 +27,7 @@ export function getEnviroNameFromScript(
   return enviroName;
 }
 
-// Initially I thought I needed to get multiple option, so I implemented this way to make that easy
+// Initially I thought I needed to get multiple options, so I implemented it this way to make that easy
 // but it turns out that I did not really need the SOURCE_EXTENSION ... but I am leaving this as an example
 
 export interface cfgOptionType {
