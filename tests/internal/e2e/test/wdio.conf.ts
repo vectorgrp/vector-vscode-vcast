@@ -322,40 +322,74 @@ export const config: Options.Testrunner = {
     let checkVPython: string;
     let checkClicast: string;
     const promisifiedExec = promisify(exec);
+    const initialWorkdir = process.env.INIT_CWD;
+    const vcastTutorialPath = path.join(
+      initialWorkdir,
+      "test",
+      "vcastTutorial"
+    );
+    await rm(vcastTutorialPath, { recursive: true, force: true });
+
+    const logPath = path.join(initialWorkdir, "test", "log");
+    await rm(logPath, { recursive: true, force: true });
+    await mkdir(logPath, { recursive: true });
+
+    await mkdir(path.join(initialWorkdir, "test", "vcastTutorial"));
+    const extensionPath = path.join(initialWorkdir, "test", "extension");
+    await rm(extensionPath, { recursive: true, force: true });
+
+    const testResultsPath = path.join(initialWorkdir, "test_results");
+    await rm(testResultsPath, { recursive: true, force: true });
+
+    process.env.WORKSPACE_FOLDER = "vcastTutorial";
 
     // Specific test case to build multiple envs.
     if (process.env.BUILD_MULTIPLE_ENVS) {
       await setupMultipleEnvironments();
     } else {
-      // Other test cases with only one env.
-      await setupSingleEnv();
+      await setupSingleEnvironment(initialWorkdir);
+    }
+
+    const extensionUnderTest = path.join(initialWorkdir, "test", "extension");
+    await mkdir(extensionUnderTest, { recursive: true });
+
+    const repoRoot = path.join(".", "..", "..", "..");
+    const foldersToCopy = [
+      "images",
+      "out",
+      "python",
+      "resources",
+      "supportFiles",
+      "syntax",
+    ];
+
+    if (process.platform == "win32") {
+      foldersToCopy.forEach(async (folderName) => {
+        const folderPath = path.join(repoRoot, folderName);
+        await promisifiedExec(
+          `xcopy /s /i /y ${folderPath} ${path.join(
+            extensionUnderTest,
+            folderName
+          )} > NUL 2> NUL`
+        );
+        await promisifiedExec(
+          `copy /y ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
+        );
+      });
+    } else {
+      foldersToCopy.forEach(async (folderName) => {
+        const folderPath = path.join(repoRoot, folderName);
+        await promisifiedExec(`cp -r ${folderPath} ${extensionUnderTest}`);
+      });
+      await promisifiedExec(
+        `cp ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
+      );
     }
 
     /**
-     * Builds a single env based on VECTORCAST_DIR
+     * Builds one env for based on VECTORCAST_DIR.
      */
-    async function setupSingleEnv() {
-      const initialWorkdir = process.env.INIT_CWD;
-      const vcastTutorialPath = path.join(
-        initialWorkdir,
-        "test",
-        "vcastTutorial"
-      );
-      await rm(vcastTutorialPath, { recursive: true, force: true });
-
-      const logPath = path.join(initialWorkdir, "test", "log");
-      await rm(logPath, { recursive: true, force: true });
-      await mkdir(logPath, { recursive: true });
-
-      await mkdir(path.join(initialWorkdir, "test", "vcastTutorial"));
-      const extensionPath = path.join(initialWorkdir, "test", "extension");
-      await rm(extensionPath, { recursive: true, force: true });
-
-      const testResultsPath = path.join(initialWorkdir, "test_results");
-      await rm(testResultsPath, { recursive: true, force: true });
-
-      process.env.WORKSPACE_FOLDER = "vcastTutorial";
-
+    async function setupSingleEnvironment(initialWorkdir: string) {
       const testInputVcastTutorial = path.join(
         initialWorkdir,
         "test",
@@ -493,45 +527,6 @@ export const config: Options.Testrunner = {
         );
         await promisifiedExec(
           `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`
-        );
-      }
-
-      const extensionUnderTest = path.join(initialWorkdir, "test", "extension");
-      await mkdir(extensionUnderTest, { recursive: true });
-
-      const repoRoot = path.join(".", "..", "..", "..");
-      const foldersToCopy = [
-        "images",
-        "out",
-        "python",
-        "resources",
-        "supportFiles",
-        "syntax",
-      ];
-
-      if (process.platform == "win32") {
-        foldersToCopy.forEach(async (folderName) => {
-          const folderPath = path.join(repoRoot, folderName);
-          await promisifiedExec(
-            `xcopy /s /i /y ${folderPath} ${path.join(
-              extensionUnderTest,
-              folderName
-            )} > NUL 2> NUL`
-          );
-          await promisifiedExec(
-            `copy /y ${path.join(
-              repoRoot,
-              "package.json"
-            )} ${extensionUnderTest}`
-          );
-        });
-      } else {
-        foldersToCopy.forEach(async (folderName) => {
-          const folderPath = path.join(repoRoot, folderName);
-          await promisifiedExec(`cp -r ${folderPath} ${extensionUnderTest}`);
-        });
-        await promisifiedExec(
-          `cp ${path.join(repoRoot, "package.json")} ${extensionUnderTest}`
         );
       }
     }
