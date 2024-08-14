@@ -319,8 +319,8 @@ export const config: Options.Testrunner = {
     let clicastExecutablePath: string;
     let testInputEnvPath: string;
     let codedTestsPath: string;
-    let checkVPython: string;
-    let checkClicast: string;
+    // let checkVPython: string;
+    // let checkClicast: string;
     const promisifiedExec = promisify(exec);
     const initialWorkdir = process.env.INIT_CWD;
     const vcastTutorialPath = path.join(
@@ -398,32 +398,8 @@ export const config: Options.Testrunner = {
       );
 
       if (process.env.VECTORCAST_DIR) {
-        checkVPython =
-          process.platform == "win32" ? "where vpython" : "which vpython";
-
-        {
-          const { stdout, stderr } = await promisifiedExec(checkVPython);
-          if (stderr) {
-            console.log(stderr);
-            throw `Error when running ${checkVPython}`;
-          } else {
-            console.log(`vpython found in ${stdout}`);
-          }
-        }
-
-        checkClicast =
-          process.platform == "win32" ? "where clicast" : "which clicast";
-
-        {
-          const { stdout, stderr } = await promisifiedExec(checkClicast);
-          if (stderr) {
-            console.log(stderr);
-            throw `Error when running ${checkClicast}`;
-          } else {
-            clicastExecutablePath = stdout;
-            console.log(`clicast found in ${clicastExecutablePath}`);
-          }
-        }
+        await checkVPython();
+        clicastExecutablePath = await checkClicast();
 
         process.env.CLICAST_PATH = clicastExecutablePath;
 
@@ -535,8 +511,15 @@ export const config: Options.Testrunner = {
      * Builds multiple envs for release 23 and release 24
      */
     async function setupMultipleEnvironments() {
-      // Old and new VectorCAST versions
-      const vcastRoot = path.join(process.env.HOME, "vcast");
+      let vcastRoot: string;
+
+      // Check if we are on CI
+      if (process.env.HOME.startsWith("/github")) {
+        vcastRoot = "vcast";
+      } else {
+        vcastRoot = path.join(process.env.HOME, "vcast");
+      }
+
       const oldVersion = "release23";
       const newVersion = "release24";
 
@@ -620,6 +603,7 @@ ENVIRO.END
 
         const envFile = path.join(workspacePath, `${envName}.env`);
         const buildEnv = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc environment script run ${envFile}`;
+
         try {
           await promisifiedExec(buildEnv);
           console.log(
@@ -712,6 +696,48 @@ ENVIRO.END
         path.join(testInputVcastTutorial, "DATABASE-MANAGER-test.env"),
         envFile
       );
+    }
+
+    /**
+     * Checks if the `vpython` executable is available in the system's PATH.
+     *
+     * @throws {Error} If `vpython` is not found or there is a command error.
+     */
+    async function checkVPython(): Promise<void> {
+      let checkVPython =
+        process.platform == "win32" ? "where vpython" : "which vpython";
+
+      {
+        const { stdout, stderr } = await promisifiedExec(checkVPython);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${checkVPython}`;
+        } else {
+          console.log(`vpython found in ${stdout}`);
+        }
+      }
+    }
+
+    /**
+     * Checks if the `clicast` executable is available in the system's PATH.
+     *
+     * @returns {Promise<string>} Path to the `clicast` executable.
+     * @throws {Error} If `clicast` is not found or there is a command error.
+     */
+    async function checkClicast(): Promise<string> {
+      let checkClicast =
+        process.platform == "win32" ? "where clicast" : "which clicast";
+
+      {
+        const { stdout, stderr } = await promisifiedExec(checkClicast);
+        if (stderr) {
+          console.log(stderr);
+          throw `Error when running ${checkClicast}`;
+        } else {
+          console.log(`clicast found in ${clicastExecutablePath}`);
+          return stdout;
+        }
+      }
     }
   },
   /**
