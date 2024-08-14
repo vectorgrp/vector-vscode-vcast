@@ -110,6 +110,9 @@ export function getSpecGroups(useVcast24: boolean) {
   return specGroups;
 }
 
+export function getSpecGroupsNames(useVcast24: boolean){
+  return Object.keys(getSpecGroups(useVcast24))
+}
 /**
  * Returns the spec groups including their env variables and handles group params.
  * @param useVcast24 Boolean whether release 24 is used or not.

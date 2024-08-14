@@ -30,7 +30,23 @@ if "%USE_VCAST_24%"=="True" (
 )
 
 call :set_specs_params
-npx wdio run test/wdio.conf.ts
+
+if "%RUN_GROUP_NAME%" == "ALL" (
+  for %%a in (%ALL_GROUP_NAMES%) do (
+    echo Running %%a
+    set RUN_GROUP_NAME=%%a
+    npx wdio run test/wdio.conf.ts
+    
+    if %ERRORLEVEL% NEQ 0 (
+    echo Error occurred, stopping the script.
+    exit /B 1
+    )
+  )
+)
+else (
+  npx wdio run test/wdio.conf.ts
+)
+
 echo Done calling wdio
 set PATH=%OLD_PATH%
 del "%JS_FILE%" 
@@ -58,14 +74,23 @@ del "%SPECS_CONFIG_FILE%"
     exit /b 1
   )
 
-  REM Extract environment variables for the given group using the compiled JavaScript file
-  echo Extract environment variables for the given group using the compiled JavaScript file
-  node %JS_FILE%
-  for /f "delims=" %%i in ('node %JS_FILE%') do (
-    set %%i
-    echo %%i
+  if "%RUN_GROUP_NAME%" == "ALL" (
+    echo Getting group names
+    set ALL_GROUP_NAMES=
+    for /f "delims=" %%i in ('node %JS_FILE%') do (
+      set ALL_GROUP_NAMES=%%i,%ALL_GROUP_NAMES%
+    )
+    echo finished setting group names
+    echo %ALL_GROUP_NAMES%
+  ) else (
+    REM Extract environment variables for the given group using the compiled JavaScript file
+    echo Extract environment variables for the given group using the compiled JavaScript file
+    node %JS_FILE%
+    for /f "delims=" %%i in ('node %JS_FILE%') do (
+      set %%i
+      echo %%i
+    )
   )
-  
   exit /b 0
   
 :activate_24_release
