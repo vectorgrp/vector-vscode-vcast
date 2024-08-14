@@ -594,8 +594,15 @@ ENVIRO.END
       process.env.VCAST_FORCE_OVERWRITE_ENV_DIR = "1";
       process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
 
-      const createCFG = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP17_X`;
-      await promisifiedExec(createCFG);
+      const createCFG = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP_X`;
+      try {
+        await promisifiedExec(createCFG);
+        console.log(
+          `Config is getting built with: ${process.env.VECTORCAST_DIR}`
+        );
+      } catch (error) {
+        console.error(`Error building Config:`, error);
+      }
 
       // Build environments based on the iteration index
       for (let i = 1; i <= totalEnvCount; i++) {
