@@ -3,7 +3,7 @@ import process from "node:process";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { rm, mkdir, copyFile } from "node:fs/promises";
-import fs from "node:fs";
+import { getToolVersion } from "./utils";
 
 module.exports = async () => {
   const promisifiedExec = promisify(exec);
@@ -88,14 +88,7 @@ module.exports = async () => {
 
   console.log(stdoutClicast);
 
-  // Construct the path to the tool_version.txt file
-  const toolVersionPath = path.join(
-    clicastExecutablePath,
-    "..",
-    "DATA",
-    "tool_version.txt"
-  );
-  const toolVersion = fs.readFileSync(toolVersionPath).toString().trim();
+  const toolVersion = await getToolVersion();
 
   // Activate coded tests support only for version 24
   if (!toolVersion.startsWith("23")) {

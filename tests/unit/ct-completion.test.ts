@@ -95,6 +95,7 @@ describe("Testing pythonUtilities (valid)", () => {
   test(
     "validate coded test completion for lines of interest (// vmock) and extra text.",
     async () => {
+      // Mocks `pythonUtilities` to simulate retrieving "extraText", which is not yet implemented.
       await validateCodedTestCompletion("// vmock", extraTextMockExpected, {
         mockReturnValue: {
           choiceKind: "File",
