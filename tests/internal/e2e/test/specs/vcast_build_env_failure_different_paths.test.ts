@@ -9,6 +9,7 @@ import {
   type BottomBarPanel,
   type Workbench,
   CustomTreeItem,
+  OutputView,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -90,42 +91,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
 
-    let vcastTestingViewContent: ViewContent;
-    let env1Item: ViewItem;
-    let env3Item: ViewItem;
-    let env2Item: ViewItem;
-    let env4Item: ViewItem;
-
-    // Iterate through Testing and try to expand builded Envs (2 & 4)
-    vcastTestingViewContent = await getViewContent("Testing");
-    const topLevelItems = await retrieveTestingTopItems(
-      vcastTestingViewContent
-    );
-
-    console.log("VC_DIR IN TEST");
-    console.log(process.env.VECTORCAST_DIR);
-    // Expand and check ENV_01 and ENV_03 exist and ENV_02 and ENV_04 not
-    env1Item = await expandTopEnvInTestPane(
-      "ENV_23_01",
-      topLevelItems as CustomTreeItem[]
-    );
-    env3Item = await expandTopEnvInTestPane(
-      "ENV_23_03",
-      topLevelItems as CustomTreeItem[]
-    );
-    env2Item = await expandTopEnvInTestPane(
-      "ENV_24_02",
-      topLevelItems as CustomTreeItem[]
-    );
-    env4Item = await expandTopEnvInTestPane(
-      "ENV_24_04",
-      topLevelItems as CustomTreeItem[]
-    );
-
-    expect(env1Item).not.toBe(undefined);
-    expect(env3Item).not.toBe(undefined);
-    expect(env2Item).toBe(undefined);
-    expect(env4Item).toBe(undefined);
+    await expectEnvResults("release23");
   });
 
   it("should change to release 24 and confirm the presence of ENV_24_02 and ENV_24_04", async () => {
@@ -160,88 +126,101 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
-    // Ignore ENV_01
-    await browser.waitUntil(
-      async () => {
-        const outputText = (await outputView.getText()).toString();
-        return (
-          outputText.includes("Ignoring environment") &&
-          outputText.includes("ENV_23_01")
-        );
-      },
-      { timeout: TIMEOUT }
-    );
-    // Build ENV_02
-    await browser.waitUntil(
-      async () => {
-        const outputText = (await outputView.getText()).toString();
-        return (
-          outputText.includes("Processing environment") &&
-          outputText.includes("ENV_24_02")
-        );
-      },
-      { timeout: TIMEOUT }
-    );
-    // Ignore ENV_03
-    await browser.waitUntil(
-      async () => {
-        const outputText = (await outputView.getText()).toString();
-        return (
-          outputText.includes("Ignoring environment") &&
-          outputText.includes("ENV_23_03")
-        );
-      },
-      { timeout: TIMEOUT }
-    );
-    // Build ENV_04
-    await browser.waitUntil(
-      async () => {
-        const outputText = (await outputView.getText()).toString();
-        return (
-          outputText.includes("Processing environment") &&
-          outputText.includes("ENV_24_04")
-        );
-      },
-      { timeout: TIMEOUT }
-    );
+    await awaitOutputtext(outputView, "ENV_23_01", true, TIMEOUT);
+    await awaitOutputtext(outputView, "ENV_24_02", false, TIMEOUT);
+    await awaitOutputtext(outputView, "ENV_23_03", true, TIMEOUT);
+    await awaitOutputtext(outputView, "ENV_24_04", false, TIMEOUT);
 
     // Open Testing
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
 
-    let vcastTestingViewContent: ViewContent;
-    let env2Item: ViewItem;
-    let env4Item: ViewItem;
-    let env1Item: ViewItem;
-    let env3Item: ViewItem;
-
-    // Iterate through Testing and try to expand builded Envs (2 & 4)
-    vcastTestingViewContent = await getViewContent("Testing");
-    const topLevelItems = await retrieveTestingTopItems(
-      vcastTestingViewContent
-    );
-
-    // Expand and check ENV_02 and ENV_04 exist and ENV_01 and ENV_03 not
-    env2Item = await expandTopEnvInTestPane(
-      "ENV_24_02",
-      topLevelItems as CustomTreeItem[]
-    );
-    env4Item = await expandTopEnvInTestPane(
-      "ENV_24_04",
-      topLevelItems as CustomTreeItem[]
-    );
-    env1Item = await expandTopEnvInTestPane(
-      "ENV_23_01",
-      topLevelItems as CustomTreeItem[]
-    );
-    env3Item = await expandTopEnvInTestPane(
-      "ENV_23_03",
-      topLevelItems as CustomTreeItem[]
-    );
-
-    expect(env2Item).not.toBe(undefined);
-    expect(env4Item).not.toBe(undefined);
-    expect(env1Item).toBe(undefined);
-    expect(env3Item).toBe(undefined);
+    await expectEnvResults("release24");
   });
 });
+
+/**
+ * Function retrieves the top env folder and expects the correct results.
+ * @param release Release version.
+ */
+async function expectEnvResults(release: string) {
+  const envMap = new Map<string, { env: string; state: string }[]>([
+    [
+      "release23",
+      [
+        { env: "ENV_23_01", state: "defined" },
+        { env: "ENV_24_02", state: "undefined" },
+        { env: "ENV_23_03", state: "defined" },
+        { env: "ENV_24_04", state: "undefined" },
+      ],
+    ],
+    [
+      "release24",
+      [
+        { env: "ENV_23_01", state: "undefined" },
+        { env: "ENV_24_02", state: "defined" },
+        { env: "ENV_23_03", state: "undefined" },
+        { env: "ENV_24_04", state: "defined" },
+      ],
+    ],
+  ]);
+
+  let vcastTestingViewContent: ViewContent;
+
+  // Iterate through Testing and try to expand builded Envs (2 & 4)
+  vcastTestingViewContent = await getViewContent("Testing");
+  const topLevelItems = await retrieveTestingTopItems(vcastTestingViewContent);
+
+  const release23Value = envMap.get(release);
+
+  // Iterate thorugh map, expand and check based on release what ENV should be defined.
+  for (let entry of release23Value) {
+    const envResult = await expandTopEnvInTestPane(
+      entry.env,
+      topLevelItems as CustomTreeItem[]
+    );
+    if (entry.state === "defined") {
+      expect(envResult).not.toBe(undefined);
+    } else {
+      expect(envResult).toBe(undefined);
+    }
+  }
+}
+
+/**
+ * Function to await for the correct output text based on the env.
+ * @param outputView Vscode Outputview.
+ * @param env ENV name.
+ * @param ignore Boolean whether we expect to ignore ENV or process.
+ * @param TIMEOUT Timeout limit.
+ */
+async function awaitOutputtext(
+  outputView: OutputView,
+  env: string,
+  ignore: boolean,
+  TIMEOUT: number
+) {
+  if (ignore) {
+    await browser.waitUntil(
+      async () => {
+        const outputText = (await outputView.getText()).toString();
+        return (
+          outputText.includes("Ignoring environment") &&
+          outputText.includes(env)
+        );
+      },
+      { timeout: TIMEOUT }
+    );
+  } else {
+    await browser.waitUntil(
+      async () => {
+        const outputText = (await outputView.getText()).toString();
+        return (
+          outputText.includes("Processing environment") &&
+          outputText.includes("env")
+        );
+      },
+      { timeout: TIMEOUT }
+    );
+  }
+}
