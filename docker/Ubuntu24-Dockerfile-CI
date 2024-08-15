@@ -69,11 +69,24 @@ RUN sudo apt-get update && \
     sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
     mkdir -p /home/${USERNAME}/software/vcast/
 
-RUN sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /vcast
-
 ENV TESTING_IN_CONTAINER=True \
     RUNNING_ON_SERVER=False \
     PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
+
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vcast.linux64.2023.tar.gz /vcast/releaseVectorCAST23.tar.gz
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vc24__101394_store_mock_info.tar.gz /vcast/vc24__101394_store_mock_info.tar.gz
+ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast_test_explorer/vector-DEMO-2025.lic /vcast/vector-license.lic
+
+RUN sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /vcast
+
+RUN cd /vcast && \
+    tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz && mv vcast release23 && \
+    tar -xvzf vc24__101394_store_mock_info.tar.gz && rm vc24__101394_store_mock_info.tar.gz && mv release release24
+
+ENV VECTORCAST_DIR=/vcast/release23 \
+    PATH=/vcast/release23:$PATH \
+    LM_LICENSE_FILE=/vcast/vector-license.lic \
+    VECTOR_LICENSE_FILE=/vcast/vector-license.lic
 
 RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
 
