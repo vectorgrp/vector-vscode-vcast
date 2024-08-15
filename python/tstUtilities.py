@@ -16,7 +16,7 @@ from enum import Enum
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
 
-coded_mocks_enabled = False
+CODED_MOCK_ENABLED = False
 try:
     from vector.apps.DataAPI import mock_helper
 
@@ -36,7 +36,7 @@ try:
 
     # We only enable coded mocks if the version of `mock_helper` is <= than our
     # supported version
-    coded_mocks_enabled = mock_helper.MOCK_API_MAJOR <= supported_mock_api_version
+    CODED_MOCK_ENABLED = mock_helper.MOCK_API_MAJOR <= supported_mock_api_version
 
 except ImportError:
     pass
@@ -59,7 +59,7 @@ ADD_HASH_TO_MOCK_FUNCTION_NAMES = False
 
 
 def functionCanBeMocked(functionObject):
-    # NOTE: this function should *only* be called when 'coded_mocks_enabled' is
+    # NOTE: this function should *only* be called when 'CODED_MOCK_ENABLED' is
     # set to true
     return functionObject.mock is not None
 
@@ -626,7 +626,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
                 returnUnitList.append(unitObject)
 
     # if coded mocks are enabled, and the unit name is an exact match, process the function name
-    if coded_mocks_enabled and len(returnUnitList) == 1:
+    if CODED_MOCK_ENABLED and len(returnUnitList) == 1:
         # check if the function name matches any of the functions in the unit
         for functionObject in unitObject.functions:
             if functionCanBeMocked(functionObject):
