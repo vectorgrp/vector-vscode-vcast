@@ -12,11 +12,17 @@ import hashlib
 import base64
 
 from enum import Enum
-from string import Template
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
 from vector.apps.DataAPI import mock_helper
+
+from vConstants import (
+    TAG_FOR_INIT,
+    TAG_FOR_GLOBALS,
+    CODED_TEST_SUBPROGRAM_NAME,
+    MOCK_ENABLE_DISABLE_TEMPLATE,
+)
 
 globalOutputLog = list()
 
@@ -26,22 +32,6 @@ globalOutputLog = list()
 # mangled function name to the mock name.  Some users might prefer this also
 # so we will expose this in the extension
 ADD_HASH_TO_MOCK_FUNCTION_NAMES = False
-
-# Tag for the init, which we want to ignore
-TAG_FOR_INIT = "<<INIT>>"
-
-# Coded Test Subprogram Name
-CODED_TEST_SUBPROGRAM_NAME = "coded_tests_driver"
-
-MOCK_ENABLE_DISABLE_TEMPLATE = Template(
-    """
-void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
-    ${mock_enable_body}
-}
-""".strip(
-        "\n"
-    )
-)
 
 
 def functionCanBeMocked(functionObject):
@@ -337,9 +327,6 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
     return returnData
 
 
-tagForGlobals = "<<GLOBAL>>"
-
-
 def getFunctionList(api, unitName):
     """
     common code to generate list of functions ...
@@ -356,7 +343,7 @@ def getFunctionList(api, unitName):
         if CODED_TEST_SUBPROGRAM_NAME in returnList:
             returnList.remove(CODED_TEST_SUBPROGRAM_NAME)
         if len(unitObject.globals) > 0:
-            returnList.append(tagForGlobals)
+            returnList.append(TAG_FOR_GLOBALS)
 
     return returnList
 
@@ -484,7 +471,7 @@ def processStandardLines(api, pieces, triggerCharacter):
 
         functionName = pieces[3]
         # functionNAme can be <<GLOBAL>> ...
-        if functionName == tagForGlobals:
+        if functionName == TAG_FOR_GLOBALS:
             globalsList = unitObject.globals
             returnData.choiceList = getNameListFromItemList(globalsList)
             returnData.choiceKind = choiceKindType.Variable
@@ -502,7 +489,7 @@ def processStandardLines(api, pieces, triggerCharacter):
         unitObject = getObjectFromName(api.Unit.all(), unitName)
         functionName = pieces[3]
         paramName = pieces[4].split("[")[0]
-        if functionName == tagForGlobals:
+        if functionName == TAG_FOR_GLOBALS:
             globalsList = unitObject.globals
             itemObject = getObjectFromName(globalsList, paramName)
         else:
