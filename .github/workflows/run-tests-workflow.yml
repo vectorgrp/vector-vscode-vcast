@@ -65,15 +65,14 @@ jobs:
       - name: Package with VSCE
         run: npm run package
 
-      - name: Activate Vcast 24
-        if: ${{ matrix.vcast == '24' }}
-        run: |
-          export VECTORCAST_DIR=/vcast/release24
-          export PATH=/vcast/release24:$PATH
-          export ENABLE_ATG_FEATURE=TRUE
-
       - name: Run unit tests
-        run: npm run gh-test | tee output.txt
+        run: |
+          if [[ ${{ matrix.vcast == '24' }} ]]; then
+            export VECTORCAST_DIR=/vcast/release24
+            export PATH=/vcast/release24:$PATH
+            export ENABLE_ATG_FEATURE=TRUE
+          fi
+          npm run gh-test | tee output.txt
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action/linux@v2
