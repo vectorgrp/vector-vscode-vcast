@@ -239,7 +239,7 @@ def getTestDataVCAST(enviroPath):
                     # if the field exists, which it will if our vcast version
                     # is > vc24sp3, then a value of None means we have an
                     # older enviro without mocking support
-                    enviroSupportsMocking = hasattr(function, "mock_lookup_type")
+                    enviroSupportsMocking = hasattr(function, "mock")
 
                 # Seems like a vcast dataAPI bug with manager.cpp
                 if (
