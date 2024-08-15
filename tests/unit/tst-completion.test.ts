@@ -159,7 +159,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -200,7 +200,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -241,7 +241,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -361,7 +361,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -492,7 +492,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -522,7 +522,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -688,7 +688,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -722,7 +722,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -756,7 +756,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -796,7 +796,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -836,7 +836,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -867,7 +867,7 @@ describe("Text Completion", () => {
       completionPosition.character = 1;
       const triggerCharacter = "\n";
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -914,7 +914,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -962,7 +962,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -975,6 +975,27 @@ describe("Text Completion", () => {
           data: 0,
         },
       ]);
+    },
+    timeout
+  );
+
+  test(
+    'validate "no document" case',
+    async () => {
+      const tstText = initialTst;
+      const lineToComplete = "TEST.SUBPROGRAM:";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const generatedCompletionData = await generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter,
+        "vcast"      );
+      expect(generatedCompletionData).toEqual([]);
     },
     timeout
   );
@@ -1006,7 +1027,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter,
@@ -1027,7 +1048,7 @@ describe("Text Completion", () => {
         tstText
       );
       const triggerCharacter = undefined;
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -1050,7 +1071,7 @@ describe("Text Completion", () => {
       completionPosition.character = 1;
       const triggerCharacter = "CR";
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -1092,7 +1113,7 @@ describe("Text Completion", () => {
       completionPosition.character = 1;
       const triggerCharacter = "\n";
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -1150,7 +1171,7 @@ describe("Text Completion", () => {
       completionPosition.character = 1;
       const triggerCharacter = "CR";
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter

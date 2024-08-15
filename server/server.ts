@@ -8,6 +8,7 @@ import {
   TextDocument,
   TextDocuments,
 } from "vscode-languageserver";
+
 import { Hover } from "vscode-languageserver-types";
 
 import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver-types";
@@ -16,9 +17,10 @@ import { enviroDataType } from "../src-common/commonUtilities";
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 import { updateVPythonCommand } from "./pythonUtilities";
 import { getLineFragment } from "./serverUtilities";
-import { getDiagnosticObject, validateTextDocument } from "./tstValidation";
+import { initializePaths } from "./pythonUtilities";
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
+import { getDiagnosticObject, validateTextDocument } from "./tstValidation";
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -36,7 +38,14 @@ let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
 
 connection.onInitialize((params: InitializeParams) => {
-  // initializePython(); - this was called with if(false) inside
+  // reads the params passed to the server
+  // and initializes globals for vpyton path etc.
+  initializePaths(
+    process.argv[2], // extensionRoot
+    process.argv[3], // vpythonPath
+    process.argv[4].toLowerCase() === "true" // useServer
+  );
+
   return {
     capabilities: {
       textDocumentSync: textDocumentManager.syncKind,
@@ -146,10 +155,10 @@ function clearCodedTestDiagnostics(documentUri: string) {
   });
 }
 
-function performCompletionProcessing(
+async function performCompletionProcessing(
   currentDocument: TextDocument,
   completionData: CompletionParams
-): CompletionItem[] {
+): Promise<CompletionItem[]> {
   // Test Script Editor
   if (completionData.textDocument.uri.endsWith(".tst")) {
     return getTstCompletionData(currentDocument, completionData);
@@ -169,6 +178,7 @@ function performCompletionProcessing(
 
       if (enviroData.hasMockSupport) {
         return getCodedTestCompletionData(
+          connection,
           lineSoFar,
           completionData,
           enviroData.enviroPath
@@ -193,12 +203,12 @@ function performCompletionProcessing(
 }
 
 connection.onCompletion(
-  (completionData: CompletionParams): CompletionItem[] => {
+  async (completionData: CompletionParams): Promise<CompletionItem[]> => {
     const currentDocument = textDocumentManager.get(
       completionData.textDocument.uri
     );
     if (currentDocument) {
-      return performCompletionProcessing(currentDocument, completionData);
+      return await performCompletionProcessing(currentDocument, completionData);
     } else {
       // no text document, do nothing
       return [];
@@ -213,16 +223,21 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
 
-connection.onHover((completionData: CompletionParams): Hover | undefined => {
-  // This function gets called when the user hovers over a line section
-  if (completionData.textDocument.uri.endsWith(".tst")) {
-    const hoverString = getHoverString(textDocumentManager, completionData);
-    var hover: Hover = { contents: hoverString };
-    return hover;
-  } else {
-    return undefined;
+connection.onHover(
+  async (completionData: CompletionParams): Promise<Hover | undefined> => {
+    // This function gets called when the user hovers over a line section
+    if (completionData.textDocument.uri.endsWith(".tst")) {
+      const hoverString = await getHoverString(
+        textDocumentManager,
+        completionData
+      );
+      var hover: Hover = { contents: hoverString };
+      return hover;
+    } else {
+      return undefined;
+    }
   }
-});
+);
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

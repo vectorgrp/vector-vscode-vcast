@@ -6,6 +6,13 @@ import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
 import { cleanVcastOutput } from "../src-common/commonUtilities";
 
+import {
+  clientRequestType,
+  transmitCommand,
+  transmitResponseType,
+  vcastCommandType,
+} from "../src-common/vcastServer";
+
 const path = require("path");
 
 export interface commandStatusType {
@@ -13,16 +20,35 @@ export interface commandStatusType {
   stdout: string;
 }
 
+export function convertServerResponseToCommandStatus(
+  serverResponse: transmitResponseType
+): commandStatusType {
+  //
+  // tansmitResponse.returnData is an object with exitCode and data properties
+  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+  if (serverResponse.success) {
+    commandStatus.errorCode = serverResponse.returnData.exitCode;
+    // the data.text field is returned as a list to join with \n
+    commandStatus.stdout = serverResponse.returnData.data.text.join("\n");
+  } else {
+    commandStatus.errorCode = 1;
+    commandStatus.stdout = serverResponse.statusText;
+  }
+  return commandStatus;
+}
+
 // Call vpython vTestInterface.py to run a command
 export function executeVPythonScript(
   commandToRun: string,
-  whereToRun: string
+  whereToRun: string,
+  printErrorDetails: boolean = true
 ): commandStatusType {
   let returnData: commandStatusType = { errorCode: 0, stdout: "" };
   if (commandToRun) {
     const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
-      whereToRun
+      whereToRun,
+      printErrorDetails
     );
     // remove extraneous text from the output
     returnData.stdout = cleanVcastOutput(commandStatus.stdout);
@@ -53,10 +79,12 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+  // see comment about ACTUAL-DATA in cleanVcastOutput
+  let stdout = cleanVcastOutput(error.stdout.toString());
+  let commandStatus = { errorCode: error.status, stdout: stdout };
 
-  // 99 is a warning, like a mismatch opening the environment
-  if (error && error.status == 99) {
+  // 998 is an interface error
+  if (error && error.status == 998) {
     let stdoutString = error.stdout.toString();
 
     // Remove annoying version miss-match message from vcast
@@ -162,8 +190,7 @@ export function executeWithRealTimeEcho(
   });
 }
 
-// A command runner for commands where we want to show progress like ATG and Basis Path Test Generation
-export function executeClicastWithProgress(
+export function executeCommandWithProgress(
   title: string,
   commandAndArgs: string[],
   enviroName: string,
@@ -253,4 +280,39 @@ export function executeClicastWithProgress(
       });
     }
   );
+}
+
+// This will run any clicast command on the server
+export async function executeClicastCommandUsingServer(
+  clicastCommandToUse: string,
+  enviroPath: string,
+  commandArgs: string
+): Promise<commandStatusType> {
+  let commandStatus = { errorCode: 0, stdout: "" };
+
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.runClicastCommand,
+    clicast: clicastCommandToUse,
+    path: enviroPath,
+    options: commandArgs,
+  };
+
+  let transmitResponse: transmitResponseType = await transmitCommand(
+    requestObject
+  );
+
+  // tansmitResponse.returnData is an object with exitCode and data properties
+  if (transmitResponse.success) {
+    commandStatus.errorCode = transmitResponse.returnData.exitCode;
+    commandStatus.stdout = transmitResponse.returnData.data;
+  } else {
+    commandStatus.errorCode = 1;
+    commandStatus.stdout = transmitResponse.statusText;
+  }
+
+  if (commandStatus.errorCode != 0) {
+    openMessagePane();
+    vectorMessage(commandStatus.stdout);
+  }
+  return commandStatus;
 }

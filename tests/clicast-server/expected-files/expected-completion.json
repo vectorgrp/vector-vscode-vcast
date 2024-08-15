@@ -1,0 +1,15 @@
+{
+    "data": {
+        "choiceKind": "File",
+        "choiceList": [
+            "USER_GLOBALS_VCAST",
+            "database",
+            "uut_prototype_stubs",
+            "manager"
+        ],
+        "messages": [
+            "Processing: 'TEST.VALUE:' ..."
+        ]
+    },
+    "exitCode": 0
+}

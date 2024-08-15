@@ -357,9 +357,17 @@ class choiceKindType(str, Enum):
 
 
 class choiceDataType:
-    choiceList = list()
-    extraText = ""
-    choiceKind = choiceKindType.Keyword
+    def __init__(self):
+        self.choiceList = list()
+        self.choiceKind = choiceKindType.Keyword
+        self.extraText = ""
+
+    def toDict(self):
+        data = {}
+        data["choiceKind"] = self.choiceKind
+        data["choiceList"] = self.choiceList
+        data["extraText"] = self.extraText
+        return data
 
 
 def processRequirementLines(api, pieces, triggerCharacter):
@@ -372,9 +380,10 @@ def processRequirementLines(api, pieces, triggerCharacter):
 
     requirements = api.environment.requirement_api.Requirement.all()
     for requirement in requirements:
-        # the description can have multiple lines, so we just take the first line
+        # the description can have multiple lines, so we replace \n with ,
+        description = requirement.description.replace("\n", ", ")
         returnData.choiceList.append(
-            f"{requirement.external_key} ||| {requirement.title} ||| {requirement.description}"
+            f"{requirement.external_key} ||| {requirement.title} ||| {description}"
         )
 
     return returnData
@@ -898,6 +907,21 @@ def processMockDefinition(enviroName, lineSoFar):
     api.close()
 
     return returnData
+
+
+def buildChoiceResponse(choiceData: choiceDataType):
+    """
+    This is a separate function to allow the testEditorInterace | main()
+    and the socket based server to use the same code to build the response
+    """
+
+    responseObject = dict()
+    responseObject["choiceKind"] = choiceData.choiceKind
+    responseObject["choiceList"] = choiceData.choiceList
+    responseObject["extraText"] = choiceData.extraText
+    responseObject["messages"] = globalOutputLog
+
+    return responseObject
 
 
 def processTstLine(enviroName, line):

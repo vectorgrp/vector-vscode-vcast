@@ -67,7 +67,7 @@ function addSpecialChoices(returnList: CompletionItem[]) {
 
 // this function will take a js array and create a completion array
 export function completionList(
-  inputList: string[],
+  choiceList: string[],
   choiceKind: CompletionItemKind
 ): CompletionItem[] {
   // the format of what comes in here looks like a list of strings
@@ -75,8 +75,8 @@ export function completionList(
 
   let i;
   let returnList: CompletionItem[] = [];
-  for (i = 0; i < inputList.length; i++) {
-    const rawData = inputList[i];
+  for (i = 0; i < choiceList.length; i++) {
+    const rawData = choiceList[i];
     const pieces = rawData.split("@");
     let details = pieces.length > 1 ? pieces[1] : "";
     const labelValue = pieces[0];

@@ -27,6 +27,8 @@ import {
   updateTestDecorator,
 } from "./editorDecorator";
 
+import { updateExploreDecorations } from "./fileDecorator";
+
 import {
   openMessagePane,
   toggleMessageLog,
@@ -60,12 +62,11 @@ import {
 import {
   buildEnvironmentFromScript,
   deleteEnvironment,
-  setCodedTestOption,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
+  rebuildEnvironment,
+  initializeServerState,
 } from "./vcastAdapter";
-
-import { executeWithRealTimeEcho } from "./vcastCommandRunner";
 
 import {
   checkIfInstallationIsOK,
@@ -88,10 +89,7 @@ import {
   addIncludePath,
   getEnviroNameFromFile,
   openTestScript,
-  rebuildEnvironmentCommand,
 } from "./vcastUtilities";
-
-import { updateExploreDecorations } from "./fileDecorator";
 
 import fs = require("fs");
 const path = require("path");
@@ -166,9 +164,12 @@ function checkPrerequisites(context: vscode.ExtensionContext) {
   }
 }
 
-function activationLogic(context: vscode.ExtensionContext) {
+async function activationLogic(context: vscode.ExtensionContext) {
   // adds all of the command handlers
   configureExtension(context);
+
+  // Check server setting and state
+  await initializeServerState();
 
   // setup the decorations for coverage
   initializeCodeCoverageFeatures(context);
@@ -549,25 +550,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     (enviroNode: any) => {
       // this returns the full path to the environment directory
       const enviroPath = getEnviroPathFromID(enviroNode.id);
-
-      const fullCommand = rebuildEnvironmentCommand(enviroPath);
-      let commandPieces = fullCommand.split(" ");
-      const commandVerb = commandPieces[0];
-      commandPieces.shift();
-
-      const unitTestLocation = path.dirname(enviroPath);
-      setCodedTestOption(unitTestLocation);
-
-      // This uses the python binding to clicast to do the rebuild
-      // We open the message pane to give the user a sense of what's going on
-      openMessagePane();
-      executeWithRealTimeEcho(
-        commandVerb,
-        commandPieces,
-        unitTestLocation,
-        rebuildEnvironmentCallback,
-        enviroPath
-      );
+      rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
     }
   );
   context.subscriptions.push(rebuildEnviro);

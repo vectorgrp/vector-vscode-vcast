@@ -17,7 +17,7 @@ import {
   convertKind,
 } from "./serverUtilities";
 
-import { choiceKindType, getChoiceDataFromPython } from "./pythonUtilities";
+import { choiceKindType, getChoiceData } from "./pythonUtilities";
 
 function filterArray(currentArray: string[], whatToRemove: string) {
   const index = currentArray.indexOf(whatToRemove);
@@ -26,7 +26,7 @@ function filterArray(currentArray: string[], whatToRemove: string) {
   }
 }
 
-export function getTstCompletionData(
+export async function getTstCompletionData(
   currentDocument: TextDocument,
   completionData: CompletionParams
 ) {
@@ -58,10 +58,10 @@ export function getTstCompletionData(
         );
     } else if (trigger == "DOT" && upperCaseLine == "TEST.") {
       return completionList(testCommandList, CompletionItemKind.Keyword);
-    } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:")
+    } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:") {
       return completionList(["<test-name>"], CompletionItemKind.Text);
-    else if (trigger == "COLON" && upperCaseLine == "TEST.UNIT:") {
-      const choiceData = getChoiceDataFromPython(
+    } else if (trigger == "COLON" && upperCaseLine == "TEST.UNIT:") {
+      const choiceData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
         lineSoFar
@@ -70,9 +70,9 @@ export function getTstCompletionData(
         choiceData.choiceList,
         convertKind(choiceData.choiceKind)
       );
-    } else if (trigger == "COLON" && upperCaseLine == "TEST.SCRIPT_FEATURE:")
+    } else if (trigger == "COLON" && upperCaseLine == "TEST.SCRIPT_FEATURE:") {
       return completionList(scriptFeatureList, CompletionItemKind.Keyword);
-    else if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
+    } else if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
       // find closest TEST.UNIT above this line ...
       const unitName = getNearest(
         currentDocument,
@@ -85,7 +85,7 @@ export function getTstCompletionData(
       let choiceArray = ["<<INIT>>", "<<COMPOUND>>"];
       let choiceKind: CompletionItemKind = CompletionItemKind.Keyword;
       if (unitName.length > 0) {
-        const choiceData = getChoiceDataFromPython(
+        const choiceData = await getChoiceData(
           choiceKindType.choiceListTST,
           enviroPath,
           "TEST.VALUE:" + unitName + "."
@@ -97,7 +97,7 @@ export function getTstCompletionData(
       }
       return completionList(choiceArray, choiceKind);
     } else if (upperCaseLine.startsWith("TEST.SLOT:")) {
-      const choiceData = getChoiceDataFromPython(
+      const choiceData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
         lineSoFar
@@ -106,10 +106,8 @@ export function getTstCompletionData(
         choiceData.choiceList,
         convertKind(choiceData.choiceKind)
       );
-    }
-
-    // this handles the everything else
-    else if (
+    } else if (
+      // this handles the everything else
       upperCaseLine.startsWith("TEST.EXPECTED:") ||
       upperCaseLine.startsWith("TEST.VALUE:") ||
       upperCaseLine.startsWith("TEST.VALUE_USER_CODE:") ||
@@ -117,7 +115,7 @@ export function getTstCompletionData(
       upperCaseLine.startsWith("TEST.STUB:")
     ) {
       // the current level, and returns the appropriate list for the next level.
-      const choiceData = getChoiceDataFromPython(
+      const choiceData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
         lineSoFar
@@ -128,7 +126,7 @@ export function getTstCompletionData(
       );
     } else if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
       // for the requirement keys, the format of the list items is
-      const choiceData = getChoiceDataFromPython(
+      const choiceData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
         lineSoFar

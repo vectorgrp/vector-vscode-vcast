@@ -8,16 +8,16 @@ import {
 import { CompletionTriggerKind } from "vscode-languageserver-protocol";
 import URI from "vscode-uri";
 import { getHoverString } from "../../server/tstHover";
-import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
+import { initializePaths } from "../../server/pythonUtilities";
 
 export type HoverPosition = {
   line: number;
   character: number;
 };
 
-export function generateHoverData(
+export async function generateHoverData(
   tstText: string,
   position: HoverPosition,
   envName?: string
@@ -44,20 +44,14 @@ export function generateHoverData(
 
   const completion = asHoverParameters(textDocument, position);
 
-  setPaths(
-    path.join(
-      process.env.PACKAGE_PATH as string,
-      "python",
-      "testEditorInterface.py"
-    ),
-    "vpython"
-  );
+  const extensionRoot: string = process.env["PACKAGE_PATH"] || "";
+  const useServer: boolean = process.env.USE_SERVER != undefined;
+  initializePaths(extensionRoot, "vpython", useServer);
 
   if (textDocument) {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
   }
-
-  return getHoverString(documents, completion);
+  return await getHoverString(documents, completion);
 }
 
 export function asHoverParameters(
@@ -112,14 +106,10 @@ export function generateCompletionData(
     position,
     triggerCharacter
   );
-  setPaths(
-    path.join(
-      process.env.PACKAGE_PATH as string,
-      "python",
-      "testEditorInterface.py"
-    ),
-    "vpython"
-  );
+
+  const extensionRoot: string = process.env["PACKAGE_PATH"] || "";
+  const useServer: boolean = process.env.USE_SERVER != undefined;
+  initializePaths(extensionRoot, "vpython", useServer);
 
   console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
 
@@ -181,5 +171,6 @@ export function storeNewDocument(
 ) {
   /* `_documents` is private in `TextDocuments`.
    * We cast to `any` to make the linter happy */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (documents as any)._documents[uri] = textDocument;
 }

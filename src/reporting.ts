@@ -145,9 +145,9 @@ function viewResultsReportVC(textFilePath: string) {
   htmlReportPanel.webview.html = htmlText;
 }
 
-export function viewResultsReport(testID: string) {
+export async function viewResultsReport(testID: string) {
   // make sure that a test is selected
-  const textFilePath = getResultFileForTest(testID);
+  const textFilePath = await getResultFileForTest(testID);
   vectorMessage("Viewing results, result report path: '" + textFilePath + "'");
   if (fs.existsSync(textFilePath)) {
     viewResultsReportVC(textFilePath);

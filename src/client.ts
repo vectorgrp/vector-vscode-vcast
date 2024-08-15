@@ -3,6 +3,8 @@
 import * as path from "path";
 import { ExtensionContext } from "vscode";
 
+import { globalEnviroDataServerActive } from "../src-common/vcastServer";
+
 import {
   LanguageClient,
   LanguageClientOptions,
@@ -31,12 +33,20 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   let serverOptions: ServerOptions = {
     run: {
       module: serverModule,
-      args: [context.asAbsolutePath("."), vpythonPath],
+      args: [
+        context.asAbsolutePath("."),
+        vpythonPath,
+        globalEnviroDataServerActive.toString(),
+      ],
       transport: TransportKind.ipc,
     },
     debug: {
       module: serverModule,
-      args: [context.asAbsolutePath("."), vpythonPath],
+      args: [
+        context.asAbsolutePath("."),
+        vpythonPath,
+        globalEnviroDataServerActive.toString(),
+      ],
       transport: TransportKind.ipc,
       options: debugOptions,
     },

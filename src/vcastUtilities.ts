@@ -31,6 +31,8 @@ import {
   vUnitIncludeSuffix,
 } from "./vcastInstallation";
 
+import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
+
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -168,7 +170,7 @@ export async function openTestScript(nodeID: string) {
   const testNode: testNodeType = getTestNode(nodeID);
   const scriptPath = testNode.enviroPath + ".tst";
 
-  const commandStatus = dumptestScriptFile(testNode, scriptPath);
+  const commandStatus = await dumptestScriptFile(testNode, scriptPath);
 
   if (commandStatus.errorCode == 0) {
     // Improvement needed:
@@ -220,7 +222,7 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
   // In all cases, we need to do the following:
   //  - Call clicast <-e -u -s options> tool auto_test temp.tst  [creates tests]
-  //  - Call loadScriptIntoEnvironment() to do the actual load
+  //  - Call loadTestScriptIntoEnvironment() to do the actual load
   //
   // Other Points:
   //   - Use a temporary filename and ensure we delete it
@@ -243,7 +245,7 @@ export function generateAndLoadATGTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
   // In all cases, we need to do the following:
   //  - Call atg <-e -u -s options> temp.tst  [creates tests]
-  //  - Call loadScriptIntoEnvironment() to do the actual load
+  //  - Call loadTestScriptIntoEnvironment() to do the actual load
 
   // Other points:
   //   - Use a temporary filename and ensure we delete it.
@@ -344,52 +346,83 @@ export function getEnviroNameFromFile(filePath: string): string | undefined {
   return enviroName;
 }
 
-export function testInterfaceCommand(
-  mode: string,
+function getTestArgument(testID: string, withFlag: boolean): string {
+  // This funciton will generate the --test argument for the vpython command
+  // with or without the --test flag based on the withFlag parameter
+
+  let testArgument = undefined;
+  if (testID.length > 0) {
+    // we need to strip the "path part" of the environment directory from the test ID
+    // which is the part before the '|' and after the ':'
+    const enviroPath = testID.split("|")[0].split(":")[1];
+
+    // now the path to the environment might have a slash if the environment is nested or not
+    // so we need to handle that case, since we only want the environment name
+    let enviroName = enviroPath;
+    if (enviroName.includes("/")) {
+      enviroName = enviroPath.substring(
+        enviroPath.lastIndexOf("/") + 1,
+        enviroPath.length
+      );
+    }
+    // The -test arguments should be the enviro name along with everything after the |
+    testArgument = withFlag ? "--test=" : "";
+    testArgument += `"${enviroName}|${testID.split("|")[1]}"`;
+  }
+
+  return testArgument || "";
+}
+
+function getCommonCommandString(
+  command: vcastCommandType,
+  enviroPath: string
+): string {
+  return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${command.toString()} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+}
+
+export function getVcastInterfaceCommand(
+  command: vcastCommandType,
   enviroPath: string,
   testID: string = ""
-): any | undefined {
+): string {
+  //
+  // This function generates the vpython command to execute
+  //
   // enviroPath is the absolute path to the environnement directory
   // testID is contains the string that uniquely identifies the node, something like:
   //    vcast:TEST|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
   //    vcast:unitTests/MANAGER|manager.Manager::PlaceOrder.test-Manager::PlaceOrder
+
+  // we always include --clicast rather than checking if it is needed or not
+  const commandToRun = getCommonCommandString(command, enviroPath);
+  const testArgument = getTestArgument(testID, true);
+  return `${commandToRun} ${testArgument}`;
+}
+
+export function getClientRequestObject(
+  command: vcastCommandType,
+  path: string,
+  testID: string = ""
+): clientRequestType {
   //
+  // Rather than adding another "dontUseQuotes" param I just strip them here
+  const testArgWithQuotes = getTestArgument(testID, false);
+  const testArgWitoutQuotes = testArgWithQuotes.substring(
+    1,
+    testArgWithQuotes.length - 1
+  );
+  const requestObject: clientRequestType = {
+    command: command,
+    clicast: clicastCommandToUse,
+    path: path,
+    test: testArgWitoutQuotes,
+  };
 
-  if (globalTestInterfacePath && vPythonCommandToUse) {
-    const command = `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${mode} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
-    let testArgument = "";
-    if (testID.length > 0) {
-      // we need to strip the "path part" of the environment directory from the test ID
-      // which is the part before the '|' and after the ':'
-      const enviroPath = testID.split("|")[0].split(":")[1];
-
-      // now the path to the environment might have a slash if the environment is nested or not
-      // so we need to handle that case, since we only want the environment name
-      let enviroName = enviroPath;
-      if (enviroName.includes("/")) {
-        enviroName = enviroPath.substring(
-          enviroPath.lastIndexOf("/") + 1,
-          enviroPath.length
-        );
-      }
-      // The -test arguments should be the enviro name along with everything after the |
-      testArgument = ` --test="${enviroName}|${testID.split("|")[1]}"`;
-    }
-    return command + testArgument;
-  } else
-    vscode.window.showWarningMessage(
-      "The VectorCAST Test Explorer could not find the vpython utility."
-    );
-  return undefined;
+  return requestObject;
 }
 
-export function parseCBTCommand(filePath: string): string {
-  // this command returns the list of tests that exist in a coded test source file
-  return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=parseCBT --path=${filePath}`;
-}
-
-export function rebuildEnvironmentCommand(filePath: string): string {
-  // this command performs the environment rebuild, including the update of the .env file
+export function getRebuildOptionsString(): string {
+  // this returns the --options=jsonString that is used to rebuild the environment
 
   // read the settings that affect enviro build
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
@@ -398,7 +431,7 @@ export function rebuildEnvironmentCommand(filePath: string): string {
     "build.coverageKind",
     "None"
   );
-
   const jsonOptions: string = JSON.stringify(optionsDict);
-  return `${vPythonCommandToUse} ${globalTestInterfacePath} --clicast=${clicastCommandToUse} --mode=rebuild --path=${filePath} --options=${jsonOptions}`;
+
+  return jsonOptions;
 }
