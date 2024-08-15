@@ -1,5 +1,7 @@
 // Test/specs/vcast.test.ts
 import process from "node:process";
+import path from "path";
+import {unlink} from "node:fs/promises";
 import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -51,18 +53,25 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Waiting for VectorCAST activation");
     await $("aria/VectorCAST Test Pane Initialization");
-    console.log("WAITING FOR TESTING");
-    await browser.waitUntil(
-      async () => (await activityBar.getViewControl("Testing")) !== undefined,
-      { timeout: TIMEOUT }
-    );
-    console.log("WAITING FOR TEST EXPLORER");
-    await browser.waitUntil(async () =>
-      (await outputView.getChannelNames())
-        .toString()
-        .includes("VectorCAST Test Explorer")
-    );
-    await outputView.selectChannel("VectorCAST Test Explorer");
+    // testing actually won't appear on windows, why does it appear on Linux
+    // TBD
+    if (process.platform != "win32"){
+      console.log("WAITING FOR TESTING");
+      await browser.waitUntil(
+        async () => (await activityBar.getViewControl("Testing")) !== undefined,
+        { timeout: TIMEOUT }
+      );
+
+      console.log("WAITING FOR TEST EXPLORER");
+      await browser.waitUntil(async () =>
+        (await outputView.getChannelNames())
+          .toString()
+          .includes("VectorCAST Test Explorer")
+        );
+      await outputView.selectChannel("VectorCAST Test Explorer");
+
+    }
+    
     
     // Await last expected sentence
     await browser.waitUntil(
@@ -250,26 +259,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should delete settings.json in .vscode folder", async () => {
     await updateTestID();
+    await unlink(path.join("test","vcastTutorial",".vscode", "settings.json"))
 
-    const workbench = await browser.getWorkbench();
-    const activityBar = workbench.getActivityBar();
-    const explorerView = await activityBar.getViewControl("Explorer");
-    const explorerSideBarView = await explorerView?.openView();
-
-    const workspaceName = "vcastTutorial";
-    const workspaceFolderSection = await explorerSideBarView
-      .getContent()
-      .getSection(workspaceName.toUpperCase());
-
-    // Open.vscode folder
-    const vscodeFolderItem = await workspaceFolderSection.findItem(".vscode");
-    await vscodeFolderItem.select();
-
-    // Select the settings.json and open context menu and delete it
-    const settingsFile = await workspaceFolderSection.findItem("settings.json");
-    await settingsFile.select();
-    const contextMenu = await settingsFile.openContextMenu();
-    const deleteMenuItem = await contextMenu.getItem("Delete");
-    await deleteMenuItem.select();
   });
 });

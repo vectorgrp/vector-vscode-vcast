@@ -456,9 +456,11 @@ export const config: Options.Testrunner = {
     } else {
       // Add vpython path since every release path is deleted
       const currentPath = process.env.PATH || "";
+      const vPythonExecutable =
+        process.platform == "win32" ? "vpython.exe" : "vpython";
       const newPath = path.join(
         process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
-        "vpython"
+        vPythonExecutable
       );
       process.env.PATH = `"${newPath}"${path.delimiter}${currentPath}`;
       console.log(process.env.PATH)

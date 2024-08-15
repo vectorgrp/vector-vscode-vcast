@@ -4,16 +4,16 @@ REM Get the directory of the current script
 for %%I in ("%~dp0") do set SCRIPT_DIR=%%~fI
 
 REM Define the path to the specs file relative to the script directory
-set SPEC_PATH="%SCRIPT_DIR%\test\specs_env_exporter.ts"
+set SPEC_PATH="%SCRIPT_DIR%test\specs_env_exporter.ts"
 
 REM Check if the specs file exists
-if not exist "%SPEC_PATH%" (
+if not exist %SPEC_PATH% (
   echo The file %SPEC_PATH% does not exist.
   exit /b 1
 )
 
 REM Compile the specs file 
-call npx tsc "%SPEC_PATH%"
+call npx tsc %SPEC_PATH%
 
 REM Path to the compiled JavaScript files
 set JS_FILE=./test/specs_env_exporter.js
@@ -35,6 +35,12 @@ if "%RUN_GROUP_NAME%" == "ALL" (
   for %%a in (%ALL_GROUP_NAMES%) do (
     echo Running %%a
     set RUN_GROUP_NAME=%%a
+    
+    for /f "delims=" %%i in ('node %JS_FILE% env_vars') do (
+      set %%i
+      echo %%i
+    )
+    
     npx wdio run test/wdio.conf.ts
     
     if %ERRORLEVEL% NEQ 0 (
@@ -42,8 +48,7 @@ if "%RUN_GROUP_NAME%" == "ALL" (
     exit /B 1
     )
   )
-)
-else (
+) else (
   npx wdio run test/wdio.conf.ts
 )
 
@@ -77,7 +82,7 @@ del "%SPECS_CONFIG_FILE%"
   if "%RUN_GROUP_NAME%" == "ALL" (
     echo Getting group names
     set ALL_GROUP_NAMES=
-    for /f "delims=" %%i in ('node %JS_FILE%') do (
+    for /f "delims=" %%i in ('node %JS_FILE% group_names') do (
       set ALL_GROUP_NAMES=%%i,%ALL_GROUP_NAMES%
     )
     echo finished setting group names
@@ -85,8 +90,7 @@ del "%SPECS_CONFIG_FILE%"
   ) else (
     REM Extract environment variables for the given group using the compiled JavaScript file
     echo Extract environment variables for the given group using the compiled JavaScript file
-    node %JS_FILE%
-    for /f "delims=" %%i in ('node %JS_FILE%') do (
+    for /f "delims=" %%i in ('node %JS_FILE% env_vars') do (
       set %%i
       echo %%i
     )
