@@ -24,7 +24,7 @@ This script must be run under vpython
 """
 
 import clicastInterface
-from dataAPIutilities import TAG_FOR_INIT
+from vConstants import TAG_FOR_INIT
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
@@ -242,7 +242,7 @@ def getTestDataVCAST(enviroPath):
                     # if the field exists, which it will if our vcast version
                     # is > vc24sp3, then a value of None means we have an
                     # older enviro without mocking support
-                    enviroSupportsMocking = hasattr(function, "mock_lookup_type")
+                    enviroSupportsMocking = hasattr(function, "mock")
 
                 # Seems like a vcast dataAPI bug with manager.cpp
                 if (
