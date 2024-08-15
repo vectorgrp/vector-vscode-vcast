@@ -80,9 +80,6 @@ def generateAllVMockDefinitions(api):
             mock_bodies.append(f"{mock_definition}")
             mock_usages.append(mock_data.enableFunctionCall)
 
-    # Don't run this on a file with no units
-    assert first_unit is not None
-
     return first_unit, mock_bodies, mock_usages
 
 
@@ -180,6 +177,11 @@ def generate_tests_for_environment(enviro_path):
 
     # Generate our coded test ...
     first_unit = generate_test_file(api)
+
+    if first_unit is None:
+        print("No unit found (migrated VectorCAST environment?)")
+        return -1
+
     # ... and the test script to load the coded test
     generate_test_script(api.environment.name, first_unit)
 
