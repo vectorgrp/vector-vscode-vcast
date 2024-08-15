@@ -13,15 +13,16 @@ import base64
 
 from enum import Enum
 
-from dataAPIutilities import (
-    functionCanBeMocked,
-    generateMockEnableForUnitAndFunction,
-    CODED_TEST_SUBPROGRAM_NAME,
-    TAG_FOR_INIT,
-)
-
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
+from vector.apps.DataAPI import mock_helper
+
+from vConstants import (
+    TAG_FOR_INIT,
+    TAG_FOR_GLOBALS,
+    CODED_TEST_SUBPROGRAM_NAME,
+    MOCK_ENABLE_DISABLE_TEMPLATE,
+)
 
 globalOutputLog = list()
 
@@ -31,6 +32,30 @@ globalOutputLog = list()
 # mangled function name to the mock name.  Some users might prefer this also
 # so we will expose this in the extension
 ADD_HASH_TO_MOCK_FUNCTION_NAMES = False
+
+
+def functionCanBeMocked(functionObject):
+    return hasattr(functionObject, "mock") and functionObject.mock is not None
+
+
+def generateMockEnableForUnitAndFunction(functionObject, mockFunctionName):
+    """
+    Note that we pass in mockFunctionName because we want getFunctionName()
+    to remain in tstUtilities.py
+    """
+
+    expr = f"enable ? &{mockFunctionName} : nullptr"
+    mock_enable_body = mock_helper.generateMockEnableBody(
+        functionObject, expr=expr
+    ).strip()
+
+    mock_enable_disable = MOCK_ENABLE_DISABLE_TEMPLATE.safe_substitute(
+        mock=mockFunctionName,
+        mock_enable_body=mock_enable_body,
+    )
+    mock_enable_call = f"{mockFunctionName}_enable_disable(vmock_session);"
+
+    return mock_enable_disable, mock_enable_call
 
 
 def shouldAddHashToMockFunctionNames(functionObject):
@@ -302,9 +327,6 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
     return returnData
 
 
-tagForGlobals = "<<GLOBAL>>"
-
-
 def getFunctionList(api, unitName):
     """
     common code to generate list of functions ...
@@ -321,7 +343,7 @@ def getFunctionList(api, unitName):
         if CODED_TEST_SUBPROGRAM_NAME in returnList:
             returnList.remove(CODED_TEST_SUBPROGRAM_NAME)
         if len(unitObject.globals) > 0:
-            returnList.append(tagForGlobals)
+            returnList.append(TAG_FOR_GLOBALS)
 
     return returnList
 
@@ -449,7 +471,7 @@ def processStandardLines(api, pieces, triggerCharacter):
 
         functionName = pieces[3]
         # functionNAme can be <<GLOBAL>> ...
-        if functionName == tagForGlobals:
+        if functionName == TAG_FOR_GLOBALS:
             globalsList = unitObject.globals
             returnData.choiceList = getNameListFromItemList(globalsList)
             returnData.choiceKind = choiceKindType.Variable
@@ -467,7 +489,7 @@ def processStandardLines(api, pieces, triggerCharacter):
         unitObject = getObjectFromName(api.Unit.all(), unitName)
         functionName = pieces[3]
         paramName = pieces[4].split("[")[0]
-        if functionName == tagForGlobals:
+        if functionName == TAG_FOR_GLOBALS:
             globalsList = unitObject.globals
             itemObject = getObjectFromName(globalsList, paramName)
         else:
@@ -772,7 +794,7 @@ def generateMockDataForFunction(api, functionObject):
     whatToReturn.mockFunctionName = mockFunctionName
 
     # generate the complete declaration
-    mockDeclaration = functionObject.generate_mock_declaration(mockFunctionName)
+    mockDeclaration = functionObject.mock.generate_mock_declaration(mockFunctionName)
 
     whatToReturn.mockDeclaration = mockDeclaration
 
