@@ -15,7 +15,10 @@ from enum import Enum
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
-from vector.apps.DataAPI import mock_helper
+try:
+    from vector.apps.DataAPI import mock_helper
+except:
+    pass
 
 from vConstants import (
     TAG_FOR_INIT,
