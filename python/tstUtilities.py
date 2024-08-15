@@ -16,6 +16,7 @@ from enum import Enum
 from dataAPIutilities import (
     functionCanBeMocked,
     generateMockEnableForUnitAndFunction,
+    CODED_TEST_SUBPROGRAM_NAME,
     TAG_FOR_INIT,
 )
 
@@ -317,6 +318,8 @@ def getFunctionList(api, unitName):
         # seems like a vcast dataAPI bug, that <<INIT>> is in this list
         if TAG_FOR_INIT in returnList:
             returnList.remove(TAG_FOR_INIT)
+        if CODED_TEST_SUBPROGRAM_NAME in returnList:
+            returnList.remove(CODED_TEST_SUBPROGRAM_NAME)
         if len(unitObject.globals) > 0:
             returnList.append(tagForGlobals)
 

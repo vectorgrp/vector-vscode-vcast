@@ -19,6 +19,10 @@ import {
 
 import { choiceKindType, getChoiceDataFromPython } from "./pythonUtilities";
 
+function filterArray(currentArray: string[], whatToRemove: string) {
+  return currentArray.filter((element) => element !== whatToRemove);
+}
+
 export function getTstCompletionData(
   currentDocument: TextDocument,
   completionData: CompletionParams
@@ -72,6 +76,7 @@ export function getTstCompletionData(
         "UNIT",
         completionData.position.line
       );
+      // TBD will need to change how this is done during the fix for issue #170
       // we use python to get a list of subprograms by creating a fake VALUE line
       // with the unitName set to what we found
       let choiceArray = ["<<INIT>>", "<<COMPOUND>>"];
@@ -85,10 +90,7 @@ export function getTstCompletionData(
         choiceArray = choiceArray.concat(choiceData.choiceList);
         choiceKind = convertKind(choiceData.choiceKind);
         // <<GLOBAL>> is valid on VALUE lines but not as a function name!
-        const index = choiceArray.indexOf("<<GLOBAL>>");
-        if (index > -1) {
-          choiceArray.splice(index, 1); // 2nd parameter means remove one item only
-        }
+        choiceArray = filterArray(choiceArray, "<<GLOBAL>>");
       }
       return completionList(choiceArray, choiceKind);
     } else if (upperCaseLine.startsWith("TEST.SLOT:")) {
