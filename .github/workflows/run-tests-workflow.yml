@@ -67,7 +67,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          if [[ ${{ matrix.vcast == '24' }} == 'true' ]]; then
+          if [[ ${{ matrix.vcast }} == '24' ]]; then
             echo 'Activating Vcast 24'
             export VECTORCAST_DIR=/vcast/release24
             export PATH=/vcast/release24:$PATH
