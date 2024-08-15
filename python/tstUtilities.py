@@ -12,16 +12,11 @@ import hashlib
 import base64
 
 from enum import Enum
-
-from dataAPIutilities import (
-    functionCanBeMocked,
-    generateMockEnableForUnitAndFunction,
-    CODED_TEST_SUBPROGRAM_NAME,
-    TAG_FOR_INIT,
-)
+from string import Template
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
+from vector.apps.DataAPI import mock_helper
 
 globalOutputLog = list()
 
@@ -31,6 +26,46 @@ globalOutputLog = list()
 # mangled function name to the mock name.  Some users might prefer this also
 # so we will expose this in the extension
 ADD_HASH_TO_MOCK_FUNCTION_NAMES = False
+
+# Tag for the init, which we want to ignore
+TAG_FOR_INIT = "<<INIT>>"
+
+# Coded Test Subprogram Name
+CODED_TEST_SUBPROGRAM_NAME = "coded_tests_driver"
+
+MOCK_ENABLE_DISABLE_TEMPLATE = Template(
+    """
+void ${mock}_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
+    ${mock_enable_body}
+}
+""".strip(
+        "\n"
+    )
+)
+
+
+def functionCanBeMocked(functionObject):
+    return hasattr(functionObject, "mock") and functionObject.mock is not None
+
+
+def generateMockEnableForUnitAndFunction(functionObject, mockFunctionName):
+    """
+    Note that we pass in mockFunctionName because we want getFunctionName()
+    to remain in tstUtilities.py
+    """
+
+    expr = f"enable ? &{mockFunctionName} : nullptr"
+    mock_enable_body = mock_helper.generateMockEnableBody(
+        functionObject, expr=expr
+    ).strip()
+
+    mock_enable_disable = MOCK_ENABLE_DISABLE_TEMPLATE.safe_substitute(
+        mock=mockFunctionName,
+        mock_enable_body=mock_enable_body,
+    )
+    mock_enable_call = f"{mockFunctionName}_enable_disable(vmock_session);"
+
+    return mock_enable_disable, mock_enable_call
 
 
 def shouldAddHashToMockFunctionNames(functionObject):
@@ -772,7 +807,7 @@ def generateMockDataForFunction(api, functionObject):
     whatToReturn.mockFunctionName = mockFunctionName
 
     # generate the complete declaration
-    mockDeclaration = functionObject.generate_mock_declaration(mockFunctionName)
+    mockDeclaration = functionObject.mock.generate_mock_declaration(mockFunctionName)
 
     whatToReturn.mockDeclaration = mockDeclaration
 
