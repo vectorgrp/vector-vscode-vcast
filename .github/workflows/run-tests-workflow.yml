@@ -67,12 +67,14 @@ jobs:
 
       - name: Run unit tests
         run: |
-          if [[ ${{ matrix.vcast == '24' }} ]]; then
+          if [[ ${{ matrix.vcast == '24' }} == 'true' ]]; then
+            echo 'Activating Vcast 24'
             export VECTORCAST_DIR=/vcast/release24
             export PATH=/vcast/release24:$PATH
             export ENABLE_ATG_FEATURE=TRUE
           fi
           npm run gh-test | tee output.txt
+        shell: bash
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action/linux@v2
