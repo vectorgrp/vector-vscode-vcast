@@ -30,6 +30,8 @@ ADD_HASH_TO_MOCK_FUNCTION_NAMES = False
 # Tag for the init, which we want to ignore
 TAG_FOR_INIT = "<<INIT>>"
 
+# Coded Test Subprogram Name
+CODED_TEST_SUBPROGRAM_NAME = "coded_tests_driver"
 
 MOCK_ENABLE_DISABLE_TEMPLATE = Template(
     """
@@ -351,6 +353,8 @@ def getFunctionList(api, unitName):
         # seems like a vcast dataAPI bug, that <<INIT>> is in this list
         if TAG_FOR_INIT in returnList:
             returnList.remove(TAG_FOR_INIT)
+        if CODED_TEST_SUBPROGRAM_NAME in returnList:
+            returnList.remove(CODED_TEST_SUBPROGRAM_NAME)
         if len(unitObject.globals) > 0:
             returnList.append(tagForGlobals)
 
