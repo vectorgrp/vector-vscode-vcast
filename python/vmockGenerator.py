@@ -26,7 +26,7 @@ def trace(message):
         print(message)
 
 
-def generateAllVMockDefinitions(enviroPath):
+def generateAllVMockDefinitions(api):
     """
     This function is used for bulk testing of the vmock generation logic
     It takes the full path to an environment and generates all the vmock
@@ -50,7 +50,6 @@ def generateAllVMockDefinitions(enviroPath):
     # The list of all mock usages
     mock_usages = []
 
-    api = UnitTestApi(enviroPath)
     for unitObject in api.Unit.all():
         trace(f"Processing unit: {unitObject.name}")
         for functionObject in unitObject.functions:
@@ -121,7 +120,7 @@ test_file = f"{basename}.cpp"
 script_file = f"{basename}.tst"
 
 
-def generate_test_file(enviro_path, prepend=None):
+def generate_test_file(api, prepend=None):
     """
     Generates an instantiated C++ test file and its associated test script.
 
@@ -132,10 +131,10 @@ def generate_test_file(enviro_path, prepend=None):
     if prepend is None:
         prepend = []
 
-    env_name = os.path.basename(enviro_path)
+    env_name = api.environment.name
 
     # Use DataAPI + the extension code to generate all of the bodies we want to write-out
-    first_unit, mock_bodies, mock_usages = generateAllVMockDefinitions(enviro_path)
+    first_unit, mock_bodies, mock_usages = generateAllVMockDefinitions(api)
 
     # Generate the C++ file
     with open(test_file, "w") as test_cpp_file:
@@ -165,7 +164,7 @@ def generate_test_script(env_name, first_unit):
     )
 
 
-def generate_tests_for_environment(env_name):
+def generate_tests_for_environment(enviro_path):
     """
     Use Case:  vpython vmockGenerator.py <path-to-enviro-directory>
 
@@ -173,10 +172,18 @@ def generate_tests_for_environment(env_name):
     that was passed to us as an argument
     """
 
+    api = UnitTestApi(enviro_path)
+    coded_tests_enabled = api.environment.get_option("VCAST_CODED_TESTS_SUPPORT")
+    if not coded_tests_enabled:
+        print("Coded tests are not enabled on this environment")
+        return -1
+
     # Generate our coded test ...
-    first_unit = generate_test_file(env_name)
+    first_unit = generate_test_file(api)
     # ... and the test script to load the coded test
-    generate_test_script(env_name, first_unit)
+    generate_test_script(api.environment.name, first_unit)
+
+    return 0
 
 
 error_file = f"{test_file}.errors.txt"
@@ -256,6 +263,11 @@ def generate_tests_and_compile():
 
     for enviro_path in enviroDirs:
         enviro_path = os.path.abspath(enviro_path)
+        api = UnitTestApi(enviro_path)
+        coded_tests_enabled = api.environment.get_option("VCAST_CODED_TESTS_SUPPORT")
+        if not coded_tests_enabled:
+            print(f"Skipping: {enviro_path}")
+            continue
 
         print(f"Processing: {enviro_path}")
         try:
@@ -275,7 +287,7 @@ def generate_tests_and_compile():
             else:
                 # generate the tests.cpp
                 print("  generating tests ...")
-                generate_test_file(enviro_path, prepend=['#include "unit.cpp"'])
+                generate_test_file(api, prepend=['#include "unit.cpp"'])
 
                 # now try to compile it
                 # compile the tests.cpp file using g++
@@ -325,6 +337,8 @@ def generate_tests_and_compile():
         for enviro_path in unit_file_does_not_compile:
             f.write(f"  {enviro_path}\n")
 
+    return 0
+
 
 def main():
     """
@@ -335,21 +349,27 @@ def main():
 
     tstUtilities.ADD_HASH_TO_MOCK_FUNCTION_NAMES = True
 
-    if (
+    ret_val = 0
+
+    if tstUtilities.coded_mocks_enabled is False:
+        print("This version of VectorCAST does not support coded mocks")
+        ret_val = -1
+    elif (
         len(sys.argv) == 2
-        and (env_name := sys.argv[1])
-        and os.path.exists(os.path.join(env_name, "master.db"))
+        and (enviro_path := sys.argv[1])
+        and os.path.exists(os.path.join(enviro_path, "master.db"))
     ):
-        generate_tests_for_environment(env_name)
-
+        ret_val = generate_tests_for_environment(enviro_path)
     elif len(sys.argv) >= 2 and sys.argv[1] == "batch":
-        generate_tests_and_compile()
-
+        ret_val = generate_tests_and_compile()
     else:
         print("Usage: vpython vmockGenerator.py <path-to-enviro-directory> | batch")
+        ret_val = -1
+
+    return ret_val
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
 # EOF
