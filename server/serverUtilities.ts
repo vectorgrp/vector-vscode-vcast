@@ -152,9 +152,6 @@ export function getEnviroNameFromTestScript(testScriptPath: string) {
   // if we found a valid environment name, create a full path for it
   if (enviroName) {
     const enviroPath = path.join(path.dirname(testScriptPath), enviroName);
-    console.log(
-      "Environment path for script: " + testScriptPath + " is: " + enviroPath
-    );
     whatToReturn = enviroPath;
   } else {
     console.log(

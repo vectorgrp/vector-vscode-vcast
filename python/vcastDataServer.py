@@ -203,6 +203,7 @@ def main():
         print(
             f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT} ..."
         )
+        logMessage(f"Using clicast command: {clicastInterface.globalClicastCommand}\n")
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)
 
 

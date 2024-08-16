@@ -114,10 +114,16 @@ def terminateClicastProcess(enviroPath):
                 f"  terminating clicast instance [{clicastInstances[enviroPath].pid}] for environment: {enviroPath}"
             )
             process = clicastInstances[enviroPath]
-            # tell clicast to shutdown gracefully
-            process.stdin.write("clicast-server-shutdown\n")
-            process.stdin.flush()
-            process.wait()
+            # This tells clicast to shutdown gracefully
+            # In the case where the server has been stopped with ctrl-c
+            # we get here, but the clicast process might have already died
+            # from the propogated SIGINT, so we need to catch the exception
+            try:
+                process.stdin.write("clicast-server-shutdown\n")
+                process.stdin.flush()
+                process.wait()
+            except:
+                pass
             del clicastInstances[enviroPath]
             returnValue = True
         else:
