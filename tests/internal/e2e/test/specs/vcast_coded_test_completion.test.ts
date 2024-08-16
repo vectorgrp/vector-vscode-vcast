@@ -1,6 +1,4 @@
 // Test/specs/vcast_coded_tests.test.ts
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
 import {
   type BottomBarPanel,
   type StatusBar,
@@ -21,13 +19,7 @@ import {
   getTestHandle,
   findSubprogramMethod,
   updateTestID,
-  cleanup,
 } from "../test_utils/vcast_utils";
-
-const promisifiedExec = promisify(exec);
-// Item for the function autocompletion. Looks weird but it s exactly the item.
-
-//const expectedFunctionOutput = `⏎void vmock_manager_Manager_ClearTable(::vunit::CallCtx<Manager> vunit_ctx, unsigned Table) {⏎  // Enable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session);⏎  // Disable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session, false);⏎⏎  // Insert mock logic here!⏎}⏎void vmock_manager_Manager_ClearTable_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {⏎    using vcast_mock_rtype = void  ;⏎    vcast_mock_rtype (Manager::*vcast_fn_ptr)(unsigned)  = &Manager::ClearTable;⏎    vmock_session.mock <vcast_mock_rtype (Manager::*)(unsigned)> ((vcast_mock_rtype (Manager::*)(unsigned))vcast_fn_ptr).assign (enable ? &vmock_manager_Manager_ClearTable : nullptr);⏎}⏎// end of mock for: vmock_manager_Manager_ClearTable -------------------------------------------------------------------⏎⏎`;
 
 // Define the normalized version of the expected content
 export const normalizedExpectedFunctionOutput = `
@@ -219,13 +211,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("Settings");
   });
 
-  it("should generate and run template test", async () => {
+  it("should check vor vmock code completion", async () => {
     await updateTestID();
 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
 
+    // Expand manager section in testing pane.
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
         await vcastTestingViewSection.expand();
