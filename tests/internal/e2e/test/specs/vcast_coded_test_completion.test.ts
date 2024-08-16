@@ -26,7 +26,24 @@ import {
 
 const promisifiedExec = promisify(exec);
 // Item for the function autocompletion. Looks weird but it s exactly the item.
-const expectedFunctionOutput = `⏎void vmock_manager_Manager_ClearTable(::vunit::CallCtx<Manager> vunit_ctx, unsigned Table) {⏎  // Enable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session);⏎  // Disable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session, false);⏎⏎  // Insert mock logic here!⏎}⏎void vmock_manager_Manager_ClearTable_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {⏎    using vcast_mock_rtype = void  ;⏎    vcast_mock_rtype (Manager::*vcast_fn_ptr)(unsigned)  = &Manager::ClearTable;⏎    vmock_session.mock <vcast_mock_rtype (Manager::*)(unsigned)> ((vcast_mock_rtype (Manager::*)(unsigned))vcast_fn_ptr).assign (enable ? &vmock_manager_Manager_ClearTable : nullptr);⏎}⏎// end of mock for: vmock_manager_Manager_ClearTable -------------------------------------------------------------------⏎⏎`;
+
+//const expectedFunctionOutput = `⏎void vmock_manager_Manager_ClearTable(::vunit::CallCtx<Manager> vunit_ctx, unsigned Table) {⏎  // Enable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session);⏎  // Disable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session, false);⏎⏎  // Insert mock logic here!⏎}⏎void vmock_manager_Manager_ClearTable_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {⏎    using vcast_mock_rtype = void  ;⏎    vcast_mock_rtype (Manager::*vcast_fn_ptr)(unsigned)  = &Manager::ClearTable;⏎    vmock_session.mock <vcast_mock_rtype (Manager::*)(unsigned)> ((vcast_mock_rtype (Manager::*)(unsigned))vcast_fn_ptr).assign (enable ? &vmock_manager_Manager_ClearTable : nullptr);⏎}⏎// end of mock for: vmock_manager_Manager_ClearTable -------------------------------------------------------------------⏎⏎`;
+
+// Define the normalized version of the expected content
+export const normalizedExpectedFunctionOutput = `
+void vmock_manager_Manager_ClearTable(::vunit::CallCtx<Manager> vunit_ctx, unsigned Table) {
+  // Enable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session);
+  // Disable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session, false);
+
+  // Insert mock logic here!
+}
+void vmock_manager_Manager_ClearTable_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
+    using vcast_mock_rtype = void  ;
+    vcast_mock_rtype (Manager::*vcast_fn_ptr)(unsigned)  = &Manager::ClearTable;
+    vmock_session.mock <vcast_mock_rtype (Manager::*)(unsigned)> ((vcast_mock_rtype (Manager::*)(unsigned))vcast_fn_ptr).assign (enable ? &vmock_manager_Manager_ClearTable : nullptr);
+}
+// end of mock for: vmock_manager_Manager_ClearTable -------------------------------------------------------------------
+`.trim();
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
@@ -330,6 +347,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(await contentAssist.hasItem("Manager::PlaceOrder")).toBe(true);
 
     await selectItem(contentAssist, "Manager::ClearTable");
+
     await tab.typeTextAt(
       currentLine,
       "// vmock manager Manager::ClearTable".length + 1,
@@ -340,14 +358,25 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await contentAssist.getItems()).length > 0
     );
 
-    expect(await contentAssist.hasItem(expectedFunctionOutput)).toBe(true);
-    await selectItem(contentAssist, expectedFunctionOutput);
-    console.log("Content assist validation passed.");
-  });
+    // Use normalized expected content for validation
+    const contentAssistItems = await contentAssist.getItems();
+    let itemFound = false;
 
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
+    // If the completion item is too long it is encoded weridly vrom vscode with "⏎". --> Normalize it.
+    for (const item of contentAssistItems) {
+      const label = await item.getLabel();
+      if (
+        normalizeContentAssistString(label) ===
+        normalizeContentAssistString(normalizedExpectedFunctionOutput)
+      ) {
+        itemFound = true;
+        await selectItem(contentAssist, normalizedExpectedFunctionOutput);
+        break;
+      }
+    }
+
+    expect(itemFound).toBe(true);
+    console.log("Content assist validation passed.");
   });
 });
 
@@ -357,30 +386,38 @@ describe("vTypeCheck VS Code Extension", () => {
  * @param item String consisting of the item label.
  */
 async function selectItem(contentAssist: ContentAssist, item: string) {
-  // Find the index of "manager" in the content assist list
+  // Normalize the input item string
+  const normalizedItem = normalizeContentAssistString(item);
+
+  // Get all content assist items
   const items: ContentAssistItem[] = await contentAssist.getItems();
 
   let itemIndex = -1;
   for (let i = 0; i < items.length; i++) {
-    console.log("ITEM");
-    console.log(await items[i].getLabel());
-    if (normalizeString(await items[i].getLabel()) === normalizeString(item)) {
+    const label = await items[i].getLabel();
+    const normalizedLabel = normalizeContentAssistString(label);
+
+    // Compare the normalized label with the normalized item
+    if (normalizedLabel === normalizedItem) {
       itemIndex = i;
       break;
     }
   }
 
   if (itemIndex === -1) {
-    throw new Error(`Content assist item  ${item} not found`);
+    throw new Error(`Content assist item ${item} not found`);
   }
 
-  // Navigate to the "manager" item using arrow keys
+  // Navigate to the desired item using arrow keys
   for (let i = 0; i < itemIndex; i++) {
     await browser.keys("ArrowDown");
   }
 
-  // Select the "manager" item
+  // Select the item
   await browser.keys("Enter");
 }
 
-const normalizeString = (str: string) => str.replace(/\s+/g, " ").trim();
+// Function to normalize the string from content assist
+function normalizeContentAssistString(content: string): string {
+  return content.replace(/⏎/g, "\n").replace(/\s+/g, " ").trim();
+}
