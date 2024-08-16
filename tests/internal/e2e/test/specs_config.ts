@@ -105,6 +105,12 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {},
       params: {},
     };
+
+    specGroups["coded_mock"] = {
+      specs: ["./**/**/vcast_coded_test_completion.test.ts"],
+      env: {},
+      params: {},
+    };
   }
 
   return specGroups;
