@@ -7,6 +7,8 @@ import {
   type TextEditor,
   type Workbench,
   type TreeItem,
+  ContentAssist,
+  ContentAssistItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -23,6 +25,9 @@ import {
 } from "../test_utils/vcast_utils";
 
 const promisifiedExec = promisify(exec);
+// Item for the function autocompletion. Looks weird but it s exactly the item.
+const expectedFunctionOutput = `⏎void vmock_manager_Manager_ClearTable(::vunit::CallCtx<Manager> vunit_ctx, unsigned Table) {⏎  // Enable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session);⏎  // Disable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session, false);⏎⏎  // Insert mock logic here!⏎}⏎void vmock_manager_Manager_ClearTable_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {⏎    using vcast_mock_rtype = void  ;⏎    vcast_mock_rtype (Manager::*vcast_fn_ptr)(unsigned)  = &Manager::ClearTable;⏎    vmock_session.mock <vcast_mock_rtype (Manager::*)(unsigned)> ((vcast_mock_rtype (Manager::*)(unsigned))vcast_fn_ptr).assign (enable ? &vmock_manager_Manager_ClearTable : nullptr);⏎}⏎// end of mock for: vmock_manager_Manager_ClearTable -------------------------------------------------------------------⏎⏎`;
+
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
@@ -300,9 +305,43 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Validate content assist items
     console.log("Validating content assist for '// vmock'");
-    expect(await contentAssist.hasItem("unit")).toBe(true);
+    expect(await contentAssist.hasItem("database")).toBe(true);
+    expect(await contentAssist.hasItem("manager")).toBe(true);
     expect(await contentAssist.hasItem("Prototype-Stubs")).toBe(true);
 
+    await selectItem(contentAssist, "manager");
+    await tab.typeTextAt(currentLine, "// vmock manager".length + 1, " ");
+    await tab.save();
+    await browser.waitUntil(
+      async () => (await contentAssist.getItems()).length > 0
+    );
+
+    expect(await contentAssist.hasItem("Manager::AddIncludedDessert")).toBe(
+      true
+    );
+    expect(await contentAssist.hasItem("Manager::AddPartyToWaitingList")).toBe(
+      true
+    );
+    expect(await contentAssist.hasItem("Manager::ClearTable")).toBe(true);
+    expect(await contentAssist.hasItem("Manager::GetCheckTotal")).toBe(true);
+    expect(await contentAssist.hasItem("Manager::GetNextPartyToBeSeated")).toBe(
+      true
+    );
+    expect(await contentAssist.hasItem("Manager::PlaceOrder")).toBe(true);
+
+    await selectItem(contentAssist, "Manager::ClearTable");
+    await tab.typeTextAt(
+      currentLine,
+      "// vmock manager Manager::ClearTable".length + 1,
+      " "
+    );
+    await tab.save();
+    await browser.waitUntil(
+      async () => (await contentAssist.getItems()).length > 0
+    );
+
+    expect(await contentAssist.hasItem(expectedFunctionOutput)).toBe(true);
+    await selectItem(contentAssist, expectedFunctionOutput);
     console.log("Content assist validation passed.");
   });
 
@@ -311,3 +350,37 @@ describe("vTypeCheck VS Code Extension", () => {
     await cleanup();
   });
 });
+
+/**
+ * Function to select an item from the content assistant.
+ * @param contentAssist Content assist including the autocompletion items.
+ * @param item String consisting of the item label.
+ */
+async function selectItem(contentAssist: ContentAssist, item: string) {
+  // Find the index of "manager" in the content assist list
+  const items: ContentAssistItem[] = await contentAssist.getItems();
+
+  let itemIndex = -1;
+  for (let i = 0; i < items.length; i++) {
+    console.log("ITEM");
+    console.log(await items[i].getLabel());
+    if (normalizeString(await items[i].getLabel()) === normalizeString(item)) {
+      itemIndex = i;
+      break;
+    }
+  }
+
+  if (itemIndex === -1) {
+    throw new Error(`Content assist item  ${item} not found`);
+  }
+
+  // Navigate to the "manager" item using arrow keys
+  for (let i = 0; i < itemIndex; i++) {
+    await browser.keys("ArrowDown");
+  }
+
+  // Select the "manager" item
+  await browser.keys("Enter");
+}
+
+const normalizeString = (str: string) => str.replace(/\s+/g, " ").trim();
