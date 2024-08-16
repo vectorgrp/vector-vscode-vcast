@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { vectorMessage } from "./messagePane";
+import { errorLevel, vectorMessage } from "./messagePane";
 import { getResultFileForTest } from "./vcastTestInterface";
 
 const fs = require("fs");
@@ -126,7 +126,7 @@ function viewResultsReportVC(textFilePath: string) {
   let htmlText = cleanHTML(fs.readFileSync(htmlFilePath, "utf-8"));
   // this displays the html report in a webview panel
   if (!htmlReportPanel) {
-    vectorMessage("Creating web view panel ...");
+    vectorMessage("Creating web view panel ...", errorLevel.trace);
     htmlReportPanel = vscode.window.createWebviewPanel(
       "vcastReport",
       "VectorCAST Report",
@@ -137,11 +137,11 @@ function viewResultsReportVC(textFilePath: string) {
       htmlReportPanel = undefined;
     });
   } else {
-    vectorMessage("Revealing webview panel ...");
+    vectorMessage("Revealing webview panel ...", errorLevel.trace);
     htmlReportPanel.reveal(vscode.ViewColumn.Two);
   }
 
-  vectorMessage("Setting webview text ...");
+  vectorMessage("Setting webview text ...", errorLevel.trace);
   htmlReportPanel.webview.html = htmlText;
 }
 

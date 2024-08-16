@@ -443,7 +443,7 @@ def completionTest(enviroPath):
     # choiceList
     print("Starting completion Test")
     request = vcastDataServerTypes.clientRequest(
-        commandType.choiceList, path=enviroPath, options="TEST.VALUE:"
+        commandType.choiceListTst, path=enviroPath, options="TEST.VALUE:"
     )
     returnData = transmitCommand(request)
 
@@ -620,6 +620,9 @@ def setupArgs():
     parser.add_argument(
         "--port", help=f"Server port number (default={vcastDataServerTypes.PORT})"
     )
+    parser.add_argument(
+        "--nobuild", help=f"Do not build the environment", action="store_true"
+    )
     return parser
 
 
@@ -695,12 +698,8 @@ def main():
     clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
     ENVIRO_PATH = os.path.join(os.getcwd(), "Environments")
 
-    # cbt test does not need an enviro
-    if args.test == "cbt":
-        parseCBTTest(clicastPath)
-        sys.exit(0)
-
-    initializeEnvironment(clicastPath)
+    if args.nobuild == False:
+        initializeEnvironment(clicastPath)
 
     enviroUnderTest = os.path.join(ENVIRO_PATH, "DEMO1")
     if os.path.isdir(enviroUnderTest) == False:
@@ -723,11 +722,12 @@ def main():
         rebuildTest(clicastPath, enviroPath)
     elif args.test == "test":
         testCaseTests(clicastPath, enviroPath, testString)
+    elif args.test == "cbt":
+        parseCBTTest(clicastPath)
     elif args.test == "errors":
         errorTests(clicastPath, enviroPath)
     elif args.test == "full":
         fullTest(enviroPath, clicastPath, testString)
-
     else:
         print("Unknown test kind")
 

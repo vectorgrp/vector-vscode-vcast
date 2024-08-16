@@ -1,5 +1,8 @@
 {
     "data": {
+        "enviro": {
+            "mockingSupport": false
+        },
         "testData": [
             {
                 "name": "Compound Tests",
