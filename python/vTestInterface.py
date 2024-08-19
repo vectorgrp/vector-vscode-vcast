@@ -34,6 +34,9 @@ from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
 from vector.enums import COVERAGE_TYPE_TYPE_T
 
+if vpythonHasCodedTestSupport():
+    from vector.lib.coded_tests import Parser
+
 
 class InvalidEnviro(Exception):
     pass
