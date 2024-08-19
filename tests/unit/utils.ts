@@ -238,8 +238,9 @@ export async function getToolVersion() {
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);
     } else {
-      console.error(`Unexpected error: ${error}`);
+      console.error(`Unexpected error: ${String(error)}`);
     }
+
     throw new Error(
       `Error when running "${checkClicast}", make sure clicast is on PATH`
     );
@@ -263,8 +264,9 @@ export async function getToolVersion() {
     if (error instanceof Error) {
       console.error(`Error reading tool version: ${error.message}`);
     } else {
-      console.error(`Unexpected error: ${error}`);
+      console.error(`Unexpected error: ${String(error)}`);
     }
+
     return "";
   }
 }
