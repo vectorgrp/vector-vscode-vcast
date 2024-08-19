@@ -5,8 +5,6 @@ import {
   type TextEditor,
   type Workbench,
   type TreeItem,
-  ContentAssist,
-  ContentAssistItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -19,6 +17,7 @@ import {
   getTestHandle,
   findSubprogramMethod,
   updateTestID,
+  selectItem,
 } from "../test_utils/vcast_utils";
 
 // Define the normalized version of the expected content
@@ -211,7 +210,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("Settings");
   });
 
-  it("should check vor vmock code completion", async () => {
+  it("should check for vmock code completion", async () => {
     await updateTestID();
 
     console.log("Opening Testing View");
@@ -297,7 +296,7 @@ describe("vTypeCheck VS Code Extension", () => {
         "manager-template.cpp"
     );
 
-    // Insert "// vmock" on line 16
+    // Insert "// vmock" on line 14
     const tab = (await editorView.openEditor(
       "manager-template.cpp"
     )) as TextEditor;
@@ -313,11 +312,12 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await contentAssist.getItems()).length > 0
     );
 
-    // Validate content assist items
-    console.log("Validating content assist for '// vmock'");
-    expect(await contentAssist.hasItem("database")).toBe(true);
-    expect(await contentAssist.hasItem("manager")).toBe(true);
-    expect(await contentAssist.hasItem("Prototype-Stubs")).toBe(true);
+    // Validating content assist for '// vmock'
+    const expectedItems = ["database", "manager", "Prototype-Stubs"];
+
+    for (const item of expectedItems) {
+      expect(await contentAssist.hasItem(item)).toBe(true);
+    }
 
     await selectItem(contentAssist, "manager");
     await tab.typeTextAt(currentLine, "// vmock manager".length + 1, " ");
@@ -326,21 +326,23 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await contentAssist.getItems()).length > 0
     );
 
-    expect(await contentAssist.hasItem("Manager::AddIncludedDessert")).toBe(
-      true
-    );
-    expect(await contentAssist.hasItem("Manager::AddPartyToWaitingList")).toBe(
-      true
-    );
-    expect(await contentAssist.hasItem("Manager::ClearTable")).toBe(true);
-    expect(await contentAssist.hasItem("Manager::GetCheckTotal")).toBe(true);
-    expect(await contentAssist.hasItem("Manager::GetNextPartyToBeSeated")).toBe(
-      true
-    );
-    expect(await contentAssist.hasItem("Manager::PlaceOrder")).toBe(true);
+    // Validating content assist for '// vmock manager'
+    const expectedManagerItems = [
+      "Manager::AddIncludedDessert",
+      "Manager::AddPartyToWaitingList",
+      "Manager::ClearTable",
+      "Manager::GetCheckTotal",
+      "Manager::GetNextPartyToBeSeated",
+      "Manager::PlaceOrder",
+    ];
+
+    for (const item of expectedManagerItems) {
+      expect(await contentAssist.hasItem(item)).toBe(true);
+    }
 
     await selectItem(contentAssist, "Manager::ClearTable");
 
+    // Validating content assist for '// vmock manager Manager::ClearTable'
     await tab.typeTextAt(
       currentLine,
       "// vmock manager Manager::ClearTable".length + 1,
@@ -351,66 +353,13 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await contentAssist.getItems()).length > 0
     );
 
-    // Use normalized expected content for validation
-    const contentAssistItems = await contentAssist.getItems();
-    let itemFound = false;
+    // Select completion item
+    const selectedItem = await selectItem(
+      contentAssist,
+      normalizedExpectedFunctionOutput
+    );
 
-    // If the completion item is too long it is encoded weridly vrom vscode with "⏎". --> Normalize it.
-    for (const item of contentAssistItems) {
-      const label = await item.getLabel();
-      if (
-        normalizeContentAssistString(label) ===
-        normalizeContentAssistString(normalizedExpectedFunctionOutput)
-      ) {
-        itemFound = true;
-        await selectItem(contentAssist, normalizedExpectedFunctionOutput);
-        break;
-      }
-    }
-
-    expect(itemFound).toBe(true);
+    expect(selectedItem).not.toBe(undefined);
     console.log("Content assist validation passed.");
   });
 });
-
-/**
- * Function to select an item from the content assistant.
- * @param contentAssist Content assist including the autocompletion items.
- * @param item String consisting of the item label.
- */
-async function selectItem(contentAssist: ContentAssist, item: string) {
-  // Normalize the input item string
-  const normalizedItem = normalizeContentAssistString(item);
-
-  // Get all content assist items
-  const items: ContentAssistItem[] = await contentAssist.getItems();
-
-  let itemIndex = -1;
-  for (let i = 0; i < items.length; i++) {
-    const label = await items[i].getLabel();
-    const normalizedLabel = normalizeContentAssistString(label);
-
-    // Compare the normalized label with the normalized item
-    if (normalizedLabel === normalizedItem) {
-      itemIndex = i;
-      break;
-    }
-  }
-
-  if (itemIndex === -1) {
-    throw new Error(`Content assist item ${item} not found`);
-  }
-
-  // Navigate to the desired item using arrow keys
-  for (let i = 0; i < itemIndex; i++) {
-    await browser.keys("ArrowDown");
-  }
-
-  // Select the item
-  await browser.keys("Enter");
-}
-
-// Function to normalize the string from content assist
-function normalizeContentAssistString(content: string): string {
-  return content.replace(/⏎/g, "\n").replace(/\s+/g, " ").trim();
-}
