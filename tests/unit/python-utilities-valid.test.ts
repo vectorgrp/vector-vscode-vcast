@@ -9,7 +9,11 @@ import {
   afterEach,
   type SpyInstance,
 } from "vitest";
-import { runPythonScript } from "../../server/pythonUtilities";
+import {
+  runPythonScript,
+  updateVPythonCommand,
+  getVPythonCommand,
+} from "../../server/pythonUtilities";
 
 const timeout = 30_000; // 30 seconds
 
@@ -31,6 +35,8 @@ describe("Testing pythonUtilities (valid)", () => {
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
       /* No-op */
     });
+
+    updateVPythonCommand("");
 
     // Mock existsSync since path does not exist
     existsSyncSpy = vi.spyOn(fs, "existsSync").mockImplementation(() => true);
@@ -65,6 +71,16 @@ describe("Testing pythonUtilities (valid)", () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining(expectedMessagePart)
       );
+    },
+    timeout
+  );
+
+  test(
+    "validate updateVPythonCommand",
+    async () => {
+      const newPath = "some/other/path/to/change";
+      updateVPythonCommand(newPath);
+      expect(getVPythonCommand()).toBe(newPath);
     },
     timeout
   );
