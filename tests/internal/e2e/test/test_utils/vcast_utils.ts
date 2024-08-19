@@ -1200,7 +1200,8 @@ export async function selectItem(contentAssist: ContentAssist, item: string) {
   ).findIndex((normalizedLabel) => normalizedLabel === normalizedItem);
 
   if (itemIndex === -1) {
-    throw new Error(`Content assist item ${item} not found`);
+    console.log(`Content assist item ${item} not found`);
+    return undefined;
   }
 
   // Navigate to the desired item using arrow keys
