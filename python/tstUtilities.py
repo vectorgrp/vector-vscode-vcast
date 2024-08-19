@@ -16,37 +16,17 @@ from enum import Enum
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
 
-CODED_MOCK_ENABLED = False
-try:
-    from vector.apps.DataAPI import mock_helper
-
-    # NOTE: we don't need to check if an environment supports coded mocks, only
-    # a version of _VectorCAST_.
-    #
-    # If an environment doesn't have coded tests enabled (or it was originally
-    # build with a version of VectorCAST that did not support coded tests/coded
-    # mocks) and we open it up with a version of VectorCAST with `mock_helper`,
-    # then `.mock.` will be set to `None`.
-    #
-    # We also need to check that the verison of the api in `mock_helper` is
-    # compatible with this version of the extension.
-
-    # The version of the api this version of the extension supports
-    supported_mock_api_version = 1
-
-    # We only enable coded mocks if the version of `mock_helper` is <= than our
-    # supported version
-    CODED_MOCK_ENABLED = mock_helper.MOCK_API_MAJOR <= supported_mock_api_version
-
-except ImportError:
-    pass
-
 from vConstants import (
     TAG_FOR_INIT,
     TAG_FOR_GLOBALS,
     CODED_TEST_SUBPROGRAM_NAME,
     MOCK_ENABLE_DISABLE_TEMPLATE,
 )
+
+from versionChecks import vpythonHasCodedMockSupport, enviroSupportsMocking
+
+if vpythonHasCodedMockSupport():
+    from vector.apps.DataAPI import mock_helper
 
 globalOutputLog = list()
 
@@ -626,7 +606,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
                 returnUnitList.append(unitObject)
 
     # if coded mocks are enabled, and the unit name is an exact match, process the function name
-    if CODED_MOCK_ENABLED and len(returnUnitList) == 1:
+    if enviroSupportsMocking(api) and len(returnUnitList) == 1:
         # check if the function name matches any of the functions in the unit
         for functionObject in unitObject.functions:
             if functionCanBeMocked(functionObject):

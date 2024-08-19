@@ -25,18 +25,14 @@ This script must be run under vpython
 
 import clicastInterface
 from vConstants import TAG_FOR_INIT
+from versionChecks import (
+    vpythonHasCodedTestSupport,
+    enviroSupportsMocking,
+)
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
 from vector.enums import COVERAGE_TYPE_TYPE_T
-
-vpythonHasCodedTestSupport: bool = False
-try:
-    from vector.lib.coded_tests import Parser
-
-    vpythonHasCodedTestSupport = True
-except:
-    pass
 
 
 class InvalidEnviro(Exception):
@@ -152,7 +148,7 @@ def generateTestInfo(enviroPath, test):
     testInfo["passfail"] = getPassFailString(test)
 
     # New to support coded tests in vc24
-    if vpythonHasCodedTestSupport and test.coded_tests_file:
+    if vpythonHasCodedTestSupport() and test.coded_tests_file:
         # guard against the case where the coded test file has been renamed or deleted
         # or dataAPI has a bad line number for the test, and return None in this case.
         enclosingDirectory = os.path.dirname(enviroPath)
@@ -174,11 +170,24 @@ def generateTestInfo(enviroPath, test):
 # knowledge of "testabilty"
 globalListOfTestableFunctions = []
 
-# The extension needs to know if the environment was built
-# with mocking support, not just if the tool supports it
-# If the enviro was not built with mocking then the new mocking
-# fields in the API will be set to None by the migration process
-enviroSupportsMocking = None
+
+def getEnviroSupportsMock(enviroPath):
+    # The extension needs to know if the environment was built
+    # with mocking support, not just if the tool supports it
+    # If the enviro was not built with mocking then the new mocking
+    # fields in the API will be set to None by the migration process
+    try:
+        # this can throw an error of the coverDB is too old!
+        api = UnitTestApi(enviroPath)
+    except Exception as err:
+        print(err)
+        raise UsageError()
+
+    currEnviroSupportsMocking = enviroSupportsMocking(api)
+
+    api.close()
+
+    return currEnviroSupportsMocking
 
 
 def getTestDataVCAST(enviroPath):
@@ -233,13 +242,6 @@ def getTestDataVCAST(enviroPath):
             unitNode["functions"] = list()
             for function in unit.functions:
                 functionNode = dict()
-
-                # if we have not checked for mocking support yet, do it now
-                if enviroSupportsMocking == None:
-                    # if the field exists, which it will if our vcast version
-                    # is > vc24sp3, then a value of None means we have an
-                    # older enviro without mocking support
-                    enviroSupportsMocking = hasattr(function, "mock")
 
                 # Seems like a vcast dataAPI bug with manager.cpp
                 if (
@@ -551,11 +553,8 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
         topLevel["testData"] = getTestDataVCAST(pathToUse)
         topLevel["unitData"] = getUnitData(pathToUse)
 
-        # enviroSupportsMocking is set by the gettestDataVCAST() function
         topLevel["enviro"] = dict()
-        topLevel["enviro"]["mockingSupport"] = (
-            enviroSupportsMocking if enviroSupportsMocking else False
-        )
+        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(pathToUse)
 
         returnObject = topLevel
 
