@@ -172,12 +172,14 @@ globalListOfTestableFunctions = []
 
 
 def getEnviroSupportsMock(enviroPath):
-    # The extension needs to know if the environment was built
-    # with mocking support, not just if the tool supports it
-    # If the enviro was not built with mocking then the new mocking
-    # fields in the API will be set to None by the migration process
+    """
+    The extension needs to know if the environment was built with mocking
+    support, not just if the tool supports it.
+
+    If the enviro was not built with mocking then the new mocking fields in the
+    API will be set to None by the migration process.
+    """
     try:
-        # this can throw an error of the coverDB is too old!
         api = UnitTestApi(enviroPath)
     except Exception as err:
         print(err)

@@ -7,7 +7,7 @@ from vector.enums import ENVIRONMENT_VERSION_TYPE_T
 def vpythonHasCodedTestSupport():
     """
     Determine if the current version of vpython supports coded tests (result is
-    cachced to avoid duplicate computation).
+    cached to avoid duplicate computation).
 
     This function performs one check:
 
@@ -28,7 +28,7 @@ def vpythonHasCodedTestSupport():
 def vpythonHasCodedMockSupport():
     """
     Determine if the current version of vpython supports coded mocks (result is
-    cachced to avoid duplicate computation).
+    cached to avoid duplicate computation).
 
     This function performs three checks:
 
