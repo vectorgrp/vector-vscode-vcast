@@ -2,11 +2,12 @@ import { promisify } from "node:util";
 import { exec } from "node:child_process";
 import path from "node:path";
 import {
+  CustomTreeItem,
   type TextEditor,
-  type CustomTreeItem,
   type ViewSection,
   type ViewItem,
   type TreeItem,
+  ViewContent,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
@@ -208,6 +209,46 @@ export async function expandAllSubprogramsFor(subprogramGroup: CustomTreeItem) {
   for (const subprogram of await subprogramGroup.getChildren()) {
     await subprogram.expand();
   }
+}
+
+/**
+ * Retrieves the top-level items from a given testing view content.
+ * @param vcastTestingViewContent Testing view content.
+ * @returns Top-level items or undefined
+ */
+export async function retrieveTestingTopItems(
+  vcastTestingViewContent: ViewContent
+) {
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    if (!(await vcastTestingViewSection.isExpanded())) {
+      await vcastTestingViewSection.expand();
+    }
+    // Get all top-level items (ENV_01, ENV_02, etc.)
+    return await vcastTestingViewSection.getVisibleItems();
+  }
+
+  return undefined;
+}
+
+/**
+ * Function that expands the top folder of the testing pane and returns it if available.
+ * @param envName Name of the environment.
+ * @param topLevelItems All Top level folders of the testing pane.
+ * @returns "Folder item" or undefined if not found.
+ */
+export async function expandTopEnvInTestPane(
+  envName: string,
+  topLevelItems: CustomTreeItem[]
+): Promise<CustomTreeItem> {
+  for (const item of topLevelItems) {
+    const itemName = await (await item.elem).getText();
+    if (itemName === envName && !(await item.isExpanded())) {
+      await item.expand();
+      return item;
+    }
+  }
+
+  return undefined;
 }
 
 export async function findSubprogram(
