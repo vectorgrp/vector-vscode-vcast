@@ -616,7 +616,7 @@ def errorTests(enviroPath, clicastPath):
 def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Data Server Test Client")
-    parser.add_argument("--test", required=False, default="full")
+    parser.add_argument("--test", required=True)
     parser.add_argument(
         "--port", help=f"Server port number (default={vcastDataServerTypes.PORT})"
     )
