@@ -128,6 +128,7 @@ export function generateCompletionData(
   if (optParameters?.cppTest && optParameters?.lineSoFar) {
     console.log(`Input .cpp file: \n ${textDocument.getText()} \n`);
     const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+    // TBD TODAY - Should this test create a "connection" object?
     if (enviroPath) {
       return getCodedTestCompletionData(
         undefined,
