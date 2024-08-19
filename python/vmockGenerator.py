@@ -353,7 +353,7 @@ def main():
 
     ret_val = 0
 
-    if tstUtilities.coded_mocks_enabled is False:
+    if tstUtilities.CODED_MOCK_ENABLED is False:
         print("This version of VectorCAST does not support coded mocks")
         ret_val = -1
     elif (
