@@ -22,18 +22,18 @@ import testEditorInterface
 import tstUtilities
 import vTestInterface
 import vTestUtilities
-from vTestUtilities import logMessage
+from vTestUtilities import logMessage, logPrefix
 
 
 @app.route("/ping")
 def ping():
-    logMessage("vcastDataServer: received ping request, responding 'alive'")
+    logMessage(f"{logPrefix()} received ping request, responding 'alive'")
     return {"text": "alive"}
 
 
 @app.route("/shutdown")
 def shutdown():
-    logMessage("vcastDataServer: received shutdown request ...")
+    logMessage(f"{logPrefix()} received shutdown request ...")
     # terminate all of the clicast processes
     # Need a copy of the keys because we are modifying the dictionary
     # whild looping over it would cause an error
@@ -60,7 +60,7 @@ def vassistant():
 
     try:
         logMessage(
-            f"\nvcastDataServer: received client request: {clientRequest.command} for {clientRequest.path}"
+            f"\n{logPrefix()} received client request: {clientRequest.command} for {clientRequest.path}"
         )
         logMessage(f"  clicastInstances: {clicastInterface.clicastInstances.keys()}")
         exitCode = 0
@@ -203,7 +203,7 @@ def main():
         print(
             f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT} ..."
         )
-        logMessage(f"Using clicast command: {clicastInterface.globalClicastCommand}\n")
+        logMessage(f"{logPrefix()} using clicast command: {clicastInterface.globalClicastCommand}\n")
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)
 
 
