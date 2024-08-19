@@ -1,3 +1,6 @@
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import {
@@ -11,6 +14,8 @@ import { getHoverString } from "../../server/tstHover";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
 import { initializePaths } from "../../server/pythonUtilities";
+import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 
 export type HoverPosition = {
   line: number;
@@ -84,10 +89,17 @@ export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
-  envName?: string
+  optParameters?: {
+    lineSoFar?: string;
+    cppTest?: boolean;
+    envName?: string;
+  }
 ) {
-  envName ||= "vcast";
-  const languageId = "VectorCAST Test Script";
+  // OptParams can be undefined
+  const envName = optParameters?.envName ?? "vcast";
+
+  const languageId = optParameters?.cppTest ? "cpp" : "VectorCAST Test Script";
+
   const testEnvPath = path.join(
     process.env.PACKAGE_PATH as string,
     "tests",
@@ -98,6 +110,7 @@ export function generateCompletionData(
     testEnvPath,
     process.env.TST_FILENAME as string
   );
+
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
@@ -111,9 +124,24 @@ export function generateCompletionData(
   const useServer: boolean = process.env.USE_SERVER != undefined;
   initializePaths(extensionRoot, "vpython", useServer);
 
-  console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
+  // Coded test
+  if (optParameters?.cppTest && optParameters?.lineSoFar) {
+    console.log(`Input .cpp file: \n ${textDocument.getText()} \n`);
+    const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+    if (enviroPath) {
+      return getCodedTestCompletionData(
+        undefined,
+        optParameters.lineSoFar,
+        completion,
+        enviroPath
+      );
+    }
 
-  return getTstCompletionData(textDocument, completion);
+    throw new ReferenceError("enviroPath is undefined.");
+  } /* tst */ else {
+    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
+    return getTstCompletionData(textDocument, completion);
+  }
 }
 
 export function asCompletionParameters(
@@ -173,4 +201,64 @@ export function storeNewDocument(
    * We cast to `any` to make the linter happy */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (documents as any)._documents[uri] = textDocument;
+}
+
+const promisifiedExec = promisify(exec);
+
+/**
+ * Function to get the clicast executable path and check the tool version
+ */
+export async function getToolVersion() {
+  // Determine the command to locate clicast
+  const checkClicast =
+    process.platform === "win32" ? "where clicast" : "which clicast";
+
+  let clicastExecutablePath = "";
+
+  try {
+    // Execute the command to find clicast
+    const { stdout, stderr } = await promisifiedExec(checkClicast);
+    if (stderr) {
+      throw new Error(
+        `Error when running ${checkClicast}, make sure clicast is on PATH`
+      );
+    } else {
+      clicastExecutablePath = stdout.trim();
+      console.log(`clicast found in ${clicastExecutablePath}`);
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+    } else {
+      console.error(`Unexpected error: ${String(error)}`);
+    }
+
+    throw new Error(
+      `Error when running "${checkClicast}", make sure clicast is on PATH`
+    );
+  }
+
+  // Read the tool version from the appropriate path
+  const toolVersionPath = path.join(
+    clicastExecutablePath,
+    "..",
+    "DATA",
+    "tool_version.txt"
+  );
+
+  try {
+    const toolVersion: string = fs
+      .readFileSync(toolVersionPath)
+      .toString()
+      .trim();
+    return toolVersion;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error reading tool version: ${error.message}`);
+    } else {
+      console.error(`Unexpected error: ${String(error)}`);
+    }
+
+    return "";
+  }
 }

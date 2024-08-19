@@ -25,7 +25,9 @@ export async function getCodedTestCompletionData(
 
   // If this is a line of interest, get the choice list from Python
   if (lineSoFar.match(vmockStubRegex)) {
-    connection.console.log (`Processing: ${lineSoFar}`)
+    if (connection) {
+      connection.console.log (`Processing: ${lineSoFar}`)
+    }
     const jsonData = await getChoiceData(
       choiceKindType.choiceListCT,
       enviroPath,

@@ -16,9 +16,12 @@ import { cleanVcastOutput } from "../src-common/commonUtilities";
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
 
-
 export function updateVPythonCommand(newPath: string) {
   vPythonCommandToUse = newPath;
+}
+
+export function getVPythonCommand() {
+  return vPythonCommandToUse;
 }
 
 export function initializePaths(
@@ -84,9 +87,8 @@ async function getChoiceDataFromServer(
     options: lineSoFar,
   };
 
-  let transmitResponse: transmitResponseType = await transmitCommand(
-    requestObject
-  );
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
 
   // tansmitResponse.returnData is an object with exitCode and data properties
   if (transmitResponse.success) {
@@ -147,7 +149,11 @@ export async function getHoverStringForRequirement(
   requirementKey: string
 ): Promise<any> {
   let returnValue: string = "";
-  const jsonData = await getChoiceData(choiceKindType.choiceListTST, enviroPath, "TEST.REQUIREMENT_KEY:");
+  const jsonData = await getChoiceData(
+    choiceKindType.choiceListTST,
+    enviroPath,
+    "TEST.REQUIREMENT_KEY:"
+  );
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
@@ -177,7 +183,11 @@ export async function getChoiceListTimingTest(
 
   let startTime: number = performance.now();
   for (let index = 0; index < 10; index++) {
-    await getChoiceDataFromServer(choiceKindType.choiceListTST, enviroPath, lineSoFar);
+    await getChoiceDataFromServer(
+      choiceKindType.choiceListTST,
+      enviroPath,
+      lineSoFar
+    );
   }
   let endTime: number = performance.now();
   let deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
@@ -185,7 +195,11 @@ export async function getChoiceListTimingTest(
 
   startTime = performance.now();
   for (let index = 0; index < 10; index++) {
-    getChoiceDataFromPython(choiceKindType.choiceListTST, enviroPath, lineSoFar);
+    getChoiceDataFromPython(
+      choiceKindType.choiceListTST,
+      enviroPath,
+      lineSoFar
+    );
   }
   endTime = performance.now();
   deltaString = ((endTime - startTime) / 1000).toFixed(2);
