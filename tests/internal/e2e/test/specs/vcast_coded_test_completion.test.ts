@@ -215,8 +215,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem; // Expand manager section in testing pane.
+    let subprogram: TreeItem;
 
+    // Expand manager section in testing pane.
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
         await vcastTestingViewSection.expand();
@@ -299,18 +300,20 @@ describe("vTypeCheck VS Code Extension", () => {
       "manager-template.cpp"
     )) as TextEditor;
     await browser.keys([Key.Ctrl, Key.Space]);
-    const contentAssist = await tab.toggleContentAssist(true); // Check autocompletion for vsession
+    const contentAssist = await tab.toggleContentAssist(true);
 
+    // Check autocompletion for vsession
     await tab.setTextAtLine(14, "vsessio");
     let currentLine = await tab.getLineOfText("vsessio");
     await tab.typeTextAt(currentLine, "vsessio".length + 1, "n");
     await tab.save();
     await browser.waitUntil(
       async () => (await contentAssist.getItems()).length > 0
-    ); // Validating content assist for 'vsession'
+    );
 
+    // Validating content assist for 'vsession'
     expect(await contentAssist.hasItem("vsession")).toBe(true);
-    await selectItem(contentAssist, "vsession"); //Check autocompletion for vmock
+    await selectItem(contentAssist, "vsession");
 
     await tab.setTextAtLine(18, "// vmock");
     currentLine = await tab.getLineOfText("// vmock");
@@ -318,8 +321,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.save();
     await browser.waitUntil(
       async () => (await contentAssist.getItems()).length > 0
-    ); // Validating content assist for '// vmock'
+    );
 
+    // Validating content assist for '// vmock'
     const expectedItems = ["database", "manager", "Prototype-Stubs"];
 
     for (const item of expectedItems) {
@@ -331,8 +335,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.save();
     await browser.waitUntil(
       async () => (await contentAssist.getItems()).length > 0
-    ); // Validating content assist for '// vmock manager'
+    );
 
+    // Validating content assist for '// vmock manager'
     const expectedManagerItems = [
       "Manager::AddIncludedDessert",
       "Manager::AddPartyToWaitingList",
@@ -346,7 +351,8 @@ describe("vTypeCheck VS Code Extension", () => {
       expect(await contentAssist.hasItem(item)).toBe(true);
     }
 
-    await selectItem(contentAssist, "Manager::ClearTable"); // Validating content assist for '// vmock manager Manager::ClearTable'
+    // Validating content assist for '// vmock manager Manager::ClearTable'
+    await selectItem(contentAssist, "Manager::ClearTable");
 
     await tab.typeTextAt(
       currentLine,
@@ -356,8 +362,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.save();
     await browser.waitUntil(
       async () => (await contentAssist.getItems()).length > 0
-    ); // Select completion item
+    );
 
+    // Select completion item
     const selectedItem = await selectItem(
       contentAssist,
       normalizedExpectedFunctionOutput
