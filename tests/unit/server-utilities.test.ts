@@ -1,7 +1,9 @@
 import path from "node:path";
 import process from "node:process";
 import { describe, expect, test } from "vitest";
+import { CompletionItemKind } from "vscode-languageserver";
 import {
+  convertKind,
   getPieceAtColumn,
   getEnviroNameFromTestScript,
 } from "../../server/serverUtilities";
@@ -33,6 +35,17 @@ describe("Validating serverUtilities on edgecases not validated by tstCompletion
       );
       const generatedEnviroName = getEnviroNameFromTestScript(tstFilepath);
       expect(generatedEnviroName).toBe(undefined);
+    },
+    timeout
+  );
+
+  test(
+    "validate response converting a 'Value' kind",
+    async () => {
+      const kindFromPython = "Value";
+      const completionItemKind: CompletionItemKind =
+        convertKind(kindFromPython);
+      expect(completionItemKind).toBe(CompletionItemKind.Value);
     },
     timeout
   );
