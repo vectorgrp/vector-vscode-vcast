@@ -2,6 +2,8 @@
 
 import fetch from "node-fetch";
 
+import { pythonErrorCodes } from "./vcastServerTypes";
+
 let HOST = "localhost"; // The server's hostname or IP address
 let PORT = 60461; // The port used by the server anything > 1023 is OK
 
@@ -43,9 +45,9 @@ function serverURL() {
 //    The Language Server via pythonUtilities.ts
 //    The Core Extension via vcastAdapter.ts, client.ts etc.
 //
-// Since therse are two different executables, they are 
-// not sharing the same instance of this object.  But since 
-// they both use transmitCommand() defind below, the 
+// Since therse are two different executables, they are
+// not sharing the same instance of this object.  But since
+// they both use transmitCommand() defind below, the
 // auto-off processing works for both.
 //
 export let globalEnviroDataServerActive: boolean = false;
@@ -68,9 +70,8 @@ export async function closeConnection(enviroPath: string): Promise<boolean> {
     path: enviroPath,
   };
 
-  const transmitResponse: transmitResponseType = await transmitCommand(
-    requestObject
-  );
+  const transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
   return transmitResponse.success;
 }
 
@@ -112,13 +113,27 @@ export async function transmitCommand(
       // the server always returns an object with exitCode and data properties
       const rawReturnData: any = await response.json();
 
-      // the exit code 999 is reserved for internal server errors
-      if (rawReturnData.exitCode === 999) {
+      if (rawReturnData.exitCode == pythonErrorCodes.internalServerError) {
         transmitResponse.success = false;
         // the error message is a list of strings, so join with \n
         transmitResponse.statusText = `Enviro server error: ${rawReturnData.data.error.join(
           "\n"
         )}`;
+      } else if (
+        rawReturnData.exitCode == pythonErrorCodes.testInterfaceError
+      ) {
+        transmitResponse.success = false;
+        // the error message is a list of strings, so join with \n
+        transmitResponse.statusText = `Python interface error: ${rawReturnData.data.text.join(
+          "\n"
+        )}`;
+      } else if (
+        rawReturnData.exitCode == pythonErrorCodes.couldNotStartClicastInstance
+      ) {
+        transmitResponse.statusText = `\nCould not start clicast instance, disabling server for this session\n`;
+
+        // IMPORTANT: If the server is not running, fall back to non server mode
+        globalEnviroDataServerActive = false;
       } else {
         // the format of the data property is different baesd on the command
         // so it is up to the caller to interpret it properly
@@ -136,8 +151,7 @@ export async function transmitCommand(
       }
       transmitResponse.statusText = `\nEnviro server error: ${errorDetails}, disabling server for this session\n`;
 
-      // IMPORTANT: If the server is not running, set the global flag to false
-      // so that the extension falls back to non-server mode
+      // IMPORTANT: If the server is not running, fall back to non server mode
       globalEnviroDataServerActive = false;
     });
   return transmitResponse;

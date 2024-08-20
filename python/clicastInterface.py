@@ -12,6 +12,7 @@ VectorCAST environment server.
 """
 
 from vTestUtilities import logMessage
+from vcastDataServerTypes import errorCodes
 
 from vector.lib.core.system import cd
 
@@ -35,24 +36,17 @@ def cleanEnviroPath(enviroPath):
     return returnPath
 
 
-def runClicastServerCommand(enviroPath, commandString):
-    """
-    Note: we indent the log messages here to make them easier to
-    read in the context of the original server command received
-    """
-    global clicastInstances
+def connectClicastInstance(enviroPath):
 
-    # Since we use enviro path as a key to the clicastInstances dictionary
-    # it is important that the eviroPath string be consistent.  Rather
-    # than checking and correcting the path for each call, we do it here
-    enviroPath = cleanEnviroPath(enviroPath)
-
+    # if the enviroPath is in the instances
+    clicastInstanceRunning = False
     if enviroPath in clicastInstances and clicastInstances[enviroPath].poll() == None:
         logMessage(
             f"  using existing clicast instance [{clicastInstances[enviroPath].pid}] for: {enviroPath} "
         )
-
+        clicastInstanceRunning = True
     else:
+
         # An old instance might exist if the server crashed, so clean that up
         if enviroPath in clicastInstances:
             logMessage(f"  previous clicast server seems to have died ...")
@@ -67,30 +61,74 @@ def runClicastServerCommand(enviroPath, commandString):
             universal_newlines=True,
             cwd=CWD,
         )
-        clicastInstances[enviroPath] = process
-        logMessage(
-            f"  started clicast instance [{process.pid}] for environment: {enviroPath}"
-        )
 
-    logMessage(f"    commandString: {commandString}")
-    process = clicastInstances[enviroPath]
-    process.stdin.write(f"{commandString}\n")
-    process.stdin.flush()
+        # A valid clicast server emits: "clicast-server-started"
+        # if it has successfully initialized so we check for that
+        # or we wait for the process to terminate which a non-server
+        # clicast version will do.  Note that this is a failsafe
+        # because we should never get here if the clicast is not
+        # server capable.
+        while True:
+            responseLine = process.stdout.readline()
+            if responseLine.startswith("clicast-server-started"):
+                clicastInstanceRunning = True
+                break
+            elif process.poll() is not None:
+                clicastInstanceRunning = False
+                break
 
-    responseLine = ""
-    returnText = ""
+        if clicastInstanceRunning:
+            clicastInstances[enviroPath] = process
+            logMessage(
+                f"  started clicast instance [{process.pid}] for environment: {enviroPath}"
+            )
+        else:
+            logMessage(
+                f"  could not start clicast instance for environment: {enviroPath}"
+            )
+            logMessage(f"  using command: {' '.join (commandArgs)}")
 
-    # The clicast server emits a line like this to mark the end of a command:
-    #   clicast-server-command-done:COMMAND_NOT_ALLOWED | 8
-    # Between the colon and the command is the status enum, and the
-    # number after the | is the 'pos of the enum which is the normal
-    # exit code for a clicast command.
-    while not responseLine.startswith("clicast-server-command-done"):
-        returnText += responseLine
-        responseLine = process.stdout.readline()
+    return clicastInstanceRunning
 
-    errorCode = responseLine.split("|")[1].strip()
-    logMessage(f"    server return code: {errorCode}")
+
+def runClicastServerCommand(enviroPath, commandString):
+    """
+    Note: we indent the log messages here to make them easier to
+    read in the context of the original server command received
+    """
+    global clicastInstances
+
+    # Since we use enviro path as a key to the clicastInstances dictionary
+    # it is important that the eviroPath string be consistent.  Rather
+    # than checking and correcting the path for each call, we do it here
+    enviroPath = cleanEnviroPath(enviroPath)
+
+    clicastInstanceRunning = connectClicastInstance(enviroPath)
+
+    if not clicastInstanceRunning:
+        errorCode = errorCodes.clicastServerNotStarted
+        returnText = "Could not start clicast instance"
+
+    else:
+        logMessage(f"    commandString: {commandString}")
+        process = clicastInstances[enviroPath]
+        process.stdin.write(f"{commandString}\n")
+        process.stdin.flush()
+
+        responseLine = ""
+        returnText = ""
+
+        # The clicast server emits a line like this to mark the end of a command:
+        #   clicast-server-command-done:COMMAND_NOT_ALLOWED | 8
+        # Between the colon and the command is the status enum, and the
+        # number after the | is the 'pos of the enum which is the normal
+        # exit code for a clicast command.
+        while not responseLine.startswith("clicast-server-command-done"):
+            returnText += responseLine
+            responseLine = process.stdout.readline()
+
+        errorCode = responseLine.split("|")[1].strip()
+        logMessage(f"    server return code: {errorCode}")
 
     return errorCode, returnText
 
@@ -380,9 +418,6 @@ def rebuildEnvironment(enviroPath, jsonOptions):
         return rebuildEnvironmentUsingClicastReBuild(enviroPath)
 
 
-codeTestCompileErrorCode = 997
-
-
 def executeTest(enviroPath, testIDObject):
     # since we are doing a direct call to clicast, we need to quote the parameters
     # separate variable because in the future there will be additional parameters
@@ -398,7 +433,7 @@ def executeTest(enviroPath, testIDObject):
     # so we are using this hack until vcast changes the return code for a failed coded test compile
     if testIDObject.functionName == "coded_tests_driver" and executeReturnCode != 0:
         if "TEST RESULT:" not in stdoutText:
-            executeReturnCode = codeTestCompileErrorCode
+            executeReturnCode = errorCodes.codedTestCompileError
 
     return executeReturnCode, stdoutText
 

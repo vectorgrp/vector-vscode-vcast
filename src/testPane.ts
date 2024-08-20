@@ -338,7 +338,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
       } else {
         vectorMessage(`Ignoring environment: ${candidatePath} ...`);
         vectorMessage(
-          `   environments should not be at the workspace root, open the enclosing directory`
+          `   environments should not be at the workspace root, open the enclosing directory\n`
         );
       }
     }
@@ -407,7 +407,7 @@ export async function updateTestsForEnvironment(
     globalController.items.delete(enviroNode.id);
     globalController.items.add(enviroNode);
   } else {
-    vectorMessage(`Ignoring environment: ${enviroPath}`);
+    vectorMessage(`Ignoring environment: ${enviroPath}\n`);
   }
 }
 

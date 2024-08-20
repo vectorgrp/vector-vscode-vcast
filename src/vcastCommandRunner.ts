@@ -12,6 +12,7 @@ import {
   transmitResponseType,
   vcastCommandType,
 } from "../src-common/vcastServer";
+import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 
 const path = require("path");
 
@@ -83,8 +84,7 @@ function processExceptionFromExecuteCommand(
   let stdout = cleanVcastOutput(error.stdout.toString());
   let commandStatus = { errorCode: error.status, stdout: stdout };
 
-  // 998 is an interface error
-  if (error && error.status == 998) {
+  if (error && error.status == pythonErrorCodes.testInterfaceError) {
     let stdoutString = error.stdout.toString();
 
     // Remove annoying version miss-match message from vcast
@@ -92,13 +92,14 @@ function processExceptionFromExecuteCommand(
     commandStatus.errorCode = 0;
     vectorMessage(commandStatus.stdout);
   } else if (error && error.stdout) {
-    commandStatus.stdout = error.stdout.toString();
+    // Remove annoying version miss-match message from vcast
+    const stdOutString = cleanVcastOutput(error.stdout.toString());
+    commandStatus.stdout = stdOutString;
     commandStatus.errorCode = error.status;
     if (printErrorDetails) {
       vectorMessage("Exception while running command:");
       vectorMessage(command);
-      vectorMessage(commandStatus.stdout);
-      vectorMessage(error.stderr.toString());
+      vectorMessage(stdOutString);
       openMessagePane();
     }
   } else {
@@ -195,6 +196,7 @@ export function executeCommandWithProgress(
   commandAndArgs: string[],
   enviroName: string,
   testScriptPath: string,
+  startOfRealMessages,
   filter: RegExp,
   callback: any
 ) {
@@ -220,6 +222,11 @@ export function executeCommandWithProgress(
         // shell is needed so that stdout is NOT buffered
         const commandHandle = spawn(command, args, { cwd: cwd, shell: true });
 
+        // To strip the annoying version miss-match string, we look
+        // for the first line that contains the startOFRealMessages
+        // string, and log once we see this.
+        let shouldLogMessage = false;
+
         // each time we get an entry here, we need to check if we have a
         // partial message if so we print the part up the the
         // final \n and buffer the rest, see comment above
@@ -232,19 +239,25 @@ export function executeCommandWithProgress(
           );
           remainderTextFromLastCall = message.remainderText;
 
-          if (message.fullLines.length > 0) {
-            vectorMessage(message.fullLines);
+          // for the dialog, we want use the filter to decide what to show
+          // and this requires the message data to be split into single lines
+          const lineArray = message.fullLines.split("\n");
+          for (const line of lineArray) {
+            if (line.startsWith(startOfRealMessages)) {
+              shouldLogMessage = true;
+            }
 
-            // for the dialog, we want use the filter to decide what to show
-            // and this requires the message data to be split into single lines
-            const lineArray = message.fullLines.split("\n");
-            for (const line of lineArray) {
-              const matched = line.match(filter);
-              if (matched && matched.length > 0) {
-                progress.report({ message: matched[0], increment: 10 });
-                // This is needed to allow the message window to update ...
-                await new Promise<void>((r) => setTimeout(r, 0));
-              }
+            if (shouldLogMessage && line.length > 0) { 
+              vectorMessage(line);
+            }
+
+            const matched = line.match(filter);
+            if (matched && matched.length > 0) {
+              // Improvement needed: figure out how many total subprograms
+              // we are processing and set the increment properly
+              progress.report({ message: matched[0], increment: 10 });
+              // This is needed to allow the message window to update ...
+              await new Promise<void>((r) => setTimeout(r, 0));
             }
           }
         });
@@ -297,9 +310,8 @@ export async function executeClicastCommandUsingServer(
     options: commandArgs,
   };
 
-  let transmitResponse: transmitResponseType = await transmitCommand(
-    requestObject
-  );
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
 
   // tansmitResponse.returnData is an object with exitCode and data properties
   if (transmitResponse.success) {

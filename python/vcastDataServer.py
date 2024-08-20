@@ -7,7 +7,7 @@ import signal
 import traceback
 
 import vcastDataServerTypes
-from vcastDataServerTypes import commandType
+from vcastDataServerTypes import commandType, errorCodes
 
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi as Api
@@ -123,13 +123,13 @@ def vassistant():
         elif clientRequest.command == "bad-request-format":
             errorMessage = f"client request was improperly formatted, ignoring: '{clientRequestText}'"
             logMessage(f"  ERROR: {errorMessage}")
-            exitCode = 999
+            exitCode = errorCodes.internalServerError
             returnData = {"error": [errorMessage]}
 
         else:
             errorMessage = f"server does not support command: '{clientRequest.command}'"
             logMessage(f"  ERROR: {errorMessage}")
-            exitCode = 999  # internal server error
+            exitCode = errorCodes.internalServerError
             returnData = {"error": [errorMessage]}
 
     except Exception as error:
@@ -138,7 +138,7 @@ def vassistant():
         logMessage(f"  ERROR: {errorMessage}")
         errorTextToReturn = [errorMessage]
         errorTextToReturn.extend(traceback.format_exc().split("\n"))
-        exitCode = 999  # internal server error
+        exitCode = errorCodes.internalServerError
         returnData = {"error": errorTextToReturn}
 
     return {"exitCode": exitCode, "data": returnData}
@@ -203,7 +203,9 @@ def main():
         print(
             f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT} ..."
         )
-        logMessage(f"{logPrefix()} using clicast command: {clicastInterface.globalClicastCommand}\n")
+        logMessage(
+            f"{logPrefix()} using clicast command: {clicastInterface.globalClicastCommand}\n"
+        )
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)
 
 

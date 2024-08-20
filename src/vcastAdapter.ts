@@ -369,12 +369,14 @@ export async function runBasisPathCommands(
   // and since we don't want to show all of the stdout messages, we use a
   // regex filter for what to show
   const messageFilter = /.*Generating test cases for.*/;
+  const startOfRealMessages = "VectorCAST Copyright"
 
   executeCommandWithProgress(
     "Generating Basis Path Tests: ",
     argList,
     testNode.enviroName,
     testScriptPath,
+    startOfRealMessages,
     messageFilter,
     loadScriptCallBack
   );
@@ -419,12 +421,14 @@ export async function runATGCommands(
   // and since we don't want to show all of the stdout messages, we use a
   // regex filter for what to show
   const messageFilter = /Subprogram:.*/;
+  const startOfRealMessages = "Processing unit:"
 
   executeCommandWithProgress(
     "Generating ATG Tests: ",
     argList,
     testNode.enviroName,
     testScriptPath,
+    startOfRealMessages,
     messageFilter,
     loadScriptCallBack
   );

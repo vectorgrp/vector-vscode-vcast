@@ -25,7 +25,7 @@ sys.path.append(os.path.join(thisFileLocation, "..", "..", "python"))
 import vTestInterface
 
 import vcastDataServerTypes
-from vcastDataServerTypes import commandType
+from vcastDataServerTypes import commandType, errorCodes
 
 
 from vector.lib.core.system import cd
@@ -581,7 +581,7 @@ def errorTests(enviroPath, clicastPath):
     returnData = returnData.json()
     exitCode = returnData["exitCode"]
     # Confirm that the error code is correct, and the error text is in a list
-    assert exitCode == 999
+    assert exitCode == errorCodes.internalServerError
     assert returnData["data"]["error"][0].startswith(
         "client request was improperly formatted"
     )
@@ -594,7 +594,7 @@ def errorTests(enviroPath, clicastPath):
     returnData = transmitCommand(request)
     exitCode = returnData["exitCode"]
     # Confirm that the error code is correct, and the error text is in a list
-    assert exitCode == 999
+    assert exitCode == errorCodes.internalServerError
     assert returnData["data"]["error"][0].startswith("server does not support command")
     printErrorResponse(returnData["data"]["error"])
     print("     Invalid command test passed")
@@ -607,7 +607,7 @@ def errorTests(enviroPath, clicastPath):
     returnData = transmitCommand(request)
     exitCode = returnData["exitCode"]
     # Confirm that the error code is correct, and the error text is in a list
-    assert exitCode == 999
+    assert exitCode == errorCodes.internalServerError
     assert returnData["data"]["error"][0].startswith("internal server error")
     printErrorResponse(returnData["data"]["error"])
     print("     stack trace test passed")
@@ -722,6 +722,8 @@ def main():
         rebuildTest(clicastPath, enviroPath)
     elif args.test == "test":
         testCaseTests(clicastPath, enviroPath, testString)
+    elif args.test == "data":
+        getEnviroDataTest(clicastPath, enviroPath)
     elif args.test == "cbt":
         parseCBTTest(clicastPath)
     elif args.test == "errors":

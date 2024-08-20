@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { Uri } from "vscode";
 
 import { cleanVcastOutput } from "../src-common/commonUtilities";
+import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 import {
   configFilename,
   getUnitTestLocationForPath,
@@ -13,11 +14,7 @@ import { updateFunctionDataForFile } from "./editorDecorator";
 
 import { fileDecorator } from "./fileDecorator";
 
-import {
-  openMessagePane,
-  vectorMessage,
-  errorLevel,
-} from "./messagePane";
+import { openMessagePane, vectorMessage, errorLevel } from "./messagePane";
 
 import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
@@ -421,10 +418,8 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
   // for readability
   const commandOutputText: string = commandStatus.stdout;
 
-  // errorCode 997 is for a compile error for the coded test source file
-  // this is hard-coded in executeTest() in the python interface
   let executionDetails: executeOutputType = nullExecutionStatus;
-  if (commandStatus.errorCode == 997) {
+  if (commandStatus.errorCode == pythonErrorCodes.codedTestCompileError) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
 

@@ -24,6 +24,7 @@ This script must be run under vpython
 """
 
 import clicastInterface
+from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
@@ -192,14 +193,21 @@ def getTestDataVCAST(enviroPath):
     # dataAPI throws if there is a tool/enviro mismatch
     try:
         api = UnitTestApi(enviroPath)
+        coverageType = api.environment.coverage_type_text
+
     except Exception as err:
         raise InvalidEnviro(err)
 
     # Not currently used.
     # returns "None" if coverage is not initialized,
     # does not change based on coverage enabled/disabled
-    coverageType = api.environment.coverage_type_text
-
+    try:
+        coverageType = api.environment.coverage_type_text
+    except Exception as err:
+        # the dataAPI does not automatically update the coverage DB
+        # so we raise an error here in that case
+        raise InvalidEnviro (err)
+        
     testList = list()
     sourceFiles = dict()
 
@@ -631,16 +639,16 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
     # because vpython and clicast use a large range of positive return codes
     # we use -1 for internal tool errors
     except InvalidEnviro as error:
-        returnCode = 998
+        returnCode = errorCodes.testInterfaceError
         whatToReturn = ["Miss-match between Environment and VectorCAST versions"]
         whatToReturn.extend(str(error).split("\n"))
         returnObject = {"text": whatToReturn}
     except UsageError as error:
         # for usage error we print the issue where we see it
-        returnCode = 998
+        returnCode = errorCodes.testInterfaceError
         returnObject = {"text": [str(error)]}
     except Exception:
-        returnCode = 998
+        returnCode = errorCodes.testInterfaceError
         traceBackText = traceback.format_exc().split("\n")
         returnObject = {"text": traceBackText}
 

@@ -6,6 +6,13 @@ HOST = "localhost"  # The server's hostname or IP address
 PORT = 60461  # The port used by the server anything > 1023 is OK
 
 
+class errorCodes(str, Enum):
+    internalServerError = 999
+    testInterfaceError = 998
+    couldNotStartClicastInstance = 997
+    codedTestCompileError = 996
+
+
 # NOTE: This class must stay in sync with typescript file vcastServer.ts: vcastCommandType
 #
 class commandType(str, Enum):
