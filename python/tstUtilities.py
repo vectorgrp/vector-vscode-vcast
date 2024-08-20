@@ -606,7 +606,7 @@ def getUnitAndFunctionObjects(api, unitString, functionString):
                 returnUnitList.append(unitObject)
 
     # if coded mocks are enabled, and the unit name is an exact match, process the function name
-    if enviroSupportsMocking(api) and len(returnUnitList) == 1:
+    if len(returnUnitList) == 1:
         # check if the function name matches any of the functions in the unit
         for functionObject in unitObject.functions:
             if functionCanBeMocked(functionObject):
