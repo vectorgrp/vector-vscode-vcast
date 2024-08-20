@@ -53,6 +53,11 @@ def vpythonHasCodedMockSupport():
         from vector.apps.DataAPI import mock_helper
 
         # The version of mock helper this version of the extension supports
+        #
+        # NOTE: for future versions, we might need to work out how to support
+        # multiple versions of `mock_helper` (e.g., via having our own
+        # translation layers, etc.) to allow us to support multiple versions of
+        # VectorCAST with differing versions of `mock_helper`.
         supportedMockApiVersion = 1
 
         # We only enable coded mocks if the version of `mock_helper` is <= than our
