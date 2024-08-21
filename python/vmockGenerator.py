@@ -14,6 +14,10 @@ from tstUtilities import (
     generateMockForFunction,
     functionCanBeMocked,
 )
+from versionChecks import (
+    vpythonHasCodedMockSupport,
+    enviroSupportsMocking,
+)
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 
@@ -170,6 +174,10 @@ def generate_tests_for_environment(enviro_path):
     """
 
     api = UnitTestApi(enviro_path)
+    if not enviroSupportsMocking(api):
+        print("This environment does not support coded mocks")
+        return -1
+
     coded_tests_enabled = api.environment.get_option("VCAST_CODED_TESTS_SUPPORT")
     if not coded_tests_enabled:
         print("Coded tests are not enabled on this environment")
@@ -177,10 +185,6 @@ def generate_tests_for_environment(enviro_path):
 
     # Generate our coded test ...
     first_unit = generate_test_file(api)
-
-    if first_unit is None:
-        print("No unit found (migrated VectorCAST environment?)")
-        return -1
 
     # ... and the test script to load the coded test
     generate_test_script(api.environment.name, first_unit)
@@ -353,7 +357,7 @@ def main():
 
     ret_val = 0
 
-    if tstUtilities.CODED_MOCK_ENABLED is False:
+    if not vpythonHasCodedMockSupport():
         print("This version of VectorCAST does not support coded mocks")
         ret_val = -1
     elif (
