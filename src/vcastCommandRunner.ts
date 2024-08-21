@@ -4,7 +4,10 @@ import { execSync, spawn } from "child_process";
 
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
-import { cleanVcastOutput } from "../src-common/commonUtilities";
+import {
+  cleanClicastOutput,
+  cleanVPythonOutput,
+} from "../src-common/commonUtilities";
 
 import {
   clientRequestType,
@@ -52,8 +55,13 @@ export function executeVPythonScript(
       printErrorDetails
     );
     // remove extraneous text from the output
-    returnData.stdout = cleanVcastOutput(commandStatus.stdout);
+    returnData.stdout = cleanVPythonOutput(commandStatus.stdout);
     returnData.errorCode = commandStatus.errorCode;
+    if (returnData.errorCode != 0) {
+      vectorMessage("Error running VectorCAST command");
+      vectorMessage("  command: " + commandToRun, errorLevel.trace);
+      vectorMessage(returnData.stdout);
+    }
   }
   return returnData;
 }
@@ -65,7 +73,7 @@ export function getJsonDataFromTestInterface(
 ): any {
   let returnData = undefined;
 
-  let jsonText = executeVPythonScript(commandToRun, enviroPath).stdout;
+  let jsonText = executeVPythonScript(commandToRun, enviroPath, false).stdout;
   try {
     returnData = JSON.parse(jsonText);
   } catch {
@@ -80,32 +88,21 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-  // see comment about ACTUAL-DATA in cleanVcastOutput
-  let stdout = cleanVcastOutput(error.stdout.toString());
-  let commandStatus = { errorCode: error.status, stdout: stdout };
+  // see comment about ACTUAL-DATA in cleanVPythonOutput
+  let stdoutString = cleanClicastOutput(error.stdout.toString());
+  let commandStatus = { errorCode: error.status, stdout: stdoutString };
 
-  if (error && error.status == pythonErrorCodes.testInterfaceError) {
-    let stdoutString = error.stdout.toString();
-
-    // Remove annoying version miss-match message from vcast
-    commandStatus.stdout = cleanVcastOutput(stdoutString);
+  if (error.status == pythonErrorCodes.testInterfaceError) {
     commandStatus.errorCode = 0;
-    vectorMessage(commandStatus.stdout);
-  } else if (error && error.stdout) {
-    // Remove annoying version miss-match message from vcast
-    const stdOutString = cleanVcastOutput(error.stdout.toString());
-    commandStatus.stdout = stdOutString;
+    vectorMessage(stdoutString);
+  } else {
     commandStatus.errorCode = error.status;
     if (printErrorDetails) {
       vectorMessage("Exception while running command:");
       vectorMessage(command);
-      vectorMessage(stdOutString);
+      vectorMessage(stdoutString);
       openMessagePane();
     }
-  } else {
-    vectorMessage(
-      "Unexpected error in utilities/processExceptionFromExecuteCommand()"
-    );
   }
 
   return commandStatus;
@@ -196,7 +193,7 @@ export function executeCommandWithProgress(
   commandAndArgs: string[],
   enviroName: string,
   testScriptPath: string,
-  startOfRealMessages,
+  startOfRealMessages: string,
   filter: RegExp,
   callback: any
 ) {
@@ -247,7 +244,7 @@ export function executeCommandWithProgress(
               shouldLogMessage = true;
             }
 
-            if (shouldLogMessage && line.length > 0) { 
+            if (shouldLogMessage && line.length > 0) {
               vectorMessage(line);
             }
 
@@ -313,7 +310,7 @@ export async function executeClicastCommandUsingServer(
   let transmitResponse: transmitResponseType =
     await transmitCommand(requestObject);
 
-  // tansmitResponse.returnData is an object with exitCode and data properties
+  // transmitResponse.returnData is an object with exitCode and data properties
   if (transmitResponse.success) {
     commandStatus.errorCode = transmitResponse.returnData.exitCode;
     commandStatus.stdout = transmitResponse.returnData.data;

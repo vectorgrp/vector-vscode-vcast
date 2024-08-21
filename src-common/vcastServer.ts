@@ -47,7 +47,7 @@ function serverURL() {
 //
 // Since therse are two different executables, they are
 // not sharing the same instance of this object.  But since
-// they both use transmitCommand() defind below, the
+// they both use transmitCommand() defined below, the
 // auto-off processing works for both.
 //
 export let globalEnviroDataServerActive: boolean = false;
@@ -99,6 +99,8 @@ export async function transmitCommand(
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
   const urlToUse = `${serverURL()}/${route}?request=${dataAsString}`;
+  // TBD TODAY - is there a way to send this to our message pane?
+  console.log (`transmitCommand: ${serverURL()}, ${requestObject.command}`);
   let transmitResponse: transmitResponseType = {
     success: false,
     returnData: undefined,
@@ -107,34 +109,35 @@ export async function transmitCommand(
 
   await fetch(urlToUse)
     .then(async (response) => {
-      transmitResponse.success = true;
-      transmitResponse.statusText = `Enviro server response status: ${response.statusText}`;
-
       // the server always returns an object with exitCode and data properties
       const rawReturnData: any = await response.json();
 
       if (rawReturnData.exitCode == pythonErrorCodes.internalServerError) {
-        transmitResponse.success = false;
         // the error message is a list of strings, so join with \n
+        transmitResponse.success = false;
         transmitResponse.statusText = `Enviro server error: ${rawReturnData.data.error.join(
           "\n"
         )}`;
+        //
       } else if (
         rawReturnData.exitCode == pythonErrorCodes.testInterfaceError
       ) {
-        transmitResponse.success = false;
         // the error message is a list of strings, so join with \n
+        transmitResponse.success = false;
         transmitResponse.statusText = `Python interface error: ${rawReturnData.data.text.join(
           "\n"
         )}`;
+        //
       } else if (
         rawReturnData.exitCode == pythonErrorCodes.couldNotStartClicastInstance
       ) {
-        transmitResponse.statusText = `\nCould not start clicast instance, disabling server for this session\n`;
-
-        // IMPORTANT: If the server is not running, fall back to non server mode
-        globalEnviroDataServerActive = false;
+        transmitResponse.success = false;
+        transmitResponse.statusText = `\nCould not start clicast instance, disabling server mode for this session\n`;
+        setServerState(false);
+        //
       } else {
+        transmitResponse.success = true;
+        transmitResponse.statusText = `Enviro server response status: ${response.statusText}`;
         // the format of the data property is different baesd on the command
         // so it is up to the caller to interpret it properly
         transmitResponse.returnData = rawReturnData;
@@ -149,10 +152,9 @@ export async function transmitCommand(
       if (errorDetails.length === 0) {
         errorDetails = "Server is not running";
       }
-      transmitResponse.statusText = `\nEnviro server error: ${errorDetails}, disabling server for this session\n`;
-
-      // IMPORTANT: If the server is not running, fall back to non server mode
-      globalEnviroDataServerActive = false;
+      transmitResponse.success = false;
+      transmitResponse.statusText = `Enviro server error: ${errorDetails}, disabling server mode for this session`;
+      setServerState(false);
     });
   return transmitResponse;
 }

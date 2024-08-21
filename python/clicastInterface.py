@@ -106,7 +106,7 @@ def runClicastServerCommand(enviroPath, commandString):
     clicastInstanceRunning = connectClicastInstance(enviroPath)
 
     if not clicastInstanceRunning:
-        errorCode = errorCodes.clicastServerNotStarted
+        errorCode = errorCodes.couldNotStartClicastInstance
         returnText = "Could not start clicast instance"
 
     else:
@@ -127,10 +127,10 @@ def runClicastServerCommand(enviroPath, commandString):
             returnText += responseLine
             responseLine = process.stdout.readline()
 
-        errorCode = responseLine.split("|")[1].strip()
-        logMessage(f"    server return code: {errorCode}")
+        exitCode = int (responseLine.split("|")[1].strip())
+        logMessage(f"    server return code: {exitCode}")
 
-    return errorCode, returnText
+    return exitCode, returnText
 
 
 def terminateClicastProcess(enviroPath):
@@ -274,10 +274,14 @@ def runClicastScriptUsingServer(enviroPath, commandFileName):
 
     returnText = ""
     for line in lines:
-        commandCode, commandOutput = runClicastServerCommand(enviroPath, line)
+        # for consistency with the non server version, we stop and
+        # return the exit code of the first command that fails
+        exitCode, commandOutput = runClicastServerCommand(enviroPath, line)
         returnText += commandOutput
+        if exitCode != 0:
+            break
 
-    return 0, returnText
+    return exitCode, returnText
 
 
 def runClicastScriptCommandLine(commandFileName, echoToStdout):
@@ -286,8 +290,9 @@ def runClicastScriptCommandLine(commandFileName, echoToStdout):
     and then call this with the name of that script
     """
 
-    # false at the end tells clicast to ignore errors in individual commands
-    commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
+    # true at the end tells clicast to exit with the exit code of the first
+    # command that fails.  If this is set to false, it always returns 0
+    commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} true"
 
     if echoToStdout:
         returnCode, stdoutString = runClicastCommandWithEcho(commandToRun)
@@ -307,6 +312,69 @@ def runClicastScript(enviroPath, commandFileName, echoToStdout=False):
     else:
         return runClicastScriptCommandLine(commandFileName, echoToStdout)
 
+tempEnviroScript = "rebuild.env"
+tempTestScript = "rebuild.tst"
+
+def updateScriptsAndRebuild(enviroPath, jsonOptions):
+    """
+    This does the actual work of updating the scripts
+    and invoking the build and load test script commands
+    """
+
+    enviroName = os.path.basename(enviroPath)
+
+    # Read the enviro script into a list of strings
+    with open(tempEnviroScript, "r") as enviroFile:
+        enviroLines = enviroFile.readlines()
+
+    # Re-write the enviro script replacing the value of commands
+    # that exist in the jsonOptions
+    with open(tempEnviroScript, "w") as enviroFile:
+        for line in enviroLines:
+            whatToWrite = line
+            if line.startswith("ENVIRO.END"):
+                # if we have some un-used options then
+                # write these before the ENVIRO.END
+                for key, value in jsonOptions.items():
+                    enviroFile.write(f"{key}: {value}\n")
+
+            elif line.startswith("ENVIRO.") and ":" in line:
+                # for all other commands, see if the command matches
+                # a command from the jsonOptions dict
+                enviroCommand, enviroValue = line.split(":", 1)
+                enviroCommand = enviroCommand.strip()
+                enviroValue = enviroValue.strip()
+                # if so replace the existing value ...
+                if enviroCommand in jsonOptions:
+                    whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
+                    jsonOptions.pop(enviroCommand)
+
+            # write the original or updated line
+            enviroFile.write(whatToWrite)
+
+    # if we are server mode, terminate any existing process
+    terminateClicastProcess(enviroPath)
+
+    # Finally delete and re-build the environment using the updated script
+    # and load the existing tests -> which duplicates what enviro rebuild does.
+    with open(commandFileName, "w") as commandFile:
+        # Improvement needed: vcast bug: 100924
+        shutil.rmtree(enviroName)
+        # commandFile.write(f"-e{enviroName} enviro delete\n")
+        commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
+        commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
+    
+    # there is no benefit to starting a new server process here (if we are server mode)
+    # so we call the command line version directly
+    returnCodeRebuild, commandOutputRebuild = runClicastScriptCommandLine(
+        commandFileName, echoToStdout=(not USE_SERVER)
+    )
+
+    os.remove(tempEnviroScript)
+    os.remove(tempTestScript)
+
+    return returnCodeRebuild, commandOutputRebuild
+
 
 def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
     """
@@ -316,9 +384,6 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
 
     We overwrite any matching ENVIRO commands with the new values before rebuild
     """
-
-    tempEnviroScript = "rebuild.env"
-    tempTestScript = "rebuild.tst"
 
     with cd(os.path.dirname(enviroPath)):
         # first we generate a .env and .tst for the existing environment
@@ -333,59 +398,14 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
             enviroPath, commandFileName, echoToStdout=(not USE_SERVER)
         )
 
-        # Read the enviro script into a list of strings
-        with open(tempEnviroScript, "r") as enviroFile:
-            enviroLines = enviroFile.readlines()
+        # if the script generation was successful, we update the scripts and rebuild
+        if returnCode == 0:
+            # now we update the scripts and rebuild the environment
+            returnCode, commandOutputRebuild = updateScriptsAndRebuild(enviroPath, jsonOptions)
+            # concatenate the output from both commands for completeness
+            commmandOutput = f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
 
-        # Re-write the enviro script replacing the value of commands
-        # that exist in the jsonOptions
-        with open(tempEnviroScript, "w") as enviroFile:
-            for line in enviroLines:
-                whatToWrite = line
-                if line.startswith("ENVIRO.END"):
-                    # if we have some un-used options then
-                    # write these before the ENVIRO.END
-                    for key, value in jsonOptions.items():
-                        enviroFile.write(f"{key}: {value}\n")
-
-                elif line.startswith("ENVIRO.") and ":" in line:
-                    # for all other commands, see if the command matches
-                    # a command from the jsonOptions dict
-                    enviroCommand, enviroValue = line.split(":", 1)
-                    enviroCommand = enviroCommand.strip()
-                    enviroValue = enviroValue.strip()
-                    # if so replace the existing value ...
-                    if enviroCommand in jsonOptions:
-                        whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
-                        jsonOptions.pop(enviroCommand)
-
-                # write the original or updated line
-                enviroFile.write(whatToWrite)
-
-        # if we are server mode, terminate any existing process
-        terminateClicastProcess(enviroPath)
-
-        # Finally delete and re-build the environment using the updated script
-        # and load the existing tests -> which duplicates what enviro rebuild does.
-        with open(commandFileName, "w") as commandFile:
-            # Improvement needed: vcast bug: 100924
-            shutil.rmtree(enviroName)
-            # commandFile.write(f"-e{enviroName} enviro delete\n")
-            commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
-            commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
-        # there is no benefit to starting a new server process here (if we are server mode)
-        # so we call the command line version directly
-        returnCodeRebuild, commandOutputRebuild = runClicastScriptCommandLine(
-            commandFileName, echoToStdout=(not USE_SERVER)
-        )
-
-        os.remove(tempEnviroScript)
-        os.remove(tempTestScript)
-
-        # we use the return code from the rebuild itself, because the
-        # command to generate the scripts is unlikely to fail
-        # but we concatenate the output from both commands for completeness
-        return returnCode, f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
+    return returnCode, commandOutput
 
 
 def rebuildEnvironmentUsingClicastReBuild(enviroPath):

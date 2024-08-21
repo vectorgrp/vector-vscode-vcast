@@ -8,7 +8,7 @@ import {
   buildEnvironmentCallback,
   deleteEnvironmentCallback,
 } from "./callbacks";
-import { openMessagePane, vectorMessage } from "./messagePane";
+import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 import {
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
@@ -302,7 +302,12 @@ export async function getCBTNamesFromFile(
     let transmitResponse: transmitResponseType =
       await transmitCommand(requestObject);
 
-    returnData = transmitResponse.returnData.data;
+    if (transmitResponse.success && transmitResponse.returnData) {
+      returnData = transmitResponse.returnData.data;
+    } else {
+      vectorMessage(transmitResponse.statusText);
+      return undefined;
+    }
   } else {
     const commandToRun = getVcastInterfaceCommand(
       vcastCommandType.parseCBT,
@@ -369,7 +374,7 @@ export async function runBasisPathCommands(
   // and since we don't want to show all of the stdout messages, we use a
   // regex filter for what to show
   const messageFilter = /.*Generating test cases for.*/;
-  const startOfRealMessages = "VectorCAST Copyright"
+  const startOfRealMessages = "VectorCAST Copyright";
 
   executeCommandWithProgress(
     "Generating Basis Path Tests: ",
@@ -421,7 +426,7 @@ export async function runATGCommands(
   // and since we don't want to show all of the stdout messages, we use a
   // regex filter for what to show
   const messageFilter = /Subprogram:.*/;
-  const startOfRealMessages = "Processing unit:"
+  const startOfRealMessages = "Processing unit:";
 
   executeCommandWithProgress(
     "Generating ATG Tests: ",
@@ -715,6 +720,7 @@ export async function rebuildEnvironmentUsingPython(
   // This uses the python binding to clicast to do the rebuild
   // We open the message pane to give the user a sense of what's going on
   openMessagePane();
+  vectorMessage (`Rebuilding environment command: ${commandVerb} ${commandPieces.join(" ")}`,errorLevel.trace);
   executeWithRealTimeEcho(
     commandVerb,
     commandPieces,

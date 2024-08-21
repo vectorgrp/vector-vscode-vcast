@@ -11,7 +11,7 @@ import fs = require("fs");
 import path = require("path");
 
 import { execSync } from "child_process";
-import { cleanVcastOutput } from "../src-common/commonUtilities";
+import { cleanVPythonOutput } from "../src-common/commonUtilities";
 
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
@@ -90,8 +90,8 @@ async function getChoiceDataFromServer(
   let transmitResponse: transmitResponseType =
     await transmitCommand(requestObject);
 
-  // tansmitResponse.returnData is an object with exitCode and data properties
-  if (transmitResponse.success) {
+  // If the transmit worked ok, and data was returned ...
+  if (transmitResponse.success && transmitResponse.returnData) {
     // return data wil be formatted as a choiceDataType
     return transmitResponse.returnData.data;
   } else {
@@ -114,10 +114,10 @@ export function getChoiceDataFromPython(
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}"`;
   let commandOutputBuffer = execSync(commandToRun).toString();
 
-  // see comment about ACTUAL-DATA in cleanVcastOutput
-  commandOutputBuffer = cleanVcastOutput(commandOutputBuffer);
+  // see comment about ACTUAL-DATA in cleanVPythonOutput
+  commandOutputBuffer = cleanVPythonOutput(commandOutputBuffer);
 
-  // two statement to make debugging easy
+  // two statements to make debugging easy
   const returnData = JSON.parse(commandOutputBuffer);
   return returnData;
 }

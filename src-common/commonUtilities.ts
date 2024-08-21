@@ -73,17 +73,33 @@ export function getVcastOptionValues(enviroPath: string): cfgOptionType {
   }
 }
 
-const splitString = "ACTUAL-DATA";
-export function cleanVcastOutput(outputString: string): string {
-  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
-  // message to stdout when VC_DIR does not match the vcast distro being run.
-  // Since this happens before our script even starts so we cannot suppress it.
-  // We could send the json data to a temp file, but the create/open file operations
-  // have overhead.
+// The VectorCAST executables print an annoying message to stdout when
+// VECTORCAST_DIR does not match the executable beingg run.
+// Since this happens before our script even starts so we cannot suppress it.
+// We could send the output to a temp file, but the create/open file operations
+// have overhead.  So we just filter it out here.
 
-  if (outputString.includes(splitString)) {
-    const pieces = outputString.split(splitString, 2);
+// For vpython executables, we control the contents of the py script
+// so we print ACTUAL-DATA at the start of the script and split on this
+
+const vpythonSplitString = "ACTUAL-DATA";
+export function cleanVPythonOutput(outputString: string): string {
+  if (outputString.includes(vpythonSplitString)) {
+    const pieces = outputString.split(vpythonSplitString, 2);
     return pieces[1].trim();
+  } else {
+    return outputString;
+  }
+}
+
+// for clicast, we have no control, so we split on the copyright notice
+// and add the copyright notice back in.  I considered combining this
+// with the previous function, but I think this is more clear.
+const clicastSplitString = "VectorCAST Copyright";
+export function cleanClicastOutput(outputString: string): string {
+  if (outputString.includes(clicastSplitString)) {
+    const pieces = outputString.split(clicastSplitString, 2);
+    return clicastSplitString + pieces[1].trim();
   } else {
     return outputString;
   }

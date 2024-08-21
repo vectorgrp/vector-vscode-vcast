@@ -2,7 +2,7 @@ import path from "node:path";
 import process from "node:process";
 import { describe, expect, test } from "vitest";
 import {
-  cleanVcastOutput,
+  cleanVPythonOutput,
   getVcastOptionValues,
 } from "../../src-common/commonUtilities";
 
@@ -33,14 +33,14 @@ describe("Validating commonUtilities", () => {
     timeout
   );
   test(
-    "validate cleanVcastOutput",
+    "validate cleanVPythonOutput",
     async () => {
       let testString =
         "some stuff to be stripped\n\n  ACTUAL-DATA\n   some more stuff ";
-      expect(cleanVcastOutput(testString)).toBe("some more stuff");
+      expect(cleanVPythonOutput(testString)).toBe("some more stuff");
 
       testString = "don't strip me some more stuff";
-      expect(cleanVcastOutput(testString)).toBe(testString);
+      expect(cleanVPythonOutput(testString)).toBe(testString);
     },
     timeout
   );

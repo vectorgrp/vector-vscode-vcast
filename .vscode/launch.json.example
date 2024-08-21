@@ -64,7 +64,7 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "runTest",
+      "name": "executeTest",
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",

@@ -193,8 +193,6 @@ def getTestDataVCAST(enviroPath):
     # dataAPI throws if there is a tool/enviro mismatch
     try:
         api = UnitTestApi(enviroPath)
-        coverageType = api.environment.coverage_type_text
-
     except Exception as err:
         raise InvalidEnviro(err)
 
@@ -205,9 +203,9 @@ def getTestDataVCAST(enviroPath):
         coverageType = api.environment.coverage_type_text
     except Exception as err:
         # the dataAPI does not automatically update the coverage DB
-        # so we raise an error here in that case
-        raise InvalidEnviro (err)
-        
+        # so we raise an error here if the cover.db is too old
+        raise InvalidEnviro(err)
+
     testList = list()
     sourceFiles = dict()
 
@@ -419,22 +417,29 @@ def executeVCtest(enviroPath, testIDObject):
             enviroPath, testIDObject
         )
 
-        if "TEST RESULT: pass" in commandOutput:
-            returnText += "STATUS:passed\n"
+        # the return codes are defined in clicast.ads -> CLICAST_STATUS_T
+        # 0 means the command ran and the test passed
+        # 28 means the command ran and the test failed
+        # we will treat everything else as a command fail
+        if returnCode == 0 or returnCode == 28:
+            if "TEST RESULT: pass" in commandOutput:
+                returnText += "STATUS:passed\n"
+            else:
+                returnText += "STATUS:failed\n"
+            returnText += f"REPORT:{testIDObject.reportName}.txt\n"
+
+            # Retrieve the expected value x/y and the
+            api = UnitTestApi(enviroPath)
+            testList = api.TestCase.filter(name=testIDObject.testName)
+            if len(testList) > 0:
+                returnText += f"PASSFAIL:{getPassFailString(testList[0])}\n"
+                returnText += f"TIME:{getTime(testList[0].start_time)}\n"
+            api.close()
+
+            returnText += commandOutput.rstrip()
         else:
-            returnText += "STATUS:failed\n"
-        returnText += f"REPORT:{testIDObject.reportName}.txt\n"
+            returnText = commandOutput
 
-        # Retrieve the expected value x/y and the
-        api = UnitTestApi(enviroPath)
-        testList = api.TestCase.filter(name=testIDObject.testName)
-        if len(testList) > 0:
-            returnText += f"PASSFAIL:{getPassFailString(testList[0])}\n"
-            returnText += f"TIME:{getTime(testList[0].start_time)}\n"
-        api.close()
-
-        returnText += commandOutput
-        # need strip of the triling CR
         return returnCode, returnText.rstrip()
 
 

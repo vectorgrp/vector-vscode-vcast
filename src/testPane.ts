@@ -366,9 +366,7 @@ export async function updateTestsForEnvironment(
 
   if (jsonData) {
     updateGlobalDataForFile(enviroPath, jsonData.unitData);
-  }
 
-  if (jsonData) {
     let enviroDisplayName: string = "";
     if (workspaceRoot.length > 0) {
       enviroDisplayName = path
