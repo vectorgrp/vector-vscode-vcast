@@ -315,6 +315,13 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(await contentAssist.hasItem("vsession")).toBe(true);
     await selectItem(contentAssist, "vsession");
 
+    // Validate that vsession has been autocompleted correctly
+    let updatedLine = await tab.getTextAtLine(14);
+    let expectedLine = "auto vmock_session = ::vunit::MockSession();";
+
+    // Check if the line now contains the expected auto-completion
+    expect(updatedLine.trim()).toBe(expectedLine.trim());
+
     await tab.setTextAtLine(18, "// vmock");
     currentLine = await tab.getLineOfText("// vmock");
     await tab.typeTextAt(currentLine, "// vmock".length + 1, " ");
