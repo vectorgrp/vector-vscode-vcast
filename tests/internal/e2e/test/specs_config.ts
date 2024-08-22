@@ -119,6 +119,15 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {},
       params: {},
     };
+
+    specGroups["coded_mock_different_env"] = {
+      specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
+      env: {
+        VECTORCAST_DIR: `/vcast/release24:${process.env.HOME}/vcast/release24`,
+        SWITCH_ENV_AT_THE_END: `/vcast/vc24__101394_store_mock_info:${process.env.HOME}/vcast/vc24__101394_store_mock_info`,
+      },
+      params: {},
+    };
   }
 
   return specGroups;
@@ -205,7 +214,7 @@ export function getSpecs(vcast24: boolean, group: string = null) {
  * Splits all paths from the PATH env variable that contain a "release".
  * @returns New PATH env var without "release" paths
  */
-function removeReleaseOnPath(): string | undefined {
+export function removeReleaseOnPath(): string | undefined {
   // Get the PATH environment variable
   const envPath = process.env.PATH;
 

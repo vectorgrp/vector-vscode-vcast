@@ -25,7 +25,7 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs } from "./specs_config.ts";
+import { getSpecs, removeReleaseOnPath } from "./specs_config.ts";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -390,6 +390,7 @@ export const config: Options.Testrunner = {
      * Builds one env for based on VECTORCAST_DIR.
      */
     async function setupSingleEnvironment(initialWorkdir: string) {
+      console.log("I AM IN SINGLE ENVIRONMENT");
       const testInputVcastTutorial = path.join(
         initialWorkdir,
         "test",
@@ -408,6 +409,7 @@ export const config: Options.Testrunner = {
         const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
         await promisifiedExec(createCFG);
       } else {
+        console.log("IVECTORCAST_DIR NOT DEFINED");
         // Add vpython path since every release path is deleted
         const currentPath = process.env.PATH || "";
         const newPath = path.join(
@@ -473,6 +475,7 @@ export const config: Options.Testrunner = {
         "coded_tests",
         "*.cpp"
       );
+
       // Copying didn't work with cp from fs
       if (process.platform == "win32") {
         await promisifiedExec(
@@ -504,6 +507,113 @@ export const config: Options.Testrunner = {
         await promisifiedExec(
           `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`
         );
+      }
+
+      if (process.env.SWITCH_ENV_AT_THE_END) {
+        let vcastRoot: string;
+        // Check if we are on CI
+        if (process.env.HOME.startsWith("/github")) {
+          vcastRoot = "/vcast";
+        } else {
+          // Assuming that locally release is on this path.
+          vcastRoot = path.join(process.env.HOME, "vcast");
+        }
+
+        const oldVersion = "release24";
+        const newVersion = "vc24__101394_store_mock_info";
+
+        console.log("SWITCH_ENV_AT_THE_END IS DEFINED");
+        const workspacePath = path.join(__dirname, "vcastTutorial");
+        const unitFileContent = `void foo (void){}`;
+        const unitFile = path.join(workspacePath, "moo.cpp");
+        const testsFile = path.join(workspacePath, "tests.cpp");
+        const testENVFile = path.join(workspacePath, "TEST.env");
+
+        const testENVContent = `ENVIRO.NEW
+ENVIRO.NAME: TEST
+ENVIRO.BASE_DIRECTORY: VCAST_SourceRoot=.
+ENVIRO.STUB_BY_FUNCTION: moo
+ENVIRO.WHITE_BOX: NO
+ENVIRO.VCDB_FILENAME: 
+ENVIRO.VCDB_CMD_VERB: 
+ENVIRO.COVERAGE_TYPE: Statement+Branch
+ENVIRO.INDUSTRY_MODE: Default
+ENVIRO.ADDITIONAL_STUB: VCAST_ATG_FP_0
+ENVIRO.ADDITIONAL_STUB: VCAST_ATG_FP_1
+ENVIRO.LIBRARY_STUBS:  
+ENVIRO.STUB: ALL_BY_PROTOTYPE
+ENVIRO.NOT_SUPPORTED_TYPE: asdsadsa
+ENVIRO.COMPILER: CC
+ENVIRO.TYPE_HANDLED_DIRS_ALLOWED: 
+ENVIRO.UNIT_APPENDIX_USER_CODE:
+ENVIRO.UNIT_APPENDIX_USER_CODE_FILE:fp_update
+int VCAST_ATG_FP_1(int);
+ENVIRO.END_UNIT_APPENDIX_USER_CODE_FILE:
+ENVIRO.END_UNIT_APPENDIX_USER_CODE:
+
+ENVIRO.SEARCH_LIST: $(VCAST_SourceRoot)/
+ENVIRO.END`;
+
+        const testsCPP = `#include <vunit/vunit.h>
+namespace {
+class mooFixture : public ::vunit::Fixture {
+protected:
+void SetUp(void) override {
+  // Set up code goes here.
+}
+
+void TearDown(void) override {
+  // Tear down code goes here.
+}
+};
+} // namespace
+
+VTEST(mooTests, ExampleTestCase) {
+VASSERT(true);
+}`;
+
+        const templateContent = `-- Test Case: tests
+TEST.UNIT:moo
+TEST.SUBPROGRAM:coded_tests_driver
+TEST.NEW
+TEST.NAME:tests
+TEST.CODED_TESTS_FILE:./tests.cpp
+TEST.END`;
+
+        const templateFile = path.join(workspacePath, "template.tst");
+
+        // Write template and cpp to file
+        await writeFile(templateFile, templateContent.trim());
+        await writeFile(unitFile, unitFileContent);
+        await writeFile(testsFile, testsCPP);
+        await writeFile(testENVFile, testENVContent);
+
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+
+        const setCoded = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        const setEnviro = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/enviroedg TEST.env`;
+        const runTest = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -e TEST test script run template.tst`;
+        try {
+          await promisifiedExec(setCoded);
+          await promisifiedExec(setEnviro);
+          await promisifiedExec(runTest);
+        } catch (error) {
+          console.log(error);
+        }
+
+        console.log("FINISHED RUNNING EXECS");
+        // Remove old release from PATH
+
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+        // const pathWithoutRelease = removeReleaseOnPath();
+        // // Add vpython path since every release path is deleted
+        // const currentPath = pathWithoutRelease;
+        // const newPath = path.join(
+        //   process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
+        //   "vpython"
+        // );
+        // process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
+        // process.env.VECTORCAST_DIR = process.env.SWITCH_ENV_AT_THE_END;
       }
     }
 
