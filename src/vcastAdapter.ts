@@ -157,7 +157,7 @@ export async function loadTestScriptIntoEnvironment(
   // will open the message pane.  If the load passes, we want to give the
   // user an indication that it worked ...
   if (commandStatus.errorCode == 0) {
-    vectorMessage("Script loaded successfully ...");
+    vectorMessage("Script loaded successfully");
     // Maybe this will be annoying to users, but I think
     // it's good to know when the load is complete.
     vscode.window.showInformationMessage(`Test script loaded successfully`);
@@ -165,6 +165,8 @@ export async function loadTestScriptIntoEnvironment(
     // this API allows a timeout for the message, but I think its too subtle
     // because it is only shown in the status bar
     //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
+  } else {
+    vectorMessage("Error loading test script\n");
   }
 }
 
@@ -267,6 +269,8 @@ export async function dumptestScriptFile(
   const clicastArgs = getClicastArgsFromTestNode(testNode);
   let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
+  vectorMessage(`Creating test script: ${scriptPath}`);
+
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
@@ -281,6 +285,9 @@ export async function dumptestScriptFile(
     );
   }
 
+  if (commandStatus.errorCode != 0) {
+    vectorMessage("Error creating test script");
+  }
   return commandStatus;
 }
 
@@ -720,7 +727,10 @@ export async function rebuildEnvironmentUsingPython(
   // This uses the python binding to clicast to do the rebuild
   // We open the message pane to give the user a sense of what's going on
   openMessagePane();
-  vectorMessage (`Rebuilding environment command: ${commandVerb} ${commandPieces.join(" ")}`,errorLevel.trace);
+  vectorMessage(
+    `Rebuilding environment command: ${commandVerb} ${commandPieces.join(" ")}`,
+    errorLevel.trace
+  );
   executeWithRealTimeEcho(
     commandVerb,
     commandPieces,

@@ -17,8 +17,8 @@ import { updateExploreDecorations } from "./fileDecorator";
 
 import {
   errorLevel,
+  indentString,
   openMessagePane,
-  vcastMessage,
   vectorMessage,
 } from "./messagePane";
 
@@ -337,9 +337,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
         returnList.push(candidatePath);
       } else {
         vectorMessage(`Ignoring environment: ${candidatePath} ...`);
-        vectorMessage(
-          `   environments should not be at the workspace root, open the enclosing directory\n`
-        );
+        vectorMessage(`environments should not be at the workspace root, open the enclosing directory\n`, errorLevel.info, indentString);
       }
     }
   }
@@ -1057,8 +1055,7 @@ export async function deleteTests(nodeList: any[]) {
     if (commandStatus.errorCode == 0) {
       changedEnvironmentIDList.add(getEnviroNodeIDFromID(node.id));
     } else {
-      vectorMessage("Test delete failed ...");
-      vcastMessage(commandStatus.stdout);
+      vectorMessage("Error deleting test\n");
       openMessagePane();
     }
   }
@@ -1297,7 +1294,7 @@ export async function updateCodedTestCases(editor: any) {
         }
 
         vectorMessage(
-          `Refreshing coded test file: ${filePath} for environment: ${enviroPath}`
+          `Refreshing coded test file: ${filePath} for environment: ${enviroPath} ...`
         );
 
         // call clicast to update the coded tests
@@ -1309,6 +1306,8 @@ export async function updateCodedTestCases(editor: any) {
         // if the refresh worked, and the test names changed, then update test pane
         if (refreshCommandStatus.errorCode == 0) {
           updateTestPane(enviroPath);
+        } else {
+          vectorMessage("Error refreshing coded tests\n");
         }
       }
       // update the test names and checksum in all cases, rather than checking for diffs again

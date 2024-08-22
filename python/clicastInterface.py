@@ -106,7 +106,7 @@ def runClicastServerCommand(enviroPath, commandString):
     clicastInstanceRunning = connectClicastInstance(enviroPath)
 
     if not clicastInstanceRunning:
-        errorCode = errorCodes.couldNotStartClicastInstance
+        exitCode = errorCodes.couldNotStartClicastInstance
         returnText = "Could not start clicast instance"
 
     else:

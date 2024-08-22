@@ -14,7 +14,12 @@ import { updateFunctionDataForFile } from "./editorDecorator";
 
 import { fileDecorator } from "./fileDecorator";
 
-import { openMessagePane, vectorMessage, errorLevel } from "./messagePane";
+import {
+  openMessagePane,
+  indentString,
+  vectorMessage,
+  errorLevel,
+} from "./messagePane";
 
 import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
@@ -354,7 +359,7 @@ export async function getResultFileForTest(testID: string) {
           `Results report: '${resultFile}' does not exist`
         );
         vectorMessage(`Results report: '${resultFile}' does not exist`);
-        vectorMessage(commandStatus.stdout);
+        vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
       }
 
       globalTestStatusArray[testID].resultFilePath = resultFile;
@@ -405,6 +410,28 @@ function processExecutionOutput(commandOutput: string): executeOutputType {
   return returnData;
 }
 
+function testExecutionFailed(commandStatus: commandStatusType): boolean {
+  // There are lots of ways that a test run can end badly,
+  // this function will check for these cases to simplify
+  // the process in runVCTest
+
+  let commandOutputText: string = commandStatus.stdout;
+  let returnValue: boolean = false;
+
+  if (commandOutputText.startsWith("FATAL")) {
+    // comes from clicast, something bad happened
+    returnValue = true;
+  } else if (commandOutputText.includes("Resolve Errors")) {
+    // handles things like compile errors
+    returnValue = true;
+  } else if (commandStatus.errorCode == 1) {
+    // usage error with interface
+    returnValue = true;
+  }
+
+  return returnValue;
+}
+
 export async function runVCTest(enviroPath: string, nodeID: string) {
   // what gets returned
   let returnStatus: testStatus = testStatus.didNotRun;
@@ -415,34 +442,28 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
     nodeID
   );
 
-  // for readability
-  const commandOutputText: string = commandStatus.stdout;
-
+  let commandOutputText: string = commandStatus.stdout;
   let executionDetails: executeOutputType = nullExecutionStatus;
+
   if (commandStatus.errorCode == pythonErrorCodes.codedTestCompileError) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
-
-    // comes from clicast, something bad happened
-  } else if (commandOutputText.startsWith("FATAL")) {
-    vectorMessage(commandOutputText.replace("FATAL", ""));
+  } else if (testExecutionFailed(commandStatus)) {
+    // lots of different thigs can go wrong
+    vectorMessage("Could not complete test execution ...");
+    if (commandOutputText.startsWith("FATAL")) {
+      commandOutputText = commandOutputText.replace("FATAL", "");
+    }
+    vectorMessage(commandOutputText, errorLevel.info, indentString);
     openMessagePane();
     returnStatus = testStatus.didNotRun;
-
-    // handles things like compile errors
-  } else if (commandOutputText.includes("Resolve Errors")) {
-    vectorMessage(commandOutputText);
-    openMessagePane();
+  } else if (commandStatus.errorCode != 0 && commandOutputText.length != 28) {
+    // 0 means test pass, 28 means test failed, everything else is an error
+    // however the printing of the error message is done where the command is run
+    // so we don't have to do it here
     returnStatus = testStatus.didNotRun;
-
-    // usage error with interface
-  } else if (commandStatus.errorCode == 1) {
-    vectorMessage(commandOutputText);
-    openMessagePane();
-    returnStatus = testStatus.didNotRun;
-
-    // successful execution
   } else {
+    // successful execution
     executionDetails = processExecutionOutput(commandOutputText);
 
     let updatedStatusItem = globalTestStatusArray[nodeID];

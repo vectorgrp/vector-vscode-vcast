@@ -2,7 +2,12 @@ import * as vscode from "vscode";
 
 import { execSync, spawn } from "child_process";
 
-import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
+import {
+  errorLevel,
+  indentString,
+  openMessagePane,
+  vectorMessage,
+} from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
 import {
   cleanClicastOutput,
@@ -59,8 +64,8 @@ export function executeVPythonScript(
     returnData.errorCode = commandStatus.errorCode;
     if (returnData.errorCode != 0) {
       vectorMessage("Error running VectorCAST command");
-      vectorMessage("  command: " + commandToRun, errorLevel.trace);
-      vectorMessage(returnData.stdout);
+      vectorMessage("command: " + commandToRun, errorLevel.trace, indentString);
+      vectorMessage(returnData.stdout, errorLevel.info, indentString);
     }
   }
   return returnData;
@@ -93,14 +98,16 @@ function processExceptionFromExecuteCommand(
   let commandStatus = { errorCode: error.status, stdout: stdoutString };
 
   if (error.status == pythonErrorCodes.testInterfaceError) {
+    // TBD TODAY - Why?
     commandStatus.errorCode = 0;
-    vectorMessage(stdoutString);
+    vectorMessage("Exception while executing python interface");
+    vectorMessage(stdoutString, errorLevel.info, indentString);
   } else {
     commandStatus.errorCode = error.status;
     if (printErrorDetails) {
-      vectorMessage("Exception while running command:");
-      vectorMessage(command);
-      vectorMessage(stdoutString);
+      vectorMessage("Exception while executing VectorCAST command");
+      vectorMessage(command, errorLevel.trace, indentString);
+      vectorMessage(stdoutString, errorLevel.info, indentString);
       openMessagePane();
     }
   }
@@ -201,7 +208,10 @@ export function executeCommandWithProgress(
   // and a different callback structure.
   // We use this for generating the basis path and ATG tests (for now)
 
-  vectorMessage(`Executing command: ${commandAndArgs.join(" ")}`);
+  vectorMessage(
+    `Executing command: ${commandAndArgs.join(" ")}`,
+    errorLevel.trace
+  );
   let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
 
   const cwd = path.dirname(testScriptPath);
@@ -229,6 +239,8 @@ export function executeCommandWithProgress(
         // final \n and buffer the rest, see comment above
         let remainderTextFromLastCall = "";
 
+        let stderrChunks:string = "";
+
         commandHandle.stdout.on("data", async (data: any) => {
           const message: statusMessageType = processCommandOutput(
             remainderTextFromLastCall,
@@ -245,7 +257,7 @@ export function executeCommandWithProgress(
             }
 
             if (shouldLogMessage && line.length > 0) {
-              vectorMessage(line);
+              vectorMessage(line, errorLevel.info, indentString);
             }
 
             const matched = line.match(filter);
@@ -259,16 +271,8 @@ export function executeCommandWithProgress(
           }
         });
 
-        commandHandle.stderr.on("data", async (data: any) => {
-          const message: statusMessageType = processCommandOutput(
-            remainderTextFromLastCall,
-            data.toString(data)
-          );
-          remainderTextFromLastCall = message.remainderText;
-
-          if (message.fullLines.length > 0) {
-            vectorMessage(message.fullLines);
-          }
+        commandHandle.stderr.on("data", (data: any) => {
+          stderrChunks += data.toString();
         });
 
         commandHandle.on("error", (error: any) => {
@@ -281,8 +285,10 @@ export function executeCommandWithProgress(
         commandHandle.on("close", (code: any) => {
           // display any remaining text ...
           if (remainderTextFromLastCall.length > 0) {
-            vectorMessage(remainderTextFromLastCall);
+            vectorMessage(remainderTextFromLastCall, errorLevel.info, indentString);
           }
+          vectorMessage(stderrChunks, errorLevel.info, indentString);
+
           commandStatus.errorCode = code;
           resolve(code);
           callback(commandStatus, enviroName, testScriptPath);

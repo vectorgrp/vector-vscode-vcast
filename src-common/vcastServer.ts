@@ -124,8 +124,9 @@ export async function transmitCommand(
       ) {
         // the error message is a list of strings, so join with \n
         transmitResponse.success = false;
-        transmitResponse.statusText = `Python interface error: ${rawReturnData.data.text.join(
-          "\n"
+        // format the error message for readability, with new lines and indentation
+        transmitResponse.statusText = `Python interface error: \n   ${rawReturnData.data.text.join(
+          "\n   "
         )}`;
         //
       } else if (

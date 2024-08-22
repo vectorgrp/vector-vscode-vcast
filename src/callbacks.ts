@@ -6,7 +6,12 @@ import { updateDisplayedCoverage } from "./coverage";
 import { updateTestDecorator } from "./editorDecorator";
 
 import { updateExploreDecorations } from "./fileDecorator";
-import { openMessagePane, vectorMessage } from "./messagePane";
+import {
+  errorLevel,
+  indentString,
+  openMessagePane,
+  vectorMessage,
+} from "./messagePane";
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
@@ -107,7 +112,8 @@ export async function loadScriptCallBack(
     vscode.window.showInformationMessage(
       `Error generating tests, see log for details`
     );
-    vectorMessage(commandStatus.stdout);
+    vectorMessage("Error generating tests");
+    vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
     openMessagePane();
   }
 }
