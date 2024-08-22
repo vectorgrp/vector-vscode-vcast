@@ -3,11 +3,13 @@ import process from "node:process";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { rm, mkdir, copyFile } from "node:fs/promises";
+import { getToolVersion } from "./utils";
 
 module.exports = async () => {
   const promisifiedExec = promisify(exec);
 
   const tstFilename = "firstTest.tst";
+
   process.env.PACKAGE_PATH = process.env.INIT_CWD;
   process.env.TST_FILENAME = tstFilename;
   process.env.VECTORCAST_DIR = "";
@@ -75,13 +77,31 @@ module.exports = async () => {
   );
 
   const clicastTemplateCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -l C template GNU_CPP11_X`;
-  const { stdout, stderr } = await promisifiedExec(clicastTemplateCommand);
-  if (stderr) {
-    console.log(stderr);
+
+  // Clicast execution
+  const { stdout: stdoutClicast, stderr: stderrClicast } =
+    await promisifiedExec(clicastTemplateCommand);
+  if (stderrClicast) {
+    console.log(stderrClicast);
     throw new Error(`Error when running ${clicastTemplateCommand}`);
   }
 
-  console.log(stdout);
+  console.log(stdoutClicast);
+
+  const toolVersion = await getToolVersion();
+
+  // Activate coded tests support only for version 24
+  if (!toolVersion.startsWith("23")) {
+    const clicastOptionCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+    const { stdout: stdoutClicastOption, stderr: stderrClicastOption } =
+      await promisifiedExec(clicastOptionCommand);
+    if (stderrClicastOption) {
+      console.log(stderrClicastOption);
+      throw new Error(`Error when running ${clicastOptionCommand}`);
+    }
+
+    console.log(stdoutClicastOption);
+  }
 
   const vectorcastDirectory = path.dirname(clicastExecutablePath);
   const requestTutorialPath = path.join(
@@ -118,6 +138,7 @@ module.exports = async () => {
 
   const tstFilePath = path.join(vcastEnvPath, tstFilename);
   const createTstFile = `echo -- Environment: TEST > ${tstFilePath}`;
+
   {
     const { stderr } = await promisifiedExec(createTstFile);
     if (stderr) {

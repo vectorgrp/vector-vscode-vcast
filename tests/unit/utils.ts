@@ -1,3 +1,6 @@
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import {
@@ -11,6 +14,8 @@ import { getHoverString } from "../../server/tstHover";
 import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
+import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 
 export type HoverPosition = {
   line: number;
@@ -20,8 +25,7 @@ export type HoverPosition = {
 export function generateHoverData(
   tstText: string,
   position: HoverPosition,
-  envName?: string,
-  emptyDocument?: boolean
+  envName?: string
 ) {
   envName ||= "vcast";
 
@@ -39,9 +43,9 @@ export function generateHoverData(
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
-  const documents = new TextDocuments();
 
-  storeNewDocument(documents, uri, emptyDocument ? undefined : textDocument);
+  const documents = new TextDocuments();
+  storeNewDocument(documents, uri, textDocument);
 
   const completion = asHoverParameters(textDocument, position);
 
@@ -54,8 +58,8 @@ export function generateHoverData(
     "vpython"
   );
 
-  if (documents.all()?.[0]) {
-    console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
+  if (textDocument) {
+    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
   }
 
   return getHoverString(documents, completion);
@@ -87,16 +91,21 @@ export type CompletionPosition = {
   character: number;
 };
 
-// eslint-disable-next-line max-params
 export function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
-  envName?: string,
-  emptyDocument?: boolean
+  optParameters?: {
+    lineSoFar?: string;
+    cppTest?: boolean;
+    envName?: string;
+  }
 ) {
-  envName ||= "vcast";
-  const languageId = "VectorCAST Test Script";
+  // OptParams can be undefined
+  const envName = optParameters?.envName ?? "vcast";
+
+  const languageId = optParameters?.cppTest ? "cpp" : "VectorCAST Test Script";
+
   const testEnvPath = path.join(
     process.env.PACKAGE_PATH as string,
     "tests",
@@ -107,13 +116,10 @@ export function generateCompletionData(
     testEnvPath,
     process.env.TST_FILENAME as string
   );
+
   const uri = URI.file(tstFilepath).toString();
 
   const textDocument = TextDocument.create(uri, languageId, 1, tstText);
-  const documents = new TextDocuments();
-
-  storeNewDocument(documents, uri, emptyDocument ? undefined : textDocument);
-
   const completion = asCompletionParameters(
     textDocument,
     position,
@@ -128,11 +134,23 @@ export function generateCompletionData(
     "vpython"
   );
 
-  if (documents.all()?.[0]) {
-    console.log(`Input .tst script: \n ${documents.all()[0].getText()} \n`);
-  }
+  // Coded test
+  if (optParameters?.cppTest && optParameters?.lineSoFar) {
+    console.log(`Input .cpp file: \n ${textDocument.getText()} \n`);
+    const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+    if (enviroPath) {
+      return getCodedTestCompletionData(
+        optParameters.lineSoFar,
+        completion,
+        enviroPath
+      );
+    }
 
-  return getTstCompletionData(documents, completion);
+    throw new ReferenceError("enviroPath is undefined.");
+  } /* tst */ else {
+    console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
+    return getTstCompletionData(textDocument, completion);
+  }
 }
 
 export function asCompletionParameters(
@@ -191,4 +209,64 @@ export function storeNewDocument(
   /* `_documents` is private in `TextDocuments`.
    * We cast to `any` to make the linter happy */
   (documents as any)._documents[uri] = textDocument;
+}
+
+const promisifiedExec = promisify(exec);
+
+/**
+ * Function to get the clicast executable path and check the tool version
+ */
+export async function getToolVersion() {
+  // Determine the command to locate clicast
+  const checkClicast =
+    process.platform === "win32" ? "where clicast" : "which clicast";
+
+  let clicastExecutablePath = "";
+
+  try {
+    // Execute the command to find clicast
+    const { stdout, stderr } = await promisifiedExec(checkClicast);
+    if (stderr) {
+      throw new Error(
+        `Error when running ${checkClicast}, make sure clicast is on PATH`
+      );
+    } else {
+      clicastExecutablePath = stdout.trim();
+      console.log(`clicast found in ${clicastExecutablePath}`);
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+    } else {
+      console.error(`Unexpected error: ${String(error)}`);
+    }
+
+    throw new Error(
+      `Error when running "${checkClicast}", make sure clicast is on PATH`
+    );
+  }
+
+  // Read the tool version from the appropriate path
+  const toolVersionPath = path.join(
+    clicastExecutablePath,
+    "..",
+    "DATA",
+    "tool_version.txt"
+  );
+
+  try {
+    const toolVersion: string = fs
+      .readFileSync(toolVersionPath)
+      .toString()
+      .trim();
+    return toolVersion;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error reading tool version: ${error.message}`);
+    } else {
+      console.error(`Unexpected error: ${String(error)}`);
+    }
+
+    return "";
+  }
 }

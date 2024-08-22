@@ -8,6 +8,8 @@ import {
   type ViewItem,
   type TreeItem,
   ViewContent,
+  ContentAssist,
+  ContentAssistItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
@@ -1168,4 +1170,60 @@ export async function assertTestsDeleted(
       }
     }
   }
+}
+
+/**
+ * Selects an item from the content assist dropdown.
+ *
+ * Normalizes the provided item string, searches the content assist
+ * items for a match, and selects the matching item.
+ *
+ * @param contentAssist The content assist object containing autocompletion items.
+ * @param item The label of the item to be selected.
+ * @throws Error if the specified item is not found.
+ */
+export async function selectItem(contentAssist: ContentAssist, item: string) {
+  // Replace newline special characters in the input item string
+  const normalizedItem = normalizeContentAssistString(item);
+
+  // Get all content assist items
+  const items: ContentAssistItem[] = await contentAssist.getItems();
+
+  // Find the index of the item that matches the processed input string
+  const itemIndex = (
+    await Promise.all(
+      items.map(async (assistItem) => {
+        const label = await assistItem.getLabel();
+        return normalizeContentAssistString(label);
+      })
+    )
+  ).findIndex((normalizedLabel) => normalizedLabel === normalizedItem);
+
+  if (itemIndex === -1) {
+    console.log(`Content assist item ${item} not found`);
+    return undefined;
+  }
+
+  // Navigate to the desired item using arrow keys
+  for (let i = 0; i < itemIndex; i++) {
+    await browser.keys("ArrowDown");
+  }
+
+  // Select the item
+  await browser.keys("Enter");
+
+  return items[itemIndex];
+}
+
+/**
+ * Normalizes a VS Code content assist string.
+ *
+ * Replaces encoded newline characters ("⏎") with actual newlines,
+ * collapses multiple spaces into one, and trims excess whitespace.
+ *
+ * @param content The string to be normalized.
+ * @returns The cleaned and normalized string.
+ */
+function normalizeContentAssistString(content: string): string {
+  return content.replace(/⏎/g, "\n").replace(/\s+/g, " ").trim();
 }

@@ -17,7 +17,7 @@ export interface testNodeType {
 // the key is the nodeID, the data is an testNodeType
 let testNodeCache = new Map();
 
-export function createTestNodeinCache(
+export function createTestNodeInCache(
   enviroNodeID: string,
   enviroPath: string,
   enviroName: string,

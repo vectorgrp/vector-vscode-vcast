@@ -39,6 +39,32 @@ export function getPieceAtColumn(pieces: string[], columnIndex: number) {
   return { text: "", index: 0 };
 }
 
+function addSpecialChoices(returnList: CompletionItem[]) {
+  // This adds all of the special choice for scalars like
+  // min, mid, max and vary
+  returnList.push({
+    label: "vary",
+    kind: CompletionItemKind.Snippet,
+    insertText: "VARY FROM:$1 TO:$2 BY:$3",
+    insertTextFormat: InsertTextFormat.Snippet,
+  });
+  returnList.push({
+    label: "<<MIN>>",
+    kind: CompletionItemKind.Constant,
+    detail: "",
+  });
+  returnList.push({
+    label: "<<MID>>",
+    kind: CompletionItemKind.Constant,
+    detail: "",
+  });
+  returnList.push({
+    label: "<<MAX>>",
+    kind: CompletionItemKind.Constant,
+    detail: "",
+  });
+}
+
 // this function will take a js array and create a completion array
 export function completionList(
   inputList: string[],
@@ -55,35 +81,17 @@ export function completionList(
     let details = pieces.length > 1 ? pieces[1] : "";
     const labelValue = pieces[0];
 
+    // for numbers and characters python will return "scalar"
     if (labelValue == "scalar") {
-      // now details will have the type of scalar
-      // so let's add that, as well as a snippet for vary
+      // details will have the kind (number or char)
       returnList.push({
         label: details,
         kind: choiceKind,
         detail: "",
       });
-      returnList.push({
-        label: "vary",
-        kind: CompletionItemKind.Snippet,
-        insertText: "VARY FROM:$1 TO:$2 BY:$3",
-        insertTextFormat: InsertTextFormat.Snippet,
-      });
-      returnList.push({
-        label: "<<MIN>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
-      returnList.push({
-        label: "<<MID>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
-      returnList.push({
-        label: "<<MAX>>",
-        kind: CompletionItemKind.Constant,
-        detail: "",
-      });
+      // add the special choices for scalars:
+      // min, mind, max, vary
+      addSpecialChoices(returnList);
     } else
       returnList.push({
         label: labelValue,
@@ -136,6 +144,8 @@ export function getLineText(document: TextDocument, line: number) {
 export function getEnviroNameFromTestScript(testScriptPath: string) {
   let whatToReturn: string | undefined = undefined;
 
+  // note: this expects the test script to be in the same directory as the enviro
+
   // extract the enviroName from the script
   let enviroName: string | undefined = getEnviroNameFromScript(testScriptPath);
 
@@ -179,7 +189,7 @@ export const commonEnviroCommandList = [
   "NEW", // *
   "NAME", // * All caps enviro directory name
   "BASE_DIRECTORY", //   Variable:Path
-  "COVERAGE_TYPE", // * Statement, Branch, MCDC, Funciton, Function+Function_call, Statement+Branch, Statement+MCDC
+  "COVERAGE_TYPE", // * Statement, Branch, MCDC, Function, Function+Function_call, Statement+Branch, Statement+MCDC
   "INDUSTRY_MODE", //   DO-178 B/C, ISO-26262, IEC-61508, EN-50128, IEC-62304
   "STUB_BY_FUNCTION", // * Name of UUT
   "WHITEBOX", // * YES | NO
