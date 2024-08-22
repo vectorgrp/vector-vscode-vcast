@@ -1,21 +1,16 @@
 // Test/specs/vcast_coded_tests.test.ts
 import {
   type BottomBarPanel,
-  type StatusBar,
   type TextEditor,
   type Workbench,
   type TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
-  releaseCtrl,
-  executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
-  clickOnButtonInTestingHeader,
   getViewContent,
   findSubprogram,
   getTestHandle,
-  findSubprogramMethod,
   updateTestID,
   normalizeContentAssistString,
   getGeneratedTooltipTextAt,
@@ -40,7 +35,6 @@ export const normalizedExpectedFunctionOutput = `
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  let statusBar: StatusBar;
   const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
@@ -139,58 +133,77 @@ describe("vTypeCheck VS Code Extension", () => {
   });
 
   it("should check for vmock code completion", async () => {
+    // Update test ID for traceability
     await updateTestID();
 
+    // Open the "Testing" view and log the action
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
+
     let subprogram: TreeItem;
     let testHandle: TreeItem;
-    // Expand manager section in testing pane.
-    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      subprogram = await findSubprogram("moo", vcastTestingViewSection);
+
+    // Iterate over sections to find the "moo" subprogram and expand it
+    for (const section of await vcastTestingViewContent.getSections()) {
+      subprogram = await findSubprogram("moo", section);
       if (subprogram) {
+        // Expand the subprogram if it's not already expanded
         if (!(await subprogram.isExpanded())) await subprogram.expand();
         console.log("Getting test handle");
+
+        // Get the test handle for the specified test case
         testHandle = await getTestHandle(
           subprogram,
           "Coded Tests",
           "mooTests.ExampleTestCase",
           1
         );
-        if (testHandle) {
-          break;
-        } else {
-          throw "Test handle not found for mooTests.ExampleTestCase";
-        }
+
+        // Break out of the loop if the test handle is found, otherwise throw an error
+        if (testHandle) break;
+        throw new Error("Test handle not found for mooTests.ExampleTestCase");
       }
     }
+
+    // Ensure the test handle is not undefined
     expect(testHandle).not.toBe(undefined);
 
+    // Open context menu and select "VectorCAST"
     let contextMenu = await testHandle.openContextMenu();
     await contextMenu.select("VectorCAST");
+
+    // Click on "Edit Coded Test" from the menu
     let menuElement = await $("aria/Edit Coded Test");
     await menuElement.click();
 
+    // Wait until the "tests.cpp" tab is active in the editor view
     const editorView = workbench.getEditorView();
     await browser.waitUntil(
       async () =>
         (await (await editorView.getActiveTab()).getTitle()) === "tests.cpp"
     );
 
+    // Open the "tests.cpp" file in the editor and trigger code completion
     const tab = (await editorView.openEditor("tests.cpp")) as TextEditor;
     await browser.keys([Key.Ctrl, Key.Space]);
 
+    // Add a comment "// vmock" on line 14, then add a space and save the file
     await tab.setTextAtLine(14, "// vmock");
     let currentLine = await tab.getLineOfText("// vmock");
     await tab.typeTextAt(currentLine, "// vmock".length + 1, " ");
     await tab.save();
 
+    // Get the tooltip text when hovering over the "// vmock" comment
     const hoverText = await getGeneratedTooltipTextAt(
       currentLine,
       "// vmock".length - 1,
       tab
     );
+
+    // Expected hover text message for environments without mock support
     const expectedText = `This environment does not support mocks, no auto-completion is available. Rebuild the environment to use mocks`;
+
+    // Normalize and verify the hover text matches the expected message
     expect(normalizeContentAssistString(hoverText)).toContain(
       normalizeContentAssistString(expectedText)
     );

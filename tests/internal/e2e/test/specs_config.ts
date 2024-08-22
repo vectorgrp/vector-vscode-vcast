@@ -123,8 +123,7 @@ export function getSpecGroups(useVcast24: boolean) {
     specGroups["coded_mock_different_env"] = {
       specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
       env: {
-        VECTORCAST_DIR: `/vcast/release24:${process.env.HOME}/vcast/release24`,
-        SWITCH_ENV_AT_THE_END: `/vcast/vc24__101394_store_mock_info:${process.env.HOME}/vcast/vc24__101394_store_mock_info`,
+        SWITCH_ENV_AT_THE_END: "True",
       },
       params: {},
     };
