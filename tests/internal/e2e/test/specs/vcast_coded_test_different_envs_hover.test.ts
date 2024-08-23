@@ -16,22 +16,6 @@ import {
   getGeneratedTooltipTextAt,
 } from "../test_utils/vcast_utils";
 
-// Define the normalized version of the expected content
-export const normalizedExpectedFunctionOutput = `
-  void vmock_manager_Manager_ClearTable(::vunit::CallCtx<Manager> vunit_ctx, unsigned Table) {
-    // Enable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session);
-    // Disable Stub: vmock_manager_Manager_ClearTable_enable_disable(vmock_session, false);
-  
-    // Insert mock logic here!
-  }
-  void vmock_manager_Manager_ClearTable_enable_disable(vunit::MockSession &vmock_session, bool enable = true) {
-      using vcast_mock_rtype = void  ;
-      vcast_mock_rtype (Manager::*vcast_fn_ptr)(unsigned)  = &Manager::ClearTable;
-      vmock_session.mock <vcast_mock_rtype (Manager::*)(unsigned)> ((vcast_mock_rtype (Manager::*)(unsigned))vcast_fn_ptr).assign (enable ? &vmock_manager_Manager_ClearTable : nullptr);
-  }
-  // end of mock for: vmock_manager_Manager_ClearTable -------------------------------------------------------------------
-  `.trim();
-
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
