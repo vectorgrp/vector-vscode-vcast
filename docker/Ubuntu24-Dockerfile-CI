@@ -73,15 +73,21 @@ ENV TESTING_IN_CONTAINER=True \
     RUNNING_ON_SERVER=False \
     PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
 
+# vcast23
 ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vcast.linux64.2023.tar.gz /vcast/releaseVectorCAST23.tar.gz
-ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev/vcast_test_explorer/vc24__101394_store_mock_info.tar.gz /vcast/vc24__101394_store_mock_info.tar.gz
+# vcast24 sp1
+ADD http://vistrrdslin0001.vi.vector.int/~avj/vcast.linux64.2024sp1.tar.gz /vcast/vcast.linux64.2024sp1.tar.gz
+# vcast 24
+ADD http://vabosautofs1.vi.vector.int/JobData/VectorCAST/vc24/deliver/linux64/debug.tar.gz /vcast/vcast24.tar.gz
+
 ADD https://rds-vtc-docker-dev-local.vegistry.vg.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast_test_explorer/vector-DEMO-2025.lic /vcast/vector-license.lic
 
 RUN sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /vcast
 
 RUN cd /vcast && \
     tar -xvzf releaseVectorCAST23.tar.gz && rm releaseVectorCAST23.tar.gz && mv vcast release23 && \
-    tar -xvzf vc24__101394_store_mock_info.tar.gz && rm vc24__101394_store_mock_info.tar.gz && mv release release24
+    tar -xvzf vcast24.tar.gz && rm vcast24.tar.gz && mv debug release24 && \
+    tar -xvzf vcast.linux64.2024sp1.tar.gz && rm vcast.linux64.2024sp1.tar.gz && mv vcast release24_sp1
 
 ENV VECTORCAST_DIR=/vcast/release23 \
     PATH=/vcast/release23:$PATH \

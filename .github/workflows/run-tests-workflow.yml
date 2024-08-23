@@ -16,12 +16,12 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:test
       options: --user vcast_user
 
     strategy:
       matrix:
-        vcast: [ 23, 24 ]
+        vcast: [ 23, 24, 24sp1 ]
 
     steps:
       - name: Check out repository
@@ -71,6 +71,11 @@ jobs:
             echo 'Activating Vcast 24'
             export VECTORCAST_DIR=/vcast/release24
             export PATH=/vcast/release24:$PATH
+            export ENABLE_ATG_FEATURE=TRUE
+          elif [[ ${{ matrix.vcast }} == '24sp1' ]]; then
+            echo 'Activating Vcast 24 sp1'
+            export VECTORCAST_DIR=/vcast/release24_sp1
+            export PATH=/vcast/release24_sp1:$PATH
             export ENABLE_ATG_FEATURE=TRUE
           fi
           npm run gh-test | tee output.txt
@@ -148,7 +153,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:test
       options: --user vcast_user
 
     outputs:
@@ -186,7 +191,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:test
       options: --user vcast_user
 
     strategy:
@@ -197,7 +202,6 @@ jobs:
       BRANCH_REF: ${{ github.ref }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_SHA: ${{ github.sha }}
-      USE_VCAST_24: ${{ matrix.version == 24 && 'True' || 'False' }}
       RUN_BY_GROUP: "True"
       RUN_GROUP_NAME: ${{ matrix.group }}
 
@@ -260,6 +264,17 @@ jobs:
 
       - name: Run tests
         run: |
+          if [[ ${{ matrix.vcast }} == '24' ]]; then
+            echo 'Activating Vcast 24'
+            export VECTORCAST_DIR=/vcast/release24
+            export PATH=/vcast/release24:$PATH
+            export ENABLE_ATG_FEATURE=TRUE
+          elif [[ ${{ matrix.vcast }} == '24sp1' ]]; then
+            echo 'Activating Vcast 24 sp1'
+            export VECTORCAST_DIR=/vcast/release24_sp1
+            export PATH=/vcast/release24_sp1:$PATH
+            export ENABLE_ATG_FEATURE=TRUE
+          fi
           ./tests/internal/e2e/run_e2e_tests.sh
 
       - name: Publish e2e tests results
@@ -323,7 +338,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:test
       options: --user vcast_user
 
     steps:
@@ -374,7 +389,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:test
       options: --user vcast_user
 
     steps:
@@ -426,7 +441,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:test
       options: --user vcast_user
 
     steps:
