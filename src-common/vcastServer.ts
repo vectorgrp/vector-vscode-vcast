@@ -1,6 +1,9 @@
 // proof of concept for interacting with a running environment data server
 
-import fetch from "node-fetch";
+const fetch = (...args: [string, RequestInit?]) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
+
+import { RequestInit } from "node-fetch";
 
 import { pythonErrorCodes } from "./vcastServerTypes";
 
@@ -100,7 +103,7 @@ export async function transmitCommand(
   const dataAsString = JSON.stringify(requestObject);
   const urlToUse = `${serverURL()}/${route}?request=${dataAsString}`;
   // TBD TODAY - is there a way to send this to our message pane?
-  console.log (`transmitCommand: ${serverURL()}, ${requestObject.command}`);
+  console.log(`transmitCommand: ${serverURL()}, ${requestObject.command}`);
   let transmitResponse: transmitResponseType = {
     success: false,
     returnData: undefined,
