@@ -15,6 +15,7 @@ from enum import Enum
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.unit_test_models import Function, Global
+from vector.apps.DataAPI.migrations.migrate import MigrationError
 
 from vConstants import (
     TAG_FOR_INIT,
@@ -1009,7 +1010,13 @@ def processTstLine(enviroName, line):
         api.close()
         return returnData
 
-    except Exception as err:
+    except MigrationError as error:
+        globalOutputLog.append(error.message)
+        returnData = choiceDataType()
+        returnData.extraText = "MigrationError"
+        return returnData
+
+    except Exception:
         globalOutputLog.append("-" * 100)
         globalOutputLog.append("Exception occurred ...")
         trace = traceback.format_exc()

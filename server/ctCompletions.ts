@@ -14,7 +14,7 @@ import { completionList } from "./serverUtilities";
 export const vmockStubRegex = /^\s*\/\/\s*vmock\s*/;
 
 export async function getCodedTestCompletionData(
-  connection:any,
+  connection: any,
   lineSoFar: string,
   completionData: CompletionParams,
   enviroPath: string
@@ -26,7 +26,7 @@ export async function getCodedTestCompletionData(
   // If this is a line of interest, get the choice list from Python
   if (lineSoFar.match(vmockStubRegex)) {
     if (connection) {
-      connection.console.log (`Processing: ${lineSoFar}`)
+      connection.console.log(`Processing: ${lineSoFar}`);
     }
     const jsonData = await getChoiceData(
       choiceKindType.choiceListCT,

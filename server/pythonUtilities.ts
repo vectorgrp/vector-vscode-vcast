@@ -1,3 +1,5 @@
+import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver-types";
+
 import {
   clientRequestType,
   globalEnviroDataServerActive,
@@ -12,6 +14,7 @@ import path = require("path");
 
 import { execSync } from "child_process";
 import { cleanVPythonOutput } from "../src-common/commonUtilities";
+import { getDiagnosticObject } from "./tstValidation";
 
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
@@ -55,6 +58,48 @@ export function initializePaths(
 }
 
 // Get Choice Data Processing -------------------------------------------------------------
+
+export function generateTestScriptDiagnostic(
+  connection: any,
+  message: string,
+  documentUri: string,
+  lineNumber: number
+) {
+  // When we have a coded test file for an environment that does
+  // not have mock support, we give the user a helpful diagnostic message
+  let diagnostic: Diagnostic = getDiagnosticObject(
+    lineNumber,
+    0,
+    1000,
+    message,
+    DiagnosticSeverity.Warning
+  );
+  connection.sendDiagnostics({
+    uri: documentUri,
+    diagnostics: [diagnostic],
+  });
+}
+
+export function generateCodedTestDiagnostic(
+  connection: any,
+  message: string,
+  documentUri: string,
+  lineNumber: number
+) {
+  // When we have a coded test file for an environment that does
+  // not have mock support, we give the user a helpful diagnostic message
+  let diagnostic: Diagnostic = getDiagnosticObject(
+    lineNumber,
+    0,
+    1000,
+    message,
+    DiagnosticSeverity.Warning
+  );
+  connection.sendDiagnostics({
+    uri: documentUri,
+    diagnostics: [diagnostic],
+  });
+}
 
 // This mirrors the data object returned from the python call to get completion text
 interface choiceDataType {
@@ -135,6 +180,12 @@ export async function getChoiceData(
     jsonData = await getChoiceDataFromServer(kind, enviroPath, lineSoFar);
   } else {
     jsonData = getChoiceDataFromPython(kind, enviroPath, lineSoFar);
+  }
+
+  // special processing to handle enviro version miss-match
+  if (jsonData.extraText == "MigrationError") {
+    // TBD today, would like to put a popup or diagnositc
+    // generateTestScriptDiagnostic()
   }
 
   for (const msg of jsonData.messages) {
