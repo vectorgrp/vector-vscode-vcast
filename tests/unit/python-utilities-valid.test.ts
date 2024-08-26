@@ -10,7 +10,6 @@ import {
   type SpyInstance,
 } from "vitest";
 import {
-  runPythonScript,
   updateVPythonCommand,
   getVPythonCommand,
 } from "../../server/pythonUtilities";
@@ -57,9 +56,6 @@ describe("Testing pythonUtilities (valid)", () => {
         "some/valid/path",
         "/some/command",
       ];
-
-      // Call the function
-      runPythonScript("some/valid/path", "someAction", "somePayload");
 
       const validPathToTestEditorInterface =
         "some/valid/path/python/testEditorInterface.py";

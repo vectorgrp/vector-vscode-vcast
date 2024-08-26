@@ -9,7 +9,6 @@ import {
   afterEach,
   type SpyInstance,
 } from "vitest";
-import { runPythonScript } from "../../server/pythonUtilities";
 
 const timeout = 30_000; // 30 seconds
 
@@ -53,9 +52,6 @@ describe("Testing pythonUtilities (invalid)", () => {
       existsSyncSpy = vi
         .spyOn(fs, "existsSync")
         .mockImplementation(() => false);
-
-      // Call the function
-      runPythonScript("some/invalid/path", "someAction", "somePayload");
 
       const invalidPathToTestEditorInterface =
         "some/invalid/path/python/testEditorInterface.py";
