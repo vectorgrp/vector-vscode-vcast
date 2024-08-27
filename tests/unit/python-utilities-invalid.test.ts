@@ -49,19 +49,12 @@ describe("Testing pythonUtilities (invalid)", () => {
         "/some/command",
       ];
 
-      // Mock existsSync since path does not exist
-      //existsSyncSpy = vi
-      //  .spyOn(fs, "existsSync")
-      //  .mockImplementation(() => false);
-
       // Call the function
       getChoiceData(choiceKindType.choiceListTST, "someAction", "somePayload");
 
       const invalidPathToTestEditorInterface =
         "some/invalid/path/python/testEditorInterface.py";
       const expectedMessagePart = `testEditorInterface was not found in the expected location: ${invalidPathToTestEditorInterface}`;
-
-      //expect(existsSyncSpy).toHaveBeenCalled();
 
       // Check if console.log was called with a message containing the expected part
       expect(consoleLogSpy).toHaveBeenCalledWith(
