@@ -337,7 +337,11 @@ function getEnvironmentList(baseDirectory: string): string[] {
         returnList.push(candidatePath);
       } else {
         vectorMessage(`Ignoring environment: ${candidatePath} ...`);
-        vectorMessage(`environments should not be at the workspace root, open the enclosing directory\n`, errorLevel.info, indentString);
+        vectorMessage(
+          `environments should not be at the workspace root, open the enclosing directory\n`,
+          errorLevel.info,
+          indentString
+        );
       }
     }
   }
@@ -1118,6 +1122,19 @@ export async function loadTestScript() {
   }
 }
 
+export async function refreshAllExtensionData() {
+  // This function will do a full reset of the data for all environments
+  // This is needed used when the following happens
+  //      - the workspace is changed
+  //      - the common refresh icon is pressed
+  //      - the vectorcast installation is changed
+  //      - we fall back from server mode
+  //
+  resetCoverageData();
+  buildTestPaneContents();
+  updateCOVdecorations();
+}
+
 // create the controller
 let globalController: vscode.TestController;
 
@@ -1130,9 +1147,7 @@ export function activateTestPane(context: vscode.ExtensionContext) {
 
   // processing for the common refresh icon in the test explorer
   globalController.refreshHandler = async () => {
-    resetCoverageData();
-    buildTestPaneContents();
-    updateCOVdecorations();
+    refreshAllExtensionData();
   };
 
   // Custom handler for loading tests. The "test" argument here is undefined,
