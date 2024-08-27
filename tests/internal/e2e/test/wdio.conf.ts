@@ -3,14 +3,7 @@
 import path from "node:path";
 import { URL } from "node:url";
 import { exec } from "node:child_process";
-import {
-  copyFile,
-  mkdir,
-  readdir,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import {
   type ProxyTypes,
@@ -534,6 +527,7 @@ TEST.END`;
 
       // Revert VECTORCAST_DIR to the old version and execute setup commands
       process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+
       const setCoded = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
       const setEnviro = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/enviroedg TEST.env`;
       const runTest = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -e TEST test script run template.tst`;
