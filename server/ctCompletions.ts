@@ -8,7 +8,7 @@ import { Position, Range, TextEdit } from "vscode-languageserver-types";
 
 import { choiceKindType, getChoiceData } from "./pythonUtilities";
 
-import { completionList } from "./serverUtilities";
+import { buildCompletionList } from "./serverUtilities";
 
 // Lines starting with:  // vmock
 export const vmockStubRegex = /^\s*\/\/\s*vmock\s*/;
@@ -39,8 +39,7 @@ export async function getCodedTestCompletionData(
   }
 
   // create a vscode CompletionItem List for the choices
-
-  let completionItemList = completionList(
+  let completionItemList = buildCompletionList(
     listToReturn,
     CompletionItemKind.Text
   );

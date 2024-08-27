@@ -1,23 +1,22 @@
 import fs = require("fs");
 import url = require("url");
-import {
-  TextDocument,
-  CompletionParams,
-  CompletionItemKind,
-} from "vscode-languageserver";
+import { TextDocument, CompletionParams } from "vscode-languageserver";
 
 import {
-  completionList,
   getEnviroNameFromTestScript,
   getLineFragment,
   getNearest,
   getTriggerFromContext,
   testCommandList,
   scriptFeatureList,
-  convertKind,
 } from "./serverUtilities";
 
-import { choiceKindType, getChoiceData } from "./pythonUtilities";
+import {
+  choiceDataType,
+  choiceKindType,
+  emptyChoiceData,
+  getChoiceData,
+} from "./pythonUtilities";
 
 function filterArray(currentArray: string[], whatToRemove: string) {
   return currentArray.filter((element) => element !== whatToRemove);
@@ -26,9 +25,11 @@ function filterArray(currentArray: string[], whatToRemove: string) {
 export async function getTstCompletionData(
   currentDocument: TextDocument,
   completionData: CompletionParams
-) {
+): Promise<choiceDataType> {
+  let returnData: choiceDataType = emptyChoiceData;
   const testScriptPath = url.fileURLToPath(completionData.textDocument.uri);
   const enviroPath = getEnviroNameFromTestScript(testScriptPath);
+
   if (enviroPath && fs.existsSync(enviroPath)) {
     // The work we do is dependent on the trigger
     const context = completionData.context;
@@ -43,32 +44,30 @@ export async function getTstCompletionData(
         "SUBPROGRAM",
         completionData.position.line
       );
-      if (subprogramName == "<<COMPOUND>>")
-        return completionList(
-          ["TEST", "TEST.SLOT", "\n"],
-          CompletionItemKind.Keyword
-        );
-      else
-        return completionList(
-          ["TEST", "TEST.VALUE", "TEST.EXPECTED", "\n"],
-          CompletionItemKind.Keyword
-        );
+      if (subprogramName == "<<COMPOUND>>") {
+        returnData.choiceKind = "Keyword";
+        returnData.choiceList = ["TEST", "TEST.SLOT", "\n"];
+      } else {
+        returnData.choiceKind = "Keyword";
+        returnData.choiceList = ["TEST", "TEST.VALUE", "TEST.EXPECTED", "\n"];
+      }
     } else if (trigger == "DOT" && upperCaseLine == "TEST.") {
-      return completionList(testCommandList, CompletionItemKind.Keyword);
+      returnData.choiceKind = "Keyword";
+      returnData.choiceList = testCommandList;
     } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:") {
-      return completionList(["<test-name>"], CompletionItemKind.Text);
+      returnData.choiceKind = "Text";
+      returnData.choiceList = ["<test-name>"];
     } else if (trigger == "COLON" && upperCaseLine == "TEST.UNIT:") {
       const choiceData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
         lineSoFar
       );
-      return completionList(
-        choiceData.choiceList,
-        convertKind(choiceData.choiceKind)
-      );
+      returnData.choiceKind = choiceData.choiceKind;
+      returnData.choiceList = choiceData.choiceList;
     } else if (trigger == "COLON" && upperCaseLine == "TEST.SCRIPT_FEATURE:") {
-      return completionList(scriptFeatureList, CompletionItemKind.Keyword);
+      returnData.choiceKind = "Keyword";
+      returnData.choiceList = scriptFeatureList;
     } else if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
       // find closest TEST.UNIT above this line ...
       const unitName = getNearest(
@@ -80,28 +79,28 @@ export async function getTstCompletionData(
       // we use python to get a list of subprograms by creating a fake VALUE line
       // with the unitName set to what we found
       let choiceArray = ["<<INIT>>", "<<COMPOUND>>"];
-      let choiceKind: CompletionItemKind = CompletionItemKind.Keyword;
+      let choiceKind = "Keyword";
       if (unitName.length > 0) {
         const choiceData = await getChoiceData(
           choiceKindType.choiceListTST,
           enviroPath,
           "TEST.VALUE:" + unitName + "."
         );
+        returnData.extraText = choiceData.extraText;
+        returnData.messages = choiceData.messages;
+        choiceKind = choiceData.choiceKind;
+        // append actual choices to the default INIT and COMPOUND
         choiceArray = choiceArray.concat(choiceData.choiceList);
-        choiceKind = convertKind(choiceData.choiceKind);
         // <<GLOBAL>> is valid on VALUE lines but not as a function name!
         choiceArray = filterArray(choiceArray, "<<GLOBAL>>");
       }
-      return completionList(choiceArray, choiceKind);
+      returnData.choiceKind = choiceKind;
+      returnData.choiceList = choiceArray;
     } else if (upperCaseLine.startsWith("TEST.SLOT:")) {
-      const choiceData = await getChoiceData(
+      returnData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
         lineSoFar
-      );
-      return completionList(
-        choiceData.choiceList,
-        convertKind(choiceData.choiceKind)
       );
     } else if (
       // this handles the everything else
@@ -112,40 +111,30 @@ export async function getTstCompletionData(
       upperCaseLine.startsWith("TEST.STUB:")
     ) {
       // the current level, and returns the appropriate list for the next level.
-      const choiceData = await getChoiceData(
+      returnData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
         lineSoFar
-      );
-      return completionList(
-        choiceData.choiceList,
-        convertKind(choiceData.choiceKind)
       );
     } else if (upperCaseLine.startsWith("TEST.REQUIREMENT_KEY:")) {
       // for the requirement keys, the format of the list items is
-      const choiceData = await getChoiceData(
+      returnData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
         lineSoFar
       );
-      for (let i = 0; i < choiceData.choiceList.length; i++) {
-        let line = choiceData.choiceList[i];
+      for (let i = 0; i < returnData.choiceList.length; i++) {
+        let line = returnData.choiceList[i];
         // raw data looks like:  <key> ||| <title> ||| <description>
         const pieces = line.split("|||");
-        // remove whitespace and any enclosing quotes ... the vcast RGW example has quotes ...
+        // remove whitespace and any enclosing quotes ...
+        // the vcast RGW example has quotes ...
         const key = pieces[0].trim();
         const title = pieces[1].trim().replace(/['"]+/g, "");
-        choiceData.choiceList[i] = `${key} | ${title}`;
+        returnData.choiceList[i] = `${key} | ${title}`;
       }
-
-      return completionList(
-        choiceData.choiceList,
-        convertKind(choiceData.choiceKind)
-      );
     }
-    return [];
-  } else {
-    // invalid enviroName
-    return [];
-  }
+  } // enviroPath is valid
+
+  return returnData;
 }

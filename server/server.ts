@@ -15,9 +15,14 @@ import { enviroDataType } from "../src-common/commonUtilities";
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 import {
   generateCodedTestDiagnostic,
+  generateTestScriptDiagnostic,
   updateVPythonCommand,
 } from "./pythonUtilities";
-import { getLineFragment } from "./serverUtilities";
+import {
+  buildCompletionList,
+  convertKind,
+  getLineFragment,
+} from "./serverUtilities";
 import { initializePaths } from "./pythonUtilities";
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
@@ -150,7 +155,20 @@ async function performCompletionProcessing(
       currentDocument,
       completionData
     );
-    return returnData;
+    if (returnData.extraText == "MigrationError") {
+      // If we get a migration error, we need to send a message to the client
+      // The error will be the 2nd element in the returnData.messages
+      generateTestScriptDiagnostic(
+        connection,
+        returnData.messages[1],
+        completionData.textDocument.uri,
+        completionData.position.line
+      );
+    }
+    return buildCompletionList(
+      returnData.choiceList,
+      convertKind(returnData.choiceKind)
+    );
   } else {
     // not a test script file check if its coded test file
     const filePath = url.fileURLToPath(completionData.textDocument.uri);

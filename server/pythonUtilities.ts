@@ -102,13 +102,13 @@ export function generateCodedTestDiagnostic(
 }
 
 // This mirrors the data object returned from the python call to get completion text
-interface choiceDataType {
+export interface choiceDataType {
   choiceKind: string;
   choiceList: string[];
   messages: string[];
   extraText: string;
 }
-const emptyChoiceData: choiceDataType = {
+export const emptyChoiceData: choiceDataType = {
   choiceKind: "",
   choiceList: [],
   messages: [],

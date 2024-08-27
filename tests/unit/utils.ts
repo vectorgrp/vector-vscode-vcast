@@ -15,7 +15,11 @@ import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
 import { initializePaths } from "../../server/pythonUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
-import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
+import {
+  buildCompletionList,
+  convertKind,
+  getEnviroNameFromTestScript,
+} from "../../server/serverUtilities";
 
 export type HoverPosition = {
   line: number;
@@ -85,7 +89,7 @@ export type CompletionPosition = {
   character: number;
 };
 
-export function generateCompletionData(
+export async function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
@@ -141,7 +145,11 @@ export function generateCompletionData(
     throw new ReferenceError("enviroPath is undefined.");
   } /* tst */ else {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
-    return getTstCompletionData(textDocument, completion);
+    const completionData = await getTstCompletionData(textDocument, completion);
+    return buildCompletionList(
+      completionData.choiceList,
+      convertKind(completionData.choiceKind)
+    );
   }
 }
 

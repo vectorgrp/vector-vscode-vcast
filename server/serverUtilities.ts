@@ -66,7 +66,7 @@ function addSpecialChoices(returnList: CompletionItem[]) {
 }
 
 // this function will take a js array and create a completion array
-export function completionList(
+export function buildCompletionList(
   choiceList: string[],
   choiceKind: CompletionItemKind
 ): CompletionItem[] {

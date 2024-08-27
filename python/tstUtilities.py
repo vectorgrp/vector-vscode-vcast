@@ -1011,7 +1011,9 @@ def processTstLine(enviroName, line):
         return returnData
 
     except MigrationError as error:
-        globalOutputLog.append(error.message)
+        errorMessage = f"Language server cannot process environment: {os.path.basename (enviroName)}\n\n"
+        errorMessage += error.message
+        globalOutputLog.append(errorMessage)
         returnData = choiceDataType()
         returnData.extraText = "MigrationError"
         return returnData
