@@ -14,9 +14,7 @@ import { getChoiceData } from "../../server/pythonUtilities";
 const timeout = 30_000; // 30 seconds
 
 let consoleLogSpy: SpyInstance;
-// let existsSyncSpy: SpyInstance;
 
-// Mocking execSync before importing the module that uses it
 vi.mock("child_process", () => ({
   execSync: vi
     .fn()
@@ -27,14 +25,12 @@ vi.mock("child_process", () => ({
 
 describe("Testing pythonUtilities (invalid)", () => {
   beforeEach(() => {
-    // Spy on console.log
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
       /* No-op */
     });
   });
 
   afterEach(() => {
-    // Clear all mocks
     vi.clearAllMocks();
   });
 
@@ -49,14 +45,12 @@ describe("Testing pythonUtilities (invalid)", () => {
         "/some/command",
       ];
 
-      // Call the function
       getChoiceData(choiceKindType.choiceListTST, "someAction", "somePayload");
 
       const invalidPathToTestEditorInterface =
         "some/invalid/path/python/testEditorInterface.py";
       const expectedMessagePart = `testEditorInterface was not found in the expected location: ${invalidPathToTestEditorInterface}`;
 
-      // Check if console.log was called with a message containing the expected part
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining(expectedMessagePart)
       );
@@ -67,14 +61,12 @@ describe("Testing pythonUtilities (invalid)", () => {
   test(
     "validate that initializePaths if the path was not found",
     async () => {
-      // Call the function
       initializePaths("some/invalid/path", "someAction", true);
 
       const invalidPathToTestEditorInterface =
         "some/invalid/path/python/testEditorInterface.py";
       const expectedMessagePart = `testEditorInterface was not found in the expected location: ${invalidPathToTestEditorInterface}`;
 
-      // Check if console.log was called with a message containing the expected part
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining(expectedMessagePart)
       );

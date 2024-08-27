@@ -20,7 +20,6 @@ const timeout = 30_000; // 30 seconds
 
 let consoleLogSpy: SpyInstance;
 
-// Mocking execSync before importing the module that uses it
 vi.mock("child_process", () => ({
   execSync: vi
     .fn()
@@ -31,7 +30,6 @@ vi.mock("child_process", () => ({
 
 describe("Testing pythonUtilities (valid)", () => {
   beforeEach(() => {
-    // Spy on console.log
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
       /* No-op */
     });
@@ -40,7 +38,6 @@ describe("Testing pythonUtilities (valid)", () => {
   });
 
   afterEach(() => {
-    // Clear all mocks
     vi.clearAllMocks();
   });
 
@@ -56,12 +53,10 @@ describe("Testing pythonUtilities (valid)", () => {
         "testEditorInterface.py"
       );
 
-      // Call the function
       getChoiceData(choiceKindType.choiceListTST, "someAction", "somePayload");
 
       const expectedMessagePart = `testEditorInterface was found here: ${validPathToTestEditorInterface}`;
 
-      // Check if console.log was called with a message containing the expected part
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining(expectedMessagePart)
       );
