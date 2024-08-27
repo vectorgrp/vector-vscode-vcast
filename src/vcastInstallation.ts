@@ -111,7 +111,7 @@ function vcastVersionGreaterThan(
 
 function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
   // The vmock features is only available in vc24sp2 and later
-  return vcastVersionGreaterThan(vcastInstallationPath, 24, 3);
+  return vcastVersionGreaterThan(vcastInstallationPath, 24, 4);
 }
 
 function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
