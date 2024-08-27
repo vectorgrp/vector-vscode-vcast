@@ -13,6 +13,8 @@ import { validateTextDocument } from "../../server/tstValidation";
 import { initializePaths } from "../../server/pythonUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
 import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
+import { promisify } from "util";
+import { exec } from "child_process";
 
 export type HoverPosition = {
   line: number;
@@ -199,4 +201,20 @@ export function storeNewDocument(
    * We cast to `any` to make the linter happy */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (documents as any)._documents[uri] = textDocument;
+}
+
+/**
+ * Executes a given command and logs any errors that occur during execution.
+ *
+ * @param {string} command - The command to be executed.
+ * @returns {Promise<void>} - A promise that resolves when the command has been executed or rejects if an error occurs.
+ */
+export async function runCommand(command: string): Promise<void> {
+  const promisifiedExec = promisify(exec);
+  const { stdout, stderr } = await promisifiedExec(command);
+  if (stderr) {
+    console.log(stderr);
+    throw new Error(`Error when running ${command}`);
+  }
+  console.log(stdout);
 }

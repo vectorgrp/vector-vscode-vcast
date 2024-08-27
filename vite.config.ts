@@ -1,6 +1,6 @@
 // Vite.config.ts
 import { defineConfig, configDefaults } from "vitest/config";
-import { getToolVersion } from "./vite.config.utils";
+import { getToolVersion } from "./tests/unit/getToolversion";
 
 // Export the Vitest configuration, including the conditional exclusion of tests
 export default defineConfig(async () => {

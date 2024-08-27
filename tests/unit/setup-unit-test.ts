@@ -3,7 +3,7 @@ import process from "node:process";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { rm, mkdir, copyFile } from "node:fs/promises";
-import { getToolVersion } from "../../vite.config.utils";
+import { getToolVersion } from "./getToolversion";
 
 module.exports = async () => {
   const promisifiedExec = promisify(exec);

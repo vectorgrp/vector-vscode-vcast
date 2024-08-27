@@ -1,12 +1,9 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import { exec } from "child_process";
-import { promisify } from "node:util";
 import { rm, mkdir, copyFile } from "fs/promises";
+import { runCommand } from "./utils";
 
 module.exports = async () => {
   const path = require("path");
-
-  const promisifiedExec = promisify(exec);
 
   const tstFilename = "firstTest.tst";
   process.env["PACKAGE_PATH"] = process.env["INIT_CWD"];
@@ -19,12 +16,7 @@ module.exports = async () => {
 
   {
     try {
-      const { stdout, stderr } = await promisifiedExec(checkVPython);
-      if (stderr) {
-        throw `Error when running "${checkVPython}", make sure vpython is on PATH`;
-      } else {
-        console.log(`vpython found in ${stdout}`);
-      }
+      runCommand(checkVPython);
     } catch (e) {
       throw `Error when running "${checkVPython}", make sure vpython is on PATH`;
     }
@@ -37,13 +29,7 @@ module.exports = async () => {
   let clicastExecutablePath = "";
   {
     try {
-      const { stdout, stderr } = await promisifiedExec(checkClicast);
-      if (stderr) {
-        throw `Error when running ${checkClicast}, make sure clicast is on PATH`;
-      } else {
-        clicastExecutablePath = stdout;
-        console.log(`clicast found in ${clicastExecutablePath}`);
-      }
+      runCommand(checkClicast);
     } catch (e) {
       throw `Error when running "${checkClicast}", make sure clicast is on PATH`;
     }
@@ -67,14 +53,7 @@ module.exports = async () => {
   );
 
   const clicastTemplateCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -l C template GNU_CPP11_X`;
-  {
-    const { stdout, stderr } = await promisifiedExec(clicastTemplateCommand);
-    if (stderr) {
-      console.log(stderr);
-      throw `Error when running ${clicastTemplateCommand}`;
-    }
-    console.log(stdout);
-  }
+  runCommand(clicastTemplateCommand);
 
   const vectorcastDir = path.dirname(clicastExecutablePath);
   const reqTutorialPath = path.join(
@@ -99,33 +78,14 @@ module.exports = async () => {
     `${commandPrefix} RGw Import`,
   ];
   for (const rgwPrepCommand of rgwPrepCommands) {
-    const { stdout, stderr } = await promisifiedExec(rgwPrepCommand);
-    if (stderr) {
-      console.log(stderr);
-      throw `Error when running ${rgwPrepCommand}`;
-    }
-    console.log(stdout);
+    runCommand(rgwPrepCommand);
   }
 
   const tstFilePath = path.join(vcastEnvPath, tstFilename);
   const createTstFile = `echo -- Environment: TEST > ${tstFilePath}`;
-  {
-    const result = await promisifiedExec(createTstFile);
-    const stderr = result.stderr;
-    if (stderr) {
-      console.log(stderr);
-      throw `Error when running ${createTstFile}`;
-    }
-  }
+  runCommand(createTstFile);
 
   const tstEnvFilePath = path.join(vcastEnvPath, "TEST.env");
   const runEnvironmentScript = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc environment script run ${tstEnvFilePath}`;
-  {
-    const { stdout, stderr } = await promisifiedExec(runEnvironmentScript);
-    if (stderr) {
-      console.log(stderr);
-      throw `Error when running ${runEnvironmentScript}`;
-    }
-    console.log(stdout);
-  }
+  runCommand(runEnvironmentScript);
 };
