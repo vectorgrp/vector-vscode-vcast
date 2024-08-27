@@ -192,7 +192,7 @@ def compareToExpected(expectedFile, newData):
     return returnValue
 
 
-def transmitCommand(requestObject):
+def transmitTestCommand(requestObject):
 
     # TBD: is this the right way to do this, or can I send a class directly?
     # request is a class, so we convert it to a dictionary, then a string
@@ -232,7 +232,7 @@ def getEnviroDataTest(clicastPath, enviroPath):
     request = vcastDataServerTypes.clientRequest(
         commandType.getEnviroData, clicastPath, enviroPath
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     returnData = cleanEnviroData(returnData)
     assert compareToExpected("expected-getEnviroData.json", returnData)
     print("   getEnviroData Test Passed")
@@ -245,7 +245,7 @@ def parseCBTTest(clicastPath):
     request = vcastDataServerTypes.clientRequest(
         commandType.parseCBT, clicastPath, codedTestFilePath
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     returnData = cleanCBTData(returnData)
 
     assert compareToExpected("expected-getCBTTest.json", returnData)
@@ -267,7 +267,7 @@ def testCaseTests(clicastPath, enviroPath, testString):
     request = vcastDataServerTypes.clientRequest(
         commandType.runClicastCommand, clicastPath, enviroPath, options=commandText
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = int(returnData["exitCode"])
     assert exitCode == 0
     print("     loadTestCase Test Passed")
@@ -277,7 +277,7 @@ def testCaseTests(clicastPath, enviroPath, testString):
     request = vcastDataServerTypes.clientRequest(
         commandType.executeTest, clicastPath, enviroPath, testString
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     # fix up stuff that changes between runs ...
     returnData = cleanExecutionData(returnData)
     assert compareToExpected("expected-executeTest.json", returnData)
@@ -288,7 +288,7 @@ def testCaseTests(clicastPath, enviroPath, testString):
     request = vcastDataServerTypes.clientRequest(
         commandType.report, clicastPath, enviroPath, testString
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     # fix up stuff that changes between runs ...
     returnData = cleanExecutionData(returnData)
     assert compareToExpected("expected-report.json", returnData)
@@ -301,7 +301,7 @@ def testCaseTests(clicastPath, enviroPath, testString):
     request = vcastDataServerTypes.clientRequest(
         commandType.runClicastCommand, clicastPath, enviroPath, "", commandText
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = int(returnData["exitCode"])
     assert exitCode == 0
     enviroLocation = os.path.dirname(enviroPath)
@@ -318,7 +318,7 @@ def testCaseTests(clicastPath, enviroPath, testString):
     request = vcastDataServerTypes.clientRequest(
         commandType.runClicastCommand, clicastPath, enviroPath, "", commandText
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = int(returnData["exitCode"])
     assert exitCode == 0
     print("     deleteTestCase Test Passed")
@@ -349,7 +349,7 @@ def codedTestTests(clicastPath, enviroPath):
         "",
         f"-eDEMO1 -umanager test coded add {codedTestFile}",
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = int(returnData["exitCode"])
     assert exitCode == 0
     print("     addCodedTest passed")
@@ -360,7 +360,7 @@ def codedTestTests(clicastPath, enviroPath):
     request = vcastDataServerTypes.clientRequest(
         commandType.executeTest, clicastPath, enviroPath, testString
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = int(returnData["exitCode"])
     assert exitCode == 0
 
@@ -370,7 +370,7 @@ def codedTestTests(clicastPath, enviroPath):
     request = vcastDataServerTypes.clientRequest(
         commandType.executeTest, clicastPath, enviroPath, testString
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = int(returnData["exitCode"])
     assert exitCode == 28
     print("     executeCodedTestPassed")
@@ -390,7 +390,7 @@ def codedTestTests(clicastPath, enviroPath):
         "",
         "-eDEMO1 test coded refresh",
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = int(returnData["exitCode"])
     assert exitCode == 0
     print("     refresehCodedTestPassed")
@@ -403,7 +403,7 @@ def codedTestTests(clicastPath, enviroPath):
     request = vcastDataServerTypes.clientRequest(
         commandType.executeTest, clicastPath, enviroPath, testString
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = int(returnData["exitCode"])
     assert exitCode == 0
     print("     executeCodedTestPassed")
@@ -416,7 +416,7 @@ def codedTestTests(clicastPath, enviroPath):
         commandType.runClicastCommand, clicastPath, enviroPath, "", commandText
     )
     # we don't care about the return data
-    transmitCommand(request)
+    transmitTestCommand(request)
 
     # Restore coded test file to the original version
     print("  Restoring coded test file")
@@ -430,7 +430,7 @@ def closeConnectionTest(enviroPath):
     request = vcastDataServerTypes.clientRequest(
         commandType.closeConnection, path=enviroPath
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     # True means that a connection was closed
     assert returnData["data"]["status"] == True
     # newList should be empty because only one enviro connection existed
@@ -445,7 +445,7 @@ def completionTest(enviroPath):
     request = vcastDataServerTypes.clientRequest(
         commandType.choiceListTst, path=enviroPath, options="TEST.VALUE:"
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
 
     assert compareToExpected("expected-completion.json", returnData)
     print("   completionTest Test Passed")
@@ -461,7 +461,7 @@ def rebuildTest(clicastPath, enviroPath):
     request = vcastDataServerTypes.clientRequest(
         commandType.rebuild, clicastPath, enviroPath, options=optionsString
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     # fix up stuff that changes between runs ...
     returnCode = returnData["exitCode"]
     assert returnCode == 0
@@ -522,7 +522,7 @@ def scalabilityTest(clicastPath):
                 request = vcastDataServerTypes.clientRequest(
                     commandType.executeTest, clicastPath, enviroPath, testString
                 )
-                transmitCommand(request)
+                transmitTestCommand(request)
 
         elapsedTime = time.time() - startTime
 
@@ -591,7 +591,7 @@ def errorTests(enviroPath, clicastPath):
     # Send an invalid command to the server
     print("  Sending invalid command to server")
     request = vcastDataServerTypes.clientRequest("bad-command", clicastPath, enviroPath)
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = returnData["exitCode"]
     # Confirm that the error code is correct, and the error text is in a list
     assert exitCode == errorCodes.internalServerError
@@ -604,7 +604,7 @@ def errorTests(enviroPath, clicastPath):
     request = vcastDataServerTypes.clientRequest(
         "crash-me", "bad-clicast-path", "bad-enviro-path"
     )
-    returnData = transmitCommand(request)
+    returnData = transmitTestCommand(request)
     exitCode = returnData["exitCode"]
     # Confirm that the error code is correct, and the error text is in a list
     assert exitCode == errorCodes.internalServerError
