@@ -182,12 +182,6 @@ export async function getChoiceData(
     jsonData = getChoiceDataFromPython(kind, enviroPath, lineSoFar);
   }
 
-  // special processing to handle enviro version miss-match
-  if (jsonData.extraText == "MigrationError") {
-    // TBD today, would like to put a popup or diagnositc
-    // generateTestScriptDiagnostic()
-  }
-
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
