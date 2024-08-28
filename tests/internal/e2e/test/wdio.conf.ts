@@ -335,7 +335,7 @@ export const config: Options.Testrunner = {
 
     if (envKey) {
       // Execute the corresponding function if an environment variable is found
-      await envActions.get(envKey)!();
+      await envActions.get(envKey)();
     } else {
       // Default case if no matching environment variable is found
       await setupSingleEnvironment(initialWorkdir);
@@ -426,7 +426,7 @@ export const config: Options.Testrunner = {
     }
 
     /**
-     * Builds one env with 2024sp3 and switches to vc24__101394_store_mock_info at the end.
+     * Builds one env with 2024sp3 and switches to vc24 at the end.
      * TARGET SPEC GROUP: coded_mock_different_env
      */
     async function setupSingleEnvAndImportCT(initialWorkdir: string) {
@@ -444,7 +444,7 @@ export const config: Options.Testrunner = {
       );
 
       let vcastRoot = await getVcastRoot();
-      const newVersion = "vc24__101394_store_mock_info";
+      const newVersion = "vc24";
 
       // Set up environment directory
       process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
@@ -456,9 +456,6 @@ export const config: Options.Testrunner = {
 
       await executeRGWCommands(testInputVcastTutorial);
       await copyPathsToTestLocation(testInputVcastTutorial);
-
-      // Log that SWITCH_ENV_AT_THE_END is being defined
-      console.log("SWITCH_ENV_AT_THE_END IS DEFINED");
 
       // Define paths and content for the necessary test files
       const unitFileContent = `void foo (void){}`;
