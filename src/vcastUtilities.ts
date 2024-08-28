@@ -17,7 +17,7 @@ import {
 } from "./utilities";
 
 import {
-  dumptestScriptFile,
+  dumpTestScriptFile,
   runATGCommands,
   runBasisPathCommands,
 } from "./vcastAdapter";
@@ -170,7 +170,7 @@ export async function openTestScript(nodeID: string) {
   const testNode: testNodeType = getTestNode(nodeID);
   const scriptPath = testNode.enviroPath + ".tst";
 
-  const commandStatus = await dumptestScriptFile(testNode, scriptPath);
+  const commandStatus = await dumpTestScriptFile(testNode, scriptPath);
 
   if (commandStatus.errorCode == 0) {
     // Improvement needed:
@@ -347,7 +347,7 @@ export function getEnviroNameFromFile(filePath: string): string | undefined {
 }
 
 function getTestArgument(testID: string, withFlag: boolean): string {
-  // This funciton will generate the --test argument for the vpython command
+  // This function will generate the --test argument for the vpython command
   // with or without the --test flag based on the withFlag parameter
 
   let testArgument = undefined;
@@ -407,7 +407,7 @@ export function getClientRequestObject(
   //
   // Rather than adding another "dontUseQuotes" param I just strip them here
   const testArgWithQuotes = getTestArgument(testID, false);
-  const testArgWitoutQuotes = testArgWithQuotes.substring(
+  const testArgWithoutQuotes = testArgWithQuotes.substring(
     1,
     testArgWithQuotes.length - 1
   );
@@ -415,7 +415,7 @@ export function getClientRequestObject(
     command: command,
     clicast: clicastCommandToUse,
     path: path,
-    test: testArgWitoutQuotes,
+    test: testArgWithoutQuotes,
   };
 
   return requestObject;

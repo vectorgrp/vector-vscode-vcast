@@ -606,7 +606,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options="") -> 
             testIDObject = testID(pathToUse, testString)
         except:
             print("Invalid test ID, provide a valid --test argument")
-            raise UsageError("--test argument is invlalid")
+            raise UsageError("--test argument is invalid")
         returnObject = {"text": getResults(pathToUse, testIDObject).split("\n")}
 
     elif mode == "parseCBT":

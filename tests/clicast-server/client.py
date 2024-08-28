@@ -42,7 +42,7 @@ except:
 
 """
 TBD Stuff
-- Make the client interuptable with ctrl-c - signal handler like the server
+- Make the client interruptable with ctrl-c - signal handler like the server
 - 
 """
 
@@ -152,11 +152,11 @@ def compareJSON(left, right):
     return leftString == rightString
 
 
-def compareTestSciptFiles(expected, actual):
+def compareTestScriptFiles(expected, actual):
     """
     This is used to compare two test scripts.
     The first line in the scripts is the vcast version
-    so we need to ignnore that line for the compare
+    so we need to ignore that line for the compare
     """
 
     with open(expected, "r") as f:
@@ -305,7 +305,7 @@ def testCaseTests(clicastPath, enviroPath, testString):
     exitCode = int(returnData["exitCode"])
     assert exitCode == 0
     enviroLocation = os.path.dirname(enviroPath)
-    assert compareTestSciptFiles(
+    assert compareTestScriptFiles(
         os.path.join(enviroLocation, testScriptFile),
         os.path.join(enviroLocation, "newTestScript.tst"),
     )

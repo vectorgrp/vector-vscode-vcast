@@ -74,7 +74,7 @@ export function getVcastOptionValues(enviroPath: string): cfgOptionType {
 }
 
 // The VectorCAST executables print an annoying message to stdout when
-// VECTORCAST_DIR does not match the executable beingg run.
+// VECTORCAST_DIR does not match the executable being run.
 // Since this happens before our script even starts so we cannot suppress it.
 // We could send the output to a temp file, but the create/open file operations
 // have overhead.  So we just filter it out here.
