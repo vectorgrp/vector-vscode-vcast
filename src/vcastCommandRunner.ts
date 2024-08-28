@@ -308,7 +308,6 @@ export async function executeClicastCommandUsingServer(
 
   const requestObject: clientRequestType = {
     command: vcastCommandType.runClicastCommand,
-    clicast: clicastCommandToUse,
     path: enviroPath,
     options: commandArgs,
   };

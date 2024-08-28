@@ -578,7 +578,6 @@ async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
   //
   const requestObject: clientRequestType = {
     command: vcastCommandType.getEnviroData,
-    clicast: clicastCommandToUse,
     path: enviroPath,
   };
 
@@ -775,7 +774,6 @@ export async function rebuildEnvironmentUsingServer(
 ) {
   const requestObject: clientRequestType = {
     command: vcastCommandType.rebuild,
-    clicast: clicastCommandToUse,
     path: enviroPath,
     options: getRebuildOptionsString(),
   };

@@ -31,7 +31,6 @@ export enum vcastCommandType {
 export interface clientRequestType {
   command: vcastCommandType;
   path: string;
-  clicast?: string;
   test?: string;
   options?: string;
 }

@@ -106,9 +106,11 @@ def vassistant():
 
         elif clientRequest.command in vTestInterface.modeChoices:
 
+            # Note: globalClicastCommand is initialized in the server
+            # main() based on the vpython used to start the server
             exitCode, returnData = vTestInterface.processCommand(
                 clientRequest.command,
-                clientRequest.clicast,
+                clicastInterface.globalClicastCommand,
                 clientRequest.path,
                 clientRequest.test,
                 clientRequest.options,

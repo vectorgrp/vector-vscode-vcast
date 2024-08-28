@@ -413,7 +413,6 @@ export function getClientRequestObject(
   );
   const requestObject: clientRequestType = {
     command: command,
-    clicast: clicastCommandToUse,
     path: path,
     test: testArgWithoutQuotes,
   };
