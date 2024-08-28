@@ -7,11 +7,17 @@ import {
   updateVPythonCommand,
   getVPythonCommand,
   choiceKindType,
+  generateTestScriptDiagnostic,
+  generateCodedTestDiagnostic,
 } from "../../server/pythonUtilities";
 import path from "node:path";
 import { setServerState } from "../../src-common/vcastServer";
 import { asCompletionParameters, getCompletionPositionForLine } from "./utils";
-import { TextDocument } from "vscode-languageserver";
+import {
+  Diagnostic,
+  DiagnosticSeverity,
+  TextDocument,
+} from "vscode-languageserver";
 import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
 
@@ -207,4 +213,47 @@ describe("Testing pythonUtilities (valid)", () => {
     },
     timeout
   );
+
+  test("should create and send a diagnostic objects for tst and ct", () => {
+    const diagnostic: Diagnostic = {
+      severity: DiagnosticSeverity.Warning,
+      range: {
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 1000 },
+      },
+      message: "Test message",
+      source: "VectorCAST Test Explorer",
+    };
+
+    vi.mock(".../../server/tstValidation", () => ({
+      getDiagnosticObject: vi.fn().mockReturnValue(diagnostic),
+    }));
+
+    const mockSendDiagnostics = vi.fn();
+
+    // Create a mock connection object
+    const connection = {
+      sendDiagnostics: mockSendDiagnostics,
+    };
+
+    // Functions under test
+    generateCodedTestDiagnostic(
+      connection,
+      "Test message",
+      "file:///path/to/document",
+      1
+    );
+    generateTestScriptDiagnostic(
+      connection,
+      "Test message",
+      "file:///path/to/document",
+      1
+    );
+
+    // Verify sendDiagnostics was called with correct arguments
+    expect(mockSendDiagnostics).toHaveBeenCalledWith({
+      uri: "file:///path/to/document",
+      diagnostics: [diagnostic],
+    });
+  });
 });

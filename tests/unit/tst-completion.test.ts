@@ -970,7 +970,7 @@ describe("Text Completion", () => {
       expect(generatedCompletionData).toEqual([
         {
           label: "<test-name>",
-          kind: 1,
+          kind: 14,
           detail: "",
           data: 0,
         },
@@ -1053,7 +1053,26 @@ describe("Text Completion", () => {
         triggerCharacter,
         { envName: "fake_vcast" }
       );
-      expect(generatedCompletionData).toEqual([]);
+      expect(generatedCompletionData).toEqual([
+        {
+          data: 0,
+          detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
+          data: 1,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 2,
+          detail: "",
+          kind: 3,
+          label: "bar",
+        },
+      ]);
     },
     timeout
   );
@@ -1073,7 +1092,26 @@ describe("Text Completion", () => {
         completionPosition,
         triggerCharacter
       );
-      expect(generatedCompletionData).toEqual([]);
+      expect(generatedCompletionData).toEqual([
+        {
+          data: 0,
+          detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
+          data: 1,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 2,
+          detail: "",
+          kind: 3,
+          label: "bar",
+        },
+      ]);
     },
     timeout
   );
