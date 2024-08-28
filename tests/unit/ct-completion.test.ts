@@ -1,11 +1,27 @@
-import { describe, expect, test, vi, afterEach } from "vitest";
-import { getCompletionPositionForLine, generateCompletionData } from "./utils";
+import {
+  describe,
+  expect,
+  test,
+  vi,
+  afterEach,
+  SpyInstance,
+  beforeEach,
+} from "vitest";
+import {
+  getCompletionPositionForLine,
+  generateCompletionData,
+  asCompletionParameters,
+} from "./utils";
+import { TextDocument } from "vscode-languageserver";
+import URI from "vscode-uri";
+import path from "path";
+import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
+import { getCodedTestCompletionData } from "../../server/ctCompletions";
 
 // Need dummy coded test file for function (can be empty)
 const unitTst = ``;
 
 // Expected results for tests suites
-
 const extraTextMockExpected = [
   {
     additionalTextEdits: [
@@ -87,7 +103,30 @@ const vmockUnitExpected = [
 
 const timeout = 30_000; // 30 seconds
 
+// Import the vscode-languageserver module and mock createConnection
+vi.mock("vscode-languageserver", async () => {
+  const actual = await vi.importActual<typeof import("vscode-languageserver")>(
+    "vscode-languageserver"
+  );
+
+  return {
+    ...actual,
+    createConnection: vi.fn().mockReturnValue({
+      console: {
+        log: vi.fn(),
+      },
+    }),
+    ProposedFeatures: actual.ProposedFeatures,
+  };
+});
+
 describe("Testing pythonUtilities (valid)", () => {
+  let logSpy: SpyInstance;
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -101,7 +140,7 @@ describe("Testing pythonUtilities (valid)", () => {
           choiceKind: "File",
           choiceList: ["unit", "Prototype-Stubs"],
           extraText: "some extra data",
-          messages: [],
+          messages: ["some", "messages"],
         },
       });
     },
@@ -134,6 +173,65 @@ describe("Testing pythonUtilities (valid)", () => {
     },
     timeout
   );
+
+  test(
+    "validate console log if connection is defined",
+    async () => {
+      // Create a custom connection object with a console.log function
+      const customConnection = {
+        console: {
+          log: (message: string) => console.log(message),
+        },
+      };
+
+      const lineToComplete = "// vmock";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        unitTst
+      );
+
+      const envName = "vcast";
+
+      const languageId = "cpp";
+
+      const testEnvPath = path.join(
+        process.env.PACKAGE_PATH as string,
+        "tests",
+        "unit",
+        envName
+      );
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
+
+      const triggerCharacter = lineToComplete.at(-1);
+      const uri = URI.file(tstFilepath).toString();
+      const textDocument = TextDocument.create(uri, languageId, 1, unitTst);
+
+      const completion = asCompletionParameters(
+        textDocument,
+        completionPosition,
+        triggerCharacter
+      );
+
+      const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+
+      expect(enviroPath).not.toBe(undefined);
+
+      if (enviroPath) {
+        await getCodedTestCompletionData(
+          customConnection,
+          lineToComplete,
+          completion,
+          enviroPath
+        );
+      }
+
+      expect(logSpy).toHaveBeenCalledWith(`Processing: ${lineToComplete}`);
+    },
+    timeout
+  );
 });
 
 // Generate tests based on input
@@ -145,7 +243,7 @@ const validateCodedTestCompletion = async (
   // Apply mock if provided
   if (mockOptions) {
     const pythonUtilities = await import("../../server/pythonUtilities");
-    vi.spyOn(pythonUtilities, "getChoiceDataFromPython").mockReturnValue(
+    vi.spyOn(pythonUtilities, "getChoiceData").mockReturnValue(
       mockOptions.mockReturnValue
     );
   }
@@ -158,7 +256,7 @@ const validateCodedTestCompletion = async (
   const triggerCharacter = lineToComplete.at(-1);
   const cppTestFlag = { cppTest: true, lineSoFar: lineToComplete };
 
-  const codedTestCompletionData = generateCompletionData(
+  const codedTestCompletionData = await generateCompletionData(
     tstText,
     completionPosition,
     triggerCharacter,

@@ -994,8 +994,28 @@ describe("Text Completion", () => {
         tstText,
         completionPosition,
         triggerCharacter,
-        {lineSoFar: "vcast"});
-      expect(generatedCompletionData).toEqual([]);
+        { lineSoFar: "vcast" }
+      );
+      expect(generatedCompletionData).toEqual([
+        {
+          data: 0,
+          detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
+          data: 1,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 2,
+          detail: "",
+          kind: 3,
+          label: "bar",
+        },
+      ]);
     },
     timeout
   );

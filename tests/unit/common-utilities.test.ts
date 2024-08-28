@@ -2,6 +2,7 @@ import path from "node:path";
 import process from "node:process";
 import { describe, expect, test } from "vitest";
 import {
+  cleanClicastOutput,
   cleanVPythonOutput,
   getVcastOptionValues,
 } from "../../src-common/commonUtilities";
@@ -41,6 +42,21 @@ describe("Validating commonUtilities", () => {
 
       testString = "don't strip me some more stuff";
       expect(cleanVPythonOutput(testString)).toBe(testString);
+    },
+    timeout
+  );
+
+  test(
+    "validate cleanClicastOutput",
+    async () => {
+      let testString = "Some text before VectorCAST Copyright and some after";
+      const expectedReturn = "VectorCAST Copyrightand some after";
+      expect(cleanClicastOutput(testString)).toBe(expectedReturn);
+
+      let testWithoutSplitString = "Text without the split string";
+      expect(cleanClicastOutput(testWithoutSplitString)).toBe(
+        testWithoutSplitString
+      );
     },
     timeout
   );

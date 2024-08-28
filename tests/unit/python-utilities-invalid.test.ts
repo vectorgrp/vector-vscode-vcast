@@ -1,5 +1,4 @@
-import process from "node:process";
-import { choiceKindType, initializePaths } from "../../server/pythonUtilities";
+import { initializePaths } from "../../server/pythonUtilities";
 import {
   describe,
   expect,
@@ -9,7 +8,6 @@ import {
   afterEach,
   type SpyInstance,
 } from "vitest";
-import { getChoiceData } from "../../server/pythonUtilities";
 
 const timeout = 30_000; // 30 seconds
 
@@ -33,30 +31,6 @@ describe("Testing pythonUtilities (invalid)", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
-
-  test(
-    "validate that testEditorInterface.py was not found",
-    async () => {
-      // Mock process.argv (important for path.join)
-      process.argv = [
-        "node",
-        "someScript.js",
-        "some/invalid/path",
-        "/some/command",
-      ];
-
-      getChoiceData(choiceKindType.choiceListTST, "someAction", "somePayload");
-
-      const invalidPathToTestEditorInterface =
-        "some/invalid/path/python/testEditorInterface.py";
-      const expectedMessagePart = `testEditorInterface was not found in the expected location: ${invalidPathToTestEditorInterface}`;
-
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining(expectedMessagePart)
-      );
-    },
-    timeout
-  );
 
   test(
     "validate that initializePaths if the path was not found",
