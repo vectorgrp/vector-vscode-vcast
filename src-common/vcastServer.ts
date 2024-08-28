@@ -133,6 +133,7 @@ export async function transmitCommand(
       ) {
         transmitResponse.success = false;
         transmitResponse.statusText = `\nCould not start clicast instance, disabling server mode for this session\n`;
+        // fall back to non server mode
         setServerState(false);
         //
       } else {
@@ -154,6 +155,7 @@ export async function transmitCommand(
       }
       transmitResponse.success = false;
       transmitResponse.statusText = `Enviro server error: ${errorDetails}, disabling server mode for this session`;
+      // fall back to non server mode
       setServerState(false);
     });
   return transmitResponse;

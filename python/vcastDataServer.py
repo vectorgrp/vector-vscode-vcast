@@ -10,8 +10,6 @@ import vcastDataServerTypes
 from vcastDataServerTypes import commandType, errorCodes
 
 
-from vector.apps.DataAPI.unit_test_api import UnitTestApi as Api
-
 # flask was added to vpthon for vc24sp4
 from flask import Flask, request
 

@@ -11,16 +11,22 @@ import {
 
 import { Hover } from "vscode-languageserver-types";
 
-import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver-types";
-
 import { enviroDataType } from "../src-common/commonUtilities";
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
-import { updateVPythonCommand } from "./pythonUtilities";
-import { getLineFragment } from "./serverUtilities";
+import {
+  generateCodedTestDiagnostic,
+  generateTestScriptDiagnostic,
+  updateVPythonCommand,
+} from "./pythonUtilities";
+import {
+  buildCompletionList,
+  convertKind,
+  getLineFragment,
+} from "./serverUtilities";
 import { initializePaths } from "./pythonUtilities";
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
-import { getDiagnosticObject, validateTextDocument } from "./tstValidation";
+import { validateTextDocument } from "./tstValidation";
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -132,22 +138,6 @@ textDocumentManager.onDidChangeContent((change) => {
 
 import url = require("url");
 
-function generateCodedTestDiagnostic(documentUri: string, lineNumber: number) {
-  // When we have a coded test file for an environment that does
-  // not have mock support, we give the user a helpful diagnostic message
-  let diagnostic: Diagnostic = getDiagnosticObject(
-    lineNumber,
-    0,
-    1000,
-    "This environment does not support mocks, no auto-completion is available.\nRebuild the environment to use mocks   ",
-    DiagnosticSeverity.Warning
-  );
-  connection.sendDiagnostics({
-    uri: documentUri,
-    diagnostics: [diagnostic],
-  });
-}
-
 function clearCodedTestDiagnostics(documentUri: string) {
   connection.sendDiagnostics({
     uri: documentUri,
@@ -161,45 +151,89 @@ async function performCompletionProcessing(
 ): Promise<CompletionItem[]> {
   // Test Script Editor
   if (completionData.textDocument.uri.endsWith(".tst")) {
-    return getTstCompletionData(currentDocument, completionData);
-
-    // Coded Test Editor
-  } else if (globalVMockAvailable) {
+    const returnData = await getTstCompletionData(
+      currentDocument,
+      completionData
+    );
+    if (returnData.extraText == "MigrationError") {
+      // If we get a migration error, we need to send a message to the client
+      // The error will be the 2nd element in the returnData.messages
+      generateTestScriptDiagnostic(
+        connection,
+        returnData.messages[1],
+        completionData.textDocument.uri,
+        completionData.position.line
+      );
+    }
+    return buildCompletionList(
+      returnData.choiceList,
+      convertKind(returnData.choiceKind)
+    );
+  } else {
+    // not a test script file check if its coded test file
     const filePath = url.fileURLToPath(completionData.textDocument.uri);
     const enviroData: enviroDataType | undefined =
       testFileToEnviroMap.get(filePath);
 
     // if this file is a coded test file associated with an environment
     if (enviroData && enviroData.enviroPath) {
+      //
+      // clear any left over diagnostics.
+      // We don't need to keep these on every line where the user
+      // types // vmock, so this will clear the previous message
+      // when the user types anything else.
+      clearCodedTestDiagnostics(completionData.textDocument.uri);
+
+      // check what the user has typed
       const lineSoFar: string = getLineFragment(
         currentDocument,
         completionData.position
       ).trimEnd();
 
-      if (enviroData.hasMockSupport) {
-        return getCodedTestCompletionData(
-          connection,
-          lineSoFar,
-          completionData,
-          enviroData.enviroPath
-        );
-      } else if (vmockStubRegex.test(lineSoFar)) {
-        // else the environment does not support mocks, and the user
-        // typed a "// vmock" comment, so we help out with a diagnostic
-        generateCodedTestDiagnostic(
-          completionData.textDocument.uri,
-          completionData.position.line
-        );
+      // The only auto-complete we do is for when the user has
+      // typed on a line that starts with "// vmock" comment ...
+      if (vmockStubRegex.test(lineSoFar)) {
+        // we have a line that we would normally process
+        // if our VectorCAST version supports mocks ...
+        if (globalVMockAvailable) {
+          if (enviroData.hasMockSupport) {
+            return getCodedTestCompletionData(
+              connection,
+              lineSoFar,
+              completionData,
+              enviroData.enviroPath
+            );
+          } else {
+            // else the environment does not support mocks
+            // help out with a diagnostic message in the editor
+            generateCodedTestDiagnostic(
+              connection,
+              "This environment does not support mocks, no auto-completion is available.\nRebuild the environment to use mocks    ",
+              completionData.textDocument.uri,
+              completionData.position.line
+            );
+            return [];
+          }
+        } else {
+          // else the VectorCAST version does not support mocks
+          // help out with a diagnostic message in the editor
+          generateCodedTestDiagnostic(
+            connection,
+            "This currently configured version of VectorCAST does not support mocks.\nUpdate to version 24-SP4 or later to use mocks",
+            completionData.textDocument.uri,
+            completionData.position.line
+          );
+          return [];
+        }
       } else {
-        // clear any left over diagnostics.
-        // We don't need to keep these on every line where the user
-        // types // vmock, so this will clear the previous message
-        // when the user types anything else.
-        clearCodedTestDiagnostics(completionData.textDocument.uri);
-      } // coded test file for enviro without mock support
-    } // not a coded test file
-  } // vcast does not support mocking
-  return [];
+        // not a line we care about
+        return [];
+      }
+    } else {
+      // not a coded test file, so we do nothing
+      return [];
+    }
+  }
 }
 
 connection.onCompletion(

@@ -42,13 +42,13 @@ import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
 import {
   activateTestPane,
-  buildTestPaneContents,
   deleteTests,
   insertBasisPathTests,
   insertATGTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
   pathToProgramBeingDebugged,
+  refreshAllExtensionData,
   updateCodedTestCases,
   updateDataForEnvironment,
 } from "./testPane";
@@ -602,9 +602,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
   vscode.workspace.onDidChangeWorkspaceFolders(
     (e) => {
-      resetCoverageData();
-      buildTestPaneContents();
-      updateCOVdecorations();
+      refreshAllExtensionData();
     },
     null,
     context.subscriptions
@@ -686,9 +684,7 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
         // if the user changes the path to vcast, we need to reset the values
         // for clicast and vpython path etc.
         if (checkIfInstallationIsOK()) {
-          resetCoverageData();
-          buildTestPaneContents();
-          updateCOVdecorations();
+          refreshAllExtensionData();
         }
       }
     }
