@@ -7,16 +7,68 @@ import {
   SpyInstance,
   beforeEach,
 } from "vitest";
+import * as nodeFetch from "node-fetch";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
   asCompletionParameters,
 } from "./utils";
-import { TextDocument } from "vscode-languageserver";
+import {
+  Diagnostic,
+  DiagnosticSeverity,
+  TextDocument,
+} from "vscode-languageserver";
 import URI from "vscode-uri";
 import path from "path";
 import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import {
+  choiceKindType,
+  generateCodedTestDiagnostic,
+  getChoiceData,
+} from "../../server/pythonUtilities";
+import { setServerState } from "../../src-common/vcastServer";
+
+vi.mock("node-fetch", async () => {
+  const actual = await vi.importActual<typeof nodeFetch>("node-fetch");
+
+  return {
+    ...actual,
+    default: vi.fn(),
+  };
+});
+
+const fetch = vi.mocked(nodeFetch.default);
+
+const expectedReceivedData = [
+  {
+    additionalTextEdits: [
+      {
+        newText: "// some extra data",
+        range: {
+          end: {
+            character: 0,
+            line: 0,
+          },
+          start: {
+            character: 0,
+            line: 0,
+          },
+        },
+      },
+    ],
+    data: 0,
+    detail: "",
+    kind: 1,
+    label: "unit",
+  },
+  {
+    data: 1,
+    detail: "",
+    kind: 1,
+    label: "Prototype-Stubs",
+  },
+];
 
 // Need dummy coded test file for function (can be empty)
 const unitTst = ``;
@@ -232,6 +284,157 @@ describe("Testing pythonUtilities (valid)", () => {
     },
     timeout
   );
+
+  test(
+    "validate getChoiceDataFromServer",
+    async () => {
+      const pythonUtilities = await import("../../src-common/vcastServer");
+
+      // Spy on `transmitCommand` and mock its implementation
+      vi.spyOn(pythonUtilities, "transmitCommand").mockResolvedValue({
+        success: true,
+        returnData: {
+          data: {
+            choiceKind: "File",
+            choiceList: ["unit", "Prototype-Stubs"],
+            extraText: "some extra data",
+            messages: ["some", "messages"],
+          },
+        },
+        statusText: "success",
+      });
+
+      setServerState(true);
+
+      // Need dummy coded test file for function (can be empty)
+      const unitTst = ``;
+
+      const lineToComplete = "// vmock";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        unitTst
+      );
+
+      const envName = "vcast";
+
+      const languageId = "cpp";
+
+      const testEnvPath = path.join(
+        process.env.PACKAGE_PATH as string,
+        "tests",
+        "unit",
+        envName
+      );
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
+
+      const triggerCharacter = lineToComplete.at(-1);
+      const uri = URI.file(tstFilepath).toString();
+      const textDocument = TextDocument.create(uri, languageId, 1, unitTst);
+
+      const completion = asCompletionParameters(
+        textDocument,
+        completionPosition,
+        triggerCharacter
+      );
+
+      const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+
+      if (enviroPath) {
+        const result = await getCodedTestCompletionData(
+          undefined,
+          lineToComplete,
+          completion,
+          enviroPath
+        );
+        expect(result).toEqual(expectedReceivedData);
+      }
+    },
+    timeout
+  );
+
+  test(
+    "validate getChoiceDataFromServer if it fails",
+    async () => {
+      // Mock fetch to simulate a failure and throw an error
+      fetch.mockImplementationOnce(() =>
+        Promise.reject(new Error("Failed to fetch: reason: Server down"))
+      );
+
+      setServerState(true);
+
+      const lineToComplete = "// vmock";
+      const envName = "vcast";
+
+      const testEnvPath = path.join(
+        process.env.PACKAGE_PATH as string,
+        "tests",
+        "unit",
+        envName
+      );
+      const tstFilepath = path.join(
+        testEnvPath,
+        process.env.TST_FILENAME as string
+      );
+
+      const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+      let result: any;
+      if (enviroPath) {
+        result = await getChoiceData(
+          choiceKindType.choiceListCT,
+          enviroPath,
+          lineToComplete
+        );
+      }
+
+      expect(result).toStrictEqual({
+        choiceKind: "",
+        choiceList: [],
+        extraText: "",
+        messages: [],
+      });
+    },
+    timeout
+  );
+
+  test("should create and send a diagnostic objects for tst and ct", () => {
+    const diagnostic: Diagnostic = {
+      severity: DiagnosticSeverity.Warning,
+      range: {
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 1000 },
+      },
+      message: "Test message",
+      source: "VectorCAST Test Explorer",
+    };
+
+    vi.mock(".../../server/tstValidation", () => ({
+      getDiagnosticObject: vi.fn().mockReturnValue(diagnostic),
+    }));
+
+    const mockSendDiagnostics = vi.fn();
+
+    // Create a mock connection object
+    const connection = {
+      sendDiagnostics: mockSendDiagnostics,
+    };
+
+    // Functions under test
+    generateCodedTestDiagnostic(
+      connection,
+      "Test message",
+      "file:///path/to/document",
+      1
+    );
+
+    // Verify sendDiagnostics was called with correct arguments
+    expect(mockSendDiagnostics).toHaveBeenCalledWith({
+      uri: "file:///path/to/document",
+      diagnostics: [diagnostic],
+    });
+  });
 });
 
 // Generate tests based on input
