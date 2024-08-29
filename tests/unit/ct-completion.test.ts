@@ -11,14 +11,10 @@ import * as nodeFetch from "node-fetch";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
-  asCompletionParameters,
+  prepareCodedTestCompletion,
+  setupDiagnosticTest,
 } from "./utils";
-import {
-  Diagnostic,
-  DiagnosticSeverity,
-  TextDocument,
-} from "vscode-languageserver";
-import URI from "vscode-uri";
+import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import path from "path";
 import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
@@ -229,45 +225,23 @@ describe("Testing pythonUtilities (valid)", () => {
   test(
     "validate console log if connection is defined",
     async () => {
-      // Create a custom connection object with a console.log function
       const customConnection = {
         console: {
           log: (message: string) => console.log(message),
         },
       };
 
+      const unitTst = ``;
       const lineToComplete = "// vmock";
-      const completionPosition = getCompletionPositionForLine(
-        lineToComplete,
-        unitTst
-      );
-
       const envName = "vcast";
-
       const languageId = "cpp";
 
-      const testEnvPath = path.join(
-        process.env.PACKAGE_PATH as string,
-        "tests",
-        "unit",
-        envName
+      const { completion, enviroPath } = await prepareCodedTestCompletion(
+        lineToComplete,
+        unitTst,
+        envName,
+        languageId
       );
-      const tstFilepath = path.join(
-        testEnvPath,
-        process.env.TST_FILENAME as string
-      );
-
-      const triggerCharacter = lineToComplete.at(-1);
-      const uri = URI.file(tstFilepath).toString();
-      const textDocument = TextDocument.create(uri, languageId, 1, unitTst);
-
-      const completion = asCompletionParameters(
-        textDocument,
-        completionPosition,
-        triggerCharacter
-      );
-
-      const enviroPath = getEnviroNameFromTestScript(tstFilepath);
 
       expect(enviroPath).not.toBe(undefined);
 
@@ -306,41 +280,17 @@ describe("Testing pythonUtilities (valid)", () => {
 
       setServerState(true);
 
-      // Need dummy coded test file for function (can be empty)
       const unitTst = ``;
-
       const lineToComplete = "// vmock";
-      const completionPosition = getCompletionPositionForLine(
-        lineToComplete,
-        unitTst
-      );
-
       const envName = "vcast";
-
       const languageId = "cpp";
 
-      const testEnvPath = path.join(
-        process.env.PACKAGE_PATH as string,
-        "tests",
-        "unit",
-        envName
+      const { completion, enviroPath } = await prepareCodedTestCompletion(
+        lineToComplete,
+        unitTst,
+        envName,
+        languageId
       );
-      const tstFilepath = path.join(
-        testEnvPath,
-        process.env.TST_FILENAME as string
-      );
-
-      const triggerCharacter = lineToComplete.at(-1);
-      const uri = URI.file(tstFilepath).toString();
-      const textDocument = TextDocument.create(uri, languageId, 1, unitTst);
-
-      const completion = asCompletionParameters(
-        textDocument,
-        completionPosition,
-        triggerCharacter
-      );
-
-      const enviroPath = getEnviroNameFromTestScript(tstFilepath);
 
       if (enviroPath) {
         const result = await getCodedTestCompletionData(
@@ -410,18 +360,10 @@ describe("Testing pythonUtilities (valid)", () => {
       source: "VectorCAST Test Explorer",
     };
 
-    vi.mock(".../../server/tstValidation", () => ({
-      getDiagnosticObject: vi.fn().mockReturnValue(diagnostic),
-    }));
+    // Use the utility function to mock and set up the test
+    const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
 
-    const mockSendDiagnostics = vi.fn();
-
-    // Create a mock connection object
-    const connection = {
-      sendDiagnostics: mockSendDiagnostics,
-    };
-
-    // Functions under test
+    // Function under test
     generateCodedTestDiagnostic(
       connection,
       "Test message",

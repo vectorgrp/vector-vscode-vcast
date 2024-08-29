@@ -7,6 +7,7 @@ import {
 } from "../../server/pythonUtilities";
 import path from "node:path";
 import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
+import { setupDiagnosticTest } from "./utils";
 
 const timeout = 30_000; // 30 seconds
 
@@ -45,7 +46,7 @@ describe("Testing pythonUtilities (valid)", () => {
     timeout
   );
 
-  test("should create and send a diagnostic objects for tst", () => {
+  test("should create and send a diagnostic object for tst", () => {
     const diagnostic: Diagnostic = {
       severity: DiagnosticSeverity.Warning,
       range: {
@@ -56,17 +57,10 @@ describe("Testing pythonUtilities (valid)", () => {
       source: "VectorCAST Test Explorer",
     };
 
-    vi.mock(".../../server/tstValidation", () => ({
-      getDiagnosticObject: vi.fn().mockReturnValue(diagnostic),
-    }));
+    // Use the utility function to mock and set up the test
+    const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
 
-    const mockSendDiagnostics = vi.fn();
-
-    // Create a mock connection object
-    const connection = {
-      sendDiagnostics: mockSendDiagnostics,
-    };
-
+    // Function under test
     generateTestScriptDiagnostic(
       connection,
       "Test message",

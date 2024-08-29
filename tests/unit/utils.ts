@@ -19,6 +19,7 @@ import {
 } from "../../server/serverUtilities";
 import { promisify } from "util";
 import { exec } from "child_process";
+import { vi } from "vitest";
 
 export type HoverPosition = {
   line: number;
@@ -226,3 +227,70 @@ export async function runCommand(command: string): Promise<void> {
   }
   console.log(stdout);
 }
+
+/**
+ * Prepares the necessary parameters for testing coded test completion.
+ *
+ * @param lineToComplete The line in the test file where completion is triggered.
+ * @param unitTst        The unit test code content (can be empty).
+ * @param envName        The name of the environment (e.g., "vcast").
+ * @param languageId     The language ID of the test file (e.g., "cpp").
+ * @return An object containing the completion parameters and environment path.
+ */
+export async function prepareCodedTestCompletion(
+  lineToComplete: string,
+  unitTst: string,
+  envName: string,
+  languageId: string
+) {
+  const completionPosition = getCompletionPositionForLine(
+    lineToComplete,
+    unitTst
+  );
+
+  const testEnvPath = path.join(
+    process.env.PACKAGE_PATH as string,
+    "tests",
+    "unit",
+    envName
+  );
+
+  const tstFilepath = path.join(
+    testEnvPath,
+    process.env.TST_FILENAME as string
+  );
+
+  const triggerCharacter = lineToComplete.at(-1);
+  const uri = URI.file(tstFilepath).toString();
+  const textDocument = TextDocument.create(uri, languageId, 1, unitTst);
+
+  const completion = asCompletionParameters(
+    textDocument,
+    completionPosition,
+    triggerCharacter
+  );
+
+  const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+
+  return { completion, enviroPath, lineToComplete };
+}
+
+/**
+ * Mocks the diagnostic object and sets up the connection.
+ *
+ * @param diagnostic Diagnostic object to be mocked.
+ * @returns An object containing the mocked connection and sendDiagnostics function.
+ */
+export const setupDiagnosticTest = (diagnostic: Diagnostic) => {
+  vi.mock(".../../server/tstValidation", () => ({
+    getDiagnosticObject: vi.fn().mockReturnValue(diagnostic),
+  }));
+
+  const mockSendDiagnostics = vi.fn();
+
+  const connection = {
+    sendDiagnostics: mockSendDiagnostics,
+  };
+
+  return { connection, mockSendDiagnostics };
+};
