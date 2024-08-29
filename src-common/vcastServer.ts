@@ -1,7 +1,6 @@
 // proof of concept for interacting with a running environment data server
 
 import fetch from "node-fetch";
-
 import { pythonErrorCodes } from "./vcastServerTypes";
 
 let HOST = "localhost"; // The server's hostname or IP address
@@ -131,7 +130,9 @@ export async function transmitCommand(
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
   const urlToUse = `${serverURL()}/${route}?request=${dataAsString}`;
-  logServerCommand(`Sending command: "${requestObject.command}" to server: ${serverURL()},`);
+  logServerCommand(
+    `Sending command: "${requestObject.command}" to server: ${serverURL()},`
+  );
   let transmitResponse: transmitResponseType = {
     success: false,
     returnData: undefined,

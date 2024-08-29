@@ -85,8 +85,9 @@ export function getVcastOptionValues(enviroPath: string): cfgOptionType {
 // For clicast and ATG, we have no control, so we split on the
 // "If you want to use VECTORCAST_DIR, use this syntax" message
 
-const vpythonSplitString = "ACTUAL-DATA";
-const atgAndClicastSplitString =
+// We export these just so that the tests can use these without duplication
+export const vpythonSplitString = "ACTUAL-DATA";
+export const atgAndClicastSplitString =
   "If you want to use VECTORCAST_DIR, use this syntax:";
 export function cleanVectorcastOutput(outputString: string): string {
   if (outputString.includes(vpythonSplitString)) {
