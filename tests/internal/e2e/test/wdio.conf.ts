@@ -444,7 +444,7 @@ export const config: Options.Testrunner = {
       );
 
       let vcastRoot = await getVcastRoot();
-      const newVersion = "vc24";
+      const newVersion = "release24";
 
       // Set up environment directory
       process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
