@@ -22,16 +22,17 @@ import traceback
 thisFileLocation = str(pathlib.Path(__file__).parent.resolve())
 sys.path.append(os.path.join(thisFileLocation, "..", "..", "python"))
 
-import vTestInterface
-
 import vcastDataServerTypes
 from vcastDataServerTypes import commandType, errorCodes
+
+from buildMultipleEnvironments import buildMultipleEnvironments
 
 
 from vector.lib.core.system import cd
 
 # Path to where the test should be run ...
 ENVIRO_PATH = ""
+SCALABILITY_PATH = ""
 
 try:
     VECTORCAST_DIR = os.environ["VECTORCAST_DIR"]
@@ -49,12 +50,6 @@ TBD Stuff
 
 def serverURL():
     return f"http://{vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}"
-
-
-def printHeader(title):
-    print("-" * 100)
-    print(f"{title}".center(100))
-    print("-" * 100)
 
 
 def cleanEnviroData(newData):
@@ -477,65 +472,124 @@ def shutdownServer():
     print("Server has been shutdown")
 
 
-def getEnviroData100Times(clicastPath, enviroPath):
-    """
-    Run the getEnviroData command 100 times and record elapsed time
-    """
+numberOfGetEnviroDataCallsToMake = 100
+numberOfEnvironments = 10
+
+
+def getEnviroDataMultipleTimesUsingVPython(clicastPath, enviroPath):
+
+    print(
+        f"  Calling vpython {numberOfGetEnviroDataCallsToMake} times with a getEnviroData ..."
+    )
+    vpythonCommand = sys.executable
+    # Get the path to this script and then figure out the path to vTestInterface.py
+    pathToThisScript = sys.argv[0]
+    pathTovTestInterface = os.path.realpath(
+        os.path.join(pathToThisScript, "..", "..", "..", "python", "vTestInterface.py")
+    )
+    commandToRun = f"{vpythonCommand} {pathTovTestInterface} --mode=getEnviroData --path={enviroPath}"
     startTime = time.time()
-    for i in range(100):
+    alreadyChecked = False
+    for i in range(numberOfGetEnviroDataCallsToMake):
+        try:
+            # debug print (f"  executing command: {commandToRun} ...")
+            commandOutput = subprocess.check_output(
+                commandToRun, shell=True, stderr=subprocess.STDOUT
+            )
+            # make sure we get valid data after the first call
+            commandOutput = commandOutput.decode().split("ACTUAL-DATA")[1]
+            jsonData = json.loads(commandOutput)
+            assert alreadyChecked or len(jsonData["unitData"]) > 0
+            alreadyChecked = True
+        except subprocess.CalledProcessError as error:
+            print(f"  error running vpython getEnviroData command ...")
+            print(f"  {error.output.decode()}")
+            assert False
+    elapsedTime = time.time() - startTime
+    print(
+        f"    completed {numberOfGetEnviroDataCallsToMake} calls in: {elapsedTime:.2f} seconds"
+    )
+
+
+def getEnviroDataMultipleTimesUsingTheServer(clicastPath, enviroPath):
+    """
+    Run the getEnviroData command multiple times and record elapsed time
+    """
+    print(
+        f"  Sending {numberOfGetEnviroDataCallsToMake} getEnviroData commands to the server ..."
+    )
+
+    startTime = time.time()
+    alreadyChecked = False
+    for i in range(numberOfGetEnviroDataCallsToMake):
         request = vcastDataServerTypes.clientRequest(
             commandType.getEnviroData, clicastPath, enviroPath
         )
         # request is a class, so we convert it to a dictionary, then a string
         dataAsString = json.dumps(request.toDict())
-        # No printing ...
-        returnData = requests.get(
+        response = requests.get(
             f"{serverURL()}/vassistant", params={"request": dataAsString}
         )
+        jsonData = response.json()["data"]
+        assert alreadyChecked or len(jsonData["unitData"]) > 0
+        alreadyChecked = True
+
     elapsedTime = time.time() - startTime
 
-    printHeader("Timing test for getEnviroData")
-    print(f"Elapsed time for 100 getEnviroData commands: {elapsedTime:.2f} seconds")
-
-
-def scalabilityTest(clicastPath):
-    """
-    This test does a getEnviroData on 100 different environments to check the overhead
-    of having 100 clicast server processes running.
-    """
-
-    environmentDirectory = os.path.abspath(
-        os.path.join(ENVIRO_PATH, "..", "100Environments")
+    print(
+        f"    completed {numberOfGetEnviroDataCallsToMake} calls in: {elapsedTime:.2f} seconds"
     )
-    if not os.path.isdir(environmentDirectory):
-        print(f"{environmentDirectory} does not exist")
-    else:
-        startTime = time.time()
-        testStringSuffix = "|manager.Manager::PlaceOrder.Test1"
-
-        with cd(environmentDirectory):
-            # get a list of all the directories in the environment directory
-            for i in range(1, 101):
-                enviroName = f"DEMO{i}"
-                enviroPath = os.path.join(environmentDirectory, enviroName)
-                testString = f"{enviroName}{testStringSuffix}"
-                request = vcastDataServerTypes.clientRequest(
-                    commandType.executeTest, clicastPath, enviroPath, testString
-                )
-                transmitTestCommand(request)
-
-        elapsedTime = time.time() - startTime
-
-        printHeader(
-            "Scalability test for executing tests for 100 distinct environments"
-        )
-        print(f"Elapsed time for 100 clicast commands: {elapsedTime:.2f} seconds")
 
 
 def timingTest(clicastPath, enviroPath):
 
-    # timing test for getEnviroData
-    getEnviroData100Times(clicastPath, enviroPath)
+    print("Starting Timing Test")
+    getEnviroDataMultipleTimesUsingVPython(clicastPath, enviroPath)
+    getEnviroDataMultipleTimesUsingTheServer(clicastPath, enviroPath)
+
+
+def executeTestWithServer(clicastPath):
+    """
+    This test does a a test execution on N different environments to check the overhead
+    of having N clicast server processes running.
+
+    We run the whole thing 3 times and record the times, because the
+    first command for each environment causes us to start a new clicast process
+    The second and third runs result in much shorte times because clicast
+    instances are already running.
+    """
+
+    if not os.path.isdir(SCALABILITY_PATH):
+        print(f"  {SCALABILITY_PATH} does not exist")
+    else:
+        for i in range(1, 4):
+            print(f"  starting iteration {i} ...")
+            startTime = time.time()
+            testStringSuffix = "|manager.Manager::PlaceOrder.Test1"
+            with cd(SCALABILITY_PATH):
+                # get a list of all the directories in the environment directory
+                for i in range(1, numberOfEnvironments + 1):
+                    enviroName = f"DEMO{i}"
+                    enviroPath = os.path.join(SCALABILITY_PATH, enviroName)
+                    testString = f"{enviroName}{testStringSuffix}"
+                    print(
+                        f"    executing test for enviro: {os.path.basename(enviroPath)}"
+                    )
+                    request = vcastDataServerTypes.clientRequest(
+                        commandType.executeTest, clicastPath, enviroPath, testString
+                    )
+                    response = transmitTestCommand(request)
+                    assert response["data"]["text"][0] == "STATUS:passed"
+
+            elapsedTime = time.time() - startTime
+            print(
+                f"    elapsed time for {numberOfEnvironments}: {elapsedTime:.2f} seconds"
+            )
+
+
+def scalabilityTest(clicastPath):
+    print("Starting Scalability Test")
+    executeTestWithServer(clicastPath)
 
 
 def fullTest(enviroPath, clicastPath, testString):
@@ -675,13 +729,14 @@ def initializeEnvironment(clicastPath):
 
 def main():
     """
-    This script can be run with the following args:
-    - shutdown: shutdown the server
-    - timing: run timing and scalability tests
-    - full: the basic automated tests
+    The common way to run the test is with
+        vpython client.py --test=full
 
+    To run timing and scalability tests, use:
+        vpython client.py --test=timing
     """
     global ENVIRO_PATH
+    global SCALABILITY_PATH
 
     # If no arg is provided, the full tests will be run
     argParser = setupArgs()
@@ -696,10 +751,16 @@ def main():
 
     # Build the VectorCAST environment
     clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
-    ENVIRO_PATH = os.path.join(os.getcwd(), "Environments")
+    ENVIRO_PATH = os.path.join(os.getcwd(), "SingleEnvironment")
+    SCALABILITY_PATH = os.path.join(os.getcwd(), "MultipleEnvironments")
 
     if args.nobuild == False:
-        initializeEnvironment(clicastPath)
+        if args.test == "timing":
+            buildMultipleEnvironments(
+                SCALABILITY_PATH, ENVIRO_PATH, numberOfEnvironments
+            )
+        else:
+            initializeEnvironment(clicastPath)
 
     enviroUnderTest = os.path.join(ENVIRO_PATH, "DEMO1")
     if os.path.isdir(enviroUnderTest) == False:
