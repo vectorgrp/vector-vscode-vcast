@@ -9,12 +9,8 @@ import { Key } from "webdriverio";
 import {
   getViewContent,
   findSubprogram,
-  findSubprogramMethod,
-  openTestScriptFor,
   updateTestID,
   expandWorkspaceFolderSectionInExplorer,
-  executeCtrlClickOn,
-  releaseCtrl,
   getTestHandle,
 } from "../test_utils/vcast_utils";
 
@@ -103,58 +99,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
 
-  // it("should create VectorCAST environment", async () => {
-  //   await updateTestID();
-
-  //   const workbench = await browser.getWorkbench();
-  //   const activityBar = workbench.getActivityBar();
-  //   const explorerView = await activityBar.getViewControl("Explorer");
-  //   await explorerView?.openView();
-
-  //   const workspaceFolderSection =
-  //     await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-  //   const cppFolder = workspaceFolderSection.findItem("cpp");
-  //   await (await cppFolder).select();
-
-  //   const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
-  //   const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
-  //   await executeCtrlClickOn(databaseCpp);
-  //   await executeCtrlClickOn(managerCpp);
-  //   await releaseCtrl();
-
-  //   await databaseCpp.openContextMenu();
-  //   await (await $("aria/Create VectorCAST Environment")).click();
-
-  //   // Making sure notifications are shown
-  //   await (await $("aria/Notifications")).click();
-
-  //   // This will timeout if VectorCAST notification does not appear, resulting in a failed test
-  //   const vcastNotificationSourceElement = await $(
-  //     "aria/VectorCAST Test Explorer (Extension)"
-  //   );
-  //   const vcastNotification = await vcastNotificationSourceElement.$("..");
-  //   await (await vcastNotification.$("aria/Yes")).click();
-
-  //   console.log(
-  //     "Waiting for clicast and waiting for environment to get processed"
-  //   );
-  //   await browser.waitUntil(
-  //     async () =>
-  //       (await (await bottomBar.openOutputView()).getText())
-  //         .toString()
-  //         .includes("Environment built Successfully"),
-  //     { timeout: TIMEOUT }
-  //   );
-
-  //   console.log("Finished creating vcast environment");
-  //   await browser.takeScreenshot();
-  //   await browser.saveScreenshot(
-  //     "info_finished_creating_vcast_environment.png"
-  //   );
-  //   // Clearing all notifications
-  //   await (await $(".codicon-notifications-clear-all")).click();
-  // });
-
   it("should enable coded test", async () => {
     await updateTestID();
 
@@ -171,10 +115,8 @@ describe("vTypeCheck VS Code Extension", () => {
   });
 
   it("should check for vmock code completion", async () => {
-    // Update test ID for traceability
     await updateTestID();
 
-    // Open the "Testing" view and log the action
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
 
@@ -189,7 +131,6 @@ describe("vTypeCheck VS Code Extension", () => {
         if (!(await subprogram.isExpanded())) await subprogram.expand();
         console.log("Getting test handle");
 
-        // Get the test handle for the specified test case
         testHandle = await getTestHandle(
           subprogram,
           "Coded Tests",
@@ -197,20 +138,16 @@ describe("vTypeCheck VS Code Extension", () => {
           1
         );
 
-        // Break out of the loop if the test handle is found, otherwise throw an error
         if (testHandle) break;
         throw new Error("Test handle not found for mooTests.ExampleTestCase");
       }
     }
 
-    // Ensure the test handle is not undefined
     expect(testHandle).not.toBe(undefined);
 
-    // Open context menu and select "VectorCAST"
     let contextMenu = await testHandle.openContextMenu();
     await contextMenu.select("VectorCAST");
 
-    // Click on "Edit Coded Test" from the menu
     let menuElement = await $("aria/Edit Coded Test");
     await menuElement.click();
 
@@ -226,6 +163,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys([Key.Ctrl, Key.Space]);
 
     const contentAssist = await tab.toggleContentAssist(true);
+
     // Just do some autocompletion to see if we can edit the Coded Test
     await tab.setTextAtLine(14, "// vmock");
     let currentLine = await tab.getLineOfText("// vmock");
