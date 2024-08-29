@@ -433,7 +433,7 @@ export const config: Options.Testrunner = {
     }
 
     /**
-     * Builds one env with 2024sp3 and switches to vc24__101394_store_mock_info at the end.
+     * Builds one env with 2024sp3 and switches to vc24 at the end.
      * TARGET SPEC GROUP: coded_mock_different_env
      */
     async function setupSingleEnvAndSwitchAtTheEnd(initialWorkdir: string) {
@@ -452,7 +452,7 @@ export const config: Options.Testrunner = {
 
       let vcastRoot = await getVcastRoot();
       const oldVersion = "release24";
-      const newVersion = "vc24__101394_store_mock_info";
+      const newVersion = "vc24";
 
       // Set up environment directory
       process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
