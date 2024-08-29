@@ -1,7 +1,6 @@
 // proof of concept for interacting with a running environment data server
 
 import fetch from "node-fetch";
-
 import { pythonErrorCodes } from "./vcastServerTypes";
 
 let HOST = "localhost"; // The server's hostname or IP address
