@@ -444,8 +444,8 @@ export const config: Options.Testrunner = {
       );
 
       let vcastRoot = await getVcastRoot();
-      const oldVersion = "release24";
-      const newVersion = "vc24";
+      const oldVersion = "release24_sp1";
+      const newVersion = "release24";
 
       // Set up environment directory
       process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
@@ -457,9 +457,6 @@ export const config: Options.Testrunner = {
 
       await executeRGWCommands(testInputVcastTutorial);
       await copyPathsToTestLocation(testInputVcastTutorial);
-
-      // Log that SWITCH_ENV_AT_THE_END is being defined
-      console.log("SWITCH_ENV_AT_THE_END IS DEFINED");
 
       // Define paths and content for the necessary test files
       const unitFileContent = `void foo (void){}`;
