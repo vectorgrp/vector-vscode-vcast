@@ -308,7 +308,6 @@ export async function executeClicastCommandUsingServer(
 
   const requestObject: clientRequestType = {
     command: vcastCommandType.runClicastCommand,
-    clicast: clicastCommandToUse,
     path: enviroPath,
     options: commandArgs,
   };
@@ -319,10 +318,10 @@ export async function executeClicastCommandUsingServer(
   // transmitResponse.returnData is an object with exitCode and data properties
   if (transmitResponse.success) {
     commandStatus.errorCode = transmitResponse.returnData.exitCode;
-    commandStatus.stdout = transmitResponse.returnData.data;
+    commandStatus.stdout = transmitResponse.returnData.data.trim();
   } else {
     commandStatus.errorCode = 1;
-    commandStatus.stdout = transmitResponse.statusText;
+    commandStatus.stdout = transmitResponse.statusText.trim();
   }
 
   if (commandStatus.errorCode != 0) {

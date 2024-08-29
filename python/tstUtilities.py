@@ -940,7 +940,7 @@ def processMockDefinition(enviroName, lineSoFar):
 
 def buildChoiceResponse(choiceData: choiceDataType):
     """
-    This is a separate function to allow the testEditorInterace | main()
+    This is a separate function to allow the testEditorInterface | main()
     and the socket based server to use the same code to build the response
     """
 

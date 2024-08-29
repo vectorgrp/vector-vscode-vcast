@@ -8,7 +8,9 @@ import {
   buildEnvironmentCallback,
   deleteEnvironmentCallback,
 } from "./callbacks";
+
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
+
 import {
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
@@ -47,12 +49,37 @@ import {
   globalEnviroDataServerActive,
   serverIsAlive,
   setServerState,
+  setLogServerCommandsCallback,
+  setTerminateServerCallback,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
 } from "../src-common/vcastServer";
 
+import { refreshAllExtensionData } from "./testPane";
+
 const path = require("path");
+
+function terminateServerProcessing() {
+  // This functions gets called by server transmitCommand()
+  // when there is a fatal server errr.  In this case, we 
+  // display a pop up error message, update the test pane
+  refreshAllExtensionData();
+
+  vscode.window.showErrorMessage(
+    "Fatal Error in VectorCAST Environment Data Server - " +
+      "Disabling Server Mode for this Session.  " +
+      "The previous command was discarded, and the " + 
+      "Testing Pane has been reloaded"
+  );
+}
+
+function logServerCommands(text: string) {
+  // This function gets called by server - transmitCommand () 
+  // It is implemented as a callback because the server is
+  // used by both the core extension and the language server
+  vectorMessage(text, errorLevel.trace);
+}
 
 export async function initializeServerState() {
   // This function is called during initialization to check if the enviro
@@ -61,6 +88,8 @@ export async function initializeServerState() {
   // Set the client instance of the globalEnviroDataServerActive
   // flag if we can ping the server
   setServerState(await serverIsAlive());
+  setTerminateServerCallback(terminateServerProcessing);
+  setLogServerCommandsCallback(logServerCommands);
   if (globalEnviroDataServerActive) {
     vectorMessage("VectorCAST Environment Data Server is Active ...");
   } else {
@@ -83,7 +112,7 @@ export function vcastLicenseOK(): boolean {
   return commandStatus.errorCode == 0;
 }
 
-// Build Environment - no server logic neeeded ----------------------------------------
+// Build Environment - no server logic needed ----------------------------------------
 export function buildEnvironmentFromScript(
   unitTestLocation: string,
   enviroName: string
@@ -261,7 +290,7 @@ export async function addCodedTestToEnvironment(
 }
 
 // Create Test Script - server logic included ----------------------------------------
-export async function dumptestScriptFile(
+export async function dumpTestScriptFile(
   testNode: testNodeType,
   scriptPath: string
 ): Promise<commandStatusType> {
@@ -549,15 +578,14 @@ async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
   //
   const requestObject: clientRequestType = {
     command: vcastCommandType.getEnviroData,
-    clicast: clicastCommandToUse,
     path: enviroPath,
   };
 
   let transmitResponse: transmitResponseType =
     await transmitCommand(requestObject);
 
-  // tansmitResponse.returnData is an object with exitCode and data properties
-  // for getEnviroData we might have a version missmatch if the enviro is newer
+  // transmitResponse.returnData is an object with exitCode and data properties
+  // for getEnviroData we might have a version miss-match if the enviro is newer
   // than the version of vcast we are using, so handle that here
   if (transmitResponse.success) {
     const returnData = transmitResponse.returnData;
@@ -746,7 +774,6 @@ export async function rebuildEnvironmentUsingServer(
 ) {
   const requestObject: clientRequestType = {
     command: vcastCommandType.rebuild,
-    clicast: clicastCommandToUse,
     path: enviroPath,
     options: getRebuildOptionsString(),
   };

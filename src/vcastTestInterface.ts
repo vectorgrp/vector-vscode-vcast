@@ -62,7 +62,7 @@ export const vcastEnviroFile = "UNITDATA.VCD";
 // Creating a cache for the checksums so we don't constantly re-run the command
 interface ChecksumCacheType {
   checksum: number;
-  modificationtime: string;
+  modificationTime: string;
 }
 let checksumCache = new Map<string, ChecksumCacheType>();
 
@@ -75,7 +75,7 @@ function getChecksum(filePath: string) {
   let cacheValue = checksumCache.get(filePath);
   if (cacheValue) {
     const currentMtime = fs.statSync(filePath).mtime.toISOString();
-    if (currentMtime == cacheValue.modificationtime) {
+    if (currentMtime == cacheValue.modificationTime) {
       return cacheValue.checksum;
     }
   }
@@ -104,7 +104,7 @@ function getChecksum(filePath: string) {
       // only save into the cache if we get a valid checksum
       const cacheValue: ChecksumCacheType = {
         checksum: returnValue,
-        modificationtime: fs.statSync(filePath).mtime.toISOString(),
+        modificationTime: fs.statSync(filePath).mtime.toISOString(),
       };
       checksumCache.set(filePath, cacheValue);
     } catch {
@@ -449,7 +449,7 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
   } else if (testExecutionFailed(commandStatus)) {
-    // lots of different thigs can go wrong
+    // lots of different things can go wrong
     vectorMessage("Could not complete test execution ...");
     if (commandOutputText.startsWith("FATAL")) {
       commandOutputText = commandOutputText.replace("FATAL", "");

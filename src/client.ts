@@ -53,7 +53,7 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   };
 
   // Options to control the language client
-  // we register for .tsts and c|cpp files, and do the right thing in the callback
+  // we register for .tst and c|cpp files, and do the right thing in the callback
   // depending on the extension of the file
   let clientOptions: LanguageClientOptions = {
     documentSelector: [

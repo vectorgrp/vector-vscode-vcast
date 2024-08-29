@@ -99,7 +99,7 @@ def runClicastServerCommand(enviroPath, commandString):
     global clicastInstances
 
     # Since we use enviro path as a key to the clicastInstances dictionary
-    # it is important that the eviroPath string be consistent.  Rather
+    # it is important that the enviroPath string be consistent.  Rather
     # than checking and correcting the path for each call, we do it here
     enviroPath = cleanEnviroPath(enviroPath)
 
@@ -155,7 +155,7 @@ def terminateClicastProcess(enviroPath):
             # This tells clicast to shutdown gracefully
             # In the case where the server has been stopped with ctrl-c
             # we get here, but the clicast process might have already died
-            # from the propogated SIGINT, so we need to catch the exception
+            # from the propagated SIGINT, so we need to catch the exception
             try:
                 process.stdin.write("clicast-server-shutdown\n")
                 process.stdin.flush()
@@ -230,7 +230,7 @@ def runClicastCommandWithEcho(commandToRun):
 
 def runClicastCommandUsingServer(enviroPath, commandToRun):
 
-    # Strip off the first arg which is the clicst.exe
+    # Strip off the first arg which is the clicast.exe
     # TBD in the future we might only get the clicast args without the clicast exe ...
     commandArgString = " ".join(commandToRun.split(" ")[1:])
     return runClicastServerCommand(enviroPath, commandArgString)
@@ -403,7 +403,7 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
             # now we update the scripts and rebuild the environment
             returnCode, commandOutputRebuild = updateScriptsAndRebuild(enviroPath, jsonOptions)
             # concatenate the output from both commands for completeness
-            commmandOutput = f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
+            commandOutput = f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
 
     return returnCode, commandOutput
 
@@ -429,7 +429,7 @@ def rebuildEnvironmentUsingClicastReBuild(enviroPath):
 def rebuildEnvironment(enviroPath, jsonOptions):
     """
     Note: rebuild environment cannot use server mode
-    since we are deleteing and recreating the environment
+    since we are deleting and recreating the environment
     """
 
     if jsonOptions:
@@ -476,7 +476,7 @@ def generateExecutionReport(enviroPath, testIDObject):
         )
         commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
 
-    # we ignore the exit code and return the stdoutput
+    # we ignore the exit code and return the stdout
     exitCode, stdOutput = runClicastScript(enviroPath, commandFileName)
     return stdOutput
 

@@ -309,7 +309,7 @@ function getWorkspaceFolderList(): string[] {
   let returnList: string[] = [];
   for (const workspace of vscode.workspace.workspaceFolders || []) {
     const workspaceRoot = workspace.uri.fsPath;
-    // doing the path separate replacement here to avoid compexity bwlow
+    // doing the path separate replacement here to avoid complexity below
     returnList.push(workspaceRoot.replaceAll("\\", "/"));
   }
   return returnList;

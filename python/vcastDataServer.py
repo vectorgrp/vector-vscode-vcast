@@ -10,7 +10,7 @@ import vcastDataServerTypes
 from vcastDataServerTypes import commandType, errorCodes
 
 
-# flask was added to vpthon for vc24sp4
+# flask was added to vpython for vc24sp4
 from flask import Flask, request
 
 app = Flask(__name__)
@@ -34,7 +34,7 @@ def shutdown():
     logMessage(f"{logPrefix()} received shutdown request ...")
     # terminate all of the clicast processes
     # Need a copy of the keys because we are modifying the dictionary
-    # whild looping over it would cause an error
+    # while looping over it would cause an error
     keyList = list(clicastInterface.clicastInstances.keys())
     for enviroPath in keyList:
         logMessage(f"  terminating clicast process for: {enviroPath}")
@@ -106,9 +106,11 @@ def vassistant():
 
         elif clientRequest.command in vTestInterface.modeChoices:
 
+            # Note: globalClicastCommand is initialized in the server
+            # main() based on the vpython used to start the server
             exitCode, returnData = vTestInterface.processCommand(
                 clientRequest.command,
-                clientRequest.clicast,
+                clicastInterface.globalClicastCommand,
                 clientRequest.path,
                 clientRequest.test,
                 clientRequest.options,
@@ -189,7 +191,7 @@ def main():
     # process port arg if it exists
     vcastDataServerTypes.processPortArg(args)
 
-    # By registering this signal hander we can
+    # By registering this signal handler we can
     # allow ctrl-c to shutdown the server gracefully
     signal.signal(signal.SIGTERM, serverSignalHandler)
     signal.signal(signal.SIGINT, serverSignalHandler)
