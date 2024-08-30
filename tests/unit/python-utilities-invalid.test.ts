@@ -8,6 +8,7 @@ import {
   afterEach,
   type SpyInstance,
 } from "vitest";
+import path from "node:path"
 
 const timeout = 30_000; // 30 seconds
 
@@ -35,10 +36,9 @@ describe("Testing pythonUtilities (invalid)", () => {
   test(
     "validate that initializePaths if the path was not found",
     async () => {
-      initializePaths("some/invalid/path", "someAction", true);
-
-      const invalidPathToTestEditorInterface =
-        "some/invalid/path/python/testEditorInterface.py";
+      const invalidPath = path.join("some", "invalid", "path")
+      initializePaths(invalidPath, "someAction", true);
+      const invalidPathToTestEditorInterface = path.join(invalidPath, "python", "testEditorInterface.py")
       const expectedMessagePart = `testEditorInterface was not found in the expected location: ${invalidPathToTestEditorInterface}`;
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
