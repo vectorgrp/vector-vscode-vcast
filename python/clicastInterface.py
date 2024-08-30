@@ -441,7 +441,7 @@ def rebuildEnvironment(enviroPath, jsonOptions):
 def executeTest(enviroPath, testIDObject):
     # since we are doing a direct call to clicast, we need to quote the parameters
     # separate variable because in the future there will be additional parameters
-    shouldQuoteParameters = True and not USE_SERVER
+    shouldQuoteParameters = not USE_SERVER
     standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
     # we cannot include the execute command in the command script that we use for
     # results because we need the return code from the execute command separately
@@ -492,7 +492,7 @@ if __name__ == "__main__":
     numberOfCommands = 10
 
     startTime = time.time()
-    for i in range(numberOfCommands):
+    for _ in range(numberOfCommands):
         # test runClicastCommand
         commandToRun = f"{globalClicastCommand} -lc -eDEMO1 -umanager -sManager::PlaceOrder -tTest1 execute run"
         enviroPath = os.path.join(os.getcwd(), "DEMO1")
@@ -510,7 +510,7 @@ if __name__ == "__main__":
     # test runClicastScript
     commandFileName = "testScript.cmd"
     with open(commandFileName, "w") as f:
-        for i in range(numberOfCommands):
+        for _ in range(numberOfCommands):
             f.write("-lc -eDEMO2 -umanager -sManager::PlaceOrder -tTest1 execute run\n")
     enviroPath = os.path.join(os.getcwd(), "DEMO2")
     returnCode, stdoutString = runClicastScript(enviroPath, commandFileName)

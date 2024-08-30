@@ -14,8 +14,8 @@ import { Hover } from "vscode-languageserver-types";
 import { enviroDataType } from "../src-common/commonUtilities";
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 import {
-  generateCodedTestDiagnostic,
-  generateTestScriptDiagnostic,
+  generateDiagnositicForTest,
+  initializePaths,
   updateVPythonCommand,
 } from "./pythonUtilities";
 import {
@@ -23,7 +23,6 @@ import {
   convertKind,
   getLineFragment,
 } from "./serverUtilities";
-import { initializePaths } from "./pythonUtilities";
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
 import { validateTextDocument } from "./tstValidation";
@@ -158,7 +157,7 @@ async function performCompletionProcessing(
     if (returnData.extraText == "MigrationError") {
       // If we get a migration error, we need to send a message to the client
       // The error will be the 2nd element in the returnData.messages
-      generateTestScriptDiagnostic(
+      generateDiagnositicForTest(
         connection,
         returnData.messages[1],
         completionData.textDocument.uri,
@@ -206,7 +205,7 @@ async function performCompletionProcessing(
           } else {
             // else the environment does not support mocks
             // help out with a diagnostic message in the editor
-            generateCodedTestDiagnostic(
+            generateDiagnositicForTest(
               connection,
               "This environment does not support mocks, no auto-completion is available.\nRebuild the environment to use mocks    ",
               completionData.textDocument.uri,
@@ -217,7 +216,7 @@ async function performCompletionProcessing(
         } else {
           // else the VectorCAST version does not support mocks
           // help out with a diagnostic message in the editor
-          generateCodedTestDiagnostic(
+          generateDiagnositicForTest(
             connection,
             "This currently configured version of VectorCAST does not support mocks.\nUpdate to version 24-SP4 or later to use mocks",
             completionData.textDocument.uri,

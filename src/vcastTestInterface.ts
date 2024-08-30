@@ -347,7 +347,7 @@ export async function getResultFileForTest(testID: string) {
   if (!fs.existsSync(resultFile)) {
     let enviroPath = getEnviroPathFromID(testID);
 
-    const commandStatus = await getTestExecutionReport(testID, enviroPath);
+    const commandStatus = await getTestExecutionReport(enviroPath, testID);
 
     if (commandStatus.errorCode == 0) {
       const firstLineOfOutput: string = commandStatus.stdout

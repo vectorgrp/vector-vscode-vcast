@@ -59,28 +59,7 @@ export function initializePaths(
 
 // Get Choice Data Processing -------------------------------------------------------------
 
-export function generateTestScriptDiagnostic(
-  connection: any,
-  message: string,
-  documentUri: string,
-  lineNumber: number
-) {
-  // When we have a coded test file for an environment that does
-  // not have mock support, we give the user a helpful diagnostic message
-  let diagnostic: Diagnostic = getDiagnosticObject(
-    lineNumber,
-    0,
-    1000,
-    message,
-    DiagnosticSeverity.Warning
-  );
-  connection.sendDiagnostics({
-    uri: documentUri,
-    diagnostics: [diagnostic],
-  });
-}
-
-export function generateCodedTestDiagnostic(
+export function generateDiagnositicForTest(
   connection: any,
   message: string,
   documentUri: string,
