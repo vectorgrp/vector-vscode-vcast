@@ -82,7 +82,6 @@ import {
   newEnvironment,
   newTestScript,
   openCodedTest,
-  resetCoverageData,
 } from "./vcastTestInterface";
 
 import {
