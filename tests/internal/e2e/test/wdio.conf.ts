@@ -326,6 +326,10 @@ export const config: Options.Testrunner = {
         "SWITCH_ENV_AT_THE_END",
         async () => await setupSingleEnvAndSwitchAtTheEnd(initialWorkdir),
       ],
+      [
+        "IMPORT_CODED_TEST_IN_TST",
+        async () => await setupSingleEnvAndSwitchAtTheEnd(initialWorkdir),
+      ],
     ]);
 
     // Determine the environment key
@@ -427,15 +431,9 @@ export const config: Options.Testrunner = {
 
     /**
      * Builds one env with 2024sp3 and switches to vc24 at the end.
-     * Builds one env with 2024sp3 and switches to vc24 at the end.
      * TARGET SPEC GROUP: coded_mock_different_env
      */
     async function setupSingleEnvAndSwitchAtTheEnd(initialWorkdir: string) {
-      // Setup environment with clicast and vpython
-      await checkVPython();
-      clicastExecutablePath = await checkClicast();
-      process.env.CLICAST_PATH = clicastExecutablePath;
-
       const workspacePath = path.join(__dirname, "vcastTutorial");
       const testInputVcastTutorial = path.join(
         initialWorkdir,
@@ -449,7 +447,17 @@ export const config: Options.Testrunner = {
       const newVersion = "release24";
 
       // Set up environment directory
-      process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+      if (process.env.SWITCH_ENV_AT_THE_END) {
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+      } else {
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+      }
+
+      // Setup environment with clicast and vpython
+      await checkVPython();
+      clicastExecutablePath = await checkClicast();
+      process.env.CLICAST_PATH = clicastExecutablePath;
+
       await prepareConfig(initialWorkdir);
 
       // Execute environment configuration and run RGW commands
@@ -523,18 +531,16 @@ TEST.END`;
       await writeFile(testsFile, testsCPP);
       await writeFile(testENVFile, testENVContent);
 
-      // Revert VECTORCAST_DIR to the old version and execute setup commands
-      process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
-
+      const deleteTESTEnv = `cd ${workspacePath} && rm -rf TEST`;
       const setCoded = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
       const setEnviro = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/enviroedg TEST.env`;
       const runTest = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -e TEST test script run template.tst`;
 
+      await executeCommand(deleteTESTEnv);
       await executeCommand(setCoded);
       await executeCommand(setEnviro);
       await executeCommand(runTest);
 
-      // Switch to the new environment version
       process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
     }
 
