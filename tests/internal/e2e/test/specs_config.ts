@@ -128,6 +128,12 @@ export function getSpecGroups(useVcast24: boolean) {
       },
       params: {},
     };
+
+    specGroups["import_coded_test"] = {
+      specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
+      env: { IMPORT_CODED_TEST_IN_TST: "True" },
+      params: {},
+    };
   }
 
   return specGroups;

@@ -335,7 +335,7 @@ export const config: Options.Testrunner = {
 
     if (envKey) {
       // Execute the corresponding function if an environment variable is found
-      await envActions.get(envKey)!();
+      await envActions.get(envKey)();
     } else {
       // Default case if no matching environment variable is found
       await setupSingleEnvironment(initialWorkdir);
@@ -426,6 +426,7 @@ export const config: Options.Testrunner = {
     }
 
     /**
+     * Builds one env with 2024sp3 and switches to vc24 at the end.
      * Builds one env with 2024sp3 and switches to vc24 at the end.
      * TARGET SPEC GROUP: coded_mock_different_env
      */
