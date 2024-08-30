@@ -635,7 +635,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     return returnCode, returnObject
 
 
-def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
+def processCommand(mode, clicast, pathToUse, testString="", options=""):
     """
     This is a wrapper for process command logic, so that we can process
     the exceptions in a single place for stand-alone (via main) and server usage
