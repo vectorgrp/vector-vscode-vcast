@@ -45,8 +45,8 @@ def shutdown():
     sys.exit(0)
 
 
-@app.route("/vassistant")
-def vassistant():
+@app.route("/vcastserver")
+def vcastserver():
     """
     This function does the work of translating the clientRequest object into a call
     to the vTestInterface module and then sending the response object back to the client

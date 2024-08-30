@@ -58,7 +58,7 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(true);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/vassistant?request={"command":"closeConnection","path":"test/path"}'
+      'http://localhost:60461/vcastserver?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
@@ -75,7 +75,7 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/vassistant?request={"command":"closeConnection","path":"test/path"}'
+      'http://localhost:60461/vcastserver?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
@@ -144,7 +144,7 @@ describe("test server functions", () => {
       `Enviro server error: Server is not running, disabling server mode for this session`
     );
     expect(fetch).toHaveBeenCalledWith(
-      `http://localhost:60461/vassistant?request=${JSON.stringify(requestObject)}`
+      `http://localhost:60461/vcastserver?request=${JSON.stringify(requestObject)}`
     );
   });
 });

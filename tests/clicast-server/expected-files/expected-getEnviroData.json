@@ -1,7 +1,7 @@
 {
     "data": {
         "enviro": {
-            "mockingSupport": false
+            "mockingSupport": true
         },
         "testData": [
             {
