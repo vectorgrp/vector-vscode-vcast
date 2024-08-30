@@ -708,7 +708,7 @@ def initializeEnvironment(clicastPath):
     # Design to work in the clean directory case only
     if os.path.isdir(ENVIRO_PATH) == True:
         print(
-            "  Current directory already contains a 'Environments' sub-directory ... please remove"
+            f"  Current directory already contains a '{ENVIRO_PATH}' sub-directory ... please remove"
         )
         sys.exit(1)
 
