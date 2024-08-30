@@ -10,8 +10,7 @@ import {
 } from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
 import {
-  cleanClicastOutput,
-  cleanVPythonOutput,
+  cleanVectorcastOutput,
 } from "../src-common/commonUtilities";
 
 import {
@@ -21,6 +20,7 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import { pythonErrorCodes } from "../src-common/vcastServerTypes";
+import { Command } from "vscode-languageclient";
 
 const path = require("path");
 
@@ -59,8 +59,8 @@ export function executeVPythonScript(
       whereToRun,
       printErrorDetails
     );
-    // remove extraneous text from the output
-    returnData.stdout = cleanVPythonOutput(commandStatus.stdout);
+    // see detailed comment with the function definition
+    returnData.stdout = cleanVectorcastOutput(commandStatus.stdout);
     returnData.errorCode = commandStatus.errorCode;
     if (returnData.errorCode != 0) {
       vectorMessage("Error running VectorCAST command");
@@ -93,8 +93,9 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-  // see comment about ACTUAL-DATA in cleanVPythonOutput
-  let stdoutString = cleanClicastOutput(error.stdout.toString());
+
+  // see detailed comment with the function definition
+  let stdoutString:string = cleanVectorcastOutput(error.stdout.toString());
   let commandStatus = { errorCode: error.status, stdout: stdoutString };
 
   if (error.status == pythonErrorCodes.testInterfaceError) {

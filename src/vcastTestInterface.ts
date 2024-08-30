@@ -2,7 +2,7 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { cleanVPythonOutput } from "../src-common/commonUtilities";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 import {
   configFilename,
@@ -99,7 +99,8 @@ function getChecksum(filePath: string) {
     // convert the to a number and return
     // this will throw if something is wrong with the result
     try {
-      commandOutputString = cleanVPythonOutput(commandOutputString);
+      // see detailed comment with the function definition
+      commandOutputString = cleanVectorcastOutput(commandOutputString);
       returnValue = Number(commandOutputString);
       // only save into the cache if we get a valid checksum
       const cacheValue: ChecksumCacheType = {

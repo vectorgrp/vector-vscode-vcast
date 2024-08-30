@@ -13,7 +13,7 @@ import fs = require("fs");
 import path = require("path");
 
 import { execSync } from "child_process";
-import { cleanVPythonOutput } from "../src-common/commonUtilities";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 import { getDiagnosticObject } from "./tstValidation";
 
 let testEditorScriptPath: string | undefined = undefined;
@@ -159,8 +159,8 @@ export function getChoiceDataFromPython(
   const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}"`;
   let commandOutputBuffer = execSync(commandToRun).toString();
 
-  // see comment about ACTUAL-DATA in cleanVPythonOutput
-  commandOutputBuffer = cleanVPythonOutput(commandOutputBuffer);
+  // see detailed comment with the function definition
+  commandOutputBuffer = cleanVectorcastOutput(commandOutputBuffer);
 
   // two statements to make debugging easy
   const returnData = JSON.parse(commandOutputBuffer);
