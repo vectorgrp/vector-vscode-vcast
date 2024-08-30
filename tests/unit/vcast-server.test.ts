@@ -163,5 +163,8 @@ describe("test server functions", () => {
     expect(mockLogServerCommandsCallback).toHaveBeenCalledWith(
       expectedLogMessage
     );
+
+    // Check if the mock function got called in transmitCommand
+    expect(mockTerminateCallback).toHaveBeenCalledOnce;
   });
 });
