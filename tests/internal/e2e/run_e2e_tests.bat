@@ -30,7 +30,7 @@ if "%USE_VCAST_24%"=="True" (
 )
 
 call :set_specs_params
-
+setlocal enabledelayedexpansion
 if "%RUN_GROUP_NAME%" == "ALL" (
   for %%a in (%ALL_GROUP_NAMES%) do (
     echo Running %%a
@@ -44,16 +44,17 @@ if "%RUN_GROUP_NAME%" == "ALL" (
     npx wdio run test/wdio.conf.ts
     
     if %ERRORLEVEL% NEQ 0 (
-    echo Error occurred, stopping the script.
-    exit /B 1
+      echo Error occurred, stopping the script.
+      exit /B 1
     )
+    set "PATH=%OLD_PATH%"
   )
 ) else (
   npx wdio run test/wdio.conf.ts
 )
 
 echo Done calling wdio
-set PATH=%OLD_PATH%
+set "PATH=%OLD_PATH%"
 del "%JS_FILE%" 
 del "%SPECS_CONFIG_FILE%"
 :end
