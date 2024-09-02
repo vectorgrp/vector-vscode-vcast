@@ -126,7 +126,9 @@ export function getSpecGroups(useVcast24: boolean) {
         VECTORCAST_DIR: `/vcast/release24_sp1:${process.env.HOME}/vcast/release24_sp1`,
         SWITCH_ENV_AT_THE_END: "True",
       },
-      params: {},
+      params: {
+        vcReleaseOnPath: false,
+      },
     };
 
     specGroups["import_coded_test"] = {

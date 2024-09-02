@@ -449,14 +449,21 @@ export const config: Options.Testrunner = {
       // Set up environment directory
       if (process.env.SWITCH_ENV_AT_THE_END) {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+
+        // Because we remove release from path in the setup --> Add the old version to PATH
+        const currentPath = process.env.PATH || "";
+        const newPath = path.join(process.env.VECTORCAST_DIR || "", "vpython");
+        process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
+        clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
+        process.env.CLICAST_PATH = clicastExecutablePath;
       } else {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
       }
 
-      // Setup environment with clicast and vpython
-      await checkVPython();
-      clicastExecutablePath = await checkClicast();
-      process.env.CLICAST_PATH = clicastExecutablePath;
+      console.log("PATH: ");
+      console.log("#########################################");
+      console.log(process.env.PATH);
+      console.log("#########################################");
 
       await prepareConfig(initialWorkdir);
 
