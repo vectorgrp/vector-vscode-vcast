@@ -2,16 +2,17 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "VectorCAST Test Explorer",
-      "type": "extensionHost",
+      "type": "node",
       "request": "launch",
-      "runtimeExecutable": "${execPath}",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "name": "Debug VectorCAST Unit Tests",
       "autoAttachChildProcesses": true,
-      "outFiles": ["${workspaceFolder}/out/*.js"],
-      "preLaunchTask": {
-        "type": "npm",
-        "script": "esbuild"
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test"],
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "test"
       }
     },
     {
