@@ -1,18 +1,19 @@
 {
   "version": "0.2.0",
   "configurations": [
-    {
+     {
       "type": "node",
       "request": "launch",
-      "name": "Debug VectorCAST Unit Tests",
+      "name": "Debug VectorCAST Unit Test",
       "autoAttachChildProcesses": true,
       "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "test"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${fileBasenameNoExtension}"],
       "smartStep": true,
       "console": "integratedTerminal",
       "env": {
-        "NODE_ENV": "test"
+        "NODE_ENV": "test",
+        "PACKAGE_PATH": "${workspaceFolder}"
       }
     },
     {
