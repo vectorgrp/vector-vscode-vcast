@@ -3,7 +3,7 @@ import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import {
   updateVPythonCommand,
   getVPythonCommand,
-  generateTestScriptDiagnostic,
+  generateDiagnositicForTest,
 } from "../../server/pythonUtilities";
 import path from "node:path";
 import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
@@ -61,7 +61,7 @@ describe("Testing pythonUtilities (valid)", () => {
     const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
 
     // Function under test
-    generateTestScriptDiagnostic(
+    generateDiagnositicForTest(
       connection,
       "Test message",
       "file:///path/to/document",

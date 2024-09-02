@@ -193,7 +193,7 @@ def transmitTestCommand(requestObject):
     # request is a class, so we convert it to a dictionary, then a string
     dataAsString = json.dumps(requestObject.toDict())
     returnData = requests.get(
-        f"{serverURL()}/vassistant", params={"request": dataAsString}
+        f"{serverURL()}/vcastserver", params={"request": dataAsString}
     )
     return returnData.json()
 
@@ -528,7 +528,7 @@ def getEnviroDataMultipleTimesUsingTheServer(clicastPath, enviroPath):
         # request is a class, so we convert it to a dictionary, then a string
         dataAsString = json.dumps(request.toDict())
         response = requests.get(
-            f"{serverURL()}/vassistant", params={"request": dataAsString}
+            f"{serverURL()}/vcastserver", params={"request": dataAsString}
         )
         jsonData = response.json()["data"]
         assert alreadyChecked or len(jsonData["unitData"]) > 0
@@ -630,7 +630,7 @@ def errorTests(enviroPath, clicastPath):
     # send an invalid request string to the server
     print("  Sending invalid request string to server")
     returnData = requests.get(
-        f"{serverURL()}/vassistant", params={"request": "nonsense"}
+        f"{serverURL()}/vcastserver", params={"request": "nonsense"}
     )
     returnData = returnData.json()
     exitCode = returnData["exitCode"]
@@ -708,7 +708,7 @@ def initializeEnvironment(clicastPath):
     # Design to work in the clean directory case only
     if os.path.isdir(ENVIRO_PATH) == True:
         print(
-            "  Current directory already contains a 'Environments' sub-directory ... please remove"
+            f"  Current directory already contains a '{ENVIRO_PATH}' sub-directory ... please remove"
         )
         sys.exit(1)
 

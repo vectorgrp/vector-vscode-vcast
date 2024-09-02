@@ -559,7 +559,7 @@ def processOptions(optionString):
     return returnObject
 
 
-def processCommandLogic(mode, clicast, pathToUse, testString="", options="") -> dict:
+def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     """
     This function does the actual work of processing a vTestInterface command,
     it will return a dictionary with the results of the command
@@ -635,7 +635,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options="") -> 
     return returnCode, returnObject
 
 
-def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
+def processCommand(mode, clicast, pathToUse, testString="", options=""):
     """
     This is a wrapper for process command logic, so that we can process
     the exceptions in a single place for stand-alone (via main) and server usage

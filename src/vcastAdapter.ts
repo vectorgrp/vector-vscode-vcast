@@ -520,7 +520,7 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   const vceFilename = path.basename(vcePath);
   let vcastArgs: string[] = ["-e " + vceFilename];
 
-  var dotIndex = vcePath.lastIndexOf(".");
+  const dotIndex = vcePath.lastIndexOf(".");
   const enviroPath = vcePath.slice(0, dotIndex);
 
   const enclosingDirectory = path.dirname(vcePath);
@@ -671,25 +671,25 @@ function executeTestViaPython(
 // Server logic is in a separate function below
 export async function getTestExecutionReport(
   enviroPath: string,
-  testID: string
+  testID: string,
 ): Promise<commandStatusType> {
   if (globalEnviroDataServerActive) {
-    return await getTestExecutionReportFromServer(testID, enviroPath);
+    return await getTestExecutionReportFromServer(enviroPath, testID);
   } else {
-    return getTestExecutionReportFromPython(testID, enviroPath);
+    return getTestExecutionReportFromPython(enviroPath, testID);
   }
 }
 
 // Server Logic
 async function getTestExecutionReportFromServer(
   enviroPath: string,
-  nodeID: string
+  testID: string,
 ): Promise<commandStatusType> {
   //
   const requestObject = getClientRequestObject(
     vcastCommandType.report,
     enviroPath,
-    nodeID
+    testID
   );
 
   let transmitResponse: transmitResponseType =
@@ -701,7 +701,7 @@ async function getTestExecutionReportFromServer(
 // python logic
 function getTestExecutionReportFromPython(
   enviroPath: string,
-  testID: string
+  testID: string,
 ): commandStatusType {
   //
   const commandToRun = getVcastInterfaceCommand(

@@ -20,7 +20,7 @@ import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
 import {
   choiceKindType,
-  generateCodedTestDiagnostic,
+  generateDiagnositicForTest,
   getChoiceData,
 } from "../../server/pythonUtilities";
 import { setServerState } from "../../src-common/vcastServer";
@@ -364,7 +364,7 @@ describe("Testing pythonUtilities (valid)", () => {
     const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
 
     // Function under test
-    generateCodedTestDiagnostic(
+    generateDiagnositicForTest(
       connection,
       "Test message",
       "file:///path/to/document",

@@ -96,14 +96,9 @@ export async function getTstCompletionData(
       }
       returnData.choiceKind = choiceKind;
       returnData.choiceList = choiceArray;
-    } else if (upperCaseLine.startsWith("TEST.SLOT:")) {
-      returnData = await getChoiceData(
-        choiceKindType.choiceListTST,
-        enviroPath,
-        lineSoFar
-      );
     } else if (
       // this handles the everything else
+      upperCaseLine.startsWith("TEST.SLOT:") ||
       upperCaseLine.startsWith("TEST.EXPECTED:") ||
       upperCaseLine.startsWith("TEST.VALUE:") ||
       upperCaseLine.startsWith("TEST.VALUE_USER_CODE:") ||

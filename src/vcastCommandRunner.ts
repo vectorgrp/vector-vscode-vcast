@@ -20,7 +20,6 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import { pythonErrorCodes } from "../src-common/vcastServerTypes";
-import { Command } from "vscode-languageclient";
 
 const path = require("path");
 

@@ -125,7 +125,7 @@ export async function serverIsAlive() {
 // This does the actual fetch from the server
 export async function transmitCommand(
   requestObject: clientRequestType,
-  route = "vassistant"
+  route = "vcastserver"
 ) {
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
