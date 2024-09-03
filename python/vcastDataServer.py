@@ -19,8 +19,8 @@ import clicastInterface
 import testEditorInterface
 import tstUtilities
 import vTestInterface
-import vTestUtilities
-from vTestUtilities import logMessage, logPrefix
+import pythonUtilities
+from pythonUtilities import logFileHandle, logMessage, logPrefix
 
 
 @app.route("/ping")
@@ -35,7 +35,7 @@ def shutdown():
     # terminate all of the clicast processes
     # Need a copy of the keys because we are modifying the dictionary
     # while looping over it would cause an error
-    keyList = list(clicastInterface.clicastInstances.keys())
+    keyList = list(pythonUtilities.clicastInstances.keys())
     for enviroPath in keyList:
         logMessage(f"  terminating clicast process for: {enviroPath}")
         clicastInterface.terminateClicastProcess(enviroPath)
@@ -60,17 +60,17 @@ def vcastserver():
         logMessage(
             f"\n{logPrefix()} received client request: {clientRequest.command} for {clientRequest.path}"
         )
-        logMessage(f"  clicastInstances: {clicastInterface.clicastInstances.keys()}")
+        logMessage(f"  clicastInstances: {pythonUtilities.clicastInstances.keys()}")
         exitCode = 0
         if clientRequest.command == commandType.closeConnection:
 
             returnValue = clicastInterface.terminateClicastProcess(clientRequest.path)
             returnData = {
                 "status": returnValue,
-                "newlist": list(clicastInterface.clicastInstances.keys()),
+                "newlist": list(pythonUtilities.clicastInstances.keys()),
             }
             logMessage(
-                f"  clicastInstances: {clicastInterface.clicastInstances.keys()}"
+                f"  clicastInstances: {pythonUtilities.clicastInstances.keys()}"
             )
 
         elif clientRequest.command == commandType.choiceListTst:
@@ -110,7 +110,7 @@ def vcastserver():
             # main() based on the vpython used to start the server
             exitCode, returnData = vTestInterface.processCommand(
                 clientRequest.command,
-                clicastInterface.globalClicastCommand,
+                pythonUtilities.globalClicastCommand,
                 clientRequest.path,
                 clientRequest.test,
                 clientRequest.options,
@@ -178,12 +178,12 @@ def main():
     """
 
     # force server mode on
-    clicastInterface.USE_SERVER = True
+    pythonUtilities.USE_SERVER = True
 
     # set the global clicast command
     # we are running under vpython so we use that to find the path to clicast
     vcastInstallation = os.path.dirname(sys.executable)
-    clicastInterface.globalClicastCommand = os.path.join(vcastInstallation, "clicast")
+    pythonUtilities.globalClicastCommand = os.path.join(vcastInstallation, "clicast")
 
     argParser = setupArgs()
     args, _ = argParser.parse_known_args()
@@ -199,12 +199,12 @@ def main():
         signal.signal(signal.SIGBREAK, serverSignalHandler)
 
     # start the server
-    with open("vcastDataServer.log", "w", buffering=1) as vTestUtilities.logFileHandle:
+    with open("vcastDataServer.log", "w", buffering=1) as pythonUtilities.logFileHandle:
         print(
             f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT} ..."
         )
         logMessage(
-            f"{logPrefix()} using clicast command: {clicastInterface.globalClicastCommand}\n"
+            f"{logPrefix()} using clicast command: {pythonUtilities.globalClicastCommand}\n"
         )
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)
 

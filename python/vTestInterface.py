@@ -24,6 +24,7 @@ This script must be run under vpython
 """
 
 import clicastInterface
+import pythonUtilities
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
 from versionChecks import (
@@ -571,7 +572,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     # no need to pass this all around
     # will raise usageError if path is invalid
     validateClicastCommand(clicast, mode)
-    clicastInterface.globalClicastCommand = clicast
+    pythonUtilities.globalClicastCommand = clicast
 
     # will raise usageError if path is invalid
     validatePath(pathToUse)

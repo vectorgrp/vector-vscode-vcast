@@ -11,47 +11,32 @@ in vTestInterface.py.  It was moved here to give access to the
 VectorCAST environment server.
 """
 
-from vTestUtilities import logMessage
+import pythonUtilities
+from pythonUtilities import cleanEnviroPath, logMessage
 from vcastDataServerTypes import errorCodes
 
 from vector.lib.core.system import cd
 
+# Filename used when we run a clicast command script
 commandFileName = "commands.cmd"
-
-globalClicastCommand = ""
-USE_SERVER = False
-
-# Key is the path to the environment, value is the clicast instance for that environment
-clicastInstances = {}
-
-
-def cleanEnviroPath(enviroPath):
-    """
-    This function is used to clean up the environment path
-    to make it compatible with the clicast server
-    """
-    returnPath = enviroPath.replace("\\", "/")
-    if returnPath[2] == ":":
-        returnPath = returnPath[0].lower() + returnPath[1:]
-    return returnPath
 
 
 def connectClicastInstance(enviroPath):
 
     # if the enviroPath is in the instances
     clicastInstanceRunning = False
-    if enviroPath in clicastInstances and clicastInstances[enviroPath].poll() == None:
+    if enviroPath in pythonUtilities.clicastInstances and pythonUtilities.clicastInstances[enviroPath].poll() == None:
         logMessage(
-            f"  using existing clicast instance [{clicastInstances[enviroPath].pid}] for: {enviroPath} "
+            f"  using existing clicast instance [{pythonUtilities.clicastInstances[enviroPath].pid}] for: {enviroPath} "
         )
         clicastInstanceRunning = True
     else:
 
         # An old instance might exist if the server crashed, so clean that up
-        if enviroPath in clicastInstances:
+        if enviroPath in pythonUtilities.clicastInstances:
             logMessage(f"  previous clicast server seems to have died ...")
 
-        commandArgs = [globalClicastCommand, "-lc", "tools", "server"]
+        commandArgs = [pythonUtilities.globalClicastCommand, "-lc", "tools", "server"]
         CWD = os.path.dirname(enviroPath)
         process = subprocess.Popen(
             commandArgs,
@@ -78,7 +63,7 @@ def connectClicastInstance(enviroPath):
                 break
 
         if clicastInstanceRunning:
-            clicastInstances[enviroPath] = process
+            pythonUtilities.clicastInstances[enviroPath] = process
             logMessage(
                 f"  started clicast instance [{process.pid}] for environment: {enviroPath}"
             )
@@ -96,7 +81,6 @@ def runClicastServerCommand(enviroPath, commandString):
     Note: we indent the log messages here to make them easier to
     read in the context of the original server command received
     """
-    global clicastInstances
 
     # Since we use enviro path as a key to the clicastInstances dictionary
     # it is important that the enviroPath string be consistent.  Rather
@@ -111,7 +95,7 @@ def runClicastServerCommand(enviroPath, commandString):
 
     else:
         logMessage(f"    commandString: {commandString}")
-        process = clicastInstances[enviroPath]
+        process = pythonUtilities.clicastInstances[enviroPath]
         process.stdin.write(f"{commandString}\n")
         process.stdin.flush()
 
@@ -127,7 +111,7 @@ def runClicastServerCommand(enviroPath, commandString):
             returnText += responseLine
             responseLine = process.stdout.readline()
 
-        exitCode = int (responseLine.split("|")[1].strip())
+        exitCode = int(responseLine.split("|")[1].strip())
         logMessage(f"    server return code: {exitCode}")
 
     return exitCode, returnText
@@ -141,17 +125,15 @@ def terminateClicastProcess(enviroPath):
     if we are in server mode, we return True if we terminated a process, False otherwise
     """
 
-    global clicastInstances
-
     # normalize the enviroPath
     enviroPath = cleanEnviroPath(enviroPath)
     returnValue = False
-    if USE_SERVER:
-        if enviroPath in clicastInstances:
+    if pythonUtilities.USE_SERVER:
+        if enviroPath in pythonUtilities.clicastInstances:
             logMessage(
-                f"  terminating clicast instance [{clicastInstances[enviroPath].pid}] for environment: {enviroPath}"
+                f"  terminating clicast instance [{pythonUtilities.clicastInstances[enviroPath].pid}] for environment: {enviroPath}"
             )
-            process = clicastInstances[enviroPath]
+            process = pythonUtilities.clicastInstances[enviroPath]
             # This tells clicast to shutdown gracefully
             # In the case where the server has been stopped with ctrl-c
             # we get here, but the clicast process might have already died
@@ -162,7 +144,7 @@ def terminateClicastProcess(enviroPath):
                 process.wait()
             except:
                 pass
-            del clicastInstances[enviroPath]
+            del pythonUtilities.clicastInstances[enviroPath]
             returnValue = True
         else:
             logMessage(f"  no clicast instance exists for environment: {enviroPath}")
@@ -259,7 +241,7 @@ def runClicastCommandCommandLine(commandToRun):
 
 
 def runClicastCommand(enviroPath, commandToRun):
-    if USE_SERVER:
+    if pythonUtilities.USE_SERVER:
         return runClicastCommandUsingServer(enviroPath, commandToRun)
     else:
         return runClicastCommandCommandLine(commandToRun)
@@ -292,7 +274,7 @@ def runClicastScriptCommandLine(commandFileName, echoToStdout):
 
     # true at the end tells clicast to exit with the exit code of the first
     # command that fails.  If this is set to false, it always returns 0
-    commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} true"
+    commandToRun = f"{pythonUtilities.globalClicastCommand} -lc tools execute {commandFileName} true"
 
     if echoToStdout:
         returnCode, stdoutString = runClicastCommandWithEcho(commandToRun)
@@ -307,13 +289,15 @@ def runClicastScript(enviroPath, commandFileName, echoToStdout=False):
 
     # noServer allows the caller to specify that we should run clicast directly
 
-    if USE_SERVER:
+    if pythonUtilities.USE_SERVER:
         return runClicastScriptUsingServer(enviroPath, commandFileName)
     else:
         return runClicastScriptCommandLine(commandFileName, echoToStdout)
 
+
 tempEnviroScript = "rebuild.env"
 tempTestScript = "rebuild.tst"
+
 
 def updateScriptsAndRebuild(enviroPath, jsonOptions):
     """
@@ -363,11 +347,11 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
         # commandFile.write(f"-e{enviroName} enviro delete\n")
         commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
         commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
-    
+
     # there is no benefit to starting a new server process here (if we are server mode)
     # so we call the command line version directly
     returnCodeRebuild, commandOutputRebuild = runClicastScriptCommandLine(
-        commandFileName, echoToStdout=(not USE_SERVER)
+        commandFileName, echoToStdout=(not pythonUtilities.USE_SERVER)
     )
 
     os.remove(tempEnviroScript)
@@ -395,13 +379,15 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
             )
             commandFile.write(f"-e{enviroName} test script create {tempTestScript}\n")
         returnCode, commandOutput = runClicastScript(
-            enviroPath, commandFileName, echoToStdout=(not USE_SERVER)
+            enviroPath, commandFileName, echoToStdout=(not pythonUtilities.USE_SERVER)
         )
 
         # if the script generation was successful, we update the scripts and rebuild
         if returnCode == 0:
             # now we update the scripts and rebuild the environment
-            returnCode, commandOutputRebuild = updateScriptsAndRebuild(enviroPath, jsonOptions)
+            returnCode, commandOutputRebuild = updateScriptsAndRebuild(
+                enviroPath, jsonOptions
+            )
             # concatenate the output from both commands for completeness
             commandOutput = f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
 
@@ -415,7 +401,9 @@ def rebuildEnvironmentUsingClicastReBuild(enviroPath):
     """
     with cd(os.path.dirname(enviroPath)):
         enviroName = os.path.basename(enviroPath)
-        commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro re_build"
+        commandToRun = (
+            f"{pythonUtilities.globalClicastCommand} -lc -e{enviroName} enviro re_build"
+        )
         returnCode, commandOutput = runClicastCommandWithEcho(commandToRun)
 
     return returnCode, commandOutput
@@ -441,11 +429,13 @@ def rebuildEnvironment(enviroPath, jsonOptions):
 def executeTest(enviroPath, testIDObject):
     # since we are doing a direct call to clicast, we need to quote the parameters
     # separate variable because in the future there will be additional parameters
-    shouldQuoteParameters = not USE_SERVER
+    shouldQuoteParameters = not pythonUtilities.USE_SERVER
     standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
     # we cannot include the execute command in the command script that we use for
     # results because we need the return code from the execute command separately
-    commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
+    commandToRun = (
+        f"{pythonUtilities.globalClicastCommand} -lc {standardArgs} execute run"
+    )
     executeReturnCode, stdoutText = runClicastCommand(enviroPath, commandToRun)
 
     # currently clicast returns the same error code for a failed coded test compile or
@@ -486,15 +476,17 @@ if __name__ == "__main__":
     """
     Unit tests, with values hard-coded for now ...
     """
-    USE_SERVER = True
-    globalClicastCommand = "/home/Users/jjp/vector/build/vc24/Linux/vc/clicast"
+    pythonUtilities.USE_SERVER = True
+    pythonUtilities.globalClicastCommand = (
+        "/home/Users/jjp/vector/build/vc24/Linux/vc/clicast"
+    )
 
     numberOfCommands = 10
 
     startTime = time.time()
     for _ in range(numberOfCommands):
         # test runClicastCommand
-        commandToRun = f"{globalClicastCommand} -lc -eDEMO1 -umanager -sManager::PlaceOrder -tTest1 execute run"
+        commandToRun = f"{pythonUtilities.globalClicastCommand} -lc -eDEMO1 -umanager -sManager::PlaceOrder -tTest1 execute run"
         enviroPath = os.path.join(os.getcwd(), "DEMO1")
         returnCode, stdoutString = runClicastCommand(enviroPath, commandToRun)
         print(stdoutString)
