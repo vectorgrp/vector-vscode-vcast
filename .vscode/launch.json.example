@@ -82,19 +82,19 @@
       "console": "integratedTerminal"
     },
     {
-        "name": "client-test",
-        "type": "python",
-        "console": "integratedTerminal",
-        "request": "launch",
-        "program": "${workspaceFolder}/tests/clicast-server/client.py",
-        "cwd": "C:/RDS/VectorCAST/FOO/",
-        "env": {
-            "NO_PROXY": "localhost",
-            "VECTORCAST_DIR": "c:/VCAST/vc24sp2",
-        },
-        "args":[
-            "--test=full"
-        ]
+      "type": "node",
+      "request": "launch",
+      "name": "Debug VectorCAST Unit Test",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${fileBasenameNoExtension}"],
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "test",
+        "PACKAGE_PATH": "${workspaceFolder}"
+      }
     },
   ]
 }
