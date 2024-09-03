@@ -17,9 +17,64 @@ import {
   emptyChoiceData,
   getChoiceData,
 } from "./pythonUtilities";
+import { promisify } from "util";
+import { exec } from "child_process";
 
 function filterArray(currentArray: string[], whatToRemove: string) {
   return currentArray.filter((element) => element !== whatToRemove);
+}
+
+/**
+ * Checks if a specific VectorCAST option is set to a given value in the specified environment.
+ *
+ * @param {string} enviroPath - The file path to the environment where the command should be executed.
+ * @param {string} option - The VectorCAST option to check (e.g., 'VCAST_CODED_TESTS_SUPPORT').
+ * @param {string} optionValue - The expected value of the option (e.g., 'True', ...).
+ * @returns {Promise<boolean>} - Resolves to `true` if the option value matches, otherwise `false`.
+ */
+export async function checkClicastOption(
+  enviroPath: string,
+  option: string,
+  optionValue: string
+): Promise<boolean> {
+  const execAsync = promisify(exec);
+  const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast option ${option}`;
+
+  try {
+    const { stdout } = await execAsync(getCodedTestsSupportCommand, {
+      cwd: enviroPath,
+    });
+
+    return stdout.includes(`${optionValue}`);
+  } catch (stderr) {
+    console.error(`Error executing command: ${stderr}`);
+    return false;
+  }
+}
+
+/**
+ * Checks if a specific keyword followed by a colon and a given value exists in the extracted text.
+ *
+ * @param {string} extractedText - The text to search within.
+ * @param {string} keyword - The keyword to search for.
+ * @param {string} value - The value that should follow the colon after the keyword.
+ * @returns {Promise<boolean>} - Resolves to `true` if the keyword and value are found in the text, otherwise `false`.
+ */
+export function checkForKeywordInLine(
+  extractedText: string,
+  keyword: string,
+  value: string
+): boolean {
+  const regex = new RegExp(`^${keyword}:${value}$`);
+  const lines = extractedText.split(/\r?\n/);
+
+  for (const line of lines) {
+    if (regex.test(line.trim())) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export async function getTstCompletionData(
@@ -29,6 +84,17 @@ export async function getTstCompletionData(
   let returnData: choiceDataType = emptyChoiceData;
   const testScriptPath = url.fileURLToPath(completionData.textDocument.uri);
   const enviroPath = getEnviroNameFromTestScript(testScriptPath);
+  const extractedText = currentDocument.getText();
+
+  let codedTestsEnabled;
+
+  if (enviroPath) {
+    codedTestsEnabled = checkClicastOption(
+      enviroPath,
+      "VCAST_CODED_TESTS_SUPPORT",
+      "True"
+    );
+  }
 
   if (enviroPath && fs.existsSync(enviroPath)) {
     // The work we do is dependent on the trigger
@@ -54,6 +120,24 @@ export async function getTstCompletionData(
     } else if (trigger == "DOT" && upperCaseLine == "TEST.") {
       returnData.choiceKind = "Keyword";
       returnData.choiceList = testCommandList;
+
+      const codedTestsDriverInSubprogram = checkForKeywordInLine(
+        extractedText,
+        "TEST.SUBPROGRAM",
+        "coded_tests_driver"
+      );
+      if (codedTestsEnabled && codedTestsDriverInSubprogram) {
+        // Check if its already there, otherwise it will be pushed multiple times
+        if (!returnData.choiceList.includes("CODED_TEST_FILE")) {
+          returnData.choiceList.push("CODED_TEST_FILE");
+        }
+
+        // Remove "VALUE" and "EXPECTED" as it is not allowed with coded_tests_driver
+        // TODO: Check if we can get rid of those in getFunctionList()
+        returnData.choiceList = returnData.choiceList.filter(
+          (item) => item !== "VALUE" && item !== "EXPECTED"
+        );
+      }
     } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:") {
       returnData.choiceKind = "Text";
       returnData.choiceList = ["<test-name>"];
@@ -128,6 +212,10 @@ export async function getTstCompletionData(
         const title = pieces[1].trim().replace(/['"]+/g, "");
         returnData.choiceList[i] = `${key} | ${title}`;
       }
+      // No autocompletion yet for TEST.CODED_TEST_FILE:
+    } else if (upperCaseLine.startsWith("TEST.CODED_TEST_FILE:")) {
+      returnData.choiceKind = "Keyword";
+      returnData.choiceList = [];
     }
   } // enviroPath is valid
 

@@ -6,6 +6,7 @@ import {
 } from "vscode-languageserver";
 
 import { testCommandList, scriptFeatureList } from "./serverUtilities";
+import { checkForKeywordInLine } from "./tstCompletion";
 
 export function getDiagnosticObject(
   line: number,
@@ -49,6 +50,11 @@ export function validateTextDocument(textDocument: TextDocument) {
   let withinValueUserCode: boolean = false;
   let withinExpectedUserCode: boolean = false;
   let withinImportFailures = false;
+  const codedTestsDriverInSubprogram = checkForKeywordInLine(
+    text,
+    "TEST.SUBPROGRAM",
+    "coded_tests_driver"
+  );
 
   for (lineIndex = 0; lineIndex < lineList.length; lineIndex++) {
     let thisLine: string = lineList[lineIndex];
@@ -117,13 +123,39 @@ export function validateTextDocument(textDocument: TextDocument) {
                 'Commands cannot be nested in a "IMPORT_FAILURES" block'
               )
             );
-        } else if (
-          command == "VALUE" ||
-          command == "EXPECTED" ||
+          // If TEST.SUBPROGRAM is coded_tests_driver, check for disallowed TEST.VALUE and TEST.EXPECTED
+        } else if (command == "VALUE" || command == "EXPECTED") {
+          if (codedTestsDriverInSubprogram) {
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "TEST.VALUE and TEST.EXPECTED are not valid when TEST.SUBPROGRAM is set to coded_tests_driver"
+              )
+            );
+          } else {
+            // Handle general VALUE or EXPECTED validation
+          }
+        }
+        // Other commands (TBD: validate in Python)
+        else if (
           command == "STUB" ||
           command == "SLOT" ||
           command == "REQUIREMENT_KEY"
         ) {
+          // When TEST.SUBPROGRAM is set to coded_tests_driver, TEST.CODED_TEST_FILE should throw an error
+        } else if (command == "CODED_TEST_FILE") {
+          if (!codedTestsDriverInSubprogram) {
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "TEST.CODED_TEST_FILE is not valid when TEST.SUBPROGRAM is not set to coded_tests_driver"
+              )
+            );
+          }
           // TBD: we should validate in python
         } else if (command == "NAME") {
         } else if (command == "NOTES") {
