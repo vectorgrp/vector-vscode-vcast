@@ -35,7 +35,7 @@ export interface clientRequestType {
 }
 
 /**
- * This function is exported for testing purposes only.
+ * @testing This function is exported for testing purposes only.
  * Returns the server URL used in API calls.
  */
 export function serverURL() {
@@ -74,7 +74,7 @@ export function setTerminateServerCallback(callback: any) {
 }
 
 /**
- * This function is exported for testing purposes only.
+ * @testing This function is exported for testing purposes only.
  * It indirectly calls terminateServerProcessing() in the core extension case.
  */
 export function terminateServerProcessing() {
@@ -93,7 +93,7 @@ export function setLogServerCommandsCallback(callback: any) {
 }
 
 /**
- * This function is exported for testing purposes only.
+ * @testing This function is exported for testing purposes only.
  * Logs the server command by calling the logServerCommandsCallback.
  */
 export function logServerCommand(message: string) {
