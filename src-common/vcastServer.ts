@@ -34,7 +34,11 @@ export interface clientRequestType {
   options?: string;
 }
 
-function serverURL() {
+/**
+ * @testing This function is exported for testing purposes only.
+ * Returns the server URL used in API calls.
+ */
+export function serverURL() {
   return `http://${HOST}:${PORT}`;
 }
 
@@ -68,7 +72,12 @@ let terminateServerCallback: any = undefined;
 export function setTerminateServerCallback(callback: any) {
   terminateServerCallback = callback;
 }
-function terminateServerProcessing() {
+
+/**
+ * @testing This function is exported for testing purposes only.
+ * It indirectly calls terminateServerProcessing() in the core extension case.
+ */
+export function terminateServerProcessing() {
   // this function indirectly calls terminateServerProcessing()
   // in the core extension case.
   if (terminateServerCallback) {
@@ -82,7 +91,12 @@ let logServerCommandsCallback: any = undefined;
 export function setLogServerCommandsCallback(callback: any) {
   logServerCommandsCallback = callback;
 }
-function logServerCommand(message: string) {
+
+/**
+ * @testing This function is exported for testing purposes only.
+ * Logs the server command by calling the logServerCommandsCallback.
+ */
+export function logServerCommand(message: string) {
   if (logServerCommandsCallback) {
     // for the core extension we send this to the message pane
     logServerCommandsCallback(message);
