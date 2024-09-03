@@ -193,7 +193,7 @@ def transmitTestCommand(requestObject):
     # request is a class, so we convert it to a dictionary, then a string
     dataAsString = json.dumps(requestObject.toDict())
     returnData = requests.get(
-        f"{serverURL()}/vcastserver", params={"request": dataAsString}
+        f"{serverURL()}/runcommand", params={"request": dataAsString}
     )
     return returnData.json()
 
@@ -528,7 +528,7 @@ def getEnviroDataMultipleTimesUsingTheServer(clicastPath, enviroPath):
         # request is a class, so we convert it to a dictionary, then a string
         dataAsString = json.dumps(request.toDict())
         response = requests.get(
-            f"{serverURL()}/vcastserver", params={"request": dataAsString}
+            f"{serverURL()}/runcommand", params={"request": dataAsString}
         )
         jsonData = response.json()["data"]
         assert alreadyChecked or len(jsonData["unitData"]) > 0
@@ -630,7 +630,7 @@ def errorTests(enviroPath, clicastPath):
     # send an invalid request string to the server
     print("  Sending invalid request string to server")
     returnData = requests.get(
-        f"{serverURL()}/vcastserver", params={"request": "nonsense"}
+        f"{serverURL()}/runcommand", params={"request": "nonsense"}
     )
     returnData = returnData.json()
     exitCode = returnData["exitCode"]

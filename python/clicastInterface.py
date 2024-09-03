@@ -14,10 +14,9 @@ VectorCAST environment server.
 import pythonUtilities
 from pythonUtilities import (
     cleanEnviroPath,
-    clearClicastInstance,
+    closeEnvironmentConnection,
     getClicastInstance,
     logMessage,
-    setClicastInstance,
 )
 from vcastDataServerTypes import errorCodes
 
@@ -27,48 +26,6 @@ from vector.lib.core.system import cd
 commandFileName = "commands.cmd"
 
 
-def connectClicastInstance(enviroPath):
-
-    processObject = pythonUtilities.getClicastInstance(enviroPath)
-    if processObject == None:
-
-        commandArgs = [pythonUtilities.globalClicastCommand, "-lc", "tools", "server"]
-        CWD = os.path.dirname(enviroPath)
-        processObject = subprocess.Popen(
-            commandArgs,
-            stdout=subprocess.PIPE,
-            stdin=subprocess.PIPE,
-            stderr=sys.stdout,
-            universal_newlines=True,
-            cwd=CWD,
-        )
-
-        # A valid clicast server emits: "clicast-server-started"
-        # if it has successfully initialized so we check for that
-        # or we wait for the process to terminate which a non-server
-        # clicast version will do.  Note that this is a failsafe
-        # because we should never get here if the clicast is not
-        # server capable.
-        while True:
-            responseLine = processObject.stdout.readline()
-            if responseLine.startswith("clicast-server-started"):
-                clicastInstanceRunning = True
-                break
-            elif processObject.poll() is not None:
-                clicastInstanceRunning = False
-                processObject = None
-                break
-
-        if clicastInstanceRunning:
-            setClicastInstance(enviroPath, processObject)
-        else:
-            logMessage(
-                f"  could not start clicast instance for environment: {enviroPath}"
-            )
-            logMessage(f"  using command: {' '.join (commandArgs)}")
-
-    return processObject
-
 
 def runClicastServerCommand(enviroPath, commandString):
     """
@@ -77,7 +34,7 @@ def runClicastServerCommand(enviroPath, commandString):
     """
 
     # This call will return the processObject or None
-    processObject = connectClicastInstance(enviroPath)
+    processObject = getClicastInstance(enviroPath)
 
     if processObject == None:
         exitCode = errorCodes.couldNotStartClicastInstance
@@ -104,38 +61,6 @@ def runClicastServerCommand(enviroPath, commandString):
         logMessage(f"    server return code: {exitCode}")
 
     return exitCode, returnText
-
-
-def terminateClicastProcess(enviroPath):
-    """
-    This function will terminate any clicast process that exists for enviroPath
-    It is used before things like delete and re-build environment, since we need
-    to delete the environment directory, and the running process will have it locked
-    if we are in server mode, we return True if we terminated a process, False otherwise
-    """
-
-    returnValue = False
-    if pythonUtilities.USE_SERVER:
-        processObject = getClicastInstance(enviroPath)
-        if processObject != None:
-            logMessage(
-                f"  terminating clicast instance [{processObject.pid}] for environment: {enviroPath}"
-            )
-            # This tells clicast to shutdown gracefully
-            # In the case where the server has been stopped with ctrl-c
-            # we get here, but the clicast process might have already died
-            # from the propagated SIGINT, so we need to catch the exception
-            try:
-                processObject.stdin.write("clicast-server-shutdown\n")
-                processObject.stdin.flush()
-                processObject.wait()
-            except:
-                pass
-            clearClicastInstance(enviroPath)
-            returnValue = True
-        else:
-            logMessage(f"  no clicast instance exists for environment: {enviroPath}")
-    return returnValue
 
 
 enviroNameRegex = "-e\s*([^\s]*)"
@@ -324,7 +249,7 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
             enviroFile.write(whatToWrite)
 
     # if we are server mode, terminate any existing process
-    terminateClicastProcess(enviroPath)
+    closeEnvironmentConnection(enviroPath)
 
     # Finally delete and re-build the environment using the updated script
     # and load the existing tests -> which duplicates what enviro rebuild does.

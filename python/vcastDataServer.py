@@ -38,15 +38,15 @@ def shutdown():
     keyList = list(pythonUtilities.clicastInstances.keys())
     for enviroPath in keyList:
         logMessage(f"  terminating clicast process for: {enviroPath}")
-        clicastInterface.terminateClicastProcess(enviroPath)
+        clicastInterface.closeEnvironmentConnection(enviroPath)
 
     # TBD: is there an app.shutdown() call to do this?
     logMessage("  vcastDataServer is exiting ...")
     sys.exit(0)
 
 
-@app.route("/vcastserver")
-def vcastserver():
+@app.route("/runcommand")
+def runcommand():
     """
     This function does the work of translating the clientRequest object into a call
     to the vTestInterface module and then sending the response object back to the client
@@ -64,14 +64,14 @@ def vcastserver():
         exitCode = 0
         if clientRequest.command == commandType.closeConnection:
 
-            returnValue = clicastInterface.terminateClicastProcess(clientRequest.path)
+            returnValue = clicastInterface.closeEnvironmentConnection(
+                clientRequest.path
+            )
             returnData = {
                 "status": returnValue,
                 "newlist": list(pythonUtilities.clicastInstances.keys()),
             }
-            logMessage(
-                f"  clicastInstances: {pythonUtilities.clicastInstances.keys()}"
-            )
+            logMessage(f"  clicastInstances: {pythonUtilities.clicastInstances.keys()}")
 
         elif clientRequest.command == commandType.choiceListTst:
 

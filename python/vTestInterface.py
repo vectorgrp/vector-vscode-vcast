@@ -25,6 +25,7 @@ This script must be run under vpython
 
 import clicastInterface
 import pythonUtilities
+
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
 from versionChecks import (
@@ -436,7 +437,7 @@ def executeVCtest(enviroPath, testIDObject):
                 returnText += "STATUS:failed\n"
             returnText += f"REPORT:{testIDObject.reportName}.txt\n"
 
-            # Retrieve the expected value x/y and the
+            # Retrieve the expected value x/y and the test time
             api = UnitTestApi(enviroPath)
             testList = api.TestCase.filter(name=testIDObject.testName)
             if len(testList) > 0:
