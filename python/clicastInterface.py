@@ -12,7 +12,13 @@ VectorCAST environment server.
 """
 
 import pythonUtilities
-from pythonUtilities import cleanEnviroPath, logMessage
+from pythonUtilities import (
+    cleanEnviroPath,
+    clearClicastInstance,
+    getClicastInstance,
+    logMessage,
+    setClicastInstance,
+)
 from vcastDataServerTypes import errorCodes
 
 from vector.lib.core.system import cd
@@ -23,22 +29,12 @@ commandFileName = "commands.cmd"
 
 def connectClicastInstance(enviroPath):
 
-    # if the enviroPath is in the instances
-    clicastInstanceRunning = False
-    if enviroPath in pythonUtilities.clicastInstances and pythonUtilities.clicastInstances[enviroPath].poll() == None:
-        logMessage(
-            f"  using existing clicast instance [{pythonUtilities.clicastInstances[enviroPath].pid}] for: {enviroPath} "
-        )
-        clicastInstanceRunning = True
-    else:
-
-        # An old instance might exist if the server crashed, so clean that up
-        if enviroPath in pythonUtilities.clicastInstances:
-            logMessage(f"  previous clicast server seems to have died ...")
+    processObject = pythonUtilities.getClicastInstance(enviroPath)
+    if processObject == None:
 
         commandArgs = [pythonUtilities.globalClicastCommand, "-lc", "tools", "server"]
         CWD = os.path.dirname(enviroPath)
-        process = subprocess.Popen(
+        processObject = subprocess.Popen(
             commandArgs,
             stdout=subprocess.PIPE,
             stdin=subprocess.PIPE,
@@ -54,26 +50,24 @@ def connectClicastInstance(enviroPath):
         # because we should never get here if the clicast is not
         # server capable.
         while True:
-            responseLine = process.stdout.readline()
+            responseLine = processObject.stdout.readline()
             if responseLine.startswith("clicast-server-started"):
                 clicastInstanceRunning = True
                 break
-            elif process.poll() is not None:
+            elif processObject.poll() is not None:
                 clicastInstanceRunning = False
+                processObject = None
                 break
 
         if clicastInstanceRunning:
-            pythonUtilities.clicastInstances[enviroPath] = process
-            logMessage(
-                f"  started clicast instance [{process.pid}] for environment: {enviroPath}"
-            )
+            setClicastInstance(enviroPath, processObject)
         else:
             logMessage(
                 f"  could not start clicast instance for environment: {enviroPath}"
             )
             logMessage(f"  using command: {' '.join (commandArgs)}")
 
-    return clicastInstanceRunning
+    return processObject
 
 
 def runClicastServerCommand(enviroPath, commandString):
@@ -82,22 +76,17 @@ def runClicastServerCommand(enviroPath, commandString):
     read in the context of the original server command received
     """
 
-    # Since we use enviro path as a key to the clicastInstances dictionary
-    # it is important that the enviroPath string be consistent.  Rather
-    # than checking and correcting the path for each call, we do it here
-    enviroPath = cleanEnviroPath(enviroPath)
+    # This call will return the processObject or None
+    processObject = connectClicastInstance(enviroPath)
 
-    clicastInstanceRunning = connectClicastInstance(enviroPath)
-
-    if not clicastInstanceRunning:
+    if processObject == None:
         exitCode = errorCodes.couldNotStartClicastInstance
         returnText = "Could not start clicast instance"
 
     else:
         logMessage(f"    commandString: {commandString}")
-        process = pythonUtilities.clicastInstances[enviroPath]
-        process.stdin.write(f"{commandString}\n")
-        process.stdin.flush()
+        processObject.stdin.write(f"{commandString}\n")
+        processObject.stdin.flush()
 
         responseLine = ""
         returnText = ""
@@ -109,7 +98,7 @@ def runClicastServerCommand(enviroPath, commandString):
         # exit code for a clicast command.
         while not responseLine.startswith("clicast-server-command-done"):
             returnText += responseLine
-            responseLine = process.stdout.readline()
+            responseLine = processObject.stdout.readline()
 
         exitCode = int(responseLine.split("|")[1].strip())
         logMessage(f"    server return code: {exitCode}")
@@ -125,26 +114,24 @@ def terminateClicastProcess(enviroPath):
     if we are in server mode, we return True if we terminated a process, False otherwise
     """
 
-    # normalize the enviroPath
-    enviroPath = cleanEnviroPath(enviroPath)
     returnValue = False
     if pythonUtilities.USE_SERVER:
-        if enviroPath in pythonUtilities.clicastInstances:
+        processObject = getClicastInstance(enviroPath)
+        if processObject != None:
             logMessage(
-                f"  terminating clicast instance [{pythonUtilities.clicastInstances[enviroPath].pid}] for environment: {enviroPath}"
+                f"  terminating clicast instance [{processObject.pid}] for environment: {enviroPath}"
             )
-            process = pythonUtilities.clicastInstances[enviroPath]
             # This tells clicast to shutdown gracefully
             # In the case where the server has been stopped with ctrl-c
             # we get here, but the clicast process might have already died
             # from the propagated SIGINT, so we need to catch the exception
             try:
-                process.stdin.write("clicast-server-shutdown\n")
-                process.stdin.flush()
-                process.wait()
+                processObject.stdin.write("clicast-server-shutdown\n")
+                processObject.stdin.flush()
+                processObject.wait()
             except:
                 pass
-            del pythonUtilities.clicastInstances[enviroPath]
+            clearClicastInstance(enviroPath)
             returnValue = True
         else:
             logMessage(f"  no clicast instance exists for environment: {enviroPath}")
