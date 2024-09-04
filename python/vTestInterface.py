@@ -417,6 +417,10 @@ def executeVCtest(enviroPath, testIDObject):
             returnText += f"REPORT:{testIDObject.reportName}.txt\n"
 
             # Retrieve the expected value x/y and the test time
+            # we don't need to catch dataAPI errors here because
+            # if there is a problem with a version miss-match
+            # we will have already gotten a return code of 15
+            # and not be in this block
             api = UnitTestApi(enviroPath)
             testList = api.TestCase.filter(name=testIDObject.testName)
             if len(testList) > 0:

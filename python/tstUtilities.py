@@ -869,7 +869,21 @@ def generateMockForFunction(mockData):
     return whatToReturn
 
 
-def processMockDefinition(enviroName, lineSoFar):
+def processDataAPIException(enviroPath, error):
+    """
+    This is called by the TST and the Coded Mock auto-completion logic
+    in the case where a MigrationError is raised, and it will return
+    a choiceDataType
+    """
+    errorMessage = f"Language server cannot process environment: {os.path.basename (enviroPath)}\n\n"
+    errorMessage += error.message
+    globalOutputLog.append(errorMessage)
+    returnData = choiceDataType()
+    returnData.extraText = "MigrationError"
+    return returnData
+
+
+def processMockDefinition(enviroPath, lineSoFar):
     """
     This function will process vmock_  line completions for coded tests
     When we get here, the line will always start with vmock, and end
@@ -885,7 +899,10 @@ def processMockDefinition(enviroName, lineSoFar):
 
     returnData = choiceDataType()
 
-    api = UnitTestApi(enviroName)
+    try:
+        api = UnitTestApi(enviroPath)
+    except MigrationError as error:
+        return processDataAPIException(enviroPath, error)
 
     # if what the user entered so far is an each match for the unit and function
     # we will get a single object in each list, else we will get a filtered list
@@ -948,7 +965,7 @@ def buildChoiceResponse(choiceData: choiceDataType):
     return responseObject
 
 
-def processTstLine(enviroName, line):
+def processTstLine(enviroPath, line):
     """
 
     This function will process TEST.<command> line completions
@@ -975,7 +992,10 @@ def processTstLine(enviroName, line):
         globalOutputLog.append("Processing: '" + line + "' ...")
 
         # open the environment ...
-        api = UnitTestApi(enviroName)
+        try:
+            api = UnitTestApi(enviroPath)
+        except MigrationError as error:
+            return processDataAPIException(enviroPath, error)
 
         # Intelligently split the line into its fields
         pieces = splitExistingLine(line)
@@ -1005,14 +1025,6 @@ def processTstLine(enviroName, line):
         api.close()
         return returnData
 
-    except MigrationError as error:
-        errorMessage = f"Language server cannot process environment: {os.path.basename (enviroName)}\n\n"
-        errorMessage += error.message
-        globalOutputLog.append(errorMessage)
-        returnData = choiceDataType()
-        returnData.extraText = "MigrationError"
-        return returnData
-
     except Exception:
         globalOutputLog.append("-" * 100)
         globalOutputLog.append("Exception occurred ...")
@@ -1025,8 +1037,19 @@ def processTstLine(enviroName, line):
 
 
 # Unit Tests
+import json
+
+
 def main():
-    pass
+
+    # Some easy to use unit tests for processTstLine and processMockDefinition
+    enviroPath = "<enter path here>"
+
+    returnData = processTstLine(enviroPath, "TEST.VALUE:")
+    print(json.dumps(returnData.toDict(), indent=4))
+
+    returnData = processMockDefinition(enviroPath, "// vmock")
+    print(json.dumps(returnData.toDict(), indent=4))
 
 
 if __name__ == "__main__":

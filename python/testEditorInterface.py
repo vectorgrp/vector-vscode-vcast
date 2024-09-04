@@ -38,7 +38,7 @@ def main():
         mode = sys.argv[1]
 
         # Path to the environment folder
-        enviroName = sys.argv[2]
+        enviroPath = sys.argv[2]
 
         # Contents of the line from the editor so far
         inputLine = sys.argv[3]
@@ -46,13 +46,13 @@ def main():
         if mode == "choiceList-ct":
             # if the line starts with "void vmock" then we are processing vmock definition
             if re.match("^\s*\/\/\s*vmock", inputLine):
-                choiceData = processMockDefinition(enviroName, inputLine)
+                choiceData = processMockDefinition(enviroPath, inputLine)
             else:
                 # noting to be done
                 choiceData = choiceDataType()
 
         elif mode == "choiceList-tst":
-            choiceData = processTstLine(enviroName, inputLine)
+            choiceData = processTstLine(enviroPath, inputLine)
 
         else:
             choiceData = choiceDataType()
