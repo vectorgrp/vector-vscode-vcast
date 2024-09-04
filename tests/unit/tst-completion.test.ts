@@ -147,6 +147,17 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
+const suprogrammWithoutCTDriver = `-- Environment: @TEST
+TEST.UNIT:
+TEST.SUBPROGRAM:bar
+TEST.NEW
+TEST.CODED_TEST_FILE:
+TEST.NAME:
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
 describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.SUBPROGRAM:",
@@ -1261,6 +1272,27 @@ describe("Text Completion", () => {
           data: 3,
         },
       ]);
+    },
+    timeout
+  );
+
+  test(
+    "validate that TEST.CODED_TEST_FILE has no autocompletion.",
+    async () => {
+      const tstText = suprogrammWithoutCTDriver;
+      const lineToComplete = "TEST.CODED_TEST_FILE:";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const generatedCompletionData = await generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter
+      );
+      expect(generatedCompletionData).toEqual([]);
     },
     timeout
   );

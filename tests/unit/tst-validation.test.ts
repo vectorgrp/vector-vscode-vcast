@@ -116,6 +116,39 @@ TEST.STUB:
 TEST.END
 `;
 
+const suprogrammWithoutCTDriver = `-- Environment: @TEST
+TEST.UNIT:
+TEST.SUBPROGRAM:bar
+TEST.NEW
+TEST.CODED_TEST_FILE:
+TEST.NAME:
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
+const suprogrammWithCTDriverValue = `-- Environment: @TEST
+TEST.UNIT:
+TEST.SUBPROGRAM:coded_tests_driver
+TEST.NEW
+TEST.CODED_TEST_FILE:
+TEST.NAME:
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
+const suprogrammWithCTDriverExpected = `-- Environment: @TEST
+TEST.UNIT:
+TEST.SUBPROGRAM:coded_tests_driver
+TEST.NEW
+TEST.CODED_TEST_FILE:
+TEST.NAME:
+TEST.EXPECTED:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
 describe("Text Document Validator", () => {
   test(
     "validate error detection when typing commands in TEST.NOTES block",
@@ -321,6 +354,50 @@ describe("Text Document Validator", () => {
       const tstText = [initialTst, testAllowedTestCommandTst].join("\n");
       const diagnosticMessages = generateDiagnosticMessages(tstText);
       expect(diagnosticMessages).toEqual(expect.arrayContaining([]));
+    },
+    timeout
+  );
+
+  test(
+    "TEST.CODED_TEST_FILE is not valid when TEST.SUBPROGRAM is not set to coded_tests_driver",
+    async () => {
+      const tstText = suprogrammWithoutCTDriver;
+      const diagnosticMessages = generateDiagnosticMessages(tstText);
+      expect(diagnosticMessages).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining(
+            "TEST.CODED_TEST_FILE is not valid when TEST.SUBPROGRAM is not set to coded_tests_driver"
+          ),
+        ])
+      );
+    },
+    timeout
+  );
+
+  test(
+    "TEST.VALUE and TEST.EXPECTED are not valid when TEST.SUBPROGRAM is set to coded_tests_driver",
+    async () => {
+      const tstTextValue = suprogrammWithCTDriverValue;
+      const diagnosticMessagesValue = generateDiagnosticMessages(tstTextValue);
+
+      const tstTextExpected = suprogrammWithCTDriverExpected;
+      const diagnosticMessagesExpected =
+        generateDiagnosticMessages(tstTextExpected);
+
+      expect(diagnosticMessagesValue).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining(
+            "TEST.VALUE and TEST.EXPECTED are not valid when TEST.SUBPROGRAM is set to coded_tests_driver"
+          ),
+        ])
+      );
+      expect(diagnosticMessagesExpected).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining(
+            "TEST.VALUE and TEST.EXPECTED are not valid when TEST.SUBPROGRAM is set to coded_tests_driver"
+          ),
+        ])
+      );
     },
     timeout
   );

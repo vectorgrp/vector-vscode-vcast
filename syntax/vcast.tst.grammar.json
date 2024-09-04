@@ -27,14 +27,14 @@
       }
     },
     {
-      "match": "^TEST\\.CODED_TEST_FILE(:)(.*?)(:|$)(.*)$",
+      "match": "^TEST\\.CODED_TEST_FILE(:|$)(.*)$",
       "name": "keyword",
       "captures": {
         "1": {
           "name": "keyword"
         },
         "2": {
-          "name": "string", 
+          "name": "variable", 
           "patterns": [
             {
               "match": "(\\.\\./|\\./|/)?[^\\s]*",

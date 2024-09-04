@@ -121,7 +121,7 @@ export async function getTstCompletionData(
       returnData.choiceKind = "Keyword";
       returnData.choiceList = testCommandList;
 
-      const codedTestsDriverInSubprogram = checkForKeywordInLine(
+      let codedTestsDriverInSubprogram = checkForKeywordInLine(
         extractedText,
         "TEST.SUBPROGRAM",
         "coded_tests_driver"
@@ -136,6 +136,10 @@ export async function getTstCompletionData(
         // TODO: Check if we can get rid of those in getFunctionList()
         returnData.choiceList = returnData.choiceList.filter(
           (item) => item !== "VALUE" && item !== "EXPECTED"
+        );
+      } else {
+        returnData.choiceList = returnData.choiceList.filter(
+          (item) => item !== "CODED_TEST_FILE"
         );
       }
     } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:") {
