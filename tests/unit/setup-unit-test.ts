@@ -92,7 +92,7 @@ module.exports = async () => {
   const toolVersion = await getToolVersion();
 
   // Activate coded tests support only for version 24
-  if (!toolVersion.startsWith("23")) {
+  if (!toolVersion.startsWith("23") && !toolVersion.startsWith("21")) {
     const clicastOptionCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
     const { stdout: stdoutClicastOption, stderr: stderrClicastOption } =
       await promisifiedExec(clicastOptionCommand);
