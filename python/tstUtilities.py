@@ -1002,7 +1002,7 @@ def processTstLine(enviroName, line):
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)
 
-        api.close
+        api.close()
         return returnData
 
     except MigrationError as error:

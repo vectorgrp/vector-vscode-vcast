@@ -4,9 +4,6 @@ import subprocess
 import sys
 
 
-from vector.apps.DataAPI.unit_test_api import UnitTestApi
-
-
 # This contains the clicast command that was used to start the data server
 globalClicastCommand = ""
 

@@ -181,7 +181,7 @@ def generateTestInfo(enviroPath, test):
 globalListOfTestableFunctions = []
 
 
-def getEnviroSupportsMock(enviroPath):
+def getEnviroSupportsMock(api):
     """
     The extension needs to know if the environment was built with mocking
     support, not just if the tool supports it.
@@ -189,28 +189,14 @@ def getEnviroSupportsMock(enviroPath):
     If the enviro was not built with mocking then the new mocking fields in the
     API will be set to None by the migration process.
     """
-    try:
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        print(err)
-        raise UsageError()
 
     currEnviroSupportsMocking = enviroSupportsMocking(api)
-
-    api.close()
-
     return currEnviroSupportsMocking
 
 
-def getTestDataVCAST(enviroPath):
+def getTestDataVCAST(api, enviroPath):
     global globalListOfTestableFunctions
     global enviroSupportsMocking
-
-    # dataAPI throws if there is a tool/enviro mismatch
-    try:
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        raise InvalidEnviro(err)
 
     # Not currently used.
     # returns "None" if coverage is not initialized,
@@ -284,20 +270,14 @@ def getTestDataVCAST(enviroPath):
             if len(unitNode["functions"]) > 0:
                 testList.append(unitNode)
 
-    api.close()
     return testList
 
 
-def getUnitData(enviroPath):
+def getUnitData(api):
     """
     This function will return info about the units in an environment
     """
     unitList = list()
-    try:
-        # this can throw an error of the coverDB is too old!
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        raise InvalidEnviro(err)
 
     sourceObjects = api.SourceFile.all()
     for sourceObject in sourceObjects:
@@ -312,7 +292,6 @@ def getUnitData(enviroPath):
             unitInfo["uncovered"] = uncovered
             unitList.append(unitInfo)
 
-    api.close()
     return unitList
 
 
@@ -581,14 +560,19 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     if mode == "getEnviroData":
         topLevel = dict()
 
+        try:
+            api = UnitTestApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+
         # it is important that getTetDataVCAST() is called first since it sets up
         # the global list of testable functions that getUnitData() needs
-        topLevel["testData"] = getTestDataVCAST(pathToUse)
-        topLevel["unitData"] = getUnitData(pathToUse)
-
+        topLevel["testData"] = getTestDataVCAST(api, pathToUse)
+        topLevel["unitData"] = getUnitData(api)
         topLevel["enviro"] = dict()
-        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(pathToUse)
+        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(api)
 
+        api.close()
         returnObject = topLevel
 
     elif mode == "executeTest":
