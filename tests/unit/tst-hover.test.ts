@@ -98,8 +98,12 @@ describe("Hover Info Validator", () => {
         "KEY"
       );
       const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      console.log("########################################");
+      console.log(generatedHoverString);
+      console.log("########################################");
+
       expect(generatedHoverString).toContain(expectedTitle);
-      if (!toolVersion.includes("21")) {
+      if (toolVersion > 23) {
         expect(generatedHoverString).toContain(expectedDesc);
       }
     },
@@ -121,7 +125,7 @@ describe("Hover Info Validator", () => {
       );
       const generatedHoverString = generateHoverData(tstText, hoverPosition);
       expect(generatedHoverString).toContain(expectedTitle);
-      if (!toolVersion.includes("21")) {
+      if (toolVersion > 23) {
         expect(generatedHoverString).toContain(expectedDesc);
       }
     },

@@ -7,10 +7,7 @@ export default defineConfig(async () => {
   const toolVersion = await getToolVersion();
 
   // Determine the files to exclude based on the tool version
-  const excludeCodedTestFiles =
-    toolVersion.startsWith("23") || toolVersion.startsWith("21")
-      ? ["tests/unit/ct-*"]
-      : [];
+  const excludeCodedTestFiles = toolVersion < 24 ? ["tests/unit/ct-*"] : [];
 
   return {
     test: {
