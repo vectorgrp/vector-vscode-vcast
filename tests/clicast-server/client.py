@@ -437,13 +437,24 @@ def completionTest(enviroPath):
 
     # choiceList
     print("Starting completion Test")
+
+    print("  starting TST completion ...")
     request = vcastDataServerTypes.clientRequest(
         commandType.choiceListTst, path=enviroPath, options="TEST.VALUE:"
     )
     returnData = transmitTestCommand(request)
+    assert compareToExpected("expected-completion-tst.json", returnData)
+    print ("     TST completionTest Test Passed")
 
-    assert compareToExpected("expected-completion.json", returnData)
-    print("   completionTest Test Passed")
+    print("  starting MOCK completion test ...")
+    request = vcastDataServerTypes.clientRequest(
+        commandType.choiceListCT, path=enviroPath, options="// vmock "
+    )
+    returnData = transmitTestCommand(request)
+    assert compareToExpected("expected-completion-ct.json", returnData)
+    print ("     MOCK completionTest Test Passed")
+
+    print("  completionTest Test Passed")
 
 
 def rebuildTest(clicastPath, enviroPath):
@@ -789,6 +800,8 @@ def main():
         parseCBTTest(clicastPath)
     elif args.test == "errors":
         errorTests(clicastPath, enviroPath)
+    elif args.test == "completion":
+        completionTest(enviroPath)
     elif args.test == "full":
         fullTest(enviroPath, clicastPath, testString)
     else:

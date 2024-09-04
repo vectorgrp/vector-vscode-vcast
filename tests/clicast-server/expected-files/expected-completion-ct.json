@@ -1,0 +1,13 @@
+{
+    "data": {
+        "choiceKind": "File",
+        "choiceList": [
+            "database",
+            "Prototype-Stubs",
+            "manager"
+        ],
+        "extraText": "",
+        "messages": []
+    },
+    "exitCode": 0
+}
