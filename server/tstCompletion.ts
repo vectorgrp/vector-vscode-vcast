@@ -38,18 +38,18 @@ export async function checkClicastOption(
   optionValue: string
 ): Promise<boolean> {
   const execAsync = promisify(exec);
-  const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast option ${option}`;
+  const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast get_option ${option}`;
 
-  try {
-    const { stdout } = await execAsync(getCodedTestsSupportCommand, {
-      cwd: enviroPath,
-    });
+  const { stdout, stderr } = await execAsync(getCodedTestsSupportCommand, {
+    cwd: enviroPath,
+  });
 
-    return stdout.includes(`${optionValue}`);
-  } catch (stderr) {
+  if (stderr) {
     console.error(`Error executing command: ${stderr}`);
     return false;
   }
+
+  return stdout.includes(`${optionValue}`);
 }
 
 /**
@@ -85,11 +85,14 @@ export async function getTstCompletionData(
   const testScriptPath = url.fileURLToPath(completionData.textDocument.uri);
   const enviroPath = getEnviroNameFromTestScript(testScriptPath);
   const extractedText = currentDocument.getText();
+  let autocompletionParams = {
+    unit: "",
+  };
 
   let codedTestsEnabled;
 
   if (enviroPath) {
-    codedTestsEnabled = checkClicastOption(
+    codedTestsEnabled = await checkClicastOption(
       enviroPath,
       "VCAST_CODED_TESTS_SUPPORT",
       "True"
@@ -121,7 +124,7 @@ export async function getTstCompletionData(
       returnData.choiceKind = "Keyword";
       returnData.choiceList = testCommandList;
 
-      let codedTestsDriverInSubprogram = checkForKeywordInLine(
+      const codedTestsDriverInSubprogram = checkForKeywordInLine(
         extractedText,
         "TEST.SUBPROGRAM",
         "coded_tests_driver"
@@ -165,24 +168,38 @@ export async function getTstCompletionData(
         "UNIT",
         completionData.position.line
       );
+
+      autocompletionParams.unit = unitName;
+
       // TBD will need to change how this is done during the fix for issue #170
       // we use python to get a list of subprograms by creating a fake VALUE line
       // with the unitName set to what we found
-      let choiceArray = ["<<INIT>>", "<<COMPOUND>>"];
-      let choiceKind = "Keyword";
+      // let choiceArray = ["<<INIT>>", "<<COMPOUND>>"];
+      let choiceKind = "";
+      let choiceArray: string[] = [];
       if (unitName.length > 0) {
         const choiceData = await getChoiceData(
           choiceKindType.choiceListTST,
           enviroPath,
-          "TEST.VALUE:" + unitName + "."
+          upperCaseLine,
+          autocompletionParams
         );
+        console.log("++++++++++++++++++++++++++++++");
+        console.log(choiceData);
+        console.log("++++++++++++++++++++++++++++++");
+        // const choiceData = await getChoiceData(
+        //   choiceKindType.choiceListTST,
+        //   enviroPath,
+        //   "TEST.VALUE:" + unitName + "."
+        // );
         returnData.extraText = choiceData.extraText;
         returnData.messages = choiceData.messages;
         choiceKind = choiceData.choiceKind;
         // append actual choices to the default INIT and COMPOUND
-        choiceArray = choiceArray.concat(choiceData.choiceList);
+        // choiceArray = choiceArray.concat(choiceData.choiceList);
         // <<GLOBAL>> is valid on VALUE lines but not as a function name!
-        choiceArray = filterArray(choiceArray, "<<GLOBAL>>");
+        // choiceArray = filterArray(choiceArray, "<<GLOBAL>>");
+        choiceArray = filterArray(choiceData.choiceList, "<<GLOBAL>>");
       }
       returnData.choiceKind = choiceKind;
       returnData.choiceList = choiceArray;

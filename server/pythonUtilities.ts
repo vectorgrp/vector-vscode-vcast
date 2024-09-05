@@ -131,11 +131,16 @@ export enum choiceKindType {
 export function getChoiceDataFromPython(
   kind: choiceKindType,
   enviroName: string,
-  lineSoFar: string
+  lineSoFar: string,
+  additionalAutocompletionParams?: any
 ): choiceDataType {
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
-  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}"`;
+  console.log("########################");
+  console.log(additionalAutocompletionParams);
+  console.log("########################");
+  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}" ${additionalAutocompletionParams.unit}`;
+  console.log(commandToRun);
   let commandOutputBuffer = execSync(commandToRun).toString();
 
   // see detailed comment with the function definition
@@ -150,7 +155,8 @@ export function getChoiceDataFromPython(
 export async function getChoiceData(
   kind: choiceKindType,
   enviroPath: string,
-  lineSoFar: string
+  lineSoFar: string,
+  additionalAutocompletionParams?: any // TODO: make correct type
 ): Promise<choiceDataType> {
   //
 
@@ -158,7 +164,12 @@ export async function getChoiceData(
   if (globalEnviroDataServerActive) {
     jsonData = await getChoiceDataFromServer(kind, enviroPath, lineSoFar);
   } else {
-    jsonData = getChoiceDataFromPython(kind, enviroPath, lineSoFar);
+    jsonData = getChoiceDataFromPython(
+      kind,
+      enviroPath,
+      lineSoFar,
+      additionalAutocompletionParams
+    );
   }
 
   for (const msg of jsonData.messages) {
