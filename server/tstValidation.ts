@@ -138,10 +138,21 @@ export function validateTextDocument(textDocument: TextDocument) {
           withinImportFailures = true;
         } else if (command == "END") {
           withinTest = false;
+          // Before TEST.NEW
+        } else if (testCommandList.indexOf(command) < 0) {
+          diagnosticList.push(
+            getDiagnosticObject(
+              lineIndex,
+              0,
+              1000,
+              "Invalid command, type TEST. to see all command values"
+            )
+          );
         }
       }
       //file-level commands
       else {
+        //After TEST.NEW
         if (testCommandList.indexOf(command) < 0) {
           diagnosticList.push(
             getDiagnosticObject(
@@ -190,7 +201,7 @@ export function validateTextDocument(textDocument: TextDocument) {
                 lineIndex,
                 0,
                 1000,
-                "TEST.NEW | REPLACE is required but missing"
+                "TEST.NEW | REPLACE | ADD is required but missing"
               )
             );
           }

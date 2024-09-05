@@ -8,6 +8,8 @@ import {
 import { Position, Range, InsertTextFormat } from "vscode-languageserver-types";
 
 import { getEnviroNameFromScript } from "../src-common/commonUtilities";
+import { promisify } from "node:util";
+import { exec } from "node:child_process";
 
 export function getTriggerFromContext(context: any) {
   let returnValue: string;
@@ -302,3 +304,94 @@ export const scriptFeatureList = [
   "UNDERSCORE_NULLPTR",
   "VCAST_MAIN_NOT_RENAMED",
 ];
+
+export async function verifyRGWSettings(
+  testInputVcastTutorial: string,
+  initialWorkdir: string,
+  vectorcastDir: string
+): Promise<boolean> {
+  const promisifiedExec = promisify(exec);
+  if (process.env.CLICAST_PATH) {
+    const commandPrefix = `cd ${testInputVcastTutorial} && ${process.env.CLICAST_PATH.trimEnd()} -lc`;
+
+    const expectedConfig = {
+      repository: path.join(initialWorkdir, "test", "vcastTutorial"),
+      gateway: "CSV", // Expected gateway mode
+      csv_path: path.join(
+        vectorcastDir,
+        "examples",
+        "RequirementsGW",
+        "CSV_Requirements_For_Tutorial.csv"
+      ),
+      use_attribute_filter: "0",
+      filter_attribute: "", // No filter attribute set
+      filter_attribute_value: "", // No filter attribute value set
+      id_attribute: "ID",
+      key_attribute: "Key",
+      title_attribute: "Title",
+      description_attribute: "Description",
+    };
+
+    const rgwCheckCommands = [
+      {
+        command: `${commandPrefix} option VCAST_REPOSITORY`,
+        expected: expectedConfig.repository,
+      },
+      {
+        command: `${commandPrefix} RGw Get Gateway`,
+        expected: expectedConfig.gateway,
+      },
+      {
+        command: `${commandPrefix} RGw Configure Get CSV csv_path`,
+        expected: expectedConfig.csv_path,
+      },
+      {
+        command: `${commandPrefix} RGw Configure Get CSV use_attribute_filter`,
+        expected: expectedConfig.use_attribute_filter,
+      },
+      {
+        command: `${commandPrefix} RGw Configure Get CSV filter_attribute`,
+        expected: expectedConfig.filter_attribute,
+      },
+      {
+        command: `${commandPrefix} RGw Configure Get CSV filter_attribute_value`,
+        expected: expectedConfig.filter_attribute_value,
+      },
+      {
+        command: `${commandPrefix} RGw Configure Get CSV id_attribute`,
+        expected: expectedConfig.id_attribute,
+      },
+      {
+        command: `${commandPrefix} RGw Configure Get CSV key_attribute`,
+        expected: expectedConfig.key_attribute,
+      },
+      {
+        command: `${commandPrefix} RGw Configure Get CSV title_attribute`,
+        expected: expectedConfig.title_attribute,
+      },
+      {
+        command: `${commandPrefix} RGw Configure Get CSV description_attribute`,
+        expected: expectedConfig.description_attribute,
+      },
+    ];
+
+    for (const { command, expected } of rgwCheckCommands) {
+      // Assuming executeCommand returns a string result, which should match expected value
+      const { stdout, stderr } = await promisifiedExec(command); // Clean any surrounding whitespace
+      if (stderr) {
+        console.log(`ERROR on ${command} : ${stderr}`);
+      }
+      const cleanResult = stdout.trim();
+      if (cleanResult !== expected) {
+        console.log(
+          `Mismatch found for command "${command}": Expected "${expected}", but got "${cleanResult}"`
+        );
+        return false; // Return false as soon as a mismatch is found
+      }
+    }
+
+    // If all checks passed, return true
+    return true;
+  }
+  return false;
+}

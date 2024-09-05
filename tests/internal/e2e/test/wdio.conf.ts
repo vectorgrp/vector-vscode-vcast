@@ -18,7 +18,8 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs } from "./specs_config.ts";
+import { getSpecs } from "./specs_config";
+import { verifyRGWSettings } from "../../../../server/serverUtilities";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -423,6 +424,18 @@ export const config: Options.Testrunner = {
       // Execute RGW commands and copy necessary files
       await executeRGWCommands(testInputVcastTutorial);
       await copyPathsToTestLocation(testInputVcastTutorial);
+
+      const rgwSettings = await verifyRGWSettings(
+        testInputVcastTutorial,
+        initialWorkdir,
+        vectorcastDir
+      );
+
+      if (rgwSettings) {
+        console.log("###################################");
+        console.log("GET TO THE CHOPPAAA");
+        console.log("###################################");
+      }
     }
 
     /**
