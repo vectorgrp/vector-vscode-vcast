@@ -99,6 +99,18 @@ def runcommand():
             returnData = tstUtilities.buildChoiceResponse(choiceData)
             logMessage(f"  line received: '{clientRequest.options}'")
 
+            # the return data for the vmock implementation is really long
+            # so we show the first line, otherwise we show the list
+            if len(returnData["choiceList"]) == 1:
+                # we need to strip off the new line chars as the beginning
+                logMessage(
+                    "  returned: " + returnData["choiceList"][0].strip().split("\n")[0]
+                )
+            else:
+                logMessage(
+                    "  list returned:\n     " + "\n     ".join(returnData["choiceList"])
+                )
+
         elif clientRequest.command == commandType.runClicastCommand:
 
             exitCode, returnData = clicastInterface.runClicastServerCommand(

@@ -9,6 +9,8 @@ import {
   deleteEnvironmentCallback,
 } from "./callbacks";
 
+import { sendServerStateToServer } from "./client";
+
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 import {
@@ -90,6 +92,7 @@ export async function determineServerState() {
 
   // This call saves the path to the clicast version that the
   // server is running into variable: "serverClicastPath"
+  let newServerState = false;
   if (await serverIsAlive()) {
     // the server is running, now check if the clicast versions match
 
@@ -104,7 +107,7 @@ export async function determineServerState() {
       setTerminateServerCallback(terminateServerProcessing);
       setLogServerCommandsCallback(logServerCommands);
       vectorMessage("VectorCAST Environment Data Server is Active ...\n");
-      setServerState(true);
+      newServerState = true;
     } else {
       vectorMessage(
         "VectorCAST Environment Data Server is Active, but the VectorCAST versions are incompatible ..."
@@ -115,12 +118,15 @@ export async function determineServerState() {
       vectorMessage(
         `  The extension has been configured with: ${path.dirname(clicastCommandToUse)}\n`
       );
-      setServerState(false);
+      newServerState = false;
     }
   } else {
     vectorMessage("VectorCAST Environment Data Server is NOT Active ...\n");
-    setServerState(false);
+    newServerState = false;
   }
+
+  setServerState(newServerState);
+  sendServerStateToServer(newServerState);
 }
 
 // ------------------------------------------------------------------------------------
