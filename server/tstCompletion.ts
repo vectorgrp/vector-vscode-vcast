@@ -133,7 +133,6 @@ export async function getTstCompletionData(
         }
 
         // Remove "VALUE" and "EXPECTED" as it is not allowed with coded_tests_driver
-        // TODO: Check if we can get rid of those in getFunctionList()
         returnData.choiceList = returnData.choiceList.filter(
           (item) => item !== "VALUE" && item !== "EXPECTED"
         );
@@ -156,6 +155,9 @@ export async function getTstCompletionData(
     } else if (trigger == "COLON" && upperCaseLine == "TEST.SCRIPT_FEATURE:") {
       returnData.choiceKind = "Keyword";
       returnData.choiceList = scriptFeatureList;
+      // TODO:
+      // So to refactor this, I would need to:
+      // Implement the autocompletion for SUBPROGRAM from scratch? --> This is hardcoded
     } else if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
       // find closest TEST.UNIT above this line ...
       const unitName = getNearest(
