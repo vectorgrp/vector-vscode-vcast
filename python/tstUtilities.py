@@ -1041,15 +1041,7 @@ import json
 
 
 def main():
-
-    # Some easy to use unit tests for processTstLine and processMockDefinition
-    enviroPath = "<enter path here>"
-
-    returnData = processTstLine(enviroPath, "TEST.VALUE:")
-    print(json.dumps(returnData.toDict(), indent=4))
-
-    returnData = processMockDefinition(enviroPath, "// vmock")
-    print(json.dumps(returnData.toDict(), indent=4))
+    pass
 
 
 if __name__ == "__main__":

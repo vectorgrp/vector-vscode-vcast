@@ -213,7 +213,7 @@ def pingServerTest():
         assert False
     if "text" in returnData:
         responseText = returnData["text"]
-        assert responseText.startswith ("clicast-version");
+        assert responseText.startswith ("clicast-path");
         print("   pingServer Test Passed")
     else:
         print(f"-- Server at {serverURL()} did not respond to ping")
