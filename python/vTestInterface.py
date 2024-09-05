@@ -204,6 +204,10 @@ def getTestDataVCAST(api, enviroPath):
     try:
         coverageType = api.environment.coverage_type_text
     except Exception as err:
+        # In this special case, vcast has given us a valid
+        # handle to the API, so we need to close it here
+        api.close()
+
         # the dataAPI does not automatically update the coverage DB
         # so we raise an error here if the cover.db is too old
         raise InvalidEnviro(err)

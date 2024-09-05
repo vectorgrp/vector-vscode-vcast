@@ -26,7 +26,8 @@ from pythonUtilities import logFileHandle, logMessage, logPrefix
 @app.route("/ping")
 def ping():
     logMessage(f"{logPrefix()} received ping request, responding 'alive'")
-    return {"text": "alive"}
+    # we return the clicast path since the client needs this
+    return {"text": f"clicast-path: {pythonUtilities.globalClicastCommand}"}
 
 
 @app.route("/shutdown")
