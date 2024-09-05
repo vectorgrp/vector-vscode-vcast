@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { getHoverPositionForLine, generateHoverData } from "./utils";
+import {
+  getHoverPositionForLine,
+  generateHoverData,
+  getToolVersion,
+} from "./utils";
 
 const timeout = 30_000; // 30 seconds
 
@@ -83,6 +87,7 @@ describe("Hover Info Validator", () => {
   test(
     "validate hover over TEST.REQUIREMENT_KEY:FR20",
     async () => {
+      const toolVersion = await getToolVersion();
       const tstText = [initialTst, requestTst].join("\n");
       const expectedTitle = "Clearing a table resets orders for all seats";
       const expectedDesc =
@@ -93,8 +98,11 @@ describe("Hover Info Validator", () => {
         "KEY"
       );
       const generatedHoverString = generateHoverData(tstText, hoverPosition);
+
       expect(generatedHoverString).toContain(expectedTitle);
-      expect(generatedHoverString).toContain(expectedDesc);
+      if (toolVersion > 23) {
+        expect(generatedHoverString).toContain(expectedDesc);
+      }
     },
     timeout
   );
@@ -102,6 +110,7 @@ describe("Hover Info Validator", () => {
   test(
     "validate hover over TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats",
     async () => {
+      const toolVersion = await getToolVersion();
       const tstText = [initialTst, requestTst].join("\n");
       const expectedTitle = "Clearing a table resets orders for all seats";
       const expectedDesc =
@@ -113,7 +122,9 @@ describe("Hover Info Validator", () => {
       );
       const generatedHoverString = generateHoverData(tstText, hoverPosition);
       expect(generatedHoverString).toContain(expectedTitle);
-      expect(generatedHoverString).toContain(expectedDesc);
+      if (toolVersion > 23) {
+        expect(generatedHoverString).toContain(expectedDesc);
+      }
     },
     timeout
   );
