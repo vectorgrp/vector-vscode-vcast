@@ -141,7 +141,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Clearing a table resets orders for all seats"
     );
     const toolVersion = await getToolVersion();
-    if (!toolVersion.startsWith("21")) {
+    if (toolVersion !== 21) {
       expect(requestTooltipText).toContain(
         "Clearing a table clears the orders for all seats of the table within the table database."
       );

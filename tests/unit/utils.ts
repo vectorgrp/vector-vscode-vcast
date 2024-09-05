@@ -260,10 +260,8 @@ export async function getToolVersion() {
       .toString()
       .trim();
 
-    // Extract the first two characters
+    // Extract the first two characters & try to cast it to a number
     const firstTwoChars = toolVersion.slice(0, 2);
-
-    // Try to cast the first two characters to a number
     const versionNumber = Number(firstTwoChars);
 
     // Check if the conversion was successful (not NaN)
@@ -271,7 +269,7 @@ export async function getToolVersion() {
       return versionNumber;
     } else {
       console.error(`Error: Could not cast "${firstTwoChars}" to a number`);
-      return NaN; // or return an appropriate default
+      return NaN;
     }
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -280,6 +278,6 @@ export async function getToolVersion() {
       console.error(`Unexpected error: ${String(error)}`);
     }
 
-    return NaN; // or return an appropriate default
+    return NaN;
   }
 }

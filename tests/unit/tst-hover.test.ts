@@ -98,9 +98,6 @@ describe("Hover Info Validator", () => {
         "KEY"
       );
       const generatedHoverString = generateHoverData(tstText, hoverPosition);
-      console.log("########################################");
-      console.log(generatedHoverString);
-      console.log("########################################");
 
       expect(generatedHoverString).toContain(expectedTitle);
       if (toolVersion > 23) {
