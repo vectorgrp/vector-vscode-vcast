@@ -382,11 +382,12 @@ def generateExecutionReport(enviroPath, testIDObject):
     exitCode, stdOutput = runClicastScript(enviroPath, commandFileName)
     return stdOutput
 
-
-# TBD TODAY - Is this useful?
+# TBD today, get this working again, to see if its useful
 if __name__ == "__main__":
     """
     Unit tests, with values hard-coded for now ...
+    This is setup to allow us to monitor the system load
+    as multiple clicast instances are opened on Linux
     """
     pythonUtilities.USE_SERVER = True
     pythonUtilities.globalClicastCommand = (
