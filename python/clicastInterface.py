@@ -159,7 +159,6 @@ def runClicastCommand(enviroPath, commandToRun):
         return runClicastCommandCommandLine(commandToRun)
 
 
-# TBD TODAY do we need something special for echoToStdout?
 def runClicastScriptUsingServer(enviroPath, commandFileName):
 
     # read commandFile into a list
