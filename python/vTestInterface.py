@@ -640,7 +640,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options=""):
         )
 
     # because vpython and clicast use a large range of positive return codes
-    # we use -1 for internal tool errors
+    # we use values > 990 for internal tool errors
     except InvalidEnviro as error:
         returnCode = errorCodes.testInterfaceError
         whatToReturn = ["Miss-match between Environment and VectorCAST versions"]
@@ -686,4 +686,4 @@ def main():
 if __name__ == "__main__":
 
     returnCode = main()
-    sys.exit(returnCode)
+    sys.exit(int(returnCode))
