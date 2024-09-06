@@ -32,6 +32,7 @@ export interface clientRequestType {
   path: string;
   test?: string;
   options?: string;
+  additionalAutocompletionParams?: any;
 }
 
 function serverURL() {

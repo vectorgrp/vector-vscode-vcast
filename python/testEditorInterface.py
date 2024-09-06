@@ -33,7 +33,7 @@ def main():
     # We get here when the user types a "." or ":"
 
     # argv has the name of the script as arg 1 and then user args
-    if len(sys.argv) == 5:
+    if ((len(sys.argv) == 4) or (len(sys.argv) == 5)):
         # What to do choiceList-ct or choiceList-tst
         mode = sys.argv[1]
 
@@ -43,8 +43,11 @@ def main():
         # Contents of the line from the editor so far
         inputLine = sys.argv[3]
 
-        # Whole tst or ct content
-        additionalParams = sys.argv[4]
+        additionalParams = None
+
+        if(len(sys.argv) == 5):
+            # Additional autocompletion params
+            additionalParams = sys.argv[4]
 
         if mode == "choiceList-ct":
             # if the line starts with "void vmock" then we are processing vmock definition

@@ -418,6 +418,12 @@ def processRequirementLines(api, pieces, triggerCharacter):
     return returnData
 
 def processSubprogramLines(api, pieces, triggerCharacter, additionalParams):
+    """
+    This function will compute the autocompletion list for TEST.SUBPROGRAM: lines. 
+    In contrast to processRequirementLines or processStandartdLines, this needs 
+    additional parameters containing the <unit> of the tst file, as we need to get
+    the autocompletion for all functions within the unit. 
+    """
     global globalOutputLog
     returnData = choiceDataType()
     lengthOfCommand = len(pieces)
@@ -429,8 +435,7 @@ def processSubprogramLines(api, pieces, triggerCharacter, additionalParams):
         unitName = additionalParams
         returnData.choiceList = getFunctionList(api, unitName)
         returnData.choiceKind = choiceKindType.Function
-        returnData.choiceList.append('<<INIT>>')
-        returnData.choiceList.append('<<COMPOUND>>')
+        returnData.choiceList.extend(['<<INIT>>', '<<COMPOUND>>', 'coded_tests_driver'])
     else:
         # TODO: Current implementation just to make it work. --> See what alse can come after
         processStandardLines(api, pieces, triggerCharacter)
@@ -1023,6 +1028,8 @@ def processTstLine(enviroName, line, additionalParams = None):
         elif line.upper().startswith("TEST.REQUIREMENT_KEY"):
             returnData = processRequirementLines(api, pieces, triggerCharacter)
         elif line.upper().startswith("TEST.SUBPROGRAM"):
+            if additionalParams == None:
+                globalOutputLog.append("Additional 'unit' parameter is requiered for TEST.SUBPROGRAM: autocompletion.")
             returnData = processSubprogramLines(api, pieces, triggerCharacter, additionalParams)
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)

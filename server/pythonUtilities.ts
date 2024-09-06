@@ -97,7 +97,8 @@ export const emptyChoiceData: choiceDataType = {
 export async function getChoiceDataFromServer(
   kind: choiceKindType,
   enviroPath: string,
-  lineSoFar: string
+  lineSoFar: string,
+  additionalAutocompletionParams?: any
 ): Promise<choiceDataType> {
   // We are re-using options for the line fragment in the request
 
@@ -109,6 +110,7 @@ export async function getChoiceDataFromServer(
     command: commandToUse,
     path: enviroPath,
     options: lineSoFar,
+    additionalAutocompletionParams: additionalAutocompletionParams,
   };
 
   let transmitResponse: transmitResponseType =
@@ -136,10 +138,11 @@ export function getChoiceDataFromPython(
 ): choiceDataType {
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
-  console.log("########################");
-  console.log(additionalAutocompletionParams);
-  console.log("########################");
-  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}" ${additionalAutocompletionParams.unit}`;
+  // tst unit needed for TEST.SUBPROGRAM
+  const unit = additionalAutocompletionParams
+    ? additionalAutocompletionParams.unit
+    : "";
+  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}" ${unit}`;
   console.log(commandToRun);
   let commandOutputBuffer = execSync(commandToRun).toString();
 

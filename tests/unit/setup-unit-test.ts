@@ -12,7 +12,6 @@ module.exports = async () => {
 
   process.env.PACKAGE_PATH = process.env.INIT_CWD;
   process.env.TST_FILENAME = tstFilename;
-  process.env.VECTORCAST_DIR = "";
 
   const checkVpython: string =
     process.platform === "win32" ? "where vpython" : "which vpython";
