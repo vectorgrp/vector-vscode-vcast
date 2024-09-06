@@ -178,22 +178,28 @@ describe("Text Completion", () => {
 
       expect(generatedCompletionData).toEqual([
         {
-          label: "<<INIT>>",
-          kind: 3,
-          detail: "",
           data: 0,
-        },
-        {
-          label: "<<COMPOUND>>",
-          kind: 3,
           detail: "",
-          data: 1,
-        },
-        {
+          kind: 3,
           label: "bar",
-          kind: 3,
+        },
+        {
+          data: 1,
           detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
           data: 2,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -1012,19 +1018,25 @@ describe("Text Completion", () => {
           data: 0,
           detail: "",
           kind: 3,
-          label: "<<INIT>>",
+          label: "bar",
         },
         {
           data: 1,
           detail: "",
           kind: 3,
-          label: "<<COMPOUND>>",
+          label: "<<INIT>>",
         },
         {
           data: 2,
           detail: "",
           kind: 3,
-          label: "bar",
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -1069,19 +1081,25 @@ describe("Text Completion", () => {
           data: 0,
           detail: "",
           kind: 3,
-          label: "<<INIT>>",
+          label: "bar",
         },
         {
           data: 1,
           detail: "",
           kind: 3,
-          label: "<<COMPOUND>>",
+          label: "<<INIT>>",
         },
         {
           data: 2,
           detail: "",
           kind: 3,
-          label: "bar",
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -1108,19 +1126,25 @@ describe("Text Completion", () => {
           data: 0,
           detail: "",
           kind: 3,
-          label: "<<INIT>>",
+          label: "bar",
         },
         {
           data: 1,
           detail: "",
           kind: 3,
-          label: "<<COMPOUND>>",
+          label: "<<INIT>>",
         },
         {
           data: 2,
           detail: "",
           kind: 3,
-          label: "bar",
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
