@@ -26,7 +26,6 @@ from vector.lib.core.system import cd
 commandFileName = "commands.cmd"
 
 
-
 def runClicastServerCommand(enviroPath, commandString):
     """
     Note: we indent the log messages here to make them easier to
@@ -64,16 +63,6 @@ def runClicastServerCommand(enviroPath, commandString):
 
 
 enviroNameRegex = "-e\s*([^\s]*)"
-
-
-def getEnviroPathFromCommand(command):
-    # TBD in the future we will change the caller to pass in the environment path
-    # No error handling because the caller will guarantee that we have a valid command
-    match = re.search(enviroNameRegex, command)
-    enviroName = match.group(1)
-    enviroPath = os.path.join(os.getcwd(), enviroName)
-
-    return enviroPath
 
 
 def getStandardArgsFromTestObject(testIDObject, quoteParameters):
@@ -125,7 +114,7 @@ def runClicastCommandWithEcho(commandToRun):
 def runClicastCommandUsingServer(enviroPath, commandToRun):
 
     # Strip off the first arg which is the clicast.exe
-    # TBD in the future we might only get the clicast args without the clicast exe ...
+    # In the future we might only get the clicast args without the clicast exe ...
     commandArgString = " ".join(commandToRun.split(" ")[1:])
     return runClicastServerCommand(enviroPath, commandArgString)
 
@@ -380,46 +369,3 @@ def generateExecutionReport(enviroPath, testIDObject):
     # we ignore the exit code and return the stdout
     exitCode, stdOutput = runClicastScript(enviroPath, commandFileName)
     return stdOutput
-
-# TBD today, get this working again, to see if its useful
-if __name__ == "__main__":
-    """
-    Unit tests, with values hard-coded for now ...
-    This is setup to allow us to monitor the system load
-    as multiple clicast instances are opened on Linux
-    """
-    pythonUtilities.USE_SERVER = True
-    pythonUtilities.globalClicastCommand = (
-        "/home/Users/jjp/vector/build/vc24/Linux/vc/clicast"
-    )
-
-    numberOfCommands = 10
-
-    startTime = time.time()
-    for _ in range(numberOfCommands):
-        # test runClicastCommand
-        commandToRun = f"{pythonUtilities.globalClicastCommand} -lc -eDEMO1 -umanager -sManager::PlaceOrder -tTest1 execute run"
-        enviroPath = os.path.join(os.getcwd(), "DEMO1")
-        returnCode, stdoutString = runClicastCommand(enviroPath, commandToRun)
-        print(stdoutString)
-    endTime = time.time()
-    print(
-        f"elapsed time: {endTime-startTime} seconds for {numberOfCommands} runs of runClicastCommand"
-    )
-
-    # delay to allow some measurements to be taken
-    print("one process running, waiting 10 seconds")
-    time.sleep(10)
-
-    # test runClicastScript
-    commandFileName = "testScript.cmd"
-    with open(commandFileName, "w") as f:
-        for _ in range(numberOfCommands):
-            f.write("-lc -eDEMO2 -umanager -sManager::PlaceOrder -tTest1 execute run\n")
-    enviroPath = os.path.join(os.getcwd(), "DEMO2")
-    returnCode, stdoutString = runClicastScript(enviroPath, commandFileName)
-    print(stdoutString)
-
-    # delay to allow some measurements to be taken
-    print("two processes running, waiting 10 seconds")
-    time.sleep(10)

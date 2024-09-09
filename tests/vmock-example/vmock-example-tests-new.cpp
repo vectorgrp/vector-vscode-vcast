@@ -400,7 +400,6 @@ VTEST(vmockExamples, templateTest) {
 
   auto vmock_session = ::vunit::MockSession();
 
-  // TBD have to manually insert the template pareamters here
   vmock_session.mock (&addNumbersTemplate<int, int>).assign (&vmock_vmock_examples_addNumbers_int);
   vmock_session.mock (&addNumbersTemplate<char, int>).assign (&vmock_vmock_examples_addNumbers_char);
   
@@ -408,7 +407,6 @@ VTEST(vmockExamples, templateTest) {
   // stub is called and controls return value
   VASSERT_EQ (123, addNumbersTemplate (1, 2));
   // stub is called and controls return value
-  // TBD vcast shows 99 ('c') in the report ... is the stub called?
   VASSERT_EQ (456, addNumbersTemplate ('a', 2));
 
 }
@@ -424,9 +422,7 @@ int vmock_vmock_examples_singleParamTemplate(::vunit::CallCtx<> vunit_ctx, char 
 VTEST(vmockExample, singleParamTemplateTest) {
 
   auto vmock_session = ::vunit::MockSession();
-  // TBD manually inserted the instance type
   vmock_session.mock (&singleParamTemplate<char>).assign (&vmock_vmock_examples_singleParamTemplate);
-
   VASSERT_EQ (321, singleParamTemplate ('a', 2));
 }
 

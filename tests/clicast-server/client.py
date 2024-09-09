@@ -41,13 +41,6 @@ except:
     sys.exit(1)
 
 
-"""
-TBD Stuff
-- Make the client interruptable with ctrl-c - signal handler like the server
-- 
-"""
-
-
 def serverURL():
     return f"http://{vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}"
 
@@ -213,7 +206,7 @@ def pingServerTest():
         assert False
     if "text" in returnData:
         responseText = returnData["text"]
-        assert responseText.startswith ("clicast-path");
+        assert responseText.startswith("clicast-path")
         print("   pingServer Test Passed")
     else:
         print(f"-- Server at {serverURL()} did not respond to ping")
@@ -444,7 +437,7 @@ def completionTest(enviroPath):
     )
     returnData = transmitTestCommand(request)
     assert compareToExpected("expected-completion-tst.json", returnData)
-    print ("     TST completionTest Test Passed")
+    print("     TST completionTest Test Passed")
 
     print("  starting MOCK completion test ...")
     request = vcastDataServerTypes.clientRequest(
@@ -452,7 +445,7 @@ def completionTest(enviroPath):
     )
     returnData = transmitTestCommand(request)
     assert compareToExpected("expected-completion-ct.json", returnData)
-    print ("     MOCK completionTest Test Passed")
+    print("     MOCK completionTest Test Passed")
 
     print("  completionTest Test Passed")
 
