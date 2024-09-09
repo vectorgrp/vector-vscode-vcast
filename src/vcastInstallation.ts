@@ -320,7 +320,12 @@ export async function checkIfInstallationIsOK() {
   vectorMessage("-".repeat(100) + "\n");
 
   // now check if a server is running and if its compatible with the installation
-  await determineServerState();
+  // TBD the server is not yet ready for prime time
+  const VCAST_USE_SERVER = process.env["VCAST_USE_SERVER"];
+  if (VCAST_USE_SERVER) {
+    vectorMessage("Checking if a VectorCAST Environment Data Server is available ... ");
+    await determineServerState();
+  }
 
   if (!returnValue) {
     vectorMessage(
