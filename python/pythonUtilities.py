@@ -21,11 +21,18 @@ def setClicastInstance(enviroPath, processObject):
     """
     This function will set the clicast instance for the given environment
     """
-    # Note: enviroPath is already "cleaned"
+    enviroPath = cleanEnviroPath(enviroPath)
     clicastInstances[enviroPath] = processObject
-    logMessage(
-        f"  started clicast instance [{processObject.pid}] for environment: {enviroPath}"
-    )
+
+
+def removeClicastInstance(enviroPath):
+    """
+    This function will remove the clicast instance for the given environment
+    This should be called AFTER the process has been terminated
+    """
+    enviroPath = cleanEnviroPath(enviroPath)
+    if enviroPath in clicastInstances:
+        del clicastInstances[enviroPath]
 
 
 def startNewClicastInstance(enviroPath):
@@ -65,6 +72,9 @@ def startNewClicastInstance(enviroPath):
 
     if clicastInstanceRunning:
         setClicastInstance(enviroPath, processObject)
+        logMessage(
+            f"  started clicast instance [{processObject.pid}] for environment: {enviroPath}"
+        )
     else:
         logMessage(f"  could not start clicast instance for environment: {enviroPath}")
         logMessage(f"  using command: {' '.join (commandArgs)}")
@@ -72,7 +82,7 @@ def startNewClicastInstance(enviroPath):
     return processObject
 
 
-def getClicastInstance(enviroPath):
+def getExistingClicastInstance(enviroPath):
     """
     This function will return the clicast instance for the given environment
     or None if the environment does not have an instance, or if the process is not running
@@ -87,16 +97,18 @@ def getClicastInstance(enviroPath):
         )
         whatToReturn = clicastInstances[enviroPath]
 
-    else:
-        # An old instance might exist if the server crashed, so clean that up
-        if enviroPath in clicastInstances:
-            logMessage(f"  previous clicast instance seems to have died ...")
-            del clicastInstances[enviroPath]
-
-        # start new clicast instance
-        whatToReturn = startNewClicastInstance(enviroPath)
-
     return whatToReturn
+
+
+def getClicastInstance(enviroPath):
+    """
+    This function will return the clicast instance for the given environment
+    If there is not an existing instance, a new clicast instance will be started.
+    """
+    clicastInstance = getExistingClicastInstance(enviroPath)
+    if clicastInstance == None:
+        clicastInstance = startNewClicastInstance(enviroPath)
+    return clicastInstance
 
 
 def closeEnvironmentConnection(enviroPath):
@@ -109,8 +121,7 @@ def closeEnvironmentConnection(enviroPath):
 
     returnValue = False
     if USE_SERVER:
-        enviroPath = cleanEnviroPath(enviroPath)
-        processObject = getClicastInstance(enviroPath)
+        processObject = getExistingClicastInstance(enviroPath)
         if processObject != None:
             logMessage(
                 f"  terminating clicast instance [{processObject.pid}] for environment: {enviroPath}"
@@ -125,8 +136,8 @@ def closeEnvironmentConnection(enviroPath):
                 processObject.wait()
             except:
                 pass
-            # This simply remove the processObject from the dictionary
-            del clicastInstances[enviroPath]
+            # This simply removes the processObject from the dictionary
+            removeClicastInstance(enviroPath)
             returnValue = True
         else:
             logMessage(f"  no clicast instance exists for environment: {enviroPath}")
@@ -136,8 +147,9 @@ def closeEnvironmentConnection(enviroPath):
 
 def cleanEnviroPath(enviroPath):
     """
-    This function is used to clean up the environment path
-    to make it usable as a consistent dictionary key
+    This function is used to clean up the environment path to make it usable as
+    a consistent dictionary key.  We force the drive lever to lower case
+    and we replace backslashes with forward slashes.
     """
     returnPath = enviroPath.replace("\\", "/")
     if returnPath[2] == ":":
