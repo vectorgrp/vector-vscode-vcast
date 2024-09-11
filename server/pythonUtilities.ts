@@ -134,15 +134,18 @@ export function getChoiceDataFromPython(
   kind: choiceKindType,
   enviroName: string,
   lineSoFar: string,
-  additionalAutocompletionParams?: any
+  unitName?: any
 ): choiceDataType {
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
-  // tst unit needed for TEST.SUBPROGRAM
-  const unit = additionalAutocompletionParams
-    ? additionalAutocompletionParams.unit
-    : "";
-  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}" ${unit}`;
+
+  let commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} --mode ${kind} --enviroName ${enviroName} --inputLine "${lineSoFar}"`;
+
+  // If `unit` is defined, append it as an optional argument:
+  if (unitName) {
+    commandToRun += ` --unit ${unitName}`;
+  }
+
   console.log(commandToRun);
   let commandOutputBuffer = execSync(commandToRun).toString();
 

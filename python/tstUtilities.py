@@ -417,7 +417,7 @@ def processRequirementLines(api, pieces, triggerCharacter):
 
     return returnData
 
-def processSubprogramLines(api, pieces, triggerCharacter, additionalParams):
+def processSubprogramLines(api, pieces, triggerCharacter, unit=None):
     """
     This function will compute the autocompletion list for TEST.SUBPROGRAM: lines. 
     In contrast to processRequirementLines or processStandartdLines, this needs 
@@ -427,17 +427,15 @@ def processSubprogramLines(api, pieces, triggerCharacter, additionalParams):
     global globalOutputLog
     returnData = choiceDataType()
     lengthOfCommand = len(pieces)
-    globalOutputLog.append("Last piece: " + pieces[2])
-    globalOutputLog.append("pieces length: " + str(lengthOfCommand))
+
     #TEST.SUBPROGRAM:
-    if lengthOfCommand == 3 and triggerCharacter == ":":  
+    if lengthOfCommand == 3 and triggerCharacter == ":" and unit != None:  
         objectList = api.Unit.all()
-        unitName = additionalParams
-        returnData.choiceList = getFunctionList(api, unitName)
+        returnData.choiceList = getFunctionList(api, unit)
         returnData.choiceKind = choiceKindType.Function
         returnData.choiceList.extend(['<<INIT>>', '<<COMPOUND>>', 'coded_tests_driver'])
     else:
-        # TODO: Current implementation just to make it work. --> See what alse can come after
+        #If completion requirements are not met 
         processStandardLines(api, pieces, triggerCharacter)
     return returnData
 
