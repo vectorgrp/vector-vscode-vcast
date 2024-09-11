@@ -1,8 +1,9 @@
 // Only using global-agent and GlobalDispatcher
 // if running on vistr server
 import path from "node:path";
+import http from "http";
 import { URL } from "node:url";
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import {
@@ -19,6 +20,8 @@ import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
 import { getSpecs } from "./specs_config";
+import { getToolVersion } from "../../../unit/getToolversion";
+import { ShutdownRequest } from "vscode-languageclient";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -388,12 +391,19 @@ export const config: Options.Testrunner = {
      * Standard env build and used by most Spec groups.
      */
     async function setupSingleEnvironment(initialWorkdir: string) {
+      const toolVersion = await getToolVersion();
       const testInputVcastTutorial = path.join(
         initialWorkdir,
         "test",
         "test_input",
         "vcastTutorial"
       );
+
+      const serverPath = path.join(initialWorkdir, "..", "..", "..", "python");
+
+      // Delete old env
+      const deleteENV = `cd ${testInputVcastTutorial} && rm -rf DATABASE-MANAGER-TEST`;
+      await executeCommand(deleteENV);
 
       if (process.env.VECTORCAST_DIR) {
         // Standard setup when VECTORCAST_DIR is available
@@ -422,7 +432,26 @@ export const config: Options.Testrunner = {
 
       // Execute RGW commands and copy necessary files
       await executeRGWCommands(testInputVcastTutorial);
+
+      process.env.VCAST_USE_SERVER = "True";
+
+      // Coded tests support only for >= vc24
+      if (toolVersion.includes("24")) {
+        const setCoded = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await executeCommand(setCoded);
+      }
+
+      // Build env
+      const setEnviro = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/enviroedg DATABASE-MANAGER-test.env`;
+      await executeCommand(setEnviro);
       await copyPathsToTestLocation(testInputVcastTutorial);
+
+      // Start clicast server
+      try {
+        await startServer(serverPath);
+      } catch (error) {
+        console.error(`Error starting server: ${error.message}`);
+      }
     }
 
     /**
@@ -630,6 +659,38 @@ ENVIRO.END
      *                              ENVIRONMENT SETUP HELPERS
      * ================================================================================================
      */
+
+    /**
+     * Starts clicast server on given path.
+     * @param serverPath Path to server.
+     */
+    async function startServer(serverPath: string) {
+      console.log("STARTING SERVER ...");
+
+      const startServerCmd = "vpython";
+      const serverArgs = [`${serverPath}/vcastDataServer.py`, "--port=12345"];
+
+      const serverProcess = spawn(startServerCmd, serverArgs);
+
+      serverProcess.stdout.on("data", (data) => {
+        console.log(`stdout: ${data}`);
+        if (data.includes("vcastDataServer is starting")) {
+          console.log("SERVER STARTED");
+        }
+      });
+
+      serverProcess.stderr.on("data", (data) => {
+        console.error(`stderr: ${data}`);
+      });
+
+      serverProcess.on("error", (err) => {
+        console.error(`Error starting server: ${err.message}`);
+      });
+
+      serverProcess.on("close", (code) => {
+        console.log(`Server process exited with code ${code}`);
+      });
+    }
 
     /**
      * Cleans up and sets up the test environment directories.
@@ -956,6 +1017,43 @@ ENVIRO.END
       );
       await promisifiedExec("pkill code");
     }
+    // const stopServer = `vpython ${clientPath}/client.py --test=shutdown`
+
+    // try {
+    //   const { stdout, stderr } = await promisifiedExec(stopServer);
+    //   console.log("SERVER STOPPED");
+    //   if (stdout) console.log(`stdout: ${stdout}`);
+    //   if (stderr) console.error(`stderr: ${stderr}`);
+    // } catch (error) {
+    //     console.error(`Error stopping server: ${error.message}`);
+    // }
+  },
+
+  async onComplete(exitCode, config, capabilities, results) {
+    // Request on /shutdown
+    const options = {
+      hostname: "localhost",
+      port: 12345,
+      path: "/shutdown",
+      method: "GET",
+    };
+
+    const req = http.request(options, (res) => {
+      console.log(`STATUS: ${res.statusCode}`);
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        console.log(`BODY: ${chunk}`);
+      });
+      res.on("end", () => {
+        console.log("Server shutdown complete.");
+      });
+    });
+
+    req.on("error", (e) => {
+      console.error(`Problem with request: ${e.message}`);
+    });
+
+    req.end();
   },
 
   /**
