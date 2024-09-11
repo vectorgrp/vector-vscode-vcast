@@ -39,7 +39,8 @@ export async function checkClicastOption(
 ): Promise<boolean> {
   const execAsync = promisify(exec);
   const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast get_option ${option}`;
-  //Try to find clicast option
+
+  //Try to find clicast option. Returns true in case the option is existent & has the set value.
   const { stdout, stderr } = await execAsync(getCodedTestsSupportCommand, {
     cwd: enviroPath,
   });
@@ -85,9 +86,6 @@ export async function getTstCompletionData(
   const testScriptPath = url.fileURLToPath(completionData.textDocument.uri);
   const enviroPath = getEnviroNameFromTestScript(testScriptPath);
   const extractedText = currentDocument.getText();
-  let autocompletionParams = {
-    unit: "",
-  };
 
   let codedTestsEnabled;
 
