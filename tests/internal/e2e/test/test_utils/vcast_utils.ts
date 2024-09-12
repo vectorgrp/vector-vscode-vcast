@@ -1224,6 +1224,6 @@ export async function selectItem(contentAssist: ContentAssist, item: string) {
  * @param content The string to be normalized.
  * @returns The cleaned and normalized string.
  */
-function normalizeContentAssistString(content: string): string {
+export function normalizeContentAssistString(content: string): string {
   return content.replace(/⏎/g, "\n").replace(/\s+/g, " ").trim();
 }
