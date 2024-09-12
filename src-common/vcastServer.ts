@@ -1,5 +1,3 @@
-// proof of concept for interacting with a running environment data server
-
 import fetch from "node-fetch";
 import { pythonErrorCodes } from "./vcastServerTypes";
 
@@ -35,7 +33,11 @@ export interface clientRequestType {
   additionalAutocompletionParams?: any;
 }
 
-function serverURL() {
+/**
+ * @testing This function is exported for testing purposes only.
+ * Returns the server URL used in API calls.
+ */
+export function serverURL() {
   return `http://${HOST}:${PORT}`;
 }
 
@@ -55,6 +57,12 @@ export function setServerState(newState: boolean) {
   globalEnviroDataServerActive = newState;
 }
 
+// When we ping the server it responds with the path to the clicast
+// command that it is running.  This is used by the core extension
+// for a compatibility check with the vectorcast installation
+// that the server is configured with.
+export let serverClicastPath: string = "";
+
 // To allow us to update the test pane when we have a server
 // fall back error we set this callback during extension initialization,
 // and  use it in the transmitCommand error handling below.
@@ -69,7 +77,12 @@ let terminateServerCallback: any = undefined;
 export function setTerminateServerCallback(callback: any) {
   terminateServerCallback = callback;
 }
-function terminateServerProcessing() {
+
+/**
+ * @testing This function is exported for testing purposes only.
+ * It indirectly calls terminateServerProcessing() in the core extension case.
+ */
+export function terminateServerProcessing() {
   // this function indirectly calls terminateServerProcessing()
   // in the core extension case.
   if (terminateServerCallback) {
@@ -83,7 +96,12 @@ let logServerCommandsCallback: any = undefined;
 export function setLogServerCommandsCallback(callback: any) {
   logServerCommandsCallback = callback;
 }
-function logServerCommand(message: string) {
+
+/**
+ * @testing This function is exported for testing purposes only.
+ * Logs the server command by calling the logServerCommandsCallback.
+ */
+export function logServerCommand(message: string) {
   if (logServerCommandsCallback) {
     // for the core extension we send this to the message pane
     logServerCommandsCallback(message);
@@ -120,13 +138,18 @@ export async function serverIsAlive() {
     pingObject,
     "ping"
   );
+  if (transmitResponse.success === true) {
+    let responseText = transmitResponse.returnData.text;
+    // the server should respond with the path to ITS clicast
+    serverClicastPath = responseText.split("clicast-path:")[1].trim();
+  }
   return transmitResponse.success;
 }
 
 // This does the actual fetch from the server
 export async function transmitCommand(
   requestObject: clientRequestType,
-  route = "vcastserver"
+  route = "runcommand"
 ) {
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);

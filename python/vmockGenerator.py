@@ -189,6 +189,9 @@ def generate_tests_for_environment(enviro_path):
     # ... and the test script to load the coded test
     generate_test_script(api.environment.name, first_unit)
 
+    # close the api handle
+    api.close()
+
     return 0
 
 
@@ -318,6 +321,8 @@ def generate_tests_and_compile():
         except Exception:
             print(f"Failed to process: {enviro_path}")
             print(traceback.format_exc())
+
+        api.close()
 
     print("\nSummary:")
     print(f"  Total directories processed: {len(enviroDirs)}")

@@ -98,7 +98,7 @@ function processExceptionFromExecuteCommand(
   let commandStatus = { errorCode: error.status, stdout: stdoutString };
 
   if (error.status == pythonErrorCodes.testInterfaceError) {
-    // TBD TODAY - Why?
+    // Improvement needed: we should document this
     commandStatus.errorCode = 0;
     vectorMessage("Exception while executing python interface");
     vectorMessage(stdoutString, errorLevel.info, indentString);

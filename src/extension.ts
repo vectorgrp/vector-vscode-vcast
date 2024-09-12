@@ -65,7 +65,6 @@ import {
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
   rebuildEnvironment,
-  initializeServerState,
 } from "./vcastAdapter";
 
 import {
@@ -118,11 +117,11 @@ export async function activate(context: vscode.ExtensionContext) {
   // we need to install some event handlers so that the user can "fix"
   // a "bad" vcast installation by providing a valid path see logic
   // and comments in this function
-  installPreActivationEventHandlers(context);
+  await installPreActivationEventHandlers(context);
 
   // this checks the vcast installation,
   // and if its ok will proceed with full activation
-  checkPrerequisites(context);
+  await checkPrerequisites(context);
 }
 
 export function configureCommandCalled(context: vscode.ExtensionContext) {
@@ -132,7 +131,7 @@ export function configureCommandCalled(context: vscode.ExtensionContext) {
 
 let alreadyConfigured: boolean = false;
 let installationFilesInitialized: boolean = false;
-function checkPrerequisites(context: vscode.ExtensionContext) {
+async function checkPrerequisites(context: vscode.ExtensionContext) {
   // this function is called from the activate function, and also from the
   // event handler for changes to the vcast installation location.  So in the
   // case that the VectorCAST installation is not found initially, we will get
@@ -145,7 +144,7 @@ function checkPrerequisites(context: vscode.ExtensionContext) {
       installationFilesInitialized = true;
     }
 
-    if (checkIfInstallationIsOK()) {
+    if (await checkIfInstallationIsOK()) {
       activationLogic(context);
       alreadyConfigured = true;
       vscode.commands.executeCommand(
@@ -166,9 +165,6 @@ function checkPrerequisites(context: vscode.ExtensionContext) {
 async function activationLogic(context: vscode.ExtensionContext) {
   // adds all of the command handlers
   configureExtension(context);
-
-  // Check server setting and state
-  await initializeServerState();
 
   // setup the decorations for coverage
   initializeCodeCoverageFeatures(context);
@@ -640,7 +636,9 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
 }
 
-function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
+async function installPreActivationEventHandlers(
+  context: vscode.ExtensionContext
+) {
   // this is separate from configureExtension() because we want to
   // handle some actions before the configuration of the extension is complete
   // Specifically for the case where the user does a create environment action
@@ -650,7 +648,7 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
   // values that could contain things like ${workspaceFolder} so we don't provide support.
   // Here is a starting point for research: https://github.com/microsoft/vscode/issues/46471
 
-  vscode.workspace.onDidChangeConfiguration((event) => {
+  vscode.workspace.onDidChangeConfiguration(async (event) => {
     // post configuration, we handle changes to all options ...
     if (alreadyConfigured) {
       // This function gets triggered when any option at any level (user, workspace, etc.)
@@ -682,7 +680,7 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
       ) {
         // if the user changes the path to vcast, we need to reset the values
         // for clicast and vpython path etc.
-        if (checkIfInstallationIsOK()) {
+        if (await checkIfInstallationIsOK()) {
           refreshAllExtensionData();
         }
       }
@@ -695,16 +693,16 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
     ) {
       // this call will check if the new value is valid,
       // and if so, perform extension activation
-      checkPrerequisites(context);
+      await checkPrerequisites(context);
     }
   });
 
   // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
   let newEnviroVCASTCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.newEnviroVCAST",
-    (args: Uri, argList: Uri[]) => {
+    async (args: Uri, argList: Uri[]) => {
       // contains a check for already configured, so no work will be done in that case
-      checkPrerequisites(context);
+      await checkPrerequisites(context);
       if (alreadyConfigured) {
         // arg is the actual item that the right click happened on, argList is the list
         // of all items if this is a multi-select.  Since argList is always valid, even for a single

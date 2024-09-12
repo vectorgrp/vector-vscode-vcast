@@ -35,6 +35,10 @@ export function initializePaths(
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
+  console.log("VectorCAST Language Server is Active ...");
+  console.log(`  using vpython: ${vpythonPath}`);
+  console.log(`  using environment data server: ${useServer}`);
+
   vPythonCommandToUse = vpythonPath;
   // set the server instance of the globalEnviroDataServerActive flag
   // based on the value passed to us by the client.
@@ -47,12 +51,12 @@ export function initializePaths(
   );
   if (fs.existsSync(pathToTestEditorInterface)) {
     console.log(
-      `testEditorInterface was found here: ${pathToTestEditorInterface}`
+      `  testEditorInterface was found here: ${pathToTestEditorInterface}\n`
     );
     testEditorScriptPath = `${pathToTestEditorInterface}`;
   } else {
     console.log(
-      `testEditorInterface was not found in the expected location: ${pathToTestEditorInterface}`
+      `  testEditorInterface was not found in the expected location: ${pathToTestEditorInterface}\n`
     );
   }
 }

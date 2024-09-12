@@ -1,10 +1,13 @@
 import * as nodeFetch from "node-fetch";
 import { Response } from "node-fetch";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, test, expect, vi, afterEach } from "vitest";
 import {
   closeConnection,
   serverIsAlive,
+  serverURL,
+  setLogServerCommandsCallback,
   setServerState,
+  setTerminateServerCallback,
   transmitCommand,
   vcastCommandType,
 } from "../../src-common/vcastServer";
@@ -47,7 +50,7 @@ describe("test server functions", () => {
   });
 
   // Testing closeConnection()
-  it("closeConnection handles successful response", async () => {
+  test("closeConnection handles successful response", async () => {
     const fetchReturn = {
       exitCode: 0,
       data: {},
@@ -58,11 +61,11 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(true);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/vcastserver?request={"command":"closeConnection","path":"test/path"}'
+      'http://localhost:60461/runcommand?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
-  it("closeConnection handles internal server error", async () => {
+  test("closeConnection handles internal server error", async () => {
     const fetchReturn = {
       exitCode: pythonErrorCodes.internalServerError,
       data: {
@@ -75,14 +78,15 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/vcastserver?request={"command":"closeConnection","path":"test/path"}'
+      'http://localhost:60461/runcommand?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
   // Testing serverIsAlive()
-  it("serverIsAlive handles successful response", async () => {
+  test("serverIsAlive handles successful response", async () => {
     const fetchReturn = {
       exitCode: 0,
+      text: "clicast-path: /some/path",
       data: {},
     };
 
@@ -95,7 +99,7 @@ describe("test server functions", () => {
     );
   });
 
-  it("serverIsAlive handles Python interface error", async () => {
+  test("serverIsAlive handles Python interface error", async () => {
     const fetchReturn = {
       exitCode: pythonErrorCodes.testInterfaceError,
       data: {
@@ -112,7 +116,7 @@ describe("test server functions", () => {
     );
   });
 
-  it("serverIsAlive handles clicast instance start failure", async () => {
+  test("serverIsAlive handles clicast instance start failure", async () => {
     const fetchReturn = {
       exitCode: pythonErrorCodes.couldNotStartClicastInstance,
       data: {},
@@ -127,8 +131,15 @@ describe("test server functions", () => {
     );
   });
 
-  // Testing transmitCommand()
-  it("transmitCommand handles fetch errors with empty reason correctly", async () => {
+  test("transmitCommand handles fetch errors with empty reason correctly", async () => {
+    // Mock the callbacks
+    const mockTerminateCallback = vi.fn();
+    const mockLogServerCommandsCallback = vi.fn();
+
+    // Set the callbacks with mock functions
+    setTerminateServerCallback(mockTerminateCallback);
+    setLogServerCommandsCallback(mockLogServerCommandsCallback);
+
     const errorMessage = "Network error reason: ";
     fetch.mockImplementationOnce(() => Promise.reject(new Error(errorMessage)));
 
@@ -139,12 +150,22 @@ describe("test server functions", () => {
 
     const response = await transmitCommand(requestObject);
 
+    // Check fetch call
     expect(response.success).toBe(false);
     expect(response.statusText).toBe(
       `Enviro server error: Server is not running, disabling server mode for this session`
     );
     expect(fetch).toHaveBeenCalledWith(
-      `http://localhost:60461/vcastserver?request=${JSON.stringify(requestObject)}`
+      `http://localhost:60461/runcommand?request=${JSON.stringify(requestObject)}`
     );
+
+    // Check if logServerCommandsCallback was called with the correct message
+    const expectedLogMessage = `Sending command: "${requestObject.command}" to server: ${serverURL()},`;
+    expect(mockLogServerCommandsCallback).toHaveBeenCalledWith(
+      expectedLogMessage
+    );
+
+    // Check if the mock function got called in transmitCommand
+    expect(mockTerminateCallback).toHaveBeenCalledOnce;
   });
 });
