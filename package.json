@@ -624,7 +624,6 @@
     "@typescript-eslint/parser": "^5.59.0",
     "@vitest/coverage-v8": "^0.32.2",
     "@vscode/test-electron": "^1.6.2",
-    "@vscode/vsce": "^3.1.0",
     "esbuild": "^0.14.2",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^8.8.0",
@@ -639,6 +638,7 @@
     "vitest": "^0.32.2"
   },
   "dependencies": {
+    "@vscode/vsce": "^2.32.0",
     "crc-32": "^1.2.0",
     "glob": "^7.1.7",
     "hasbin": "^1.2.3",
