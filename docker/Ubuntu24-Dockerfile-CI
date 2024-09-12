@@ -40,7 +40,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     npm set -g https-proxy $HTTPS_PROXY && \
     npm set -g registry https://registry.npmjs.org/ && \
     npm i -g yo && \
-    npm install -g @vscode/vsce@^2.15.04 && \
     npm install -g typescript && \
     npm install -g esbuild && \
     npm install -g tsx
