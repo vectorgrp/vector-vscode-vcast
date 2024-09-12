@@ -111,7 +111,7 @@ function vcastVersionGreaterThan(
 
 function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
   // The vmock features is only available in vc24sp2 and later
-  return vcastVersionGreaterThan(vcastInstallationPath, 24, 3);
+  return vcastVersionGreaterThan(vcastInstallationPath, 24, 4);
 }
 
 function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
@@ -322,6 +322,7 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
       checkForATG(vcastInstallationPath);
 
       // vMock available affects how we do completions in the language server
+      // and allows us to issue nice error messages when the user tries to use vMock
       const vMockAvailable = vectorCASTSupportsVMock(vcastInstallationPath);
       if (vMockAvailable) {
         vectorMessage(`   vMock is available in this release`);
