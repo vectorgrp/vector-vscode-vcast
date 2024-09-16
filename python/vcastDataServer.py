@@ -208,8 +208,12 @@ def main():
     # allow ctrl-c to shutdown the server gracefully
     signal.signal(signal.SIGTERM, serverSignalHandler)
     signal.signal(signal.SIGINT, serverSignalHandler)
+
     if sys.platform == "win32":
         signal.signal(signal.SIGBREAK, serverSignalHandler)
+    else:
+        # Explicitly ignore signal.SIGPIPE
+        signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 
     # start the server
     with open("vcastDataServer.log", "w", buffering=1) as pythonUtilities.logFileHandle:
