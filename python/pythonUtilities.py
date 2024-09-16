@@ -2,6 +2,7 @@ import datetime
 import os
 import subprocess
 import sys
+import time
 
 
 # This contains the clicast command that was used to start the data server
@@ -54,10 +55,16 @@ def startNewClicastInstance(enviroPath):
     )
 
     # A valid clicast server start emits: "clicast-server-started"
-    # so we check for that, or we wait for the process to terminate
-    # which a non-server clicast version will do.
-    # Note that this is a failsafe because we should never get
-    # here if the clicast is not server capable.
+    # so we wait to get that string from clicast
+    #
+    # A non-server capable clicast will see the command as invalid
+    # and exit, so we check for that case as well even though
+    # we should never get here if clicast is not server capable
+    #
+    # And finally we use a 5 second timer to make sure we
+    # never hang even if something goes terribly wrong :)
+    #
+    timeout = time.time() + 5
     while True:
         responseLine = processObject.stdout.readline()
         if responseLine.startswith("clicast-server-started"):
@@ -68,6 +75,11 @@ def startNewClicastInstance(enviroPath):
             # something went wrong, break and return None
             clicastInstanceRunning = False
             processObject = None
+            break
+        elif time.time() > timeout:
+            clicastInstanceRunning = False
+            processObject = None
+            logMessage(f"  clicast server start processing timed out ...")
             break
 
     if clicastInstanceRunning:
