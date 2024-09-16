@@ -9,7 +9,7 @@ import {
   deleteEnvironmentCallback,
 } from "./callbacks";
 
-import { sendServerStateToServer } from "./client";
+import { sendServerStateToLanguageServer } from "./client";
 
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
@@ -126,7 +126,7 @@ export async function determineServerState() {
   }
 
   setServerState(newServerState);
-  sendServerStateToServer(newServerState);
+  sendServerStateToLanguageServer(newServerState);
 }
 
 // ------------------------------------------------------------------------------------
