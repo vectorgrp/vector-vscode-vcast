@@ -152,7 +152,7 @@ def cleanEnviroPath(enviroPath):
     and we replace backslashes with forward slashes.
     """
     returnPath = enviroPath.replace("\\", "/")
-    if returnPath[2] == ":":
+    if returnPath[1] == ":":
         returnPath = returnPath[0].lower() + returnPath[1:]
     return returnPath
 
