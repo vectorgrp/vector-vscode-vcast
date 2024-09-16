@@ -14,7 +14,10 @@ class errorCodes(str, Enum):
 
 
 # NOTE: This class must stay in sync with typescript file vcastServer.ts: vcastCommandType
-#
+# If we find that we are changing this type frequently we might want to auto-generate
+# this type from a common configuration file.
+
+
 class commandType(str, Enum):
     ping = "ping"
     shutdown = "shutdown"
