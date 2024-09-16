@@ -9,9 +9,7 @@ import {
   vectorMessage,
 } from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
-import {
-  cleanVectorcastOutput,
-} from "../src-common/commonUtilities";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 
 import {
   clientRequestType,
@@ -92,9 +90,8 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-
   // see detailed comment with the function definition
-  let stdoutString:string = cleanVectorcastOutput(error.stdout.toString());
+  let stdoutString: string = cleanVectorcastOutput(error.stdout.toString());
   let commandStatus = { errorCode: error.status, stdout: stdoutString };
 
   if (error.status == pythonErrorCodes.testInterfaceError) {
@@ -239,7 +236,7 @@ export function executeCommandWithProgress(
         // final \n and buffer the rest, see comment above
         let remainderTextFromLastCall = "";
 
-        let stderrChunks:string = "";
+        let stderrChunks: string = "";
 
         commandHandle.stdout.on("data", async (data: any) => {
           const message: statusMessageType = processCommandOutput(
@@ -285,7 +282,11 @@ export function executeCommandWithProgress(
         commandHandle.on("close", (code: any) => {
           // display any remaining text ...
           if (remainderTextFromLastCall.length > 0) {
-            vectorMessage(remainderTextFromLastCall, errorLevel.info, indentString);
+            vectorMessage(
+              remainderTextFromLastCall,
+              errorLevel.info,
+              indentString
+            );
           }
           vectorMessage(stderrChunks, errorLevel.info, indentString);
 
@@ -300,7 +301,6 @@ export function executeCommandWithProgress(
 
 // This will run any clicast command on the server
 export async function executeClicastCommandUsingServer(
-  clicastCommandToUse: string,
   enviroPath: string,
   commandArgs: string
 ): Promise<commandStatusType> {

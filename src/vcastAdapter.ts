@@ -203,7 +203,6 @@ export async function loadTestScriptIntoEnvironment(
   if (globalEnviroDataServerActive) {
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
     commandStatus = await executeClicastCommandUsingServer(
-      clicastCommandToUse,
       enviroPath,
       loadScriptArgs
     );
@@ -249,7 +248,6 @@ export async function deleteSingleTest(
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
-      clicastCommandToUse,
       testNode.enviroPath,
       deleteTestArgs
     );
@@ -305,7 +303,6 @@ export async function addCodedTestToEnvironment(
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
-      clicastCommandToUse,
       enviroPath,
       codedTestArgs
     );
@@ -335,7 +332,6 @@ export async function dumpTestScriptFile(
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
-      clicastCommandToUse,
       testNode.enviroPath,
       dumpScriptArgs
     );
@@ -403,7 +399,6 @@ export async function refreshCodedTests(
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
     commandStatus = await executeClicastCommandUsingServer(
-      clicastCommandToUse,
       enviroPath,
       refreshCodedArgs
     );
