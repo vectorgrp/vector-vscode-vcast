@@ -181,7 +181,7 @@ VTEST(vmockTests, classTest) {
   myClass myClassInstance;
   // stub is called and controls return value
   VASSERT_EQ (100, myClassInstance.myMethod (5));
-  // TBD vcast shows 88 in the report ...
+  // Note vcast shows 88 in the report ...
   VASSERT_EQ ('X', myClassInstance.myMethod ('a'));
 
 }
@@ -226,7 +226,6 @@ int vmock_vmock_examples_addNumbers_int(::vunit::CallCtx<> vunit_ctx, int a, int
 
 
 // vmock vmock_examples addNumbersTemplate(char,int)int 
-// TBD have to manually update the function name
 int vmock_vmock_examples_addNumbers_char(::vunit::CallCtx<> vunit_ctx, char a, int b) {
    // Enable Stub:  vmock_session.mock (&addNumbersTemplate<insert-template-param-types>).assign (&vmock_vmock_examples_addNumbersTemplate);
    // Disable Stub: vmock_session.mock (&addNumbersTemplate<insert-template-param-types>).assign (nullptr);
@@ -237,7 +236,6 @@ VTEST(vmockExamples, templateTest) {
 
   auto vmock_session = ::vunit::MockSession();
 
-  // TBD have to manually insert the template pareamters here
   vmock_session.mock (&addNumbersTemplate<int, int>).assign (&vmock_vmock_examples_addNumbers_int);
   vmock_session.mock (&addNumbersTemplate<char, int>).assign (&vmock_vmock_examples_addNumbers_char);
   
@@ -245,7 +243,7 @@ VTEST(vmockExamples, templateTest) {
   // stub is called and controls return value
   VASSERT_EQ (123, addNumbersTemplate (1, 2));
   // stub is called and controls return value
-  // TBD vcast shows 99 ('c') in the report ... is the stub called?
+  // Note vcast shows 99 ('c') in the report ... is the stub called?
   VASSERT_EQ (456, addNumbersTemplate ('a', 2));
 
 }
@@ -261,9 +259,7 @@ int vmock_vmock_examples_singleParamTemplate(::vunit::CallCtx<> vunit_ctx, char 
 VTEST(vmockExample, singleParamTemplateTest) {
 
   auto vmock_session = ::vunit::MockSession();
-  // TBD manually inserted the instance type
   vmock_session.mock (&singleParamTemplate<char>).assign (&vmock_vmock_examples_singleParamTemplate);
-
   VASSERT_EQ (321, singleParamTemplate ('a', 2));
 }
 

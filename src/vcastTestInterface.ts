@@ -458,7 +458,7 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
     vectorMessage(commandOutputText, errorLevel.info, indentString);
     openMessagePane();
     returnStatus = testStatus.didNotRun;
-  } else if (commandStatus.errorCode != 0 && commandOutputText.length != 28) {
+  } else if (commandStatus.errorCode != 0 && commandStatus.errorCode != 28) {
     // 0 means test pass, 28 means test failed, everything else is an error
     // however the printing of the error message is done where the command is run
     // so we don't have to do it here

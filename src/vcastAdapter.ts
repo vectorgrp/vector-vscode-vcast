@@ -9,6 +9,8 @@ import {
   deleteEnvironmentCallback,
 } from "./callbacks";
 
+import { sendServerStateToServer } from "./client";
+
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 import {
@@ -34,7 +36,9 @@ import {
 import {
   atgCommandToUse,
   clicastCommandToUse,
+  getToolVersionFromPath,
   vcastCommandToUse,
+  vcastInstallationVersion,
 } from "./vcastInstallation";
 
 import {
@@ -54,6 +58,7 @@ import {
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
+  serverClicastPath,
 } from "../src-common/vcastServer";
 
 import { refreshAllExtensionData } from "./testPane";
@@ -62,39 +67,66 @@ const path = require("path");
 
 function terminateServerProcessing() {
   // This functions gets called by server transmitCommand()
-  // when there is a fatal server errr.  In this case, we 
+  // when there is a fatal server errr.  In this case, we
   // display a pop up error message, update the test pane
   refreshAllExtensionData();
 
   vscode.window.showErrorMessage(
     "Fatal Error in VectorCAST Environment Data Server - " +
       "Disabling Server Mode for this Session.  " +
-      "The previous command was discarded, and the " + 
+      "The previous command was discarded, and the " +
       "Testing Pane has been reloaded"
   );
 }
 
 function logServerCommands(text: string) {
-  // This function gets called by server - transmitCommand () 
+  // This function gets called by server - transmitCommand ()
   // It is implemented as a callback because the server is
   // used by both the core extension and the language server
   vectorMessage(text, errorLevel.trace);
 }
 
-export async function initializeServerState() {
+export async function determineServerState() {
   // This function is called during initialization to check if the enviro
   // data server is alive and if so configure the extension to use it
 
-  // Set the client instance of the globalEnviroDataServerActive
-  // flag if we can ping the server
-  setServerState(await serverIsAlive());
-  setTerminateServerCallback(terminateServerProcessing);
-  setLogServerCommandsCallback(logServerCommands);
-  if (globalEnviroDataServerActive) {
-    vectorMessage("VectorCAST Environment Data Server is Active ...");
+  // This call saves the path to the clicast version that the
+  // server is running into variable: "serverClicastPath"
+  let newServerState = false;
+  if (await serverIsAlive()) {
+    // the server is running, now check if the clicast versions match
+
+    const serverVersion = getToolVersionFromPath(
+      path.dirname(serverClicastPath)
+    );
+
+    if (
+      vcastInstallationVersion.version == serverVersion.version &&
+      vcastInstallationVersion.servicePack == serverVersion.servicePack
+    ) {
+      setTerminateServerCallback(terminateServerProcessing);
+      setLogServerCommandsCallback(logServerCommands);
+      vectorMessage("VectorCAST Environment Data Server is Active ...\n");
+      newServerState = true;
+    } else {
+      vectorMessage(
+        "VectorCAST Environment Data Server is Active, but the VectorCAST versions are incompatible ..."
+      );
+      vectorMessage(
+        `  The server has been configured with: ${path.dirname(serverClicastPath)}`
+      );
+      vectorMessage(
+        `  The extension has been configured with: ${path.dirname(clicastCommandToUse)}\n`
+      );
+      newServerState = false;
+    }
   } else {
-    vectorMessage("VectorCAST Environment Data Server is NOT Active ...");
+    vectorMessage("VectorCAST Environment Data Server is NOT Active ...\n");
+    newServerState = false;
   }
+
+  setServerState(newServerState);
+  sendServerStateToServer(newServerState);
 }
 
 // ------------------------------------------------------------------------------------
@@ -671,7 +703,7 @@ function executeTestViaPython(
 // Server logic is in a separate function below
 export async function getTestExecutionReport(
   enviroPath: string,
-  testID: string,
+  testID: string
 ): Promise<commandStatusType> {
   if (globalEnviroDataServerActive) {
     return await getTestExecutionReportFromServer(enviroPath, testID);
@@ -683,7 +715,7 @@ export async function getTestExecutionReport(
 // Server Logic
 async function getTestExecutionReportFromServer(
   enviroPath: string,
-  testID: string,
+  testID: string
 ): Promise<commandStatusType> {
   //
   const requestObject = getClientRequestObject(
@@ -701,7 +733,7 @@ async function getTestExecutionReportFromServer(
 // python logic
 function getTestExecutionReportFromPython(
   enviroPath: string,
-  testID: string,
+  testID: string
 ): commandStatusType {
   //
   const commandToRun = getVcastInterfaceCommand(

@@ -35,6 +35,10 @@ export function initializePaths(
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
+  console.log("VectorCAST Language Server is Active ...");
+  console.log(`  using vpython: ${vpythonPath}`);
+  console.log(`  using environment data server: ${useServer}`);
+
   vPythonCommandToUse = vpythonPath;
   // set the server instance of the globalEnviroDataServerActive flag
   // based on the value passed to us by the client.
@@ -47,12 +51,12 @@ export function initializePaths(
   );
   if (fs.existsSync(pathToTestEditorInterface)) {
     console.log(
-      `testEditorInterface was found here: ${pathToTestEditorInterface}`
+      `  testEditorInterface was found here: ${pathToTestEditorInterface}\n`
     );
     testEditorScriptPath = `${pathToTestEditorInterface}`;
   } else {
     console.log(
-      `testEditorInterface was not found in the expected location: ${pathToTestEditorInterface}`
+      `  testEditorInterface was not found in the expected location: ${pathToTestEditorInterface}\n`
     );
   }
 }
@@ -97,7 +101,8 @@ export const emptyChoiceData: choiceDataType = {
 export async function getChoiceDataFromServer(
   kind: choiceKindType,
   enviroPath: string,
-  lineSoFar: string
+  lineSoFar: string,
+  additionalAutocompletionParams?: any
 ): Promise<choiceDataType> {
   // We are re-using options for the line fragment in the request
 
@@ -109,6 +114,7 @@ export async function getChoiceDataFromServer(
     command: commandToUse,
     path: enviroPath,
     options: lineSoFar,
+    additionalAutocompletionParams: additionalAutocompletionParams,
   };
 
   let transmitResponse: transmitResponseType =
@@ -131,11 +137,20 @@ export enum choiceKindType {
 export function getChoiceDataFromPython(
   kind: choiceKindType,
   enviroName: string,
-  lineSoFar: string
+  lineSoFar: string,
+  unitName?: any
 ): choiceDataType {
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
-  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}"`;
+
+  let commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} --mode ${kind} --enviroName ${enviroName} --inputLine "${lineSoFar}"`;
+
+  // If `unit` is defined, append it as an optional argument:
+  if (unitName) {
+    commandToRun += ` --unit ${unitName}`;
+  }
+
+  console.log(commandToRun);
   let commandOutputBuffer = execSync(commandToRun).toString();
 
   // see detailed comment with the function definition
@@ -150,7 +165,8 @@ export function getChoiceDataFromPython(
 export async function getChoiceData(
   kind: choiceKindType,
   enviroPath: string,
-  lineSoFar: string
+  lineSoFar: string,
+  additionalAutocompletionParams?: any // TODO: make correct type
 ): Promise<choiceDataType> {
   //
 
@@ -158,7 +174,12 @@ export async function getChoiceData(
   if (globalEnviroDataServerActive) {
     jsonData = await getChoiceDataFromServer(kind, enviroPath, lineSoFar);
   } else {
-    jsonData = getChoiceDataFromPython(kind, enviroPath, lineSoFar);
+    jsonData = getChoiceDataFromPython(
+      kind,
+      enviroPath,
+      lineSoFar,
+      additionalAutocompletionParams
+    );
   }
 
   for (const msg of jsonData.messages) {

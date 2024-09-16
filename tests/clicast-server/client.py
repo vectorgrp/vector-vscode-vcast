@@ -41,13 +41,6 @@ except:
     sys.exit(1)
 
 
-"""
-TBD Stuff
-- Make the client interruptable with ctrl-c - signal handler like the server
-- 
-"""
-
-
 def serverURL():
     return f"http://{vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}"
 
@@ -193,7 +186,7 @@ def transmitTestCommand(requestObject):
     # request is a class, so we convert it to a dictionary, then a string
     dataAsString = json.dumps(requestObject.toDict())
     returnData = requests.get(
-        f"{serverURL()}/vcastserver", params={"request": dataAsString}
+        f"{serverURL()}/runcommand", params={"request": dataAsString}
     )
     return returnData.json()
 
@@ -213,7 +206,7 @@ def pingServerTest():
         assert False
     if "text" in returnData:
         responseText = returnData["text"]
-        assert responseText == "alive"
+        assert responseText.startswith("clicast-path")
         print("   pingServer Test Passed")
     else:
         print(f"-- Server at {serverURL()} did not respond to ping")
@@ -437,13 +430,24 @@ def completionTest(enviroPath):
 
     # choiceList
     print("Starting completion Test")
+
+    print("  starting TST completion ...")
     request = vcastDataServerTypes.clientRequest(
         commandType.choiceListTst, path=enviroPath, options="TEST.VALUE:"
     )
     returnData = transmitTestCommand(request)
+    assert compareToExpected("expected-completion-tst.json", returnData)
+    print("     TST completionTest Test Passed")
 
-    assert compareToExpected("expected-completion.json", returnData)
-    print("   completionTest Test Passed")
+    print("  starting MOCK completion test ...")
+    request = vcastDataServerTypes.clientRequest(
+        commandType.choiceListCT, path=enviroPath, options="// vmock "
+    )
+    returnData = transmitTestCommand(request)
+    assert compareToExpected("expected-completion-ct.json", returnData)
+    print("     MOCK completionTest Test Passed")
+
+    print("  completionTest Test Passed")
 
 
 def rebuildTest(clicastPath, enviroPath):
@@ -528,7 +532,7 @@ def getEnviroDataMultipleTimesUsingTheServer(clicastPath, enviroPath):
         # request is a class, so we convert it to a dictionary, then a string
         dataAsString = json.dumps(request.toDict())
         response = requests.get(
-            f"{serverURL()}/vcastserver", params={"request": dataAsString}
+            f"{serverURL()}/runcommand", params={"request": dataAsString}
         )
         jsonData = response.json()["data"]
         assert alreadyChecked or len(jsonData["unitData"]) > 0
@@ -630,7 +634,7 @@ def errorTests(enviroPath, clicastPath):
     # send an invalid request string to the server
     print("  Sending invalid request string to server")
     returnData = requests.get(
-        f"{serverURL()}/vcastserver", params={"request": "nonsense"}
+        f"{serverURL()}/runcommand", params={"request": "nonsense"}
     )
     returnData = returnData.json()
     exitCode = returnData["exitCode"]
@@ -789,6 +793,8 @@ def main():
         parseCBTTest(clicastPath)
     elif args.test == "errors":
         errorTests(clicastPath, enviroPath)
+    elif args.test == "completion":
+        completionTest(enviroPath)
     elif args.test == "full":
         fullTest(enviroPath, clicastPath, testString)
     else:
