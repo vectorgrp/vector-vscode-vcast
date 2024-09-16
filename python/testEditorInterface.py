@@ -13,6 +13,7 @@ import argparse
 import json
 import re
 import sys
+import os
 
 
 from tstUtilities import (
@@ -24,6 +25,40 @@ from tstUtilities import (
     processMockDefinition,
 )
 
+# Available modes
+modeChoices = ["choiceList-ct", "choiceList-tst"]
+
+def setupArgs():
+    """
+    Add Command Line Args
+    """
+    parser = argparse.ArgumentParser(description="VectorCAST Test Editor Interface")
+
+    parser.add_argument(
+        "--mode",
+        choices=modeChoices,
+        required=True,
+        help="Test Editor Mode: choiceList-ct or choiceList-tst",
+    )
+
+    parser.add_argument(
+        "--enviroName",
+        required=True,
+        help="Path to the environment directory or cbt file"
+    )
+
+    parser.add_argument(
+        "--inputLine",
+        required=True,
+        help="Contents of the line from the editor so far"
+    )
+
+    parser.add_argument(
+        "--unit",
+        help="Unit name (optional)"
+    )
+
+    return parser
 
 def main():
     # ------------------------------------------------------
@@ -34,33 +69,21 @@ def main():
     # We get here when the user types a "." or ":"
 
     # argv has the name of the script as arg 1 and then user args
-    parser = argparse.ArgumentParser(description="Process some arguments.")
+    argParser = setupArgs()
+    args, restOfArgs = argParser.parse_known_args()
+    pathToUse = os.path.abspath(args.enviroName)
 
-    parser.add_argument('--mode', required=True, help='Mode of operation: choiceList-ct or choiceList-tst')
-    parser.add_argument('--enviroName', required=True, help='Path to the environment folder')
-    parser.add_argument('--inputLine', required=True, help='Contents of the line from the editor so far')
-    parser.add_argument('--unit', help='Unit name (optional)')
-
-    args = parser.parse_args()
-
-    mode = args.mode
-    enviroName = args.enviroName
-    inputLine = args.inputLine
-    unit = args.unit
-
-
-    if mode == "choiceList-ct":
-        if re.match("^\s*\/\/\s*vmock", inputLine):
-            choiceData = processMockDefinition(enviroName, inputLine)
+    if args.mode == "choiceList-ct":
+        if re.match("^\s*\/\/\s*vmock", args.inputLine):
+            choiceData = processMockDefinition(pathToUse, args.inputLine)
         else:
             choiceData = choiceDataType()
 
-    elif mode == "choiceList-tst":
-        choiceData = processTstLine(enviroName, inputLine, unit)
-
+    elif args.mode == "choiceList-tst":
+        choiceData = processTstLine(pathToUse, args.inputLine, args.unit)
     else:
         choiceData = choiceDataType()
-        globalOutputLog.append("Invalid mode: " + mode)
+        globalOutputLog.append("Invalid mode: " + args.mode)
 
     outputDictionary = buildChoiceResponse(choiceData)
     print(json.dumps(outputDictionary, indent=4))

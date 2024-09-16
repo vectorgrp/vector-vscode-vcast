@@ -986,7 +986,7 @@ def buildChoiceResponse(choiceData: choiceDataType):
     return responseObject
 
 
-def processTstLine(enviroName, line, additionalParams = None):
+def processTstLine(enviroPath, line, additionalParams = None):
     """
 
     This function will process TEST.<command> line completions
