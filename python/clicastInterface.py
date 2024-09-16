@@ -195,15 +195,14 @@ def runClicastScript(enviroPath, commandFileName, echoToStdout=False):
         return runClicastScriptCommandLine(commandFileName, echoToStdout)
 
 
-tempEnviroScript = "rebuild.env"
-tempTestScript = "rebuild.tst"
-
-
 def updateScriptsAndRebuild(enviroPath, jsonOptions):
     """
     This does the actual work of updating the scripts
     and invoking the build and load test script commands
     """
+
+    tempEnviroScript = "rebuild.env"
+    tempTestScript = "rebuild.tst"
 
     enviroName = os.path.basename(enviroPath)
 
