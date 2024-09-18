@@ -128,9 +128,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     statusBar = workbench.getStatusBar();
     // Need to wait until status bar updates for gutters to actually disappear
-    await browser.waitUntil(
-      async () =>
-        (await statusBar.getItems()).includes("Coverage Out of Date") === true
+    await browser.waitUntil(async () =>
+      (await statusBar.getItems()).includes("Coverage Out of Date")
     );
 
     const lineNumberElement = await $(".line-numbers=10");

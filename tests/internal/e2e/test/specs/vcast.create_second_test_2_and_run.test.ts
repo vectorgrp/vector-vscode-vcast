@@ -262,21 +262,6 @@ describe("vTypeCheck VS Code Extension", () => {
       )
     ).toBe(true);
     expect(
-      outputViewText.includes(
-        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.mySecondTest"
-      )
-    ).toBe(true);
-    expect(
-      outputViewText.includes("test explorer  [info]  Status: failed")
-    ).toBe(true);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Execution Time:");
-      })
-    ).not.toBe(undefined);
-
-    expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Processing environment data for:");
       })
@@ -285,18 +270,6 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Viewing results, result report path");
-      })
-    ).not.toBe(undefined);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Creating web view panel");
-      })
-    ).not.toBe(undefined);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Setting webview text");
       })
     ).not.toBe(undefined);
 

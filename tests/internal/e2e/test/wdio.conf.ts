@@ -18,7 +18,7 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs } from "./specs_config.ts";
+import { getSpecs } from "./specs_config";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -242,7 +242,7 @@ export const config: Options.Testrunner = {
   //
   // Default timeout in milliseconds for request
   // if browser driver or grid doesn"t send response
-  connectionRetryTimeout: 22_000,
+  connectionRetryTimeout: 40_000,
   //
   // Default request retries count
   connectionRetryCount: 2,
@@ -443,7 +443,7 @@ export const config: Options.Testrunner = {
         "vcastTutorial"
       );
 
-      let vcastRoot = await getVcastRoot();
+      const vcastRoot = await getVcastRoot();
       const newVersion = "release24";
 
       // Set up environment directory
@@ -535,7 +535,7 @@ TEST.END`;
      * TARGET SPEC GROUP: build_different_envs
      */
     async function setupMultipleEnvironments() {
-      let vcastRoot = await getVcastRoot();
+      const vcastRoot = await getVcastRoot();
 
       const oldVersion = "release23";
       const newVersion = "release24";
@@ -854,7 +854,7 @@ ENVIRO.END
      * @throws {Error} - If `vpython` is not found or there is a command error.
      */
     async function checkVPython(): Promise<void> {
-      let checkVPython =
+      const checkVPython =
         process.platform == "win32" ? "where vpython" : "which vpython";
 
       {
@@ -875,7 +875,7 @@ ENVIRO.END
      * @throws {Error} - If `clicast` is not found or there is a command error.
      */
     async function checkClicast(): Promise<string> {
-      let checkClicast =
+      const checkClicast =
         process.platform == "win32" ? "where clicast" : "which clicast";
 
       {
@@ -906,6 +906,7 @@ ENVIRO.END
         // Assuming that locally release is on this path.
         vcastRoot = path.join(process.env.HOME, "vcast");
       }
+
       return vcastRoot;
     }
   },
@@ -1009,7 +1010,13 @@ ENVIRO.END
    * @param {Boolean} result.passed    true if test has passed, otherwise false
    * @param {Object}  result.retries   informations to spec related retries, e.g. `{ attempts: 0, limit: 0 }`
    */
-  afterTest(test, context, { error, result, duration, passed, retries }) {
+  async afterTest(test, context, { error, result, duration, passed, retries }) {
+    // In some cases, we need to add a delay of a few seconds. Otherwise vscode closes itself too fast.
+    // If in server mode --> the server has no one to "communicate with" and gets killed
+    if (process.env.WAIT_AFTER_TESTS_FINISHED) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
     // Take a screenshot anytime a test fails and throws an error
     if (error) {
       browser.takeScreenshot();

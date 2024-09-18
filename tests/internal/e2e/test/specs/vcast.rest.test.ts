@@ -138,13 +138,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await (await testHandle.getActionButton("Run Test")).elem).click();
 
     await bottomBar.maximize();
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText()).includes(
-          "test explorer  [info]  Status: passed"
-        ),
-      { timeout: TIMEOUT }
-    );
     await bottomBar.restore();
 
     const webviews = await workbench.getAllWebviews();

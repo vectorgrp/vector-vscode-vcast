@@ -8,8 +8,8 @@ import {
   ViewSection,
   type BottomBarPanel,
   type Workbench,
-  CustomTreeItem,
-  OutputView,
+  type CustomTreeItem,
+  type OutputView,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -38,7 +38,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const workbench = await browser.getWorkbench();
     const title = await workbench.getTitleBar().getTitle();
     expect(title).toMatch(
-      /\[Extension Development Host\] (● )?vcastTutorial - Visual Studio Code/
+      /\[Extension Development Host] (● )?vcastTutorial - Visual Studio Code/
     );
   });
 
@@ -46,6 +46,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     await browser.keys([Key.Control, Key.Shift, "p"]);
+
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
     // so just need to hit Enter to activate
@@ -56,13 +57,36 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
-    const viewControls = await activityBar.getViewControls();
-    for (const viewControl of viewControls) {
-      console.log(await viewControl.getTitle());
-    }
 
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
+
+    console.log("Waiting for VectorCAST activation");
+    await $("aria/VectorCAST Test Pane Initialization");
+    console.log("WAITING FOR TESTING");
+    await browser.waitUntil(
+      async () => (await activityBar.getViewControl("Testing")) !== undefined,
+      { timeout: TIMEOUT }
+    );
+    console.log("WAITING FOR TEST EXPLORER");
+    await browser.waitUntil(async () =>
+      (await outputView.getChannelNames())
+        .toString()
+        .includes("VectorCAST Test Explorer")
+    );
+    await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
+    console.log("WAITING FOR LANGUAGE SERVER");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Starting the language server"),
+      { timeout: TIMEOUT }
+    );
+
+    const testingView = await activityBar.getViewControl("Testing");
+    await testingView?.openView();
   });
 
   it("should set default config file", async () => {
@@ -144,7 +168,7 @@ describe("vTypeCheck VS Code Extension", () => {
  * @param release Release version.
  */
 async function expectEnvResults(release: string) {
-  const envMap = new Map<string, { env: string; state: string }[]>([
+  const envMap = new Map<string, Array<{ env: string; state: string }>>([
     [
       "release23",
       [
@@ -174,7 +198,7 @@ async function expectEnvResults(release: string) {
   const release23Value = envMap.get(release);
 
   // Iterate thorugh map, expand and check based on release what ENV should be defined.
-  for (let entry of release23Value) {
+  for (const entry of release23Value) {
     const envResult = await expandTopEnvInTestPane(
       entry.env,
       topLevelItems as CustomTreeItem[]
@@ -217,10 +241,12 @@ async function awaitOutputtext(
         const outputText = (await outputView.getText()).toString();
         return (
           outputText.includes("Processing environment") &&
-          outputText.includes("env")
+          outputText.includes(env)
         );
       },
       { timeout: TIMEOUT }
     );
   }
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 }
