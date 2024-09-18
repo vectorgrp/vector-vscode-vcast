@@ -1223,19 +1223,9 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     console.log("Checking that compile error text squiggle appears");
-    // ########################################################
-    // TODO: Still need to check why this log is not there anymore.
-    // ########################################################
 
     const expectedErrorText =
       "Coded Test compile error - see details in file: ACOMPILE.LIS";
-    // await browser.waitUntil(
-    //   async () => {
-    //     const textWithError = await $(`aria/${expectedErrorText}`).getText();
-    //     return textWithError.includes(expectedErrorText);
-    //   },
-    //   { timeout: TIMEOUT}
-    // );
     const textWithError = await $(`aria/${expectedErrorText}`).getText();
     console.log(`text with error: ${textWithError}`);
     expect(

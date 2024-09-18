@@ -446,7 +446,7 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
   let commandOutputText: string = commandStatus.stdout;
   let executionDetails: executeOutputType = nullExecutionStatus;
 
-  if (commandStatus.errorCode == pythonErrorCodes.codedTestCompileError) {
+  if (commandStatus.errorCode == 228) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
   } else if (testExecutionFailed(commandStatus)) {
