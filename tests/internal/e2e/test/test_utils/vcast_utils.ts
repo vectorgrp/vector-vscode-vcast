@@ -416,7 +416,7 @@ export async function generateAllTestsForEnv(
 
         await browser.waitUntil(async () =>
           (await (await bottomBar.openOutputView()).getText()).includes(
-            "test explorer  [info]  Script loaded successfully ..."
+            "test explorer  [info]  Script loaded successfully"
           )
         );
 
