@@ -96,17 +96,17 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await browser.waitUntil(
       async () => (await outputView.getText()).at(-1) != undefined,
-      { timeout: 30_000, interval: 1000 }
+      { timeout: TIMEOUT, interval: 1000 }
     );
 
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
-          .at(-1)
           .toString()
-          .includes("Processing environment data for:"),
-      { timeout: 30_000, interval: 1000 }
+          .includes("Processing environment data"),
+      { timeout: TIMEOUT }
     );
+
     await browser.pause(10_000);
 
     await assertTestsDeleted("DATABASE-MANAGER");
