@@ -10,12 +10,12 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast.build_env.test.ts",
         "./**/**/vcast.create_script_1.test.ts",
         "./**/**/vcast.create_script_2_and_run.test.ts",
-        // "./**/**/vcast.create_second_test_1.test.ts",
-        // "./**/**/vcast.create_second_test_2_and_run.test.ts",
-        // "./**/**/vcast.third_test.test.ts",
-        // "./**/**/vcast.rest.test.ts",
-        // "./**/**/vcast.rest_2.test.ts",
-        // "./**/**/vcast.rest_3.test.ts",
+        "./**/**/vcast.create_second_test_1.test.ts",
+        "./**/**/vcast.create_second_test_2_and_run.test.ts",
+        "./**/**/vcast.third_test.test.ts",
+        "./**/**/vcast.rest.test.ts",
+        "./**/**/vcast.rest_2.test.ts",
+        "./**/**/vcast.rest_3.test.ts",
       ],
       env: {
         WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
