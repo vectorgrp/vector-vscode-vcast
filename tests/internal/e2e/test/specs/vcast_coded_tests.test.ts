@@ -582,9 +582,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
-          .at(-1)
           .toString()
-          .includes("Processing environment data for:"),
+          .includes("Processing environment data"),
       { timeout: TIMEOUT }
     );
     await outputView.clearText();
@@ -779,9 +778,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
-          .at(-1)
           .toString()
-          .includes("Processing environment data for:"),
+          .includes("Processing environment data"),
       { timeout: TIMEOUT }
     );
     await outputView.clearText();
