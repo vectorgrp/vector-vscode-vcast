@@ -254,6 +254,17 @@ describe("vTypeCheck VS Code Extension", () => {
         return line.includes("Viewing results, result report path");
       })
     ).not.toBe(undefined);
+    expect(
+      outputViewText.find(function (line): boolean {
+        return line.includes("Creating web view panel");
+      })
+    ).not.toBe(undefined);
+
+    expect(
+      outputViewText.find(function (line): boolean {
+        return line.includes("Setting webview text");
+      })
+    ).not.toBe(undefined);
   });
 
   it("should verify coverage indicators for manager.cpp", async () => {
