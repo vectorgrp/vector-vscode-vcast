@@ -244,6 +244,11 @@ function findVcastTools(): boolean {
   // if we found a vpython somewhere ...
   // we assume the other executables are there too,  but we check anyway :)
   if (vcastInstallationPath) {
+
+    // first check if vcast is newer than 2021sp1 - minium version for this extension
+    // TBD today!
+
+
     // do all of the setup required to use clicast
     foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
 
