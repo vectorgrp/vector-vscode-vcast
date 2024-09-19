@@ -698,7 +698,14 @@ ENVIRO.END
         process.platform == "win32"
           ? `copy /b NUL ${launchJsonPath}`
           : `touch ${launchJsonPath}`;
-      await executeCommand(createLaunchJson);
+      await executeCommand(createLaunchJson); // Create a settings.json file for VSCode with vectorcastTestExplorer.verboseLogging set to true
+
+      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
+      const createSettingsJson =
+        process.platform == "win32"
+          ? `echo {"\\"vectorcastTestExplorer.verboseLogging\\": true} > ${settingsJsonPath}`
+          : `echo '{ "vectorcastTestExplorer.verboseLogging": true }' > ${settingsJsonPath}`;
+      await executeCommand(createSettingsJson);
 
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
       const c_cpp_properties = {
