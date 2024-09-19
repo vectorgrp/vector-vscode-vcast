@@ -7,10 +7,10 @@ PORT = 60461  # The port used by the server anything > 1023 is OK
 
 
 class errorCodes(str, Enum):
-    internalServerError = 999
-    testInterfaceError = 998
-    couldNotStartClicastInstance = 997
-    codedTestCompileError = 996
+    internalServerError = 99
+    testInterfaceError = 98
+    couldNotStartClicastInstance = 97
+    codedTestCompileError = 96
 
 
 # NOTE: This class must stay in sync with typescript file vcastServer.ts: vcastCommandType
