@@ -61,6 +61,35 @@ describe("vTypeCheck VS Code Extension", () => {
     );
   });
 
+  it("should set default config file", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+    const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
+    await configFile.openContextMenu();
+    await (await $("aria/Set as VectorCAST Configuration File")).click();
+  });
+
+  it("should enable verbose logging", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const settingsEditor = await workbench.openSettings();
+    console.log("Looking for verbose logging settings");
+    await settingsEditor.findSetting("vectorcastTestExplorer.verboseLogging");
+    // Only one setting in search results, so the current way of clicking is correct
+    console.log("Enabling verbose logging");
+    await (await settingsEditor.checkboxSetting$).click();
+    await workbench.getEditorView().closeAllEditors();
+  });
+
   it("should throw an error on invalid PATH env", async () => {
     await updateTestID();
     const workbench = await browser.getWorkbench();

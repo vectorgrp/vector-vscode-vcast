@@ -109,6 +109,19 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
 
+  it("should enable verbose logging", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const settingsEditor = await workbench.openSettings();
+    console.log("Looking for verbose logging settings");
+    await settingsEditor.findSetting("vectorcastTestExplorer.verboseLogging");
+    // Only one setting in search results, so the current way of clicking is correct
+    console.log("Enabling verbose logging");
+    await (await settingsEditor.checkboxSetting$).click();
+    await workbench.getEditorView().closeAllEditors();
+  });
+
   it("should enable coded testing", async () => {
     await updateTestID();
 
@@ -1223,26 +1236,15 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     console.log("Checking that compile error text squiggle appears");
-    // ########################################################
-    // TODO: Still need to check why this log is not there anymore.
-    // ########################################################
-
-    // const expectedErrorText =
-    //   "Coded Test compile error - see details in file: ACOMPILE.LIS";
-    // await browser.waitUntil(
-    //   async () => {
-    //     const textWithError = await $(`aria/${expectedErrorText}`).getText();
-    //     return textWithError.includes(expectedErrorText);
-    //   },
-    //   { timeout: TIMEOUT}
-    // );
-    // const textWithError = await $(`aria/${expectedErrorText}`).getText();
-    // console.log(`text with error: ${textWithError}`);
-    // expect(
-    //   textWithError.includes(
-    //     "Coded Test compile error - see details in file: ACOMPILE.LIS"
-    //   )
-    // ).toBe(true);
+    const expectedErrorText =
+      "Coded Test compile error - see details in file: ACOMPILE.LIS";
+    const textWithError = await $(`aria/${expectedErrorText}`).getText();
+    console.log(`text with error: ${textWithError}`);
+    expect(
+      textWithError.includes(
+        "Coded Test compile error - see details in file: ACOMPILE.LIS"
+      )
+    ).toBe(true);
 
     //Need to close tabs, otherwise can't interact with tab content properly
     await browser.keys(Key.Escape);
