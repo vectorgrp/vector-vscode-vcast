@@ -323,7 +323,9 @@ export async function checkIfInstallationIsOK() {
   // TBD the server is not yet ready for prime time
   const VCAST_USE_SERVER = process.env["VCAST_USE_SERVER"];
   if (VCAST_USE_SERVER) {
-    vectorMessage("Checking if a VectorCAST Environment Data Server is available ... ");
+    vectorMessage(
+      "Checking if a VectorCAST Environment Data Server is available ... "
+    );
     await determineServerState();
   }
 
