@@ -21,6 +21,7 @@ import {
   cleanup,
   assertTestsDeleted,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
@@ -28,7 +29,6 @@ describe("vTypeCheck VS Code Extension", () => {
   let workbench: Workbench;
   let editorView: EditorView;
   let statusBar: StatusBar;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
