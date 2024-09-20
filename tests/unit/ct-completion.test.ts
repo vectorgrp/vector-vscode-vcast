@@ -1,21 +1,16 @@
+import path from "node:path";
+import process from "node:process";
+import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
+import * as nodeFetch from "node-fetch";
 import {
   describe,
   expect,
   test,
   vi,
   afterEach,
-  SpyInstance,
+  type SpyInstance,
   beforeEach,
 } from "vitest";
-import * as nodeFetch from "node-fetch";
-import {
-  getCompletionPositionForLine,
-  generateCompletionData,
-  prepareCodedTestCompletion,
-  setupDiagnosticTest,
-} from "./utils";
-import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
-import path from "path";
 import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
 import {
@@ -24,6 +19,12 @@ import {
   getChoiceData,
 } from "../../server/pythonUtilities";
 import { setServerState } from "../../src-common/vcastServer";
+import {
+  getCompletionPositionForLine,
+  generateCompletionData,
+  prepareCodedTestCompletion,
+  setupDiagnosticTest,
+} from "./utils";
 
 vi.mock("node-fetch", async () => {
   const actual = await vi.importActual<typeof nodeFetch>("node-fetch");
@@ -151,7 +152,10 @@ const vmockUnitExpected = [
 
 const timeout = 30_000; // 30 seconds
 
-// Import the vscode-languageserver module and mock createConnection
+// Import the vscode-languageserver module and mock createConnection.
+// We import it this way to mock only the types and functions we NEED to mock,
+// while everything else is imported normally.
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 vi.mock("vscode-languageserver", async () => {
   const actual = await vi.importActual<typeof import("vscode-languageserver")>(
     "vscode-languageserver"
@@ -164,15 +168,21 @@ vi.mock("vscode-languageserver", async () => {
         log: vi.fn(),
       },
     }),
+    // XO complains about strictCamelCase for imports, so we'll disable the check here.
+    /* eslint-disable @typescript-eslint/naming-convention */
     ProposedFeatures: actual.ProposedFeatures,
   };
 });
+/* eslint-enable @typescript-eslint/naming-convention */
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 
 describe("Testing pythonUtilities (valid)", () => {
   let logSpy: SpyInstance;
 
   beforeEach(() => {
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {
+      // No-op (This comment prevents XO from complaining)
+    });
   });
 
   afterEach(() => {
@@ -227,7 +237,9 @@ describe("Testing pythonUtilities (valid)", () => {
     async () => {
       const customConnection = {
         console: {
-          log: (message: string) => console.log(message),
+          log(message: string) {
+            console.log(message);
+          },
         },
       };
 
@@ -309,27 +321,27 @@ describe("Testing pythonUtilities (valid)", () => {
     "validate getChoiceDataFromServer if it fails",
     async () => {
       // Mock fetch to simulate a failure and throw an error
-      fetch.mockImplementationOnce(() =>
-        Promise.reject(new Error("Failed to fetch: reason: Server down"))
-      );
+      fetch.mockImplementationOnce(async () => {
+        throw new Error("Failed to fetch: reason: Server down");
+      });
 
       setServerState(true);
 
       const lineToComplete = "// vmock";
       const envName = "vcast";
+      let tstFilePath = " ";
 
-      const testEnvPath = path.join(
-        process.env.PACKAGE_PATH as string,
-        "tests",
-        "unit",
-        envName
-      );
-      const tstFilepath = path.join(
-        testEnvPath,
-        process.env.TST_FILENAME as string
-      );
+      if (process.env.PACKAGE_PATH && process.env.TST_FILENAME) {
+        const testEnvPath = path.join(
+          process.env.PACKAGE_PATH,
+          "tests",
+          "unit",
+          envName
+        );
+        tstFilePath = path.join(testEnvPath, process.env.TST_FILENAME);
+      }
 
-      const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+      const enviroPath = getEnviroNameFromTestScript(tstFilePath);
       let result: any;
       if (enviroPath) {
         result = await getChoiceData(

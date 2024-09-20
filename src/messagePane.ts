@@ -23,7 +23,7 @@ function formattedLine(
   prefix: string,
   level: errorLevel,
   indent: string,
-  line: string,
+  line: string
 ): string {
   let returnString: string = "";
   returnString = prefix.padEnd(15) + level.padEnd(8) + indent + line;
@@ -34,7 +34,7 @@ async function displayMessage(
   prefix: string,
   level: errorLevel,
   indent: string,
-  msg: string,
+  msg: string
 ) {
   const messagePane = getMessagePane();
   let stringList = msg.split("\n");
@@ -47,14 +47,13 @@ async function displayMessage(
   }
 }
 
-
 // Note that this is an aysnc function so to if you are using to display
 // a message before a long-running process, use await in the caller.
 export const indentString = "   "; // for consistency
 export async function vectorMessage(
   msg: string,
   level: errorLevel = errorLevel.info,
-  indent: string = "",
+  indent: string = ""
 ) {
   if (
     level != errorLevel.trace ||

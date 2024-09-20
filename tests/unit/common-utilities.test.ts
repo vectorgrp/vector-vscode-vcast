@@ -9,7 +9,7 @@ import {
 } from "../../src-common/commonUtilities";
 
 const timeout = 30_000; // 30 seconds
-let textOfInterest = "Text of Interest";
+const textOfInterest = "Text of Interest";
 
 describe("Validating commonUtilities", () => {
   test(
@@ -38,7 +38,6 @@ describe("Validating commonUtilities", () => {
   test(
     "validate cleanVectorcastOutput",
     async () => {
-
       // This function is called with two flavors of split strings
       // The first is used to split the output of the vpython command
       let testString = `some stuff to be stripped\n\n  ${vpythonSplitString}\n${textOfInterest}`;
@@ -56,5 +55,4 @@ describe("Validating commonUtilities", () => {
     },
     timeout
   );
-
 });

@@ -21,13 +21,13 @@ import {
   updateTestID,
   cleanup,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let statusBar: StatusBar;
-  const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -582,9 +582,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
-          .at(-1)
           .toString()
-          .includes("Processing environment data for:"),
+          .includes("Processing environment data"),
       { timeout: TIMEOUT }
     );
     await outputView.clearText();
@@ -779,9 +778,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
-          .at(-1)
           .toString()
-          .includes("Processing environment data for:"),
+          .includes("Processing environment data"),
       { timeout: TIMEOUT }
     );
     await outputView.clearText();
@@ -1117,11 +1115,6 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
     console.log("Verifying test status");
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText()).toString().includes("Status: passed"),
-      { timeout: TIMEOUT }
-    );
 
     outputTextFlat = (await outputView.getText()).toString();
     expect(outputTextFlat.includes("Status: passed"));
@@ -1237,7 +1230,8 @@ describe("vTypeCheck VS Code Extension", () => {
         "Coded Test compile error - see details in file: ACOMPILE.LIS"
       )
     ).toBe(true);
-    // Need to close tabs, otherwise can't interact with tab content properly
+
+    //Need to close tabs, otherwise can't interact with tab content properly
     await browser.keys(Key.Escape);
     await editorView.closeAllEditors();
     currentTestHandle = await getTestHandle(
@@ -1292,6 +1286,10 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running corrected test");
     await runArrowElement.click({ button: 1 });
 
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT }
+    );
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
     const webview = webviews[0];

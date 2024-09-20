@@ -1,17 +1,19 @@
 import process from "node:process";
+import path from "node:path";
 import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
+import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import {
   updateVPythonCommand,
   getVPythonCommand,
   generateDiagnositicForTest,
 } from "../../server/pythonUtilities";
-import path from "node:path";
-import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import { setupDiagnosticTest } from "./utils";
 
 const timeout = 30_000; // 30 seconds
 
-// Mock the child_process module
+// We import it this way to mock only the types and functions we NEED to mock,
+// while everything else is imported normally.
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 vi.mock("child_process", async () => {
   // Import the actual module so that other funcitons are not mocked
   const actual =
@@ -26,6 +28,7 @@ vi.mock("child_process", async () => {
       ),
   };
 });
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 
 describe("Testing pythonUtilities (valid)", () => {
   beforeEach(() => {
