@@ -11,8 +11,8 @@ import { setupDiagnosticTest } from "./utils";
 
 const timeout = 30_000; // 30 seconds
 
-// Need to import it that wait because we only want to mock the types and
-// functions in the return --> everything else should be imported normally
+// We import it this way to mock only the types and functions we NEED to mock,
+// while everything else is imported normally.
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 vi.mock("child_process", async () => {
   // Import the actual module so that other funcitons are not mocked

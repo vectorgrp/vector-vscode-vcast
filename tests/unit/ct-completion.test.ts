@@ -152,9 +152,9 @@ const vmockUnitExpected = [
 
 const timeout = 30_000; // 30 seconds
 
-// Import the vscode-languageserver module and mock createConnection
-// Need to import it that wait because we only want to mock the types and
-// functions in the return --> everything else should be imported normally
+// Import the vscode-languageserver module and mock createConnection.
+// We import it this way to mock only the types and functions we NEED to mock,
+// while everything else is imported normally.
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 vi.mock("vscode-languageserver", async () => {
   const actual = await vi.importActual<typeof import("vscode-languageserver")>(
@@ -168,7 +168,7 @@ vi.mock("vscode-languageserver", async () => {
         log: vi.fn(),
       },
     }),
-    // Xo complains about strictCamelCase... but it s an import so deactivate check
+    // XO complains about strictCamelCase for imports, so we'll disable the check here.
     /* eslint-disable @typescript-eslint/naming-convention */
     ProposedFeatures: actual.ProposedFeatures,
   };
@@ -181,7 +181,7 @@ describe("Testing pythonUtilities (valid)", () => {
 
   beforeEach(() => {
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {
-      // No-op (This comment is needed so that xo does not complain)
+      // No-op (This comment prevents XO from complaining)
     });
   });
 

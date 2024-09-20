@@ -82,8 +82,8 @@ module.exports = async () => {
     `${commandPrefix} RGw Import`,
   ];
 
-  // Basically a for loop, but we need to await runCommand.
-  // xo throws an no-await-in-loop error otherwise
+  // This behaves like a for loop, but we need to await runCommand.
+  // XO throws a no-await-in-loop error otherwise.
   await Promise.all(
     rgwPrepCommands.map(async (rgwPrepCommand) => runCommand(rgwPrepCommand))
   );

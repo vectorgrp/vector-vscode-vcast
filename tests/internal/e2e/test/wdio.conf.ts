@@ -700,7 +700,7 @@ ENVIRO.END
           : `touch ${launchJsonPath}`;
       await executeCommand(createLaunchJson);
 
-      // Create a settings.json file for VSCode with vectorcastTestExplorer.verboseLogging set to true
+      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
       const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
       const createSettingsJson =
         process.platform == "win32"
@@ -1019,8 +1019,8 @@ ENVIRO.END
    * @param {Object}  result.retries   informations to spec related retries, e.g. `{ attempts: 0, limit: 0 }`
    */
   async afterTest(test, context, { error, result, duration, passed, retries }) {
-    // In some cases, we need to add a delay of a few seconds. Otherwise vscode closes itself too fast.
-    // If in server mode --> the server has no one to "communicate with" and gets killed
+    // In some cases, a delay of a few seconds is needed; otherwise, VSCode closes too quickly.
+    // In server mode, if there is no active communication, the server gets terminated.
     if (process.env.WAIT_AFTER_TESTS_FINISHED) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
