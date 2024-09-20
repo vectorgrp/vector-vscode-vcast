@@ -1,4 +1,4 @@
-import { initializePaths } from "../../server/pythonUtilities";
+import path from "node:path";
 import {
   describe,
   expect,
@@ -8,7 +8,7 @@ import {
   afterEach,
   type SpyInstance,
 } from "vitest";
-import path from "node:path";
+import { initializePaths } from "../../server/pythonUtilities";
 
 const timeout = 30_000; // 30 seconds
 

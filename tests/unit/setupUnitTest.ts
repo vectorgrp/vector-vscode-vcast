@@ -1,43 +1,43 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import { rm, mkdir, copyFile } from "fs/promises";
+import { rm, mkdir, copyFile } from "node:fs/promises";
 import { runCommand } from "./utils";
 
 module.exports = async () => {
-  const path = require("path");
+  const path = require("node:path");
 
   const tstFilename = "firstTest.tst";
-  process.env["PACKAGE_PATH"] = process.env["INIT_CWD"];
-  process.env["TST_FILENAME"] = tstFilename;
-  process.env["VECTORCAST_DIR"] = "";
+  process.env.PACKAGE_PATH = process.env.INIT_CWD;
+  process.env.TST_FILENAME = tstFilename;
+  process.env.VECTORCAST_DIR = "";
 
   let checkVPython: string;
-  if (process.platform == "win32") checkVPython = "where vpython";
-  else checkVPython = "which vpython";
+  checkVPython =
+    process.platform == "win32" ? "where vpython" : "which vpython";
 
   {
     try {
       runCommand(checkVPython);
-    } catch (e) {
+    } catch {
       throw `Error when running "${checkVPython}", make sure vpython is on PATH`;
     }
   }
 
   let checkClicast = "";
-  if (process.platform == "win32") checkClicast = "where clicast";
-  else checkClicast = "which clicast";
+  checkClicast =
+    process.platform == "win32" ? "where clicast" : "which clicast";
 
-  let clicastExecutablePath = "";
+  const clicastExecutablePath = "";
   {
     try {
       runCommand(checkClicast);
-    } catch (e) {
+    } catch {
       throw `Error when running "${checkClicast}", make sure clicast is on PATH`;
     }
   }
 
-  const unitTestsPath = path.join(process.env["PACKAGE_PATH"], "tests", "unit");
+  const unitTestsPath = path.join(process.env.PACKAGE_PATH, "tests", "unit");
   const vcastEnvPath = path.join(unitTestsPath, "vcast");
-  const coverageFolderPath = path.join(process.env["PACKAGE_PATH"], "coverage");
+  const coverageFolderPath = path.join(process.env.PACKAGE_PATH, "coverage");
   const resourcesFolderPath = path.join(unitTestsPath, "resources");
 
   await rm(vcastEnvPath, { recursive: true, force: true });
@@ -56,7 +56,7 @@ module.exports = async () => {
   runCommand(clicastTemplateCommand);
 
   const vectorcastDir = path.dirname(clicastExecutablePath);
-  const reqTutorialPath = path.join(
+  const requestTutorialPath = path.join(
     vectorcastDir,
     "examples",
     "RequirementsGW",
@@ -67,7 +67,7 @@ module.exports = async () => {
     `${commandPrefix} option VCAST_REPOSITORY ${vcastEnvPath}`,
     `${commandPrefix} RGw INitialize`,
     `${commandPrefix} Rgw Set Gateway CSV`,
-    `${commandPrefix} RGw Configure Set CSV csv_path ${reqTutorialPath}`,
+    `${commandPrefix} RGw Configure Set CSV csv_path ${requestTutorialPath}`,
     `${commandPrefix} RGw Configure Set CSV use_attribute_filter 0`,
     `${commandPrefix} RGw Configure Set CSV filter_attribute`,
     `${commandPrefix} RGw Configure Set CSV filter_attribute_value `,

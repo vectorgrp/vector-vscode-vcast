@@ -1,12 +1,12 @@
 import process from "node:process";
+import path from "node:path";
 import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
+import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import {
   updateVPythonCommand,
   getVPythonCommand,
   generateDiagnositicForTest,
 } from "../../server/pythonUtilities";
-import path from "node:path";
-import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import { setupDiagnosticTest } from "./utils";
 
 const timeout = 30_000; // 30 seconds

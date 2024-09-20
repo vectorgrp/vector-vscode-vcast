@@ -9,7 +9,7 @@ import {
 } from "../../src-common/commonUtilities";
 
 const timeout = 30_000; // 30 seconds
-let textOfInterest = "Text of Interest";
+const textOfInterest = "Text of Interest";
 
 describe("Validating commonUtilities", () => {
   test(

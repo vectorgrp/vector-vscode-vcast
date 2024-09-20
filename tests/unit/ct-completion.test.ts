@@ -1,21 +1,15 @@
+import path from "node:path";
+import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
+import * as nodeFetch from "node-fetch";
 import {
   describe,
   expect,
   test,
   vi,
   afterEach,
-  SpyInstance,
+  type SpyInstance,
   beforeEach,
 } from "vitest";
-import * as nodeFetch from "node-fetch";
-import {
-  getCompletionPositionForLine,
-  generateCompletionData,
-  prepareCodedTestCompletion,
-  setupDiagnosticTest,
-} from "./utils";
-import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
-import path from "path";
 import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
 import {
@@ -24,6 +18,12 @@ import {
   getChoiceData,
 } from "../../server/pythonUtilities";
 import { setServerState } from "../../src-common/vcastServer";
+import {
+  getCompletionPositionForLine,
+  generateCompletionData,
+  prepareCodedTestCompletion,
+  setupDiagnosticTest,
+} from "./utils";
 
 vi.mock("node-fetch", async () => {
   const actual = await vi.importActual<typeof nodeFetch>("node-fetch");
@@ -227,7 +227,9 @@ describe("Testing pythonUtilities (valid)", () => {
     async () => {
       const customConnection = {
         console: {
-          log: (message: string) => console.log(message),
+          log(message: string) {
+            console.log(message);
+          },
         },
       };
 
@@ -309,9 +311,9 @@ describe("Testing pythonUtilities (valid)", () => {
     "validate getChoiceDataFromServer if it fails",
     async () => {
       // Mock fetch to simulate a failure and throw an error
-      fetch.mockImplementationOnce(() =>
-        Promise.reject(new Error("Failed to fetch: reason: Server down"))
-      );
+      fetch.mockImplementationOnce(async () => {
+        throw new Error("Failed to fetch: reason: Server down");
+      });
 
       setServerState(true);
 
@@ -319,15 +321,12 @@ describe("Testing pythonUtilities (valid)", () => {
       const envName = "vcast";
 
       const testEnvPath = path.join(
-        process.env.PACKAGE_PATH as string,
+        process.env.PACKAGE_PATH!,
         "tests",
         "unit",
         envName
       );
-      const tstFilepath = path.join(
-        testEnvPath,
-        process.env.TST_FILENAME as string
-      );
+      const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME!);
 
       const enviroPath = getEnviroNameFromTestScript(tstFilepath);
       let result: any;
