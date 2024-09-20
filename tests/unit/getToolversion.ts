@@ -1,7 +1,9 @@
+/* eslint-disable unicorn/filename-case */
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "node:fs";
 import path from "node:path";
+import process from "node:process";
 
 const promisifiedExec = promisify(exec);
 

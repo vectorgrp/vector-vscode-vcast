@@ -1,4 +1,5 @@
 import path from "node:path";
+import process from "node:process";
 import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import * as nodeFetch from "node-fetch";
 import {
@@ -152,6 +153,9 @@ const vmockUnitExpected = [
 const timeout = 30_000; // 30 seconds
 
 // Import the vscode-languageserver module and mock createConnection
+// Need to import it that wait because we only want to mock the types and
+// functions in the return --> everything else should be imported normally
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 vi.mock("vscode-languageserver", async () => {
   const actual = await vi.importActual<typeof import("vscode-languageserver")>(
     "vscode-languageserver"
@@ -164,15 +168,21 @@ vi.mock("vscode-languageserver", async () => {
         log: vi.fn(),
       },
     }),
+    // Xo complains about strictCamelCase... but it s an import so deactivate check
+    /* eslint-disable @typescript-eslint/naming-convention */
     ProposedFeatures: actual.ProposedFeatures,
   };
 });
+/* eslint-enable @typescript-eslint/naming-convention */
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 
 describe("Testing pythonUtilities (valid)", () => {
   let logSpy: SpyInstance;
 
   beforeEach(() => {
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {
+      // No-op (This comment is needed so that xo does not complain)
+    });
   });
 
   afterEach(() => {
@@ -319,16 +329,19 @@ describe("Testing pythonUtilities (valid)", () => {
 
       const lineToComplete = "// vmock";
       const envName = "vcast";
+      let tstFilePath = " ";
 
-      const testEnvPath = path.join(
-        process.env.PACKAGE_PATH!,
-        "tests",
-        "unit",
-        envName
-      );
-      const tstFilepath = path.join(testEnvPath, process.env.TST_FILENAME!);
+      if (process.env.PACKAGE_PATH && process.env.TST_FILENAME) {
+        const testEnvPath = path.join(
+          process.env.PACKAGE_PATH,
+          "tests",
+          "unit",
+          envName
+        );
+        tstFilePath = path.join(testEnvPath, process.env.TST_FILENAME);
+      }
 
-      const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+      const enviroPath = getEnviroNameFromTestScript(tstFilePath);
       let result: any;
       if (enviroPath) {
         result = await getChoiceData(

@@ -1,8 +1,12 @@
+/* eslint-disable unicorn/filename-case */
 /* eslint-disable @typescript-eslint/no-var-requires */
+
 import { rm, mkdir, copyFile } from "node:fs/promises";
+import process from "node:process";
 import { runCommand } from "./utils";
 
 module.exports = async () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const path = require("node:path");
 
   const tstFilename = "firstTest.tst";
@@ -10,29 +14,28 @@ module.exports = async () => {
   process.env.TST_FILENAME = tstFilename;
   process.env.VECTORCAST_DIR = "";
 
-  let checkVPython: string;
-  checkVPython =
-    process.platform == "win32" ? "where vpython" : "which vpython";
+  const checkVpython: string =
+    process.platform === "win32" ? "where vpython" : "which vpython";
 
-  {
-    try {
-      runCommand(checkVPython);
-    } catch {
-      throw `Error when running "${checkVPython}", make sure vpython is on PATH`;
-    }
+  try {
+    await runCommand(checkVpython);
+  } catch {
+    throw new Error(
+      `Error when running "${checkVpython}", make sure vpython is on PATH`
+    );
   }
 
   let checkClicast = "";
   checkClicast =
-    process.platform == "win32" ? "where clicast" : "which clicast";
+    process.platform === "win32" ? "where clicast" : "which clicast";
 
   const clicastExecutablePath = "";
-  {
-    try {
-      runCommand(checkClicast);
-    } catch {
-      throw `Error when running "${checkClicast}", make sure clicast is on PATH`;
-    }
+  try {
+    await runCommand(checkClicast);
+  } catch {
+    throw new Error(
+      `Error when running "${checkClicast}", make sure clicast is on PATH`
+    );
   }
 
   const unitTestsPath = path.join(process.env.PACKAGE_PATH, "tests", "unit");
@@ -53,8 +56,9 @@ module.exports = async () => {
   );
 
   const clicastTemplateCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -l C template GNU_CPP11_X`;
-  runCommand(clicastTemplateCommand);
+  await runCommand(clicastTemplateCommand);
 
+  // eslint-disable-next-line unicorn/prevent-abbreviations
   const vectorcastDir = path.dirname(clicastExecutablePath);
   const requestTutorialPath = path.join(
     vectorcastDir,
@@ -77,15 +81,18 @@ module.exports = async () => {
     `${commandPrefix} RGw Configure Set CSV description_attribute Description `,
     `${commandPrefix} RGw Import`,
   ];
-  for (const rgwPrepCommand of rgwPrepCommands) {
-    runCommand(rgwPrepCommand);
-  }
+
+  // Basically a for loop, but we need to await runCommand.
+  // xo throws an no-await-in-loop error otherwise
+  await Promise.all(
+    rgwPrepCommands.map(async (rgwPrepCommand) => runCommand(rgwPrepCommand))
+  );
 
   const tstFilePath = path.join(vcastEnvPath, tstFilename);
   const createTstFile = `echo -- Environment: TEST > ${tstFilePath}`;
-  runCommand(createTstFile);
+  await runCommand(createTstFile);
 
   const tstEnvFilePath = path.join(vcastEnvPath, "TEST.env");
   const runEnvironmentScript = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc environment script run ${tstEnvFilePath}`;
-  runCommand(runEnvironmentScript);
+  await runCommand(runEnvironmentScript);
 };
