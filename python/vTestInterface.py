@@ -7,13 +7,8 @@ this started life as a duplicate of:  instumentationLib/vTestInterface.py
 import argparse
 from datetime import datetime
 import hashlib
-import inspect
 import json
 import os
-import subprocess
-import re
-import shutil
-import site
 import sys
 import traceback
 
@@ -25,6 +20,7 @@ This script must be run under vpython
 
 import clicastInterface
 import pythonUtilities
+import tstUtilities
 
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
@@ -249,11 +245,8 @@ def getTestDataVCAST(api, enviroPath):
             for function in unit.functions:
                 functionNode = dict()
 
-                # Seems like a vcast dataAPI bug with manager.cpp
-                if (
-                    function.vcast_name != TAG_FOR_INIT
-                    and not function.is_non_testable_stub
-                ):
+                # Handles some special cases
+                if tstUtilities.isTestableFunction(function):
                     # Note: the vcast_name has the parameterization only when there is an overload
                     functionNode["name"] = function.vcast_name
                     functionNode["parameterizedName"] = function.long_name

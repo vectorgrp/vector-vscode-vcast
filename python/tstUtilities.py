@@ -72,18 +72,14 @@ def shouldAddHashToMockFunctionNames(functionObject):
         return False
 
 
-def getNameListFromObjectList(objectList):
+def getUnitNameList(unitList):
     """
     This will take a list of dataAPI objects and return
     a list of names ... note all objects have name attributes
     """
     returnList = list()
-    for object in objectList:
-        if isinstance(object, Function):
-            # vcast_name has the overloaded name if needed.
-            returnList.append(object.vcast_name)
-        else:
-            returnList.append(object.name)
+    for object in unitList:
+        returnList.append(object.name)
 
     return returnList
 
@@ -329,6 +325,26 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
     return returnData
 
 
+def isTestableFunction(functionNode):
+
+    # this is the modern way to make this check, available in vc24sp5+
+    if hasattr(functionNode, "is_testable"):
+        if functionNode.is_testable:
+            return True
+        else:
+            return False
+
+    # Otherwise we check using this hack ...
+    # dataAPI had a bug that caused <<INIT>> to be in the function list
+    # this was fixed in vc24sp5, but we need this check for older enviros
+    if functionNode.vcast_name == TAG_FOR_INIT:
+        return False
+    elif functionNode.is_non_testable_stub:
+        return False
+    else:
+        return True
+
+
 def getFunctionList(api, unitName):
     """
     common code to generate list of functions ...
@@ -337,13 +353,16 @@ def getFunctionList(api, unitName):
     unitObject = getObjectFromName(api.Unit.all(), unitName)
     # unitName might be invalid ...
     if unitObject:
-        functionList = unitObject.functions
-        returnList = getNameListFromObjectList(functionList)
-        # seems like a vcast dataAPI bug, that <<INIT>> is in this list
-        if TAG_FOR_INIT in returnList:
-            returnList.remove(TAG_FOR_INIT)
-        if CODED_TEST_SUBPROGRAM_NAME in returnList:
-            returnList.remove(CODED_TEST_SUBPROGRAM_NAME)
+        for function in unitObject.functions:
+            # we only want testable functions but we also omit
+            # coded_tests_driver because this function is supporting
+            # TEST.VALUE and TEST.EXPECTED lines.
+            if (
+                isTestableFunction(function)
+                and function.vcast_name != CODED_TEST_SUBPROGRAM_NAME
+            ):
+                returnList.append(function.vcast_name)
+
         if len(unitObject.globals) > 0:
             returnList.append(TAG_FOR_GLOBALS)
 
@@ -429,8 +448,8 @@ def processSlotLines(api, pieces, triggerCharacter):
         returnData.choiceKind = choiceKindType.Constant
 
     elif lengthOfCommand == 3 and triggerCharacter == ",":  # Unit
-        objectList = api.Unit.all()
-        returnData.choiceList = getNameListFromObjectList(objectList)
+        unitList = api.Unit.all()
+        returnData.choiceList = getUnitNameList(unitList)
         returnData.choiceKind = choiceKindType.File
 
     elif lengthOfCommand == 4 and triggerCharacter == ",":  # function
@@ -465,8 +484,8 @@ def processStandardLines(api, pieces, triggerCharacter):
         globalOutputLog.append("Line has less than 3 fields ...")
 
     elif lengthOfCommand == 3 and triggerCharacter == ":":  # Unit
-        objectList = api.Unit.all()
-        returnData.choiceList = getNameListFromObjectList(objectList)
+        unitList = api.Unit.all()
+        returnData.choiceList = getUnitNameList(unitList)
         returnData.choiceKind = choiceKindType.File
 
     elif lengthOfCommand == 4 and triggerCharacter == ".":  # Function
