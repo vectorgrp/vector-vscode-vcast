@@ -1,7 +1,6 @@
 // Only using global-agent and GlobalDispatcher
 // if running on vistr server
 import path from "node:path";
-import http from "http";
 import { URL } from "node:url";
 import { exec, spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -21,7 +20,6 @@ import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
 import { getSpecs } from "./specs_config";
 import { getToolVersion } from "../../../unit/getToolversion";
-import { ShutdownRequest } from "vscode-languageclient";
 import {
   pingServer,
   shutdownServer,
@@ -677,7 +675,7 @@ ENVIRO.END
       console.log("STARTING SERVER ...");
 
       const startServerCmd = "vpython";
-      const serverArgs = [`${serverPath}/vcastDataServer.py`, "--port=12345"];
+      const serverArgs = [`${serverPath}/vcastDataServer.py`, `--port=60461`];
 
       // Detach the server process
       const serverProcess = spawn(startServerCmd, serverArgs, {
@@ -1029,7 +1027,7 @@ ENVIRO.END
   async onComplete(exitCode, config, capabilities, results) {
     const options: ServerOptions = {
       hostname: "localhost",
-      port: 12345,
+      port: 60461,
       path: "/ping",
       method: "GET",
     };
