@@ -417,7 +417,7 @@ export const config: Options.Testrunner = {
         process.env.CLICAST_PATH = clicastExecutablePath;
 
         await prepareConfig(initialWorkdir);
-        const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
+        const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
 
         // Coded tests support only for >= vc24
@@ -428,10 +428,6 @@ export const config: Options.Testrunner = {
 
         // Execute RGW commands and copy necessary files
         await executeRGWCommands(testInputVcastTutorial);
-
-        // Build env
-        const setEnviro = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/enviroedg DATABASE-MANAGER-test.env`;
-        await executeCommand(setEnviro);
       } else {
         // Alternative setup for VECTORCAST_DIR_TEST_DUPLICATE
         const currentPath = process.env.PATH || "";
@@ -449,10 +445,6 @@ export const config: Options.Testrunner = {
 
         // Execute RGW commands and copy necessary files
         await executeRGWCommands(testInputVcastTutorial);
-
-        // Build env
-        const setEnviro = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/enviroedg DATABASE-MANAGER-test.env`;
-        await executeCommand(setEnviro);
       }
 
       await copyPathsToTestLocation(testInputVcastTutorial);
