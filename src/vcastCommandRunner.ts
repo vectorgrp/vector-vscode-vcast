@@ -152,6 +152,7 @@ export function executeWithRealTimeEcho(
 
   // To debug what's going on with vcast, you can add -dall to
   // argList, which will dump debug info for the clicast invocation
+  argList.push("-dall"); // Add -dall for detailed debug info
   let clicast = spawn(command, argList, { cwd: CWD });
   vectorMessage("-".repeat(100));
 
