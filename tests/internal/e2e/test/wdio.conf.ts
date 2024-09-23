@@ -396,7 +396,6 @@ export const config: Options.Testrunner = {
      * Standard env build and used by most Spec groups.
      */
     async function setupSingleEnvironment(initialWorkdir: string) {
-      const toolVersion = await getToolVersion();
       const testInputVcastTutorial = path.join(
         initialWorkdir,
         "test",
@@ -411,6 +410,7 @@ export const config: Options.Testrunner = {
       await executeCommand(deleteENV);
 
       if (process.env.VECTORCAST_DIR) {
+        const toolVersion = await getToolVersion();
         // Standard setup when VECTORCAST_DIR is available
         await checkVPython();
         clicastExecutablePath = await checkClicast();
@@ -419,6 +419,19 @@ export const config: Options.Testrunner = {
         await prepareConfig(initialWorkdir);
         const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
+
+        // Coded tests support only for >= vc24
+        if (toolVersion.includes("24")) {
+          const setCoded = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+          await executeCommand(setCoded);
+        }
+
+        // Execute RGW commands and copy necessary files
+        await executeRGWCommands(testInputVcastTutorial);
+
+        // Build env
+        const setEnviro = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/enviroedg DATABASE-MANAGER-test.env`;
+        await executeCommand(setEnviro);
       } else {
         // Alternative setup for VECTORCAST_DIR_TEST_DUPLICATE
         const currentPath = process.env.PATH || "";
@@ -433,20 +446,15 @@ export const config: Options.Testrunner = {
         await prepareConfig(initialWorkdir);
         const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
+
+        // Execute RGW commands and copy necessary files
+        await executeRGWCommands(testInputVcastTutorial);
+
+        // Build env
+        const setEnviro = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/enviroedg DATABASE-MANAGER-test.env`;
+        await executeCommand(setEnviro);
       }
 
-      // Execute RGW commands and copy necessary files
-      await executeRGWCommands(testInputVcastTutorial);
-
-      // Coded tests support only for >= vc24
-      if (toolVersion.includes("24")) {
-        const setCoded = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
-        await executeCommand(setCoded);
-      }
-
-      // Build env
-      const setEnviro = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/enviroedg DATABASE-MANAGER-test.env`;
-      await executeCommand(setEnviro);
       await copyPathsToTestLocation(testInputVcastTutorial);
 
       // TODO: This environment variable needs to be set in the CI.
