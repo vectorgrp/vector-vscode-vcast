@@ -14,6 +14,25 @@ import {
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
+import http from "http";
+// Local VM takes longer and needs a higher TIMEOUT
+export const TIMEOUT = 180_000;
+
+export type ServerMethod =
+  | "GET"
+  | "POST"
+  | "PUT"
+  | "DELETE"
+  | "PATCH"
+  | "HEAD"
+  | "OPTIONS";
+
+export interface ServerOptions {
+  hostname: string;
+  port: number;
+  path: string;
+  method: ServerMethod;
+}
 
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 180_000;
@@ -1229,4 +1248,67 @@ export async function selectItem(contentAssist: ContentAssist, item: string) {
  */
 function normalizeContentAssistString(content: string): string {
   return content.replace(/⏎/g, "\n").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Pings the server to check if it is alive.
+ *
+ * @param {ServerOptions} options - The HTTP request options (hostname, port, path, method).
+ * @returns {Promise<boolean>} - Resolves `true` if the server responds, otherwise `false`.
+ */
+export async function pingServer(options: ServerOptions) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+
+      res.on("end", () => {
+        if (res.statusCode === 200 && data.includes("clicast-path")) {
+          console.log("Ping successful: Server is alive.");
+          resolve(true);
+        } else {
+          console.log("Ping failed: Server is not responding.");
+          resolve(false);
+        }
+      });
+    });
+
+    req.on("error", (e) => {
+      console.error(`Ping request failed: ${e.message}`);
+      resolve(false); // Server might be down
+    });
+
+    req.end();
+  });
+}
+
+/**
+ * Sends a shutdown request to the server.
+ *
+ * @param {ServerOptions} options - The HTTP request options (hostname, port, path, method).
+ * @returns {Promise<void>} - Resolves when the shutdown request completes.
+ */
+export async function shutdownServer(options: any) {
+  return new Promise<void>((resolve, reject) => {
+    const req = http.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+
+      res.on("end", () => {
+        console.log("Shutdown response:", data);
+        resolve();
+      });
+    });
+
+    req.on("error", (e) => {
+      console.error(`Shutdown request failed: ${e.message}`);
+      resolve();
+    });
+
+    req.end();
+  });
 }

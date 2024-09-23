@@ -22,6 +22,11 @@ import capabilitiesJson from "./capabilityConfig.json";
 import { getSpecs } from "./specs_config";
 import { getToolVersion } from "../../../unit/getToolversion";
 import { ShutdownRequest } from "vscode-languageclient";
+import {
+  pingServer,
+  shutdownServer,
+  ServerOptions,
+} from "./test_utils/vcast_utils";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -433,8 +438,6 @@ export const config: Options.Testrunner = {
       // Execute RGW commands and copy necessary files
       await executeRGWCommands(testInputVcastTutorial);
 
-      process.env.VCAST_USE_SERVER = "True";
-
       // Coded tests support only for >= vc24
       if (toolVersion.includes("24")) {
         const setCoded = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
@@ -446,11 +449,17 @@ export const config: Options.Testrunner = {
       await executeCommand(setEnviro);
       await copyPathsToTestLocation(testInputVcastTutorial);
 
-      // Start clicast server
-      try {
-        await startServer(serverPath);
-      } catch (error) {
-        console.error(`Error starting server: ${error.message}`);
+      // TODO: This environment variable needs to be set in the CI.
+      // For now, it's set here temporarily for testing purposes.
+      process.env.VCAST_USE_SERVER = "True";
+
+      // Start clicast server if required
+      if (process.env.VCAST_USE_SERVER) {
+        try {
+          await startServer(serverPath);
+        } catch (error) {
+          console.error(`Error starting server: ${error.message}`);
+        }
       }
     }
 
@@ -670,28 +679,16 @@ ENVIRO.END
       const startServerCmd = "vpython";
       const serverArgs = [`${serverPath}/vcastDataServer.py`, "--port=12345"];
 
-      const serverProcess = spawn(startServerCmd, serverArgs);
-
-      serverProcess.stdout.on("data", (data) => {
-        console.log(`stdout: ${data}`);
-        if (data.includes("vcastDataServer is starting")) {
-          console.log("SERVER STARTED");
-        }
+      // Detach the server process
+      const serverProcess = spawn(startServerCmd, serverArgs, {
+        detached: true, // Detaches the process from the parent
+        stdio: "ignore", // Ignore stdio so the parent process doesn't wait
       });
 
-      serverProcess.stderr.on("data", (data) => {
-        console.error(`stderr: ${data}`);
-      });
+      serverProcess.unref(); // This ensures the parent process doesn't wait for it to finish
 
-      serverProcess.on("error", (err) => {
-        console.error(`Error starting server: ${err.message}`);
-      });
-
-      serverProcess.on("close", (code) => {
-        console.log(`Server process exited with code ${code}`);
-      });
+      console.log("Server process started in the background.");
     }
-
     /**
      * Cleans up and sets up the test environment directories.
      *
@@ -1030,30 +1027,23 @@ ENVIRO.END
   },
 
   async onComplete(exitCode, config, capabilities, results) {
-    // Request on /shutdown
-    const options = {
+    const options: ServerOptions = {
       hostname: "localhost",
       port: 12345,
-      path: "/shutdown",
+      path: "/ping",
       method: "GET",
     };
 
-    const req = http.request(options, (res) => {
-      console.log(`STATUS: ${res.statusCode}`);
-      res.setEncoding("utf8");
-      res.on("data", (chunk) => {
-        console.log(`BODY: ${chunk}`);
-      });
-      res.on("end", () => {
-        console.log("Server shutdown complete.");
-      });
-    });
+    // First, ping the server to check if it's still running
+    const serverAlive = await pingServer(options);
 
-    req.on("error", (e) => {
-      console.error(`Problem with request: ${e.message}`);
-    });
-
-    req.end();
+    if (serverAlive) {
+      console.log("Server is alive. Attempting shutdown...");
+      await shutdownServer(options);
+      console.log("Server shutdown completed.");
+    } else {
+      console.log("Server is already down or unreachable.");
+    }
   },
 
   /**
