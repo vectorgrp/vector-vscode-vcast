@@ -402,7 +402,6 @@ export const config: Options.Testrunner = {
       );
 
       const serverPath = path.join(initialWorkdir, "..", "..", "..", "python");
-      const toolVersion = await getToolVersion();
 
       // Standard setup when VECTORCAST_DIR is available
       if (process.env.VECTORCAST_DIR) {
@@ -413,12 +412,6 @@ export const config: Options.Testrunner = {
         await prepareConfig(initialWorkdir);
         const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
-
-        // Coded tests support only for >= vc24
-        if (toolVersion.includes("24")) {
-          const setCoded = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
-          await executeCommand(setCoded);
-        }
       } else {
         // Alternative setup for VECTORCAST_DIR_TEST_DUPLICATE
         const currentPath = process.env.PATH || "";
@@ -440,8 +433,12 @@ export const config: Options.Testrunner = {
       await executeRGWCommands(testInputVcastTutorial);
       await copyPathsToTestLocation(testInputVcastTutorial);
 
+      const toolVersion = await getToolVersion();
+
       // Coded tests support only for >= vc24
       if (toolVersion.includes("24")) {
+        const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await executeCommand(setCoded);
         // TODO: This environment variable needs to be set in the CI.
         // For now, it's set here temporarily for testing purposes.
         process.env.VCAST_USE_SERVER = "True";
