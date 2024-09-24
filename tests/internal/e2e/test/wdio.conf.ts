@@ -407,25 +407,17 @@ export const config: Options.Testrunner = {
       const deleteENV = `cd ${testInputVcastTutorial} && rm -rf DATABASE-MANAGER-TEST`;
       await executeCommand(deleteENV);
 
+      const toolVersion = await getToolVersion();
+
+      // Standard setup when VECTORCAST_DIR is available
       if (process.env.VECTORCAST_DIR) {
-        const toolVersion = await getToolVersion();
-        // Standard setup when VECTORCAST_DIR is available
         await checkVPython();
         clicastExecutablePath = await checkClicast();
         process.env.CLICAST_PATH = clicastExecutablePath;
 
         await prepareConfig(initialWorkdir);
-        const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP_X`;
+        const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
-
-        // Coded tests support only for >= vc24
-        if (toolVersion.includes("24")) {
-          const setCoded = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
-          await executeCommand(setCoded);
-        }
-
-        // Execute RGW commands and copy necessary files
-        await executeRGWCommands(testInputVcastTutorial);
       } else {
         // Alternative setup for VECTORCAST_DIR_TEST_DUPLICATE
         const currentPath = process.env.PATH || "";
@@ -433,6 +425,7 @@ export const config: Options.Testrunner = {
           process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
           "vpython"
         );
+
         process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
         clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
@@ -440,25 +433,28 @@ export const config: Options.Testrunner = {
         await prepareConfig(initialWorkdir);
         const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
-
-        // Execute RGW commands and copy necessary files
-        await executeRGWCommands(testInputVcastTutorial);
       }
 
+      // Execute RGW commands and copy necessary files
+      await executeRGWCommands(testInputVcastTutorial);
       await copyPathsToTestLocation(testInputVcastTutorial);
 
-      // TODO: This environment variable needs to be set in the CI.
-      // For now, it's set here temporarily for testing purposes.
-      process.env.VCAST_USE_SERVER = "True";
+      // Coded tests support only for >= vc24
+      if (toolVersion.includes("24")) {
+        const setCoded = `cd ${testInputVcastTutorial} && ${process.env.CLICAST_PATH} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await executeCommand(setCoded);
 
-      const toolVersion = await getToolVersion();
+        // TODO: This environment variable needs to be set in the CI.
+        // For now, it's set here temporarily for testing purposes.
+        process.env.VCAST_USE_SERVER = "True";
 
-      // Start clicast server if required
-      if (process.env.VCAST_USE_SERVER && toolVersion.startsWith("24")) {
-        try {
-          await startServer(serverPath);
-        } catch (error) {
-          console.error(`Error starting server: ${error.message}`);
+        // Start clicast server if required
+        if (process.env.VCAST_USE_SERVER) {
+          try {
+            await startServer(serverPath);
+          } catch (error) {
+            console.error(`Error starting server: ${error.message}`);
+          }
         }
       }
     }
