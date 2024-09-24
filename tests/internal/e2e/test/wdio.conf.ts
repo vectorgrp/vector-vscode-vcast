@@ -437,7 +437,7 @@ export const config: Options.Testrunner = {
         await executeCommand(setCoded);
         // TODO: This environment variable needs to be set in the CI.
         // For now, it's set here temporarily for testing purposes.
-        //process.env.VCAST_USE_SERVER = "True";
+        process.env.VCAST_USE_SERVER = "True";
 
         // Start clicast server if required
         if (process.env.VCAST_USE_SERVER) {
