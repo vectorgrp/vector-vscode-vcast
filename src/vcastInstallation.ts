@@ -114,7 +114,9 @@ export function getToolVersionFromPath(
     const version = parseInt(toolVersionString.split(" ")[0]);
     whatToReturn = { version: version, servicePack: 99 };
   } else {
-    // extract version and service pack from toolVersion (23.sp2 date)
+    // extract version and service pack from toolVersion 
+    // The string can be in two foramts: "21 date" or "23.sp2 date"
+    // first theck for "24.sp2 date" format ...
     const matched = toolVersionString.match(/(\d+)\.sp(\d+).*/);
     if (matched) {
       // if the format matches, return the values as numbers
@@ -122,6 +124,13 @@ export function getToolVersionFromPath(
         version: parseInt(matched[1]),
         servicePack: parseInt(matched[2]),
       };
+    } else {
+      // if the format does not match, split on the first space
+      // and return that (if it's an int) and sp 0
+      const version = toolVersionString.split(" ")[0];
+      if (version.match(/\d+/g) != null) {
+        whatToReturn.version = parseInt(version);
+      }
     }
   }
   return whatToReturn;
@@ -266,7 +275,7 @@ function findVcastTools(): boolean {
   } else {
     vectorMessage(
       `   command: '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set, ` +
-        "use the extension options to provide a valid VectorCAST installation directory."
+        "use the extension options to provide a valid VectorCAST Installation Location."
     );
     showSettings();
   }
@@ -274,26 +283,37 @@ function findVcastTools(): boolean {
   // if we found a vpython somewhere ...
   // we assume the other executables are there too,  but we check anyway :)
   if (vcastInstallationPath) {
-
     // first check if vcast is newer than 2021sp1 - minium version for this extension
-    // TBD today!
+    const toolVersion: toolVersionType = getToolVersionFromPath(
+      vcastInstallationPath
+    );
+    if (toolVersion.version >= 21) {
+      // do all of the setup required to use clicast
+      foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
 
+      // setup coded-test stuff (new for vc24)
+      initializeCodedTestSupport(vcastInstallationPath);
 
-    // do all of the setup required to use clicast
-    foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
+      // check if we have access to a valid crc32 command - this is not fatal
+      // must be called after initializeInstallerFiles()
 
-    // setup coded-test stuff (new for vc24)
-    initializeCodedTestSupport(vcastInstallationPath);
-
-    // check if we have access to a valid crc32 command - this is not fatal
-    // must be called after initializeInstallerFiles()
-
-    if (!initializeChecksumCommand(vcastInstallationPath)) {
-      vscode.window.showWarningMessage(
-        "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
-          "so the code coverage feature will not be available.  For details on how to resolve " +
-          "this issue, please refer to the 'Prerequisites' section of the README.md file."
+      if (!initializeChecksumCommand(vcastInstallationPath)) {
+        vscode.window.showWarningMessage(
+          "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
+            "so the code coverage feature will not be available.  For details on how to resolve " +
+            "this issue, please refer to the 'Prerequisites' section of the README.md file."
+        );
+      }
+    } else {
+      // we show also show this in the message pane for completeness
+      vectorMessage(
+        "   VectorCAST version is too old, minimum supported version is: 21sp1"
       );
+      const messageText =
+        "The VectorCAST Test Explorer requires a VectorCAST version >= 21sp1, " +
+        "use the extension options to provide a valid VectorCAST Installation Location.";
+      vscode.window.showWarningMessage(messageText);
+      showSettings();
     }
   }
 
@@ -307,40 +327,41 @@ export async function checkIfInstallationIsOK() {
 
   // default this to false, it only gets to true if we find
   // vpython and clicast and we have a license
-  let returnValue = false;
+  let installationIsOK = false;
 
+  vectorMessage("-".repeat(100));
   vectorMessage("Checking that a VectorCAST installation is available ... ");
 
   if (findVcastTools()) {
     // check if we have a valid license
     if (vcastLicenseOK()) {
       vectorMessage("   VectorCAST license is available ...");
-      returnValue = true;
+      installationIsOK = true;
     } else {
       vectorMessage("   no VectorCAST license is available");
-      returnValue = false;
+      installationIsOK = false;
     }
   }
 
   vectorMessage("-".repeat(100) + "\n");
 
-  // now check if a server is running and if its compatible with the installation
-  // TBD the server is not yet ready for prime time
-  const VCAST_USE_SERVER = process.env["VCAST_USE_SERVER"];
-  if (VCAST_USE_SERVER) {
-    vectorMessage(
-      "Checking if a VectorCAST Environment Data Server is available ... "
-    );
-    await determineServerState();
-  }
-
-  if (!returnValue) {
+  if (installationIsOK) {
+    // now check if a server is running and if its compatible with the installation
+    // TBD the server is not yet ready for prime time
+    const VCAST_USE_SERVER = process.env["VCAST_USE_SERVER"];
+    if (VCAST_USE_SERVER) {
+      vectorMessage(
+        "Checking if a VectorCAST Environment Data Server is available ... "
+      );
+      await determineServerState();
+    }
+  } else {
     vectorMessage(
       "Please refer to the installation and configuration instructions for details on resolving these issues"
     );
     openMessagePane();
   }
-  return returnValue;
+  return installationIsOK;
 }
 
 function initializeVcastUtilities(vcastInstallationPath: string) {
