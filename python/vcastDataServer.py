@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import signal
+import socket
 import traceback
 
 import vcastDataServerTypes
@@ -171,17 +172,22 @@ def decodeRequest(requestString):
     return clientRequest
 
 
-def setupArgs():
-    parser = argparse.ArgumentParser(description="VectorCAST Data Server")
-    parser.add_argument(
-        "--port", help=f"Server port number (default={vcastDataServerTypes.PORT})"
-    )
-    return parser
-
-
 def serverSignalHandler(signum, frame):
     logMessage(f"Server caught signal {signum}")
     shutdown()
+
+
+def findAvailablePort():
+    """
+    I have not implemented any error handling, and I am not sure
+    if there could be a race condition between the close and 
+    the flask app.start() ... but this seems unlikely.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind((vcastDataServerTypes.HOST, 0))
+    availablePortNumber = sock.getsockname()[1]
+    sock.close()
+    vcastDataServerTypes.PORT = availablePortNumber
 
 
 def main():
@@ -198,12 +204,6 @@ def main():
     vcastInstallation = os.path.dirname(sys.executable)
     pythonUtilities.globalClicastCommand = os.path.join(vcastInstallation, "clicast")
 
-    argParser = setupArgs()
-    args, _ = argParser.parse_known_args()
-
-    # process port arg if it exists
-    vcastDataServerTypes.processPortArg(args)
-
     # By registering this signal handler we can
     # allow ctrl-c to shutdown the server gracefully
     signal.signal(signal.SIGTERM, serverSignalHandler)
@@ -217,12 +217,14 @@ def main():
 
     # start the server
     with open("vcastDataServer.log", "w", buffering=1) as pythonUtilities.logFileHandle:
+        findAvailablePort()
         print(
             f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT} ..."
         )
         logMessage(
             f"{logPrefix()} using clicast command: {pythonUtilities.globalClicastCommand}\n"
         )
+
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)
 
 

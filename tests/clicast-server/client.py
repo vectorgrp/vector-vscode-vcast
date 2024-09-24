@@ -676,7 +676,7 @@ def setupArgs():
     parser = argparse.ArgumentParser(description="VectorCAST Data Server Test Client")
     parser.add_argument("--test", required=True)
     parser.add_argument(
-        "--port", help=f"Server port number (default={vcastDataServerTypes.PORT})"
+        "--port", required=True, help=f"Server port number"
     )
     parser.add_argument(
         "--nobuild", help=f"Do not build the environment", action="store_true"
@@ -746,7 +746,7 @@ def main():
     argParser = setupArgs()
     args, restOfArgs = argParser.parse_known_args()
 
-    # process port arg if it exists
+    # process port arg
     # Note that PORT gets used by function serverURL()
     vcastDataServerTypes.processPortArg(args)
 
