@@ -451,8 +451,10 @@ export const config: Options.Testrunner = {
       // For now, it's set here temporarily for testing purposes.
       process.env.VCAST_USE_SERVER = "True";
 
+      const toolVersion = await getToolVersion();
+
       // Start clicast server if required
-      if (process.env.VCAST_USE_SERVER) {
+      if (process.env.VCAST_USE_SERVER && toolVersion.startsWith("24")) {
         try {
           await startServer(serverPath);
         } catch (error) {
