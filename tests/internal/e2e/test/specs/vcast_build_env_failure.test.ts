@@ -31,6 +31,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     await browser.keys([Key.Control, Key.Shift, "p"]);
+
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
     // so just need to hit Enter to activate
@@ -41,14 +42,33 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
-    const viewControls = await activityBar.getViewControls();
-    for (const viewControl of viewControls) {
-      console.log(await viewControl.getTitle());
-    }
 
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
+
+    console.log("Waiting for VectorCAST activation");
+    await $("aria/VectorCAST Test Pane Initialization");
+    console.log("WAITING FOR TESTING");
+    await browser.waitUntil(
+      async () => (await activityBar.getViewControl("Testing")) !== undefined,
+      { timeout: TIMEOUT }
+    );
+    console.log("WAITING FOR TEST EXPLORER");
+    await browser.waitUntil(async () =>
+      (await outputView.getChannelNames())
+        .toString()
+        .includes("VectorCAST Test Explorer")
+    );
     await outputView.selectChannel("VectorCAST Test Explorer");
+    console.log("Channel selected");
+    console.log("WAITING FOR LANGUAGE SERVER");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Starting the language server"),
+      { timeout: TIMEOUT }
+    );
 
     // Await last expected sentence
     await browser.waitUntil(
@@ -60,6 +80,9 @@ describe("vTypeCheck VS Code Extension", () => {
           ),
       { timeout: TIMEOUT }
     );
+
+    const testingView = await activityBar.getViewControl("Testing");
+    await testingView?.openView();
   });
 
   it("should throw an error on invalid PATH env", async () => {

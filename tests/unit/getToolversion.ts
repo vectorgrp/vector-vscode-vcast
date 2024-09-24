@@ -12,34 +12,37 @@ const promisifiedExec = promisify(exec);
  */
 export async function getToolVersion() {
   // Determine the command to locate clicast
-  const checkClicast =
-    process.platform === "win32" ? "where clicast" : "which clicast";
-
   let clicastExecutablePath = "";
+  // Normally, VECTORCAST_DIR is defined, but in some tests we intentionally set it to be undefined.
+  if (process.env.VECTORCAST_DIR) {
+    const checkClicast =
+      process.platform === "win32" ? "where clicast" : "which clicast";
 
-  try {
-    // Execute the command to find clicast
-    const { stdout, stderr } = await promisifiedExec(checkClicast);
-    if (stderr) {
+    try {
+      // Execute the command to find clicast
+      const { stdout, stderr } = await promisifiedExec(checkClicast);
+      if (stderr) {
+        throw new Error(
+          `Error when running ${checkClicast}, make sure clicast is on PATH`
+        );
+      } else {
+        clicastExecutablePath = stdout.trim();
+        console.log(`clicast found in ${clicastExecutablePath}`);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      } else {
+        console.error(`Unexpected error: ${String(error)}`);
+      }
+
       throw new Error(
-        `Error when running ${checkClicast}, make sure clicast is on PATH`
+        `Error when running "${checkClicast}", make sure clicast is on PATH`
       );
-    } else {
-      clicastExecutablePath = stdout.trim();
-      console.log(`clicast found in ${clicastExecutablePath}`);
     }
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
-    } else {
-      console.error(`Unexpected error: ${String(error)}`);
-    }
-
-    throw new Error(
-      `Error when running "${checkClicast}", make sure clicast is on PATH`
-    );
+  } else {
+    clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
   }
-
   // Read the tool version from the appropriate path
   const toolVersionPath = path.join(
     clicastExecutablePath,

@@ -429,10 +429,6 @@ export const config: Options.Testrunner = {
         await executeCommand(createCFG);
       }
 
-      // Execute RGW commands and copy necessary files
-      await executeRGWCommands(testInputVcastTutorial);
-      await copyPathsToTestLocation(testInputVcastTutorial);
-
       const toolVersion = await getToolVersion();
 
       // Coded tests support only for >= vc24
@@ -441,7 +437,7 @@ export const config: Options.Testrunner = {
         await executeCommand(setCoded);
         // TODO: This environment variable needs to be set in the CI.
         // For now, it's set here temporarily for testing purposes.
-        process.env.VCAST_USE_SERVER = "True";
+        //process.env.VCAST_USE_SERVER = "True";
 
         // Start clicast server if required
         if (process.env.VCAST_USE_SERVER) {
@@ -452,6 +448,10 @@ export const config: Options.Testrunner = {
           }
         }
       }
+
+      // Execute RGW commands and copy necessary files
+      await executeRGWCommands(testInputVcastTutorial);
+      await copyPathsToTestLocation(testInputVcastTutorial);
     }
 
     /**
