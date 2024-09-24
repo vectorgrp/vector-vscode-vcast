@@ -5,24 +5,64 @@ import subprocess
 import sys
 import time
 
+"""
+This script contains the clicast stuff tha was previously 
+in vTestInterface.py.  It was moved here to give access to the 
+VectorCAST environment server.
+"""
+
+import pythonUtilities
+from pythonUtilities import (
+    cleanEnviroPath,
+    closeEnvironmentConnection,
+    getClicastInstance,
+    logMessage,
+)
+from vcastDataServerTypes import errorCodes
+
 from vector.lib.core.system import cd
 
-
+# Filename used when we run a clicast command script
 commandFileName = "commands.cmd"
-globalClicastCommand = ""
+
+
+def runClicastServerCommand(enviroPath, commandString):
+    """
+    Note: we indent the log messages here to make them easier to
+    read in the context of the original server command received
+    """
+
+    # This call will return the processObject or None
+    processObject = getClicastInstance(enviroPath)
+
+    if processObject == None:
+        exitCode = errorCodes.couldNotStartClicastInstance
+        returnText = "Could not start clicast instance"
+
+    else:
+        logMessage(f"    commandString: {commandString}")
+        processObject.stdin.write(f"{commandString}\n")
+        processObject.stdin.flush()
+
+        responseLine = ""
+        returnText = ""
+
+        # The clicast server emits a line like this to mark the end of a command:
+        #   clicast-server-command-done:COMMAND_NOT_ALLOWED | 8
+        # Between the colon and the command is the status enum, and the
+        # number after the | is the 'pos of the enum which is the normal
+        # exit code for a clicast command.
+        while not responseLine.startswith("clicast-server-command-done"):
+            returnText += responseLine
+            responseLine = processObject.stdout.readline()
+
+        exitCode = int(responseLine.split("|")[1].strip())
+        logMessage(f"    server return code: {exitCode}")
+
+    return exitCode, returnText
 
 
 enviroNameRegex = "-e\s*([^\s]*)"
-
-
-def getEnviroPathFromCommand(command):
-    # TBD in the future we will change the caller to pass in the environment path
-    # No error handling because the caller will guarantee that we have a valid command
-    match = re.search(enviroNameRegex, command)
-    enviroName = match.group(1)
-    enviroPath = os.path.join(os.getcwd(), enviroName)
-
-    return enviroPath
 
 
 def getStandardArgsFromTestObject(testIDObject, quoteParameters):
@@ -54,6 +94,31 @@ def convertOutput(rawOutput):
     return returnText
 
 
+def runClicastCommandWithEcho(commandToRun):
+    """
+    Similar to runClicastCommand but with real-time echo of output
+    """
+    stdoutString = ""
+    process = subprocess.Popen(
+        commandToRun.split(" "), stdout=subprocess.PIPE, text=True
+    )
+    while process.poll() is None:
+        line = process.stdout.readline().rstrip()
+        if len(line) > 0:
+            stdoutString += line + "\n"
+            print(line, flush=True)
+
+    return process.returncode, stdoutString
+
+
+def runClicastCommandUsingServer(enviroPath, commandToRun):
+
+    # Strip off the first arg which is the clicast.exe
+    # In the future we might only get the clicast args without the clicast exe ...
+    commandArgString = " ".join(commandToRun.split(" ")[1:])
+    return runClicastServerCommand(enviroPath, commandArgString)
+
+
 def runClicastCommandCommandLine(commandToRun):
     """
     A wrapper for the subprocess.run() function
@@ -76,26 +141,29 @@ def runClicastCommandCommandLine(commandToRun):
     return returnCode, convertOutput(rawOutput)
 
 
-def runClicastCommandWithEcho(commandToRun):
-    """
-    Similar to runClicastCommand but with real-time echo of output
-    """
-    stdoutString = ""
-    process = subprocess.Popen(
-        commandToRun.split(" "), stdout=subprocess.PIPE, text=True
-    )
-    while process.poll() is None:
-        line = process.stdout.readline().rstrip()
-        if len(line) > 0:
-            stdoutString += line + "\n"
-            print(line, flush=True)
-
-    return process.returncode, stdoutString
+def runClicastCommand(enviroPath, commandToRun):
+    if pythonUtilities.USE_SERVER:
+        return runClicastCommandUsingServer(enviroPath, commandToRun)
+    else:
+        return runClicastCommandCommandLine(commandToRun)
 
 
-def runClicastCommand(commandToRun):
-    # In preparation for server mode ...
-    return runClicastCommandCommandLine(commandToRun)
+def runClicastScriptUsingServer(enviroPath, commandFileName):
+
+    # read commandFile into a list
+    with open(commandFileName, "r") as f:
+        lines = f.read().splitlines()
+
+    returnText = ""
+    for line in lines:
+        # for consistency with the non server version, we stop and
+        # return the exit code of the first command that fails
+        exitCode, commandOutput = runClicastServerCommand(enviroPath, line)
+        returnText += commandOutput
+        if exitCode != 0:
+            break
+
+    return exitCode, returnText
 
 
 def runClicastScriptCommandLine(commandFileName, echoToStdout):
@@ -104,24 +172,95 @@ def runClicastScriptCommandLine(commandFileName, echoToStdout):
     and then call this with the name of that script
     """
 
-    # false at the end tells clicast to ignore errors in individual commands
-    commandToRun = f"{globalClicastCommand} -lc tools execute {commandFileName} false"
+    # true at the end tells clicast to exit with the exit code of the first
+    # command that fails.  If this is set to false, it always returns 0
+    commandToRun = f"{pythonUtilities.globalClicastCommand} -lc tools execute {commandFileName} true"
 
     if echoToStdout:
         returnCode, stdoutString = runClicastCommandWithEcho(commandToRun)
     else:
-        returnCode, stdoutString = runClicastCommand(commandToRun)
+        returnCode, stdoutString = runClicastCommandCommandLine(commandToRun)
 
     os.remove(commandFileName)
     return returnCode, stdoutString
 
 
-def runClicastScript(commandFileName, echoToStdout=False):
-    # In preparation for server mode ...
-    return runClicastScriptCommandLine(commandFileName, echoToStdout)
+def runClicastScript(enviroPath, commandFileName, echoToStdout=False):
+
+    # noServer allows the caller to specify that we should run clicast directly
+
+    if pythonUtilities.USE_SERVER:
+        return runClicastScriptUsingServer(enviroPath, commandFileName)
+    else:
+        return runClicastScriptCommandLine(commandFileName, echoToStdout)
 
 
-def updateEnvironment(enviroPath, jsonOptions):
+tempEnviroScript = "rebuild.env"
+tempTestScript = "rebuild.tst"
+
+
+def updateScriptsAndRebuild(enviroPath, jsonOptions):
+    """
+    This does the actual work of updating the scripts
+    and invoking the build and load test script commands
+    """
+
+    enviroName = os.path.basename(enviroPath)
+
+    # Read the enviro script into a list of strings
+    with open(tempEnviroScript, "r") as enviroFile:
+        enviroLines = enviroFile.readlines()
+
+    # Re-write the enviro script replacing the value of commands
+    # that exist in the jsonOptions
+    with open(tempEnviroScript, "w") as enviroFile:
+        for line in enviroLines:
+            whatToWrite = line
+            if line.startswith("ENVIRO.END"):
+                # if we have some un-used options then
+                # write these before the ENVIRO.END
+                for key, value in jsonOptions.items():
+                    enviroFile.write(f"{key}: {value}\n")
+
+            elif line.startswith("ENVIRO.") and ":" in line:
+                # for all other commands, see if the command matches
+                # a command from the jsonOptions dict
+                enviroCommand, enviroValue = line.split(":", 1)
+                enviroCommand = enviroCommand.strip()
+                enviroValue = enviroValue.strip()
+                # if so replace the existing value ...
+                if enviroCommand in jsonOptions:
+                    whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
+                    jsonOptions.pop(enviroCommand)
+
+            # write the original or updated line
+            enviroFile.write(whatToWrite)
+
+    # if we are server mode, terminate any existing process
+    closeEnvironmentConnection(enviroPath)
+
+    # Finally delete and re-build the environment using the updated script
+    # and load the existing tests -> which duplicates what enviro rebuild does.
+    with open(commandFileName, "w") as commandFile:
+        # Improvement needed: vcast bug: 100924
+        shutil.rmtree(enviroName)
+        # commandFile.write(f"-e{enviroName} enviro delete\n")
+        commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
+        commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
+
+    # there is no benefit to starting a new server process here (if we are server mode)
+    # so we call the command line version directly
+    returnCodeRebuild, commandOutputRebuild = runClicastScriptCommandLine(
+        commandFileName, echoToStdout=(not pythonUtilities.USE_SERVER)
+    )
+
+    os.remove(tempEnviroScript)
+    os.remove(tempTestScript)
+
+    return returnCodeRebuild, commandOutputRebuild
+
+
+def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
     """
     pathToUse is the full path to the environment directory
     jsonOptions has the new values of ENVIRO.* commands for the enviro script
@@ -129,9 +268,6 @@ def updateEnvironment(enviroPath, jsonOptions):
 
     We overwrite any matching ENVIRO commands with the new values before rebuild
     """
-
-    tempEnviroScript = "rebuild.env"
-    tempTestScript = "rebuild.tst"
 
     with cd(os.path.dirname(enviroPath)):
         # first we generate a .env and .tst for the existing environment
@@ -142,49 +278,20 @@ def updateEnvironment(enviroPath, jsonOptions):
                 f"-e{enviroName} enviro script create {tempEnviroScript}\n"
             )
             commandFile.write(f"-e{enviroName} test script create {tempTestScript}\n")
-        exitCode, stdOutput = runClicastScript(commandFileName, echoToStdout=True)
+        returnCode, commandOutput = runClicastScript(
+            enviroPath, commandFileName, echoToStdout=(not pythonUtilities.USE_SERVER)
+        )
 
-        # Read the enviro script into a list of strings
-        with open(tempEnviroScript, "r") as enviroFile:
-            enviroLines = enviroFile.readlines()
+        # if the script generation was successful, we update the scripts and rebuild
+        if returnCode == 0:
+            # now we update the scripts and rebuild the environment
+            returnCode, commandOutputRebuild = updateScriptsAndRebuild(
+                enviroPath, jsonOptions
+            )
+            # concatenate the output from both commands for completeness
+            commandOutput = f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
 
-        # Re-write the enviro script replacing the value of commands
-        # that exist in the jsonOptions
-        with open(tempEnviroScript, "w") as enviroFile:
-            for line in enviroLines:
-                whatToWrite = line
-                if line.startswith("ENVIRO.END"):
-                    # if we have some un-used options then
-                    # write these before the ENVIRO.END
-                    for key, value in jsonOptions.items():
-                        enviroFile.write(f"{key}: {value}\n")
-
-                elif line.startswith("ENVIRO.") and ":" in line:
-                    # for all other commands, see if the command matches
-                    # a command from the jsonOptions dict
-                    enviroCommand, enviroValue = line.split(":", 1)
-                    enviroCommand = enviroCommand.strip()
-                    enviroValue = enviroValue.strip()
-                    # if so replace the existing value ...
-                    if enviroCommand in jsonOptions:
-                        whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
-                        jsonOptions.pop(enviroCommand)
-
-                # write the original or updated line
-                enviroFile.write(whatToWrite)
-
-        # Finally delete and re-build the environment using the updated script
-        # and load the existing tests -> which duplicates what enviro rebuild does.
-        with open(commandFileName, "w") as commandFile:
-            # Improvement needed: vcast bug: 100924
-            shutil.rmtree(enviroName)
-            # commandFile.write(f"-e{enviroName} enviro delete\n")
-            commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
-            commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
-        exitCode, stdOutput = runClicastScript(commandFileName, echoToStdout=True)
-
-        os.remove(tempEnviroScript)
-        os.remove(tempTestScript)
+    return returnCode, commandOutput
 
 
 def rebuildEnvironmentUsingClicastReBuild(enviroPath):
@@ -194,8 +301,12 @@ def rebuildEnvironmentUsingClicastReBuild(enviroPath):
     """
     with cd(os.path.dirname(enviroPath)):
         enviroName = os.path.basename(enviroPath)
-        commandToRun = f"{globalClicastCommand} -lc -e{enviroName} enviro re_build"
+        commandToRun = (
+            f"{pythonUtilities.globalClicastCommand} -lc -e{enviroName} enviro re_build"
+        )
         returnCode, commandOutput = runClicastCommandWithEcho(commandToRun)
+
+    return returnCode, commandOutput
 
 
 # ----------------------------------------------------------------------------------------------------
@@ -204,36 +315,41 @@ def rebuildEnvironmentUsingClicastReBuild(enviroPath):
 
 
 def rebuildEnvironment(enviroPath, jsonOptions):
+    """
+    Note: rebuild environment cannot use server mode
+    since we are deleting and recreating the environment
+    """
+
     if jsonOptions:
-        updateEnvironment(enviroPath, jsonOptions)
+        return rebuildEnvironmentWithUpdates(enviroPath, jsonOptions)
     else:
-        rebuildEnvironmentUsingClicastReBuild(enviroPath)
+        return rebuildEnvironmentUsingClicastReBuild(enviroPath)
 
 
-codeTestCompileErrorCode = 98
-
-
-def executeTest(testIDObject):
+def executeTest(enviroPath, testIDObject):
     # since we are doing a direct call to clicast, we need to quote the parameters
     # separate variable because in the future there will be additional parameters
-    shouldQuoteParameters = True
+    shouldQuoteParameters = not pythonUtilities.USE_SERVER
     standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
     # we cannot include the execute command in the command script that we use for
     # results because we need the return code from the execute command separately
-    commandToRun = f"{globalClicastCommand} -lc {standardArgs} execute run"
-    executeReturnCode, stdoutText = runClicastCommand(commandToRun)
+    commandToRun = (
+        f"{pythonUtilities.globalClicastCommand} -lc {standardArgs} execute run"
+    )
+    executeReturnCode, stdoutText = runClicastCommand(enviroPath, commandToRun)
 
     # currently clicast returns the same error code for a failed coded test compile or
     # a failed coded test execution.  We need to distinguish between these two cases
     # so we are using this hack until vcast changes the return code for a failed coded test compile
     if testIDObject.functionName == "coded_tests_driver" and executeReturnCode != 0:
         if "TEST RESULT:" not in stdoutText:
-            executeReturnCode = codeTestCompileErrorCode
+            executeReturnCode = errorCodes.codedTestCompileError
 
     return executeReturnCode, stdoutText
 
 
-def generateExecutionReport(testIDObject):
+def generateExecutionReport(enviroPath, testIDObject):
+
     standardArgs = getStandardArgsFromTestObject(testIDObject, False)
     # We build a clicast command script to generate the execution report
     # since we need multiple commands
@@ -250,6 +366,6 @@ def generateExecutionReport(testIDObject):
         )
         commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
 
-    # we ignore the exit code and return the stdoutput
-    exitCode, stdOutput = runClicastScript(commandFileName)
+    # we ignore the exit code and return the stdout
+    exitCode, stdOutput = runClicastScript(enviroPath, commandFileName)
     return stdOutput

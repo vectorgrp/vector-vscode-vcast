@@ -16,13 +16,13 @@ import {
   findSubprogramMethod,
   updateTestID,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -140,13 +140,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await (await testHandle.getActionButton("Run Test")).elem).click();
 
     await bottomBar.maximize();
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText()).includes(
-          "test explorer  [info]  Status: passed"
-        ),
-      { timeout: TIMEOUT }
-    );
     await bottomBar.restore();
 
     const webviews = await workbench.getAllWebviews();

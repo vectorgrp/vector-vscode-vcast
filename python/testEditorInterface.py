@@ -15,20 +15,19 @@ import sys
 
 
 from tstUtilities import (
+    buildChoiceResponse,
     choiceDataType,
+    globalOutputLog,
+    processTstLine,
     processTstLine,
     processMockDefinition,
 )
-from tstUtilities import globalOutputLog
 
 
 def main():
     # ------------------------------------------------------
     # Main function, called by the VS Code language server
-    # This main can either service one request directly or start the
-    # socket based server to field socket based requests
 
-    # See the comment in: runPythonScript()
     print("ACTUAL-DATA")
 
     # We get here when the user types a "." or ":"
@@ -39,7 +38,7 @@ def main():
         mode = sys.argv[1]
 
         # Path to the environment folder
-        enviroName = sys.argv[2]
+        enviroPath = sys.argv[2]
 
         # Contents of the line from the editor so far
         inputLine = sys.argv[3]
@@ -47,13 +46,13 @@ def main():
         if mode == "choiceList-ct":
             # if the line starts with "void vmock" then we are processing vmock definition
             if re.match("^\s*\/\/\s*vmock", inputLine):
-                choiceData = processMockDefinition(enviroName, inputLine)
+                choiceData = processMockDefinition(enviroPath, inputLine)
             else:
                 # noting to be done
                 choiceData = choiceDataType()
 
         elif mode == "choiceList-tst":
-            choiceData = processTstLine(enviroName, inputLine)
+            choiceData = processTstLine(enviroPath, inputLine)
 
         else:
             choiceData = choiceDataType()
@@ -66,11 +65,7 @@ def main():
             f"Invalid number of arguments: {len(sys.argv)-1}, 3 expected"
         )
 
-    outputDictionary = dict()
-    outputDictionary["choiceKind"] = choiceData.choiceKind
-    outputDictionary["choiceList"] = choiceData.choiceList
-    outputDictionary["extraText"] = choiceData.extraText
-    outputDictionary["messages"] = globalOutputLog
+    outputDictionary = buildChoiceResponse(choiceData)
 
     print(json.dumps(outputDictionary, indent=4))
 

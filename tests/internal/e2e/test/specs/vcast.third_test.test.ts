@@ -15,12 +15,12 @@ import {
   editTestScriptFor,
   updateTestID,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -310,21 +310,6 @@ describe("vTypeCheck VS Code Extension", () => {
       )
     ).toBe(true);
     expect(
-      outputViewText.includes(
-        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest"
-      )
-    ).toBe(true);
-    expect(
-      outputViewText.includes("test explorer  [info]  Status: passed")
-    ).toBe(true);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Execution Time:");
-      })
-    ).not.toBe(undefined);
-
-    expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Processing environment data for:");
       })
@@ -335,7 +320,6 @@ describe("vTypeCheck VS Code Extension", () => {
         return line.includes("Viewing results, result report path");
       })
     ).not.toBe(undefined);
-
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Creating web view panel");

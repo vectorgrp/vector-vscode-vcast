@@ -6,7 +6,12 @@ import { updateDisplayedCoverage } from "./coverage";
 import { updateTestDecorator } from "./editorDecorator";
 
 import { updateExploreDecorations } from "./fileDecorator";
-import { openMessagePane, vectorMessage } from "./messagePane";
+import {
+  errorLevel,
+  indentString,
+  openMessagePane,
+  vectorMessage,
+} from "./messagePane";
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
@@ -17,8 +22,8 @@ import {
 } from "./testPane";
 
 import { removeFilePattern } from "./utilities";
+import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
-import { loadScriptIntoEnvironment } from "./vcastAdapter";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
 
 const fs = require("fs");
@@ -85,19 +90,19 @@ export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
   }
 }
 
-export function loadScriptCallBack(
+export async function loadScriptCallBack(
   commandStatus: commandStatusType,
   enviroName: string,
   scriptPath: string
 ) {
-  // This is the callback that should be passed to executeClicastWithProgress() when
+  // This is the callback that should be passed to executeCommandWithProgress() when
   // we are computing basis path or ATG tests, this gets called when the command completes
 
   if (commandStatus.errorCode == 0) {
     vectorMessage("Loading tests into VectorCAST environment ...");
 
     // call clicast to load the test script
-    loadScriptIntoEnvironment(enviroName, scriptPath);
+    await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
@@ -107,7 +112,8 @@ export function loadScriptCallBack(
     vscode.window.showInformationMessage(
       `Error generating tests, see log for details`
     );
-    vectorMessage(commandStatus.stdout);
+    vectorMessage("Error generating tests");
+    vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
     openMessagePane();
   }
 }

@@ -37,7 +37,6 @@ const char* charArray (const char param1[] ) {
         return param1;
 }
 
-// TBD is this s pointer of a static array of characters?
 const char* staticCharArray (const char param1[5] ) {
      return param1;
 }

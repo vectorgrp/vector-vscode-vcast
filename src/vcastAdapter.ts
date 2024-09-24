@@ -8,7 +8,11 @@ import {
   buildEnvironmentCallback,
   deleteEnvironmentCallback,
 } from "./callbacks";
-import { openMessagePane, vectorMessage } from "./messagePane";
+
+import { sendServerStateToLanguageServer } from "./client";
+
+import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
+
 import {
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
@@ -20,24 +24,116 @@ import {
 
 import {
   commandStatusType,
-  executeClicastWithProgress,
+  convertServerResponseToCommandStatus,
+  executeClicastCommandUsingServer,
+  executeCommandWithProgress,
   executeCommandSync,
+  executeVPythonScript,
   executeWithRealTimeEcho,
+  getJsonDataFromTestInterface,
 } from "./vcastCommandRunner";
 
 import {
   atgCommandToUse,
   clicastCommandToUse,
+  getToolVersionFromPath,
   vcastCommandToUse,
+  vcastInstallationVersion,
 } from "./vcastInstallation";
 
+import {
+  getClientRequestObject,
+  getRebuildOptionsString,
+  getVcastInterfaceCommand,
+} from "./vcastUtilities";
+
+import {
+  clientRequestType,
+  closeConnection,
+  globalEnviroDataServerActive,
+  serverIsAlive,
+  setServerState,
+  setLogServerCommandsCallback,
+  setTerminateServerCallback,
+  transmitCommand,
+  transmitResponseType,
+  vcastCommandType,
+  serverClicastPath,
+} from "../src-common/vcastServer";
+
+import { refreshAllExtensionData } from "./testPane";
+
 const path = require("path");
+
+function terminateServerProcessing() {
+  // This functions gets called by server transmitCommand()
+  // when there is a fatal server errr.  In this case, we
+  // display a pop up error message, update the test pane
+  refreshAllExtensionData();
+
+  vscode.window.showErrorMessage(
+    "Fatal Error in VectorCAST Environment Data Server - " +
+      "Disabling Server Mode for this Session.  " +
+      "The previous command was discarded, and the " +
+      "Testing Pane has been reloaded"
+  );
+}
+
+function logServerCommands(text: string) {
+  // This function gets called by server - transmitCommand ()
+  // It is implemented as a callback because the server is
+  // used by both the core extension and the language server
+  vectorMessage(text, errorLevel.trace);
+}
+
+export async function determineServerState() {
+  // This function is called during initialization to check if the enviro
+  // data server is alive and if so configure the extension to use it
+
+  // This call saves the path to the clicast version that the
+  // server is running into variable: "serverClicastPath"
+  let newServerState = false;
+  if (await serverIsAlive()) {
+    // the server is running, now check if the clicast versions match
+
+    const serverVersion = getToolVersionFromPath(
+      path.dirname(serverClicastPath)
+    );
+
+    if (
+      vcastInstallationVersion.version == serverVersion.version &&
+      vcastInstallationVersion.servicePack == serverVersion.servicePack
+    ) {
+      setTerminateServerCallback(terminateServerProcessing);
+      setLogServerCommandsCallback(logServerCommands);
+      vectorMessage("VectorCAST Environment Data Server is Active ...\n");
+      newServerState = true;
+    } else {
+      vectorMessage(
+        "VectorCAST Environment Data Server is Active, but the VectorCAST versions are incompatible ..."
+      );
+      vectorMessage(
+        `  The server has been configured with: ${path.dirname(serverClicastPath)}`
+      );
+      vectorMessage(
+        `  The extension has been configured with: ${path.dirname(clicastCommandToUse)}\n`
+      );
+      newServerState = false;
+    }
+  } else {
+    vectorMessage("VectorCAST Environment Data Server is NOT Active ...\n");
+    newServerState = false;
+  }
+
+  setServerState(newServerState);
+  sendServerStateToLanguageServer(newServerState);
+}
 
 // ------------------------------------------------------------------------------------
 // Direct clicast Calls
 // ------------------------------------------------------------------------------------
 
-// Check License
+// Check License - no server logic needed --------------------------------------------
 export function vcastLicenseOK(): boolean {
   const commandToRun = `${clicastCommandToUse} tools has_license`;
   let commandStatus: commandStatusType = executeCommandSync(
@@ -48,7 +144,7 @@ export function vcastLicenseOK(): boolean {
   return commandStatus.errorCode == 0;
 }
 
-// Build Environment
+// Build Environment - no server logic needed ----------------------------------------
 export function buildEnvironmentFromScript(
   unitTestLocation: string,
   enviroName: string
@@ -70,9 +166,15 @@ export function buildEnvironmentFromScript(
   );
 }
 
-// Delete Environment
-export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
+// Delete Environment - server logic included -----------------------------------------
+export async function deleteEnvironment(
+  enviroPath: string,
+  enviroNodeID: string
+) {
   const enclosingDirectory = path.dirname(enviroPath);
+
+  // if we are in server mode, close any existing connection to the environment
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e" + getEnviroNameFromID(enviroNodeID)];
@@ -88,24 +190,34 @@ export function deleteEnvironment(enviroPath: string, enviroNodeID: string) {
   );
 }
 
-// Load the Test Script into the Environment
-export async function loadScriptIntoEnvironment(
+// Load Test Script - server logic included -----------------------------------------
+export async function loadTestScriptIntoEnvironment(
   enviroName: string,
   scriptPath: string
 ) {
   // call clicast to load the test script
-  const enviroArg = `-e${enviroName}`;
-  let commandToRun: string = `${clicastCommandToUse} ${enviroArg} test script run ${scriptPath}`;
+  let loadScriptArgs: string = `-e${enviroName} test script run ${scriptPath}`;
 
-  const commandStatus = executeCommandSync(
-    commandToRun,
-    path.dirname(scriptPath)
-  );
+  let commandStatus: commandStatusType;
+  // using server ....
+  if (globalEnviroDataServerActive) {
+    const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+    commandStatus = await executeClicastCommandUsingServer(
+      enviroPath,
+      loadScriptArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${loadScriptArgs}`,
+      path.dirname(scriptPath)
+    );
+  }
 
-  // if the script load fails, executeCommandSync will open the message pane ...
-  // if the load passes, we want to give the user an indication that it worked
+  // if the script load fails, executeCommandSync or executeClicastCommand
+  // will open the message pane.  If the load passes, we want to give the
+  // user an indication that it worked ...
   if (commandStatus.errorCode == 0) {
-    vectorMessage("Script loaded successfully ...");
+    vectorMessage("Script loaded successfully");
     // Maybe this will be annoying to users, but I think
     // it's good to know when the load is complete.
     vscode.window.showInformationMessage(`Test script loaded successfully`);
@@ -113,30 +225,43 @@ export async function loadScriptIntoEnvironment(
     // this API allows a timeout for the message, but I think its too subtle
     // because it is only shown in the status bar
     //vscode.window.setStatusBarMessage  (`Test script loaded successfully`, 5000);
+  } else {
+    vectorMessage("Error loading test script\n");
   }
 }
 
-// Delete Test Case
-export function deleteSingleTest(testNodeID: string): commandStatusType {
+// Delete Test Case - server logic included ---------------------------------------
+export async function deleteSingleTest(
+  testNodeID: string
+): Promise<commandStatusType> {
   const testNode: testNodeType = getTestNode(testNodeID);
   const clicastArgs: string = getClicastArgsFromTestNode(testNode);
-  let commandToRun = `${clicastCommandToUse} ${clicastArgs} test delete`;
+  let deleteTestArgs = `${clicastArgs} test delete`;
 
   // special vcast case for delete ALL tests for the environment
   // when no unit, subprogram or test is provided, you have to give YES to delete all
   if (testNode.unitName.length == 0 && testNode.functionName.length == 0) {
-    commandToRun += " YES";
+    deleteTestArgs += " YES";
   }
 
-  let commandStatus: commandStatusType = executeCommandSync(
-    commandToRun,
-    path.dirname(testNode.enviroPath)
-  );
+  // using server ....
+  let commandStatus: commandStatusType;
+  if (globalEnviroDataServerActive) {
+    commandStatus = await executeClicastCommandUsingServer(
+      testNode.enviroPath,
+      deleteTestArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${deleteTestArgs}`,
+      path.dirname(testNode.enviroPath)
+    );
+  }
 
   return commandStatus;
 }
 
-// Set Coded Test Option
+// Set Coded Test Option - no server logic needed -----------------------------------
 export function setCodedTestOption(unitTestLocation: string) {
   // This gets called before every build and rebuild environment
   // to make sure that the CFG file has the right value for coded testing.
@@ -159,96 +284,184 @@ export function setCodedTestOption(unitTestLocation: string) {
   }
 }
 
-// Add New or Existing Coded Test File to Environment based on action
+// Add New or Existing Coded Test - server logic included ---------------------------
 export enum codedTestAction {
   add = "add",
   new = "new",
 }
-export function addCodedTestToEnvironment(
+export async function addCodedTestToEnvironment(
   enviroPath: string,
   testNode: testNodeType,
   action: codedTestAction,
   userFilePath: string
-): commandStatusType {
+): Promise<commandStatusType> {
+  //
   const enclosingDirectory = path.dirname(enviroPath);
+  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  let codedTestArgs: string = `${clicastArgs} test coded ${action} ${userFilePath}`;
 
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-    testNode
-  )} test coded ${action}} ${userFilePath}`;
+  let commandStatus: commandStatusType;
+  if (globalEnviroDataServerActive) {
+    commandStatus = await executeClicastCommandUsingServer(
+      enviroPath,
+      codedTestArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${codedTestArgs}`,
+      enclosingDirectory
+    );
+  }
 
-  const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+  // update the passed in testNode with the coded test file
+  testNode.testFile = userFilePath;
   return commandStatus;
 }
 
-// Dump the Test Script from an Environment
-export function dumptestScriptFile(
+// Create Test Script - server logic included ----------------------------------------
+export async function dumpTestScriptFile(
   testNode: testNodeType,
   scriptPath: string
-): commandStatusType {
+): Promise<commandStatusType> {
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const clicastArgs = getClicastArgsFromTestNode(testNode);
+  let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
-  let commandToRun: string = `${clicastCommandToUse} ${clicastArgs} test script create ${scriptPath}`;
-  const commandStatus = executeCommandSync(commandToRun, enclosingDirectory);
+  vectorMessage(`Creating test script: ${scriptPath}`);
 
+  let commandStatus: commandStatusType;
+  if (globalEnviroDataServerActive) {
+    commandStatus = await executeClicastCommandUsingServer(
+      testNode.enviroPath,
+      dumpScriptArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${dumpScriptArgs}`,
+      enclosingDirectory
+    );
+  }
+
+  if (commandStatus.errorCode != 0) {
+    vectorMessage("Error creating test script");
+  }
   return commandStatus;
 }
 
-// Refresh Coded Test List From File
-export function refreshCodedTests(
+// Get CBT Test Names - server logic included ----------------------------------------
+export async function getCBTNamesFromFile(
+  filePath: string,
+  enviroPath: string
+): Promise<any> {
+  // this function will return the CBT test names as a JSON object
+  // containing a "tests" field that is a list of
+
+  let returnData;
+  if (globalEnviroDataServerActive) {
+    const requestObject = getClientRequestObject(
+      vcastCommandType.parseCBT,
+      filePath
+    );
+
+    let transmitResponse: transmitResponseType =
+      await transmitCommand(requestObject);
+
+    if (transmitResponse.success && transmitResponse.returnData) {
+      returnData = transmitResponse.returnData.data;
+    } else {
+      vectorMessage(transmitResponse.statusText);
+      return undefined;
+    }
+  } else {
+    const commandToRun = getVcastInterfaceCommand(
+      vcastCommandType.parseCBT,
+      filePath
+    );
+    returnData = getJsonDataFromTestInterface(commandToRun, enviroPath);
+  }
+
+  return returnData;
+}
+
+// Refresh Coded Test List From File - server logic included -------------------------
+export async function refreshCodedTests(
   enviroPath: string,
   enviroNodeID: string
-): commandStatusType {
+): Promise<commandStatusType> {
   // refresh the coded test file for this environment
   // note: the same file should never be associated with more than one unit
 
   const testNode = getTestNode(enviroNodeID);
   const enclosingDirectory = path.dirname(enviroPath);
+  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  let refreshCodedArgs: string = `${clicastArgs} test coded refresh`;
 
-  let commandToRun: string = `${clicastCommandToUse} ${getClicastArgsFromTestNode(
-    testNode
-  )} test coded refresh`;
-  const refreshCommandStatus = executeCommandSync(
-    commandToRun,
-    enclosingDirectory
-  );
-  return refreshCommandStatus;
+  let commandStatus: commandStatusType;
+  if (globalEnviroDataServerActive) {
+    commandStatus = await executeClicastCommandUsingServer(
+      enviroPath,
+      refreshCodedArgs
+    );
+  } else {
+    commandStatus = executeCommandSync(
+      `${clicastCommandToUse} ${refreshCodedArgs}`,
+      enclosingDirectory
+    );
+  }
+  return commandStatus;
 }
 
-// Generate Basis Path Test Script and Load into Environment (via callback)
-export function runBasisPathCommands(
+// Generate Basis Path Test Script and Load into Environment (via callback) ------------
+// Server logic to close existing connection is included
+export async function runBasisPathCommands(
   testNode: testNodeType,
   testScriptPath: string,
   loadScriptCallBack: any
 ) {
-  // executeClicastWithProgress() uses spawn() which needs the args as a list
+  // Execute Clicas tWith Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${clicastCommandToUse}`);
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
   argList = argList.concat(["tool", "auto_test", `${testScriptPath}`]);
 
+  // if we are in server mode, close any existing connection to the environment
+  // because the time benefit of using the server for this is negligible and
+  // getting a nice progress dialog would be impossible.
+  const enviroPath = path.join(
+    path.dirname(testScriptPath),
+    testNode.enviroName
+  );
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+
   // Since it can be slow to generate basis path tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a
   // regex filter for what to show
   const messageFilter = /.*Generating test cases for.*/;
+  const startOfRealMessages = "VectorCAST Copyright";
 
-  executeClicastWithProgress(
-    "",
+  executeCommandWithProgress(
+    "Generating Basis Path Tests: ",
     argList,
     testNode.enviroName,
     testScriptPath,
+    startOfRealMessages,
     messageFilter,
     loadScriptCallBack
   );
 }
 
+// ------------------------------------------------------------------------------------
+// Direct ATG Call
+// ------------------------------------------------------------------------------------
+
 // Generate ATG Test Script and Load into Environment (via callback)
-export function runATGCommands(
+// Server logic to close existing connection is included
+export async function runATGCommands(
   testNode: testNodeType,
   testScriptPath: string,
   loadScriptCallBack: any
 ) {
-  // executeClicastWithProgress() uses spawn() which needs the args as a list
+  // Execute Clicast With Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${atgCommandToUse}`);
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
@@ -263,36 +476,57 @@ export function runATGCommands(
   }
   argList.push(`${testScriptPath}`);
 
+  // if we are in server mode, close any existing connection to the environment
+  // because the time benefit of using the server for this is negligible and
+  // getting a nice progress dialog would be impossible.
+  const enviroPath = path.join(
+    path.dirname(testScriptPath),
+    testNode.enviroName
+  );
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+
   // Since it can be slow to generate ATG tests, we use a progress dialog
   // and since we don't want to show all of the stdout messages, we use a
   // regex filter for what to show
   const messageFilter = /Subprogram:.*/;
+  const startOfRealMessages = "Processing unit:";
 
-  executeClicastWithProgress(
+  executeCommandWithProgress(
     "Generating ATG Tests: ",
     argList,
     testNode.enviroName,
     testScriptPath,
+    startOfRealMessages,
     messageFilter,
     loadScriptCallBack
   );
 }
 
-// Open vcastqt in options dialog mode ... in the future we might
-// create a native VS Code dialog for this
+// ------------------------------------------------------------------------------------
+// Direct vcastqt Calls
+// ------------------------------------------------------------------------------------
+
+// Open vcastqt in options dialog mode - no server logic needed -----------------------
+// In the future we might create a native VS Code dialog for this
 export function openVcastOptionsDialog(cwd: string) {
   execSync(`${vcastCommandToUse} -lc -o`, { cwd: cwd });
 }
 
-// Open vcastqt for an environment
-export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
+// Open VectorCAST for an environment directory --------------------------------------
+// Server logic to close existing connection is included
+export async function openVcastFromEnviroNode(
+  enviroNodeID: string,
+  callback: any
+) {
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e " + getEnviroNameFromID(enviroNodeID)];
 
   // this returns the full path to the environment directory
   const enviroPath = getEnviroPathFromID(enviroNodeID);
-
   const enclosingDirectory = path.dirname(enviroPath);
+
+  // close any existing clicast connection to this environment
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
@@ -301,26 +535,298 @@ export function openVcastFromEnviroNode(enviroNodeID: string, callback: any) {
     shell: true,
     windowsHide: true,
   });
-
   vcast.on("exit", function (code: any) {
     callback(enviroPath);
   });
 }
 
-export function openVcastFromVCEfile(vcePath: string, callback: any) {
+// Open VectorCAST for a .vce file ---------------------------------------------------
+// Server logic to close existing connection is included
+export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   // split vceFile path into the CWD and the Environment
-  const cwd = path.dirname(vcePath);
-  const enviroName = path.basename(vcePath);
-  let vcastArgs: string[] = ["-e " + enviroName];
+  const vceFilename = path.basename(vcePath);
+  let vcastArgs: string[] = ["-e " + vceFilename];
+
+  const dotIndex = vcePath.lastIndexOf(".");
+  const enviroPath = vcePath.slice(0, dotIndex);
+
+  const enclosingDirectory = path.dirname(vcePath);
+
+  // close any existing clicast connection to this environment
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
-    cwd: cwd,
+    cwd: enclosingDirectory,
     detached: true,
     shell: true,
     windowsHide: true,
   });
   vcast.on("exit", function (code: any) {
-    callback(vcePath.split(".")[0]);
+    callback(enviroPath);
   });
+}
+
+// ------------------------------------------------------------------------------------
+// Direct vpython calls
+// ------------------------------------------------------------------------------------
+
+// Get Environment Data ---------------------------------------------------------------
+// Server logic is in a separate function below
+export async function getDataForEnvironment(enviroPath: string): Promise<any> {
+  // what we get back is a JSON formatted string (if the command works)
+  // that has two sub-fields: testData, and unitData
+  vectorMessage("Processing environment data for: " + enviroPath);
+
+  let jsonData: any;
+  if (globalEnviroDataServerActive) {
+    jsonData = await getEnviroDataFromServer(enviroPath);
+  } else {
+    jsonData = getEnviroDataFromPython(enviroPath);
+  }
+
+  return jsonData;
+}
+
+// vPython Logic
+function getEnviroDataFromPython(enviroPath: string): any {
+  // This function will return the environment data for a single directory
+  // by calling vpython with the appropriate command
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.getEnviroData,
+    enviroPath
+  );
+  let jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
+  return jsonData;
+}
+
+// Server Logic
+async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
+  //
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.getEnviroData,
+    path: enviroPath,
+  };
+
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
+
+  // transmitResponse.returnData is an object with exitCode and data properties
+  // for getEnviroData we might have a version miss-match if the enviro is newer
+  // than the version of vcast we are using, so handle that here
+  if (transmitResponse.success) {
+    const returnData = transmitResponse.returnData;
+    if (returnData.exitCode == 0) {
+      return returnData.data;
+    } else {
+      vectorMessage(returnData.data.text.join("\n"));
+      return undefined;
+    }
+  } else {
+    await vectorMessage(transmitResponse.statusText);
+    openMessagePane();
+    return undefined;
+  }
+}
+
+// Execute Test ------------------------------------------------------------------------
+// Server logic is in a separate function below
+export async function executeTest(
+  enviroPath: string,
+  nodeID: string
+): Promise<commandStatusType> {
+  //
+  let vcastCommand: vcastCommandType = vcastCommandType.executeTest;
+
+  let commandStatus: commandStatusType;
+  const startTime: number = performance.now();
+  if (globalEnviroDataServerActive) {
+    commandStatus = await executeTestViaServer(
+      vcastCommand,
+      enviroPath,
+      nodeID
+    );
+  } else {
+    commandStatus = executeTestViaPython(vcastCommand, enviroPath, nodeID);
+  }
+
+  // added this timing info to help with performance tuning - interesting to leave in
+  const endTime: number = performance.now();
+  const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
+  vectorMessage(`Execution of test took: ${deltaString} seconds (TS)`);
+
+  return commandStatus;
+}
+
+// Server Logic
+async function executeTestViaServer(
+  vcastCommand: vcastCommandType,
+  enviroPath: string,
+  nodeID: string
+): Promise<commandStatusType> {
+  //
+  const requestObject = getClientRequestObject(
+    vcastCommand,
+    enviroPath,
+    nodeID
+  );
+
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
+
+  return convertServerResponseToCommandStatus(transmitResponse);
+}
+
+// vPython Logic
+function executeTestViaPython(
+  vcastCommand: vcastCommandType,
+  enviroPath: string,
+  nodeID: string
+): commandStatusType {
+  //
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommand,
+    enviroPath,
+    nodeID
+  );
+
+  const commandStatus = executeVPythonScript(commandToRun, enviroPath, false);
+  return commandStatus;
+}
+
+// Get Execution Report ----------------------------------------------------------------
+// Server logic is in a separate function below
+export async function getTestExecutionReport(
+  enviroPath: string,
+  testID: string
+): Promise<commandStatusType> {
+  if (globalEnviroDataServerActive) {
+    return await getTestExecutionReportFromServer(enviroPath, testID);
+  } else {
+    return getTestExecutionReportFromPython(enviroPath, testID);
+  }
+}
+
+// Server Logic
+async function getTestExecutionReportFromServer(
+  enviroPath: string,
+  testID: string
+): Promise<commandStatusType> {
+  //
+  const requestObject = getClientRequestObject(
+    vcastCommandType.report,
+    enviroPath,
+    testID
+  );
+
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
+
+  return convertServerResponseToCommandStatus(transmitResponse);
+}
+
+// python logic
+function getTestExecutionReportFromPython(
+  enviroPath: string,
+  testID: string
+): commandStatusType {
+  //
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.report,
+    enviroPath,
+    testID
+  );
+  const commandStatus: commandStatusType = executeVPythonScript(
+    commandToRun,
+    enviroPath
+  );
+  return commandStatus;
+}
+
+// Rebuild Environment -----------------------------------------------------------------
+// Server logic is in a separate function below
+export async function rebuildEnvironment(
+  enviroPath: string,
+  rebuildEnvironmentCallback: any
+) {
+  setCodedTestOption(path.dirname(enviroPath));
+
+  if (globalEnviroDataServerActive) {
+    rebuildEnvironmentUsingServer(enviroPath, rebuildEnvironmentCallback);
+  } else {
+    rebuildEnvironmentUsingPython(enviroPath, rebuildEnvironmentCallback);
+  }
+}
+
+export async function rebuildEnvironmentUsingPython(
+  enviroPath: string,
+  rebuildEnvironmentCallback: any
+) {
+  // this returns a string including the vpython command
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.rebuild,
+    enviroPath
+  );
+  const optionString = `--options=${getRebuildOptionsString()}`;
+
+  // executeWithRealTimeEcho uses spawn which needs an arg list so create list
+  let commandPieces = commandToRun.split(" ");
+  // add the option string
+  commandPieces.push(optionString);
+  // pop the first arg which is the vpython command
+  const commandVerb = commandPieces[0];
+  commandPieces.shift();
+
+  const unitTestLocation = path.dirname(enviroPath);
+
+  // This uses the python binding to clicast to do the rebuild
+  // We open the message pane to give the user a sense of what's going on
+  openMessagePane();
+  vectorMessage(
+    `Rebuilding environment command: ${commandVerb} ${commandPieces.join(" ")}`,
+    errorLevel.trace
+  );
+  executeWithRealTimeEcho(
+    commandVerb,
+    commandPieces,
+    unitTestLocation,
+    rebuildEnvironmentCallback,
+    enviroPath
+  );
+}
+
+export async function rebuildEnvironmentUsingServer(
+  enviroPath: string,
+  rebuildEnvironmentCallback: any
+) {
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.rebuild,
+    path: enviroPath,
+    options: getRebuildOptionsString(),
+  };
+
+  // We don't know how long this will take, so we just
+  // use a running rabbit style progress bar
+  let transmitResponse = await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Rebuilding environment: ${path.basename(enviroPath)}... `,
+      cancellable: false,
+    },
+    async (progress): Promise<transmitResponseType> => {
+      progress.report({ increment: 25 });
+      let transmitResponse = await transmitCommand(requestObject);
+      progress.report({ increment: 100 });
+      return transmitResponse;
+    }
+  );
+
+  const commandStatus = convertServerResponseToCommandStatus(transmitResponse);
+  // in the server case, we cannot echo the rebuild output to the message pane
+  // in real-time as we do in the Python case, so show it here!
+  vectorMessage("-".repeat(100));
+  vectorMessage(commandStatus.stdout);
+
+  // call the callback to update the test explorer pane
+  rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
 }

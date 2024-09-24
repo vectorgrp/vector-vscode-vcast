@@ -1,0 +1,22 @@
+{
+    "data": {
+        "tests": [
+            {
+                "codedTestFile": "manager-coded.cpp",
+                "codedTestLine": 3,
+                "testName": "managerTests.pass"
+            },
+            {
+                "codedTestFile": "manager-coded.cpp",
+                "codedTestLine": 7,
+                "testName": "managerTests.fail"
+            },
+            {
+                "codedTestFile": "manager-coded.cpp",
+                "codedTestLine": 12,
+                "testName": "managerTests.newTest"
+            }
+        ]
+    },
+    "exitCode": 0
+}

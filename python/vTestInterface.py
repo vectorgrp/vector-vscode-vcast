@@ -7,13 +7,8 @@ this started life as a duplicate of:  instumentationLib/vTestInterface.py
 import argparse
 from datetime import datetime
 import hashlib
-import inspect
 import json
 import os
-import subprocess
-import re
-import shutil
-import site
 import sys
 import traceback
 
@@ -24,6 +19,10 @@ This script must be run under vpython
 """
 
 import clicastInterface
+import pythonUtilities
+import tstUtilities
+
+from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
 from versionChecks import (
     vpythonHasCodedTestSupport,
@@ -62,9 +61,10 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Test Explorer Interface")
 
+    # we intentionally do NOT provide a choice list so that we can handle
+    # --mode errors manually and control the exit code
     parser.add_argument(
         "--mode",
-        choices=modeChoices,
         required=True,
         help="Test Explorer Mode",
     )
@@ -118,8 +118,11 @@ def XofYString(numerator, denominator):
     if denominator == 0:
         return ""
     else:
-        percentageString = "{:.2f}".format((numerator * 100) / denominator)
-        return str(numerator) + "/" + str(denominator) + " (" + percentageString + ")"
+        if numerator == 0:
+            percentageString = "0"
+        else:
+            percentageString = "{:.2f}".format((numerator * 100) / denominator)
+        return str(numerator) + "/" + str(denominator) + " (" + percentageString + "%)"
 
 
 def getPassFailString(test):
@@ -174,7 +177,7 @@ def generateTestInfo(enviroPath, test):
 globalListOfTestableFunctions = []
 
 
-def getEnviroSupportsMock(enviroPath):
+def getEnviroSupportsMock(api):
     """
     The extension needs to know if the environment was built with mocking
     support, not just if the tool supports it.
@@ -182,34 +185,28 @@ def getEnviroSupportsMock(enviroPath):
     If the enviro was not built with mocking then the new mocking fields in the
     API will be set to None by the migration process.
     """
-    try:
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        print(err)
-        raise UsageError()
 
     currEnviroSupportsMocking = enviroSupportsMocking(api)
-
-    api.close()
-
     return currEnviroSupportsMocking
 
 
-def getTestDataVCAST(enviroPath):
+def getTestDataVCAST(api, enviroPath):
     global globalListOfTestableFunctions
     global enviroSupportsMocking
-
-    # dataAPI throws if there is a tool/enviro mismatch
-    try:
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        print(err)
-        raise InvalidEnviro()
 
     # Not currently used.
     # returns "None" if coverage is not initialized,
     # does not change based on coverage enabled/disabled
-    coverageType = api.environment.coverage_type_text
+    try:
+        coverageType = api.environment.coverage_type_text
+    except Exception as err:
+        # In this special case, vcast has given us a valid
+        # handle to the API, so we need to close it here
+        api.close()
+
+        # the dataAPI does not automatically update the coverage DB
+        # so we raise an error here if the cover.db is too old
+        raise InvalidEnviro(err)
 
     testList = list()
     sourceFiles = dict()
@@ -248,11 +245,8 @@ def getTestDataVCAST(enviroPath):
             for function in unit.functions:
                 functionNode = dict()
 
-                # Seems like a vcast dataAPI bug with manager.cpp
-                if (
-                    function.vcast_name != TAG_FOR_INIT
-                    and not function.is_non_testable_stub
-                ):
+                # Handles some special cases
+                if tstUtilities.isTestableFunction(function):
                     # Note: the vcast_name has the parameterization only when there is an overload
                     functionNode["name"] = function.vcast_name
                     functionNode["parameterizedName"] = function.long_name
@@ -273,21 +267,14 @@ def getTestDataVCAST(enviroPath):
             if len(unitNode["functions"]) > 0:
                 testList.append(unitNode)
 
-    api.close()
     return testList
 
 
-def getUnitData(enviroPath):
+def getUnitData(api):
     """
     This function will return info about the units in an environment
     """
     unitList = list()
-    try:
-        # this can throw an error of the coverDB is too old!
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        print(err)
-        raise UsageError()
 
     sourceObjects = api.SourceFile.all()
     for sourceObject in sourceObjects:
@@ -302,7 +289,6 @@ def getUnitData(enviroPath):
             unitInfo["uncovered"] = uncovered
             unitList.append(unitInfo)
 
-    api.close()
     return unitList
 
 
@@ -412,24 +398,38 @@ def executeVCtest(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         returnText = ""
 
-        returnCode, commandOutput = clicastInterface.executeTest(testIDObject)
+        returnCode, commandOutput = clicastInterface.executeTest(
+            enviroPath, testIDObject
+        )
 
-        if "TEST RESULT: pass" in commandOutput:
-            returnText += "STATUS:passed\n"
+        # the return codes are defined in clicast.ads -> CLICAST_STATUS_T
+        # 0 means the command ran and the test passed
+        # 28 means the command ran and the test failed
+        # we will treat everything else as a command fail
+        if returnCode == 0 or returnCode == 28:
+            if "TEST RESULT: pass" in commandOutput:
+                returnText += "STATUS:passed\n"
+            else:
+                returnText += "STATUS:failed\n"
+            returnText += f"REPORT:{testIDObject.reportName}.txt\n"
+
+            # Retrieve the expected value x/y and the test time
+            # we don't need to catch dataAPI errors here because
+            # if there is a problem with a version miss-match
+            # we will have already gotten a return code of 15
+            # and not be in this block
+            api = UnitTestApi(enviroPath)
+            testList = api.TestCase.filter(name=testIDObject.testName)
+            if len(testList) > 0:
+                returnText += f"PASSFAIL:{getPassFailString(testList[0])}\n"
+                returnText += f"TIME:{getTime(testList[0].start_time)}\n"
+            api.close()
+
+            returnText += commandOutput.rstrip()
         else:
-            returnText += "STATUS:failed\n"
-        returnText += f"REPORT:{testIDObject.reportName}.txt\n"
+            returnText = commandOutput
 
-        # Retrieve the expected value x/y and the
-        api = UnitTestApi(enviroPath)
-        testList = api.TestCase.filter(name=testIDObject.testName)
-        if len(testList) > 0:
-            returnText += f"PASSFAIL: {getPassFailString(testList[0])}\n"
-            returnText += f"TIME:{getTime(testList[0].start_time)}\n"
-        api.close()
-
-        returnText += commandOutput
-        return returnCode, returnText
+        return returnCode, returnText.rstrip()
 
 
 def processVResults(filePath):
@@ -457,7 +457,9 @@ def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("report")
-        commandOutput = clicastInterface.generateExecutionReport(testIDObject)
+        commandOutput = clicastInterface.generateExecutionReport(
+            enviroPath, testIDObject
+        )
 
         returnText = f"REPORT:{testIDObject.reportName}.txt\n"
         returnText += commandOutput
@@ -466,7 +468,7 @@ def getResults(enviroPath, testIDObject):
 
 def getCodeBasedTestNames(filePath):
     """
-    This function will use the same file parser that the vcast
+    This function will use the same file parser that vcast
     uses to extract the test names from the CBT file.  It will return
     a list of dictionaries that contain the test name, the file path
     and the starting line for he test
@@ -511,15 +513,18 @@ def validateClicastCommand(command, mode):
     """
     if mode in ["executeTest", "rebuild"]:
         if command is None or len(command) == 0:
-            print(f"Arg --clicast is required for mode: {mode}")
-            raise UsageError()
+            raise UsageError("--clicast argument is required")
         elif os.path.isfile(command) or (
             sys.platform == "win32" and os.path.isfile(command + ".exe")
         ):
             pass
         else:
-            print(f"Invalid value for --clicast: {command}")
-            raise UsageError()
+            raise UsageError("--clicast argument is invalid, file does not exist")
+
+
+def validatePath(pathString):
+    if not os.path.isdir(pathString) and not os.path.isfile(pathString):
+        raise UsageError("--path argument is invalid, path does not exist")
 
 
 def processOptions(optionString):
@@ -532,12 +537,11 @@ def processOptions(optionString):
             returnObject = {}
             returnObject = json.loads(optionString)
         except:
-            print("Invalid --options argument, value not JSON formatted")
-            raise UsageError()
+            raise UsageError("--options argument is invalid, value not JSON formatted")
     return returnObject
 
 
-def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
+def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     """
     This function does the actual work of processing a vTestInterface command,
     it will return a dictionary with the results of the command
@@ -547,20 +551,29 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
     returnObject = None
 
     # no need to pass this all around
+    # will raise usageError if path is invalid
     validateClicastCommand(clicast, mode)
-    clicastInterface.globalClicastCommand = clicast
+    pythonUtilities.globalClicastCommand = clicast
+
+    # will raise usageError if path is invalid
+    validatePath(pathToUse)
 
     if mode == "getEnviroData":
         topLevel = dict()
 
+        try:
+            api = UnitTestApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+
         # it is important that getTetDataVCAST() is called first since it sets up
         # the global list of testable functions that getUnitData() needs
-        topLevel["testData"] = getTestDataVCAST(pathToUse)
-        topLevel["unitData"] = getUnitData(pathToUse)
-
+        topLevel["testData"] = getTestDataVCAST(api, pathToUse)
+        topLevel["unitData"] = getUnitData(api)
         topLevel["enviro"] = dict()
-        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(pathToUse)
+        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(api)
 
+        api.close()
         returnObject = topLevel
 
     elif mode == "executeTest":
@@ -571,8 +584,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
             if os.path.isfile(textReportPath):
                 os.remove(textReportPath)
         except:
-            print("Invalid test ID, provide a valid --test argument")
-            raise UsageError()
+            raise UsageError("--test argument is invalid")
         returnCode, returnText = executeVCtest(pathToUse, testIDObject)
         returnObject = {"text": returnText.split("\n")}
 
@@ -581,7 +593,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
             testIDObject = testID(pathToUse, testString)
         except:
             print("Invalid test ID, provide a valid --test argument")
-            raise UsageError()
+            raise UsageError("--test argument is invalid")
         returnObject = {"text": getResults(pathToUse, testIDObject).split("\n")}
 
     elif mode == "parseCBT":
@@ -595,9 +607,47 @@ def processCommand(mode, clicast, pathToUse, testString="", options="") -> dict:
 
         # we don't set the return object for rebuild, because we echo in real-time
         jsonOptions = processOptions(options)
-        clicastInterface.rebuildEnvironment(pathToUse, jsonOptions)
+        returnCode, commandOutput = clicastInterface.rebuildEnvironment(
+            pathToUse, jsonOptions
+        )
+        returnObject = {"text": commandOutput.split("\n")}
+
+    else:
+        modeListAsString = ",".join(modeChoices)
+        raise UsageError(
+            f"--mode: {mode} is invalid, must be one of: {modeListAsString}"
+        )
 
     # only used for executeTest currently
+    return returnCode, returnObject
+
+
+def processCommand(mode, clicast, pathToUse, testString="", options=""):
+    """
+    This is a wrapper for process command logic, so that we can process
+    the exceptions in a single place for stand-alone (via main) and server usage
+    """
+    try:
+        returnCode, returnObject = processCommandLogic(
+            mode, clicast, pathToUse, testString, options
+        )
+
+    # because vpython and clicast use a large range of positive return codes
+    # we use values > 990 for internal tool errors
+    except InvalidEnviro as error:
+        returnCode = errorCodes.testInterfaceError
+        whatToReturn = ["Miss-match between Environment and VectorCAST versions"]
+        whatToReturn.extend(str(error).split("\n"))
+        returnObject = {"text": whatToReturn}
+    except UsageError as error:
+        # for usage error we print the issue where we see it
+        returnCode = errorCodes.testInterfaceError
+        returnObject = {"text": [str(error)]}
+    except Exception:
+        returnCode = errorCodes.testInterfaceError
+        traceBackText = traceback.format_exc().split("\n")
+        returnObject = {"text": traceBackText}
+
     return returnCode, returnObject
 
 
@@ -627,20 +677,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # Exit with 1 by default
-    returnCode = 1
 
-    try:
-        returnCode = main()
-    except InvalidEnviro:
-        # We treat invalid enviro as a warning
-        returnCode = 99
-    except UsageError:
-        # for usage error we print the issue where we see it
-        returnCode = 1
-    except Exception:
-        traceBackText = traceback.format_exc()
-        print(traceBackText)
-        returnCode = 1
-
-    sys.exit(returnCode)
+    returnCode = main()
+    sys.exit(int(returnCode))
