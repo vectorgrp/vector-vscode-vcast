@@ -402,11 +402,6 @@ export const config: Options.Testrunner = {
       );
 
       const serverPath = path.join(initialWorkdir, "..", "..", "..", "python");
-
-      // Delete old env
-      const deleteENV = `cd ${testInputVcastTutorial} && rm -rf DATABASE-MANAGER-TEST`;
-      await executeCommand(deleteENV);
-
       const toolVersion = await getToolVersion();
 
       // Standard setup when VECTORCAST_DIR is available
