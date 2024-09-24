@@ -102,7 +102,7 @@ This option is new for VectorCAST 23 sp2
 - Improved color scheme for stdout/stderr from driver in execution reports
 - Rearranged the extension options into General, and Build Environment section
 - Added a new extension option for Coverage Kind to the Build Options
-- Added support for environment variables in the uUnit include path #96
+- Added support for environment variables in the Unit include path #96
 - Forced Coded Tests entry in the test tree to be the first item in the function list
 
 ### Code Maintenance
