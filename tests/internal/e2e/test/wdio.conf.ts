@@ -683,7 +683,7 @@ ENVIRO.END
         stdio: "ignore", // Ignore stdio so the parent process doesn't wait
       });
 
-      serverProcess.unref(); // This ensures the parent process doesn't wait for it to finish
+      //serverProcess.unref(); // This ensures the parent process doesn't wait for it to finish
 
       console.log("Server process started in the background.");
     }
@@ -1012,32 +1012,21 @@ ENVIRO.END
       );
       await promisifiedExec("pkill code");
     }
-    // const stopServer = `vpython ${clientPath}/client.py --test=shutdown`
-
-    // try {
-    //   const { stdout, stderr } = await promisifiedExec(stopServer);
-    //   console.log("SERVER STOPPED");
-    //   if (stdout) console.log(`stdout: ${stdout}`);
-    //   if (stderr) console.error(`stderr: ${stderr}`);
-    // } catch (error) {
-    //     console.error(`Error stopping server: ${error.message}`);
-    // }
   },
 
   async onComplete(exitCode, config, capabilities, results) {
-    const options: ServerOptions = {
+    const serverOptions: ServerOptions = {
       hostname: "localhost",
       port: 60461,
       path: "/ping",
       method: "GET",
     };
-
     // First, ping the server to check if it's still running
-    const serverAlive = await pingServer(options);
+    const serverAlive = await pingServer(serverOptions);
 
     if (serverAlive) {
       console.log("Server is alive. Attempting shutdown...");
-      await shutdownServer(options);
+      await shutdownServer(serverOptions);
       console.log("Server shutdown completed.");
     } else {
       console.log("Server is already down or unreachable.");
