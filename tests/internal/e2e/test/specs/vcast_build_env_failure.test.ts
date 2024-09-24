@@ -48,6 +48,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
+    await outputView.selectChannel("VectorCAST Test Explorer");
 
     // Await last expected sentence
     await browser.waitUntil(
