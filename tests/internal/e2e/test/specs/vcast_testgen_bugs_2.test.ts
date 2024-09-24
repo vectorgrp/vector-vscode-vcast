@@ -10,11 +10,11 @@ import {
   validateTestDeletionForFunction,
   cleanup,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120_000;
   const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE";
   const QUOTES_EXAMPLE_UNIT = "quotes_example";
   const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)";

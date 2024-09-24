@@ -2,7 +2,8 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { cleanVcastOutput } from "../src-common/commonUtilities";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
+import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 import {
   configFilename,
   getUnitTestLocationForPath,
@@ -11,10 +12,12 @@ import {
 
 import { updateFunctionDataForFile } from "./editorDecorator";
 
+import { fileDecorator } from "./fileDecorator";
+
 import {
   openMessagePane,
+  indentString,
   vectorMessage,
-  vcastMessage,
   errorLevel,
 } from "./messagePane";
 
@@ -32,6 +35,8 @@ import {
   addCodedTestToEnvironment,
   buildEnvironmentFromScript,
   codedTestAction,
+  executeTest,
+  getTestExecutionReport,
   setCodedTestOption,
 } from "./vcastAdapter";
 
@@ -39,19 +44,15 @@ import {
   commandStatusType,
   executeCommandSync,
   executeVPythonScript,
-  getJsonDataFromTestInterface,
 } from "./vcastCommandRunner";
 
-import { getChecksumCommand } from "./vcastInstallation";
+import { checksumCommandToUse } from "./vcastInstallation";
 
 import {
   closeAnyOpenErrorFiles,
   openTestFileAndErrors,
-  testInterfaceCommand,
   testStatus,
 } from "./vcastUtilities";
-
-import { fileDecorator } from "./fileDecorator";
 
 const fs = require("fs");
 const path = require("path");
@@ -61,7 +62,7 @@ export const vcastEnviroFile = "UNITDATA.VCD";
 // Creating a cache for the checksums so we don't constantly re-run the command
 interface ChecksumCacheType {
   checksum: number;
-  modificationtime: string;
+  modificationTime: string;
 }
 let checksumCache = new Map<string, ChecksumCacheType>();
 
@@ -74,14 +75,14 @@ function getChecksum(filePath: string) {
   let cacheValue = checksumCache.get(filePath);
   if (cacheValue) {
     const currentMtime = fs.statSync(filePath).mtime.toISOString();
-    if (currentMtime == cacheValue.modificationtime) {
+    if (currentMtime == cacheValue.modificationTime) {
       return cacheValue.checksum;
     }
   }
 
   // if we did not return the cached value, compute the cksum
   let returnValue = 0;
-  const checksumCommand = getChecksumCommand();
+  const checksumCommand = checksumCommandToUse;
   if (checksumCommand) {
     let commandOutputString: string;
     if (checksumCommand.endsWith(".py"))
@@ -98,12 +99,13 @@ function getChecksum(filePath: string) {
     // convert the to a number and return
     // this will throw if something is wrong with the result
     try {
-      commandOutputString = cleanVcastOutput(commandOutputString);
+      // see detailed comment with the function definition
+      commandOutputString = cleanVectorcastOutput(commandOutputString);
       returnValue = Number(commandOutputString);
       // only save into the cache if we get a valid checksum
       const cacheValue: ChecksumCacheType = {
         checksum: returnValue,
-        modificationtime: fs.statSync(filePath).mtime.toISOString(),
+        modificationTime: fs.statSync(filePath).mtime.toISOString(),
       };
       checksumCache.set(filePath, cacheValue);
     } catch {
@@ -111,26 +113,6 @@ function getChecksum(filePath: string) {
     }
   }
   return returnValue;
-}
-
-// Get the Environment Data using the dataAPI
-export function getEnviroDataFromPython(enviroPath: string): any {
-  // This function will return the environment data for a single directory
-
-  let jsonData = undefined;
-
-  // what we get back is a JSON formatted string (if the command works)
-  // that has two sub-fields: testData, and unitData
-  vectorMessage("Processing environment data for: " + enviroPath);
-
-  const commandToRun = testInterfaceCommand("getEnviroData", enviroPath);
-  jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
-
-  if (jsonData) {
-    updateGlobalDataForFile(enviroPath, jsonData.unitData);
-  }
-
-  return jsonData;
 }
 
 // we save the some key data, indexed into by test.id
@@ -158,6 +140,16 @@ export function addTestDataToStatusArray(
   testData: testDataType
 ): void {
   globalTestStatusArray[testID] = testData;
+}
+
+export function addResultFileToStatusArray(
+  testID: string,
+  resultFilePath: string
+) {
+  // the testID should always me in the map but just to make sure ...
+  if (testID in globalTestStatusArray) {
+    globalTestStatusArray[testID].resultFilePath = resultFilePath;
+  }
 }
 
 export function clearTestDataFromStatusArray(): void {
@@ -277,7 +269,7 @@ export function getListOfFilesWithCoverage(): string[] {
 // key is enviroPath, value is a list of filePaths
 let enviroFileList: Map<string, string[]> = new Map();
 
-function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
+export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
   let filePathList: string[] = [];
 
   for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
@@ -348,21 +340,19 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
   }
 }
 
-export function getResultFileForTest(testID: string) {
+export async function getResultFileForTest(testID: string) {
   // This function will return the path to the result file if it is already saved
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
   if (!fs.existsSync(resultFile)) {
-    let cwd = getEnviroPathFromID(testID);
+    let enviroPath = getEnviroPathFromID(testID);
 
-    const commandToRun = testInterfaceCommand("report", cwd, testID);
-    const commandStatus: commandStatusType = executeVPythonScript(
-      commandToRun,
-      cwd
-    );
+    const commandStatus = await getTestExecutionReport(enviroPath, testID);
 
     if (commandStatus.errorCode == 0) {
-      const firstLineOfOutput: string = commandStatus.stdout.split(EOL, 1)[0];
+      const firstLineOfOutput: string = commandStatus.stdout
+        .split("\n", 1)[0]
+        .trim();
       resultFile = firstLineOfOutput.replace("REPORT:", "");
 
       if (!fs.existsSync(resultFile)) {
@@ -370,8 +360,7 @@ export function getResultFileForTest(testID: string) {
           `Results report: '${resultFile}' does not exist`
         );
         vectorMessage(`Results report: '${resultFile}' does not exist`);
-        vectorMessage(commandToRun);
-        vectorMessage(commandStatus.stdout);
+        vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
       }
 
       globalTestStatusArray[testID].resultFilePath = resultFile;
@@ -381,117 +370,120 @@ export function getResultFileForTest(testID: string) {
   return resultFile;
 }
 
-function processExecutionOutput(
-  currentTestData: testDataType,
-  commandOutput: string
-) {
-  const outputLineList: string[] = commandOutput.split(EOL);
-  let doneProcessingHeader = false;
-  for (let lineIndex = 0; lineIndex < outputLineList.length; lineIndex++) {
-    const line: string = outputLineList[lineIndex];
+interface executeOutputType {
+  status: string;
+  resultsFilePath: string;
+  time: string;
+  passfail: string;
+  stdOut: string;
+}
+const nullExecutionStatus: executeOutputType = {
+  status: "",
+  resultsFilePath: "",
+  time: "",
+  passfail: "",
+  stdOut: "",
+};
+
+function processExecutionOutput(commandOutput: string): executeOutputType {
+  let returnData: executeOutputType = {
+    status: "failed",
+    stdOut: "",
+    resultsFilePath: "",
+    time: "",
+    passfail: "",
+  };
+  const outputLineList: string[] = commandOutput.split("\n");
+
+  for (let line of outputLineList) {
     console.log(`LINE IS: ${line}`);
     if (line.startsWith("STATUS:"))
-      currentTestData.status = line.replace("STATUS:", "");
+      returnData.status = line.replace("STATUS:", "").trim();
     else if (line.startsWith("REPORT:"))
-      currentTestData.resultFilePath = line.replace("REPORT:", "");
+      returnData.resultsFilePath = line.replace("REPORT:", "").trim();
     else if (line.startsWith("PASSFAIL:"))
-      currentTestData.passfail = line.replace("PASSFAIL:", "");
-    else if (line.startsWith("TIME:")) {
-      currentTestData.time = line.replace("TIME:", "");
-      doneProcessingHeader = true;
-    } else if (doneProcessingHeader) {
-      // save the rest of the output lines as the stdout
-      currentTestData.stdout = outputLineList
-        .slice(lineIndex, outputLineList.length)
-        .join("\n");
-      break;
-    }
+      returnData.passfail = line.replace("PASSFAIL:", "").trim();
+    else if (line.startsWith("TIME:"))
+      returnData.time = line.replace("TIME:", "").trim();
+    else returnData.stdOut += line + EOL;
   }
+
+  return returnData;
 }
 
-// with the old test case interface we could have a hover-over
-// for each test, and we inserted this info there.
-// I could not figure out how to do this with the native API
-// so for now, I am logging this to the message pane.
-function logTestResults(
-  testID: string,
-  rawOutput: string,
-  testData: testDataType
-) {
-  vcastMessage("-".repeat(100));
-  vcastMessage("stdout for: " + testID);
-  vcastMessage(rawOutput);
+function testExecutionFailed(commandStatus: commandStatusType): boolean {
+  // There are lots of ways that a test run can end badly,
+  // this function will check for these cases to simplify
+  // the process in runVCTest
 
-  vectorMessage("-".repeat(100));
-  vectorMessage("Test summary for: " + testID);
-  vectorMessage(
-    testData.status.length > 0 ? "Status: " + testData.status : "Status:"
-  );
-  vectorMessage(
-    testData.passfail.length > 0 ? "Values: " + testData.passfail : "Values:"
-  );
-  vectorMessage(
-    testData.time.length
-      ? "Execution Time: " + testData.time
-      : "Execution Time:"
-  );
-  vectorMessage("-".repeat(100));
+  let commandOutputText: string = commandStatus.stdout;
+  let returnValue: boolean = false;
+
+  if (commandOutputText.startsWith("FATAL")) {
+    // comes from clicast, something bad happened
+    returnValue = true;
+  } else if (commandOutputText.includes("Resolve Errors")) {
+    // handles things like compile errors
+    returnValue = true;
+  } else if (commandStatus.errorCode == 1) {
+    // usage error with interface
+    returnValue = true;
+  }
+
+  return returnValue;
 }
-
-const { performance } = require("perf_hooks");
 
 export async function runVCTest(enviroPath: string, nodeID: string) {
-  // Initially, I called clicast directly here, but I switched to the python binding to give
-  // more flexibility for things like: running, and generating the execution report in one action
-
-  // commandOutput is a buffer: (Uint8Array)
-  // RUN mode is a single shot mode where we run the python
-  // script and communicate with stdin/stdout
-
+  // what gets returned
   let returnStatus: testStatus = testStatus.didNotRun;
-  let commandToRun: string = "";
-  commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
 
-  const startTime: number = performance.now();
-  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
+  // execute, or execute and generate report
+  const commandStatus: commandStatusType = await executeTest(
+    enviroPath,
+    nodeID
+  );
 
-  // added this timing info to help with performance tuning - interesting to leave in
-  const endTime: number = performance.now();
-  const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
-  vectorMessage(`Execution via vPython took: ${deltaString} seconds`);
+  let commandOutputText: string = commandStatus.stdout;
+  let executionDetails: executeOutputType = nullExecutionStatus;
 
-  const commandOutputText = commandStatus.stdout;
-
-  // errorCode 98 is for a compile error for the coded test source file
-  // this is hard-coded in runTestCommand() in the python interface
-  if (commandStatus.errorCode == 98) {
+  if (commandStatus.errorCode == pythonErrorCodes.codedTestCompileError) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
-  } else {
+  } else if (testExecutionFailed(commandStatus)) {
+    // lots of different things can go wrong
+    vectorMessage("Could not complete test execution ...");
     if (commandOutputText.startsWith("FATAL")) {
-      vectorMessage(commandOutputText.replace("FATAL", ""));
-      openMessagePane();
-      returnStatus = testStatus.didNotRun;
-    } else if (commandOutputText.includes("Resolve Errors")) {
-      vectorMessage(commandOutputText);
-      openMessagePane();
-      returnStatus = testStatus.didNotRun;
-    } else {
-      let currentTestData = globalTestStatusArray[nodeID];
-      // update the test data with the results of the test
-      processExecutionOutput(currentTestData, commandOutputText);
-      logTestResults(nodeID, commandOutputText, currentTestData);
+      commandOutputText = commandOutputText.replace("FATAL", "");
+    }
+    vectorMessage(commandOutputText, errorLevel.info, indentString);
+    openMessagePane();
+    returnStatus = testStatus.didNotRun;
+  } else if (commandStatus.errorCode != 0 && commandStatus.errorCode != 28) {
+    // 0 means test pass, 28 means test failed, everything else is an error
+    // however the printing of the error message is done where the command is run
+    // so we don't have to do it here
+    returnStatus = testStatus.didNotRun;
+  } else {
+    // successful execution
+    executionDetails = processExecutionOutput(commandOutputText);
 
-      globalTestStatusArray[nodeID] = currentTestData;
+    let updatedStatusItem = globalTestStatusArray[nodeID];
 
-      if (currentTestData.status == "passed") {
+    if (updatedStatusItem) {
+      updatedStatusItem.status = executionDetails.status;
+      updatedStatusItem.resultFilePath = executionDetails.resultsFilePath;
+      globalTestStatusArray[nodeID] = updatedStatusItem;
+
+      if (updatedStatusItem.status == "passed") {
         returnStatus = testStatus.passed;
       } else {
         returnStatus = testStatus.failed;
       }
+    } else {
+      returnStatus = testStatus.didNotRun;
     }
   }
-  return returnStatus;
+  return { status: returnStatus, details: executionDetails };
 }
 
 function addSearchPathsFromConfigurationFile(
@@ -835,19 +827,17 @@ async function commonCodedTestProcessing(
   );
 
   // call clicast to create new coded test
-  const commandStatus: commandStatusType = addCodedTestToEnvironment(
+  const commandStatus: commandStatusType = await addCodedTestToEnvironment(
     enviroPath,
     testNode,
     action,
     userFilePath
   );
 
-  updateTestPane(enviroPath);
+  await updateTestPane(enviroPath);
   if (commandStatus.errorCode == 0) {
     vscode.window.showInformationMessage(`Coded Tests added successfully`);
   } else {
-    // need to re-read to get the test file name
-    testNode = getTestNode(testID);
     openTestFileAndErrors(testNode);
   }
 }
@@ -867,7 +857,7 @@ export async function addExistingCodedTestFile(testID: string) {
       title: "Select Coded Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showOpenDialog(option).then(async (fileUri) => {
+    vscode.window.showOpenDialog(option).then((fileUri) => {
       if (fileUri) {
         commonCodedTestProcessing(
           fileUri[0].fsPath,
@@ -892,7 +882,7 @@ export async function generateNewCodedTestFile(testID: string) {
       title: "Save Code Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showSaveDialog(option).then(async (fileUri) => {
+    vscode.window.showSaveDialog(option).then((fileUri) => {
       if (fileUri) {
         commonCodedTestProcessing(fileUri.fsPath, testID, codedTestAction.new);
       }

@@ -12,13 +12,19 @@ import {
   showSettings,
 } from "./utilities";
 
-import { vcastLicenseOK } from "./vcastAdapter";
+import { determineServerState, vcastLicenseOK } from "./vcastAdapter";
 
 import { executeCommandSync, executeVPythonScript } from "./vcastCommandRunner";
 
 const fs = require("fs");
 const path = require("path");
 const which = require("which");
+
+export let vcastInstallationDirectory: string = "";
+export let vcastInstallationVersion: toolVersionType = {
+  version: 0,
+  servicePack: 0,
+};
 
 export const clicastName = "clicast";
 export let clicastCommandToUse: string;
@@ -30,7 +36,7 @@ export let vPythonCommandToUse: string;
 const vcastqtName = "vcastqt";
 export let vcastCommandToUse: string;
 
-let globalCheckSumCommand: string | undefined = undefined;
+export let checksumCommandToUse: string | undefined = undefined;
 let crc32Name = "crc32-win32.exe";
 if (process.platform == "linux") {
   crc32Name = "crc32-linux";
@@ -76,50 +82,74 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
   }
 }
 
-function vcastVersionGreaterThan(
-  vcastInstallationPath: string,
-  version: number,
-  servicePack: number
-): boolean {
-  // A general purpose version checker, will be needed for Coded Tests, etc.
+export interface toolVersionType {
+  version: number;
+  servicePack: number;
+}
 
-  let returnValue = false;
+export function getToolVersionFromPath(
+  installationPath: string
+): toolVersionType {
+  // This function takes a path to a VectorCAST installation
+  // and returns the version string from the tool version file
+  //
+  // Example version strings
+  //    Normal releases:    23.sp2 (07/19/23)
+  //    Development builds: 24 revision 37f59ce (08/20/24)
+  //
+  // To make is possible to work with development builds
+  // we set the service pack to 99.
+
   const toolVersionPath = path.join(
-    vcastInstallationPath,
+    installationPath,
     "DATA",
     "tool_version.txt"
   );
 
-  const toolVersion = fs.readFileSync(toolVersionPath).toString().trim();
-  // extract version and service pack from toolVersion (23.sp2 date)
-  const matched = toolVersion.match(/(\d+)\.sp(\d+).*/);
-  if (matched) {
-    const tooVersion = parseInt(matched[1]);
-    const toolServicePack = parseInt(matched[2]);
-    if (
-      tooVersion > version ||
-      (tooVersion == version && toolServicePack >= servicePack)
-    )
-      returnValue = true;
+  const toolVersionString = fs.readFileSync(toolVersionPath).toString().trim();
+
+  let whatToReturn: toolVersionType = { version: 0, servicePack: 0 };
+  // if this is a development build
+  if (toolVersionString.includes(" revision ")) {
+    const version = parseInt(toolVersionString.split(" ")[0]);
+    whatToReturn = { version: version, servicePack: 99 };
+  } else {
+    // extract version and service pack from toolVersion (23.sp2 date)
+    const matched = toolVersionString.match(/(\d+)\.sp(\d+).*/);
+    if (matched) {
+      // if the format matches, return the values as numbers
+      whatToReturn = {
+        version: parseInt(matched[1]),
+        servicePack: parseInt(matched[2]),
+      };
+    }
   }
-  // this allows us to work with development builds for internal testing
-  else if (toolVersion.includes(" revision ")) {
-    returnValue = true;
-  }
+  return whatToReturn;
+}
+
+function vcastVersionGreaterThan(versionToCheck: toolVersionType): boolean {
+  // A general purpose version checker ...
+
+  // check if the version the user has asked us to check is
+  // "smaller" than the version we found on the installationPath
+  let returnValue: boolean =
+    vcastInstallationVersion.version > versionToCheck.version ||
+    (vcastInstallationVersion.version == versionToCheck.version &&
+      vcastInstallationVersion.servicePack >= versionToCheck.servicePack);
+
   return returnValue;
 }
 
 function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
   // The vmock features is only available in vc24sp2 and later
-  return vcastVersionGreaterThan(vcastInstallationPath, 24, 4);
+  return vcastVersionGreaterThan({ version: 24, servicePack: 4 });
 }
 
 function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
   // Versions of VectorCAST between 23sp0 and 23sp4 had ATG but since
   // we changed the ATG command line interface with 23sp5, we have decided
   // to only support versions greater than that.
-
-  return vcastVersionGreaterThan(vcastInstallationPath, 23, 5);
+  return vcastVersionGreaterThan({ version: 23, servicePack: 5 });
 }
 
 function checkForATG(vcastInstallationPath: string) {
@@ -270,7 +300,7 @@ function findVcastTools(): boolean {
   return foundAllvcastTools;
 }
 
-export function checkIfInstallationIsOK() {
+export async function checkIfInstallationIsOK() {
   // Check if the installation is ok by verifying that:
   //   - we can find vpython and clicast
   //   - we have a valid license
@@ -283,7 +313,6 @@ export function checkIfInstallationIsOK() {
 
   if (findVcastTools()) {
     // check if we have a valid license
-
     if (vcastLicenseOK()) {
       vectorMessage("   VectorCAST license is available ...");
       returnValue = true;
@@ -294,6 +323,16 @@ export function checkIfInstallationIsOK() {
   }
 
   vectorMessage("-".repeat(100) + "\n");
+
+  // now check if a server is running and if its compatible with the installation
+  // TBD the server is not yet ready for prime time
+  const VCAST_USE_SERVER = process.env["VCAST_USE_SERVER"];
+  if (VCAST_USE_SERVER) {
+    vectorMessage(
+      "Checking if a VectorCAST Environment Data Server is available ... "
+    );
+    await determineServerState();
+  }
 
   if (!returnValue) {
     vectorMessage(
@@ -317,6 +356,11 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
       vcastInstallationPath,
       exeFilename(vcastqtName)
     );
+
+    // compute the installation version once ...
+    vcastInstallationDirectory = vcastInstallationPath;
+    vcastInstallationVersion = getToolVersionFromPath(vcastInstallationPath);
+
     if (fs.existsSync(vcastCommandToUse)) {
       vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
 
@@ -384,17 +428,13 @@ function initializeChecksumCommand(
 ): string | undefined {
   // checks if this vcast distro has python checksum support built-in
   if (globalCrc32Path && pyCrc32IsAvailable()) {
-    globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
+    checksumCommandToUse = `${vPythonCommandToUse} ${globalCrc32Path}`;
   } else {
     // check if the user has patched the distro with the crc32 utility
-    globalCheckSumCommand = getCRCutilityPath(vcastInstallationPath);
+    checksumCommandToUse = getCRCutilityPath(vcastInstallationPath);
   }
 
-  return globalCheckSumCommand;
-}
-
-export function getChecksumCommand() {
-  return globalCheckSumCommand;
+  return checksumCommandToUse;
 }
 
 export const vUnitIncludeSuffix = "/vunit/include";
