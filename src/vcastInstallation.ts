@@ -283,7 +283,7 @@ function findVcastTools(): boolean {
   // if we found a vpython somewhere ...
   // we assume the other executables are there too,  but we check anyway :)
   if (vcastInstallationPath) {
-    // first check if vcast is newer than 2021sp1 - minium version for this extension
+    // first check if vcast is newer than 21 - minium version for this extension
     const toolVersion: toolVersionType = getToolVersionFromPath(
       vcastInstallationPath
     );
@@ -307,10 +307,10 @@ function findVcastTools(): boolean {
     } else {
       // we show also show this in the message pane for completeness
       vectorMessage(
-        "   VectorCAST version is too old, minimum supported version is: 21sp1"
+        "   VectorCAST version is too old, minimum supported version is: 21"
       );
       const messageText =
-        "The VectorCAST Test Explorer requires a VectorCAST version >= 21sp1, " +
+        "The VectorCAST Test Explorer requires a VectorCAST version >= 21, " +
         "use the extension options to provide a valid VectorCAST Installation Location.";
       vscode.window.showWarningMessage(messageText);
       showSettings();

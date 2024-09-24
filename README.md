@@ -6,7 +6,7 @@ as a gutter decoration in C/C++ source editors.
 
 ## Prerequisites
 
-You must have a VectorCAST version 21sp1 or newer installed and licensed, 
+You must have a VectorCAST version 21 or newer installed and licensed, 
 and the installation directory must be:
   - on the **system PATH**, 
   - set using the VECTORCAST_DIR environment variable
