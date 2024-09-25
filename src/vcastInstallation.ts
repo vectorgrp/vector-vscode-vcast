@@ -150,9 +150,12 @@ function vcastVersionGreaterThan(versionToCheck: toolVersionType): boolean {
   return returnValue;
 }
 
-function vectorCASTSupportsServerMode(vcastInstallationPath: string): boolean {
+function initializeServerMode(vcastInstallationPath: string): boolean {
   // The clicast server mode is only available in vc24sp2 and later
-  return vcastVersionGreaterThan({ version: 24, servicePack: 5 });
+  globalServerModeAvailable = vcastVersionGreaterThan({ version: 24, servicePack: 5 });
+  if (globalServerModeAvailable) {
+    vectorMessage(`   clicast server is available in this release`);
+  }
 }
 
 function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
@@ -398,9 +401,7 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
       initializeCodedTestSupport(vcastInstallationPath);
 
       // check if the server mode is available ...
-      globalServerModeAvailable = vectorCASTSupportsServerMode(
-        vcastInstallationPath
-      );
+      initializeServerMode(vcastInstallationPath);
 
       // check if coded mocks are available ...
       // vMock available affects how we do completions in the language server
