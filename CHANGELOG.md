@@ -169,7 +169,7 @@ This option is new for VectorCAST 23 sp2
 ## [1.0.11] - 2024-07-30
 
 ### Code Maintenance
-- Added tests in case `VECTORCAST_DIR` is not set, `clicast` isn't on `PATH`.
+- Added tests in case VECTORCAST_DIR is not set, clicast isn't on PATH.
 - Enhanced testing possibilities by adding possible parameters for test groups.
 - Added tests for pythonUtilities.ts.
 - Updated the coverage upload process to send coverage-final.json to Codecov instead of clover.xml, ensuring aggregated coverage results are uploaded.
@@ -183,7 +183,7 @@ This option is new for VectorCAST 23 sp2
 ## [1.0.11] - 2024-08-13
 
 ### Bug Fixes
-- Fixed Issue: The extension should ignore environment directories that are opened directly. #172
+- Fixed Issue: The extension should ignore environment directories that are opened directly #172.
 - Fixed an unnecessary update occurring during the insertion of ATG tests.
 
 ## [1.0.11] - 2024-08-14
