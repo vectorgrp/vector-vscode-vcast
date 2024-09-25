@@ -120,16 +120,11 @@ This option is new for VectorCAST 23 sp2
 - Fixed issue with unrecoverable link error after a coded test compile error #128
 
 ## [1.0.12] - 2024-09-25
-- Added support for VectorCAST extensions for coded mocks.
-- Added new auto-complete features:
-    - `// vmock` (followed by a unit and then a subprogram).
-    - `vsession`.
+- Added support for coded mocks.  See README section: "Editing a Coded Test" for usage details.
+- Enforced a minium VectorCAST version: 21, and added notification to user for older versions
 
 ### Bug Fixes
-- Removed another instance where the VectorCAST version mismatch error was displayed in the output pane #143.
-- Fixed issue: Test pane will not be populated properly in some cases #148.
-- Added type-checking for tests using tsc before running vitest to prevent type errors from blocking test execution #151.
-- Resolved a type error in src/editorDecorator.ts by adding missing properties to the testNode object #152.
-- Configured TypeScript to prevent emitting JavaScript files during TS tests #162.
-- Fixed Issue: The extension should ignore environment directories that are opened directly #172.
-- Fixed an unnecessary update occurring during the insertion of ATG tests #173.
+- Removed an instance where the VectorCAST version mismatch error was displayed in the output pane #143.
+- Fixed issue with the Test Pane not populating properly in some cases #149.
+- The extension now ignores environment directories that are opened directly #173.
+- Fixed an unnecessary update occurring during the insertion of ATG tests
