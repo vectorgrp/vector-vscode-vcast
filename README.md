@@ -6,9 +6,12 @@ as a gutter decoration in C/C++ source editors.
 
 ## Prerequisites
 
-You must have VectorCAST installed and licensed, and the installation directory
-must be on the **system PATH**, set using the VECTORCAST_DIR environment variable
-or set using the extension option: **Vectorcast Installation Location**.
+You must have a VectorCAST version 21 or newer installed and licensed, 
+and the installation directory must be:
+  - on the **system PATH**, 
+  - set using the VECTORCAST_DIR environment variable
+  - set using the extension option: **Vectorcast Installation Location**.
+  
 During extension activation, the prerequisites will be checked, and any errors
 reported in the VectorCAST Test Explorer output panel.
 
