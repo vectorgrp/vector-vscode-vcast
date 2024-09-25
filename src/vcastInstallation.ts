@@ -47,13 +47,14 @@ let globalCrc32Path: string | undefined = undefined;
 
 export let globalPathToSupportFiles: string;
 
-let globalCodedTestingAvailable: boolean = false;
-
 export let globalIncludePath: string | undefined = undefined;
 
 const atgName = "atg";
 export let atgCommandToUse: string | undefined = undefined;
 export let atgAvailable: boolean = false;
+
+// this is set to true if the clicast version supports server mode
+export let globalServerModeAvailable: boolean = false;
 
 export const configurationFile = "c_cpp_properties.json";
 export const launchFile = "launch.json";
@@ -147,6 +148,11 @@ function vcastVersionGreaterThan(versionToCheck: toolVersionType): boolean {
       vcastInstallationVersion.servicePack >= versionToCheck.servicePack);
 
   return returnValue;
+}
+
+function vectorCASTSupportsServerMode(vcastInstallationPath: string): boolean {
+  // The clicast server mode is only available in vc24sp2 and later
+  return vcastVersionGreaterThan({ version: 24, servicePack: 5 });
 }
 
 function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
@@ -291,9 +297,6 @@ function findVcastTools(): boolean {
       // do all of the setup required to use clicast
       foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
 
-      // setup coded-test stuff (new for vc24)
-      initializeCodedTestSupport(vcastInstallationPath);
-
       // check if we have access to a valid crc32 command - this is not fatal
       // must be called after initializeInstallerFiles()
 
@@ -388,9 +391,18 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
       // we only set toolsFound if we find clicast AND vcastqt
       toolsFound = true;
 
-      // atg existing or being licensed does NOT affect toolsFound
+      // check if atg is available and licensed
       checkForATG(vcastInstallationPath);
 
+      // check if coded tests are available ...
+      initializeCodedTestSupport(vcastInstallationPath);
+
+      // check if the server mode is available ...
+      globalServerModeAvailable = vectorCASTSupportsServerMode(
+        vcastInstallationPath
+      );
+
+      // check if coded mocks are available ...
       // vMock available affects how we do completions in the language server
       // and allows us to issue nice error messages when the user tries to use vMock
       const vMockAvailable = vectorCASTSupportsVMock(vcastInstallationPath);
@@ -398,6 +410,7 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
         vectorMessage(`   vMock is available in this release`);
       }
       updateVMockStatus(vMockAvailable);
+      //
     } else {
       vectorMessage(
         `   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`
@@ -542,9 +555,10 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
   // swap backslashes to make paths consistent for windows users and
   globalIncludePath = candidatePath.replace(/\\/g, "/");
 
+  let codedTestingAvailable: boolean = false;
   if (fs.existsSync(candidatePath)) {
     vectorMessage(`   found coded-test support, initializing ...`);
-    globalCodedTestingAvailable = true;
+    codedTestingAvailable = true;
     if (!includePathExistsInWorkspace()) {
       vscode.window.showInformationMessage(
         "The include path for VectorCAST Coded Testing was not found in your workspace, you should add the " +
@@ -552,13 +566,11 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
           "and choosing 'VectorCAST: Add Coded Test Include Path`  "
       );
     }
-  } else {
-    globalCodedTestingAvailable = false;
   }
   // this controls the availability of the Add Coded Test Include Path context menu item
   vscode.commands.executeCommand(
     "setContext",
     "vectorcastTestExplorer.codedTestingAvailable",
-    globalCodedTestingAvailable
+    codedTestingAvailable
   );
 }
