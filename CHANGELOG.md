@@ -119,67 +119,17 @@ This option is new for VectorCAST 23 sp2
 - Added support for relative paths to the coded test file in test script #106
 - Fixed issue with unrecoverable link error after a coded test compile error #128
 
-## [1.0.11] - 2024-06-27
-
-### Bug Fixes
-- Removed another instance where the VectorCAST version mismatch error was displayed in the output pane.
-
-## [1.0.11] - 2024-07-02
-
-### Code Maintenance
-- Divided E2E test specs into independent groups, allowing GitHub Actions to retrieve and run multiple VectorCAST version group combinations in parallel.
-
-## [1.0.11] - 2024-07-09
-
-### Code Maintenance
-- Updated the Docker test image to use Ubuntu 24.04 as the base.
-
-### Bug Fixes
-- Fixed issue: Test pane will not be populated properly in some cases #148.
-
-## [1.0.11] - 2024-07-11
-
-### Code Maintenance
-- Added tsc to run before npm run package, deprecating the direct use of vsce package.
-
-### Bug Fixes
-- Added type-checking for tests using tsc before running vitest to prevent type errors from blocking test execution.
-- Resolved a type error in src/editorDecorator.ts by adding missing properties to the testNode object.
-
-## [1.0.11] - 2024-07-23
-
-### Bug Fixes
-- Configured TypeScript to prevent emitting JavaScript files during TS tests.
-
-## [1.0.11] - 2024-07-30
-
-### Code Maintenance
-- Improved E2E testing capabilities by enabling test group parametrization.
-- Updated the coverage upload process to send coverage-final.json, ensuring aggregated coverage results are uploaded.
-
-## [1.0.11] - 2024-08-13
-
-### Bug Fixes
-- Fixed Issue: The extension should ignore environment directories that are opened directly #172.
-- Fixed an unnecessary update occurring during the insertion of ATG tests.
-
-## [1.0.11] - 2024-08-22
-
+## [1.0.12] - 2024-09-25
 - Added support for VectorCAST extensions for coded mocks.
 - Added new auto-complete features:
     - `// vmock` (followed by a unit and then a subprogram).
     - `vsession`.
 
-### Code Maintenance
-- Added mocking helpers for unit tests.
-
-## [1.0.11] - 2024-08-23
-
-### Code Maintenance
-- Refactored E2E test setup.
-
-## [1.0.11] - 2024-08-27
-- Updated the version of vcast that supports vmock to be VectorCAST 24sp4.
-
-### Code Maintenance
-- Added ready_for_review trigger for CI workflow.
+### Bug Fixes
+- Removed another instance where the VectorCAST version mismatch error was displayed in the output pane #143.
+- Fixed issue: Test pane will not be populated properly in some cases #148.
+- Added type-checking for tests using tsc before running vitest to prevent type errors from blocking test execution #151.
+- Resolved a type error in src/editorDecorator.ts by adding missing properties to the testNode object #152.
+- Configured TypeScript to prevent emitting JavaScript files during TS tests #162.
+- Fixed Issue: The extension should ignore environment directories that are opened directly #172.
+- Fixed an unnecessary update occurring during the insertion of ATG tests #173.
