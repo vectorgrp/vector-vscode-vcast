@@ -122,7 +122,7 @@ This option is new for VectorCAST 23 sp2
 ## [1.0.11] - 2024-06-27
 
 ### Bug Fixes
-- Removed another instance where the VCAST version mismatch error was displayed in the output pane.
+- Removed another instance where the VectorCAST version mismatch error was displayed in the output pane.
 
 ## [1.0.11] - 2024-07-02
 
