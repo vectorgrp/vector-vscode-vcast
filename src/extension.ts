@@ -195,6 +195,26 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(toggleCoverageCommand);
 
+  // Command: vectorcastTestExplorer.startDataServer ////////////////////////////////////////////////////////
+  let startDataServer = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.startDataServer",
+    () => {
+      //TBD TODAY
+      vectorMessage("server turned on ...");
+    }
+  );
+  context.subscriptions.push(startDataServer);
+
+  // Command: vectorcastTestExplorer.stopDataServer ////////////////////////////////////////////////////////
+  let stopDataServer = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.stopDataServer",
+    () => {
+      // TBD TODAY
+      vectorMessage("server turned off ...");
+    }
+  );
+  context.subscriptions.push(stopDataServer);
+
   // Command: vectorcastTestExplorer.viewResults////////////////////////////////////////////////////////
   let viewResultsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.viewResults",
@@ -673,6 +693,13 @@ async function installPreActivationEventHandlers(
         event.affectsConfiguration("vectorcastTestExplorer.unitTestLocation")
       ) {
         updateUnitTestLocationOption();
+      } else if (
+        event.affectsConfiguration(
+          "vectorcastTestExplorer.useEnvironmentDataServer"
+        )
+      ) {
+        // TBD TODAY
+        vectorMessage("server option changed ...");
       } else if (
         event.affectsConfiguration(
           "vectorcastTestExplorer.vectorcastInstallationLocation"

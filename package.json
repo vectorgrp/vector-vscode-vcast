@@ -193,6 +193,16 @@
         "command": "vectorcastTestExplorer.setDefaultConfigFile",
         "category": "VectorCAST Test Explorer",
         "title": "Set as VectorCAST Configuration File"
+      },
+      {
+        "command": "vectorcastTestExplorer.startDataServer",
+        "category": "VectorCAST Test Explorer",
+        "title": "Start the environment data server"
+      },
+      {
+        "command": "vectorcastTestExplorer.stopDataServer",
+        "category": "VectorCAST Test Explorer",
+        "title": "Stop the environment data server"
       }
     ],
     "keybindings": [
@@ -217,33 +227,39 @@
             "type": "string",
             "description": "Path to the VectorCAST installation, used if VectorCAST is not found on the system PATH"
           },
+          "vectorcastTestExplorer.useEnvironmentDataServer": {
+            "type": "boolean",
+            "order": 2,
+            "default": true,
+            "description": "Provides faster interaction with VectorCAST environments"
+          },
           "vectorcastTestExplorer.unitTestLocation": {
             "type": "string",
-            "order": 2,
+            "order": 3,
             "default": "./unitTests",
             "description": "The folder path for storing unit tests, can be absolute or relative to the file location"
           },
           "vectorcastTestExplorer.configurationLocation": {
             "type": "string",
-            "order": 3,
+            "order": 4,
             "default": "",
             "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
           },
           "vectorcastTestExplorer.showReportOnExecute": {
             "type": "boolean",
-            "order": 4,
+            "order": 5,
             "default": true,
             "description": "Display the VectorCAST execution report after test run"
           },
           "vectorcastTestExplorer.decorateExplorer": {
             "type": "boolean",
-            "order": 5,
+            "order": 6,
             "default": true,
             "description": "Decorate files that have coverage in the File Explorer pane"
           },
           "vectorcastTestExplorer.verboseLogging": {
             "type": "boolean",
-            "order": 6,
+            "order": 7,
             "default": false,
             "description": "Log internal extension details"
           }

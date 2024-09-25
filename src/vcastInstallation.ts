@@ -150,7 +150,7 @@ function vcastVersionGreaterThan(versionToCheck: toolVersionType): boolean {
   return returnValue;
 }
 
-function initializeServerMode(vcastInstallationPath: string): boolean {
+function initializeServerMode(vcastInstallationPath: string) {
   // The clicast server mode is only available in vc24sp2 and later
   globalServerModeAvailable = vcastVersionGreaterThan({ version: 24, servicePack: 5 });
   if (globalServerModeAvailable) {
