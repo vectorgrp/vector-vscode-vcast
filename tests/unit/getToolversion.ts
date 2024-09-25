@@ -10,14 +10,14 @@ const promisifiedExec = promisify(exec);
 /**
  * Function to get the clicast executable path and check the tool version
  */
-export async function getToolVersion() {
-  // Determine the command to locate clicast
-  let clicastExecutablePath = "";
-  // Normally, VECTORCAST_DIR is defined, but in some tests we intentionally set it to be undefined.
-  if (process.env.VECTORCAST_DIR) {
+export async function getToolVersion(givenClicastPath?: string) {
+  let toolVersionPath = "";
+  if (!givenClicastPath) {
+    // Determine the command to locate clicast
+    let clicastExecutablePath = "";
+    // Normally, VECTORCAST_DIR is defined, but in some tests we intentionally set it to be undefined.
     const checkClicast =
       process.platform === "win32" ? "where clicast" : "which clicast";
-
     try {
       // Execute the command to find clicast
       const { stdout, stderr } = await promisifiedExec(checkClicast);
@@ -40,16 +40,22 @@ export async function getToolVersion() {
         `Error when running "${checkClicast}", make sure clicast is on PATH`
       );
     }
+    // Read the tool version from the appropriate path
+    toolVersionPath = path.join(
+      clicastExecutablePath,
+      "..",
+      "DATA",
+      "tool_version.txt"
+    );
   } else {
-    clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
+    // Read the tool version from the appropriate path
+    toolVersionPath = path.join(
+      givenClicastPath,
+      "..",
+      "DATA",
+      "tool_version.txt"
+    );
   }
-  // Read the tool version from the appropriate path
-  const toolVersionPath = path.join(
-    clicastExecutablePath,
-    "..",
-    "DATA",
-    "tool_version.txt"
-  );
 
   try {
     const toolVersion: string = fs

@@ -429,11 +429,15 @@ export const config: Options.Testrunner = {
         await executeCommand(createCFG);
       }
 
-      const toolVersion = await getToolVersion();
+      // Execute RGW commands and copy necessary files
+      await executeRGWCommands(testInputVcastTutorial);
+      await copyPathsToTestLocation(testInputVcastTutorial);
+
+      const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
 
       // Coded tests support only for >= vc24
       if (toolVersion.includes("24")) {
-        const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
         await executeCommand(setCoded);
         // TODO: This environment variable needs to be set in the CI.
         // For now, it's set here temporarily for testing purposes.
@@ -448,10 +452,6 @@ export const config: Options.Testrunner = {
           }
         }
       }
-
-      // Execute RGW commands and copy necessary files
-      await executeRGWCommands(testInputVcastTutorial);
-      await copyPathsToTestLocation(testInputVcastTutorial);
     }
 
     /**
