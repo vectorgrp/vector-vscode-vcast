@@ -119,5 +119,110 @@ This option is new for VectorCAST 23 sp2
 - Added support for relative paths to the coded test file in test script #106
 - Fixed issue with unrecoverable link error after a coded test compile error #128
 
+## [1.0.11] - 2024-06-24
 
+### Code Maintenance
+- Increased timeouts for E2E tests.
 
+## [1.0.11] - 2024-06-27
+
+### Code Maintenance
+- Split E2E tests and isolated deletion tests.
+- Implemented dedicated generation and deletion tests for ATG (unit and function) and BASIS PATH (unit and function) test cases.
+- Ran Prettier and xo linter on typescript files.
+
+### Bug Fixes
+- Removed another instance where the VCAST version mismatch error was displayed in the output pane.
+
+## [1.0.11] - 2024-07-02
+
+### Code Maintenance
+- Divided E2E test specs into independent groups, allowing GitHub Actions to retrieve and run multiple vcastVersion-group combinations in parallel.
+
+## [1.0.11] - 2024-07-09
+
+### Code Maintenance
+- Updated the Docker test image to use Ubuntu 24.04 as the base.
+
+### Bug Fixes
+- Fixed issue: Test pane will not be populated properly in some cases #148.
+
+## [1.0.11] - 2024-07-11
+
+### Code Maintenance
+- Added tsc to run before npm run package, deprecating the direct use of vsce package.
+
+### Bug Fixes
+- Added type-checking for tests using tsc before running vitest to prevent type errors from blocking test execution.
+- Resolved a type error in src/editorDecorator.ts by adding missing properties to the testNode object.
+
+## [1.0.11] - 2024-07-23
+
+### Code Maintenance
+- Upgraded Prettier to version 3.3.3 and applied formatting on typescript files.
+- Applied xo on typescript files.
+- Added a prettier check to the GitHub Actions workflow.
+
+### Bug Fixes
+- Configured TypeScript to prevent emitting JavaScript files during TS tests.
+
+## [1.0.11] - 2024-07-30
+
+### Code Maintenance
+- Added tests in case `VECTORCAST_DIR` is not set, `clicast` isn't on `PATH`.
+- Enhanced testing possibilities by adding possible parameters for test groups.
+- Added tests for pythonUtilities.ts.
+- Updated the coverage upload process to send coverage-final.json to Codecov instead of clover.xml, ensuring aggregated coverage results are uploaded.
+
+## [1.0.11] - 2024-08-12
+
+### Code Maintenance
+- Upgraded Vcast release in GitHub Actions. 
+- Running tests in GitHub Actions now on release23 and release24.
+
+## [1.0.11] - 2024-08-13
+
+### Bug Fixes
+- Fixed Issue: The extension should ignore environment directories that are opened directly. #172
+- Fixed an unnecessary update occurring during the insertion of ATG tests.
+
+## [1.0.11] - 2024-08-14
+
+### Code Maintenance
+
+- Switching to Vc24__101394_store_mock_info for release24 in the CI container.
+
+## [1.0.11] - 2024-08-15
+
+### Code Maintenance
+
+- Fixing Vcast 24 activation for unit tests on CI.
+- Added tests for fixed issue #148.
+
+## [1.0.11] - 2024-08-22
+
+- Added support to VectorCAST extensions for coded mocks.
+- Added new auto-complete features:
+    - `// vmock` (followed by a unit and then a subprogram).
+    - `vsession`.
+
+### Code Maintenance
+- Ran Prettier and xo linter on typescript files.
+- Added mocking helpers for unit tests.
+- Added E2E and unit tests for coded mock.
+
+## [1.0.11] - 2024-08-23
+
+### Code Maintenance
+- Refactored E2E test setup.
+
+## [1.0.11] - 2024-08-27
+- Updated the version of vcast that supports vmock to be 24.sp4.
+
+### Code Maintenance
+- Added ready_for_review trigger for CI workflow.
+
+## [1.0.11] - 2024-08-29
+
+### Code Maintenance
+- Added E2E tests for issue #114.
