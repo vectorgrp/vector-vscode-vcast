@@ -121,9 +121,6 @@ This option is new for VectorCAST 23 sp2
 
 ## [1.0.11] - 2024-06-27
 
-### Code Maintenance
-- Splitted E2E tests and isolated deletion tests.
-
 ### Bug Fixes
 - Removed another instance where the VCAST version mismatch error was displayed in the output pane.
 
