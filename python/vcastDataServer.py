@@ -219,7 +219,7 @@ def main():
     with open("vcastDataServer.log", "w", buffering=1) as pythonUtilities.logFileHandle:
         findAvailablePort()
         print(
-            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT} ..."
+            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}"
         )
         logMessage(
             f"{logPrefix()} using clicast command: {pythonUtilities.globalClicastCommand}\n"
