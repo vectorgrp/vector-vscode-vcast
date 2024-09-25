@@ -114,7 +114,7 @@ export function getToolVersionFromPath(
     const version = parseInt(toolVersionString.split(" ")[0]);
     whatToReturn = { version: version, servicePack: 99 };
   } else {
-    // extract version and service pack from toolVersion 
+    // extract version and service pack from toolVersion
     // The string can be in two foramts: "21 date" or "23.sp2 date"
     // first theck for "24.sp2 date" format ...
     const matched = toolVersionString.match(/(\d+)\.sp(\d+).*/);
