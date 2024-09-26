@@ -439,9 +439,6 @@ export const config: Options.Testrunner = {
       if (toolVersion.includes("24")) {
         const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
         await executeCommand(setCoded);
-        // TODO: This environment variable needs to be set in the CI.
-        // For now, it's set here temporarily for testing purposes.
-        process.env.VCAST_USE_SERVER = "True";
 
         // Start clicast server if required
         if (process.env.VCAST_USE_SERVER) {

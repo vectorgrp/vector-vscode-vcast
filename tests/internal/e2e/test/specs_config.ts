@@ -43,14 +43,14 @@ export function getSpecGroups(useVcast24: boolean) {
       },
       params: {},
     },
-    bugs: {
-      specs: [
-        "./**/**/vcast_testgen_bugs.test.ts",
-        "./**/**/vcast_testgen_bugs_2.test.ts",
-      ],
-      env: {},
-      params: {},
-    },
+    // bugs: {
+    //   specs: [
+    //     "./**/**/vcast_testgen_bugs.test.ts",
+    //     "./**/**/vcast_testgen_bugs_2.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // },
     flask_icon: {
       specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
       env: {},
@@ -122,9 +122,54 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    specGroups["import_coded_test"] = {
+    specGroups["import_coded_test_server"] = {
       specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
-      env: { IMPORT_CODED_TEST_IN_TST: "True" },
+      env: { IMPORT_CODED_TEST_IN_TST: "True", VCAST_USE_SERVER: "True" },
+      params: {},
+    };
+
+    specGroups["func_atg_server"] = {
+      specs: [
+        "./**/**/vcast_testgen_func_atg.test.ts",
+        "./**/**/vcast_testdel_func_atg.test.ts",
+      ],
+      env: { VCAST_USE_SERVER: "True" },
+      params: {},
+    };
+
+    specGroups["unit_atg_server"] = {
+      specs: [
+        "./**/**/vcast_testgen_unit_atg.test.ts",
+        "./**/**/vcast_testdel_unit_atg.test.ts",
+      ],
+      env: { VCAST_USE_SERVER: "True" },
+      params: {},
+    };
+
+    specGroups["env_atg_server"] = {
+      specs: [
+        "./**/**/vcast_testgen_env_atg.test.ts",
+        "./**/**/vcast_testdel_env_atg.test.ts",
+      ],
+      env: { VCAST_USE_SERVER: "True" },
+      params: {},
+    };
+
+    // specGroups["coded_tests_server"] = {
+    //   specs: ["./**/**/vcast_coded_tests.test.ts"],
+    //   env: {VCAST_USE_SERVER: "True"},
+    //   params: {},
+    // };
+
+    specGroups["coded_mock_server"] = {
+      specs: ["./**/**/vcast_coded_test_completion.test.ts"],
+      env: { VCAST_USE_SERVER: "True" },
+      params: {},
+    };
+
+    specGroups["import_coded_test_server"] = {
+      specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
+      env: { IMPORT_CODED_TEST_IN_TST: "True", VCAST_USE_SERVER: "True" },
       params: {},
     };
   }

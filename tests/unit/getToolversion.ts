@@ -12,10 +12,10 @@ const promisifiedExec = promisify(exec);
  */
 export async function getToolVersion(givenClicastPath?: string) {
   let toolVersionPath = "";
+  // For E2E tests, we pass a pre-retrieved clicastPath.
+  // This is necessary because some tests intentionally unset VECTORCAST_DIR, which causes issues here.
   if (!givenClicastPath) {
-    // Determine the command to locate clicast
     let clicastExecutablePath = "";
-    // Normally, VECTORCAST_DIR is defined, but in some tests we intentionally set it to be undefined.
     const checkClicast =
       process.platform === "win32" ? "where clicast" : "which clicast";
     try {
@@ -40,7 +40,6 @@ export async function getToolVersion(givenClicastPath?: string) {
         `Error when running "${checkClicast}", make sure clicast is on PATH`
       );
     }
-    // Read the tool version from the appropriate path
     toolVersionPath = path.join(
       clicastExecutablePath,
       "..",
@@ -48,7 +47,6 @@ export async function getToolVersion(givenClicastPath?: string) {
       "tool_version.txt"
     );
   } else {
-    // Read the tool version from the appropriate path
     toolVersionPath = path.join(
       givenClicastPath,
       "..",
@@ -56,7 +54,6 @@ export async function getToolVersion(givenClicastPath?: string) {
       "tool_version.txt"
     );
   }
-
   try {
     const toolVersion: string = fs
       .readFileSync(toolVersionPath)
