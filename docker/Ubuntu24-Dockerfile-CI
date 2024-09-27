@@ -21,7 +21,7 @@ SHELL ["/bin/bash", "--login", "-c"]
 USER $USERNAME
 RUN sudo apt-get update && \
     sudo apt-get install -y openssl libssl-dev libbz2-dev libffi-dev liblzma-dev libsecret-1-dev make && \
-    sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+    sudo apt-get clean
 
 WORKDIR /home/${USERNAME}
 SHELL ["/bin/bash", "--login", "-c"]
@@ -29,18 +29,18 @@ SHELL ["/bin/bash", "--login", "-c"]
 # installing node
 ENV N_PREFIX=/home/${USERNAME}/.n
 ENV PATH=$N_PREFIX/bin:$PATH
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    sudo apt-get update && sudo apt-get install -y nodejs npm && \
+RUN sudo apt-get update && \
+    sudo apt install -y nodejs && \
+    sudo apt-get install -y npm && \
     sudo npm install -g n && \
     n 20 && \
-    n 16 && \
+    n 18.15.0 && \
     npm set -g cafile /etc/ssl/certs/ca-certificates.crt && \
     npm set -g noproxy $NO_PROXY && \
     npm set -g proxy $HTTP_PROXY && \
     npm set -g https-proxy $HTTPS_PROXY && \
-    npm set -g registry https://registry.npmjs.org/ && \
+    npm set -g registry http://registry.npmjs.org/ && \
     npm i -g yo && \
-    npm install -g @vscode/vsce@^2.15.04 && \
     npm install -g typescript && \
     npm install -g esbuild && \
     npm install -g tsx
@@ -58,7 +58,7 @@ RUN sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libexpat
     wget https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.18.0.tar.gz && tar xf git-2.18.0.tar.gz && cd git-2.18.0/ && \
     make configure && ./configure --prefix=/usr/local && make all && sudo make install && \
     cd .. && sudo rm -rf git-2.18.0* && \
-    sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+    sudo apt-get clean
 
 SHELL ["/bin/bash", "--login", "-c"]
 
