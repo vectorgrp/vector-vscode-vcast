@@ -12,7 +12,13 @@ import {
   showSettings,
 } from "./utilities";
 
-import { determineServerState, vcastLicenseOK } from "./vcastAdapter";
+import {
+  // TBD Today - this will go away
+  determineServerState,
+  processServerAction,
+  serverActionType,
+  vcastLicenseOK,
+} from "./vcastAdapter";
 
 import { executeCommandSync, executeVPythonScript } from "./vcastCommandRunner";
 
@@ -152,7 +158,10 @@ function vcastVersionGreaterThan(versionToCheck: toolVersionType): boolean {
 
 function initializeServerMode(vcastInstallationPath: string) {
   // The clicast server mode is only available in vc24sp2 and later
-  globalServerModeAvailable = vcastVersionGreaterThan({ version: 24, servicePack: 5 });
+  globalServerModeAvailable = vcastVersionGreaterThan({
+    version: 24,
+    servicePack: 5,
+  });
   if (globalServerModeAvailable) {
     vectorMessage(`   clicast server is available in this release`);
   }
@@ -352,15 +361,13 @@ export async function checkIfInstallationIsOK() {
   vectorMessage("-".repeat(100) + "\n");
 
   if (installationIsOK) {
-    // now check if a server is running and if its compatible with the installation
-    // TBD the server is not yet ready for prime time
-    const VCAST_USE_SERVER = process.env["VCAST_USE_SERVER"];
-    if (VCAST_USE_SERVER) {
-      vectorMessage(
-        "Checking if a VectorCAST Environment Data Server is available ... "
-      );
-      await determineServerState();
-    }
+    // we have changed the VectorCAST version, so we need to stop the server if it is running
+    processServerAction(serverActionType.startServer);
+
+    // TBD Today - tempoary so that we can use server mode ...
+    // will need to replicate the status messages from this call
+    await determineServerState ();
+
   } else {
     vectorMessage(
       "Please refer to the installation and configuration instructions for details on resolving these issues"

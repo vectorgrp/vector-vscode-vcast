@@ -86,6 +86,33 @@ function logServerCommands(text: string) {
   vectorMessage(text, errorLevel.trace);
 }
 
+export enum serverActionType {
+  startServer,
+  stopServer,
+  restart,
+}
+
+export function processServerAction(command: serverActionType) {
+  // TBD Today all error/validity checks should be made here
+
+  // This function will be called with the desired server state
+  // if the server ia already in that state it will ignore the request
+  if (globalEnviroDataServerActive && command == serverActionType.stopServer) {
+    // TBD Today
+    // send a shutdown command to the server
+    // and make sure that the server process dies
+  } else if (
+    !globalEnviroDataServerActive &&
+    command == serverActionType.startServer
+  ) {
+    // TBD Today
+    // start the server and record the port being used
+    // also we need to send the PORT to the language server
+  }
+}
+
+// TBD Today, should this go away completely along with the associated
+// compatibility checks and status variables?
 export async function determineServerState() {
   // This function is called during initialization to check if the enviro
   // data server is alive and if so configure the extension to use it
@@ -110,13 +137,15 @@ export async function determineServerState() {
       newServerState = true;
     } else {
       vectorMessage(
-        "VectorCAST Environment Data Server is Active, but the VectorCAST versions are incompatible ..."
+        "VectorCAST Environment Data Server is Active, but the VectorCAST versions are different ..."
       );
+      const serverVersionString = `${serverVersion.version}.${serverVersion.servicePack}`;
       vectorMessage(
-        `  The server has been configured with: ${path.dirname(serverClicastPath)}`
+        `  The server has been configured with: ${path.dirname(serverClicastPath)} (v${serverVersionString})`
       );
+      const installationVersionString = `${vcastInstallationVersion.version}.${vcastInstallationVersion.servicePack}`;
       vectorMessage(
-        `  The extension has been configured with: ${path.dirname(clicastCommandToUse)}\n`
+        `  The extension has been configured with: ${path.dirname(clicastCommandToUse)} (v${installationVersionString})\n`
       );
       newServerState = false;
     }

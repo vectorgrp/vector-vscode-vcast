@@ -2,7 +2,11 @@ import fetch from "node-fetch";
 import { pythonErrorCodes } from "./vcastServerTypes";
 
 let HOST = "localhost"; // The server's hostname or IP address
-let PORT = 60461; // The port used by the server anything > 1023 is OK
+
+// TBD Today - this will be set when the server process is started\
+// previously we had this hard-coded to 60461 ... now its a random port
+// for testing
+let PORT = 62003;
 
 // Types used for interaction with the python interface and the enviro server
 //

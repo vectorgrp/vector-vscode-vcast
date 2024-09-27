@@ -10,6 +10,7 @@ import {
 
 import {
   updateConfigurationOption,
+  updateServerOption,
   updateUnitTestLocationOption,
 } from "./configuration";
 
@@ -61,10 +62,12 @@ import {
 
 import {
   buildEnvironmentFromScript,
+  processServerAction,
   deleteEnvironment,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
   rebuildEnvironment,
+  serverActionType,
 } from "./vcastAdapter";
 
 import {
@@ -199,8 +202,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   let startDataServer = vscode.commands.registerCommand(
     "vectorcastTestExplorer.startDataServer",
     () => {
-      //TBD TODAY
-      vectorMessage("server turned on ...");
+      processServerAction(serverActionType.startServer);
     }
   );
   context.subscriptions.push(startDataServer);
@@ -209,8 +211,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   let stopDataServer = vscode.commands.registerCommand(
     "vectorcastTestExplorer.stopDataServer",
     () => {
-      // TBD TODAY
-      vectorMessage("server turned off ...");
+      processServerAction(serverActionType.stopServer);
     }
   );
   context.subscriptions.push(stopDataServer);
@@ -698,8 +699,7 @@ async function installPreActivationEventHandlers(
           "vectorcastTestExplorer.useEnvironmentDataServer"
         )
       ) {
-        // TBD TODAY
-        vectorMessage("server option changed ...");
+        updateServerOption();
       } else if (
         event.affectsConfiguration(
           "vectorcastTestExplorer.vectorcastInstallationLocation"

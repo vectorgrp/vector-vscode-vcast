@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 import { vectorMessage } from "./messagePane";
 
-import { openVcastOptionsDialog } from "./vcastAdapter";
+import { openVcastOptionsDialog, processServerAction, serverActionType } from "./vcastAdapter";
 
 const fs = require("fs");
 const path = require("path");
@@ -154,4 +154,21 @@ export function getUnitTestLocationForPath(dirpath: string): string {
   }
 
   return unitTestLocation;
+}
+
+export function updateServerOption() {
+  // get the current option value
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const newValue = settings.get("useEnvironmentDataServer", false);
+  vectorMessage(`Use-Server changed to ${newValue}`);
+
+  // TBD Today, do we need anything else here?
+
+  // if the user has turned "useServer" ON
+  if (newValue) {
+    processServerAction (serverActionType.startServer);
+    // else the user has turned "useServer" OFF
+  } else {
+    processServerAction (serverActionType.stopServer);
+  }
 }
