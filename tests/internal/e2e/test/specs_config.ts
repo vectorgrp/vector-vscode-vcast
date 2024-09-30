@@ -43,14 +43,14 @@ export function getSpecGroups(useVcast24: boolean) {
       },
       params: {},
     },
-    // bugs: {
-    //   specs: [
-    //     "./**/**/vcast_testgen_bugs.test.ts",
-    //     "./**/**/vcast_testgen_bugs_2.test.ts",
-    //   ],
-    //   env: {},
-    //   params: {},
-    // },
+    bugs: {
+      specs: [
+        "./**/**/vcast_testgen_bugs.test.ts",
+        "./**/**/vcast_testgen_bugs_2.test.ts",
+      ],
+      env: {},
+      params: {},
+    },
     flask_icon: {
       specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
       env: {},
@@ -163,14 +163,14 @@ export function getSpecGroups(useVcast24: boolean) {
       },
       params: {},
     };
-    // specGroups["bugs_server"]={
-    //     specs: [
-    //     "./**/**/vcast_testgen_bugs.test.ts",
-    //     "./**/**/vcast_testgen_bugs_2.test.ts",
-    //   ],
-    //   env: {VCAST_USE_SERVER: "True" },
-    //   params: {},
-    // };
+    specGroups["bugs_server"] = {
+      specs: [
+        "./**/**/vcast_testgen_bugs.test.ts",
+        "./**/**/vcast_testgen_bugs_2.test.ts",
+      ],
+      env: { VCAST_USE_SERVER: "True" },
+      params: {},
+    };
     specGroups["flask_icon_server"] = {
       specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
       env: { VCAST_USE_SERVER: "True" },
@@ -234,11 +234,11 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    // specGroups["coded_tests_server"] = {
-    //   specs: ["./**/**/vcast_coded_tests.test.ts"],
-    //   env: {VCAST_USE_SERVER: "True"},
-    //   params: {},
-    // };
+    specGroups["coded_tests_server"] = {
+      specs: ["./**/**/vcast_coded_tests.test.ts"],
+      env: { VCAST_USE_SERVER: "True" },
+      params: {},
+    };
 
     specGroups["coded_mock_server"] = {
       specs: ["./**/**/vcast_coded_test_completion.test.ts"],
