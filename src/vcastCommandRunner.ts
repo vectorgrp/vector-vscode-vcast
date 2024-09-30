@@ -40,6 +40,7 @@ export function convertServerResponseToCommandStatus(
     commandStatus.errorCode = 1;
     commandStatus.stdout = serverResponse.statusText;
   }
+  vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
   return commandStatus;
 }
 
