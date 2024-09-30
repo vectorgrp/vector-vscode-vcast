@@ -1048,7 +1048,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Verifying test output");
-    // await bottomBar.maximize();
+    await bottomBar.maximize();
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
@@ -1058,9 +1058,6 @@ describe("vTypeCheck VS Code Extension", () => {
           ),
       { timeout: TIMEOUT }
     );
-
-    console.log("OUTPUTTEXT:");
-    console.log(await outputView.getText());
 
     let outputTextFlat = (await outputView.getText()).toString();
     expect(
