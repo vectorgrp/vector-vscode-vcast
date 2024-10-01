@@ -147,6 +147,10 @@ function deactivateCoverage() {
   globalStatusBarObject.hide();
 }
 
+export function hideStatusBarCoverage() {
+  globalStatusBarObject.hide();
+}
+
 export function createCoverageStatusBar() {
   globalStatusBarObject = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,

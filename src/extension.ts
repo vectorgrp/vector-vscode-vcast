@@ -15,8 +15,9 @@ import {
 } from "./configuration";
 
 import {
-  initializeCodeCoverageFeatures,
   createCoverageStatusBar,
+  hideStatusBarCoverage,
+  initializeCodeCoverageFeatures,
   toggleCoverageAction,
   updateDisplayedCoverage,
   updateCOVdecorations,
@@ -627,10 +628,15 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
 
   vscode.window.onDidChangeActiveTextEditor(
+    // this function gets called when the user changes the 
+    // active editor, including when closing an editor
+    // in which case the "editor" parameter will be undefined
     (editor) => {
       if (editor) {
         updateDisplayedCoverage();
         updateTestDecorator();
+      } else {
+        hideStatusBarCoverage();
       }
     },
     null,
