@@ -2,7 +2,11 @@ import * as vscode from "vscode";
 
 import { vectorMessage } from "./messagePane";
 
-import { openVcastOptionsDialog, serverProcessController, serverStateType } from "./vcastAdapter";
+import {
+  openVcastOptionsDialog,
+  serverProcessController,
+  serverStateType,
+} from "./vcastAdapter";
 
 const fs = require("fs");
 const path = require("path");
@@ -166,9 +170,9 @@ export function updateServerOption() {
   // No need to wait for these calls to complete ...
   // if the user has turned "useServer" ON
   if (newValue) {
-    serverProcessController (serverStateType.running);
+    serverProcessController(serverStateType.running);
     // else the user has turned "useServer" OFF
   } else {
-    serverProcessController (serverStateType.stopped);
+    serverProcessController(serverStateType.stopped);
   }
 }

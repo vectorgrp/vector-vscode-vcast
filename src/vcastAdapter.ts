@@ -120,17 +120,23 @@ export async function serverProcessController(newState: serverStateType) {
     ) {
       // nothing to be done, existing server matches new vcast version
     } else {
-      // TBD TODAY - stop the server 
+      // TBD TODAY - stop the server
     }
     currentServerState = serverStateType.stopped;
   }
 
-  if (currentServerState == serverStateType.running && newState == serverStateType.stopped) {
+  if (
+    currentServerState == serverStateType.running &&
+    newState == serverStateType.stopped
+  ) {
     // TBD Today - stop the server
     currentServerState = serverStateType.stopped;
   }
 
-  if (currentServerState == serverStateType.stopped && newState == serverStateType.running) {
+  if (
+    currentServerState == serverStateType.stopped &&
+    newState == serverStateType.running
+  ) {
     // TBD Today - temporary so we can test
     await determineServerState();
     currentServerState = serverStateType.running;

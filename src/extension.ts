@@ -202,8 +202,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   let startDataServer = vscode.commands.registerCommand(
     "vectorcastTestExplorer.startDataServer",
     () => {
-       // no need to wait for this ...
-       serverProcessController(serverStateType.running);
+      // no need to wait for this ...
+      serverProcessController(serverStateType.running);
     }
   );
   context.subscriptions.push(startDataServer);
