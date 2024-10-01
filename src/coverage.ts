@@ -130,12 +130,12 @@ export function updateCOVdecorations() {
       const statusBarText = `Coverage: ${covered}/${coverable} (${percentage}%)`;
       globalStatusBarObject.text = statusBarText;
       globalStatusBarObject.show();
-    } else if (coverageData.statusString.length>0) {
+    } else if (coverageData.statusString.length > 0) {
       globalStatusBarObject.text = coverageData.statusString;
       globalStatusBarObject.show();
       resetGlobalDecorations();
     } else {
-      globalStatusBarObject.hide
+      globalStatusBarObject.hide;
     }
   } else {
     globalStatusBarObject.hide();
