@@ -3,7 +3,7 @@ import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver-types";
 import {
   clientRequestType,
   globalEnviroDataServerActive,
-  setServerState,
+  setGLobalServerState,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
@@ -42,7 +42,7 @@ export function initializePaths(
   vPythonCommandToUse = vpythonPath;
   // set the server instance of the globalEnviroDataServerActive flag
   // based on the value passed to us by the client.
-  setServerState(useServer);
+  setGLobalServerState(useServer);
 
   const pathToTestEditorInterface = path.join(
     extensionRoot,

@@ -6,7 +6,7 @@ import {
   serverIsAlive,
   serverURL,
   setLogServerCommandsCallback,
-  setServerState,
+  setGLobalServerState,
   setTerminateServerCallback,
   transmitCommand,
   vcastCommandType,
@@ -45,7 +45,7 @@ const mockFetch = (
 describe("test server functions", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    setServerState(false);
+    setGLobalServerState(false);
   });
 
   // Testing closeConnection()

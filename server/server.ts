@@ -12,7 +12,7 @@ import {
 import { Hover } from "vscode-languageserver-types";
 
 import { enviroDataType } from "../src-common/commonUtilities";
-import { setServerState } from "../src-common/vcastServer";
+import { setGLobalServerState } from "../src-common/vcastServer";
 
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 
@@ -121,7 +121,7 @@ connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
 });
 
 connection.onNotification("vcasttesteditor/updateServerState", (data) => {
-  setServerState(data.useServer);
+  setGLobalServerState(data.useServer);
   connection.console.log(
     "Notification received: use environment data server: " + data.useServer
   );

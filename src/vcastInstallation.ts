@@ -14,9 +14,8 @@ import {
 
 import {
   // TBD Today - this will go away
-  determineServerState,
-  processServerAction,
-  serverActionType,
+  serverProcessController,
+  serverStateType,
   vcastLicenseOK,
 } from "./vcastAdapter";
 
@@ -361,13 +360,9 @@ export async function checkIfInstallationIsOK() {
   vectorMessage("-".repeat(100) + "\n");
 
   if (installationIsOK) {
-    // we have changed the VectorCAST version, so we need to stop the server if it is running
-    processServerAction(serverActionType.startServer);
-
-    // TBD Today - tempoary so that we can use server mode ...
-    // will need to replicate the status messages from this call
-    await determineServerState ();
-
+    // we have changed the VectorCAST version, so we need to start the
+    // enviro data server with this new version
+    await serverProcessController(serverStateType.running);
   } else {
     vectorMessage(
       "Please refer to the installation and configuration instructions for details on resolving these issues"

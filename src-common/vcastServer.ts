@@ -1,12 +1,10 @@
 import fetch from "node-fetch";
 import { pythonErrorCodes } from "./vcastServerTypes";
 
-let HOST = "localhost"; // The server's hostname or IP address
-
 // TBD Today - this will be set when the server process is started\
 // previously we had this hard-coded to 60461 ... now its a random port
 // for testing
-let PORT = 62003;
+let SERVER_PORT = 53562;
 
 // Types used for interaction with the python interface and the enviro server
 //
@@ -43,7 +41,12 @@ export interface clientRequestType {
  * Returns the server URL used in API calls.
  */
 export function serverURL() {
-  return `http://${HOST}:${PORT}`;
+  // TBD Today -
+  // HOST is hard-coded and should never change
+  // PORT will be set on server startup
+  let SERVER_HOST = "localhost";
+
+  return `http://${SERVER_HOST}:${SERVER_PORT}`;
 }
 
 // IMPORTANT: This file is used by two different executables
@@ -58,7 +61,7 @@ export function serverURL() {
 //
 export let globalEnviroDataServerActive: boolean = false;
 
-export function setServerState(newState: boolean) {
+export function setGLobalServerState(newState: boolean) {
   globalEnviroDataServerActive = newState;
 }
 
@@ -196,7 +199,7 @@ export async function transmitCommand(
         transmitResponse.success = false;
         transmitResponse.statusText = `Server could not start clicast instance`;
         // fall back to non-server mode
-        setServerState(false);
+        setGLobalServerState(false);
         // this callback will display an error message and update the test pane
         terminateServerProcessing();
       } else {
@@ -219,7 +222,7 @@ export async function transmitCommand(
       transmitResponse.success = false;
       transmitResponse.statusText = `Enviro server error: ${errorDetails}, disabling server mode for this session`;
       // fall back to non server mode
-      setServerState(false);
+      setGLobalServerState(false);
       // this callback will display an error message and update the test pane
       terminateServerProcessing();
     });

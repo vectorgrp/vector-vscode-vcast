@@ -62,12 +62,12 @@ import {
 
 import {
   buildEnvironmentFromScript,
-  processServerAction,
   deleteEnvironment,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
   rebuildEnvironment,
-  serverActionType,
+  serverStateType,
+  serverProcessController,
 } from "./vcastAdapter";
 
 import {
@@ -202,7 +202,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   let startDataServer = vscode.commands.registerCommand(
     "vectorcastTestExplorer.startDataServer",
     () => {
-      processServerAction(serverActionType.startServer);
+       // no need to wait for this ...
+       serverProcessController(serverStateType.running);
     }
   );
   context.subscriptions.push(startDataServer);
@@ -211,7 +212,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   let stopDataServer = vscode.commands.registerCommand(
     "vectorcastTestExplorer.stopDataServer",
     () => {
-      processServerAction(serverActionType.stopServer);
+      // no need to wait for this ...
+      serverProcessController(serverStateType.stopped);
     }
   );
   context.subscriptions.push(stopDataServer);

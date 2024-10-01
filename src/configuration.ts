@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 import { vectorMessage } from "./messagePane";
 
-import { openVcastOptionsDialog, processServerAction, serverActionType } from "./vcastAdapter";
+import { openVcastOptionsDialog, serverProcessController, serverStateType } from "./vcastAdapter";
 
 const fs = require("fs");
 const path = require("path");
@@ -163,12 +163,12 @@ export function updateServerOption() {
   vectorMessage(`Use-Server changed to ${newValue}`);
 
   // TBD Today, do we need anything else here?
-
+  // No need to wait for these calls to complete ...
   // if the user has turned "useServer" ON
   if (newValue) {
-    processServerAction (serverActionType.startServer);
+    serverProcessController (serverStateType.running);
     // else the user has turned "useServer" OFF
   } else {
-    processServerAction (serverActionType.stopServer);
+    serverProcessController (serverStateType.stopped);
   }
 }

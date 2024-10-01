@@ -37,6 +37,7 @@ import {
   atgCommandToUse,
   clicastCommandToUse,
   getToolVersionFromPath,
+  toolVersionType,
   vcastCommandToUse,
   vcastInstallationVersion,
 } from "./vcastInstallation";
@@ -52,7 +53,7 @@ import {
   closeConnection,
   globalEnviroDataServerActive,
   serverIsAlive,
-  setServerState,
+  setGLobalServerState,
   setLogServerCommandsCallback,
   setTerminateServerCallback,
   transmitCommand,
@@ -86,28 +87,58 @@ function logServerCommands(text: string) {
   vectorMessage(text, errorLevel.trace);
 }
 
-export enum serverActionType {
-  startServer,
-  stopServer,
-  restart,
+export enum serverStateType {
+  stopped,
+  running,
 }
 
-export function processServerAction(command: serverActionType) {
-  // TBD Today all error/validity checks should be made here
+let currentServerState: serverStateType = serverStateType.stopped;
+// when we start a new server instance we save away the vcast version
+// so that we don't unnecssarily stop and restart if the tool version
+// has not changed
+let serverVersion: toolVersionType = { version: 0, servicePack: 0 };
 
-  // This function will be called with the desired server state
-  // if the server ia already in that state it will ignore the request
-  if (globalEnviroDataServerActive && command == serverActionType.stopServer) {
-    // TBD Today
-    // send a shutdown command to the server
-    // and make sure that the server process dies
-  } else if (
-    !globalEnviroDataServerActive &&
-    command == serverActionType.startServer
+export async function serverProcessController(newState: serverStateType) {
+  //
+  // This funciton will be called to start and stop the enviro data server
+  // it should be called with the newState that the caller wants, and all
+  // of the edge cases will be handled here ... see inline comments
+  //
+  // Example call contexts
+  //     - initialization - to start the server
+  //     - user action to start or stop server
+  //     - useServer option change on or off
+  //
+
+  if (
+    currentServerState == serverStateType.running &&
+    newState == serverStateType.running
   ) {
-    // TBD Today
-    // start the server and record the port being used
-    // also we need to send the PORT to the language server
+    if (
+      vcastInstallationVersion.version == serverVersion.version &&
+      vcastInstallationVersion.servicePack == serverVersion.servicePack
+    ) {
+      // nothing to be done, existing server matches new vcast version
+    } else {
+      // TBD TODAY - stop the server 
+    }
+    currentServerState = serverStateType.stopped;
+  }
+
+  if (currentServerState == serverStateType.running && newState == serverStateType.stopped) {
+    // TBD Today - stop the server
+    currentServerState = serverStateType.stopped;
+  }
+
+  if (currentServerState == serverStateType.stopped && newState == serverStateType.running) {
+    // TBD Today - temporary so we can test
+    await determineServerState();
+    currentServerState = serverStateType.running;
+    // TBD TODAY - start the server and
+    //    save the PORT that should be used
+    //    send the part to the language server
+    //    set the global server state to on
+    //    send the global server state to the language server
   }
 }
 
@@ -154,7 +185,7 @@ export async function determineServerState() {
     newServerState = false;
   }
 
-  setServerState(newServerState);
+  setGLobalServerState(newServerState);
   sendServerStateToLanguageServer(newServerState);
 }
 

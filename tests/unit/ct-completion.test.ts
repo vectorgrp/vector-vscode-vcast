@@ -18,7 +18,7 @@ import {
   generateDiagnositicForTest,
   getChoiceData,
 } from "../../server/pythonUtilities";
-import { setServerState } from "../../src-common/vcastServer";
+import { setGLobalServerState } from "../../src-common/vcastServer";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
@@ -290,7 +290,7 @@ describe("Testing pythonUtilities (valid)", () => {
         statusText: "success",
       });
 
-      setServerState(true);
+      setGLobalServerState(true);
 
       const unitTst = ``;
       const lineToComplete = "// vmock";
@@ -325,7 +325,7 @@ describe("Testing pythonUtilities (valid)", () => {
         throw new Error("Failed to fetch: reason: Server down");
       });
 
-      setServerState(true);
+      setGLobalServerState(true);
 
       const lineToComplete = "// vmock";
       const envName = "vcast";
