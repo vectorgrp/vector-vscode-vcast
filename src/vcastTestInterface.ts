@@ -178,7 +178,6 @@ export function resetCoverageData() {
 }
 
 interface coverageSummaryType {
-  hasCoverageData: boolean;
   statusString: string;
   covered: number[];
   uncovered: number[];
@@ -198,8 +197,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   // .statusString will be "out-of-date" if NO enviro checksums match this file
 
   let returnData: coverageSummaryType = {
-    hasCoverageData: false,
-    statusString: "",
+    statusString: "No Coverage Data",
     covered: [],
     uncovered: [],
   };
@@ -223,7 +221,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
     if (coveredList.length == 0 && uncoveredList.length == 0) {
       returnData.statusString = "Coverage Out of Date";
     } else {
-      returnData.hasCoverageData = true;
+      returnData.statusString = "";
       // remove duplicates
       returnData.covered = [...new Set(coveredList)];
       returnData.uncovered = [...new Set(uncoveredList)];

@@ -73,7 +73,6 @@ def setupArgs():
 
     parser.add_argument(
         "--path",
-        required=True,
         help="Path to Environment Directory",
     )
 
