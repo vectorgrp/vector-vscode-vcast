@@ -98,10 +98,7 @@ export function updateCOVdecorations() {
     // this returns the cached coverage data for this file
     const coverageData = getCoverageDataForFile(filePath);
 
-    if (coverageData.statusString.length > 0) {
-      globalStatusBarObject.text = coverageData.statusString;
-      resetGlobalDecorations();
-    } else {
+    if (coverageData.hasCoverageData) {
       // there is data to display
       // Reset the global decoration arrays
       resetGlobalDecorations();
@@ -133,8 +130,13 @@ export function updateCOVdecorations() {
       const statusBarText = `Coverage: ${covered}/${coverable} (${percentage}%)`;
       globalStatusBarObject.text = statusBarText;
       globalStatusBarObject.show();
+    } else if (coverageData.statusString.length>0) {
+      globalStatusBarObject.text = coverageData.statusString;
+      globalStatusBarObject.show();
+      resetGlobalDecorations();
+    } else {
+      globalStatusBarObject.hide
     }
-    globalStatusBarObject.show();
   } else {
     globalStatusBarObject.hide();
   }
