@@ -332,8 +332,6 @@ export async function dumpTestScriptFile(
 
   let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
-  // let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
-
   vectorMessage(`Creating test script: ${scriptPath}`);
 
   let commandStatus: commandStatusType;
