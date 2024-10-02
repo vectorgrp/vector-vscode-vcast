@@ -247,7 +247,8 @@ export async function deleteSingleTest(
   // using server ....
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
-    // Replace all occurrences of the -s argument with the quotes removed
+    // Replace all occurrences of the -s argument with the quotes removed.
+    // Otherwise we have '"double-quotes"' around it which causes problems.
     let updatedClicastArgs = clicastArgs.replace(/-s"([^"]+)"/, "-s$1");
     deleteTestArgs = `${updatedClicastArgs} test delete`;
 
@@ -337,6 +338,7 @@ export async function dumpTestScriptFile(
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
     // Replace the -s argument with the quotes removed.
+    // Otherwise we have '"double-quotes"' around it which causes problems.
     let updatedClicastArgs = clicastArgs.replace(/-s"([^"]+)"/, "-s$1");
     dumpScriptArgs = `${updatedClicastArgs} test script create ${scriptPath}`;
 
