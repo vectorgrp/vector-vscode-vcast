@@ -236,7 +236,10 @@ export async function deleteSingleTest(
 ): Promise<commandStatusType> {
   const testNode: testNodeType = getTestNode(testNodeID);
   const clicastArgs: string = getClicastArgsFromTestNode(testNode);
-  let deleteTestArgs = `${clicastArgs} test delete`;
+  // Replace all occurrences of the -s argument with the quotes removed
+  let updatedClicastArgs = clicastArgs.replace(/-s"([^"]+)"/, "-s$1");
+
+  let deleteTestArgs = `${updatedClicastArgs} test delete`;
 
   // special vcast case for delete ALL tests for the environment
   // when no unit, subprogram or test is provided, you have to give YES to delete all
@@ -325,7 +328,12 @@ export async function dumpTestScriptFile(
 ): Promise<commandStatusType> {
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const clicastArgs = getClicastArgsFromTestNode(testNode);
-  let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
+  // Replace the -s argument with the quotes removed
+  let updatedClicastArgs = clicastArgs.replace(/-s"([^"]+)"/, "-s$1");
+
+  let dumpScriptArgs: string = `${updatedClicastArgs} test script create ${scriptPath}`;
+
+  // let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
   vectorMessage(`Creating test script: ${scriptPath}`);
 
@@ -649,7 +657,7 @@ export async function executeTest(
   } else {
     commandStatus = executeTestViaPython(vcastCommand, enviroPath, nodeID);
   }
-
+  vectorMessage(`COMMAND STATUS: ${JSON.stringify(commandStatus, null, 2)}`);
   // added this timing info to help with performance tuning - interesting to leave in
   const endTime: number = performance.now();
   const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
