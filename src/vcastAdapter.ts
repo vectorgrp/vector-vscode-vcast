@@ -236,10 +236,7 @@ export async function deleteSingleTest(
 ): Promise<commandStatusType> {
   const testNode: testNodeType = getTestNode(testNodeID);
   const clicastArgs: string = getClicastArgsFromTestNode(testNode);
-  // Replace all occurrences of the -s argument with the quotes removed
-  let updatedClicastArgs = clicastArgs.replace(/-s"([^"]+)"/, "-s$1");
-
-  let deleteTestArgs = `${updatedClicastArgs} test delete`;
+  let deleteTestArgs = `${clicastArgs} test delete`;
 
   // special vcast case for delete ALL tests for the environment
   // when no unit, subprogram or test is provided, you have to give YES to delete all
@@ -250,6 +247,10 @@ export async function deleteSingleTest(
   // using server ....
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
+    // Replace all occurrences of the -s argument with the quotes removed
+    let updatedClicastArgs = clicastArgs.replace(/-s"([^"]+)"/, "-s$1");
+    deleteTestArgs = `${updatedClicastArgs} test delete`;
+
     commandStatus = await executeClicastCommandUsingServer(
       testNode.enviroPath,
       deleteTestArgs
@@ -328,10 +329,8 @@ export async function dumpTestScriptFile(
 ): Promise<commandStatusType> {
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const clicastArgs = getClicastArgsFromTestNode(testNode);
-  // Replace the -s argument with the quotes removed
-  let updatedClicastArgs = clicastArgs.replace(/-s"([^"]+)"/, "-s$1");
 
-  let dumpScriptArgs: string = `${updatedClicastArgs} test script create ${scriptPath}`;
+  let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
   // let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
@@ -339,6 +338,10 @@ export async function dumpTestScriptFile(
 
   let commandStatus: commandStatusType;
   if (globalEnviroDataServerActive) {
+    // Replace the -s argument with the quotes removed.
+    let updatedClicastArgs = clicastArgs.replace(/-s"([^"]+)"/, "-s$1");
+    dumpScriptArgs = `${updatedClicastArgs} test script create ${scriptPath}`;
+
     commandStatus = await executeClicastCommandUsingServer(
       testNode.enviroPath,
       dumpScriptArgs
