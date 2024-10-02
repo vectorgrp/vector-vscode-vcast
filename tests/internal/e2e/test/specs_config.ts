@@ -234,11 +234,11 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    // specGroups["coded_tests_server"] = {
-    //   specs: ["./**/**/vcast_coded_tests.test.ts"],
-    //   env: { VCAST_USE_SERVER: "True" },
-    //   params: {},
-    // };
+    specGroups["coded_tests_server"] = {
+      specs: ["./**/**/vcast_coded_tests.test.ts"],
+      env: { VCAST_USE_SERVER: "True" },
+      params: {},
+    };
 
     specGroups["coded_mock_server"] = {
       specs: ["./**/**/vcast_coded_test_completion.test.ts"],
