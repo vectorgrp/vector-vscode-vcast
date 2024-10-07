@@ -11,13 +11,13 @@ import {
   type SpyInstance,
   beforeEach,
 } from "vitest";
-import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
-import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getEnviroNameFromTestScript } from "../../langServer/serverUtilities";
+import { getCodedTestCompletionData } from "../../langServer/ctCompletions";
 import {
   choiceKindType,
-  generateDiagnositicForTest,
+  generateDiagnosticForTest,
   getChoiceData,
-} from "../../server/pythonUtilities";
+} from "../../langServer/pythonUtilities";
 import { setGLobalServerState } from "../../src-common/vcastServer";
 import {
   getCompletionPositionForLine,
@@ -376,7 +376,7 @@ describe("Testing pythonUtilities (valid)", () => {
     const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
 
     // Function under test
-    generateDiagnositicForTest(
+    generateDiagnosticForTest(
       connection,
       "Test message",
       "file:///path/to/document",
@@ -399,7 +399,7 @@ const validateCodedTestCompletion = async (
 ) => {
   // Apply mock if provided
   if (mockOptions) {
-    const pythonUtilities = await import("../../server/pythonUtilities");
+    const pythonUtilities = await import("../../langServer/pythonUtilities");
     vi.spyOn(pythonUtilities, "getChoiceData").mockReturnValue(
       mockOptions.mockReturnValue
     );

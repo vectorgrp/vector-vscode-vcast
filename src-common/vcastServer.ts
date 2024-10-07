@@ -1,11 +1,6 @@
 import fetch from "node-fetch";
 import { pythonErrorCodes } from "./vcastServerTypes";
 
-// TBD Today - this will be set when the server process is started\
-// previously we had this hard-coded to 60461 ... now its a random port
-// for testing
-let SERVER_PORT = 53562;
-
 // Types used for interaction with the python interface and the enviro server
 //
 // Note: some of these match the --mode argument for the vTestInterface.py but
@@ -36,14 +31,18 @@ export interface clientRequestType {
   options?: string;
 }
 
+// This is set when the VectorCAST Data Server process is started
+let SERVER_PORT: number = 0;
+
+export function setServerPort(port: number) {
+  SERVER_PORT = port;
+}
+
 /**
  * @testing This function is exported for testing purposes only.
  * Returns the server URL used in API calls.
  */
 export function serverURL() {
-  // TBD Today -
-  // HOST is hard-coded and should never change
-  // PORT will be set on server startup
   let SERVER_HOST = "localhost";
 
   return `http://${SERVER_HOST}:${SERVER_PORT}`;
@@ -65,12 +64,6 @@ export function setGLobalServerState(newState: boolean) {
   globalEnviroDataServerActive = newState;
 }
 
-// When we ping the server it responds with the path to the clicast
-// command that it is running.  This is used by the core extension
-// for a compatibility check with the vectorcast installation
-// that the server is configured with.
-export let serverClicastPath: string = "";
-
 // To allow us to update the test pane when we have a server
 // fall back error we set this callback during extension initialization,
 // and  use it in the transmitCommand error handling below.
@@ -90,11 +83,11 @@ export function setTerminateServerCallback(callback: any) {
  * @testing This function is exported for testing purposes only.
  * It indirectly calls terminateServerProcessing() in the core extension case.
  */
-export function terminateServerProcessing() {
+export function terminateServerProcessing(errorText: string) {
   // this function indirectly calls terminateServerProcessing()
   // in the core extension case.
   if (terminateServerCallback) {
-    terminateServerCallback();
+    terminateServerCallback(errorText);
   }
 }
 
@@ -136,28 +129,49 @@ export async function closeConnection(enviroPath: string): Promise<boolean> {
 }
 
 export async function serverIsAlive() {
-  //
+  // This is used to determine if the server is running after startup.
+  // Because the server emits the "starting message" before starting
+  // flask, there will be a slight delay between us getting the
+  // port via stdout and the server being ready to accept requests
+  // so we loop here until the ping works, or 3 seconds have elapsed.
   const pingObject: clientRequestType = {
     command: vcastCommandType.ping,
     path: "",
   };
 
-  const transmitResponse: transmitResponseType = await transmitCommand(
-    pingObject,
-    "ping"
-  );
-  if (transmitResponse.success === true) {
-    let responseText = transmitResponse.returnData.text;
-    // the server should respond with the path to ITS clicast
-    serverClicastPath = responseText.split("clicast-path:")[1].trim();
+  const startTime = Date.now();
+  let transmitResponse: transmitResponseType;
+  while (true) {
+    transmitResponse = await transmitCommand(pingObject, "ping");
+    if (transmitResponse.success) {
+      break;
+    } else if (Date.now() > startTime + 3000) {
+      logServerCommand("Server timed out on startup, did not answer ping");
+      break;
+    } else {
+      // wait for 200ms before trying again
+      logServerCommand("Server not ready, waiting 200ms ...");
+      await new Promise<void>((r) => setTimeout(r, 200));
+    }
   }
+
   return transmitResponse.success;
+}
+
+export async function sendShutdownToServer() {
+  //
+  const shutdownObject: clientRequestType = {
+    command: vcastCommandType.shutdown,
+    path: "",
+  };
+
+  await transmitCommand(shutdownObject, "shutdown");
 }
 
 // This does the actual fetch from the server
 export async function transmitCommand(
   requestObject: clientRequestType,
-  route = "runcommand"
+  route: string = "runcommand"
 ) {
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
@@ -201,7 +215,7 @@ export async function transmitCommand(
         // fall back to non-server mode
         setGLobalServerState(false);
         // this callback will display an error message and update the test pane
-        terminateServerProcessing();
+        terminateServerProcessing(transmitResponse.statusText);
       } else {
         transmitResponse.success = true;
         transmitResponse.statusText = `Enviro server response status: ${response.statusText}`;
@@ -213,18 +227,29 @@ export async function transmitCommand(
       }
     })
     .catch((error) => {
-      let errorDetails = error.message.split("reason:")[1].trim();
-      // for some reason, when the server is down, the reason is blank
-      // so we insert a generic message in this case.
-      if (errorDetails.length === 0) {
-        errorDetails = "Server is not running";
+      // In the shutdown case, the socket may be closed before we can read
+      // the response which will result in an exception, but we can ignore this.
+      // Similarly for ping, we may be pinging before the server is ready so
+      // we also ignore errors associated with ping.
+      if (
+        requestObject.command == vcastCommandType.shutdown ||
+        requestObject.command == vcastCommandType.ping
+      ) {
+        transmitResponse.success = false;
+      } else {
+        let errorText = error.message.split("reason:")[1].trim();
+        // for some reason, when the server is down, the reason is blank
+        // so we insert a generic message in this case.
+        if (errorText.length === 0) {
+          errorText = "Server is not running";
+        }
+        let errorDetails = `command: ${requestObject.command}, error: ${errorText}`;
+        transmitResponse.success = false;
+        transmitResponse.statusText = `Enviro server error: ${errorDetails}, disabling server mode for this session`;
+
+        // this callback will display an error message and update the test pane, etc.
+        terminateServerProcessing(errorDetails);
       }
-      transmitResponse.success = false;
-      transmitResponse.statusText = `Enviro server error: ${errorDetails}, disabling server mode for this session`;
-      // fall back to non server mode
-      setGLobalServerState(false);
-      // this callback will display an error message and update the test pane
-      terminateServerProcessing();
     });
   return transmitResponse;
 }

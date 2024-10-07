@@ -12,12 +12,7 @@ import {
   showSettings,
 } from "./utilities";
 
-import {
-  // TBD Today - this will go away
-  serverProcessController,
-  serverStateType,
-  vcastLicenseOK,
-} from "./vcastAdapter";
+import { vcastLicenseOK } from "./vcastAdapter";
 
 import { executeCommandSync, executeVPythonScript } from "./vcastCommandRunner";
 
@@ -48,6 +43,7 @@ if (process.platform == "linux") {
 }
 
 export let globalTestInterfacePath: string | undefined = undefined;
+export let globalEnviroDataServerPath: string;
 let globalCrc32Path: string | undefined = undefined;
 
 export let globalPathToSupportFiles: string;
@@ -59,7 +55,7 @@ export let atgCommandToUse: string | undefined = undefined;
 export let atgAvailable: boolean = false;
 
 // this is set to true if the clicast version supports server mode
-export let globalServerModeAvailable: boolean = false;
+export let enviroDataServerAvailable: boolean = false;
 
 export const configurationFile = "c_cpp_properties.json";
 export const launchFile = "launch.json";
@@ -73,6 +69,14 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
   if (fs.existsSync(pathToTestInterface)) {
     vectorMessage("Found vTestInterface here: " + pathToTestInterface);
     globalTestInterfacePath = `${pathToTestInterface}`;
+  }
+
+  const pathToEnviroDataServer = context.asAbsolutePath(
+    "./python/vcastDataServer.py"
+  );
+  if (fs.existsSync(pathToEnviroDataServer)) {
+    vectorMessage("Found vcastDataServer here: " + pathToEnviroDataServer);
+    globalEnviroDataServerPath = `${pathToEnviroDataServer}`;
   }
 
   const crc32Path = context.asAbsolutePath("./python/crc32.py");
@@ -157,11 +161,11 @@ function vcastVersionGreaterThan(versionToCheck: toolVersionType): boolean {
 
 function initializeServerMode(vcastInstallationPath: string) {
   // The clicast server mode is only available in vc24sp2 and later
-  globalServerModeAvailable = vcastVersionGreaterThan({
+  enviroDataServerAvailable = vcastVersionGreaterThan({
     version: 24,
     servicePack: 5,
   });
-  if (globalServerModeAvailable) {
+  if (enviroDataServerAvailable) {
     vectorMessage(`   clicast server is available in this release`);
   }
 }
@@ -257,8 +261,10 @@ function findVcastTools(): boolean {
       );
     } else {
       vectorMessage(
-        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
+        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}`
+      );
+      vectorMessage(
+        "   use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
@@ -275,8 +281,10 @@ function findVcastTools(): boolean {
       );
     } else {
       vectorMessage(
-        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
+        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}`
+      );
+      vectorMessage(
+        "   use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
@@ -291,8 +299,10 @@ function findVcastTools(): boolean {
     );
   } else {
     vectorMessage(
-      `   command: '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set, ` +
-        "use the extension options to provide a valid VectorCAST Installation Location."
+      `   '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set`
+    );
+    vectorMessage(
+      "   use the extension options to provide a valid VectorCAST Installation Location."
     );
     showSettings();
   }
@@ -359,14 +369,11 @@ export async function checkIfInstallationIsOK() {
 
   vectorMessage("-".repeat(100) + "\n");
 
-  if (installationIsOK) {
-    // we have changed the VectorCAST version, so we need to start the
-    // enviro data server with this new version
-    await serverProcessController(serverStateType.running);
-  } else {
+  if (!installationIsOK) {
     vectorMessage(
       "Please refer to the installation and configuration instructions for details on resolving these issues"
     );
+    enviroDataServerAvailable = false;
     openMessagePane();
   }
   return installationIsOK;
@@ -570,7 +577,7 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
       );
     }
   }
-  // this controls the availability of the Add Coded Test Include Path context menu item
+
   vscode.commands.executeCommand(
     "setContext",
     "vectorcastTestExplorer.codedTestingAvailable",

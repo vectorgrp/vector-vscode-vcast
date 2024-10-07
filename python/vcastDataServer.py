@@ -14,7 +14,6 @@ from vcastDataServerTypes import commandType, errorCodes
 # flask was added to vpython for vc24sp4
 from flask import Flask, request
 
-app = Flask(__name__)
 
 import clicastInterface
 import testEditorInterface
@@ -24,14 +23,44 @@ import pythonUtilities
 from pythonUtilities import logFileHandle, logMessage, logPrefix
 
 
-@app.route("/ping")
+def init_application(logFilePath):
+    app = Flask(__name__)
+
+    with app.app_context():
+
+        @app.route("/ping")
+        def pingRoute():
+            return ping()
+
+        @app.route("/shutdown")
+        def shutdownRoute():
+            return shutdown()
+
+        @app.route("/runcommand")
+        def runcommandRoute():
+            clientRequestText = request.args.get("request")
+            clientRequest = decodeRequest(clientRequestText)
+            return runcommand(clientRequest, clientRequestText)
+
+        # Note: this string must match what is in vcastAdapter.ts -> startServer()
+        # We prefix the string with " * " so that it matches the flask output
+        print(
+            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}"
+        )
+        print(f" * Server log file path: {logFilePath}")
+        logMessage(
+            f"{logPrefix()} port: {vcastDataServerTypes.PORT} clicast: {pythonUtilities.globalClicastCommand}\n"
+        )
+
+    return app
+
+
 def ping():
     logMessage(f"{logPrefix()} received ping request, responding 'alive'")
     # we return the clicast path since the client needs this
-    return {"text": f"clicast-path: {pythonUtilities.globalClicastCommand}"}
+    return {"text": "alive"}
 
 
-@app.route("/shutdown")
 def shutdown():
     logMessage(f"{logPrefix()} received shutdown request ...")
     # terminate all of the clicast processes
@@ -47,16 +76,11 @@ def shutdown():
     sys.exit(0)
 
 
-@app.route("/runcommand")
-def runcommand():
+def runcommand(clientRequest, clientRequestText):
     """
     This function does the work of translating the clientRequest object into a call
     to the vTestInterface module and then sending the response object back to the client
     """
-
-    # Is it possible to receive a python class directly
-    clientRequestText = request.args.get("request")
-    clientRequest = decodeRequest(clientRequestText)
 
     try:
         logMessage(
@@ -180,7 +204,7 @@ def serverSignalHandler(signum, frame):
 def findAvailablePort():
     """
     I have not implemented any error handling, and I am not sure
-    if there could be a race condition between the close and 
+    if there could be a race condition between the close and
     the flask app.start() ... but this seems unlikely.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -192,7 +216,7 @@ def findAvailablePort():
 
 def main():
     """
-    This is the enviro data server that allows the VS Code Test Explorer
+    This is the VectorCAST data server that allows the VS Code Test Explorer
     to interact with the VectorCAST environment.
     """
 
@@ -216,15 +240,10 @@ def main():
         signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 
     # start the server
-    with open("vcastDataServer.log", "w", buffering=1) as pythonUtilities.logFileHandle:
+    logFilePath = os.path.join(os.getcwd(), "vcastDataServer.log")
+    with open(logFilePath, "w", buffering=1) as pythonUtilities.logFileHandle:
         findAvailablePort()
-        print(
-            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}"
-        )
-        logMessage(
-            f"{logPrefix()} using clicast command: {pythonUtilities.globalClicastCommand}\n"
-        )
-
+        app = init_application(logFilePath)
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)
 
 

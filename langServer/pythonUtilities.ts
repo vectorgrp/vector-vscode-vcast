@@ -37,7 +37,7 @@ export function initializePaths(
 
   console.log("VectorCAST Language Server is Active ...");
   console.log(`  using vpython: ${vpythonPath}`);
-  console.log(`  using environment data server: ${useServer}`);
+  console.log(`  using VectorCAST data server: ${useServer}`);
 
   vPythonCommandToUse = vpythonPath;
   // set the server instance of the globalEnviroDataServerActive flag
@@ -63,7 +63,7 @@ export function initializePaths(
 
 // Get Choice Data Processing -------------------------------------------------------------
 
-export function generateDiagnositicForTest(
+export function generateDiagnosticForTest(
   connection: any,
   message: string,
   documentUri: string,

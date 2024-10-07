@@ -2,11 +2,7 @@ import * as vscode from "vscode";
 
 import { vectorMessage } from "./messagePane";
 
-import {
-  openVcastOptionsDialog,
-  serverProcessController,
-  serverStateType,
-} from "./vcastAdapter";
+import { openVcastOptionsDialog } from "./vcastAdapter";
 
 const fs = require("fs");
 const path = require("path");
@@ -160,19 +156,7 @@ export function getUnitTestLocationForPath(dirpath: string): string {
   return unitTestLocation;
 }
 
-export function updateServerOption() {
-  // get the current option value
+export function useServerOption() {
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const newValue = settings.get("useEnvironmentDataServer", false);
-  vectorMessage(`Use-Server changed to ${newValue}`);
-
-  // TBD Today, do we need anything else here?
-  // No need to wait for these calls to complete ...
-  // if the user has turned "useServer" ON
-  if (newValue) {
-    serverProcessController(serverStateType.running);
-    // else the user has turned "useServer" OFF
-  } else {
-    serverProcessController(serverStateType.stopped);
-  }
+  return settings.get("useDataServer", false);
 }

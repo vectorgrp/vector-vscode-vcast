@@ -9,8 +9,6 @@ import {
   deleteEnvironmentCallback,
 } from "./callbacks";
 
-import { sendServerStateToLanguageServer } from "./client";
-
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 import {
@@ -36,10 +34,7 @@ import {
 import {
   atgCommandToUse,
   clicastCommandToUse,
-  getToolVersionFromPath,
-  toolVersionType,
   vcastCommandToUse,
-  vcastInstallationVersion,
 } from "./vcastInstallation";
 
 import {
@@ -52,148 +47,12 @@ import {
   clientRequestType,
   closeConnection,
   globalEnviroDataServerActive,
-  serverIsAlive,
-  setGLobalServerState,
-  setLogServerCommandsCallback,
-  setTerminateServerCallback,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
-  serverClicastPath,
 } from "../src-common/vcastServer";
 
-import { refreshAllExtensionData } from "./testPane";
-
 const path = require("path");
-
-function terminateServerProcessing() {
-  // This functions gets called by server transmitCommand()
-  // when there is a fatal server errr.  In this case, we
-  // display a pop up error message, update the test pane
-  refreshAllExtensionData();
-
-  vscode.window.showErrorMessage(
-    "Fatal Error in VectorCAST Environment Data Server - " +
-      "Disabling Server Mode for this Session.  " +
-      "The previous command was discarded, and the " +
-      "Testing Pane has been reloaded"
-  );
-}
-
-function logServerCommands(text: string) {
-  // This function gets called by server - transmitCommand ()
-  // It is implemented as a callback because the server is
-  // used by both the core extension and the language server
-  vectorMessage(text, errorLevel.trace);
-}
-
-export enum serverStateType {
-  stopped,
-  running,
-}
-
-let currentServerState: serverStateType = serverStateType.stopped;
-// when we start a new server instance we save away the vcast version
-// so that we don't unnecssarily stop and restart if the tool version
-// has not changed
-let serverVersion: toolVersionType = { version: 0, servicePack: 0 };
-
-export async function serverProcessController(newState: serverStateType) {
-  //
-  // This funciton will be called to start and stop the enviro data server
-  // it should be called with the newState that the caller wants, and all
-  // of the edge cases will be handled here ... see inline comments
-  //
-  // Example call contexts
-  //     - initialization - to start the server
-  //     - user action to start or stop server
-  //     - useServer option change on or off
-  //
-
-  if (
-    currentServerState == serverStateType.running &&
-    newState == serverStateType.running
-  ) {
-    if (
-      vcastInstallationVersion.version == serverVersion.version &&
-      vcastInstallationVersion.servicePack == serverVersion.servicePack
-    ) {
-      // nothing to be done, existing server matches new vcast version
-    } else {
-      // TBD TODAY - stop the server
-    }
-    currentServerState = serverStateType.stopped;
-  }
-
-  if (
-    currentServerState == serverStateType.running &&
-    newState == serverStateType.stopped
-  ) {
-    // TBD Today - stop the server
-    currentServerState = serverStateType.stopped;
-  }
-
-  if (
-    currentServerState == serverStateType.stopped &&
-    newState == serverStateType.running
-  ) {
-    // TBD Today - temporary so we can test
-    await determineServerState();
-    currentServerState = serverStateType.running;
-    // TBD TODAY - start the server and
-    //    save the PORT that should be used
-    //    send the part to the language server
-    //    set the global server state to on
-    //    send the global server state to the language server
-  }
-}
-
-// TBD Today, should this go away completely along with the associated
-// compatibility checks and status variables?
-export async function determineServerState() {
-  // This function is called during initialization to check if the enviro
-  // data server is alive and if so configure the extension to use it
-
-  // This call saves the path to the clicast version that the
-  // server is running into variable: "serverClicastPath"
-  let newServerState = false;
-  if (await serverIsAlive()) {
-    // the server is running, now check if the clicast versions match
-
-    const serverVersion = getToolVersionFromPath(
-      path.dirname(serverClicastPath)
-    );
-
-    if (
-      vcastInstallationVersion.version == serverVersion.version &&
-      vcastInstallationVersion.servicePack == serverVersion.servicePack
-    ) {
-      setTerminateServerCallback(terminateServerProcessing);
-      setLogServerCommandsCallback(logServerCommands);
-      vectorMessage("VectorCAST Environment Data Server is Active ...\n");
-      newServerState = true;
-    } else {
-      vectorMessage(
-        "VectorCAST Environment Data Server is Active, but the VectorCAST versions are different ..."
-      );
-      const serverVersionString = `${serverVersion.version}.${serverVersion.servicePack}`;
-      vectorMessage(
-        `  The server has been configured with: ${path.dirname(serverClicastPath)} (v${serverVersionString})`
-      );
-      const installationVersionString = `${vcastInstallationVersion.version}.${vcastInstallationVersion.servicePack}`;
-      vectorMessage(
-        `  The extension has been configured with: ${path.dirname(clicastCommandToUse)} (v${installationVersionString})\n`
-      );
-      newServerState = false;
-    }
-  } else {
-    vectorMessage("VectorCAST Environment Data Server is NOT Active ...\n");
-    newServerState = false;
-  }
-
-  setGLobalServerState(newServerState);
-  sendServerStateToLanguageServer(newServerState);
-}
 
 // ------------------------------------------------------------------------------------
 // Direct clicast Calls
