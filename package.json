@@ -30,6 +30,9 @@
     "test",
     "testing"
   ],
+    "bin": {
+    "clean-html": "dist/src-bin/cli.js"
+  },
   "main": "out/extension.js",
   "activationEvents": [
     "workspaceContains:**/UNITDATA.VCD"
@@ -612,7 +615,9 @@
     "package": "tsc --project tsconfig.json && vsce package",
     "publish": "vsce publish",
     "test": "tsc --project tsconfig_test.json && vitest run --reporter verbose --coverage",
-    "gh-test": "vitest run --reporter=junit --outputFile=./test-output.xml --coverage"
+    "gh-test": "vitest run --reporter=junit --outputFile=./test-output.xml --coverage",
+    "clean-html": "node out/src-bin/clean_html.js",
+    "build": "tsc"
   },
   "devDependencies": {
     "@eslint/js": "^9.1.1",
@@ -639,6 +644,7 @@
   },
   "dependencies": {
     "@vscode/vsce": "^2.32.0",
+    "commander": "^12.1.0",
     "crc-32": "^1.2.0",
     "glob": "^7.1.7",
     "hasbin": "^1.2.3",

@@ -12,5 +12,5 @@
     "removeComments": true,
     "skipLibCheck": true
   },
-  "include": ["src/extension.ts", "server/server.ts"]
+  "include": ["src/extension.ts", "server/server.ts", "src-bin/**/*"]
 }
