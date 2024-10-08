@@ -191,7 +191,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Verifying absence of coverage status for quotes_example.");
 
-    // Verifying that there is no coverage status for quotes_example as it not instrumented
+    // Verifying that there is no coverage status for quotes_example as it is not instrumented
     expect(statusBarInfos.includes("Coverage:")).toBe(false);
     expect(statusBarInfos.includes("No Coverage Data")).toBe(false);
     expect(statusBarInfos.includes("Coverage Out of Date")).toBe(false);
@@ -211,7 +211,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Verifying coverage status for manager.cpp when opened but nor run in the editor."
     );
 
-    // Tests are not run yet but we should get this coverage status info at the beginning
+    // Tests are not run yet, but we should get this coverage status info at the beginning
     await browser.waitUntil(
       async () => (await statusBar.getItems()).includes("Coverage: 0/41 (0%)"),
       { timeout: TIMEOUT }
@@ -225,7 +225,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("quotes_example.cpp", 0);
     await editorView.closeEditor("manager.cpp", 0);
 
-    // When closing the manager.cpp editior, no coverage info should be displayed
+    // When closing the manager.cpp editor, no coverage info should be displayed
     expect(statusBarInfos.includes("Coverage:")).toBe(false);
     expect(statusBarInfos.includes("No Coverage Data")).toBe(false);
     expect(statusBarInfos.includes("Coverage Out of Date")).toBe(false);
