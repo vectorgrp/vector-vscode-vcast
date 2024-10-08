@@ -197,6 +197,9 @@ export async function transmitCommand(
           "\n"
         )}`;
         //
+        // if we get a test interface error, we report the error but do not
+        // terminate the server, since it might be a one off error.
+        // Maybe we will change this in the future.
       } else if (
         rawReturnData.exitCode == pythonErrorCodes.testInterfaceError
       ) {
@@ -207,6 +210,8 @@ export async function transmitCommand(
           "\n   "
         )}`;
         //
+        // If we cannot start clicast, we shutdown the server because this error
+        // is unlikely to be cleared by trying again
       } else if (
         rawReturnData.exitCode == pythonErrorCodes.couldNotStartClicastInstance
       ) {
@@ -216,6 +221,8 @@ export async function transmitCommand(
         setGLobalServerState(false);
         // this callback will display an error message and update the test pane
         terminateServerProcessing(transmitResponse.statusText);
+        //
+        // else the command was successful so we return the data
       } else {
         transmitResponse.success = true;
         transmitResponse.statusText = `Enviro server response status: ${response.statusText}`;
@@ -226,17 +233,20 @@ export async function transmitCommand(
         // executing tests or running clicast commands
       }
     })
+    //
+    // if there is a communication error with the server it gets caught here
     .catch((error) => {
-      // In the shutdown case, the socket may be closed before we can read
-      // the response which will result in an exception, but we can ignore this.
-      // Similarly for ping, we may be pinging before the server is ready so
-      // we also ignore errors associated with ping.
+      // In the shutdown and ping cases we simply return a false success status,
+      // because in the shutdown case, the socket may be closed before  we
+      // read the response, and in the ping case, the server may not be
+      // ready yet and the caller will retry the ping.
       if (
         requestObject.command == vcastCommandType.shutdown ||
         requestObject.command == vcastCommandType.ping
       ) {
         transmitResponse.success = false;
       } else {
+        // For all other communication errors, we terminate server mode
         let errorText = error.message.split("reason:")[1].trim();
         // for some reason, when the server is down, the reason is blank
         // so we insert a generic message in this case.
@@ -247,7 +257,8 @@ export async function transmitCommand(
         transmitResponse.success = false;
         transmitResponse.statusText = `Enviro server error: ${errorDetails}, disabling server mode for this session`;
 
-        // this callback will display an error message and update the test pane, etc.
+        // this callback will shutdown the server, display an error message
+        // and update the test pane, etc.
         terminateServerProcessing(errorDetails);
       }
     });
