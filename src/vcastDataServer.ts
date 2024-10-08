@@ -39,12 +39,14 @@ async function terminateServerProcessing(errorText: string) {
   // stop the server, refresh the test pane, and display
   // a pop up error message to tell the user we have fallen
   // back to non server mode.
+
+  const errorMessage = `Fatal VectorCAST Data Server error, disabling server mode for this session.\n   [${errorText}]`;
+  vectorMessage(errorMessage);
+
   await stopServer();
 
   refreshAllExtensionData();
 
-  const errorMessage = `Fatal VectorCAST Data Server Error:  [${errorText}].  `;
-  vectorMessage(errorMessage);
   vscode.window.showErrorMessage(
     errorMessage +
       "Disabling Server Mode for this Session.  " +

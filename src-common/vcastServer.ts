@@ -83,11 +83,11 @@ export function setTerminateServerCallback(callback: any) {
  * @testing This function is exported for testing purposes only.
  * It indirectly calls terminateServerProcessing() in the core extension case.
  */
-export function terminateServerProcessing(errorText: string) {
+export async function terminateServerProcessing(errorText: string) {
   // this function indirectly calls terminateServerProcessing()
   // in the core extension case.
   if (terminateServerCallback) {
-    terminateServerCallback(errorText);
+    await terminateServerCallback(errorText);
   }
 }
 
@@ -175,6 +175,7 @@ export async function transmitCommand(
 ) {
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
+
   const urlToUse = `${serverURL()}/${route}?request=${dataAsString}`;
   logServerCommand(
     `Sending command: "${requestObject.command}" to server: ${serverURL()},`
@@ -220,7 +221,7 @@ export async function transmitCommand(
         // fall back to non-server mode
         setGLobalServerState(false);
         // this callback will display an error message and update the test pane
-        terminateServerProcessing(transmitResponse.statusText);
+        await terminateServerProcessing(transmitResponse.statusText);
         //
         // else the command was successful so we return the data
       } else {
@@ -235,7 +236,7 @@ export async function transmitCommand(
     })
     //
     // if there is a communication error with the server it gets caught here
-    .catch((error) => {
+    .catch(async (error) => {
       // In the shutdown and ping cases we simply return a false success status,
       // because in the shutdown case, the socket may be closed before  we
       // read the response, and in the ping case, the server may not be
@@ -251,15 +252,15 @@ export async function transmitCommand(
         // for some reason, when the server is down, the reason is blank
         // so we insert a generic message in this case.
         if (errorText.length === 0) {
-          errorText = "Server is not running";
+          errorText = `cannot communicate with server on port: ${SERVER_PORT}`;
         }
         let errorDetails = `command: ${requestObject.command}, error: ${errorText}`;
         transmitResponse.success = false;
-        transmitResponse.statusText = `Enviro server error: ${errorDetails}, disabling server mode for this session`;
+        transmitResponse.statusText = `Enviro server error: ${errorDetails}`;
 
         // this callback will shutdown the server, display an error message
         // and update the test pane, etc.
-        terminateServerProcessing(errorDetails);
+        await terminateServerProcessing(errorDetails);
       }
     });
   return transmitResponse;
