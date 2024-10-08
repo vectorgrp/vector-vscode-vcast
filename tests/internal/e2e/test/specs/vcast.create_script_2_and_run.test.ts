@@ -171,7 +171,7 @@ describe("vTypeCheck VS Code Extension", () => {
     });
   });
 
-  it("should verify no coverage in status bar when opening quotes_example.cpp. ", async () => {
+  it("should verify no coverage in status bar when opening uninstrumented quotes_example.cpp. ", async () => {
     await updateTestID();
 
     const workbench = await browser.getWorkbench();
@@ -195,10 +195,6 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(statusBarInfos.includes("Coverage:")).toBe(false);
     expect(statusBarInfos.includes("No Coverage Data")).toBe(false);
     expect(statusBarInfos.includes("Coverage Out of Date")).toBe(false);
-
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
   });
 
   it("should verify no coverage in status bar after opening and closing manager.cpp. ", async () => {
