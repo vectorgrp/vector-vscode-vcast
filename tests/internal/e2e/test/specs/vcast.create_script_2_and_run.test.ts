@@ -191,7 +191,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Verifying absence of coverage status for quotes_example.");
 
-    // Verifying that there is no coverage status for quotes_example
+    // Verifying that there is no coverage status for quotes_example as it not instrumented
     expect(statusBarInfos.includes("Coverage:")).toBe(false);
     expect(statusBarInfos.includes("No Coverage Data")).toBe(false);
     expect(statusBarInfos.includes("Coverage Out of Date")).toBe(false);
