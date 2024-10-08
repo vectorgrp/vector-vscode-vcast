@@ -36,9 +36,9 @@ let serverStatusBarObject: vscode.StatusBarItem;
 async function terminateServerProcessing(errorText: string) {
   // This functions gets called by server transmitCommand()
   // when there is a fatal server error.  In this case, we
-  // display a pop up error message, update the test pane
-
-  // stop the server process
+  // stop the server, refresh the test pane, and display
+  // a pop up error message to tell the user we have fallen
+  // back to non server mode.
   await stopServer();
 
   refreshAllExtensionData();

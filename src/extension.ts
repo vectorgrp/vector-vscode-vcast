@@ -704,9 +704,7 @@ async function installPreActivationEventHandlers(
       ) {
         updateUnitTestLocationOption();
       } else if (
-        event.affectsConfiguration(
-          "vectorcastTestExplorer.useDataServer"
-        )
+        event.affectsConfiguration("vectorcastTestExplorer.useDataServer")
       ) {
         initializeServerState();
       } else if (
@@ -760,10 +758,10 @@ async function installPreActivationEventHandlers(
 }
 
 // this method is called when your extension is deactivated
-export async function deactivate() { 
+export async function deactivate() {
   await serverProcessController(serverStateType.stopped);
-  // delete the server log if it exists 
-  await deleteServerLog ();
+  // delete the server log if it exists
+  await deleteServerLog();
   console.log("The VectorCAST Test Explorer has been de-activated");
   return deactivateLanguageServerClient();
 }
