@@ -43,7 +43,12 @@ export function setServerPort(port: number) {
  * Returns the server URL used in API calls.
  */
 export function serverURL() {
-  let SERVER_HOST = "localhost";
+  //
+  // Using localhost here resulted in the language server not being
+  // able to connect to the data server on some of our Linux machines.
+  // It seems that this could be a problme with IPv4 vs IPv6, resolution
+  // so for now we are using 127* which forces IPv4.
+  let SERVER_HOST = "127.0.0.1";
 
   return `http://${SERVER_HOST}:${SERVER_PORT}`;
 }
