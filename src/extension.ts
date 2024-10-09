@@ -68,6 +68,16 @@ import {
 } from "./vcastAdapter";
 
 import {
+  deleteServerLog,
+  displayServerLog,
+  initializeVcastDataServer,
+  initializeServerState,
+  serverProcessController,
+  serverStateType,
+  toggleDataServerState,
+} from "./vcastDataServer";
+
+import {
   checkIfInstallationIsOK,
   configurationFile,
   launchFile,
@@ -172,6 +182,8 @@ async function activationLogic(context: vscode.ExtensionContext) {
   // initialize the gutter decorator for testable functions
   initializeTestDecorator(context);
 
+  await initializeVcastDataServer();
+
   // initialize the test pane
   activateTestPane(context);
 
@@ -194,6 +206,24 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(toggleCoverageCommand);
+
+  // Command: vectorcastTestExplorer.toggleVcastServerState ////////////////////////////////////////////////
+  let toggleDataServerCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.toggleVcastServerState",
+    async () => {
+      await toggleDataServerState();
+    }
+  );
+  context.subscriptions.push(toggleDataServerCommand);
+
+  // Command: vectorcastTestExplorer.displayServerLog ////////////////////////////////////////////////
+  let displayServerLogCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.displayServerLog",
+    () => {
+      displayServerLog();
+    }
+  );
+  context.subscriptions.push(displayServerLogCommand);
 
   // Command: vectorcastTestExplorer.viewResults////////////////////////////////////////////////////////
   let viewResultsCommand = vscode.commands.registerCommand(
@@ -674,6 +704,10 @@ async function installPreActivationEventHandlers(
       ) {
         updateUnitTestLocationOption();
       } else if (
+        event.affectsConfiguration("vectorcastTestExplorer.useDataServer")
+      ) {
+        initializeServerState();
+      } else if (
         event.affectsConfiguration(
           "vectorcastTestExplorer.vectorcastInstallationLocation"
         )
@@ -681,7 +715,13 @@ async function installPreActivationEventHandlers(
         // if the user changes the path to vcast, we need to reset the values
         // for clicast and vpython path etc.
         if (await checkIfInstallationIsOK()) {
+          await initializeServerState();
           refreshAllExtensionData();
+        } else {
+          // this will remove the status bar icon and shutdown the server
+          // it needs to be in both sides of the if because we want it to run
+          // before the "refreshAllExtensionData" call in the TRUE case.
+          await initializeServerState();
         }
       }
     }
@@ -694,6 +734,7 @@ async function installPreActivationEventHandlers(
       // this call will check if the new value is valid,
       // and if so, perform extension activation
       await checkPrerequisites(context);
+      await initializeServerState();
     }
   });
 
@@ -717,7 +758,10 @@ async function installPreActivationEventHandlers(
 }
 
 // this method is called when your extension is deactivated
-export function deactivate() {
+export async function deactivate() {
+  await serverProcessController(serverStateType.stopped);
+  // delete the server log if it exists
+  await deleteServerLog();
   console.log("The VectorCAST Test Explorer has been de-activated");
   return deactivateLanguageServerClient();
 }

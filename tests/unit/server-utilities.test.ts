@@ -6,7 +6,7 @@ import {
   convertKind,
   getPieceAtColumn,
   getEnviroNameFromTestScript,
-} from "../../server/serverUtilities";
+} from "../../langServer/serverUtilities";
 
 const timeout = 30_000; // 30 seconds
 

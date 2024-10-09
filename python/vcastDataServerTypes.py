@@ -3,7 +3,11 @@ from enum import Enum
 
 
 HOST = "localhost"  # The server's hostname or IP address
-PORT = 60461  # The port used by the server anything > 1023 is OK
+# The port will be automatically chosen by the server on
+# startup, and echoed to stdout.
+#
+# The client must use this same port number
+PORT = 0
 
 
 class errorCodes(str, Enum):
@@ -102,4 +106,4 @@ def processPortArg(args):
         if providedPORT.isdigit():
             PORT = int(providedPORT)
         else:
-            print(f"Provided --port value: '{providedPORT}' is not a number, ignoring")
+            print(f"Provided --port value: '{providedPORT}' is not a number")

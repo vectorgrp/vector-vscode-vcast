@@ -71,7 +71,7 @@ function addDecorations(
 
 // Global Data for code coverage ////////////////////////////////////
 let coverageOn: boolean = false;
-let globalStatusBarObject: vscode.StatusBarItem;
+let coverageStatusBarObject: vscode.StatusBarItem;
 /////////////////////////////////////////////////////////////////////
 
 function resetGlobalDecorations() {
@@ -99,7 +99,7 @@ export function updateCOVdecorations() {
     const coverageData = getCoverageDataForFile(filePath);
 
     if (coverageData.statusString.length > 0) {
-      globalStatusBarObject.text = coverageData.statusString;
+      coverageStatusBarObject.text = coverageData.statusString;
       resetGlobalDecorations();
     } else {
       // there is data to display
@@ -131,12 +131,12 @@ export function updateCOVdecorations() {
       if (coverable == 0) percentage = 0;
       else percentage = Math.round((covered / coverable) * 100);
       const statusBarText = `Coverage: ${covered}/${coverable} (${percentage}%)`;
-      globalStatusBarObject.text = statusBarText;
-      globalStatusBarObject.show();
+      coverageStatusBarObject.text = statusBarText;
+      coverageStatusBarObject.show();
     }
-    globalStatusBarObject.show();
+    coverageStatusBarObject.show();
   } else {
-    globalStatusBarObject.hide();
+    coverageStatusBarObject.hide();
   }
 }
 
@@ -144,15 +144,15 @@ function deactivateCoverage() {
   // delete all decorations
   if (uncoveredDecorationType) uncoveredDecorationType.dispose();
   if (coveredDecorationType) coveredDecorationType.dispose();
-  globalStatusBarObject.hide();
+  coverageStatusBarObject.hide();
 }
 
 export function createCoverageStatusBar() {
-  globalStatusBarObject = vscode.window.createStatusBarItem(
+  coverageStatusBarObject = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     10
   );
-  return globalStatusBarObject;
+  return coverageStatusBarObject;
 }
 
 export function toggleCoverageAction() {

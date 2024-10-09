@@ -206,7 +206,7 @@ def pingServerTest():
         assert False
     if "text" in returnData:
         responseText = returnData["text"]
-        assert responseText.startswith("clicast-path")
+        assert responseText.startswith("alive")
         print("   pingServer Test Passed")
     else:
         print(f"-- Server at {serverURL()} did not respond to ping")
@@ -467,7 +467,7 @@ def rebuildTest(clicastPath, enviroPath):
     print("   Environment Rebuild Test Passed")
 
 
-def shutdownServer():
+def sendShutdownToServer():
     try:
         # this will throw because the server process will exit
         requests.get(f"{serverURL()}/shutdown")
@@ -675,9 +675,7 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Data Server Test Client")
     parser.add_argument("--test", required=True)
-    parser.add_argument(
-        "--port", help=f"Server port number (default={vcastDataServerTypes.PORT})"
-    )
+    parser.add_argument("--port", required=True, help=f"Server port number")
     parser.add_argument(
         "--nobuild", help=f"Do not build the environment", action="store_true"
     )
@@ -746,7 +744,7 @@ def main():
     argParser = setupArgs()
     args, restOfArgs = argParser.parse_known_args()
 
-    # process port arg if it exists
+    # process port arg
     # Note that PORT gets used by function serverURL()
     vcastDataServerTypes.processPortArg(args)
 
@@ -775,7 +773,7 @@ def main():
     testString = "DEMO1|manager.Manager::PlaceOrder.Test1"
 
     if args.test == "shutdown":
-        shutdownServer()
+        sendShutdownToServer()
     elif args.test == "timing":
         timingTest(clicastPath, enviroPath)
         scalabilityTest(clicastPath)

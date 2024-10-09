@@ -11,14 +11,14 @@ import {
   type SpyInstance,
   beforeEach,
 } from "vitest";
-import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
-import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getEnviroNameFromTestScript } from "../../langServer/serverUtilities";
+import { getCodedTestCompletionData } from "../../langServer/ctCompletions";
 import {
   choiceKindType,
-  generateDiagnositicForTest,
+  generateDiagnosticForTest,
   getChoiceData,
-} from "../../server/pythonUtilities";
-import { setServerState } from "../../src-common/vcastServer";
+} from "../../langServer/pythonUtilities";
+import { setGLobalServerState } from "../../src-common/vcastServer";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
@@ -290,7 +290,7 @@ describe("Testing pythonUtilities (valid)", () => {
         statusText: "success",
       });
 
-      setServerState(true);
+      setGLobalServerState(true);
 
       const unitTst = ``;
       const lineToComplete = "// vmock";
@@ -325,7 +325,7 @@ describe("Testing pythonUtilities (valid)", () => {
         throw new Error("Failed to fetch: reason: Server down");
       });
 
-      setServerState(true);
+      setGLobalServerState(true);
 
       const lineToComplete = "// vmock";
       const envName = "vcast";
@@ -376,7 +376,7 @@ describe("Testing pythonUtilities (valid)", () => {
     const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
 
     // Function under test
-    generateDiagnositicForTest(
+    generateDiagnosticForTest(
       connection,
       "Test message",
       "file:///path/to/document",
@@ -399,7 +399,7 @@ const validateCodedTestCompletion = async (
 ) => {
   // Apply mock if provided
   if (mockOptions) {
-    const pythonUtilities = await import("../../server/pythonUtilities");
+    const pythonUtilities = await import("../../langServer/pythonUtilities");
     vi.spyOn(pythonUtilities, "getChoiceData").mockReturnValue(
       mockOptions.mockReturnValue
     );
