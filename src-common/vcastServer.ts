@@ -263,8 +263,10 @@ export async function transmitCommand(
         transmitResponse.success = false;
         transmitResponse.statusText = `Enviro server error: ${errorDetails}`;
 
-        // this callback will shutdown the server, display an error message
-        // and update the test pane, etc.
+        // In the core extension, this callback will shutdown the
+        // server, display an error message and update the test pane, etc.
+        // For the language server, this callback is not set so currently
+        // nothing happens.
         await terminateServerProcessing(errorDetails);
       }
     });
