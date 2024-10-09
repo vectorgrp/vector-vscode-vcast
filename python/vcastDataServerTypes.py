@@ -2,11 +2,10 @@ from collections import OrderedDict
 from enum import Enum
 
 
-HOST = "localhost"  # The server's hostname or IP address
+HOST = "localhost"
 # The port will be automatically chosen by the server on
-# startup, and echoed to stdout.
-#
-# The client must use this same port number
+# startup and stored here, as well as echo'd to stdout
+# The test client will set this via the --port arg
 PORT = 0
 
 
