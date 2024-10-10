@@ -99,7 +99,7 @@ export function updateCOVdecorations() {
     const coverageData = getCoverageDataForFile(filePath);
 
     if (coverageData.hasCoverageData) {
-      // there is data to display
+      // there is coverage data and it matches the file checksum
       // Reset the global decoration arrays
       resetGlobalDecorations();
 
@@ -125,19 +125,26 @@ export function updateCOVdecorations() {
       const covered = coveredDecorations.length;
       const coverable = covered + uncoveredDecorations.length;
       let percentage: number;
-      if (coverable == 0) percentage = 0;
-      else percentage = Math.round((covered / coverable) * 100);
+      if (coverable == 0) {
+        percentage = 0;
+      } else {
+        percentage = Math.round((covered / coverable) * 100);
+      }
       const statusBarText = `Coverage: ${covered}/${coverable} (${percentage}%)`;
       globalStatusBarObject.text = statusBarText;
       globalStatusBarObject.show();
+
     } else if (coverageData.statusString.length > 0) {
+      // this handles the case where coverage is out of date (for example)
       globalStatusBarObject.text = coverageData.statusString;
       globalStatusBarObject.show();
       resetGlobalDecorations();
     } else {
-      globalStatusBarObject.hide;
+      // we get here for C/C++ files that are not part of an environment
+      globalStatusBarObject.hide();
     }
   } else {
+    // we get here for non-C/C++ files
     globalStatusBarObject.hide();
   }
 }
