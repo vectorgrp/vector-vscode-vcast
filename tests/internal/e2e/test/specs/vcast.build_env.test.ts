@@ -6,12 +6,17 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
+  requestInLogs,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
+  let useDataServer: boolean = true;
+  if (process.env.VCAST_USE_PYTHON) {
+    useDataServer = false;
+  }
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -135,6 +140,14 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT }
     );
+
+    // Check in server logs for env creation logs
+    if (useDataServer) {
+      const logs = await requestInLogs(3, [
+        "received ping request, responding 'alive'",
+      ]);
+      expect(logs).toBe(true);
+    }
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();

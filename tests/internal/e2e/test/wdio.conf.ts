@@ -20,11 +20,6 @@ import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
 import { getSpecs } from "./specs_config";
 import { getToolVersion } from "../../../unit/getToolversion";
-import {
-  pingServer,
-  shutdownServer,
-  ServerOptions,
-} from "./test_utils/vcast_utils";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -439,15 +434,6 @@ export const config: Options.Testrunner = {
       if (toolVersion.includes("24")) {
         const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
         await executeCommand(setCoded);
-
-        // Start clicast server if required
-        if (process.env.VCAST_USE_SERVER) {
-          try {
-            await startServer(serverPath);
-          } catch (error) {
-            console.error(`Error starting server: ${error.message}`);
-          }
-        }
       }
     }
 
@@ -748,10 +734,23 @@ ENVIRO.END
 
       // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
       const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
+
+      // Check if VCAST_USE_PYTHON is defined, if so we add the setting to NOT use the server mode
+      const useDataServer = process.env.VCAST_USE_PYTHON
+        ? `"vectorcastTestExplorer.useDataServer": false`
+        : `"vectorcastTestExplorer.useDataServer": true`;
+
+      // Build the content of settings.json based on the environment
+      let settingsContent = `{ "vectorcastTestExplorer.verboseLogging": true, ${useDataServer} }`;
+
+      console.log("SETTINGS CONTENT:");
+      console.log(settingsContent);
+      // Create the settings.json file
       const createSettingsJson =
         process.platform == "win32"
-          ? `echo {"\\"vectorcastTestExplorer.verboseLogging\\": true} > ${settingsJsonPath}`
-          : `echo '{ "vectorcastTestExplorer.verboseLogging": true }' > ${settingsJsonPath}`;
+          ? `echo ${JSON.stringify(settingsContent)} > ${settingsJsonPath}`
+          : `echo '${settingsContent}' > ${settingsJsonPath}`;
+
       await executeCommand(createSettingsJson);
 
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
@@ -1001,25 +1000,6 @@ ENVIRO.END
         `cp -r ${path.join(initialWorkdir, "test", "vcastTutorial")} ${logDir}`
       );
       await promisifiedExec("pkill code");
-    }
-  },
-
-  async onComplete(exitCode, config, capabilities, results) {
-    const serverOptions: ServerOptions = {
-      hostname: "localhost",
-      port: 60461,
-      path: "/ping",
-      method: "GET",
-    };
-    // First, ping the server to check if it's still running
-    const serverAlive = await pingServer(serverOptions);
-
-    if (serverAlive) {
-      console.log("Server is alive. Attempting shutdown...");
-      await shutdownServer(serverOptions);
-      console.log("Server shutdown completed.");
-    } else {
-      console.log("Server is already down or unreachable.");
     }
   },
 

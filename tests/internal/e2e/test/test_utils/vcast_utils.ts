@@ -11,10 +11,13 @@ import {
   ContentAssist,
   ContentAssistItem,
 } from "wdio-vscode-service";
+// import * as vscode from "vscode";
+import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
 import http from "http";
+import { workspace } from "vscode";
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 180_000;
 
@@ -1251,64 +1254,54 @@ function normalizeContentAssistString(content: string): string {
 }
 
 /**
- * Pings the server to check if it is alive.
- *
- * @param {ServerOptions} options - The HTTP request options (hostname, port, path, method).
- * @returns {Promise<boolean>} - Resolves `true` if the server responds, otherwise `false`.
+ * Function to read the last 'lineNumber' lines of the log file and check if the stringArray elements are present
+ * @param lineNumber Amount of line numbers to look at starting from the end of the log file
+ * @param stringArray List of strings that need to be contained withing last |lineNNumber|
+ * @returns true, if all strings are found, else false
  */
-export async function pingServer(options: ServerOptions) {
-  return new Promise((resolve, reject) => {
-    const req = http.request(options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => {
-        data += chunk;
-      });
+export async function requestInLogs(
+  lineNumber: number,
+  stringArray: string[]
+): Promise<boolean> {
+  const workspaceFolderName = "vcastTutorial";
 
-      res.on("end", () => {
-        if (res.statusCode === 200 && data.includes("clicast-path")) {
-          console.log("Ping successful: Server is alive.");
-          resolve(true);
-        } else {
-          console.log("Ping failed: Server is not responding.");
-          resolve(false);
-        }
-      });
-    });
+  // Construct the full path to the log file
+  const workspaceRootPath = process.cwd();
+  const logFilePath = path.join(
+    workspaceRootPath,
+    "test",
+    workspaceFolderName,
+    "vcastDataServer.log"
+  );
 
-    req.on("error", (e) => {
-      console.error(`Ping request failed: ${e.message}`);
-      resolve(false); // Server might be down
-    });
+  // Read the log file
+  const logData = fs.readFileSync(logFilePath, "utf-8");
 
-    req.end();
+  // Split the log into lines and filter out empty ones
+  const logLines = logData.split("\n").filter((line) => line.trim() !== "");
+
+  // Get the last 'lineNumber' lines from the file
+  const lastLines = logLines.slice(-lineNumber);
+
+  // Check if all strings in the array are present in the last lines
+  let allStringsFound = true;
+
+  stringArray.forEach((str) => {
+    const isFound = lastLines.some((line) => line.includes(str));
+    if (!isFound) {
+      console.log(`String not found: "${str}"`);
+      allStringsFound = false;
+    }
   });
+
+  return allStringsFound; // Return true if all strings are found, otherwise false
 }
 
-/**
- * Sends a shutdown request to the server.
- *
- * @param {ServerOptions} options - The HTTP request options (hostname, port, path, method).
- * @returns {Promise<void>} - Resolves when the shutdown request completes.
- */
-export async function shutdownServer(options: any) {
-  return new Promise<void>((resolve, reject) => {
-    const req = http.request(options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => {
-        data += chunk;
-      });
-
-      res.on("end", () => {
-        console.log("Shutdown response:", data);
-        resolve();
-      });
-    });
-
-    req.on("error", (e) => {
-      console.error(`Shutdown request failed: ${e.message}`);
-      resolve();
-    });
-
-    req.end();
-  });
-}
+// Does not work... complains that it cannot find vscode even thopugh I import it... For now commented.
+// Function to check if the data server should be used based on settings
+// export async function shouldUseDataServer(): Promise<boolean> {
+//   const config = vscode.workspace.getConfiguration('vectorcastTestExplorer');
+//   // Default to true if not set
+//   const useDataServer: boolean = config.get('useDataServer', true);
+//   return useDataServer;
+// }

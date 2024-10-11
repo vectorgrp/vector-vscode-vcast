@@ -15,6 +15,7 @@ import {
   findSubprogramMethod,
   editTestScriptFor,
   updateTestID,
+  requestInLogs,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -23,6 +24,10 @@ describe("vTypeCheck VS Code Extension", () => {
   let workbench: Workbench;
   let editorView: EditorView;
   let statusBar: StatusBar;
+  let useDataServer: boolean = true;
+  if (process.env.VCAST_USE_PYTHON) {
+    useDataServer = false;
+  }
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -168,11 +173,21 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.executeWorkbench((vscode) => {
       vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
     });
+
+    // Check for server logs when loading scripts
+    if (useDataServer) {
+      const expectedLoadScriptLogs = [
+        "received client request: runClicastCommand",
+        "commandString: -eDATABASE-MANAGER -umanager -sManager::PlaceOrder test script create",
+        "server return code: 0",
+      ];
+      const loadScriptLog = await requestInLogs(8, expectedLoadScriptLogs);
+      expect(loadScriptLog).toBe(true);
+    }
   });
 
   it("should run myFirstTest and check its report", async () => {
     await updateTestID();
-
     console.log("Looking for Manager::PlaceOrder in the test tree");
 
     const vcastTestingViewContent = await getViewContent("Testing");
@@ -210,6 +225,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await workbench.getAllWebviews()).length > 0,
       { timeout: TIMEOUT }
     );
+
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
     const webview = webviews[0];
@@ -265,6 +281,134 @@ describe("vTypeCheck VS Code Extension", () => {
         return line.includes("Setting webview text");
       })
     ).not.toBe(undefined);
+
+    // Check for server logs when running tests
+
+    if (useDataServer) {
+      const outputView = await bottomBar.openOutputView();
+
+      /*******************************************************
+       *                Server On + Run Tests                *
+       *******************************************************/
+      console.log("Checking test run logic for Sever mode.");
+      const expectedRunTestsLogs = [
+        "received client request: executeTest",
+        "commandString: -lc -eDATABASE-MANAGER -umanager -sManager::PlaceOrder -tmyFirstTest execute run",
+        "server return code: 0",
+        "received client request: report for",
+      ];
+      const runTestsLog = await requestInLogs(22, expectedRunTestsLogs);
+      expect(runTestsLog).toBe(true);
+
+      statusBar = workbench.getStatusBar();
+
+      await browser.waitUntil(
+        async () => (await statusBar.getItems()).includes("vDataServer On"),
+        { timeout: TIMEOUT }
+      );
+
+      /*******************************************************
+       *               Server Off + Run Tests                *
+       *******************************************************/
+      console.log("Turning Server off");
+      await (await statusBar.getItem("vDataServer On")).click();
+
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("VectorCAST Data Server exited successfully"),
+        { timeout: TIMEOUT }
+      );
+
+      await browser.waitUntil(
+        async () => (await statusBar.getItems()).includes("vDataServer Off"),
+        { timeout: TIMEOUT }
+      );
+
+      const expectedServerOfflineLogs = [
+        " received shutdown request",
+        "vcastDataServer is exiting",
+      ];
+      const serverOfflineLog = await requestInLogs(
+        5,
+        expectedServerOfflineLogs
+      );
+      expect(serverOfflineLog).toBe(true);
+
+      // Run test again
+      await (await (await testHandle.getActionButton("Run Test")).elem).click();
+
+      await outputView.clearText();
+
+      // Let the run finish before changing the server state again
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Processing environment data for:"),
+        { timeout: TIMEOUT }
+      );
+
+      // No new logs should be there ebcasue we shutdown the server --> check for the same logs
+      const runTestsLogAfterSettingOffline = await requestInLogs(
+        5,
+        expectedServerOfflineLogs
+      );
+      expect(runTestsLogAfterSettingOffline).toBe(true);
+
+      /*******************************************************
+       *             Server On again + Run Tests             *
+       *******************************************************/
+
+      console.log("Turning Server on again.");
+
+      await (await statusBar.getItem("vDataServer Off")).click();
+
+      // Check message pane for expected message
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Started VectorCAST Data Server"),
+        { timeout: TIMEOUT }
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Server startup logs
+      const expectedServerOnlineLogs = [
+        "port:",
+        "clicast:",
+        "received ping request, responding 'alive'",
+      ];
+      const serverOnlineLog = await requestInLogs(3, expectedServerOnlineLogs);
+      expect(serverOnlineLog).toBe(true);
+
+      // Run test again
+      await (await (await testHandle.getActionButton("Run Test")).elem).click();
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Setting webview text"),
+        { timeout: TIMEOUT }
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Server is now online again --> We should see the same logs as before
+      const runTestsLogAfterSettingOnline = await requestInLogs(
+        22,
+        expectedRunTestsLogs
+      );
+      expect(runTestsLogAfterSettingOnline).toBe(true);
+
+      // We need to close the report at the end because otherwise manager.cpp will be opened on the second
+      // editor page which then makes us not find manager.cpp
+      await webview.close();
+      await editorView.closeEditor("VectorCAST Report", 1);
+    }
   });
 
   it("should verify coverage indicators for manager.cpp", async () => {

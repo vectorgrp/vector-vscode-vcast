@@ -19,6 +19,7 @@ export function getSpecGroups(useVcast24: boolean) {
       ],
       env: {
         WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
+        VCAST_USE_PYTHON: "True",
       },
       params: {},
     },
@@ -30,6 +31,7 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
         VECTORCAST_DIR: "",
+        VCAST_USE_PYTHON: "True",
       },
       params: {
         vcReleaseOnPath: false,
@@ -40,6 +42,7 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         VECTORCAST_DIR: `/vcast/release23:${process.env.HOME}/vcast/release23`,
         BUILD_MULTIPLE_ENVS: "True",
+        VCAST_USE_PYTHON: "True",
       },
       params: {},
     },
@@ -48,12 +51,12 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_bugs.test.ts",
         "./**/**/vcast_testgen_bugs_2.test.ts",
       ],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     },
     flask_icon: {
       specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     },
     func_basis: {
@@ -61,7 +64,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_func_basis.test.ts",
         "./**/**/vcast_testdel_func_basis.test.ts",
       ],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     },
     unit_basis: {
@@ -69,7 +72,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_unit_basis.test.ts",
         "./**/**/vcast_testdel_unit_basis.test.ts",
       ],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     },
     env_basis: {
@@ -77,18 +80,27 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_env_basis.test.ts",
         "./**/**/vcast_testdel_env_basis.test.ts",
       ],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     },
   };
 
   if (useVcast24) {
+    // ********* UNDER CONSTRUCTION **********
+    // specGroups["server_specifics"] = {
+    //   specs: [
+    //     "./**/**/vcast_server_specifics.test.ts",
+    //   ],
+    //   env: {VCAST_USE_PYTHON: "True",},
+    //   params: {VECTORCAST_DIR: `/vcast/release24sp2:${process.env.HOME}/vcast/release24sp2`},
+    // };
+
     specGroups["func_atg"] = {
       specs: [
         "./**/**/vcast_testgen_func_atg.test.ts",
         "./**/**/vcast_testdel_func_atg.test.ts",
       ],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
 
@@ -97,7 +109,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_unit_atg.test.ts",
         "./**/**/vcast_testdel_unit_atg.test.ts",
       ],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
 
@@ -106,19 +118,19 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_env_atg.test.ts",
         "./**/**/vcast_testdel_env_atg.test.ts",
       ],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
 
     specGroups["coded_tests"] = {
       specs: ["./**/**/vcast_coded_tests.test.ts"],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
 
     specGroups["coded_mock"] = {
       specs: ["./**/**/vcast_coded_test_completion.test.ts"],
-      env: {},
+      env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
 
@@ -136,7 +148,6 @@ export function getSpecGroups(useVcast24: boolean) {
       ],
       env: {
         WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
-        VCAST_USE_SERVER: "True",
       },
       params: {},
     };
@@ -148,7 +159,6 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
         VECTORCAST_DIR: "",
-        VCAST_USE_SERVER: "True",
       },
       params: {
         vcReleaseOnPath: false,
@@ -159,7 +169,6 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         VECTORCAST_DIR: `/vcast/release23:${process.env.HOME}/vcast/release23`,
         BUILD_MULTIPLE_ENVS: "True",
-        VCAST_USE_SERVER: "True",
       },
       params: {},
     };
@@ -168,12 +177,12 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_bugs.test.ts",
         "./**/**/vcast_testgen_bugs_2.test.ts",
       ],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
     specGroups["flask_icon_server"] = {
       specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
     specGroups["func_basis_server"] = {
@@ -181,7 +190,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_func_basis.test.ts",
         "./**/**/vcast_testdel_func_basis.test.ts",
       ],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
     specGroups["unit_basis_server"] = {
@@ -189,7 +198,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_unit_basis.test.ts",
         "./**/**/vcast_testdel_unit_basis.test.ts",
       ],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
     specGroups["env_basis_server"] = {
@@ -197,13 +206,13 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_env_basis.test.ts",
         "./**/**/vcast_testdel_env_basis.test.ts",
       ],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
 
     specGroups["import_coded_test_server"] = {
       specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
-      env: { IMPORT_CODED_TEST_IN_TST: "True", VCAST_USE_SERVER: "True" },
+      env: { IMPORT_CODED_TEST_IN_TST: "True" },
       params: {},
     };
 
@@ -212,7 +221,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_func_atg.test.ts",
         "./**/**/vcast_testdel_func_atg.test.ts",
       ],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
 
@@ -221,7 +230,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_unit_atg.test.ts",
         "./**/**/vcast_testdel_unit_atg.test.ts",
       ],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
 
@@ -230,25 +239,25 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testgen_env_atg.test.ts",
         "./**/**/vcast_testdel_env_atg.test.ts",
       ],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
 
     specGroups["coded_tests_server"] = {
       specs: ["./**/**/vcast_coded_tests.test.ts"],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
 
     specGroups["coded_mock_server"] = {
       specs: ["./**/**/vcast_coded_test_completion.test.ts"],
-      env: { VCAST_USE_SERVER: "True" },
+      env: {},
       params: {},
     };
 
     specGroups["import_coded_test_server"] = {
       specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
-      env: { IMPORT_CODED_TEST_IN_TST: "True", VCAST_USE_SERVER: "True" },
+      env: { IMPORT_CODED_TEST_IN_TST: "True" },
       params: {},
     };
   }
