@@ -1286,6 +1286,9 @@ export async function requestInLogs(
   // Check if all strings in the array are present in the last lines
   let allStringsFound = true;
 
+  console.log("Lines looked at in the log:");
+  console.log(lastLines);
+
   stringArray.forEach((str) => {
     const isFound = lastLines.some((line) => line.includes(str));
     if (!isFound) {
