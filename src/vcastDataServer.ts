@@ -145,6 +145,9 @@ async function startServer() {
   vectorMessage("Trying to start the server.")
   serverProcessObject.stdout.on("data", function (data: any) {
     const rawString = data.toString();
+    vectorMessage("Logging server data string (stdout):")
+    vectorMessage(rawString)
+    
     const lineArray = rawString.split(/[\n\r?]/);
     for (const line of lineArray) {
       // listen to the stdout to retrieve the port number
@@ -165,6 +168,11 @@ async function startServer() {
         }
       }
     }
+  });
+  serverProcessObject.stderr.on("data", function (data: any) {
+    const rawString = data.toString();
+    vectorMessage("Logging server error (stderr):")
+    vectorMessage(rawString)
   });
 
   serverProcessObject.on("exit", function (exitCode: any) {
