@@ -38,6 +38,10 @@ export function setServerPort(port: number) {
   SERVER_PORT = port;
 }
 
+export function getServerPort() {
+  return SERVER_PORT;
+}
+
 /**
  * @testing This function is exported for testing purposes only.
  * Returns the server URL used in API calls.
@@ -62,6 +66,10 @@ export let globalEnviroDataServerActive: boolean = false;
 
 export function setGLobalServerState(newState: boolean) {
   globalEnviroDataServerActive = newState;
+}
+
+export function getGLobalServerState() {
+  return globalEnviroDataServerActive;
 }
 
 // To allow us to update the test pane when we have a server
