@@ -143,6 +143,7 @@ async function startServer() {
     cwd: serverCWD,
   });
   vectorMessage("Trying to start the server.")
+  await new Promise((resolve) => setTimeout(resolve, 10000));
   serverProcessObject.stdout.on("data", function (data: any) {
     const rawString = data.toString();
     vectorMessage("Logging server data string (stdout):")
