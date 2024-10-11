@@ -96,6 +96,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
     await configFile.openContextMenu();
     await (await $("aria/Set as VectorCAST Configuration File")).click();
+
+    // Check if server started
+    if (useDataServer) {
+      const logs = await requestInLogs(3, ["port:", "clicast"]);
+      expect(logs).toBe(true);
+    }
   });
 
   it("should create VectorCAST environment", async () => {
@@ -140,14 +146,6 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT }
     );
-
-    // Check in server logs for env creation logs
-    if (useDataServer) {
-      const logs = await requestInLogs(3, [
-        "received ping request, responding 'alive'",
-      ]);
-      expect(logs).toBe(true);
-    }
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
