@@ -10,6 +10,12 @@ import {
   setTerminateServerCallback,
   transmitCommand,
   vcastCommandType,
+  terminateServerProcessing,
+  sendShutdownToServer,
+  globalEnviroDataServerActive,
+  setServerPort,
+  getGLobalServerState,
+  getServerPort,
 } from "../../src-common/vcastServer";
 import { pythonErrorCodes } from "../../src-common/vcastServerTypes";
 
@@ -33,7 +39,7 @@ const mockFetch = (
   status = 200,
   statusText = "OK"
 ) => {
-  fetch.mockImplementationOnce(
+  fetch.mockImplementation(
     async () =>
       new Response(JSON.stringify(responseBody), {
         status,
@@ -48,7 +54,6 @@ describe("test server functions", () => {
     setGLobalServerState(false);
   });
 
-  // Testing closeConnection()
   test("closeConnection handles successful response", async () => {
     const fetchReturn = {
       exitCode: 0,
@@ -60,7 +65,7 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(true);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/runcommand?request={"command":"closeConnection","path":"test/path"}'
+      'http://localhost:0/runcommand?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
@@ -77,11 +82,10 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/runcommand?request={"command":"closeConnection","path":"test/path"}'
+      'http://localhost:0/runcommand?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
-  // Testing serverIsAlive()
   test("serverIsAlive handles successful response", async () => {
     const fetchReturn = {
       exitCode: 0,
@@ -94,7 +98,7 @@ describe("test server functions", () => {
     const result = await serverIsAlive();
     expect(result).toBe(true);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/ping?request={"command":"ping","path":""}'
+      'http://localhost:0/ping?request={"command":"ping","path":""}'
     );
   });
 
@@ -111,7 +115,7 @@ describe("test server functions", () => {
     const result = await serverIsAlive();
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/ping?request={"command":"ping","path":""}'
+      'http://localhost:0/ping?request={"command":"ping","path":""}'
     );
   });
 
@@ -126,11 +130,11 @@ describe("test server functions", () => {
     const result = await serverIsAlive();
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/ping?request={"command":"ping","path":""}'
+      'http://localhost:0/ping?request={"command":"ping","path":""}'
     );
   });
 
-  test("transmitCommand handles fetch errors with empty reason correctly", async () => {
+  test("transmitCommand handles exitCode 254 response correctly", async () => {
     // Mock the callbacks
     const mockTerminateCallback = vi.fn();
     const mockLogServerCommandsCallback = vi.fn();
@@ -139,10 +143,13 @@ describe("test server functions", () => {
     setTerminateServerCallback(mockTerminateCallback);
     setLogServerCommandsCallback(mockLogServerCommandsCallback);
 
-    const errorMessage = "Network error reason: ";
-    fetch.mockImplementationOnce(async () => {
-      throw new Error(errorMessage);
-    });
+    // Prepare the mock response for exitCode 254
+    const fetchReturn = {
+      exitCode: pythonErrorCodes.internalServerError,
+      data: {},
+    };
+
+    mockFetch(fetchReturn);
 
     const requestObject = {
       command: vcastCommandType.ping,
@@ -153,11 +160,8 @@ describe("test server functions", () => {
 
     // Check fetch call
     expect(response.success).toBe(false);
-    expect(response.statusText).toBe(
-      `Enviro server error: Server is not running, disabling server mode for this session`
-    );
     expect(fetch).toHaveBeenCalledWith(
-      `http://localhost:60461/runcommand?request=${JSON.stringify(requestObject)}`
+      `http://localhost:0/runcommand?request=${JSON.stringify(requestObject)}`
     );
 
     // Check if logServerCommandsCallback was called with the correct message
@@ -166,7 +170,106 @@ describe("test server functions", () => {
       expectedLogMessage
     );
 
-    // Check if the mock function got called in transmitCommand
+    terminateServerProcessing("Error string");
+
+    // Verify that the terminate callback is triggered
     expect(mockTerminateCallback).toHaveBeenCalledOnce();
+    expect(mockTerminateCallback).toHaveBeenCalledWith("Error string");
+  });
+
+  test("setGLobalServerState should update globalEnviroDataServerActive", () => {
+    expect(globalEnviroDataServerActive).toBe(false);
+    setGLobalServerState(true);
+    const newGlobalState = getGLobalServerState();
+    expect(newGlobalState).toBe(true);
+  });
+
+  test("serverIsAlive should log retry messages and timeout if server isn't ready", async () => {
+    const mockLogCallback = vi.fn();
+    setLogServerCommandsCallback(mockLogCallback);
+
+    // Simulate server not being ready by returning failure initially
+    const fetchReturn = {
+      exitCode: pythonErrorCodes.couldNotStartClicastInstance,
+      data: {},
+    };
+    mockFetch(fetchReturn);
+
+    const result = await serverIsAlive();
+
+    // Expect server to have failed after retrying
+    expect(result).toBe(false);
+
+    // Ensure retry log messages were printed
+    expect(mockLogCallback).toHaveBeenCalledWith(
+      "Server not ready, waiting 200ms ..."
+    );
+    expect(mockLogCallback).toHaveBeenCalledWith(
+      "Server timed out on startup, did not answer ping"
+    );
+  });
+
+  test("transmitCommand should handle fetch error with empty reason correctly (TextLength = 0)", async () => {
+    // Mock the callbacks
+    const mockTerminateCallback = vi.fn();
+    const mockLogServerCommandsCallback = vi.fn();
+
+    // Set the callbacks with mock functions
+    setTerminateServerCallback(mockTerminateCallback);
+    setLogServerCommandsCallback(mockLogServerCommandsCallback);
+
+    // Simulate empty reason
+    const errorMessage = "Network error reason: ";
+    fetch.mockImplementationOnce(async () => {
+      throw new Error(errorMessage);
+    });
+
+    // Any command other than ping or shutdown
+    const requestObject = {
+      command: vcastCommandType.rebuild,
+      path: "",
+    };
+
+    const response = await transmitCommand(requestObject);
+
+    // Check fetch call
+    expect(response.success).toBe(false);
+    expect(response.statusText).toBe(
+      `Enviro server error: command: rebuild, error: cannot communicate with server on port: 0`
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      `http://localhost:0/runcommand?request=${JSON.stringify(requestObject)}`
+    );
+
+    // Check if logServerCommandsCallback was called with the correct message
+    const expectedLogMessage = `Sending command: "${requestObject.command}" to server: http://localhost:0,`;
+    expect(mockLogServerCommandsCallback).toHaveBeenCalledWith(
+      expectedLogMessage
+    );
+
+    // Check if the terminate callback was called due to the error
+    expect(mockTerminateCallback).toHaveBeenCalledOnce();
+  });
+
+  test("should change port number and sendShutdownToServer should send shutdown command", async () => {
+    // Port number does not matter as we mock the server fetch
+    // We just want to test the Port set function here
+    setServerPort(69);
+    const newServerPort = getServerPort();
+
+    expect(newServerPort).toBe(69);
+
+    const fetchReturn = {
+      exitCode: 0,
+      data: {},
+    };
+    mockFetch(fetchReturn);
+
+    await sendShutdownToServer();
+
+    // Important: Check with new port
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:69/shutdown?request={"command":"shutdown","path":""}'
+    );
   });
 });
