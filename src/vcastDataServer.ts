@@ -142,7 +142,7 @@ async function startServer() {
     shell: true,
     cwd: serverCWD,
   });
-
+  vectorMessage("Trying to start the server.")
   serverProcessObject.stdout.on("data", function (data: any) {
     const rawString = data.toString();
     const lineArray = rawString.split(/[\n\r?]/);
