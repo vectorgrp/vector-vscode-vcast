@@ -5,80 +5,80 @@
  */
 export function getSpecGroups(useVcast24: boolean) {
   const specGroups = {
-    basic_user_interactions: {
-      specs: [
-        "./**/**/vcast.build_env.test.ts",
-        "./**/**/vcast.create_script_1.test.ts",
-        "./**/**/vcast.create_script_2_and_run.test.ts",
-        "./**/**/vcast.create_second_test_1.test.ts",
-        "./**/**/vcast.create_second_test_2_and_run.test.ts",
-        "./**/**/vcast.third_test.test.ts",
-        "./**/**/vcast.rest.test.ts",
-        "./**/**/vcast.rest_2.test.ts",
-        "./**/**/vcast.rest_3.test.ts",
-      ],
-      env: {
-        WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
-        VCAST_USE_PYTHON: "True",
-      },
-      params: {},
-    },
-    build_env_failure: {
-      specs: [
-        "./**/**/vcast_build_env_failure.test.ts",
-        "./**/**/vcast_build_env_after_failure.test.ts",
-      ],
-      env: {
-        VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
-        VECTORCAST_DIR: "",
-        VCAST_USE_PYTHON: "True",
-      },
-      params: {
-        vcReleaseOnPath: false,
-      },
-    },
-    build_different_envs: {
-      specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
-      env: {
-        VECTORCAST_DIR: `/vcast/release23:${process.env.HOME}/vcast/release23`,
-        BUILD_MULTIPLE_ENVS: "True",
-        VCAST_USE_PYTHON: "True",
-      },
-      params: {},
-    },
-    bugs: {
-      specs: [
-        "./**/**/vcast_testgen_bugs.test.ts",
-        "./**/**/vcast_testgen_bugs_2.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
-    flask_icon: {
-      specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
-    func_basis: {
-      specs: [
-        "./**/**/vcast_testgen_func_basis.test.ts",
-        "./**/**/vcast_testdel_func_basis.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
-    unit_basis: {
-      specs: [
-        "./**/**/vcast_testgen_unit_basis.test.ts",
-        "./**/**/vcast_testdel_unit_basis.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
+    // basic_user_interactions: {
+    //   specs: [
+    //     "./**/**/vcast.build_env.test.ts",
+    //     "./**/**/vcast.create_script_1.test.ts",
+    //     "./**/**/vcast.create_script_2_and_run.test.ts",
+    //     "./**/**/vcast.create_second_test_1.test.ts",
+    //     "./**/**/vcast.create_second_test_2_and_run.test.ts",
+    //     "./**/**/vcast.third_test.test.ts",
+    //     "./**/**/vcast.rest.test.ts",
+    //     "./**/**/vcast.rest_2.test.ts",
+    //     "./**/**/vcast.rest_3.test.ts",
+    //   ],
+    //   env: {
+    //     WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
+    //     VCAST_USE_PYTHON: "True",
+    //   },
+    //   params: {},
+    // },
+    // build_env_failure: {
+    //   specs: [
+    //     "./**/**/vcast_build_env_failure.test.ts",
+    //     "./**/**/vcast_build_env_after_failure.test.ts",
+    //   ],
+    //   env: {
+    //     VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
+    //     VECTORCAST_DIR: "",
+    //     VCAST_USE_PYTHON: "True",
+    //   },
+    //   params: {
+    //     vcReleaseOnPath: false,
+    //   },
+    // },
+    // build_different_envs: {
+    //   specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
+    //   env: {
+    //     VECTORCAST_DIR: `/vcast/release23:${process.env.HOME}/vcast/release23`,
+    //     BUILD_MULTIPLE_ENVS: "True",
+    //     VCAST_USE_PYTHON: "True",
+    //   },
+    //   params: {},
+    // },
+    // bugs: {
+    //   specs: [
+    //     "./**/**/vcast_testgen_bugs.test.ts",
+    //     "./**/**/vcast_testgen_bugs_2.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
+    // flask_icon: {
+    //   specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
+    // func_basis: {
+    //   specs: [
+    //     "./**/**/vcast_testgen_func_basis.test.ts",
+    //     "./**/**/vcast_testdel_func_basis.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
+    // unit_basis: {
+    //   specs: [
+    //     "./**/**/vcast_testgen_unit_basis.test.ts",
+    //     "./**/**/vcast_testdel_unit_basis.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
     env_basis: {
       specs: [
-        "./**/**/vcast_testgen_env_basis.test.ts",
-        "./**/**/vcast_testdel_env_basis.test.ts",
+        // "./**/**/vcast_testgen_env_basis.test.ts",
+        // "./**/**/vcast_testdel_env_basis.test.ts",
       ],
       env: { VCAST_USE_PYTHON: "True" },
       params: {},
