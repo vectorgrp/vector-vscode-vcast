@@ -10,6 +10,7 @@ import {
   ViewContent,
   ContentAssist,
   ContentAssistItem,
+  BottomBarPanel,
 } from "wdio-vscode-service";
 // import * as vscode from "vscode";
 import * as fs from "fs";
@@ -1298,6 +1299,18 @@ export async function requestInLogs(
   });
 
   return allStringsFound; // Return true if all strings are found, otherwise false
+}
+
+/**
+ * Returns the last line of the outputview text.
+ * @param bottomBar vscode bottom bar element
+ * @returns The last line of the outputview
+ */
+export async function getLastLineOfOutputView(bottomBar: BottomBarPanel) {
+  const outputView = await bottomBar.openOutputView();
+  const text = await outputView.getText();
+  const lines = text.toString().split("\n");
+  return lines[lines.length - 1];
 }
 
 // Does not work... complains that it cannot find vscode even thopugh I import it... For now commented.
