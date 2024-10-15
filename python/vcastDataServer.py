@@ -241,7 +241,7 @@ def main():
 
     # start the server
     logFilePath = os.path.join(os.getcwd(), "vcastDataServer.log")
-    with open(logFilePath, "w", buffering=1) as pythonUtilities.logFileHandle:
+    with open(logFilePath, "w", buffering=0) as pythonUtilities.logFileHandle:
         findAvailablePort()
         app = init_application(logFilePath)
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)
