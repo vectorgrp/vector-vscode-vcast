@@ -45,9 +45,9 @@ def init_application(logFilePath):
         # Note: this string must match what is in vcastAdapter.ts -> startServer()
         # We prefix the string with " * " so that it matches the flask output
         print(
-            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}"
+            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}", flush=True
         )
-        print(f" * Server log file path: {logFilePath}")
+        print(f" * Server log file path: {logFilePath}", flush=True)
         logMessage(
             f"{logPrefix()} port: {vcastDataServerTypes.PORT} clicast: {pythonUtilities.globalClicastCommand}\n"
         )
