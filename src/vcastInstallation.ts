@@ -71,9 +71,25 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
     globalTestInterfacePath = `${pathToTestInterface}`;
   }
 
-  const pathToEnviroDataServer = context.asAbsolutePath(
-    "./python/vcastDataServer.py"
-  );
+  // Start with the current extension context
+  let pathToEnviroDataServer: string;
+  // Check if we're running on GitHub (e.g., in GitHub Actions or a GitHub-hosted environment)
+  if (process.env.HOME && process.env.HOME.startsWith("/github")) {
+    const fiveDirsUp = path.join(__dirname, "../../../../..");
+    pathToEnviroDataServer = path.join(
+      fiveDirsUp,
+      "python",
+      "vcastDataServer.py"
+    );
+  } else {
+    pathToEnviroDataServer = context.asAbsolutePath(
+      "./python/vcastDataServer.py"
+    );
+  }
+
+  // const pathToEnviroDataServer = context.asAbsolutePath(
+  //   "./python/vcastDataServer.py"
+  // );
   if (fs.existsSync(pathToEnviroDataServer)) {
     vectorMessage("Found vcastDataServer here: " + pathToEnviroDataServer);
     globalEnviroDataServerPath = `${pathToEnviroDataServer}`;
