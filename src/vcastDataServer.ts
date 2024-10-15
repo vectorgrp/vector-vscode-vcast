@@ -136,7 +136,7 @@ async function startServer() {
   // This does the actual work of server startup
 
   // we use spawn directly to control the detached and shell args
-  const vpythonArgs: string[] = [globalEnviroDataServerPath];
+  const vpythonArgs: string[] = ['-u', globalEnviroDataServerPath]; 
   const serverCWD = whereToStartServer();
   serverProcessObject = spawn(vPythonCommandToUse, vpythonArgs, {
     shell: true,
