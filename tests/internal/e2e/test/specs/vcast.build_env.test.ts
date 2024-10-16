@@ -96,9 +96,23 @@ describe("vTypeCheck VS Code Extension", () => {
     const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
     await configFile.openContextMenu();
     await (await $("aria/Set as VectorCAST Configuration File")).click();
+  });
+
+  it("should check for server starting logs if in server mode", async () => {
+    const outputView = await bottomBar.openOutputView();
 
     // Check if server started
     if (useDataServer) {
+      // Check message pane for expected message
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Started VectorCAST Data Server"),
+        { timeout: TIMEOUT }
+      );
+
+      // Check server logs
       const logs = await requestInLogs(3, ["port:", "clicast"]);
       expect(logs).toBe(true);
     }

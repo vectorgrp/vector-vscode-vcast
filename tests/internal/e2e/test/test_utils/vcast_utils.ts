@@ -1312,12 +1312,3 @@ export async function getLastLineOfOutputView(bottomBar: BottomBarPanel) {
   const lines = text.toString().split("\n");
   return lines[lines.length - 1];
 }
-
-// Does not work... complains that it cannot find vscode even thopugh I import it... For now commented.
-// Function to check if the data server should be used based on settings
-// export async function shouldUseDataServer(): Promise<boolean> {
-//   const config = vscode.workspace.getConfiguration('vectorcastTestExplorer');
-//   // Default to true if not set
-//   const useDataServer: boolean = config.get('useDataServer', true);
-//   return useDataServer;
-// }

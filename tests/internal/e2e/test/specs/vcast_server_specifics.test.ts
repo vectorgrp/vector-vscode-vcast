@@ -1,23 +1,11 @@
 // Test/specs/vcast.test.ts
 import process from "node:process";
 import path from "node:path";
-import {
-  type TreeItem,
-  type ViewContent,
-  ViewItem,
-  ViewSection,
-  type BottomBarPanel,
-  type Workbench,
-  type CustomTreeItem,
-  type OutputView,
-} from "wdio-vscode-service";
+import { type BottomBarPanel, type Workbench } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  getViewContent,
-  expandTopEnvInTestPane,
-  retrieveTestingTopItems,
   getLastLineOfOutputView,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
@@ -31,7 +19,6 @@ describe("vTypeCheck VS Code Extension", () => {
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
-    // Initialize the unitTestLocationSetting
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -202,6 +189,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Close all editors at the end of the test
     await workbench.getEditorView().closeAllEditors();
   });
+
   it("should set version to vc24_sp5", async () => {
     const outputView = await bottomBar.openOutputView();
     // Check if we are on CI
@@ -267,61 +255,4 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(statusBarInfos.includes("vDataServer On")).toBe(false);
     expect(statusBarInfos.includes("vDataServer Off")).toBe(false);
   });
-
-  //   it("should confirm the presence of ENV_23_01 and ENV_23_03", async () => {
-  //     await updateTestID();
-
-  //     const workbench = await browser.getWorkbench();
-  //     const activityBar = workbench.getActivityBar();
-
-  //     // Open Testing
-  //     const testingView = await activityBar.getViewControl("Testing");
-  //     await testingView?.openView();
-
-  //     await expectEnvResults("release23");
-  //   });
-
-  //   it("should change to release 24 and confirm the presence of ENV_24_02 and ENV_24_04", async () => {
-  //     // Release 24
-  //     await updateTestID();
-
-  //     // Check if we are on CI
-  //     let vcastRoot: string;
-  //     if (process.env.HOME.startsWith("/github")) {
-  //       vcastRoot = "/vcast";
-  //     } else {
-  //       // Assuming that locally release is on this path.
-  //       vcastRoot = path.join(process.env.HOME, "vcast");
-  //     }
-
-  //     const newVersion = "release24";
-  //     const release24Path = path.join(vcastRoot, newVersion);
-
-  //     const workbench = await browser.getWorkbench();
-  //     const activityBar = workbench.getActivityBar();
-  //     const explorerView = await activityBar.getViewControl("Explorer");
-  //     await explorerView?.openView();
-
-  //     // Put in release 24 path in settings
-  //     const settingsEditor = await workbench.openSettings();
-  //     const unitTestLocationSetting = await settingsEditor.findSetting(
-  //       "Vectorcast Installation Location",
-  //       "Vectorcast Test Explorer"
-  //     );
-  //     await unitTestLocationSetting.setValue(release24Path);
-
-  //     await bottomBar.toggle(true);
-  //     const outputView = await bottomBar.openOutputView();
-
-  //     await awaitOutputtext(outputView, "ENV_23_01", true, TIMEOUT);
-  //     await awaitOutputtext(outputView, "ENV_24_02", false, TIMEOUT);
-  //     await awaitOutputtext(outputView, "ENV_23_03", true, TIMEOUT);
-  //     await awaitOutputtext(outputView, "ENV_24_04", false, TIMEOUT);
-
-  //     // Open Testing
-  //     const testingView = await activityBar.getViewControl("Testing");
-  //     await testingView?.openView();
-
-  //     await expectEnvResults("release24");
-  //   });
 });

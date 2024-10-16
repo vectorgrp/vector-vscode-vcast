@@ -24,9 +24,7 @@ from pythonUtilities import logFileHandle, logMessage, logPrefix
 
 
 def init_application(logFilePath):
-    print(f"Before initializing app")
     app = Flask(__name__)
-    print(f"After initializing app")
     with app.app_context():
 
         @app.route("/ping")
@@ -43,12 +41,11 @@ def init_application(logFilePath):
             clientRequest = decodeRequest(clientRequestText)
             return runcommand(clientRequest, clientRequestText)
 
-        
-        print(f"I should print the server info here:")
         # Note: this string must match what is in vcastAdapter.ts -> startServer()
         # We prefix the string with " * " so that it matches the flask output
         print(
-            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}", flush=True
+            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}",
+            flush=True,
         )
         print(f" * Server log file path: {logFilePath}", flush=True)
         logMessage(
@@ -246,10 +243,7 @@ def main():
     logFilePath = os.path.join(os.getcwd(), "vcastDataServer.log")
     with open(logFilePath, "w", buffering=1) as pythonUtilities.logFileHandle:
         findAvailablePort()
-        print(f"I am trying to start a server in python.")
-        print(f"log file path: {logFilePath}")
         app = init_application(logFilePath)
-        print(f"HOST: {vcastDataServerTypes.HOST}, PORT: {vcastDataServerTypes.PORT}")
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)
 
 

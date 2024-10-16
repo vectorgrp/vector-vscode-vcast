@@ -396,8 +396,6 @@ export const config: Options.Testrunner = {
         "vcastTutorial"
       );
 
-      const serverPath = path.join(initialWorkdir, "..", "..", "..", "python");
-
       // Standard setup when VECTORCAST_DIR is available
       if (process.env.VECTORCAST_DIR) {
         await checkVPython();
@@ -644,26 +642,6 @@ ENVIRO.END
      */
 
     /**
-     * Starts clicast server on given path.
-     * @param serverPath Path to server.
-     */
-    async function startServer(serverPath: string) {
-      console.log("STARTING SERVER ...");
-
-      const startServerCmd = "vpython";
-      const serverArgs = [`${serverPath}/vcastDataServer.py`, `--port=60461`];
-
-      // Detach the server process
-      const serverProcess = spawn(startServerCmd, serverArgs, {
-        detached: true, // Detaches the process from the parent
-        stdio: "ignore", // Ignore stdio so the parent process doesn't wait
-      });
-
-      //serverProcess.unref(); // This ensures the parent process doesn't wait for it to finish
-
-      console.log("Server process started in the background.");
-    }
-    /**
      * Cleans up and sets up the test environment directories.
      *
      * @param {string} initialWorkdir - The base directory path where test directories are located.
@@ -732,26 +710,8 @@ ENVIRO.END
           : `touch ${launchJsonPath}`;
       await executeCommand(createLaunchJson);
 
-      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
-      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
-
-      // Check if VCAST_USE_PYTHON is defined, if so we add the setting to NOT use the server mode
-      const useDataServer = process.env.VCAST_USE_PYTHON
-        ? `"vectorcastTestExplorer.useDataServer": false`
-        : `"vectorcastTestExplorer.useDataServer": true`;
-
-      // Build the content of settings.json based on the environment
-      let settingsContent = `{ "vectorcastTestExplorer.verboseLogging": true, ${useDataServer} }`;
-
-      console.log("SETTINGS CONTENT:");
-      console.log(settingsContent);
-      // Create the settings.json file
-      const createSettingsJson =
-        process.platform == "win32"
-          ? `echo ${JSON.stringify(settingsContent)} > ${settingsJsonPath}`
-          : `echo '${settingsContent}' > ${settingsJsonPath}`;
-
-      await executeCommand(createSettingsJson);
+      // Create settings.json
+      await createVscodeSettings(vscodeSettingsPath);
 
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
       const c_cpp_properties = {
@@ -806,6 +766,34 @@ ENVIRO.END
       } catch (error) {
         console.error(`Error executing command "${command}":`, error);
       }
+    }
+
+    /**
+     * Creates a settings.json for the vscode extension based on our needs for the tests
+     * @param vscodeSettingsPath Path to settings.json
+     */
+    async function createVscodeSettings(vscodeSettingsPath: string) {
+      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
+      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
+
+      // Check if VCAST_USE_PYTHON is defined, if so we add the setting to NOT use the server mode
+      const useDataServer = process.env.VCAST_USE_PYTHON
+        ? `"vectorcastTestExplorer.useDataServer": false`
+        : `"vectorcastTestExplorer.useDataServer": true`;
+
+      // Build the content of settings.json based on the environment
+      let settingsContent = `{ "vectorcastTestExplorer.verboseLogging": true, ${useDataServer} }`;
+
+      console.log("Vscode extension settings content:");
+      console.log(settingsContent);
+
+      // Create the settings.json file
+      const createSettingsJson =
+        process.platform == "win32"
+          ? `echo ${JSON.stringify(settingsContent)} > ${settingsJsonPath}`
+          : `echo '${settingsContent}' > ${settingsJsonPath}`;
+
+      await executeCommand(createSettingsJson);
     }
 
     /**

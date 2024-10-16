@@ -38,7 +38,7 @@ export function setServerPort(port: number) {
   SERVER_PORT = port;
 }
 
-export function getServerPort() {
+export function getServerPort(): number {
   return SERVER_PORT;
 }
 
@@ -68,7 +68,7 @@ export function setGLobalServerState(newState: boolean) {
   globalEnviroDataServerActive = newState;
 }
 
-export function getGLobalServerState() {
+export function getGLobalServerState(): boolean {
   return globalEnviroDataServerActive;
 }
 

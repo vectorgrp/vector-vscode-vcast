@@ -170,7 +170,14 @@ describe("test server functions", () => {
       expectedLogMessage
     );
 
-    terminateServerProcessing("Error string");
+    // xo wants then / catch
+    await terminateServerProcessing("Error string")
+      .then(() => {
+        // success
+      })
+      .catch((error) => {
+        console.error("Failed to terminate server:", error);
+      });
 
     // Verify that the terminate callback is triggered
     expect(mockTerminateCallback).toHaveBeenCalledOnce();

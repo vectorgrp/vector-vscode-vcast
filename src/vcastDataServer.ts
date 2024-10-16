@@ -136,23 +136,16 @@ async function startServer() {
   // This does the actual work of server startup
 
   // we use spawn directly to control the detached and shell args
-  const vpythonArgs: string[] = [globalEnviroDataServerPath]; 
+  const vpythonArgs: string[] = [globalEnviroDataServerPath];
   const serverCWD = whereToStartServer();
   serverProcessObject = spawn(vPythonCommandToUse, vpythonArgs, {
     shell: true,
     cwd: serverCWD,
   });
-  vectorMessage("Trying to start the server.");
-  vectorMessage("Arguments are:");
-  vectorMessage(`${vPythonCommandToUse}`);
-  vectorMessage(`${vpythonArgs}`);
-  vectorMessage(`${serverCWD}`);
+
   await new Promise((resolve) => setTimeout(resolve, 5000));
   serverProcessObject.stdout.on("data", function (data: any) {
     const rawString = data.toString();
-    vectorMessage("Logging server data string (stdout):");
-    vectorMessage(rawString);
-
     const lineArray = rawString.split(/[\n\r?]/);
     for (const line of lineArray) {
       // listen to the stdout to retrieve the port number
@@ -173,11 +166,6 @@ async function startServer() {
         }
       }
     }
-  });
-  serverProcessObject.stderr.on("data", function (data: any) {
-    const rawString = data.toString();
-    vectorMessage("Logging server error (stderr):");
-    vectorMessage(rawString);
   });
 
   serverProcessObject.on("exit", function (exitCode: any) {
