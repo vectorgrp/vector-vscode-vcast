@@ -170,10 +170,10 @@ describe("test server functions", () => {
       expectedLogMessage
     );
 
-    // xo wants then / catch
+    // XO wants then / catch
     await terminateServerProcessing("Error string")
       .then(() => {
-        // success
+        // Success
       })
       .catch((error) => {
         console.error("Failed to terminate server:", error);
