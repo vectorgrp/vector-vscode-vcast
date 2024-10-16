@@ -86,14 +86,11 @@ export function getSpecGroups(useVcast24: boolean) {
   };
 
   if (useVcast24) {
-    // ********* UNDER CONSTRUCTION **********
-    // specGroups["server_specifics"] = {
-    //   specs: ["./**/**/vcast_server_specifics.test.ts"],
-    //   env: {
-    //     //VECTORCAST_DIR: `/vcast/release24_sp4:${process.env.HOME}/vcast/release24_sp4`
-    //   },
-    //   params: {},
-    // };
+    specGroups["server_specifics"] = {
+      specs: ["./**/**/vcast_server_specifics.test.ts"],
+      env: {},
+      params: {},
+    };
 
     specGroups["func_atg"] = {
       specs: [
