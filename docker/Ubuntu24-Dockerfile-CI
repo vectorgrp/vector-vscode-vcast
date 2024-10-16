@@ -1,4 +1,4 @@
-FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vector_ubuntu24:latest
+FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:dm_test
 
 ARG USERNAME=vcast_user
 RUN groupadd --gid 1006 ${USERNAME} && useradd -m --uid 1006 --gid 1006 --shell /bin/bash -d /home/${USERNAME} ${USERNAME} && \
