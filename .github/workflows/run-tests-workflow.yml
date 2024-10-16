@@ -274,15 +274,6 @@ jobs:
           files: |
             ./tests/internal/e2e/test_results/*.xml
 
-      - name: Uploading screenshots
-        uses: actions/upload-artifact@v4
-        if: always()
-        env:
-          ARTIFACT_NAME: e2e_screenshots_${{ matrix.version }}_${{ matrix.group }}
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ./tests/internal/e2e/*.png
-
       - name: Show run summary
         if: always()
         run: |
