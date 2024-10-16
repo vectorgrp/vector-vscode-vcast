@@ -17,7 +17,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
       options: --user vcast_user
 
     strategy:
@@ -149,7 +149,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
       options: --user vcast_user
 
     outputs:
@@ -187,7 +187,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
       options: --user vcast_user
 
     strategy:
@@ -274,15 +274,6 @@ jobs:
           files: |
             ./tests/internal/e2e/test_results/*.xml
 
-      - name: Uploading screenshots
-        uses: actions/upload-artifact@v4
-        if: always()
-        env:
-          ARTIFACT_NAME: e2e_screenshots_${{ matrix.version }}_${{ matrix.group }}
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ./tests/internal/e2e/*.png
-
       - name: Show run summary
         if: always()
         run: |
@@ -324,7 +315,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
       options: --user vcast_user
 
     steps:
@@ -375,7 +366,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
       options: --user vcast_user
 
     steps:
@@ -427,7 +418,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:latest
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
       options: --user vcast_user
 
     steps:
