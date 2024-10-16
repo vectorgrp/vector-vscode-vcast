@@ -849,6 +849,10 @@ export async function runNode(
   const enviroPath = getEnviroPathFromID(node.id);
   return await runVCTest(enviroPath, node.id).then(async (executionResult) => {
     const status = executionResult.status;
+
+    // We show stdout from execution in the "Test Results" pane
+    run.appendOutput(executionResult.details.stdOut);
+
     if (status == testStatus.didNotRun) {
       run.skipped(node);
     } else if (status == testStatus.compileError) {
