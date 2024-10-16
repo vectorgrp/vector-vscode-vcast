@@ -679,7 +679,6 @@ def setupArgs():
     parser.add_argument(
         "--nobuild", help=f"Do not build the environment", action="store_true"
     )
-    parser.add_argument("--cmd", help="Command as a string (for manual test only)")
     return parser
 
 
@@ -734,15 +733,16 @@ def manualTest(args):
 
     clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
 
-    print("Starting Manual Test ...")
-    if args.cmd:
-        pass
+    # Replace with with a copy paste from the command being run in the extension
+    commandToRun = '{"command":"runClicastCommand","path":"c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE","options":"-eQUOTES_EXAMPLE -uquotes_example -s\\"Moo::honk(int,int,int)\\" -tBASIS-PATH-001 test script create c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE.tst"}'
 
-    else:
-        print(
-            "  no command provided for manual test, use --cmd option to provide a command to run"
-        )
-        sys.exit(1)
+    print("Starting Manual Test ...")
+    print(f"  running command: '{commandToRun[:80]}' ...")
+    returnData = requests.get(
+        f"{serverURL()}/runcommand", params={"request": commandToRun}
+    )
+    whatToPrint = json.dumps(returnData.json(), indent=4)
+    print(f"  response: {whatToPrint}")
 
 
 def enviroBasedTests(args):

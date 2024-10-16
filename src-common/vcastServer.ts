@@ -181,6 +181,10 @@ export async function transmitCommand(
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
 
+  // this can be useful for debugging server commands outside of the extension
+  // Look in the "Debug Console" pane for this output
+  console.log(`Sending command: '${dataAsString}' to server: ${serverURL()}`);
+
   const urlToUse = `${serverURL()}/${route}?request=${dataAsString}`;
   logServerCommand(
     `Sending command: "${requestObject.command}" to server: ${serverURL()},`
