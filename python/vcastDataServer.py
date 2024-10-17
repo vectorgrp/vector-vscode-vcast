@@ -62,7 +62,7 @@ def ping():
 
 
 def shutdown():
-    logMessage(f"{logPrefix()} received shutdown request ...")
+    logMessage(f"\n{logPrefix()} received shutdown request ...")
     # terminate all of the clicast processes
     # Need a copy of the keys because we are modifying the dictionary
     # while looping over it would cause an error
@@ -242,6 +242,7 @@ def main():
     # start the server
     logFilePath = os.path.join(os.getcwd(), "vcastDataServer.log")
     with open(logFilePath, "w", buffering=1) as pythonUtilities.logFileHandle:
+        # this will set the vcastDataServerTypes.PORT global
         findAvailablePort()
         app = init_application(logFilePath)
         app.run(vcastDataServerTypes.HOST, vcastDataServerTypes.PORT, threaded=False)

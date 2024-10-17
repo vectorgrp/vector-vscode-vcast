@@ -47,7 +47,12 @@ export function getServerPort(): number {
  * Returns the server URL used in API calls.
  */
 export function serverURL() {
-  let SERVER_HOST = "localhost";
+  //
+  // Using localhost here resulted in the language server not being
+  // able to connect to the data server on some of our Linux machines.
+  // It seems that this could be a problem with IPv4 vs IPv6, resolution
+  // so for now we are using 127* which forces IPv4.
+  let SERVER_HOST = "127.0.0.1";
 
   return `http://${SERVER_HOST}:${SERVER_PORT}`;
 }
@@ -184,6 +189,10 @@ export async function transmitCommand(
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);
 
+  // this can be useful for debugging server commands outside of the extension
+  // Look in the "Debug Console" pane for this output
+  console.log(`Sending command: '${dataAsString}' to server: ${serverURL()}`);
+
   const urlToUse = `${serverURL()}/${route}?request=${dataAsString}`;
   logServerCommand(
     `Sending command: "${requestObject.command}" to server: ${serverURL()},`
@@ -266,8 +275,10 @@ export async function transmitCommand(
         transmitResponse.success = false;
         transmitResponse.statusText = `Enviro server error: ${errorDetails}`;
 
-        // this callback will shutdown the server, display an error message
-        // and update the test pane, etc.
+        // In the core extension, this callback will shutdown the
+        // server, display an error message and update the test pane, etc.
+        // For the language server, this callback is not set so currently
+        // nothing happens.
         await terminateServerProcessing(errorDetails);
       }
     });

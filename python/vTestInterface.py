@@ -73,6 +73,7 @@ def setupArgs():
 
     parser.add_argument(
         "--path",
+        required=True,
         help="Path to Environment Directory",
     )
 
@@ -278,8 +279,8 @@ def getUnitData(api):
 
     sourceObjects = api.SourceFile.all()
     for sourceObject in sourceObjects:
+        sourcePath = sourceObject.display_path
         if sourceObject.is_instrumented:
-            sourcePath = sourceObject.display_path
             covered, uncovered, checksum = getCoverageData(sourceObject)
             unitInfo = dict()
             unitInfo["path"] = sourcePath
@@ -287,6 +288,18 @@ def getUnitData(api):
             unitInfo["cmcChecksum"] = checksum
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
+            unitList.append(unitInfo)
+
+        elif len(sourcePath) > 0:
+            # we save "empty" unit data for files that are not
+            # instrumented so that the the extension can display
+            # "No Coverage Data" for these ...
+            unitInfo = dict()
+            unitInfo["path"] = sourcePath
+            unitInfo["functionList"] = []
+            unitInfo["cmcChecksum"] = "0"
+            unitInfo["covered"] = ""
+            unitInfo["uncovered"] = ""
             unitList.append(unitInfo)
 
     return unitList

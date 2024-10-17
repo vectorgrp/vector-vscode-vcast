@@ -729,29 +729,27 @@ def initializeEnvironment(clicastPath):
     print("  Environment created successfully ...\n\n")
 
 
-def main():
-    """
-    The common way to run the test is with
-        vpython client.py --test=full
+def manualTest(args):
 
-    To run timing and scalability tests, use:
-        vpython client.py --test=timing
-    """
+    clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
+
+    # Replace with with a copy paste from the command being run in the extension
+    commandToRun = '{"command":"runClicastCommand","path":"c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE","options":"-eQUOTES_EXAMPLE -uquotes_example -s\\"Moo::honk(int,int,int)\\" -tBASIS-PATH-001 test script create c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE.tst"}'
+
+    print("Starting Manual Test ...")
+    print(f"  running command: '{commandToRun[:80]}' ...")
+    returnData = requests.get(
+        f"{serverURL()}/runcommand", params={"request": commandToRun}
+    )
+    whatToPrint = json.dumps(returnData.json(), indent=4)
+    print(f"  response: {whatToPrint}")
+
+
+def enviroBasedTests(args):
+
     global ENVIRO_PATH
     global SCALABILITY_PATH
 
-    # If no arg is provided, the full tests will be run
-    argParser = setupArgs()
-    args, restOfArgs = argParser.parse_known_args()
-
-    # process port arg
-    # Note that PORT gets used by function serverURL()
-    vcastDataServerTypes.processPortArg(args)
-
-    # first we run the ping test, because if this fails ... what's the point
-    pingServerTest()
-
-    # Build the VectorCAST environment
     clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
     ENVIRO_PATH = os.path.join(os.getcwd(), "SingleEnvironment")
     SCALABILITY_PATH = os.path.join(os.getcwd(), "MultipleEnvironments")
@@ -797,6 +795,32 @@ def main():
         fullTest(enviroPath, clicastPath, testString)
     else:
         print("Unknown test kind")
+
+
+def main():
+    """
+    The common way to run the test is with
+        vpython client.py --test=full
+
+    To run timing and scalability tests, use:
+        vpython client.py --test=timing
+    """
+
+    # If no arg is provided, the full tests will be run
+    argParser = setupArgs()
+    args, restOfArgs = argParser.parse_known_args()
+
+    # process port arg
+    # Note that PORT gets used by function serverURL()
+    vcastDataServerTypes.processPortArg(args)
+
+    # first we run the ping test, because if this fails ... what's the point
+    pingServerTest()
+
+    if args.test == "manual":
+        manualTest(args)
+    else:
+        enviroBasedTests(args)
 
 
 if __name__ == "__main__":
