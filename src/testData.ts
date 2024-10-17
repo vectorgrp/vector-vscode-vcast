@@ -1,5 +1,4 @@
 import { quote } from "./utilities";
-import { globalEnviroDataServerActive } from "../src-common/vcastServer";
 
 export const compoundOnlyString = " [compound only]";
 
@@ -96,15 +95,19 @@ export function getTestNameFromID(nodeID: string): string {
   return testName.replace(compoundOnlyString, "");
 }
 
-function getArgumentString(argString: string) {
+function getArgumentString(argString: string, usingServer: boolean) {
   // This function will either quote or not quote the argument string
-  // based on whether the server is running or not.  For normal calls
-  // to clicast, we need to quote the subprogram and test strings, to
-  // "protect them" from the shell.  However, when the server is running
-  // we cannot do this as the server will interpret the quotes as part
-  // of the string.
+  // based on whether the command is being run using the vcast data server
+  // For normal calls to clicast, we need to quote the subprogram and test strings, to
+  // "protect" special characters [ e.g. <,>,(,) ] from the shell.
+  // However, when the server is running we cannot do this as the server
+  // will interpret the quotes as part of the string.
+  //
+  // It is up to the caller to set the "usingServer" flag correctly, because
+  // even when the server is running, we sometimes call clicast directly
+  // for things like generate basis path etc.
 
-  if (globalEnviroDataServerActive) {
+  if (usingServer) {
     return argString;
   } else {
     return quote(argString);
@@ -112,7 +115,8 @@ function getArgumentString(argString: string) {
 }
 
 export function getClicastArgsFromTestNodeAsList(
-  testNode: testNodeType
+  testNode: testNodeType,
+  usingServer: boolean = false
 ): string[] {
   // this function will create the enviro, unit, subprogram, and test
   // arguments as a list, since spawn for example requires an arg list.
@@ -124,19 +128,24 @@ export function getClicastArgsFromTestNodeAsList(
 
   // we need the quotes on the names to handle <<COMPOUND>>/<<INIT>>/parenthesis
   if (testNode.functionName.length > 0)
-    returnList.push(`-s${getArgumentString(testNode.functionName)}`);
+    returnList.push(
+      `-s${getArgumentString(testNode.functionName, usingServer)}`
+    );
   if (testNode.testName.length > 0) {
     const nameToUse = testNode.testName.replace(compoundOnlyString, "");
-    returnList.push(`-t${getArgumentString(nameToUse)}`);
+    returnList.push(`-t${getArgumentString(nameToUse, usingServer)}`);
   }
 
   return returnList;
 }
 
-export function getClicastArgsFromTestNode(testNode: testNodeType) {
+export function getClicastArgsFromTestNode(
+  testNode: testNodeType,
+  usingServer: boolean = false
+): string {
   // this function will create the enviro, unit, subprogram,
   // and test arg string for clicast calls that need a arg string
 
-  const argList = getClicastArgsFromTestNodeAsList(testNode);
+  const argList = getClicastArgsFromTestNodeAsList(testNode, usingServer);
   return argList.join(" ");
 }
