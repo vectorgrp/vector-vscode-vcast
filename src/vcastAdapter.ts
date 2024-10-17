@@ -250,6 +250,7 @@ export async function dumpTestScriptFile(
 ): Promise<commandStatusType> {
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const clicastArgs = getClicastArgsFromTestNode(testNode);
+
   let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
   vectorMessage(`Creating test script: ${scriptPath}`);
@@ -574,7 +575,7 @@ export async function executeTest(
   } else {
     commandStatus = executeTestViaPython(vcastCommand, enviroPath, nodeID);
   }
-
+  vectorMessage(`COMMAND STATUS: ${JSON.stringify(commandStatus, null, 2)}`);
   // added this timing info to help with performance tuning - interesting to leave in
   const endTime: number = performance.now();
   const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
