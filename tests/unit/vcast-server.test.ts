@@ -65,7 +65,7 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(true);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:0/runcommand?request={"command":"closeConnection","path":"test/path"}'
+      'http://127.0.0.1:0/runcommand?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
@@ -82,7 +82,7 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:0/runcommand?request={"command":"closeConnection","path":"test/path"}'
+      'http://127.0.0.1:0/runcommand?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
@@ -98,7 +98,7 @@ describe("test server functions", () => {
     const result = await serverIsAlive();
     expect(result).toBe(true);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:0/ping?request={"command":"ping","path":""}'
+      'http://127.0.0.1:0/ping?request={"command":"ping","path":""}'
     );
   });
 
@@ -115,7 +115,7 @@ describe("test server functions", () => {
     const result = await serverIsAlive();
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:0/ping?request={"command":"ping","path":""}'
+      'http://127.0.0.1:0/ping?request={"command":"ping","path":""}'
     );
   });
 
@@ -130,7 +130,7 @@ describe("test server functions", () => {
     const result = await serverIsAlive();
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:0/ping?request={"command":"ping","path":""}'
+      'http://127.0.0.1:0/ping?request={"command":"ping","path":""}'
     );
   });
 
@@ -161,7 +161,7 @@ describe("test server functions", () => {
     // Check fetch call
     expect(response.success).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      `http://localhost:0/runcommand?request=${JSON.stringify(requestObject)}`
+      `http://127.0.0.1:0/runcommand?request=${JSON.stringify(requestObject)}`
     );
 
     // Check if logServerCommandsCallback was called with the correct message
@@ -245,11 +245,11 @@ describe("test server functions", () => {
       `Enviro server error: command: rebuild, error: cannot communicate with server on port: 0`
     );
     expect(fetch).toHaveBeenCalledWith(
-      `http://localhost:0/runcommand?request=${JSON.stringify(requestObject)}`
+      `http://127.0.0.1:0/runcommand?request=${JSON.stringify(requestObject)}`
     );
 
     // Check if logServerCommandsCallback was called with the correct message
-    const expectedLogMessage = `Sending command: "${requestObject.command}" to server: http://localhost:0,`;
+    const expectedLogMessage = `Sending command: "${requestObject.command}" to server: http://127.0.0.1:0,`;
     expect(mockLogServerCommandsCallback).toHaveBeenCalledWith(
       expectedLogMessage
     );
@@ -276,7 +276,7 @@ describe("test server functions", () => {
 
     // Important: Check with new port
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:69/shutdown?request={"command":"shutdown","path":""}'
+      'http://127.0.0.1:69/shutdown?request={"command":"shutdown","path":""}'
     );
   });
 });
