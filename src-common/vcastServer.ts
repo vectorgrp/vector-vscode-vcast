@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import { pythonErrorCodes } from "./vcastServerTypes";
+import { vectorMessage } from "../src/messagePane";
 
 // Types used for interaction with the python interface and the enviro server
 //
@@ -187,7 +188,12 @@ export async function transmitCommand(
   route: string = "runcommand"
 ) {
   // request is a class, so we convert it to a dictionary, then a string
-  const dataAsString = JSON.stringify(requestObject);
+  let dataAsString = JSON.stringify(requestObject);
+
+  // We needed to quote a name in certain conditions so that the shell does not interpet it (see quote())
+  // JSON.stringify escapes quotes as \", causing issues in server logic.
+  // We remove these escaped quotes to prevent errors.
+  dataAsString = dataAsString.replace(/\\"/g, "");
 
   // this can be useful for debugging server commands outside of the extension
   // Look in the "Debug Console" pane for this output
