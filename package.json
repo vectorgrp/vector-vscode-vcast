@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -193,6 +193,16 @@
         "command": "vectorcastTestExplorer.setDefaultConfigFile",
         "category": "VectorCAST Test Explorer",
         "title": "Set as VectorCAST Configuration File"
+      },
+      {
+        "command": "vectorcastTestExplorer.toggleVcastServerState",
+        "category": "VectorCAST Test Explorer",
+        "title": "Toggle VectorCAST Data Server State (On/Off)"
+      },
+      {
+        "command": "vectorcastTestExplorer.displayServerLog",
+        "category": "VectorCAST Test Explorer",
+        "title": "Open Data Server log"
       }
     ],
     "keybindings": [
@@ -217,33 +227,39 @@
             "type": "string",
             "description": "Path to the VectorCAST installation, used if VectorCAST is not found on the system PATH"
           },
+          "vectorcastTestExplorer.useDataServer": {
+            "type": "boolean",
+            "order": 2,
+            "default": true,
+            "description": "Provides faster interaction with VectorCAST environments"
+          },
           "vectorcastTestExplorer.unitTestLocation": {
             "type": "string",
-            "order": 2,
+            "order": 3,
             "default": "./unitTests",
             "description": "The folder path for storing unit tests, can be absolute or relative to the file location"
           },
           "vectorcastTestExplorer.configurationLocation": {
             "type": "string",
-            "order": 3,
+            "order": 4,
             "default": "",
             "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
           },
           "vectorcastTestExplorer.showReportOnExecute": {
             "type": "boolean",
-            "order": 4,
+            "order": 5,
             "default": true,
             "description": "Display the VectorCAST execution report after test run"
           },
           "vectorcastTestExplorer.decorateExplorer": {
             "type": "boolean",
-            "order": 5,
+            "order": 6,
             "default": true,
             "description": "Decorate files that have coverage in the File Explorer pane"
           },
           "vectorcastTestExplorer.verboseLogging": {
             "type": "boolean",
-            "order": 6,
+            "order": 7,
             "default": false,
             "description": "Log internal extension details"
           }
@@ -397,6 +413,14 @@
         {
           "command": "vectorcastTestExplorer.setDefaultConfigFile",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.toggleVcastServerState",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.displayServerLog",
+          "when": "vectorcastTestExplorer.serverLogAvailable"
         }
       ],
       "view/title": [
@@ -606,7 +630,7 @@
   "scripts": {
     "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-server -- --minify",
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main",
-    "esbuild-server": "esbuild ./server/server.ts --bundle --outfile=out/server.js --external:vscode --format=cjs --platform=node",
+    "esbuild-server": "esbuild ./langServer/langServer.ts --bundle --outfile=out/server.js --external:vscode --format=cjs --platform=node",
     "esbuild-watch": "npm-run-all --parallel esbuild-base esbuild-server -- --sourcemap --watch",
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-server -- --sourcemap",
     "package": "tsc --project tsconfig.json && vsce package",

@@ -81,6 +81,35 @@
       ],
       "console": "integratedTerminal"
     },
+     {
+      "name": "vcastDataServer",
+      "type": "python",
+      "console": "integratedTerminal",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/vcastDataServer.py",
+      "cwd": "C:/RDS/VectorCAST/FOO",
+      "env": {
+          "NO_PROXY": "localhost",
+          "PYTHONPATH": "${env:VECTORCAST_DIR}/python;"
+      }
+    },
+    {
+        "name": "vcastDataServer-client",
+        "type": "python",
+        "console": "integratedTerminal",
+        "request": "launch",
+        "program": "${workspaceFolder}/tests/clicast-server/client.py",
+        "cwd": "C:/RDS/VectorCAST/FOO",
+        "env": {
+            "NO_PROXY": "localhost",
+            "PYTHONPATH": "${env:VECTORCAST_DIR}/python"        
+        },
+        "args":[
+            "--test=full",
+            "--port=50819",
+            "--nobuild"
+        ]
+    },
     {
       "type": "node",
       "request": "launch",

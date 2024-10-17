@@ -170,8 +170,21 @@ export function sendVPythonCommandToServer(vPythonCommand: string) {
   }
 }
 
+// This function is used to send the VectorCAST Data Server
+// port number to the language server
+
+export function sendPortNumberToLanguageServer(portNumber: number) {
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/updateServerPort", {
+        portNumber,
+      });
+    });
+  }
+}
+
 // This function is used to send an updated state of the
-// enviro data server to the language server
+// VectorCAST Data Server to the language server
 export function sendServerStateToLanguageServer(useServer: boolean) {
   if (client) {
     client.onReady().then(() => {

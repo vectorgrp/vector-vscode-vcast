@@ -14,7 +14,6 @@
     "**/*.err": true,
     "**/*.ERR": true,
     "**/*.preproc": true,
-    "**/*.log": true,
     "**/*.bak": true,
     "**/*.ini": true,
     "**/*.AUX*": true,
