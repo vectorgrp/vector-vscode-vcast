@@ -885,7 +885,7 @@ export async function runNode(
             .split(")")[0]
             .trim();
           failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
-        } catch (err:any) {
+        } catch (err: any) {
           failMessageText = "Unexpected error processing expected results";
         }
         const failMessage = new TestMessage(failMessageText);
