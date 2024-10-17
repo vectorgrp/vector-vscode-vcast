@@ -1,4 +1,5 @@
 import { quote } from "./utilities";
+import { globalEnviroDataServerActive } from "../src-common/vcastServer";
 
 export const compoundOnlyString = " [compound only]";
 
@@ -95,6 +96,21 @@ export function getTestNameFromID(nodeID: string): string {
   return testName.replace(compoundOnlyString, "");
 }
 
+function getArgumentString(argString: string) {
+  // This function will either quote or not quote the argument string
+  // based on whether the server is running or not.  For normal calls
+  // to clicast, we need to quote the subprogram and test strings, to
+  // "protect them" from the shell.  However, when the server is running
+  // we cannot do this as the server will interpret the quotes as part
+  // of the string.
+
+  if (globalEnviroDataServerActive) {
+    return argString;
+  } else {
+    return quote(argString);
+  }
+}
+
 export function getClicastArgsFromTestNodeAsList(
   testNode: testNodeType
 ): string[] {
@@ -108,10 +124,10 @@ export function getClicastArgsFromTestNodeAsList(
 
   // we need the quotes on the names to handle <<COMPOUND>>/<<INIT>>/parenthesis
   if (testNode.functionName.length > 0)
-    returnList.push(`-s${quote(testNode.functionName)}`);
+    returnList.push(`-s${getArgumentString(testNode.functionName)}`);
   if (testNode.testName.length > 0) {
     const nameToUse = testNode.testName.replace(compoundOnlyString, "");
-    returnList.push(`-t${quote(nameToUse)}`);
+    returnList.push(`-t${getArgumentString(nameToUse)}`);
   }
 
   return returnList;
