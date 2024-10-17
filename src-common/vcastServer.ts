@@ -189,11 +189,6 @@ export async function transmitCommand(
   // request is a class, so we convert it to a dictionary, then a string
   let dataAsString = JSON.stringify(requestObject);
 
-  // We needed to quote a name in certain conditions so that the shell does not interpet it (see quote())
-  // JSON.stringify escapes quotes as \", causing issues in server logic.
-  // We remove these escaped quotes to prevent errors.
-  dataAsString = dataAsString.replace(/\\"/g, "");
-
   // this can be useful for debugging server commands outside of the extension
   // Look in the "Debug Console" pane for this output
   console.log(`Sending command: '${dataAsString}' to server: ${serverURL()}`);
