@@ -78,7 +78,6 @@ import {
   getEnviroNameFromScript,
   getVcastOptionValues,
 } from "../src-common/commonUtilities";
-import { exec } from "child_process";
 
 const fs = require("fs");
 const path = require("path");
