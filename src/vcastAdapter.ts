@@ -358,7 +358,7 @@ export async function runBasisPathCommands(
   // Execute Clicast With Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${clicastCommandToUse}`);
-  // note that we do NOT set the usingServer paraemter here
+  // note that we do NOT set the usingServer parameter here
   // because we always call clicast directly in this case.
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
   argList = argList.concat(["tool", "auto_test", `${testScriptPath}`]);
@@ -403,7 +403,7 @@ export async function runATGCommands(
   // Execute Clicast With Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${atgCommandToUse}`);
-  // note that we do NOT set the usingServer paraemter here
+  // note that we do NOT set the usingServer parameter here
   // because we always call clicast directly in this case.
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
 
