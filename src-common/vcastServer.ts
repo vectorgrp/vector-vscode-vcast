@@ -1,7 +1,5 @@
-import fetch from "node-fetch";
 import { pythonErrorCodes } from "./vcastServerTypes";
 import axios from "axios";
-import { vectorMessage } from "../src/messagePane";
 
 // Types used for interaction with the python interface and the enviro server
 //
