@@ -62,7 +62,8 @@ export function executeVPythonScript(
     returnData.errorCode = commandStatus.errorCode;
     // error code 28 means a test fail, not a command failure
     // all other non 0 error codes are command failures
-    if (returnData.errorCode != 0 && returnData.errorCode != 28) {
+    // if (returnData.errorCode != 0 && returnData.errorCode != 28) {
+    if (returnData.errorCode != 0) {
       vectorMessage("Error running VectorCAST command");
       vectorMessage("command: " + commandToRun, errorLevel.trace, indentString);
       vectorMessage(returnData.stdout, errorLevel.info, indentString);
