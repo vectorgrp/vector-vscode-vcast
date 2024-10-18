@@ -663,6 +663,7 @@
   },
   "dependencies": {
     "@vscode/vsce": "^2.32.0",
+    "axios": "^1.7.7",
     "crc-32": "^1.2.0",
     "glob": "^7.1.7",
     "hasbin": "^1.2.3",
