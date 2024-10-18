@@ -25,27 +25,28 @@ from pythonUtilities import logFileHandle, logMessage, logPrefix
 
 def init_application(logFilePath):
     app = Flask(__name__)
-
     with app.app_context():
 
-        @app.route("/ping")
+        @app.route("/ping", methods=["POST"])
         def pingRoute():
             return ping()
 
-        @app.route("/shutdown")
+        @app.route("/shutdown", methods=["POST"])
         def shutdownRoute():
             return shutdown()
 
-        @app.route("/runcommand")
+        @app.route("/runcommand", methods=["POST"])
         def runcommandRoute():
-            clientRequestText = request.args.get("request")
+            clientRequestText = request.data.decode(
+                "utf-8"
+            )  # Get the JSON data from the request body
             clientRequest = decodeRequest(clientRequestText)
+            # Ensure clientRequest is correctly decoded or processed
             return runcommand(clientRequest, clientRequestText)
 
-        # Note: this string must match what is in vcastAdapter.ts -> startServer()
-        # We prefix the string with " * " so that it matches the flask output
         print(
-            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}", flush=True
+            f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}",
+            flush=True,
         )
         print(f" * Server log file path: {logFilePath}", flush=True)
         logMessage(
