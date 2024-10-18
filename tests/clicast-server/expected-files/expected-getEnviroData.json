@@ -150,6 +150,13 @@
                 "uncovered": "5,7,11,16,21"
             },
             {
+                "cmcChecksum": "0",
+                "covered": "",
+                "functionList": [],
+                "path": "database.h",
+                "uncovered": ""
+            },
+            {
                 "cmcChecksum": "2182848266",
                 "covered": "",
                 "functionList": [
