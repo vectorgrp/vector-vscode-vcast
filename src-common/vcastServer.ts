@@ -197,6 +197,7 @@ export async function transmitCommand(
   logServerCommand(
     `Sending command: "${requestObject.command}" to server: ${serverURL()},`
   );
+  logServerCommand(`   payload: "${dataAsString}"`);
   let transmitResponse: transmitResponseType = {
     success: false,
     returnData: undefined,
