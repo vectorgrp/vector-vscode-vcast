@@ -160,7 +160,10 @@ export async function deleteSingleTest(
   testNodeID: string
 ): Promise<commandStatusType> {
   const testNode: testNodeType = getTestNode(testNodeID);
-  const clicastArgs: string = getClicastArgsFromTestNode(testNode);
+  const clicastArgs: string = getClicastArgsFromTestNode(
+    testNode,
+    globalEnviroDataServerActive
+  );
   let deleteTestArgs = `${clicastArgs} test delete`;
 
   // special vcast case for delete ALL tests for the environment
@@ -222,7 +225,10 @@ export async function addCodedTestToEnvironment(
 ): Promise<commandStatusType> {
   //
   const enclosingDirectory = path.dirname(enviroPath);
-  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  const clicastArgs = getClicastArgsFromTestNode(
+    testNode,
+    globalEnviroDataServerActive
+  );
   let codedTestArgs: string = `${clicastArgs} test coded ${action} ${userFilePath}`;
 
   let commandStatus: commandStatusType;
@@ -249,7 +255,10 @@ export async function dumpTestScriptFile(
   scriptPath: string
 ): Promise<commandStatusType> {
   const enclosingDirectory = path.dirname(testNode.enviroPath);
-  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  const clicastArgs = getClicastArgsFromTestNode(
+    testNode,
+    globalEnviroDataServerActive
+  );
   let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
   vectorMessage(`Creating test script: ${scriptPath}`);
@@ -318,7 +327,10 @@ export async function refreshCodedTests(
 
   const testNode = getTestNode(enviroNodeID);
   const enclosingDirectory = path.dirname(enviroPath);
-  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  const clicastArgs = getClicastArgsFromTestNode(
+    testNode,
+    globalEnviroDataServerActive
+  );
   let refreshCodedArgs: string = `${clicastArgs} test coded refresh`;
 
   let commandStatus: commandStatusType;
@@ -343,9 +355,11 @@ export async function runBasisPathCommands(
   testScriptPath: string,
   loadScriptCallBack: any
 ) {
-  // Execute Clicas tWith Progress() uses spawn() which needs the args as a list
+  // Execute Clicast With Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${clicastCommandToUse}`);
+  // note that we do NOT set the usingServer parameter here
+  // because we always call clicast directly in this case.
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
   argList = argList.concat(["tool", "auto_test", `${testScriptPath}`]);
 
@@ -389,6 +403,8 @@ export async function runATGCommands(
   // Execute Clicast With Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${atgCommandToUse}`);
+  // note that we do NOT set the usingServer parameter here
+  // because we always call clicast directly in this case.
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
 
   // -F tells atg to NOT use regex for the -s (sub-program) option
