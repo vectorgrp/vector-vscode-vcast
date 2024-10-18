@@ -37,9 +37,8 @@ def init_application(logFilePath):
 
         @app.route("/runcommand", methods=["POST"])
         def runcommandRoute():
-            clientRequestText = request.data.decode(
-                "utf-8"
-            )  # Get the JSON data from the request body
+            # Data from the request is a stringyfied json
+            clientRequestText = request.data.decode("utf-8")
             clientRequest = decodeRequest(clientRequestText)
             # Ensure clientRequest is correctly decoded or processed
             return runcommand(clientRequest, clientRequestText)
