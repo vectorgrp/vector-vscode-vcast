@@ -209,39 +209,67 @@ export async function transmitCommand(
     if (rawReturnData.exitCode == pythonErrorCodes.internalServerError) {
       transmitResponse.success = false;
       transmitResponse.statusText = `Enviro server error: ${rawReturnData.data.error.join("\n")}`;
+      //
+      // if we get a test interface error, we report the error but do not
+      // terminate the server, since it might be a one off error.
+      // Maybe we will change this in the future.
     } else if (rawReturnData.exitCode == pythonErrorCodes.testInterfaceError) {
+      // the error message is a list of strings, so join with \n
       transmitResponse.success = false;
+      // format the error message for readability, with new lines and indentation
       transmitResponse.statusText = `Python interface error: \n   ${rawReturnData.data.text.join("\n   ")}`;
+      //
+      // If we cannot start clicast, we shutdown the server because this error
+      // is unlikely to be cleared by trying again
     } else if (
       rawReturnData.exitCode == pythonErrorCodes.couldNotStartClicastInstance
     ) {
       transmitResponse.success = false;
       transmitResponse.statusText = `Server could not start clicast instance`;
+      // fall back to non-server mode
       setGLobalServerState(false);
+      // this callback will display an error message and update the test pane
       await terminateServerProcessing(transmitResponse.statusText);
+      //
+      // else the command was successful so we return the data
     } else {
       // Successful case
       transmitResponse.success = true;
       transmitResponse.statusText = `Enviro server response status: ${response.statusText}`;
-      transmitResponse.returnData = rawReturnData; // Return the raw data for further interpretation
+      // the format of the data property is different based on the command
+      // so it is up to the caller to interpret it properly
+      transmitResponse.returnData = rawReturnData;
+      // there is always an exit code field but it is only used when
+      // executing tests or running clicast commands
     }
+    //
+    // if there is a communication error with the server it gets caught here
   } catch (error: any) {
+    // In the shutdown and ping cases we simply return a false success status,
+    // because in the shutdown case, the socket may be closed before  we
+    // read the response, and in the ping case, the server may not be
+    // ready yet and the caller will retry the ping.
     if (
       requestObject.command == vcastCommandType.shutdown ||
       requestObject.command == vcastCommandType.ping
     ) {
       transmitResponse.success = false;
     } else {
-      let errorText = "Unknown error";
-      if (error.message && error.message.includes("reason:")) {
-        errorText = error.message.split("reason:")[1].trim();
-      } else {
+      // For all other communication errors, we terminate server mode
+      let errorText = error.message.split("reason:")[1].trim();
+      // for some reason, when the server is down, the reason is blank
+      // so we insert a generic message in this case.
+      if (errorText.length === 0) {
         errorText = `cannot communicate with server on port: ${SERVER_PORT}`;
       }
-
-      const errorDetails = `command: ${requestObject.command}, error: ${errorText}`;
+      let errorDetails = `command: ${requestObject.command}, error: ${errorText}`;
       transmitResponse.success = false;
       transmitResponse.statusText = `Enviro server error: ${errorDetails}`;
+
+      // In the core extension, this callback will shutdown the
+      // server, display an error message and update the test pane, etc.
+      // For the language server, this callback is not set so currently
+      // nothing happens.
       await terminateServerProcessing(errorDetails);
     }
   }
