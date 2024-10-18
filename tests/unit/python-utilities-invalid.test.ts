@@ -8,7 +8,7 @@ import {
   afterEach,
   type SpyInstance,
 } from "vitest";
-import { initializePaths } from "../../server/pythonUtilities";
+import { initializePaths } from "../../langServer/pythonUtilities";
 
 const timeout = 30_000; // 30 seconds
 

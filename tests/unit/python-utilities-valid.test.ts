@@ -5,8 +5,8 @@ import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import {
   updateVPythonCommand,
   getVPythonCommand,
-  generateDiagnositicForTest,
-} from "../../server/pythonUtilities";
+  generateDiagnosticForTest,
+} from "../../langServer/pythonUtilities";
 import { setupDiagnosticTest } from "./utils";
 
 const timeout = 30_000; // 30 seconds
@@ -15,7 +15,7 @@ const timeout = 30_000; // 30 seconds
 // while everything else is imported normally.
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 vi.mock("child_process", async () => {
-  // Import the actual module so that other funcitons are not mocked
+  // Import the actual module so that other functions are not mocked
   const actual =
     await vi.importActual<typeof import("child_process")>("child_process");
 
@@ -64,7 +64,7 @@ describe("Testing pythonUtilities (valid)", () => {
     const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
 
     // Function under test
-    generateDiagnositicForTest(
+    generateDiagnosticForTest(
       connection,
       "Test message",
       "file:///path/to/document",

@@ -6,7 +6,7 @@ import {
   serverIsAlive,
   serverURL,
   setLogServerCommandsCallback,
-  setServerState,
+  setGLobalServerState,
   setTerminateServerCallback,
   transmitCommand,
   vcastCommandType,
@@ -45,7 +45,7 @@ const mockFetch = (
 describe("test server functions", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    setServerState(false);
+    setGLobalServerState(false);
   });
 
   // Testing closeConnection()
@@ -85,7 +85,7 @@ describe("test server functions", () => {
   test("serverIsAlive handles successful response", async () => {
     const fetchReturn = {
       exitCode: 0,
-      text: "clicast-path: /some/path",
+      text: "alive",
       data: {},
     };
 
