@@ -181,7 +181,7 @@ export async function transmitCommand(
   route: string = "runcommand"
 ) {
   // request is a class, so we convert it to a dictionary, then a string
-  let dataAsString = JSON.stringify(requestObject);
+  const dataAsString = JSON.stringify(requestObject);
 
   // this can be useful for debugging server commands outside of the extension
   // Look in the "Debug Console" pane for this output
