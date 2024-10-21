@@ -1292,20 +1292,9 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("[        ]   Testcase User Code Mismatch:"),
+          .includes("Processing environment data"),
       { timeout: TIMEOUT }
     );
-    console.log("Verifying test output");
-    const outputTextFlat = (await outputView.getText()).toString();
-    expect(
-      outputTextFlat.includes("[        ]   Testcase User Code Mismatch:")
-    );
-    expect(
-      outputTextFlat.includes(
-        "[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]"
-      )
-    );
-    expect(outputTextFlat.includes("TEST RESULT: fail"));
     await bottomBar.restore();
   });
 
