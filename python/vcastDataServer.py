@@ -38,11 +38,12 @@ def init_application(logFilePath):
         @app.route("/runcommand", methods=["POST"])
         def runcommandRoute():
             # Data from the request is a stringyfied json
-            clientRequestText = request.data.decode("utf-8")
+            clientRequestText = request.get_json()
             clientRequest = decodeRequest(clientRequestText)
             # Ensure clientRequest is correctly decoded or processed
             return runcommand(clientRequest, clientRequestText)
 
+        # Note: this string must match what is in vcastAdapter.ts -> startServer()
         print(
             f" * vcastDataServer is starting on {vcastDataServerTypes.HOST}:{vcastDataServerTypes.PORT}",
             flush=True,
@@ -186,7 +187,7 @@ def decodeRequest(requestString):
 
     clientRequest = None
     try:
-        requestDictionary = json.loads(requestString)
+        requestDictionary = requestString
         clientRequest = vcastDataServerTypes.clientRequest.fromDict(requestDictionary)
     except KeyboardInterrupt:
         raise

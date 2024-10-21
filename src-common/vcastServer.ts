@@ -38,6 +38,10 @@ export function setServerPort(port: number) {
   SERVER_PORT = port;
 }
 
+export function getServerPort(): number {
+  return SERVER_PORT;
+}
+
 /**
  * @testing This function is exported for testing purposes only.
  * Returns the server URL used in API calls.
@@ -67,6 +71,10 @@ export let globalEnviroDataServerActive: boolean = false;
 
 export function setGLobalServerState(newState: boolean) {
   globalEnviroDataServerActive = newState;
+}
+
+export function getGLobalServerState(): boolean {
+  return globalEnviroDataServerActive;
 }
 
 // To allow us to update the test pane when we have a server
@@ -179,7 +187,7 @@ export async function transmitCommand(
   route: string = "runcommand"
 ) {
   // request is a class, so we convert it to a dictionary, then a string
-  const dataAsString = JSON.stringify(requestObject);
+  let dataAsString = JSON.stringify(requestObject);
 
   // this can be useful for debugging server commands outside of the extension
   // Look in the "Debug Console" pane for this output
@@ -198,9 +206,9 @@ export async function transmitCommand(
 
   try {
     // Await axios post
-    const response = await axios.post(urlToUse, dataAsString, {
+    const response = await axios.post(urlToUse, requestObject, {
       headers: {
-        "Content-Type": "text/plain",
+        "Content-Type": "application/json",
       },
     });
     const rawReturnData = response.data;
