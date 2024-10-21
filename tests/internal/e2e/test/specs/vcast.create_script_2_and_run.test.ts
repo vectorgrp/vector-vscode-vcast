@@ -15,7 +15,7 @@ import {
   findSubprogramMethod,
   editTestScriptFor,
   updateTestID,
-  requestInLogs,
+  checkIfRequestInLogs,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -181,7 +181,10 @@ describe("vTypeCheck VS Code Extension", () => {
         "commandString: -eDATABASE-MANAGER -umanager -sManager::PlaceOrder test script create",
         "server return code: 0",
       ];
-      const loadScriptLog = await requestInLogs(8, expectedLoadScriptLogs);
+      const loadScriptLog = await checkIfRequestInLogs(
+        8,
+        expectedLoadScriptLogs
+      );
       expect(loadScriptLog).toBe(true);
     }
   });
@@ -297,7 +300,7 @@ describe("vTypeCheck VS Code Extension", () => {
         "server return code: 0",
         "received client request: report for",
       ];
-      const runTestsLog = await requestInLogs(22, expectedRunTestsLogs);
+      const runTestsLog = await checkIfRequestInLogs(22, expectedRunTestsLogs);
       expect(runTestsLog).toBe(true);
 
       statusBar = workbench.getStatusBar();
@@ -330,7 +333,7 @@ describe("vTypeCheck VS Code Extension", () => {
         " received shutdown request",
         "vcastDataServer is exiting",
       ];
-      const serverOfflineLog = await requestInLogs(
+      const serverOfflineLog = await checkIfRequestInLogs(
         5,
         expectedServerOfflineLogs
       );
@@ -351,7 +354,7 @@ describe("vTypeCheck VS Code Extension", () => {
       );
 
       // No new logs should be there ebcasue we shutdown the server --> check for the same logs
-      const runTestsLogAfterSettingOffline = await requestInLogs(
+      const runTestsLogAfterSettingOffline = await checkIfRequestInLogs(
         5,
         expectedServerOfflineLogs
       );
@@ -382,7 +385,10 @@ describe("vTypeCheck VS Code Extension", () => {
         "clicast:",
         "received ping request, responding 'alive'",
       ];
-      const serverOnlineLog = await requestInLogs(3, expectedServerOnlineLogs);
+      const serverOnlineLog = await checkIfRequestInLogs(
+        3,
+        expectedServerOnlineLogs
+      );
       expect(serverOnlineLog).toBe(true);
 
       // Run test again
@@ -398,7 +404,7 @@ describe("vTypeCheck VS Code Extension", () => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Server is now online again --> We should see the same logs as before
-      const runTestsLogAfterSettingOnline = await requestInLogs(
+      const runTestsLogAfterSettingOnline = await checkIfRequestInLogs(
         22,
         expectedRunTestsLogs
       );

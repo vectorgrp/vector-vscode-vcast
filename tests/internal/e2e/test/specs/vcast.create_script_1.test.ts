@@ -12,7 +12,7 @@ import {
   findSubprogramMethod,
   openTestScriptFor,
   updateTestID,
-  requestInLogs,
+  checkIfRequestInLogs,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -182,7 +182,7 @@ describe("vTypeCheck VS Code Extension", () => {
         "received client request: choiceList-tst",
         "line received: 'TEST.VALUE:'",
       ];
-      const autocompleteLog = await requestInLogs(8, expectedLogArray);
+      const autocompleteLog = await checkIfRequestInLogs(8, expectedLogArray);
       expect(autocompleteLog).toBe(true);
     }
 

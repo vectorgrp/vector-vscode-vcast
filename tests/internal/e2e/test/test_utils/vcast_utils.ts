@@ -1260,7 +1260,7 @@ function normalizeContentAssistString(content: string): string {
  * @param stringArray List of strings that need to be contained withing last |lineNNumber|
  * @returns true, if all strings are found, else false
  */
-export async function requestInLogs(
+export async function checkIfRequestInLogs(
   lineNumber: number,
   stringArray: string[]
 ): Promise<boolean> {

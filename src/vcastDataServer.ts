@@ -143,7 +143,6 @@ async function startServer() {
     cwd: serverCWD,
   });
 
-  await new Promise((resolve) => setTimeout(resolve, 5000));
   serverProcessObject.stdout.on("data", function (data: any) {
     const rawString = data.toString();
     const lineArray = rawString.split(/[\n\r?]/);

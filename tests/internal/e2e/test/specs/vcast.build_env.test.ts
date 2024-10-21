@@ -6,7 +6,7 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  requestInLogs,
+  checkIfRequestInLogs,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -113,7 +113,7 @@ describe("vTypeCheck VS Code Extension", () => {
       );
 
       // Check server logs
-      const logs = await requestInLogs(3, ["port:", "clicast"]);
+      const logs = await checkIfRequestInLogs(3, ["port:", "clicast"]);
       expect(logs).toBe(true);
     }
   });
