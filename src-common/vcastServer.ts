@@ -213,7 +213,7 @@ export async function transmitCommand(
     });
     const rawReturnData = response.data;
 
-    // Handle different exit codes from the server
+    // Handle different response codes from the server
     if (rawReturnData.exitCode == pythonErrorCodes.internalServerError) {
       // the error message is a list of strings, so join with \n
       transmitResponse.success = false;
