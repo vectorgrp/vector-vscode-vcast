@@ -1,5 +1,3 @@
-import * as nodeFetch from "node-fetch";
-import { Response } from "node-fetch";
 import { describe, test, expect, vi, afterEach } from "vitest";
 import {
   closeConnection,
@@ -10,22 +8,23 @@ import {
   setTerminateServerCallback,
   transmitCommand,
   vcastCommandType,
+  terminateServerProcessing,
+  sendShutdownToServer,
+  globalEnviroDataServerActive,
+  setServerPort,
+  getGLobalServerState,
+  getServerPort,
 } from "../../src-common/vcastServer";
 import { pythonErrorCodes } from "../../src-common/vcastServerTypes";
 
-vi.mock("node-fetch", async () => {
-  const actual = await vi.importActual<typeof nodeFetch>("node-fetch");
+import axios from "axios";
 
-  return {
-    ...actual,
-    default: vi.fn(),
-  };
-});
+// Mock axios
+vi.mock("axios");
+const mockAxiosPost = vi.mocked(axios.post);
 
-const fetch = vi.mocked(nodeFetch.default);
-
-// Generalized function to mock fetch
-const mockFetch = (
+// Generalized function to mock axios post
+const mockAxios = (
   responseBody: {
     exitCode: number;
     data: Record<string, unknown> | { error: string[] } | { text: string[] };
@@ -33,12 +32,12 @@ const mockFetch = (
   status = 200,
   statusText = "OK"
 ) => {
-  fetch.mockImplementationOnce(
-    async () =>
-      new Response(JSON.stringify(responseBody), {
-        status,
-        statusText,
-      })
+  mockAxiosPost.mockImplementation(async () =>
+    Promise.resolve({
+      data: responseBody,
+      status,
+      statusText,
+    })
   );
 };
 
@@ -48,101 +47,109 @@ describe("test server functions", () => {
     setGLobalServerState(false);
   });
 
-  // Testing closeConnection()
   test("closeConnection handles successful response", async () => {
-    const fetchReturn = {
+    const axiosReturn = {
       exitCode: 0,
       data: {},
     };
 
-    mockFetch(fetchReturn);
+    mockAxios(axiosReturn);
 
     const result = await closeConnection("test/path");
     expect(result).toBe(true);
-    expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/runcommand?request={"command":"closeConnection","path":"test/path"}'
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      "http://127.0.0.1:0/runcommand",
+      { command: "closeConnection", path: "test/path" },
+      { headers: { "Content-Type": "application/json" } }
     );
   });
 
   test("closeConnection handles internal server error", async () => {
-    const fetchReturn = {
+    const axiosReturn = {
       exitCode: pythonErrorCodes.internalServerError,
       data: {
         error: ["Internal server error occurred"],
       },
     };
 
-    mockFetch(fetchReturn, 500, "Internal Server Error");
+    mockAxios(axiosReturn, 500, "Internal Server Error");
 
     const result = await closeConnection("test/path");
     expect(result).toBe(false);
-    expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/runcommand?request={"command":"closeConnection","path":"test/path"}'
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      "http://127.0.0.1:0/runcommand",
+      { command: "closeConnection", path: "test/path" },
+      { headers: { "Content-Type": "application/json" } }
     );
   });
 
-  // Testing serverIsAlive()
   test("serverIsAlive handles successful response", async () => {
-    const fetchReturn = {
+    const axiosReturn = {
       exitCode: 0,
       text: "alive",
       data: {},
     };
 
-    mockFetch(fetchReturn);
+    mockAxios(axiosReturn);
 
     const result = await serverIsAlive();
     expect(result).toBe(true);
-    expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/ping?request={"command":"ping","path":""}'
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      "http://127.0.0.1:0/ping",
+      { command: "ping", path: "" },
+      { headers: { "Content-Type": "application/json" } }
     );
   });
 
   test("serverIsAlive handles Python interface error", async () => {
-    const fetchReturn = {
+    const axiosReturn = {
       exitCode: pythonErrorCodes.testInterfaceError,
       data: {
         text: ["Python interface error"],
       },
     };
 
-    mockFetch(fetchReturn);
+    mockAxios(axiosReturn);
 
     const result = await serverIsAlive();
     expect(result).toBe(false);
-    expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/ping?request={"command":"ping","path":""}'
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      "http://127.0.0.1:0/ping",
+      { command: "ping", path: "" },
+      { headers: { "Content-Type": "application/json" } }
     );
   });
 
   test("serverIsAlive handles clicast instance start failure", async () => {
-    const fetchReturn = {
+    const axiosReturn = {
       exitCode: pythonErrorCodes.couldNotStartClicastInstance,
       data: {},
     };
 
-    mockFetch(fetchReturn);
+    mockAxios(axiosReturn);
 
     const result = await serverIsAlive();
     expect(result).toBe(false);
-    expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/ping?request={"command":"ping","path":""}'
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      "http://127.0.0.1:0/ping",
+      { command: "ping", path: "" },
+      { headers: { "Content-Type": "application/json" } }
     );
   });
 
-  test("transmitCommand handles fetch errors with empty reason correctly", async () => {
-    // Mock the callbacks
+  test("transmitCommand handles exitCode 254 response correctly", async () => {
     const mockTerminateCallback = vi.fn();
     const mockLogServerCommandsCallback = vi.fn();
 
-    // Set the callbacks with mock functions
     setTerminateServerCallback(mockTerminateCallback);
     setLogServerCommandsCallback(mockLogServerCommandsCallback);
 
-    const errorMessage = "Network error reason: ";
-    fetch.mockImplementationOnce(async () => {
-      throw new Error(errorMessage);
-    });
+    const axiosReturn = {
+      exitCode: pythonErrorCodes.internalServerError,
+      data: {},
+    };
+
+    mockAxios(axiosReturn);
 
     const requestObject = {
       command: vcastCommandType.ping,
@@ -151,22 +158,112 @@ describe("test server functions", () => {
 
     const response = await transmitCommand(requestObject);
 
-    // Check fetch call
     expect(response.success).toBe(false);
-    expect(response.statusText).toBe(
-      `Enviro server error: Server is not running, disabling server mode for this session`
-    );
-    expect(fetch).toHaveBeenCalledWith(
-      `http://localhost:60461/runcommand?request=${JSON.stringify(requestObject)}`
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      `http://127.0.0.1:0/runcommand`,
+      requestObject,
+      { headers: { "Content-Type": "application/json" } }
     );
 
-    // Check if logServerCommandsCallback was called with the correct message
     const expectedLogMessage = `Sending command: "${requestObject.command}" to server: ${serverURL()},`;
     expect(mockLogServerCommandsCallback).toHaveBeenCalledWith(
       expectedLogMessage
     );
 
-    // Check if the mock function got called in transmitCommand
+    await terminateServerProcessing("Error string")
+      .then(() => {})
+      .catch((error) => {
+        console.error("Failed to terminate server:", error);
+      });
+
     expect(mockTerminateCallback).toHaveBeenCalledOnce();
+    expect(mockTerminateCallback).toHaveBeenCalledWith("Error string");
+  });
+
+  test("setGLobalServerState should update globalEnviroDataServerActive", () => {
+    expect(globalEnviroDataServerActive).toBe(false);
+    setGLobalServerState(true);
+    const newGlobalState = getGLobalServerState();
+    expect(newGlobalState).toBe(true);
+  });
+
+  test("serverIsAlive should log retry messages and timeout if server isn't ready", async () => {
+    const mockLogCallback = vi.fn();
+    setLogServerCommandsCallback(mockLogCallback);
+
+    const axiosReturn = {
+      exitCode: pythonErrorCodes.couldNotStartClicastInstance,
+      data: {},
+    };
+    mockAxios(axiosReturn);
+
+    const result = await serverIsAlive();
+
+    expect(result).toBe(false);
+
+    expect(mockLogCallback).toHaveBeenCalledWith(
+      "Server not ready, waiting 200ms ..."
+    );
+    expect(mockLogCallback).toHaveBeenCalledWith(
+      "Server timed out on startup, did not answer ping"
+    );
+  });
+
+  test("transmitCommand should handle axios error with empty reason correctly (TextLength = 0)", async () => {
+    const mockTerminateCallback = vi.fn();
+    const mockLogServerCommandsCallback = vi.fn();
+
+    setTerminateServerCallback(mockTerminateCallback);
+    setLogServerCommandsCallback(mockLogServerCommandsCallback);
+
+    const errorMessage = "Network error reason: ";
+    mockAxiosPost.mockImplementationOnce(async () => {
+      throw new Error(errorMessage);
+    });
+
+    const requestObject = {
+      command: vcastCommandType.rebuild,
+      path: "",
+    };
+
+    const response = await transmitCommand(requestObject);
+
+    expect(response.success).toBe(false);
+    expect(response.statusText).toBe(
+      `Enviro server error: command: rebuild, error: cannot communicate with server on port: 0`
+    );
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      `http://127.0.0.1:0/runcommand`,
+      requestObject,
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    const expectedLogMessage = `Sending command: "${requestObject.command}" to server: http://127.0.0.1:0,`;
+    expect(mockLogServerCommandsCallback).toHaveBeenCalledWith(
+      expectedLogMessage
+    );
+
+    expect(mockTerminateCallback).toHaveBeenCalledOnce();
+  });
+
+  test("should change port number and sendShutdownToServer should send shutdown command", async () => {
+    setServerPort(69);
+    const newServerPort = getServerPort();
+
+    expect(newServerPort).toBe(69);
+
+    const axiosReturn = {
+      exitCode: 0,
+      data: {},
+    };
+    mockAxios(axiosReturn);
+
+    await sendShutdownToServer();
+
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      "http://127.0.0.1:69/shutdown",
+      { command: "shutdown", path: "" },
+      { headers: { "Content-Type": "application/json" } }
+    );
   });
 });
