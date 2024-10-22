@@ -1050,6 +1050,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Verifying test output");
 
+    await bottomBar.maximize();
+
     // Open Test Results
     await browser.keys([Key.Control, Key.Shift, "p"]);
     // Typing Vector in the quick input box
@@ -1063,6 +1065,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await $(`aria/[  FAIL  ] manager.coded_tests_driver - managerTests.myTest`);
 
+    await bottomBar.restore();
     await bottomBar.openOutputView();
 
     console.log("Checking test report");
@@ -1298,6 +1301,7 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
+    await bottomBar.maximize();
     // Open Test Results
     await browser.keys([Key.Control, Key.Shift, "p"]);
     // Typing Vector in the quick input box
@@ -1312,6 +1316,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await $(`aria/[        ]   Testcase User Code Mismatch:`);
     await $(`aria/[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]`);
     await $(`aria/TEST RESULT: fail`);
+
+    await bottomBar.restore();
 
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
