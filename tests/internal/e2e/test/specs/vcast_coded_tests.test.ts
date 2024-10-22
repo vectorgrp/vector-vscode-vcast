@@ -1050,7 +1050,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Verifying test output");
 
-    await bottomBar.maximize();
     // Open Test Results
     await browser.keys([Key.Control, Key.Shift, "p"]);
     // Typing Vector in the quick input box
@@ -1064,7 +1063,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await $(`aria/[  FAIL  ] manager.coded_tests_driver - managerTests.myTest`);
 
-    await bottomBar.restore();
     await bottomBar.openOutputView();
 
     console.log("Checking test report");
@@ -1299,20 +1297,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await workbench.getAllWebviews()).length > 0,
       { timeout: TIMEOUT }
     );
-    const webviews = await workbench.getAllWebviews();
-    expect(webviews).toHaveLength(1);
-    const webview = webviews[0];
-    await webview.open();
-    console.log("Checking test report");
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
-    );
 
-    await webview.close();
-    await editorView.closeAllEditors();
-
-    await (await bottomBar.elem).click();
-    await bottomBar.maximize();
     // Open Test Results
     await browser.keys([Key.Control, Key.Shift, "p"]);
     // Typing Vector in the quick input box
@@ -1328,8 +1313,17 @@ describe("vTypeCheck VS Code Extension", () => {
     await $(`aria/[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]`);
     await $(`aria/TEST RESULT: fail`);
 
-    await bottomBar.openOutputView();
-    await bottomBar.restore();
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+    await webview.open();
+    console.log("Checking test report");
+    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
+      "Execution Results (FAIL)"
+    );
+
+    await webview.close();
+    await editorView.closeAllEditors();
   });
 
   it("should clean up", async () => {
