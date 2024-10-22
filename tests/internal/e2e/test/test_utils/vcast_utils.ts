@@ -1252,7 +1252,7 @@ export async function checkForLogsInTestResults(
   await browser.keys([Key.Control, Key.Shift, "p"]);
 
   // Typing Vector in the quick input box
-  // This brings up VectorCAST Test Explorer: Configure
+  // This brings up Test Results: Focus on test Results View
   // so just need to hit Enter to activate
   for (const character of "Test Results: Focus") {
     await browser.keys(character);
