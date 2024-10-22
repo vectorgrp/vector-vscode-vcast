@@ -10,6 +10,7 @@ import {
   ViewContent,
   ContentAssist,
   ContentAssistItem,
+  BottomBarPanel,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
@@ -1229,4 +1230,40 @@ export async function selectItem(contentAssist: ContentAssist, item: string) {
  */
 function normalizeContentAssistString(content: string): string {
   return content.replace(/⏎/g, "\n").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Checks whether specific strings are contained in the Test Results message pane.
+ *
+ * This function opens the Test Results pane, maximizes it, and searches the HTML document to verify
+ * if all the strings from the logArray are present in the pane. After checking, the bottom bar is restored.
+ *
+ * @param {WebdriverIO.Browser} browser - The WebdriverIO browser instance used for interacting with the VS Code interface.
+ * @param {BottomBarPanel} bottomBar - The bottom bar panel of VS Code, which is maximized to display the Test Results pane.
+ * @param {string[]} logArray - An array of strings that are expected to be found in the Test Results message pane.
+ */
+export async function checkForLogsInTestResults(
+  browser: WebdriverIO.Browser,
+  bottomBar: BottomBarPanel,
+  logArray: string[]
+) {
+  await bottomBar.maximize();
+  // Open Test Results
+  await browser.keys([Key.Control, Key.Shift, "p"]);
+
+  // Typing Vector in the quick input box
+  // This brings up VectorCAST Test Explorer: Configure
+  // so just need to hit Enter to activate
+  for (const character of "Test Results: Focus") {
+    await browser.keys(character);
+  }
+
+  await browser.keys(Key.Enter);
+
+  // If a log is not present, this will timeout
+  for (let log of logArray) {
+    await $(`aria/${log}`);
+  }
+
+  await bottomBar.restore();
 }

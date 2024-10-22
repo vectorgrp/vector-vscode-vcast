@@ -21,6 +21,7 @@ import {
   findSubprogramMethod,
   updateTestID,
   cleanup,
+  checkForLogsInTestResults,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -1049,23 +1050,10 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Verifying test output");
-
-    await bottomBar.maximize();
-
-    // Open Test Results
-    await browser.keys([Key.Control, Key.Shift, "p"]);
-    // Typing Vector in the quick input box
-    // This brings up VectorCAST Test Explorer: Configure
-    // so just need to hit Enter to activate
-    for (const character of "Test Results: Focus") {
-      await browser.keys(character);
-    }
-
-    await browser.keys(Key.Enter);
-
-    await $(`aria/[  FAIL  ] manager.coded_tests_driver - managerTests.myTest`);
-
-    await bottomBar.restore();
+    let logArray = [
+      "[  FAIL  ] manager.coded_tests_driver - managerTests.myTest",
+    ];
+    await checkForLogsInTestResults(browser, bottomBar, logArray);
 
     console.log("Checking test report");
     let webviews = await workbench.getAllWebviews();
@@ -1106,28 +1094,9 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Running adapted test");
     await runArrowElement.click({ button: 1 });
 
-    await browser.waitUntil(
-      async () => (await workbench.getAllWebviews()).length > 0,
-      { timeout: TIMEOUT }
-    );
-    console.log("Verifying test status");
-
-    await bottomBar.maximize();
-    // Open Test Results
-    await browser.keys([Key.Control, Key.Shift, "p"]);
-    // Typing Vector in the quick input box
-    // This brings up VectorCAST Test Explorer: Configure
-    // so just need to hit Enter to activate
-    for (const character of "Test Results: Focus") {
-      await browser.keys(character);
-    }
-
-    await browser.keys(Key.Enter);
-
-    await $(`aria/Status: passed`);
-    await $(`aria/Values: 2/2 (100.00)`);
-
-    await bottomBar.restore();
+    console.log("Verifying Test Results");
+    logArray = ["Status: passed", "Values: 2/2 (100.00)"];
+    await checkForLogsInTestResults(browser, bottomBar, logArray);
 
     console.log("Checking test reports");
     webviews = await workbench.getAllWebviews();
@@ -1304,23 +1273,13 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
-    await bottomBar.maximize();
-    // Open Test Results
-    await browser.keys([Key.Control, Key.Shift, "p"]);
-    // Typing Vector in the quick input box
-    // This brings up VectorCAST Test Explorer: Configure
-    // so just need to hit Enter to activate
-    for (const character of "Test Results: Focus") {
-      await browser.keys(character);
-    }
-
-    await browser.keys(Key.Enter);
-
-    await $(`aria/[        ]   Testcase User Code Mismatch:`);
-    await $(`aria/[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]`);
-    await $(`aria/TEST RESULT: fail`);
-
-    await bottomBar.restore();
+    console.log("Verifying Test Results");
+    const logArray = [
+      "[        ]   Testcase User Code Mismatch:",
+      "[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]",
+      "TEST RESULT: fail",
+    ];
+    await checkForLogsInTestResults(browser, bottomBar, logArray);
 
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
