@@ -1,8 +1,9 @@
 // Test/specs/vcast_coded_tests.test.ts
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import * as vscode from "vscode";
 import {
-  type BottomBarPanel,
+  BottomBarPanel,
   type StatusBar,
   type TextEditor,
   type Workbench,
@@ -1048,15 +1049,22 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Verifying test output");
-    await bottomBar.maximize();
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Processing environment data"),
-      { timeout: TIMEOUT }
-    );
+
+    // Open Test Results
+    await browser.keys([Key.Control, Key.Shift, "p"]);
+    // Typing Vector in the quick input box
+    // This brings up VectorCAST Test Explorer: Configure
+    // so just need to hit Enter to activate
+    for (const character of "Test Results: Focus") {
+      await browser.keys(character);
+    }
+
+    await browser.keys(Key.Enter);
+
+    await $(`aria/[  FAIL  ] manager.coded_tests_driver - managerTests.myTest`);
+
     await bottomBar.restore();
+    await bottomBar.openOutputView();
 
     console.log("Checking test report");
     let webviews = await workbench.getAllWebviews();
@@ -1102,6 +1110,22 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
     console.log("Verifying test status");
+
+    // Open Test Results
+    await browser.keys([Key.Control, Key.Shift, "p"]);
+    // Typing Vector in the quick input box
+    // This brings up VectorCAST Test Explorer: Configure
+    // so just need to hit Enter to activate
+    for (const character of "Test Results: Focus") {
+      await browser.keys(character);
+    }
+
+    await browser.keys(Key.Enter);
+
+    await $(`aria/Status: passed`);
+    await $(`aria/Values: 2/2 (100.00)`);
+
+    await bottomBar.openOutputView();
 
     console.log("Checking test reports");
     webviews = await workbench.getAllWebviews();
@@ -1288,13 +1312,22 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await (await bottomBar.elem).click();
     await bottomBar.maximize();
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Processing environment data"),
-      { timeout: TIMEOUT }
-    );
+    // Open Test Results
+    await browser.keys([Key.Control, Key.Shift, "p"]);
+    // Typing Vector in the quick input box
+    // This brings up VectorCAST Test Explorer: Configure
+    // so just need to hit Enter to activate
+    for (const character of "Test Results: Focus") {
+      await browser.keys(character);
+    }
+
+    await browser.keys(Key.Enter);
+
+    await $(`aria/[        ]   Testcase User Code Mismatch:`);
+    await $(`aria/[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]`);
+    await $(`aria/TEST RESULT: fail`);
+
+    await bottomBar.openOutputView();
     await bottomBar.restore();
   });
 
