@@ -1270,8 +1270,10 @@ describe("vTypeCheck VS Code Extension", () => {
     await sourceFileTab.setTextAtLine(errorLine, "");
     await sourceFileTab.save();
 
+    console.log("Toggle Bottom Bar");
+
     const bottomBar = workbench.getBottomBar();
-    await bottomBar.toggle(true);
+    // await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
 
