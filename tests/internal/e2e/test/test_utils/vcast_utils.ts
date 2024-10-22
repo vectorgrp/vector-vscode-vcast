@@ -1235,19 +1235,16 @@ function normalizeContentAssistString(content: string): string {
 /**
  * Checks whether specific strings are contained in the Test Results message pane.
  *
- * This function opens the Test Results pane, maximizes it, and searches the HTML document to verify
- * if all the strings from the logArray are present in the pane. After checking, the bottom bar is restored.
+ * This function opens the Test Results pane and searches the HTML document to verify
+ * if all the strings from the logArray are present in the pane.
  *
  * @param {WebdriverIO.Browser} browser - The WebdriverIO browser instance used for interacting with the VS Code interface.
- * @param {BottomBarPanel} bottomBar - The bottom bar panel of VS Code, which is maximized to display the Test Results pane.
  * @param {string[]} logArray - An array of strings that are expected to be found in the Test Results message pane.
  */
 export async function checkForLogsInTestResults(
   browser: WebdriverIO.Browser,
-  bottomBar: BottomBarPanel,
   logArray: string[]
 ) {
-  await bottomBar.maximize();
   // Open Test Results
   await browser.keys([Key.Control, Key.Shift, "p"]);
 
@@ -1264,6 +1261,4 @@ export async function checkForLogsInTestResults(
   for (let log of logArray) {
     await $(`aria/${log}`);
   }
-
-  await bottomBar.restore();
 }

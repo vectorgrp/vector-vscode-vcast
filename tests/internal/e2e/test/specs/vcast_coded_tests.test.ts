@@ -1050,10 +1050,12 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Verifying test output");
+    await bottomBar.maximize();
     let logArray = [
       "[  FAIL  ] manager.coded_tests_driver - managerTests.myTest",
     ];
-    await checkForLogsInTestResults(browser, bottomBar, logArray);
+    await checkForLogsInTestResults(browser, logArray);
+    await bottomBar.restore();
 
     console.log("Checking test report");
     let webviews = await workbench.getAllWebviews();
@@ -1095,8 +1097,10 @@ describe("vTypeCheck VS Code Extension", () => {
     await runArrowElement.click({ button: 1 });
 
     console.log("Verifying Test Results");
+    await bottomBar.maximize();
     logArray = ["Status: passed", "Values: 2/2 (100.00)"];
-    await checkForLogsInTestResults(browser, bottomBar, logArray);
+    await checkForLogsInTestResults(browser, logArray);
+    await bottomBar.restore();
 
     console.log("Checking test reports");
     webviews = await workbench.getAllWebviews();
@@ -1274,12 +1278,14 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Verifying Test Results");
+    await bottomBar.maximize();
     const logArray = [
       "[        ]   Testcase User Code Mismatch:",
       "[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]",
       "TEST RESULT: fail",
     ];
-    await checkForLogsInTestResults(browser, bottomBar, logArray);
+    await checkForLogsInTestResults(browser, logArray);
+    await bottomBar.restore();
 
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
