@@ -1066,7 +1066,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await $(`aria/[  FAIL  ] manager.coded_tests_driver - managerTests.myTest`);
 
     await bottomBar.restore();
-    await bottomBar.openOutputView();
 
     console.log("Checking test report");
     let webviews = await workbench.getAllWebviews();
@@ -1113,6 +1112,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     console.log("Verifying test status");
 
+    await bottomBar.maximize();
     // Open Test Results
     await browser.keys([Key.Control, Key.Shift, "p"]);
     // Typing Vector in the quick input box
@@ -1127,7 +1127,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await $(`aria/Status: passed`);
     await $(`aria/Values: 2/2 (100.00)`);
 
-    await bottomBar.openOutputView();
+    await bottomBar.restore();
 
     console.log("Checking test reports");
     webviews = await workbench.getAllWebviews();
@@ -1243,7 +1243,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     //Need to close tabs, otherwise can't interact with tab content properly
     await browser.keys(Key.Escape);
-    await editorView.closeEditor("ACOMPILE.LIS", 1);
+    await editorView.closeAllEditors();
+
     currentTestHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
@@ -1270,7 +1271,12 @@ describe("vTypeCheck VS Code Extension", () => {
     await sourceFileTab.setTextAtLine(errorLine, "");
     await sourceFileTab.save();
 
-    console.log("Editing coded test");
+    const bottomBar = workbench.getBottomBar();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    await editorView.closeAllEditors();
 
     contextMenu = await currentTestHandle.openContextMenu();
     await contextMenu.select("VectorCAST");
