@@ -1243,7 +1243,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     //Need to close tabs, otherwise can't interact with tab content properly
     await browser.keys(Key.Escape);
-    await editorView.closeAllEditors();
+    await editorView.closeEditor("VectorCAST Report", 1);
     currentTestHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
@@ -1274,7 +1274,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
 
-    await editorView.closeAllEditors();
+    console.log("Editing coded test");
 
     contextMenu = await currentTestHandle.openContextMenu();
     await contextMenu.select("VectorCAST");
@@ -1293,6 +1293,7 @@ describe("vTypeCheck VS Code Extension", () => {
     runArrowElement = await (
       await lineNumberElement.parentElement()
     ).$(".cgmr.codicon");
+
     console.log("Running corrected test");
     await runArrowElement.click({ button: 1 });
 
