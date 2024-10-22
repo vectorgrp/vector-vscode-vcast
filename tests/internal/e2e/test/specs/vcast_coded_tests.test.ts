@@ -1243,7 +1243,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     //Need to close tabs, otherwise can't interact with tab content properly
     await browser.keys(Key.Escape);
-    await editorView.closeEditor("VectorCAST Report", 1);
+    await editorView.closeEditor("ACOMPILE.LIS", 1);
     currentTestHandle = await getTestHandle(
       subprogram,
       "Coded Tests",
@@ -1263,6 +1263,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const messageLine = errorLine - 1;
     await tab.moveCursor(messageLine, 1);
 
+    console.log("Open Editor");
     let sourceFileTab = (await editorView.openEditor(
       "manager-Tests.cpp"
     )) as TextEditor;
