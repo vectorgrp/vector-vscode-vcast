@@ -1050,6 +1050,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Verifying test output");
 
+    await bottomBar.maximize();
     // Open Test Results
     await browser.keys([Key.Control, Key.Shift, "p"]);
     // Typing Vector in the quick input box
