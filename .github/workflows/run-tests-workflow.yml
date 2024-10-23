@@ -11,6 +11,25 @@ on:
   release:
   workflow_dispatch:
 jobs:
+  test:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast ]
+
+    strategy:
+      matrix:
+        container_user: [ vcast_user, vcast_user ]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
+      options: --user ${{ matrix.container_user }}
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
   unit-tests:
     if: github.event.pull_request.draft == false
     permissions: write-all
