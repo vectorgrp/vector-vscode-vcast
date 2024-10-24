@@ -22,7 +22,7 @@ jobs:
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
-      options: --user vcast_user --mount type=bind,source=/home/github/vscode_runners/releases,target=/vcast
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     strategy:
       matrix:
@@ -199,7 +199,7 @@ jobs:
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
-      options: --user vcast_user --mount type=bind,source=/home/github/vscode_runners/releases,target=/vcast
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     strategy:
       matrix:
