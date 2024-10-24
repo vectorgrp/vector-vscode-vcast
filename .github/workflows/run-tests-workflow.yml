@@ -26,7 +26,7 @@ jobs:
 
     strategy:
       matrix:
-        vcast: [ 2023sp0, 2024sp4, 2024sp5 ]
+        vcast: [ 2021sp0, 2023sp0, 2024sp4, 2024sp5 ]
 
     steps:
       - name: Check out repository
@@ -209,6 +209,9 @@ jobs:
       GITHUB_SHA: ${{ github.sha }}
       RUN_BY_GROUP: "True"
       RUN_GROUP_NAME: ${{ matrix.group }}
+      ENABLE_ATG_FEATURE: TRUE
+      LM_LICENSE_FILE: /vcast/vector-license.lic
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
 
     steps:
       - name: Check out repository
