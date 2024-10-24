@@ -146,6 +146,8 @@ export function getSpecsWithEnv(useVcast24: boolean) {
     // In that case we don t want the release to be on PATH
     if (groupObject.params?.vcReleaseOnPath === false) {
       const pathWithoutRelease = removeReleaseOnPath();
+      console.log("PATH WITHOUT RELEASE: ");
+      console.log(pathWithoutRelease);
       if (pathWithoutRelease !== undefined) {
         groupObject.env.PATH = pathWithoutRelease;
       }
@@ -210,7 +212,7 @@ export function getSpecs(vcast24: boolean, group: string = null) {
 }
 
 /**
- * Splits all paths from the PATH env variable that contain a year followed by "sp" and a number (e.g., 2023sp2).
+ * Splits all paths from the PATH env variable that contain a year followed by "sp" and a number (e.g., 2023sp0).
  * @returns New PATH env var without those paths
  */
 function removeReleaseOnPath(): string | undefined {
@@ -225,8 +227,8 @@ function removeReleaseOnPath(): string | undefined {
   // Split the PATH on ":"
   const paths = envPath.split(":");
 
-  // Regex to match paths that start with a year followed by "sp" and a number (e.g., 2023sp0)
-  const releaseRegex = /^\d{4}sp\d+/;
+  // Regex to match paths containing "vcast/" followed by a four-digit year and "sp" with a number (e.g., /vcast/2023sp0)
+  const releaseRegex = /\/vcast\/\d{4}sp\d+/;
 
   // Filter out paths that match the new release pattern
   const filteredPaths = paths.filter((path) => !releaseRegex.test(path));

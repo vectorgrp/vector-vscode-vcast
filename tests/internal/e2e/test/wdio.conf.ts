@@ -412,6 +412,8 @@ export const config: Options.Testrunner = {
           "vpython"
         );
         process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
+        console.log("PATH IN WDIO");
+        console.log(process.env.PATH);
         clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
 
