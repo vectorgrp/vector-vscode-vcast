@@ -1051,7 +1051,6 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Verifying test output");
 
     await bottomBar.maximize();
-
     let logArray = [
       "[  FAIL  ] manager.coded_tests_driver - managerTests.myTest",
     ];
@@ -1101,10 +1100,9 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await workbench.getAllWebviews()).length > 0,
       { timeout: TIMEOUT }
     );
-    console.log("Verifying test status");
+    console.log("Verifying Test Results");
 
     await bottomBar.maximize();
-    console.log("Verifying Test Results");
     logArray = ["Status: passed", "Values: 2/2 (100.00)"];
     await checkForLogsInTestResults(logArray);
     await bottomBar.restore();
@@ -1284,8 +1282,8 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
-    await bottomBar.maximize();
     console.log("Verifying Test Results");
+    await bottomBar.maximize();
     const logArray = [
       "[        ]   Testcase User Code Mismatch:",
       "[        ]   Incorrect Value: VASSERT_EQ(10, 20) = [20]",

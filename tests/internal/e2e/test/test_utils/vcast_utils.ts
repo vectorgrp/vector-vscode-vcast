@@ -1237,22 +1237,15 @@ function normalizeContentAssistString(content: string): string {
  * This function opens the Test Results pane and searches the HTML document to verify
  * if all the strings from the logArray are present in the pane.
  *
- * @param {WebdriverIO.Browser} browser - The WebdriverIO browser instance used for interacting with the VS Code interface.
- * @param {BottomBarPanel} bottomBar - The bottom bar panel of VS Code, which is maximized to display the Test Results pane.
  * @param {string[]} logArray - An array of strings that are expected to be found in the Test Results message pane.
  */
 export async function checkForLogsInTestResults(logArray: string[]) {
-  // Open Test Results
+  // This brings up the command Test Results: Focus on Test Results View
+  // We need to open the Test Results pane because otherwise the logs are not found.
   await browser.keys([Key.Control, Key.Shift, "p"]);
-
-  // Typing Vector in the quick input box
-  // This brings up Test Results: Focus on Test Results View
-  // so just need to hit Enter to activate
-  // We need to open it because otherwise the logs are not found.
   for (const character of "Test Results: Focus") {
     await browser.keys(character);
   }
-
   await browser.keys(Key.Enter);
 
   // If a log is not present, this will timeout
