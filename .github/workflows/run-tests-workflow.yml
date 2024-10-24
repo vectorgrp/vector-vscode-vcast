@@ -10,8 +10,6 @@ on:
       - main
   release:
   workflow_dispatch:
-#env:
-#  VCAST_VERSIONS: '["2021sp0", "2023sp0", "2024sp4", "2024sp5"]'
 jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
@@ -186,6 +184,8 @@ jobs:
 
       - name: Set jobs matrix
         id: set-matrix
+        env:
+          VCAST_VERSIONS: ${{ vars.VCAST_VERSIONS }}
         run: |
           cd tests/internal/e2e/test
           npx tsx get_gha_matrix.ts
