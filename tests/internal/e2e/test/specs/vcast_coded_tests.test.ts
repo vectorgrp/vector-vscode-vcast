@@ -1057,6 +1057,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "[  FAIL  ] manager.coded_tests_driver - managerTests.myTest",
     ];
     await checkForLogsInTestResults(logArray);
+    await bottomBar.restore();
 
     console.log("Checking test report");
     let webviews = await workbench.getAllWebviews();
