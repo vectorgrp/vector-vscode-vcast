@@ -10,8 +10,8 @@ on:
       - main
   release:
   workflow_dispatch:
-env:
-  VCAST_VERSIONS: '["2021sp0", "2023sp0", "2024sp4", "2024sp5"]'
+#env:
+#  VCAST_VERSIONS: '["2021sp0", "2023sp0", "2024sp4", "2024sp5"]'
 jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
@@ -28,7 +28,7 @@ jobs:
 
     strategy:
       matrix:
-        vcast: ${{ fromJSON(env.VCAST_VERSIONS) }}
+        vcast: ${{ fromJSON(vars.VCAST_VERSIONS) }}
 
     steps:
       - name: Check out repository
