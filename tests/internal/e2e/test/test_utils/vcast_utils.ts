@@ -1312,3 +1312,42 @@ export async function getLastLineOfOutputView(bottomBar: BottomBarPanel) {
   const lines = text.toString().split("\n");
   return lines[lines.length - 1];
 }
+
+/**
+ * Turns the Data Server on or off by clicking on the vDataServer button
+ * @param turnOn - true to turn on the server, false to turn it off
+ */
+export async function toggleDataServer(turnOn: boolean) {
+  let workbench = await browser.getWorkbench();
+  let statusBar = workbench.getStatusBar();
+
+  if (turnOn) {
+    // Be sure that vDataServer On button is shown
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("vDataServer Off"),
+      { timeout: TIMEOUT }
+    );
+
+    await (await statusBar.getItem("vDataServer Off")).click();
+
+    // Be sure that now the vDataServer On button is shown
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("vDataServer On"),
+      { timeout: TIMEOUT }
+    );
+  } else {
+    // Be sure that vDataServer On button is shown
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("vDataServer On"),
+      { timeout: TIMEOUT }
+    );
+
+    await (await statusBar.getItem("vDataServer On")).click();
+
+    // Be sure that now the vDataServer Off button is shown
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("vDataServer Off"),
+      { timeout: TIMEOUT }
+    );
+  }
+}

@@ -16,6 +16,7 @@ import {
   editTestScriptFor,
   updateTestID,
   checkIfRequestInLogs,
+  toggleDataServer,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -314,18 +315,13 @@ describe("vTypeCheck VS Code Extension", () => {
        *               Server Off + Run Tests                *
        *******************************************************/
       console.log("Turning Server off");
-      await (await statusBar.getItem("vDataServer On")).click();
+      await toggleDataServer(false);
 
       await browser.waitUntil(
         async () =>
           (await outputView.getText())
             .toString()
             .includes("VectorCAST Data Server exited successfully"),
-        { timeout: TIMEOUT }
-      );
-
-      await browser.waitUntil(
-        async () => (await statusBar.getItems()).includes("vDataServer Off"),
         { timeout: TIMEOUT }
       );
 
@@ -366,7 +362,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
       console.log("Turning Server on again.");
 
-      await (await statusBar.getItem("vDataServer Off")).click();
+      await toggleDataServer(true);
 
       // Check message pane for expected message
       await browser.waitUntil(
