@@ -78,8 +78,8 @@ jobs:
             exit 1
           fi
           echo 'Activating Vcast ${{ matrix.vcast }}'
-          export VECTORCAST_DIR=$RELEASE_DIR
-          export PATH=$RELEASE_DIR:$PATH
+          echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
+          echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
         shell: bash
 
       - name: Run unit tests
@@ -275,8 +275,8 @@ jobs:
             exit 1
           fi
           echo 'Activating Vcast ${{ matrix.version }}'
-          export VECTORCAST_DIR=$RELEASE_DIR
-          export PATH=$RELEASE_DIR:$PATH
+          echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
+          echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
         shell: bash
 
       - name: Run tests
