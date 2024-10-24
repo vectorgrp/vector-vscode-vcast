@@ -1,7 +1,6 @@
 // Test/specs/vcast_coded_tests.test.ts
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import * as vscode from "vscode";
 import {
   BottomBarPanel,
   type StatusBar,
