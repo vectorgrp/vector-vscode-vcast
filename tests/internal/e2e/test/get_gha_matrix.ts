@@ -4,7 +4,7 @@ import { getSpecGroups } from "./specs_config";
 function dumpGhaMatrix() {
   const versionsJson = process.env.VCAST_VERSIONS;
   if (!versionsJson) {
-    throw new Error("VERSIONS_JSON environment variable is not set.");
+    throw new Error("VCAST_VERSIONS environment variable is not set.");
   }
 
   const versions = JSON.parse(versionsJson);
