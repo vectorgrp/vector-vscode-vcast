@@ -29,6 +29,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should activate vcastAdapter", async () => {
     await updateTestID();
+
     await browser.keys([Key.Control, Key.Shift, "p"]);
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
@@ -36,14 +37,18 @@ describe("vTypeCheck VS Code Extension", () => {
     for (const character of "vector") {
       await browser.keys(character);
     }
+
     await browser.keys(Key.Enter);
+
     const activityBar = workbench.getActivityBar();
     const viewControls = await activityBar.getViewControls();
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
+
     // Await last expected sentence
     await browser.waitUntil(
       async () =>
