@@ -2,8 +2,6 @@ import * as fs from "fs";
 import { getSpecGroups } from "./specs_config";
 
 function dumpGhaMatrix() {
-  const versions = ["2021sp0", "2023sp0", "2024sp4", "2024sp5"];
-
   const versionsJson = process.env.VCAST_VERSIONS;
   if (!versionsJson) {
     throw new Error("VERSIONS_JSON environment variable is not set.");
