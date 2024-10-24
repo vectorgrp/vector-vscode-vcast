@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { getSpecGroups } from "./specs_config";
 
 function dumpGhaMatrix() {
-  const versions = ['2021sp0', '2023sp0', '2024sp4', '2024sp5'];
+  const versions = ['2023sp0', '2024sp4', '2024sp5'];
   const result: { version: number; group: string }[] = [];
 
   versions.forEach((version) => {
