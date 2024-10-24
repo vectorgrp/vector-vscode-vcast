@@ -1230,3 +1230,69 @@ export async function selectItem(contentAssist: ContentAssist, item: string) {
 function normalizeContentAssistString(content: string): string {
   return content.replace(/⏎/g, "\n").replace(/\s+/g, " ").trim();
 }
+
+export async function getTextFromTestResultsPanel() {
+  // Open Test Results
+  await browser.keys([Key.Control, Key.Shift, "p"]);
+
+  // Get command to open Test Results
+  for (const character of "Test Results: Focus") {
+    await browser.keys(character);
+  }
+  await browser.keys(Key.Enter);
+
+  // Select the div with aria-label 'Test Results Section'
+  const testResultsPanel = await browser.$(
+    '//*[@id="workbench.panel.testResults"]'
+  );
+
+  await testResultsPanel.waitForExist();
+
+  if (!testResultsPanel) {
+    console.log("Still not found");
+  }
+
+  // Get all span elements under the sibling div at any depth
+  const spanElements = await testResultsPanel.$$("span");
+
+  // Initialize an empty string to concatenate the text
+  let concatenatedText = "";
+
+  // Loop through each span element and get its text
+  for (let span of spanElements) {
+    const spanText = await span.getText();
+    concatenatedText += spanText + " "; // Concatenate with a space in between
+  }
+
+  // Trim the final string to remove any extra whitespace
+  return concatenatedText.trim();
+}
+
+/**
+ * Checks whether specific strings are contained in the Test Results message pane.
+ *
+ * This function opens the Test Results pane, maximizes it, and searches the HTML document to verify
+ * if all the strings from the logArray are present in the pane. After checking, the bottom bar is restored.
+ *
+ * @param {WebdriverIO.Browser} browser - The WebdriverIO browser instance used for interacting with the VS Code interface.
+ * @param {BottomBarPanel} bottomBar - The bottom bar panel of VS Code, which is maximized to display the Test Results pane.
+ * @param {string[]} logArray - An array of strings that are expected to be found in the Test Results message pane.
+ */
+export async function checkForLogsInTestResults(logArray: string[]) {
+  // Open Test Results
+  await browser.keys([Key.Control, Key.Shift, "p"]);
+
+  // Typing Vector in the quick input box
+  // This brings up VectorCAST Test Explorer: Configure
+  // so just need to hit Enter to activate
+  for (const character of "Test Results: Focus") {
+    await browser.keys(character);
+  }
+
+  await browser.keys(Key.Enter);
+
+  // If a log is not present, this will timeout
+  for (let log of logArray) {
+    await $(`aria/${log}`);
+  }
+}
