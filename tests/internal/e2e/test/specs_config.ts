@@ -207,12 +207,6 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    specGroups["import_coded_test_server"] = {
-      specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
-      env: { IMPORT_CODED_TEST_IN_TST: "True" },
-      params: {},
-    };
-
     specGroups["func_atg_server"] = {
       specs: [
         "./**/**/vcast_testgen_func_atg.test.ts",
