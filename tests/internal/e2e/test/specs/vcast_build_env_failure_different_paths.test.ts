@@ -118,7 +118,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
 
-    await expectEnvResults("release23");
+    await expectEnvResults("2023sp0");
   });
 
   it("should change to release 24 and confirm the presence of ENV_24_02 and ENV_24_04", async () => {
@@ -134,7 +134,7 @@ describe("vTypeCheck VS Code Extension", () => {
       vcastRoot = path.join(process.env.HOME, "vcast");
     }
 
-    const newVersion = "release24";
+    const newVersion = "2024sp4";
     const release24Path = path.join(vcastRoot, newVersion);
 
     const workbench = await browser.getWorkbench();
@@ -162,7 +162,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
 
-    await expectEnvResults("release24");
+    await expectEnvResults("2024sp4");
   });
 });
 
@@ -173,7 +173,7 @@ describe("vTypeCheck VS Code Extension", () => {
 async function expectEnvResults(release: string) {
   const envMap = new Map<string, Array<{ env: string; state: string }>>([
     [
-      "release23",
+      "2023sp0",
       [
         { env: "ENV_23_01", state: "defined" },
         { env: "ENV_24_02", state: "undefined" },
@@ -182,7 +182,7 @@ async function expectEnvResults(release: string) {
       ],
     ],
     [
-      "release24",
+      "2024sp4",
       [
         { env: "ENV_23_01", state: "undefined" },
         { env: "ENV_24_02", state: "defined" },

@@ -96,7 +96,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
 
-  it("should set PATH to release24_sp4", async () => {
+  it("should set PATH to 2024sp4", async () => {
     const outputView = await bottomBar.openOutputView();
     // Check if we are on CI
     let vcastRoot: string;
@@ -107,7 +107,7 @@ describe("vTypeCheck VS Code Extension", () => {
       vcastRoot = path.join(process.env.HOME, "vcast");
     }
 
-    const newVersion = "release24_sp4";
+    const newVersion = "_2024sp4";
     const release24Path = path.join(vcastRoot, newVersion);
 
     const workbench = await browser.getWorkbench();
@@ -201,7 +201,7 @@ describe("vTypeCheck VS Code Extension", () => {
       vcastRoot = path.join(process.env.HOME, "vcast");
     }
 
-    const newVersion = "release24_sp5";
+    const newVersion = "2024sp5";
     const release24Path = path.join(vcastRoot, newVersion);
 
     const workbench = await browser.getWorkbench();
