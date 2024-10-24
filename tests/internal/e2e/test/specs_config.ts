@@ -146,8 +146,6 @@ export function getSpecsWithEnv(useVcast24: boolean) {
     // In that case we don t want the release to be on PATH
     if (groupObject.params?.vcReleaseOnPath === false) {
       const pathWithoutRelease = removeReleaseOnPath();
-      console.log("PATH WITHOUT RELEASE: ");
-      console.log(pathWithoutRelease);
       if (pathWithoutRelease !== undefined) {
         groupObject.env.PATH = pathWithoutRelease;
       }
