@@ -12,12 +12,17 @@ import {
   findSubprogramMethod,
   openTestScriptFor,
   updateTestID,
+  checkIfRequestInLogs,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
+  let useDataServer: boolean = true;
+  if (process.env.VCAST_USE_PYTHON) {
+    useDataServer = false;
+  }
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -170,6 +175,16 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () => (await contentAssist.getItems()).length === 4
     );
+
+    // Check in server log for autocompletion logs
+    if (useDataServer) {
+      const expectedLogArray = [
+        "received client request: choiceList-tst",
+        "line received: 'TEST.VALUE:'",
+      ];
+      const autocompleteLog = await checkIfRequestInLogs(8, expectedLogArray);
+      expect(autocompleteLog).toBe(true);
+    }
 
     console.log("validating content assist (LSE features) for TEST.VALUE:");
     expect(await contentAssist.hasItem("database")).toBe(true);
