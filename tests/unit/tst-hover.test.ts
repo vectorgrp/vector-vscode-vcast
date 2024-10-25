@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { getHoverPositionForLine, generateHoverData } from "./utils";
+import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
+
+const toolVersion = await getToolVersion();
 
 const initialTst = `
 -- Environment: TEST
@@ -103,7 +106,9 @@ describe("Hover Info Validator", () => {
         hoverPosition
       );
       expect(generatedHoverString).toContain(expectedTitle);
-      expect(generatedHoverString).toContain(expectedDesc);
+      if (toolVersion > 23) {
+        expect(generatedHoverString).toContain(expectedDesc);
+      }
     },
     timeout
   );
@@ -125,7 +130,9 @@ describe("Hover Info Validator", () => {
         hoverPosition
       );
       expect(generatedHoverString).toContain(expectedTitle);
-      expect(generatedHoverString).toContain(expectedDesc);
+      if (toolVersion > 23) {
+        expect(generatedHoverString).toContain(expectedDesc);
+      }
     },
     timeout
   );
