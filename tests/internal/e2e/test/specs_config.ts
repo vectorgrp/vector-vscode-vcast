@@ -51,11 +51,11 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {},
       params: {},
     },
-    // flask_icon: {
-    //   specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
-    //   env: {},
-    //   params: {},
-    // },
+    flask_icon: {
+      specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
+      env: {},
+      params: {},
+    },
     func_basis: {
       specs: [
         "./**/**/vcast_testgen_func_basis.test.ts",
