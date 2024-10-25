@@ -429,7 +429,7 @@ export const config: Options.Testrunner = {
       const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
 
       // Coded tests support only for >= vc24
-      if (toolVersion.includes("24")) {
+      if (toolVersion >= 24) {
         const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
         await executeCommand(setCoded);
       }
