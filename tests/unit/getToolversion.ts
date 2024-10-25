@@ -20,11 +20,13 @@ export async function getToolVersion() {
   try {
     // Execute the command to find clicast
     const { stdout, stderr } = await promisifiedExec(checkClicast);
+
     if (stderr) {
       throw new Error(
         `Error when running ${checkClicast}, make sure clicast is on PATH`
       );
     }
+
     clicastExecutablePath = stdout.trim();
     console.log(`clicast found in ${clicastExecutablePath}`);
   } catch (error: unknown) {
@@ -62,6 +64,7 @@ export async function getToolVersion() {
       console.error(`Error: Could not cast "${firstTwoChars}" to a number`);
       return Number.NaN;
     }
+
     return versionNumber;
   } catch (error: unknown) {
     if (error instanceof Error) {
