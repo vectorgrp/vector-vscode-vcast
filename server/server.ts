@@ -12,17 +12,22 @@ import {
 import { Hover } from "vscode-languageserver-types";
 
 import { enviroDataType } from "../src-common/commonUtilities";
+import { setServerState } from "../src-common/vcastServer";
+
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
+
 import {
   generateDiagnositicForTest,
   initializePaths,
   updateVPythonCommand,
 } from "./pythonUtilities";
+
 import {
   buildCompletionList,
   convertKind,
   getLineFragment,
 } from "./serverUtilities";
+
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
 import { validateTextDocument } from "./tstValidation";
@@ -112,6 +117,13 @@ connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
   updateVPythonCommand(data.vPythonCommand);
   connection.console.log(
     "Notification received: vPython Path: " + data.vPythonCommand
+  );
+});
+
+connection.onNotification("vcasttesteditor/updateServerState", (data) => {
+  setServerState(data.useServer);
+  connection.console.log(
+    "Notification received: use environment data server: " + data.useServer
   );
 });
 

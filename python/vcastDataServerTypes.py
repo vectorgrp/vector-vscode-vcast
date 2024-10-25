@@ -7,14 +7,18 @@ PORT = 60461  # The port used by the server anything > 1023 is OK
 
 
 class errorCodes(str, Enum):
-    internalServerError = 999
-    testInterfaceError = 998
-    couldNotStartClicastInstance = 997
-    codedTestCompileError = 996
+    fatalError = 255
+    internalServerError = 254
+    testInterfaceError = 253
+    couldNotStartClicastInstance = 252
+    codedTestCompileError = 251
 
 
 # NOTE: This class must stay in sync with typescript file vcastServer.ts: vcastCommandType
-#
+# If we find that we are changing this type frequently we might want to auto-generate
+# this type from a common configuration file.
+
+
 class commandType(str, Enum):
     ping = "ping"
     shutdown = "shutdown"

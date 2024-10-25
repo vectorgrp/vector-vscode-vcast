@@ -102,7 +102,7 @@ This option is new for VectorCAST 23 sp2
 - Improved color scheme for stdout/stderr from driver in execution reports
 - Rearranged the extension options into General, and Build Environment section
 - Added a new extension option for Coverage Kind to the Build Options
-- Added support for environment variables in the uUnit include path #96
+- Added support for environment variables in the Unit include path #96
 - Forced Coded Tests entry in the test tree to be the first item in the function list
 
 ### Code Maintenance
@@ -119,5 +119,12 @@ This option is new for VectorCAST 23 sp2
 - Added support for relative paths to the coded test file in test script #106
 - Fixed issue with unrecoverable link error after a coded test compile error #128
 
+## [1.0.12] - 2024-09-25
+- Added support for coded mocks.  See README section: "Editing a Coded Test" for usage details.
+- Enforced a minium VectorCAST version: 21, and added notification to user for older versions
 
-
+### Bug Fixes
+- Removed an instance where the VectorCAST version mismatch error was displayed in the output pane #143.
+- Fixed issue with the Test Pane not populating properly in some cases #149.
+- The extension now ignores environment directories that are opened directly #173.
+- Fixed an unnecessary update occurring during the insertion of ATG tests

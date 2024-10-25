@@ -11,12 +11,12 @@ import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 120_000;
   const QUOTES_EXAMPLE_UNIT = "quotes_example";
   before(async () => {
     workbench = await browser.getWorkbench();

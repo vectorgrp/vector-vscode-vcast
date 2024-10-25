@@ -1,5 +1,3 @@
-// proof of concept for interacting with a running environment data server
-
 import fetch from "node-fetch";
 import { pythonErrorCodes } from "./vcastServerTypes";
 
@@ -12,6 +10,8 @@ let PORT = 60461; // The port used by the server anything > 1023 is OK
 // some of these (like ping) are for the enviro server only
 //
 // Note: this enum must stay in sync with the server file: vcastDataServerTypes.py: commandType.
+// If we find that we are changing this type frequently we might want to auto-generate
+// this type from a common configuration file.
 
 export enum vcastCommandType {
   ping = "ping",
@@ -57,6 +57,12 @@ export let globalEnviroDataServerActive: boolean = false;
 export function setServerState(newState: boolean) {
   globalEnviroDataServerActive = newState;
 }
+
+// When we ping the server it responds with the path to the clicast
+// command that it is running.  This is used by the core extension
+// for a compatibility check with the vectorcast installation
+// that the server is configured with.
+export let serverClicastPath: string = "";
 
 // To allow us to update the test pane when we have a server
 // fall back error we set this callback during extension initialization,
@@ -133,13 +139,18 @@ export async function serverIsAlive() {
     pingObject,
     "ping"
   );
+  if (transmitResponse.success === true) {
+    let responseText = transmitResponse.returnData.text;
+    // the server should respond with the path to ITS clicast
+    serverClicastPath = responseText.split("clicast-path:")[1].trim();
+  }
   return transmitResponse.success;
 }
 
 // This does the actual fetch from the server
 export async function transmitCommand(
   requestObject: clientRequestType,
-  route = "vcastserver"
+  route = "runcommand"
 ) {
   // request is a class, so we convert it to a dictionary, then a string
   const dataAsString = JSON.stringify(requestObject);

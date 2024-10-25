@@ -1,9 +1,7 @@
-
-
 export enum pythonErrorCodes {
-    internalServerError = 999,
-    testInterfaceError = 998,
-    couldNotStartClicastInstance = 997,
-    codedTestCompileError = 996
+  fatalError = 255,
+  internalServerError = 254,
+  testInterfaceError = 253,
+  couldNotStartClicastInstance = 252,
+  codedTestCompileError = 251,
 }
-

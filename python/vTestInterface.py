@@ -7,13 +7,8 @@ this started life as a duplicate of:  instumentationLib/vTestInterface.py
 import argparse
 from datetime import datetime
 import hashlib
-import inspect
 import json
 import os
-import subprocess
-import re
-import shutil
-import site
 import sys
 import traceback
 
@@ -24,6 +19,9 @@ This script must be run under vpython
 """
 
 import clicastInterface
+import pythonUtilities
+import tstUtilities
+
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
 from versionChecks import (
@@ -75,6 +73,7 @@ def setupArgs():
 
     parser.add_argument(
         "--path",
+        required=True,
         help="Path to Environment Directory",
     )
 
@@ -179,7 +178,7 @@ def generateTestInfo(enviroPath, test):
 globalListOfTestableFunctions = []
 
 
-def getEnviroSupportsMock(enviroPath):
+def getEnviroSupportsMock(api):
     """
     The extension needs to know if the environment was built with mocking
     support, not just if the tool supports it.
@@ -187,28 +186,14 @@ def getEnviroSupportsMock(enviroPath):
     If the enviro was not built with mocking then the new mocking fields in the
     API will be set to None by the migration process.
     """
-    try:
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        print(err)
-        raise UsageError()
 
     currEnviroSupportsMocking = enviroSupportsMocking(api)
-
-    api.close()
-
     return currEnviroSupportsMocking
 
 
-def getTestDataVCAST(enviroPath):
+def getTestDataVCAST(api, enviroPath):
     global globalListOfTestableFunctions
     global enviroSupportsMocking
-
-    # dataAPI throws if there is a tool/enviro mismatch
-    try:
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        raise InvalidEnviro(err)
 
     # Not currently used.
     # returns "None" if coverage is not initialized,
@@ -216,6 +201,10 @@ def getTestDataVCAST(enviroPath):
     try:
         coverageType = api.environment.coverage_type_text
     except Exception as err:
+        # In this special case, vcast has given us a valid
+        # handle to the API, so we need to close it here
+        api.close()
+
         # the dataAPI does not automatically update the coverage DB
         # so we raise an error here if the cover.db is too old
         raise InvalidEnviro(err)
@@ -257,11 +246,8 @@ def getTestDataVCAST(enviroPath):
             for function in unit.functions:
                 functionNode = dict()
 
-                # Seems like a vcast dataAPI bug with manager.cpp
-                if (
-                    function.vcast_name != TAG_FOR_INIT
-                    and not function.is_non_testable_stub
-                ):
+                # Handles some special cases
+                if tstUtilities.isTestableFunction(function):
                     # Note: the vcast_name has the parameterization only when there is an overload
                     functionNode["name"] = function.vcast_name
                     functionNode["parameterizedName"] = function.long_name
@@ -282,25 +268,19 @@ def getTestDataVCAST(enviroPath):
             if len(unitNode["functions"]) > 0:
                 testList.append(unitNode)
 
-    api.close()
     return testList
 
 
-def getUnitData(enviroPath):
+def getUnitData(api):
     """
     This function will return info about the units in an environment
     """
     unitList = list()
-    try:
-        # this can throw an error of the coverDB is too old!
-        api = UnitTestApi(enviroPath)
-    except Exception as err:
-        raise InvalidEnviro(err)
 
     sourceObjects = api.SourceFile.all()
     for sourceObject in sourceObjects:
+        sourcePath = sourceObject.display_path
         if sourceObject.is_instrumented:
-            sourcePath = sourceObject.display_path
             covered, uncovered, checksum = getCoverageData(sourceObject)
             unitInfo = dict()
             unitInfo["path"] = sourcePath
@@ -310,7 +290,18 @@ def getUnitData(enviroPath):
             unitInfo["uncovered"] = uncovered
             unitList.append(unitInfo)
 
-    api.close()
+        elif len(sourcePath) > 0:
+            # we save "empty" unit data for files that are not
+            # instrumented so that the the extension can display
+            # "No Coverage Data" for these ...
+            unitInfo = dict()
+            unitInfo["path"] = sourcePath
+            unitInfo["functionList"] = []
+            unitInfo["cmcChecksum"] = "0"
+            unitInfo["covered"] = ""
+            unitInfo["uncovered"] = ""
+            unitList.append(unitInfo)
+
     return unitList
 
 
@@ -435,7 +426,11 @@ def executeVCtest(enviroPath, testIDObject):
                 returnText += "STATUS:failed\n"
             returnText += f"REPORT:{testIDObject.reportName}.txt\n"
 
-            # Retrieve the expected value x/y and the
+            # Retrieve the expected value x/y and the test time
+            # we don't need to catch dataAPI errors here because
+            # if there is a problem with a version miss-match
+            # we will have already gotten a return code of 15
+            # and not be in this block
             api = UnitTestApi(enviroPath)
             testList = api.TestCase.filter(name=testIDObject.testName)
             if len(testList) > 0:
@@ -571,7 +566,10 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     # no need to pass this all around
     # will raise usageError if path is invalid
     validateClicastCommand(clicast, mode)
-    clicastInterface.globalClicastCommand = clicast
+    pythonUtilities.globalClicastCommand = clicast
+
+    # will raise usageError if path is invalid
+    validatePath(pathToUse)
 
     # will raise usageError if path is invalid
     validatePath(pathToUse)
@@ -579,14 +577,19 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     if mode == "getEnviroData":
         topLevel = dict()
 
+        try:
+            api = UnitTestApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+
         # it is important that getTetDataVCAST() is called first since it sets up
         # the global list of testable functions that getUnitData() needs
-        topLevel["testData"] = getTestDataVCAST(pathToUse)
-        topLevel["unitData"] = getUnitData(pathToUse)
-
+        topLevel["testData"] = getTestDataVCAST(api, pathToUse)
+        topLevel["unitData"] = getUnitData(api)
         topLevel["enviro"] = dict()
-        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(pathToUse)
+        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(api)
 
+        api.close()
         returnObject = topLevel
 
     elif mode == "executeTest":
@@ -646,7 +649,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options=""):
         )
 
     # because vpython and clicast use a large range of positive return codes
-    # we use -1 for internal tool errors
+    # we use values > 990 for internal tool errors
     except InvalidEnviro as error:
         returnCode = errorCodes.testInterfaceError
         whatToReturn = ["Miss-match between Environment and VectorCAST versions"]
@@ -692,4 +695,4 @@ def main():
 if __name__ == "__main__":
 
     returnCode = main()
-    sys.exit(returnCode)
+    sys.exit(int(returnCode))

@@ -28,18 +28,17 @@ const fetch = vi.mocked(nodeFetch.default);
 const mockFetch = (
   responseBody: {
     exitCode: number;
-    data: {} | { error: string[] } | { text: string[] };
+    data: Record<string, unknown> | { error: string[] } | { text: string[] };
   },
   status = 200,
   statusText = "OK"
 ) => {
-  fetch.mockImplementationOnce(() =>
-    Promise.resolve(
+  fetch.mockImplementationOnce(
+    async () =>
       new Response(JSON.stringify(responseBody), {
         status,
         statusText,
       })
-    )
   );
 };
 
@@ -61,7 +60,7 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(true);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/vcastserver?request={"command":"closeConnection","path":"test/path"}'
+      'http://localhost:60461/runcommand?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
@@ -78,7 +77,7 @@ describe("test server functions", () => {
     const result = await closeConnection("test/path");
     expect(result).toBe(false);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:60461/vcastserver?request={"command":"closeConnection","path":"test/path"}'
+      'http://localhost:60461/runcommand?request={"command":"closeConnection","path":"test/path"}'
     );
   });
 
@@ -86,6 +85,7 @@ describe("test server functions", () => {
   test("serverIsAlive handles successful response", async () => {
     const fetchReturn = {
       exitCode: 0,
+      text: "clicast-path: /some/path",
       data: {},
     };
 
@@ -140,7 +140,9 @@ describe("test server functions", () => {
     setLogServerCommandsCallback(mockLogServerCommandsCallback);
 
     const errorMessage = "Network error reason: ";
-    fetch.mockImplementationOnce(() => Promise.reject(new Error(errorMessage)));
+    fetch.mockImplementationOnce(async () => {
+      throw new Error(errorMessage);
+    });
 
     const requestObject = {
       command: vcastCommandType.ping,
@@ -155,7 +157,7 @@ describe("test server functions", () => {
       `Enviro server error: Server is not running, disabling server mode for this session`
     );
     expect(fetch).toHaveBeenCalledWith(
-      `http://localhost:60461/vcastserver?request=${JSON.stringify(requestObject)}`
+      `http://localhost:60461/runcommand?request=${JSON.stringify(requestObject)}`
     );
 
     // Check if logServerCommandsCallback was called with the correct message
@@ -165,6 +167,6 @@ describe("test server functions", () => {
     );
 
     // Check if the mock function got called in transmitCommand
-    expect(mockTerminateCallback).toHaveBeenCalledOnce;
+    expect(mockTerminateCallback).toHaveBeenCalledOnce();
   });
 });

@@ -170,6 +170,18 @@ export function sendVPythonCommandToServer(vPythonCommand: string) {
   }
 }
 
+// This function is used to send an updated state of the
+// enviro data server to the language server
+export function sendServerStateToLanguageServer(useServer: boolean) {
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/updateServerState", {
+        useServer,
+      });
+    });
+  }
+}
+
 export function deactivateLanguageServerClient(): Thenable<void> | undefined {
   if (!client) {
     return undefined;

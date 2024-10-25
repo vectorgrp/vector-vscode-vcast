@@ -178,6 +178,7 @@ export function resetCoverageData() {
 }
 
 interface coverageSummaryType {
+  hasCoverageData: boolean;
   statusString: string;
   covered: number[];
   uncovered: number[];
@@ -197,34 +198,42 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   // .statusString will be "out-of-date" if NO enviro checksums match this file
 
   let returnData: coverageSummaryType = {
-    statusString: "No Coverage Data",
+    hasCoverageData: false,
+    statusString: "",
     covered: [],
     uncovered: [],
   };
 
   const dataForThisFile = globalCoverageData.get(filePath);
-  if (
-    dataForThisFile &&
-    dataForThisFile.hasCoverage &&
-    dataForThisFile.enviroList.size > 0
-  ) {
-    const checksum: number = getChecksum(filePath);
-    let coveredList: number[] = [];
-    let uncoveredList: number[] = [];
-    for (const enviroData of dataForThisFile.enviroList.values()) {
-      if (enviroData.crc32Checksum == checksum) {
-        coveredList = coveredList.concat(enviroData.covered);
-        uncoveredList = uncoveredList.concat(enviroData.uncovered);
+  // if we have data for this file it means that it is part of
+  // an environment but not necessarily that it has coverage data
+  if (dataForThisFile) {
+    // if there is coverage data, create the x/y status bar message
+    if (dataForThisFile.hasCoverage && dataForThisFile.enviroList.size > 0) {
+      const checksum: number = getChecksum(filePath);
+      let coveredList: number[] = [];
+      let uncoveredList: number[] = [];
+      for (const enviroData of dataForThisFile.enviroList.values()) {
+        if (enviroData.crc32Checksum == checksum) {
+          coveredList = coveredList.concat(enviroData.covered);
+          uncoveredList = uncoveredList.concat(enviroData.uncovered);
+        }
       }
-    }
 
-    if (coveredList.length == 0 && uncoveredList.length == 0) {
-      returnData.statusString = "Coverage Out of Date";
+      if (coveredList.length == 0 && uncoveredList.length == 0) {
+        // This status is for files that have changed since
+        // they were last instrumented
+        returnData.statusString = "Coverage Out of Date";
+      } else {
+        returnData.hasCoverageData = true;
+        // remove duplicates
+        returnData.covered = [...new Set(coveredList)];
+        returnData.uncovered = [...new Set(uncoveredList)];
+      }
     } else {
-      returnData.statusString = "";
-      // remove duplicates
-      returnData.covered = [...new Set(coveredList)];
-      returnData.uncovered = [...new Set(uncoveredList)];
+      // This status is for files that are part of
+      // and environment but not instrumented
+      returnData.statusString = "No Coverage Data";
     }
   }
 
@@ -458,7 +467,7 @@ export async function runVCTest(enviroPath: string, nodeID: string) {
     vectorMessage(commandOutputText, errorLevel.info, indentString);
     openMessagePane();
     returnStatus = testStatus.didNotRun;
-  } else if (commandStatus.errorCode != 0 && commandOutputText.length != 28) {
+  } else if (commandStatus.errorCode != 0 && commandStatus.errorCode != 28) {
     // 0 means test pass, 28 means test failed, everything else is an error
     // however the printing of the error message is done where the command is run
     // so we don't have to do it here

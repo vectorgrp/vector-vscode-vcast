@@ -21,13 +21,6 @@ npx tsc "$SPEC_PATH"
 JS_FILE="./test/specs_env_exporter.js"
 SPECS_CONFIG_FILE="./test/specs_config.js"
 
-activate_24_release () {
-  export VECTORCAST_DIR=/vcast/release24
-  export PATH=/vcast/release24:$PATH
-  export ENABLE_ATG_FEATURE=TRUE
-  echo "Vcast 24 is activated"
-}
-
 set_specs_params() {
   # Check if RUN_GROUP_NAME is set
   if [ -z "$RUN_GROUP_NAME" ]; then
@@ -69,10 +62,6 @@ set_specs_params() {
 cd $ROOT
 if [ ! -d "node_modules" ]; then
   npm install
-fi
-
-if [ "$USE_VCAST_24" = "True" ] ; then
-  activate_24_release
 fi
 
 if [ "$GITHUB_ACTIONS" = "true" ] ; then

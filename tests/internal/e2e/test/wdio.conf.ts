@@ -18,7 +18,7 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs } from "./specs_config.ts";
+import { getSpecs } from "./specs_config";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -242,7 +242,7 @@ export const config: Options.Testrunner = {
   //
   // Default timeout in milliseconds for request
   // if browser driver or grid doesn"t send response
-  connectionRetryTimeout: 22_000,
+  connectionRetryTimeout: 40_000,
   //
   // Default request retries count
   connectionRetryCount: 2,
@@ -443,8 +443,8 @@ export const config: Options.Testrunner = {
         "vcastTutorial"
       );
 
-      let vcastRoot = await getVcastRoot();
-      const newVersion = "release24";
+      const vcastRoot = await getVcastRoot();
+      const newVersion = "2024sp4";
 
       // Set up environment directory
       process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
@@ -535,10 +535,10 @@ TEST.END`;
      * TARGET SPEC GROUP: build_different_envs
      */
     async function setupMultipleEnvironments() {
-      let vcastRoot = await getVcastRoot();
+      const vcastRoot = await getVcastRoot();
 
-      const oldVersion = "release23";
-      const newVersion = "release24";
+      const oldVersion = "2023sp0";
+      const newVersion = "2024sp4";
 
       // Total amount of envs to be build
       const totalEnvCount = 4;
@@ -700,6 +700,14 @@ ENVIRO.END
           : `touch ${launchJsonPath}`;
       await executeCommand(createLaunchJson);
 
+      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
+      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
+      const createSettingsJson =
+        process.platform == "win32"
+          ? `echo {"\\"vectorcastTestExplorer.verboseLogging\\": true} > ${settingsJsonPath}`
+          : `echo '{ "vectorcastTestExplorer.verboseLogging": true }' > ${settingsJsonPath}`;
+      await executeCommand(createSettingsJson);
+
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
       const c_cpp_properties = {
         configurations: [
@@ -854,7 +862,7 @@ ENVIRO.END
      * @throws {Error} - If `vpython` is not found or there is a command error.
      */
     async function checkVPython(): Promise<void> {
-      let checkVPython =
+      const checkVPython =
         process.platform == "win32" ? "where vpython" : "which vpython";
 
       {
@@ -875,7 +883,7 @@ ENVIRO.END
      * @throws {Error} - If `clicast` is not found or there is a command error.
      */
     async function checkClicast(): Promise<string> {
-      let checkClicast =
+      const checkClicast =
         process.platform == "win32" ? "where clicast" : "which clicast";
 
       {
@@ -906,6 +914,7 @@ ENVIRO.END
         // Assuming that locally release is on this path.
         vcastRoot = path.join(process.env.HOME, "vcast");
       }
+
       return vcastRoot;
     }
   },
@@ -1009,7 +1018,13 @@ ENVIRO.END
    * @param {Boolean} result.passed    true if test has passed, otherwise false
    * @param {Object}  result.retries   informations to spec related retries, e.g. `{ attempts: 0, limit: 0 }`
    */
-  afterTest(test, context, { error, result, duration, passed, retries }) {
+  async afterTest(test, context, { error, result, duration, passed, retries }) {
+    // In some cases, a delay of a few seconds is needed; otherwise, VSCode closes too quickly.
+    // In server mode, if there is no active communication, the server gets terminated.
+    if (process.env.WAIT_AFTER_TESTS_FINISHED) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
     // Take a screenshot anytime a test fails and throws an error
     if (error) {
       browser.takeScreenshot();

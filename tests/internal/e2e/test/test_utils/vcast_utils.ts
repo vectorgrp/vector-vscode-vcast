@@ -15,6 +15,9 @@ import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
 
+// Local VM takes longer and needs a higher TIMEOUT
+export const TIMEOUT = 180_000;
+
 const promisifiedExec = promisify(exec);
 export async function updateTestID() {
   const testIDEnvVariable = process.env.E2E_TEST_ID;
@@ -416,7 +419,7 @@ export async function generateAllTestsForEnv(
 
         await browser.waitUntil(async () =>
           (await (await bottomBar.openOutputView()).getText()).includes(
-            "test explorer  [info]  Script loaded successfully ..."
+            "test explorer  [info]  Script loaded successfully"
           )
         );
 
@@ -1139,7 +1142,7 @@ export async function assertTestsDeleted(
   envName: string,
   testName = "all"
 ): Promise<void> {
-  const areTestsDeletedCmd = `cd test/vcastTutorial/cpp/unitTests && $VECTORCAST_DIR/clicast -e ${envName} test script create output.tst`;
+  const areTestsDeletedCmd = `cd test/vcastTutorial/cpp/unitTests && ${process.env.VECTORCAST_DIR}/clicast -e ${envName} test script create output.tst`;
 
   {
     const { stdout, stderr } = await promisifiedExec(areTestsDeletedCmd);

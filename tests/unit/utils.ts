@@ -1,5 +1,7 @@
 import path from "node:path";
 import process from "node:process";
+import { promisify } from "node:util";
+import { exec } from "node:child_process";
 import {
   TextDocument,
   TextDocuments,
@@ -7,6 +9,7 @@ import {
 } from "vscode-languageserver";
 import { CompletionTriggerKind } from "vscode-languageserver-protocol";
 import URI from "vscode-uri";
+import { vi } from "vitest";
 import { getHoverString } from "../../server/tstHover";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
@@ -17,9 +20,6 @@ import {
   convertKind,
   getEnviroNameFromTestScript,
 } from "../../server/serverUtilities";
-import { promisify } from "util";
-import { exec } from "child_process";
-import { vi } from "vitest";
 
 export type HoverPosition = {
   line: number;
@@ -53,8 +53,8 @@ export async function generateHoverData(
 
   const completion = asHoverParameters(textDocument, position);
 
-  const extensionRoot: string = process.env["PACKAGE_PATH"] || "";
-  const useServer: boolean = process.env.USE_SERVER != undefined;
+  const extensionRoot: string = process.env.PACKAGE_PATH || "";
+  const useServer: boolean = process.env.USE_SERVER !== undefined;
   initializePaths(extensionRoot, "vpython", useServer);
 
   if (textDocument) {
@@ -124,8 +124,8 @@ export async function generateCompletionData(
     triggerCharacter
   );
 
-  const extensionRoot: string = process.env["PACKAGE_PATH"] || "";
-  const useServer: boolean = process.env.USE_SERVER != undefined;
+  const extensionRoot: string = process.env.PACKAGE_PATH || "";
+  const useServer: boolean = process.env.USE_SERVER !== undefined;
   initializePaths(extensionRoot, "vpython", useServer);
 
   // Coded test
@@ -208,7 +208,7 @@ export function storeNewDocument(
 ) {
   /* `_documents` is private in `TextDocuments`.
    * We cast to `any` to make the linter happy */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   (documents as any)._documents[uri] = textDocument;
 }
 
@@ -225,6 +225,7 @@ export async function runCommand(command: string): Promise<void> {
     console.log(stderr);
     throw new Error(`Error when running ${command}`);
   }
+
   console.log(stdout);
 }
 
