@@ -4,8 +4,6 @@ import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
 
-const toolVersion = await getToolVersion();
-
 const initialTst = `
 -- Environment: TEST
 TEST.UNIT:unit
@@ -47,7 +45,9 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-describe("Hover Info Validator", () => {
+describe("Hover Info Validator", async () => {
+  const toolVersion = await getToolVersion();
+
   test(
     "validate hover over TEST.SLOT:",
     async () => {
