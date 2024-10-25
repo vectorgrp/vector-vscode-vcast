@@ -26,22 +26,26 @@ export async function getToolVersion(givenClicastPath?: string) {
     const checkClicast =
       process.platform === "win32" ? "where clicast" : "which clicast";
 
-    try {
-      const { stdout, stderr } = await promisifiedExec(checkClicast);
-      if (stderr) {
-        throw new Error(
-          `Error when running ${checkClicast}, make sure clicast is on PATH`
-        );
-      } else {
-        clicastExecutablePath = stdout.trim();
-        console.log(`clicast found in ${clicastExecutablePath}`);
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(`Error: ${error.message}`);
-      } else {
-        console.error(`Unexpected error: ${String(error)}`);
-      }
+  let clicastExecutablePath = "";
+
+  try {
+    // Execute the command to find clicast
+    const { stdout, stderr } = await promisifiedExec(checkClicast);
+
+    if (stderr) {
+      throw new Error(
+        `Error when running ${checkClicast}, make sure clicast is on PATH`
+      );
+    }
+
+    clicastExecutablePath = stdout.trim();
+    console.log(`clicast found in ${clicastExecutablePath}`);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+    } else {
+      console.error(`Unexpected error: ${String(error)}`);
+    }
 
       throw new Error(
         `Error when running "${checkClicast}", make sure clicast is on PATH`
@@ -61,7 +65,18 @@ export async function getToolVersion(givenClicastPath?: string) {
       .readFileSync(toolVersionPath)
       .toString()
       .trim();
-    return toolVersion;
+
+    // Extract the first two characters & try to cast it to a number
+    const firstTwoChars = toolVersion.slice(0, 2);
+    const versionNumber = Number(firstTwoChars);
+
+    // Check if the conversion was successful (not NaN)
+    if (Number.isNaN(versionNumber)) {
+      console.error(`Error: Could not cast "${firstTwoChars}" to a number`);
+      return Number.NaN;
+    }
+
+    return versionNumber;
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error(`Error reading tool version: ${error.message}`);
@@ -69,6 +84,6 @@ export async function getToolVersion(givenClicastPath?: string) {
       console.error(`Unexpected error: ${String(error)}`);
     }
 
-    return "";
+    return Number.NaN;
   }
 }

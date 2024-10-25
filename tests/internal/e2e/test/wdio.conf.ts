@@ -454,7 +454,7 @@ export const config: Options.Testrunner = {
       );
 
       const vcastRoot = await getVcastRoot();
-      const newVersion = "release24";
+      const newVersion = "2024sp4";
 
       // Set up environment directory
       process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
@@ -547,8 +547,8 @@ TEST.END`;
     async function setupMultipleEnvironments() {
       const vcastRoot = await getVcastRoot();
 
-      const oldVersion = "release23";
-      const newVersion = "release24";
+      const oldVersion = "2023sp0";
+      const newVersion = "2024sp4";
 
       // Total amount of envs to be build
       const totalEnvCount = 4;
