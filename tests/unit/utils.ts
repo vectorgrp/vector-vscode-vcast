@@ -2,7 +2,6 @@ import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 import { exec } from "node:child_process";
-import fs from "node:fs";
 import {
   TextDocument,
   TextDocuments,
