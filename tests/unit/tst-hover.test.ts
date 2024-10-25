@@ -4,6 +4,8 @@ import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
 
+const toolVersion = await getToolVersion();
+
 const initialTst = `
 -- Environment: TEST
 TEST.UNIT:unit
@@ -90,7 +92,6 @@ describe("Hover Info Validator", () => {
   test(
     "validate hover over TEST.REQUIREMENT_KEY:FR20",
     async () => {
-      const toolVersion = await getToolVersion();
       const tstText = [initialTst, requestTst].join("\n");
       const expectedTitle = "Clearing a table resets orders for all seats";
       const expectedDesc =
@@ -115,7 +116,6 @@ describe("Hover Info Validator", () => {
   test(
     "validate hover over TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats",
     async () => {
-      const toolVersion = await getToolVersion();
       const tstText = [initialTst, requestTst].join("\n");
       const expectedTitle = "Clearing a table resets orders for all seats";
       const expectedDesc =
