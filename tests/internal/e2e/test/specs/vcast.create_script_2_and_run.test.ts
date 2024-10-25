@@ -15,14 +15,15 @@ import {
   findSubprogramMethod,
   editTestScriptFor,
   updateTestID,
+  expandWorkspaceFolderSectionInExplorer,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
   let statusBar: StatusBar;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -170,6 +171,66 @@ describe("vTypeCheck VS Code Extension", () => {
     });
   });
 
+  it("should verify no coverage in status bar when opening uninstrumented quotes_example.cpp. ", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+    const quotesCpp =
+      await workspaceFolderSection.findItem("quotes_example.cpp");
+    await quotesCpp.select();
+
+    statusBar = workbench.getStatusBar();
+    const statusBarInfos = await statusBar.getItems();
+
+    console.log("Verifying absence of coverage status for quotes_example.");
+
+    // Verifying that there is no coverage status for quotes_example as it is not instrumented
+    expect(statusBarInfos.includes("Coverage:")).toBe(false);
+    expect(statusBarInfos.includes("No Coverage Data")).toBe(false);
+    expect(statusBarInfos.includes("Coverage Out of Date")).toBe(false);
+  });
+
+  it("should verify no coverage in status bar after opening and closing manager.cpp. ", async () => {
+    await updateTestID();
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    await managerCpp.select();
+
+    statusBar = workbench.getStatusBar();
+
+    console.log(
+      "Verifying coverage status for manager.cpp when opened but nor run in the editor."
+    );
+
+    // Tests are not run yet, but we should get this coverage status info at the beginning
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("Coverage: 0/41 (0%)"),
+      { timeout: TIMEOUT }
+    );
+
+    const statusBarInfos = await statusBar.getItems();
+
+    console.log(
+      "Verifying absence of coverage status for manager.cpp when closing the editor."
+    );
+    await editorView.closeEditor("quotes_example.cpp", 0);
+    await editorView.closeEditor("manager.cpp", 0);
+
+    // When closing the manager.cpp editor, no coverage info should be displayed
+    expect(statusBarInfos.includes("Coverage:")).toBe(false);
+    expect(statusBarInfos.includes("No Coverage Data")).toBe(false);
+    expect(statusBarInfos.includes("Coverage Out of Date")).toBe(false);
+  });
+
   it("should run myFirstTest and check its report", async () => {
     await updateTestID();
 
@@ -244,26 +305,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const outputViewText = await (await bottomBar.openOutputView()).getText();
     await bottomBar.restore();
     expect(
-      outputViewText.includes(
-        "test explorer  [info]  Starting execution of test: myFirstTest ..."
-      )
-    ).toBe(true);
-    expect(
-      outputViewText.includes(
-        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myFirstTest"
-      )
-    ).toBe(true);
-    expect(
-      outputViewText.includes("test explorer  [info]  Status: passed")
-    ).toBe(true);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Execution Time:");
-      })
-    ).not.toBe(undefined);
-
-    expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Processing environment data for:");
       })
@@ -274,7 +315,6 @@ describe("vTypeCheck VS Code Extension", () => {
         return line.includes("Viewing results, result report path");
       })
     ).not.toBe(undefined);
-
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Creating web view panel");

@@ -61,7 +61,10 @@ describe("Hover Info Validator", () => {
         tstText,
         "TEST.SLOT"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(
+        tstText,
+        hoverPosition
+      );
       expect(generatedHoverString).toBe(expectedHoverString);
     },
     timeout
@@ -78,7 +81,10 @@ describe("Hover Info Validator", () => {
         tstText,
         "return"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(
+        tstText,
+        hoverPosition
+      );
       expect(generatedHoverString).toBe(expectedHoverString);
     },
     timeout
@@ -97,8 +103,10 @@ describe("Hover Info Validator", () => {
         tstText,
         "KEY"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
-
+      const generatedHoverString = await generateHoverData(
+        tstText,
+        hoverPosition
+      );
       expect(generatedHoverString).toContain(expectedTitle);
       if (toolVersion > 23) {
         expect(generatedHoverString).toContain(expectedDesc);
@@ -120,7 +128,10 @@ describe("Hover Info Validator", () => {
         tstText,
         "FR20"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(
+        tstText,
+        hoverPosition
+      );
       expect(generatedHoverString).toContain(expectedTitle);
       if (toolVersion > 23) {
         expect(generatedHoverString).toContain(expectedDesc);
@@ -140,7 +151,10 @@ describe("Hover Info Validator", () => {
         tstText,
         "return"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(
+        tstText,
+        hoverPosition
+      );
       expect(generatedHoverString).toBe(expectedHoverString);
     },
     timeout
@@ -157,7 +171,10 @@ describe("Hover Info Validator", () => {
         tstText,
         "return"
       );
-      const generatedHoverString = generateHoverData(tstText, hoverPosition);
+      const generatedHoverString = await generateHoverData(
+        tstText,
+        hoverPosition
+      );
       expect(generatedHoverString).toBe(expectedHoverString);
     },
     timeout

@@ -1,8 +1,7 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
-import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { promisify } from "node:util";
+import { exec } from "node:child_process";
 import {
   TextDocument,
   TextDocuments,
@@ -10,19 +9,24 @@ import {
 } from "vscode-languageserver";
 import { CompletionTriggerKind } from "vscode-languageserver-protocol";
 import URI from "vscode-uri";
+import { vi } from "vitest";
 import { getHoverString } from "../../server/tstHover";
-import { setPaths } from "../../server/pythonUtilities";
 import { getTstCompletionData } from "../../server/tstCompletion";
 import { validateTextDocument } from "../../server/tstValidation";
+import { initializePaths } from "../../server/pythonUtilities";
 import { getCodedTestCompletionData } from "../../server/ctCompletions";
-import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
+import {
+  buildCompletionList,
+  convertKind,
+  getEnviroNameFromTestScript,
+} from "../../server/serverUtilities";
 
 export type HoverPosition = {
   line: number;
   character: number;
 };
 
-export function generateHoverData(
+export async function generateHoverData(
   tstText: string,
   position: HoverPosition,
   envName?: string
@@ -49,14 +53,9 @@ export function generateHoverData(
 
   const completion = asHoverParameters(textDocument, position);
 
-  setPaths(
-    path.join(
-      process.env.PACKAGE_PATH as string,
-      "python",
-      "testEditorInterface.py"
-    ),
-    "vpython"
-  );
+  const extensionRoot: string = process.env.PACKAGE_PATH || "";
+  const useServer: boolean = process.env.USE_SERVER !== undefined;
+  initializePaths(extensionRoot, "vpython", useServer);
 
   if (textDocument) {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
@@ -91,7 +90,7 @@ export type CompletionPosition = {
   character: number;
 };
 
-export function generateCompletionData(
+export async function generateCompletionData(
   tstText: string,
   position: CompletionPosition,
   triggerCharacter: string | undefined,
@@ -125,14 +124,10 @@ export function generateCompletionData(
     position,
     triggerCharacter
   );
-  setPaths(
-    path.join(
-      process.env.PACKAGE_PATH as string,
-      "python",
-      "testEditorInterface.py"
-    ),
-    "vpython"
-  );
+
+  const extensionRoot: string = process.env.PACKAGE_PATH || "";
+  const useServer: boolean = process.env.USE_SERVER !== undefined;
+  initializePaths(extensionRoot, "vpython", useServer);
 
   // Coded test
   if (optParameters?.cppTest && optParameters?.lineSoFar) {
@@ -140,6 +135,7 @@ export function generateCompletionData(
     const enviroPath = getEnviroNameFromTestScript(tstFilepath);
     if (enviroPath) {
       return getCodedTestCompletionData(
+        undefined,
         optParameters.lineSoFar,
         completion,
         enviroPath
@@ -149,7 +145,11 @@ export function generateCompletionData(
     throw new ReferenceError("enviroPath is undefined.");
   } /* tst */ else {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
-    return getTstCompletionData(textDocument, completion);
+    const completionData = await getTstCompletionData(textDocument, completion);
+    return buildCompletionList(
+      completionData.choiceList,
+      convertKind(completionData.choiceKind)
+    );
   }
 }
 
@@ -208,76 +208,90 @@ export function storeNewDocument(
 ) {
   /* `_documents` is private in `TextDocuments`.
    * We cast to `any` to make the linter happy */
+
   (documents as any)._documents[uri] = textDocument;
 }
 
-const promisifiedExec = promisify(exec);
+/**
+ * Executes a given command and logs any errors that occur during execution.
+ *
+ * @param {string} command - The command to be executed.
+ * @returns {Promise<void>} - A promise that resolves when the command has been executed or rejects if an error occurs.
+ */
+export async function runCommand(command: string): Promise<void> {
+  const promisifiedExec = promisify(exec);
+  const { stdout, stderr } = await promisifiedExec(command);
+  if (stderr) {
+    console.log(stderr);
+    throw new Error(`Error when running ${command}`);
+  }
+
+  console.log(stdout);
+}
 
 /**
- * Function to get the clicast executable path and check the tool version
+ * Prepares the necessary parameters for testing coded test completion.
+ *
+ * @param lineToComplete The line in the test file where completion is triggered.
+ * @param unitTst        The unit test code content (can be empty).
+ * @param envName        The name of the environment (e.g., "vcast").
+ * @param languageId     The language ID of the test file (e.g., "cpp").
+ * @return An object containing the completion parameters and environment path.
  */
-export async function getToolVersion() {
-  // Determine the command to locate clicast
-  const checkClicast =
-    process.platform === "win32" ? "where clicast" : "which clicast";
-
-  let clicastExecutablePath = "";
-
-  try {
-    // Execute the command to find clicast
-    const { stdout, stderr } = await promisifiedExec(checkClicast);
-    if (stderr) {
-      throw new Error(
-        `Error when running ${checkClicast}, make sure clicast is on PATH`
-      );
-    } else {
-      clicastExecutablePath = stdout.trim();
-      console.log(`clicast found in ${clicastExecutablePath}`);
-    }
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
-    } else {
-      console.error(`Unexpected error: ${String(error)}`);
-    }
-
-    throw new Error(
-      `Error when running "${checkClicast}", make sure clicast is on PATH`
-    );
-  }
-
-  // Read the tool version from the appropriate path
-  const toolVersionPath = path.join(
-    clicastExecutablePath,
-    "..",
-    "DATA",
-    "tool_version.txt"
+export async function prepareCodedTestCompletion(
+  lineToComplete: string,
+  unitTst: string,
+  envName: string,
+  languageId: string
+) {
+  const completionPosition = getCompletionPositionForLine(
+    lineToComplete,
+    unitTst
   );
 
-  try {
-    const toolVersion: string = fs
-      .readFileSync(toolVersionPath)
-      .toString()
-      .trim();
+  const testEnvPath = path.join(
+    process.env.PACKAGE_PATH as string,
+    "tests",
+    "unit",
+    envName
+  );
 
-    // Extract the first two characters & try to cast it to a number
-    const firstTwoChars = toolVersion.slice(0, 2);
-    const versionNumber = Number(firstTwoChars);
+  const tstFilepath = path.join(
+    testEnvPath,
+    process.env.TST_FILENAME as string
+  );
 
-    // Check if the conversion was successful (not NaN)
-    if (!isNaN(versionNumber)) {
-      return versionNumber;
-    } else {
-      console.error(`Error: Could not cast "${firstTwoChars}" to a number`);
-      return NaN;
-    }
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error reading tool version: ${error.message}`);
-    } else {
-      console.error(`Unexpected error: ${String(error)}`);
-    }
+  const triggerCharacter = lineToComplete.at(-1);
+  const uri = URI.file(tstFilepath).toString();
+  const textDocument = TextDocument.create(uri, languageId, 1, unitTst);
 
-    return NaN;
-  }
+  const completion = asCompletionParameters(
+    textDocument,
+    completionPosition,
+    triggerCharacter
+  );
+
+  const enviroPath = getEnviroNameFromTestScript(tstFilepath);
+
+  return { completion, enviroPath, lineToComplete };
 }
+
+/**
+ * Mocks the diagnostic object and sets up the connection.
+ *
+ * @param diagnostic Diagnostic object to be mocked.
+ * @returns An object containing the mocked connection and sendDiagnostics function.
+ */
+export const setupDiagnosticTest = (diagnostic: Diagnostic) => {
+  vi.mock(".../../server/tstValidation", () => ({
+    getDiagnosticObject: vi.fn().mockReturnValue(diagnostic),
+  }));
+
+  const mockSendDiagnostics = vi.fn();
+
+  const connection = {
+    sendDiagnostics: mockSendDiagnostics,
+  };
+
+  return { connection, mockSendDiagnostics };
+};

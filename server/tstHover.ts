@@ -10,11 +10,11 @@ import { TextDocuments, CompletionParams } from "vscode-languageserver";
 
 import {
   choiceKindType,
-  getChoiceDataFromPython,
+  getChoiceData,
   getHoverStringForRequirement,
 } from "./pythonUtilities";
 
-export function getHoverString(
+export async function getHoverString(
   documents: TextDocuments,
   completionData: CompletionParams
 ) {
@@ -51,7 +51,7 @@ export function getHoverString(
             key = pieces[2].trim();
           }
           // now find the title for this key, via a python call
-          hoverString = getHoverStringForRequirement(enviroPath, key);
+          hoverString = await getHoverStringForRequirement(enviroPath, key);
           console.log(hoverString);
         }
       } else if (
@@ -76,7 +76,7 @@ export function getHoverString(
 
           // call python to get the list for this field, and then ...
           // match up that piece to find the "extra stuff" to display
-          const choiceData = getChoiceDataFromPython(
+          const choiceData = await getChoiceData(
             choiceKindType.choiceListTST,
             enviroPath,
             lineSoFar

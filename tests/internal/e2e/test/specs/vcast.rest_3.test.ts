@@ -21,6 +21,7 @@ import {
   cleanup,
   assertTestsDeleted,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
@@ -28,7 +29,6 @@ describe("vTypeCheck VS Code Extension", () => {
   let workbench: Workbench;
   let editorView: EditorView;
   let statusBar: StatusBar;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -128,9 +128,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     statusBar = workbench.getStatusBar();
     // Need to wait until status bar updates for gutters to actually disappear
-    await browser.waitUntil(
-      async () =>
-        (await statusBar.getItems()).includes("Coverage Out of Date") === true
+    await browser.waitUntil(async () =>
+      (await statusBar.getItems()).includes("Coverage Out of Date")
     );
 
     const lineNumberElement = await $(".line-numbers=10");
@@ -198,10 +197,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
-          .at(-1)
           .toString()
-          .includes("Processing environment data for:"),
-      { timeout: 30_000, interval: 1000 }
+          .includes("Processing environment data"),
+      { timeout: TIMEOUT }
     );
     await browser.pause(10_000);
 

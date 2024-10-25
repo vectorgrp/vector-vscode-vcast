@@ -36,7 +36,7 @@ def vpythonHasCodedMockSupport():
 
         * Is `mock_helper` at the right version?
 
-        * Does it have environemnt revision REVISION_2024_CODED_MOCK_DATA?
+        * Does it have environment revision REVISION_2024_CODED_MOCK_DATA?
 
     NOTE: we don't need to check if an environment supports coded mocks, only a
     version of _VectorCAST_.
@@ -87,7 +87,7 @@ def enviroSupportsMocking(api):
 
     NOTE: vpythonHasCodedMockSupport() is False if ENVIRONMENT_VERSION_TYPE_T
     does not have REVISION_2024_CODED_MOCK_DATA, so it is safe to try accessing
-    this attribue (i.e., it will not raise an attribute error)
+    this attribute (i.e., it will not raise an attribute error)
     """
 
     return (

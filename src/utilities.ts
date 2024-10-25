@@ -61,7 +61,7 @@ export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
 
 export function addLaunchConfiguration(
   fileUri: Uri,
-  pathToSupportfiles: string
+  pathToSupportFiles: string
 ) {
   // This function adds the VectorCAST Harness Debug configuration to any
   // launch.json file that the user right clicks on
@@ -70,7 +70,7 @@ export function addLaunchConfiguration(
   const existingLaunchData: jsonDataType | undefined = loadLaunchFile(jsonPath);
 
   const vectorJSON = JSON.parse(
-    fs.readFileSync(path.join(pathToSupportfiles, "vcastLaunchTemplate.json"))
+    fs.readFileSync(path.join(pathToSupportFiles, "vcastLaunchTemplate.json"))
   );
 
   // if we have a well formatted launch file with an array of configurations ...

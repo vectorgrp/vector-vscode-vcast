@@ -17,7 +17,9 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast.rest_2.test.ts",
         "./**/**/vcast.rest_3.test.ts",
       ],
-      env: {},
+      env: {
+        WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
+      },
       params: {},
     },
     build_env_failure: {
@@ -138,17 +140,17 @@ export function getSpecGroups(useVcast24: boolean) {
 export function getSpecsWithEnv(useVcast24: boolean) {
   const specGroups = getSpecGroups(useVcast24);
 
-  Object.keys(specGroups).forEach((group) => {
-    const groupObj = specGroups[group];
+  for (const group of Object.keys(specGroups)) {
+    const groupObject = specGroups[group];
 
     // In that case we don t want the release to be on PATH
-    if (groupObj.params?.vcReleaseOnPath === false) {
+    if (groupObject.params?.vcReleaseOnPath === false) {
       const pathWithoutRelease = removeReleaseOnPath();
       if (pathWithoutRelease !== undefined) {
-        groupObj.env.PATH = pathWithoutRelease;
+        groupObject.env.PATH = pathWithoutRelease;
       }
     }
-  });
+  }
 
   return specGroups;
 }

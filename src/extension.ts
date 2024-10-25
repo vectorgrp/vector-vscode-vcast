@@ -14,8 +14,9 @@ import {
 } from "./configuration";
 
 import {
-  initializeCodeCoverageFeatures,
   createCoverageStatusBar,
+  hideStatusBarCoverage,
+  initializeCodeCoverageFeatures,
   toggleCoverageAction,
   updateDisplayedCoverage,
   updateCOVdecorations,
@@ -26,6 +27,8 @@ import {
   initializeTestDecorator,
   updateTestDecorator,
 } from "./editorDecorator";
+
+import { updateExploreDecorations } from "./fileDecorator";
 
 import {
   openMessagePane,
@@ -40,13 +43,13 @@ import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
 import {
   activateTestPane,
-  buildTestPaneContents,
   deleteTests,
   insertBasisPathTests,
   insertATGTests,
   loadTestScript,
   pathToEnviroBeingDebugged,
   pathToProgramBeingDebugged,
+  refreshAllExtensionData,
   updateCodedTestCases,
   updateDataForEnvironment,
 } from "./testPane";
@@ -60,12 +63,10 @@ import {
 import {
   buildEnvironmentFromScript,
   deleteEnvironment,
-  setCodedTestOption,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
+  rebuildEnvironment,
 } from "./vcastAdapter";
-
-import { executeWithRealTimeEcho } from "./vcastCommandRunner";
 
 import {
   checkIfInstallationIsOK,
@@ -81,17 +82,13 @@ import {
   newEnvironment,
   newTestScript,
   openCodedTest,
-  resetCoverageData,
 } from "./vcastTestInterface";
 
 import {
   addIncludePath,
   getEnviroNameFromFile,
   openTestScript,
-  rebuildEnvironmentCommand,
 } from "./vcastUtilities";
-
-import { updateExploreDecorations } from "./fileDecorator";
 
 import fs = require("fs");
 const path = require("path");
@@ -121,11 +118,11 @@ export async function activate(context: vscode.ExtensionContext) {
   // we need to install some event handlers so that the user can "fix"
   // a "bad" vcast installation by providing a valid path see logic
   // and comments in this function
-  installPreActivationEventHandlers(context);
+  await installPreActivationEventHandlers(context);
 
   // this checks the vcast installation,
   // and if its ok will proceed with full activation
-  checkPrerequisites(context);
+  await checkPrerequisites(context);
 }
 
 export function configureCommandCalled(context: vscode.ExtensionContext) {
@@ -135,7 +132,7 @@ export function configureCommandCalled(context: vscode.ExtensionContext) {
 
 let alreadyConfigured: boolean = false;
 let installationFilesInitialized: boolean = false;
-function checkPrerequisites(context: vscode.ExtensionContext) {
+async function checkPrerequisites(context: vscode.ExtensionContext) {
   // this function is called from the activate function, and also from the
   // event handler for changes to the vcast installation location.  So in the
   // case that the VectorCAST installation is not found initially, we will get
@@ -148,7 +145,7 @@ function checkPrerequisites(context: vscode.ExtensionContext) {
       installationFilesInitialized = true;
     }
 
-    if (checkIfInstallationIsOK()) {
+    if (await checkIfInstallationIsOK()) {
       activationLogic(context);
       alreadyConfigured = true;
       vscode.commands.executeCommand(
@@ -166,7 +163,7 @@ function checkPrerequisites(context: vscode.ExtensionContext) {
   }
 }
 
-function activationLogic(context: vscode.ExtensionContext) {
+async function activationLogic(context: vscode.ExtensionContext) {
   // adds all of the command handlers
   configureExtension(context);
 
@@ -549,25 +546,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     (enviroNode: any) => {
       // this returns the full path to the environment directory
       const enviroPath = getEnviroPathFromID(enviroNode.id);
-
-      const fullCommand = rebuildEnvironmentCommand(enviroPath);
-      let commandPieces = fullCommand.split(" ");
-      const commandVerb = commandPieces[0];
-      commandPieces.shift();
-
-      const unitTestLocation = path.dirname(enviroPath);
-      setCodedTestOption(unitTestLocation);
-
-      // This uses the python binding to clicast to do the rebuild
-      // We open the message pane to give the user a sense of what's going on
-      openMessagePane();
-      executeWithRealTimeEcho(
-        commandVerb,
-        commandPieces,
-        unitTestLocation,
-        rebuildEnvironmentCallback,
-        enviroPath
-      );
+      rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
     }
   );
   context.subscriptions.push(rebuildEnviro);
@@ -619,19 +598,22 @@ function configureExtension(context: vscode.ExtensionContext) {
 
   vscode.workspace.onDidChangeWorkspaceFolders(
     (e) => {
-      resetCoverageData();
-      buildTestPaneContents();
-      updateCOVdecorations();
+      refreshAllExtensionData();
     },
     null,
     context.subscriptions
   );
 
   vscode.window.onDidChangeActiveTextEditor(
+    // this function gets called when the user changes the
+    // active editor, including when closing an editor
+    // in which case the "editor" parameter will be undefined
     (editor) => {
       if (editor) {
         updateDisplayedCoverage();
         updateTestDecorator();
+      } else {
+        hideStatusBarCoverage();
       }
     },
     null,
@@ -660,7 +642,9 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
 }
 
-function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
+async function installPreActivationEventHandlers(
+  context: vscode.ExtensionContext
+) {
   // this is separate from configureExtension() because we want to
   // handle some actions before the configuration of the extension is complete
   // Specifically for the case where the user does a create environment action
@@ -670,7 +654,7 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
   // values that could contain things like ${workspaceFolder} so we don't provide support.
   // Here is a starting point for research: https://github.com/microsoft/vscode/issues/46471
 
-  vscode.workspace.onDidChangeConfiguration((event) => {
+  vscode.workspace.onDidChangeConfiguration(async (event) => {
     // post configuration, we handle changes to all options ...
     if (alreadyConfigured) {
       // This function gets triggered when any option at any level (user, workspace, etc.)
@@ -702,10 +686,8 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
       ) {
         // if the user changes the path to vcast, we need to reset the values
         // for clicast and vpython path etc.
-        if (checkIfInstallationIsOK()) {
-          resetCoverageData();
-          buildTestPaneContents();
-          updateCOVdecorations();
+        if (await checkIfInstallationIsOK()) {
+          refreshAllExtensionData();
         }
       }
     }
@@ -717,16 +699,16 @@ function installPreActivationEventHandlers(context: vscode.ExtensionContext) {
     ) {
       // this call will check if the new value is valid,
       // and if so, perform extension activation
-      checkPrerequisites(context);
+      await checkPrerequisites(context);
     }
   });
 
   // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
   let newEnviroVCASTCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.newEnviroVCAST",
-    (args: Uri, argList: Uri[]) => {
+    async (args: Uri, argList: Uri[]) => {
       // contains a check for already configured, so no work will be done in that case
-      checkPrerequisites(context);
+      await checkPrerequisites(context);
       if (alreadyConfigured) {
         // arg is the actual item that the right click happened on, argList is the list
         // of all items if this is a multi-select.  Since argList is always valid, even for a single
