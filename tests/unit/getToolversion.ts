@@ -10,6 +10,9 @@ const promisifiedExec = promisify(exec);
 /**
  * Function to get the clicast executable path and check the tool version
  */
+/**
+ * Function to get the clicast executable path and check the tool version
+ */
 export async function getToolVersion() {
   // Determine the command to locate clicast
   const checkClicast =
@@ -53,7 +56,18 @@ export async function getToolVersion() {
       .readFileSync(toolVersionPath)
       .toString()
       .trim();
-    return toolVersion;
+
+    // Extract the first two characters & try to cast it to a number
+    const firstTwoChars = toolVersion.slice(0, 2);
+    const versionNumber = Number(firstTwoChars);
+
+    // Check if the conversion was successful (not NaN)
+    if (!isNaN(versionNumber)) {
+      return versionNumber;
+    } else {
+      console.error(`Error: Could not cast "${firstTwoChars}" to a number`);
+      return NaN;
+    }
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error(`Error reading tool version: ${error.message}`);
@@ -61,6 +75,6 @@ export async function getToolVersion() {
       console.error(`Unexpected error: ${String(error)}`);
     }
 
-    return "";
+    return NaN;
   }
 }

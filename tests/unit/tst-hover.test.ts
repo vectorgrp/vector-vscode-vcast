@@ -1,9 +1,6 @@
 import { describe, expect, test } from "vitest";
-import {
-  getHoverPositionForLine,
-  generateHoverData,
-  getToolVersion,
-} from "./utils";
+import { getHoverPositionForLine, generateHoverData } from "./utils";
+import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
 
