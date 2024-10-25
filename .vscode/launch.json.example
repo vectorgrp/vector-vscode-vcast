@@ -96,5 +96,25 @@
         "PACKAGE_PATH": "${workspaceFolder}"
       }
     },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Single Selected VectorCAST Unit Test",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": [
+        "run",
+        "${fileBasenameNoExtension}",
+        "--testNamePattern",
+        "${selectedText}"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "test",
+        "PACKAGE_PATH": "${workspaceFolder}"
+      }
+    },
   ]
 }
