@@ -7,8 +7,8 @@ import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
   getLastLineOfOutputView,
+  TIMEOUT,
 } from "../test_utils/vcast_utils";
-import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
