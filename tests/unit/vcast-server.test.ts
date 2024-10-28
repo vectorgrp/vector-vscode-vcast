@@ -1,3 +1,4 @@
+import axios from "axios";
 import { describe, test, expect, vi, afterEach } from "vitest";
 import {
   closeConnection,
@@ -17,8 +18,6 @@ import {
 } from "../../src-common/vcastServer";
 import { pythonErrorCodes } from "../../src-common/vcastServerTypes";
 
-import axios from "axios";
-
 // Mock axios
 vi.mock("axios");
 const mockAxiosPost = vi.mocked(axios.post);
@@ -32,13 +31,11 @@ const mockAxios = (
   status = 200,
   statusText = "OK"
 ) => {
-  mockAxiosPost.mockImplementation(async () =>
-    Promise.resolve({
-      data: responseBody,
-      status,
-      statusText,
-    })
-  );
+  mockAxiosPost.mockImplementation(async () => ({
+    data: responseBody,
+    status,
+    statusText,
+  }));
 };
 
 describe("test server functions", () => {
@@ -170,11 +167,9 @@ describe("test server functions", () => {
       expectedLogMessage
     );
 
-    await terminateServerProcessing("Error string")
-      .then(() => {})
-      .catch((error) => {
-        console.error("Failed to terminate server:", error);
-      });
+    await terminateServerProcessing("Error string").catch((error) => {
+      console.error("Failed to terminate server:", error);
+    });
 
     expect(mockTerminateCallback).toHaveBeenCalledOnce();
     expect(mockTerminateCallback).toHaveBeenCalledWith("Error string");

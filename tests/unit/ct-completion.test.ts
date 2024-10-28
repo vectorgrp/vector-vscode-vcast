@@ -1,6 +1,7 @@
 import path from "node:path";
 import process from "node:process";
 import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
+import axios from "axios";
 import {
   describe,
   expect,
@@ -24,7 +25,6 @@ import {
   prepareCodedTestCompletion,
   setupDiagnosticTest,
 } from "./utils";
-import axios from "axios";
 
 const expectedReceivedData = [
   {
@@ -323,7 +323,6 @@ describe("Testing pythonUtilities (valid)", () => {
       | Error, // Allow either a valid response or an Error
     status = 200,
     statusText = "OK",
-    // Optional parameter to simulate error
     shouldThrowError = false
   ) => {
     if (shouldThrowError) {
@@ -331,13 +330,11 @@ describe("Testing pythonUtilities (valid)", () => {
       mockAxiosPost.mockRejectedValueOnce(responseBody);
     } else {
       // Simulate a successful response
-      mockAxiosPost.mockImplementation(async () =>
-        Promise.resolve({
-          data: responseBody,
-          status,
-          statusText,
-        })
-      );
+      mockAxiosPost.mockImplementation(async () => ({
+        data: responseBody,
+        status,
+        statusText,
+      }));
     }
   };
 
