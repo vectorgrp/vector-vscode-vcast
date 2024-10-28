@@ -15,14 +15,12 @@ import {
   normalizeContentAssistString,
   getGeneratedTooltipTextAt,
 } from "../test_utils/vcast_utils";
-import { EvaluatableExpression } from "vscode";
 import { promisify } from "node:util";
 import { exec } from "node:child_process";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -101,7 +99,7 @@ describe("vTypeCheck VS Code Extension", () => {
         const { stdout, stderr } = await promisifiedExec("env");
         if (stderr) {
           console.log(stderr);
-          throw `Error when running ${"env"}`;
+          throw new Error(`Error when running ${"env"}`);
         } else {
           console.log(`${stdout}`);
         }
