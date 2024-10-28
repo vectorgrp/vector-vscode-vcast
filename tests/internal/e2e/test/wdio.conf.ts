@@ -443,8 +443,8 @@ export const config: Options.Testrunner = {
       );
 
       let vcastRoot = await getVcastRoot();
-      const oldVersion = "release24_sp1";
-      const newVersion = "release24";
+      const oldVersion = "2024sp1";
+      const newVersion = "2024sp4";
 
       // Set up environment directory
       if (process.env.SWITCH_ENV_AT_THE_END) {
