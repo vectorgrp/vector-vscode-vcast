@@ -73,17 +73,32 @@ export function getVcastOptionValues(enviroPath: string): cfgOptionType {
   }
 }
 
-const splitString = "ACTUAL-DATA";
-export function cleanVcastOutput(outputString: string): string {
-  // vpython prints this annoying message if VECTORCAST_DIR does not match the executable
-  // message to stdout when VC_DIR does not match the vcast distro being run.
-  // Since this happens before our script even starts so we cannot suppress it.
-  // We could send the json data to a temp file, but the create/open file operations
-  // have overhead.
+// The VectorCAST executables print an annoying message to stdout when
+// VECTORCAST_DIR does not match the executable being run.
+// Since this happens before our script even starts so we cannot suppress it.
 
-  if (outputString.includes(splitString)) {
-    const pieces = outputString.split(splitString, 2);
+// For out own vpython executables, we control the contents of the py script
+// so we print ACTUAL-DATA at the start of the script and split on this
+// Improvement needed: we could remove this ACTUAL-DATA stuff now that we
+// created this common way to clean the output
+
+// For clicast and ATG, we have no control, so we split on the
+// "If you want to use VECTORCAST_DIR, use this syntax" message
+
+// We export these just so that the tests can use these without duplication
+export const vpythonSplitString = "ACTUAL-DATA";
+export const atgAndClicastSplitString =
+  "If you want to use VECTORCAST_DIR, use this syntax:";
+export function cleanVectorcastOutput(outputString: string): string {
+  if (outputString.includes(vpythonSplitString)) {
+    const pieces = outputString.split(vpythonSplitString, 2);
     return pieces[1].trim();
+  } else if (outputString.includes(atgAndClicastSplitString)) {
+    // there are two lines that we want to remove beyond the split string
+    const pieces = outputString.split(atgAndClicastSplitString, 2);
+    const restOfText = pieces[1].trim();
+    const lines = restOfText.split("\n");
+    return lines.slice(2).join("\n");
   } else {
     return outputString;
   }

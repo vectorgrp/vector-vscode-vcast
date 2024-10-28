@@ -2,11 +2,14 @@ import path from "node:path";
 import process from "node:process";
 import { describe, expect, test } from "vitest";
 import {
-  cleanVcastOutput,
+  atgAndClicastSplitString,
+  cleanVectorcastOutput,
   getVcastOptionValues,
+  vpythonSplitString,
 } from "../../src-common/commonUtilities";
 
 const timeout = 30_000; // 30 seconds
+const textOfInterest = "Text of Interest";
 
 describe("Validating commonUtilities", () => {
   test(
@@ -33,14 +36,22 @@ describe("Validating commonUtilities", () => {
     timeout
   );
   test(
-    "validate cleanVcastOutput",
+    "validate cleanVectorcastOutput",
     async () => {
-      let testString =
-        "some stuff to be stripped\n\n  ACTUAL-DATA\n   some more stuff ";
-      expect(cleanVcastOutput(testString)).toBe("some more stuff");
+      // This function is called with two flavors of split strings
+      // The first is used to split the output of the vpython command
+      let testString = `some stuff to be stripped\n\n  ${vpythonSplitString}\n${textOfInterest}`;
+      expect(cleanVectorcastOutput(testString)).toBe(textOfInterest);
 
+      // The second is used to split the output of the atg and clicast commands
+      // Note that it removes the text before the split string, and 2 lines after ...
+      testString = `Some text before ${atgAndClicastSplitString}\nignore\nignore\n${textOfInterest}`;
+      const expectedReturn = "Text of Interest";
+      expect(cleanVectorcastOutput(testString)).toBe(expectedReturn);
+
+      // This test is for the case where there is no clean needed
       testString = "don't strip me some more stuff";
-      expect(cleanVcastOutput(testString)).toBe(testString);
+      expect(cleanVectorcastOutput(testString)).toBe(testString);
     },
     timeout
   );

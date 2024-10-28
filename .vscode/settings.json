@@ -22,5 +22,8 @@
     "vcast",
     "vmock",
     "vunit"
-  ]
+  ],
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/python"
+  ],
 }

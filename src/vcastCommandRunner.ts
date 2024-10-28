@@ -2,9 +2,22 @@ import * as vscode from "vscode";
 
 import { execSync, spawn } from "child_process";
 
-import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
+import {
+  errorLevel,
+  indentString,
+  openMessagePane,
+  vectorMessage,
+} from "./messagePane";
 import { processCommandOutput, statusMessageType } from "./utilities";
-import { cleanVcastOutput } from "../src-common/commonUtilities";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
+
+import {
+  clientRequestType,
+  transmitCommand,
+  transmitResponseType,
+  vcastCommandType,
+} from "../src-common/vcastServer";
+import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 
 const path = require("path");
 
@@ -13,20 +26,44 @@ export interface commandStatusType {
   stdout: string;
 }
 
+export function convertServerResponseToCommandStatus(
+  serverResponse: transmitResponseType
+): commandStatusType {
+  //
+  // tansmitResponse.returnData is an object with exitCode and data properties
+  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+  if (serverResponse.success) {
+    commandStatus.errorCode = serverResponse.returnData.exitCode;
+    // the data.text field is returned as a list to join with \n
+    commandStatus.stdout = serverResponse.returnData.data.text.join("\n");
+  } else {
+    commandStatus.errorCode = 1;
+    commandStatus.stdout = serverResponse.statusText;
+  }
+  return commandStatus;
+}
+
 // Call vpython vTestInterface.py to run a command
 export function executeVPythonScript(
   commandToRun: string,
-  whereToRun: string
+  whereToRun: string,
+  printErrorDetails: boolean = true
 ): commandStatusType {
   let returnData: commandStatusType = { errorCode: 0, stdout: "" };
   if (commandToRun) {
     const commandStatus: commandStatusType = executeCommandSync(
       commandToRun,
-      whereToRun
+      whereToRun,
+      printErrorDetails
     );
-    // remove extraneous text from the output
-    returnData.stdout = cleanVcastOutput(commandStatus.stdout);
+    // see detailed comment with the function definition
+    returnData.stdout = cleanVectorcastOutput(commandStatus.stdout);
     returnData.errorCode = commandStatus.errorCode;
+    if (returnData.errorCode != 0) {
+      vectorMessage("Error running VectorCAST command");
+      vectorMessage("command: " + commandToRun, errorLevel.trace, indentString);
+      vectorMessage(returnData.stdout, errorLevel.info, indentString);
+    }
   }
   return returnData;
 }
@@ -38,7 +75,7 @@ export function getJsonDataFromTestInterface(
 ): any {
   let returnData = undefined;
 
-  let jsonText = executeVPythonScript(commandToRun, enviroPath).stdout;
+  let jsonText = executeVPythonScript(commandToRun, enviroPath, false).stdout;
   try {
     returnData = JSON.parse(jsonText);
   } catch {
@@ -53,30 +90,23 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-  let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
+  // see detailed comment with the function definition
+  let stdoutString: string = cleanVectorcastOutput(error.stdout.toString());
+  let commandStatus = { errorCode: error.status, stdout: stdoutString };
 
-  // 99 is a warning, like a mismatch opening the environment
-  if (error && error.status == 99) {
-    let stdoutString = error.stdout.toString();
-
-    // Remove annoying version miss-match message from vcast
-    commandStatus.stdout = cleanVcastOutput(stdoutString);
+  if (error.status == pythonErrorCodes.testInterfaceError) {
+    // Improvement needed: we should document this
     commandStatus.errorCode = 0;
-    vectorMessage(commandStatus.stdout);
-  } else if (error && error.stdout) {
-    commandStatus.stdout = error.stdout.toString();
+    vectorMessage("Exception while executing python interface");
+    vectorMessage(stdoutString, errorLevel.info, indentString);
+  } else {
     commandStatus.errorCode = error.status;
     if (printErrorDetails) {
-      vectorMessage("Exception while running command:");
-      vectorMessage(command);
-      vectorMessage(commandStatus.stdout);
-      vectorMessage(error.stderr.toString());
+      vectorMessage("Exception while executing VectorCAST command");
+      vectorMessage(command, errorLevel.trace, indentString);
+      vectorMessage(stdoutString, errorLevel.info, indentString);
       openMessagePane();
     }
-  } else {
-    vectorMessage(
-      "Unexpected error in utilities/processExceptionFromExecuteCommand()"
-    );
   }
 
   return commandStatus;
@@ -162,12 +192,12 @@ export function executeWithRealTimeEcho(
   });
 }
 
-// A command runner for commands where we want to show progress like ATG and Basis Path Test Generation
-export function executeClicastWithProgress(
+export function executeCommandWithProgress(
   title: string,
   commandAndArgs: string[],
   enviroName: string,
   testScriptPath: string,
+  startOfRealMessages: string,
   filter: RegExp,
   callback: any
 ) {
@@ -175,7 +205,10 @@ export function executeClicastWithProgress(
   // and a different callback structure.
   // We use this for generating the basis path and ATG tests (for now)
 
-  vectorMessage(`Executing command: ${commandAndArgs.join(" ")}`);
+  vectorMessage(
+    `Executing command: ${commandAndArgs.join(" ")}`,
+    errorLevel.trace
+  );
   let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
 
   const cwd = path.dirname(testScriptPath);
@@ -193,10 +226,17 @@ export function executeClicastWithProgress(
         // shell is needed so that stdout is NOT buffered
         const commandHandle = spawn(command, args, { cwd: cwd, shell: true });
 
+        // To strip the annoying version miss-match string, we look
+        // for the first line that contains the startOFRealMessages
+        // string, and log once we see this.
+        let shouldLogMessage = false;
+
         // each time we get an entry here, we need to check if we have a
         // partial message if so we print the part up the the
         // final \n and buffer the rest, see comment above
         let remainderTextFromLastCall = "";
+
+        let stderrChunks: string = "";
 
         commandHandle.stdout.on("data", async (data: any) => {
           const message: statusMessageType = processCommandOutput(
@@ -205,33 +245,31 @@ export function executeClicastWithProgress(
           );
           remainderTextFromLastCall = message.remainderText;
 
-          if (message.fullLines.length > 0) {
-            vectorMessage(message.fullLines);
+          // for the dialog, we want use the filter to decide what to show
+          // and this requires the message data to be split into single lines
+          const lineArray = message.fullLines.split("\n");
+          for (const line of lineArray) {
+            if (line.startsWith(startOfRealMessages)) {
+              shouldLogMessage = true;
+            }
 
-            // for the dialog, we want use the filter to decide what to show
-            // and this requires the message data to be split into single lines
-            const lineArray = message.fullLines.split("\n");
-            for (const line of lineArray) {
-              const matched = line.match(filter);
-              if (matched && matched.length > 0) {
-                progress.report({ message: matched[0], increment: 10 });
-                // This is needed to allow the message window to update ...
-                await new Promise<void>((r) => setTimeout(r, 0));
-              }
+            if (shouldLogMessage && line.length > 0) {
+              vectorMessage(line, errorLevel.info, indentString);
+            }
+
+            const matched = line.match(filter);
+            if (matched && matched.length > 0) {
+              // Improvement needed: figure out how many total subprograms
+              // we are processing and set the increment properly
+              progress.report({ message: matched[0], increment: 10 });
+              // This is needed to allow the message window to update ...
+              await new Promise<void>((r) => setTimeout(r, 0));
             }
           }
         });
 
-        commandHandle.stderr.on("data", async (data: any) => {
-          const message: statusMessageType = processCommandOutput(
-            remainderTextFromLastCall,
-            data.toString(data)
-          );
-          remainderTextFromLastCall = message.remainderText;
-
-          if (message.fullLines.length > 0) {
-            vectorMessage(message.fullLines);
-          }
+        commandHandle.stderr.on("data", (data: any) => {
+          stderrChunks += data.toString();
         });
 
         commandHandle.on("error", (error: any) => {
@@ -244,8 +282,14 @@ export function executeClicastWithProgress(
         commandHandle.on("close", (code: any) => {
           // display any remaining text ...
           if (remainderTextFromLastCall.length > 0) {
-            vectorMessage(remainderTextFromLastCall);
+            vectorMessage(
+              remainderTextFromLastCall,
+              errorLevel.info,
+              indentString
+            );
           }
+          vectorMessage(stderrChunks, errorLevel.info, indentString);
+
           commandStatus.errorCode = code;
           resolve(code);
           callback(commandStatus, enviroName, testScriptPath);
@@ -253,4 +297,36 @@ export function executeClicastWithProgress(
       });
     }
   );
+}
+
+// This will run any clicast command on the server
+export async function executeClicastCommandUsingServer(
+  enviroPath: string,
+  commandArgs: string
+): Promise<commandStatusType> {
+  let commandStatus = { errorCode: 0, stdout: "" };
+
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.runClicastCommand,
+    path: enviroPath,
+    options: commandArgs,
+  };
+
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
+
+  // transmitResponse.returnData is an object with exitCode and data properties
+  if (transmitResponse.success) {
+    commandStatus.errorCode = transmitResponse.returnData.exitCode;
+    commandStatus.stdout = transmitResponse.returnData.data.trim();
+  } else {
+    commandStatus.errorCode = 1;
+    commandStatus.stdout = transmitResponse.statusText.trim();
+  }
+
+  if (commandStatus.errorCode != 0) {
+    openMessagePane();
+    vectorMessage(commandStatus.stdout);
+  }
+  return commandStatus;
 }

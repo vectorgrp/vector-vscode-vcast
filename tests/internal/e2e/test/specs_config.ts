@@ -17,7 +17,9 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast.rest_2.test.ts",
         "./**/**/vcast.rest_3.test.ts",
       ],
-      env: {},
+      env: {
+        WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
+      },
       params: {},
     },
     build_env_failure: {
@@ -36,7 +38,7 @@ export function getSpecGroups(useVcast24: boolean) {
     build_different_envs: {
       specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
       env: {
-        VECTORCAST_DIR: `/vcast/release23:${process.env.HOME}/vcast/release23`,
+        VECTORCAST_DIR: `/vcast/2023sp0:${process.env.HOME}/vcast/2023sp0`,
         BUILD_MULTIPLE_ENVS: "True",
       },
       params: {},
@@ -149,17 +151,17 @@ export function getSpecGroups(useVcast24: boolean) {
 export function getSpecsWithEnv(useVcast24: boolean) {
   const specGroups = getSpecGroups(useVcast24);
 
-  Object.keys(specGroups).forEach((group) => {
-    const groupObj = specGroups[group];
+  for (const group of Object.keys(specGroups)) {
+    const groupObject = specGroups[group];
 
     // In that case we don t want the release to be on PATH
-    if (groupObj.params?.vcReleaseOnPath === false) {
+    if (groupObject.params?.vcReleaseOnPath === false) {
       const pathWithoutRelease = removeReleaseOnPath();
       if (pathWithoutRelease !== undefined) {
-        groupObj.env.PATH = pathWithoutRelease;
+        groupObject.env.PATH = pathWithoutRelease;
       }
     }
-  });
+  }
 
   return specGroups;
 }
@@ -219,8 +221,8 @@ export function getSpecs(vcast24: boolean, group: string = null) {
 }
 
 /**
- * Splits all paths from the PATH env variable that contain a "release".
- * @returns New PATH env var without "release" paths
+ * Splits all paths from the PATH env variable that contain a year followed by "sp" and a number (e.g., 2023sp0).
+ * @returns New PATH env var without those paths
  */
 export function removeReleaseOnPath(): string | undefined {
   // Get the PATH environment variable
@@ -234,8 +236,11 @@ export function removeReleaseOnPath(): string | undefined {
   // Split the PATH on ":"
   const paths = envPath.split(":");
 
-  // Filter out paths that contain "release"
-  const filteredPaths = paths.filter((path) => !path.includes("release"));
+  // Regex to match paths containing "vcast/" followed by a four-digit year and "sp" with a number (e.g., /vcast/2023sp0)
+  const releaseRegex = /\/vcast\/\d{4}sp\d+/;
+
+  // Filter out paths that match the new release pattern
+  const filteredPaths = paths.filter((path) => !releaseRegex.test(path));
 
   // Join the remaining paths back together with ":"
   const newPath = filteredPaths.join(":");

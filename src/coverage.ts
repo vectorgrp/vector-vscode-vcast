@@ -98,11 +98,8 @@ export function updateCOVdecorations() {
     // this returns the cached coverage data for this file
     const coverageData = getCoverageDataForFile(filePath);
 
-    if (coverageData.statusString.length > 0) {
-      globalStatusBarObject.text = coverageData.statusString;
-      resetGlobalDecorations();
-    } else {
-      // there is data to display
+    if (coverageData.hasCoverageData) {
+      // there is coverage data and it matches the file checksum
       // Reset the global decoration arrays
       resetGlobalDecorations();
 
@@ -128,14 +125,25 @@ export function updateCOVdecorations() {
       const covered = coveredDecorations.length;
       const coverable = covered + uncoveredDecorations.length;
       let percentage: number;
-      if (coverable == 0) percentage = 0;
-      else percentage = Math.round((covered / coverable) * 100);
+      if (coverable == 0) {
+        percentage = 0;
+      } else {
+        percentage = Math.round((covered / coverable) * 100);
+      }
       const statusBarText = `Coverage: ${covered}/${coverable} (${percentage}%)`;
       globalStatusBarObject.text = statusBarText;
       globalStatusBarObject.show();
+    } else if (coverageData.statusString.length > 0) {
+      // this handles the case where coverage is out of date (for example)
+      globalStatusBarObject.text = coverageData.statusString;
+      globalStatusBarObject.show();
+      resetGlobalDecorations();
+    } else {
+      // we get here for C/C++ files that are not part of an environment
+      globalStatusBarObject.hide();
     }
-    globalStatusBarObject.show();
   } else {
+    // we get here for non-C/C++ files
     globalStatusBarObject.hide();
   }
 }
@@ -144,6 +152,10 @@ function deactivateCoverage() {
   // delete all decorations
   if (uncoveredDecorationType) uncoveredDecorationType.dispose();
   if (coveredDecorationType) coveredDecorationType.dispose();
+  globalStatusBarObject.hide();
+}
+
+export function hideStatusBarCoverage() {
   globalStatusBarObject.hide();
 }
 

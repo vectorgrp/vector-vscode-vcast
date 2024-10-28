@@ -1,18 +1,23 @@
+import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver-types";
+
+import {
+  clientRequestType,
+  globalEnviroDataServerActive,
+  setServerState,
+  transmitCommand,
+  transmitResponseType,
+  vcastCommandType,
+} from "../src-common/vcastServer";
+
 import fs = require("fs");
 import path = require("path");
+
 import { execSync } from "child_process";
-import { cleanVcastOutput } from "../src-common/commonUtilities";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
+import { getDiagnosticObject } from "./tstValidation";
 
 let testEditorScriptPath: string | undefined = undefined;
-let vPythonCommandToUse: string | undefined = undefined;
-
-export function setPaths(
-  _testEditorScriptPath: string,
-  _vPythonCommandToUse: string
-) {
-  testEditorScriptPath = _testEditorScriptPath;
-  vPythonCommandToUse = _vPythonCommandToUse;
-}
+let vPythonCommandToUse: string;
 
 export function updateVPythonCommand(newPath: string) {
   vPythonCommandToUse = newPath;
@@ -22,16 +27,23 @@ export function getVPythonCommand() {
   return vPythonCommandToUse;
 }
 
-function initializeScriptPath() {
+export function initializePaths(
+  extensionRoot: string,
+  vpythonPath: string,
+  useServer: boolean
+) {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
-  const extensionRoot = process.argv[2];
-  // if we have not been sent the explicit path to use
-  // fetch it from the command line arguments
-  if (vPythonCommandToUse == undefined) {
-    vPythonCommandToUse = process.argv[3];
-  }
+  console.log("VectorCAST Language Server is Active ...");
+  console.log(`  using vpython: ${vpythonPath}`);
+  console.log(`  using environment data server: ${useServer}`);
+
+  vPythonCommandToUse = vpythonPath;
+  // set the server instance of the globalEnviroDataServerActive flag
+  // based on the value passed to us by the client.
+  setServerState(useServer);
+
   const pathToTestEditorInterface = path.join(
     extensionRoot,
     "python",
@@ -39,37 +51,81 @@ function initializeScriptPath() {
   );
   if (fs.existsSync(pathToTestEditorInterface)) {
     console.log(
-      `testEditorInterface was found here: ${pathToTestEditorInterface}`
+      `  testEditorInterface was found here: ${pathToTestEditorInterface}\n`
     );
     testEditorScriptPath = `${pathToTestEditorInterface}`;
   } else {
     console.log(
-      `testEditorInterface was not found in the expected location: ${pathToTestEditorInterface}`
+      `  testEditorInterface was not found in the expected location: ${pathToTestEditorInterface}\n`
     );
   }
 }
 
-export function runPythonScript(
-  action: string,
-  enviroName: string,
-  payload: string
-): any {
-  // this is currently not used as the actual server mode is unused
-  if (testEditorScriptPath == undefined) {
-    initializeScriptPath();
+// Get Choice Data Processing -------------------------------------------------------------
+
+export function generateDiagnositicForTest(
+  connection: any,
+  message: string,
+  documentUri: string,
+  lineNumber: number
+) {
+  // When we have a coded test file for an environment that does
+  // not have mock support, we give the user a helpful diagnostic message
+  let diagnostic: Diagnostic = getDiagnosticObject(
+    lineNumber,
+    0,
+    1000,
+    message,
+    DiagnosticSeverity.Warning
+  );
+  connection.sendDiagnostics({
+    uri: documentUri,
+    diagnostics: [diagnostic],
+  });
+}
+
+// This mirrors the data object returned from the python call to get completion text
+export interface choiceDataType {
+  choiceKind: string;
+  choiceList: string[];
+  messages: string[];
+  extraText: string;
+}
+export const emptyChoiceData: choiceDataType = {
+  choiceKind: "",
+  choiceList: [],
+  messages: [],
+  extraText: "",
+};
+
+export async function getChoiceDataFromServer(
+  kind: choiceKindType,
+  enviroPath: string,
+  lineSoFar: string
+): Promise<choiceDataType> {
+  // We are re-using options for the line fragment in the request
+
+  let commandToUse = vcastCommandType.choiceListTst;
+  if (kind === choiceKindType.choiceListCT) {
+    commandToUse = vcastCommandType.choiceListCT;
   }
+  const requestObject: clientRequestType = {
+    command: commandToUse,
+    path: enviroPath,
+    options: lineSoFar,
+  };
 
-  // As an alternative to using a server, we call vpython each time we need some data
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
 
-  // NOTE: we cannot use executeCommand() here because it is in the client only!
-  // commandOutput is a buffer: (Uint8Array)
-  // RUN mode is a single shot mode where we run the python script and communicate with stdin/stdout and
-  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${action} ${enviroName} "${payload}"`;
-  const commandOutputBuffer = execSync(commandToRun).toString();
-
-  // two steps to make debugging easier
-  const outputString = cleanVcastOutput(commandOutputBuffer);
-  return JSON.parse(outputString);
+  // If the transmit worked ok, and data was returned ...
+  if (transmitResponse.success && transmitResponse.returnData) {
+    // return data wil be formatted as a choiceDataType
+    return transmitResponse.returnData.data;
+  } else {
+    console.log(transmitResponse.statusText);
+    return emptyChoiceData;
+  }
 }
 
 export enum choiceKindType {
@@ -80,22 +136,50 @@ export function getChoiceDataFromPython(
   kind: choiceKindType,
   enviroName: string,
   lineSoFar: string
-): any {
-  const jsonData = runPythonScript(kind, enviroName, lineSoFar);
+): choiceDataType {
+  // NOTE: we cannot use executeCommand() here because it is in the client only!
+  // commandOutput is a buffer: (Uint8Array)
+  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}"`;
+  let commandOutputBuffer = execSync(commandToRun).toString();
+
+  // see detailed comment with the function definition
+  commandOutputBuffer = cleanVectorcastOutput(commandOutputBuffer);
+
+  // two statements to make debugging easy
+  const returnData = JSON.parse(commandOutputBuffer);
+  return returnData;
+}
+
+// Get Choice Data for Line Being Edited
+export async function getChoiceData(
+  kind: choiceKindType,
+  enviroPath: string,
+  lineSoFar: string
+): Promise<choiceDataType> {
+  //
+
+  let jsonData: any;
+  if (globalEnviroDataServerActive) {
+    jsonData = await getChoiceDataFromServer(kind, enviroPath, lineSoFar);
+  } else {
+    jsonData = getChoiceDataFromPython(kind, enviroPath, lineSoFar);
+  }
+
   for (const msg of jsonData.messages) {
     console.log(msg);
   }
   return jsonData;
 }
 
-export function getHoverStringForRequirement(
-  enviroName: string,
+// Get Hover String for Requirement
+export async function getHoverStringForRequirement(
+  enviroPath: string,
   requirementKey: string
-): any {
+): Promise<any> {
   let returnValue: string = "";
-  const jsonData = runPythonScript(
-    "choiceList-tst",
-    enviroName,
+  const jsonData = await getChoiceData(
+    choiceKindType.choiceListTST,
+    enviroPath,
     "TEST.REQUIREMENT_KEY:"
   );
   for (const msg of jsonData.messages) {

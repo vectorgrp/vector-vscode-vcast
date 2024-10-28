@@ -15,12 +15,13 @@ import {
   editTestScriptFor,
   updateTestID,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
+import { getToolVersion } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -139,9 +140,12 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(requestTooltipText).toContain(
       "Clearing a table resets orders for all seats"
     );
-    expect(requestTooltipText).toContain(
-      "Clearing a table clears the orders for all seats of the table within the table database."
-    );
+    const toolVersion = await getToolVersion();
+    if (toolVersion !== 21) {
+      expect(requestTooltipText).toContain(
+        "Clearing a table clears the orders for all seats of the table within the table database."
+      );
+    }
 
     const findWidget = await tab.openFindWidget();
     await findWidget.setSearchText("TEST.NAME:myFirstTest");

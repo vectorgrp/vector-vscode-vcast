@@ -4,4 +4,8 @@
 
 - vmock-example has source files to test the coded mock features
 
+- To run the vcast data sever tests, proceed as follows
+  - Set VECTORCAST_DIR - Path to the installation vc24sp4+
+  - Start the server using something like: vpython c:\rds\vector-vscode-vcast\python\vcastDataServer.py
+  - Run the client using something like: vpython c:\rds\vector-vscode-vcast\tests\clicast-server\client.py
 
