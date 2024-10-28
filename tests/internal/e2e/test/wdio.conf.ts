@@ -324,11 +324,11 @@ export const config: Options.Testrunner = {
       ["BUILD_MULTIPLE_ENVS", async () => await setupMultipleEnvironments()],
       [
         "SWITCH_ENV_AT_THE_END",
-        async () => await setupSingleEnvAndSwitchAtTheEnd(initialWorkdir),
+        async () => await buildEnvsWithSpecificReleases(initialWorkdir),
       ],
       [
         "IMPORT_CODED_TEST_IN_TST",
-        async () => await setupSingleEnvAndSwitchAtTheEnd(initialWorkdir),
+        async () => await buildEnvsWithSpecificReleases(initialWorkdir),
       ],
     ]);
 
@@ -430,10 +430,12 @@ export const config: Options.Testrunner = {
     }
 
     /**
-     * Builds one env with 2024sp3 and switches to vc24 at the end.
-     * TARGET SPEC GROUP: coded_mock_different_env
+     * Builds VectorCAST environments using specific releases, then switches to the latest release.
+     * Tests behavior when environments created with various releases are opened
+     * using the newest release.
+     * TARGET SPEC GROUP: coded_mock_different_env && import_coded_test
      */
-    async function setupSingleEnvAndSwitchAtTheEnd(initialWorkdir: string) {
+    async function buildEnvsWithSpecificReleases(initialWorkdir: string) {
       const workspacePath = path.join(__dirname, "vcastTutorial");
       const testInputVcastTutorial = path.join(
         initialWorkdir,
@@ -443,12 +445,16 @@ export const config: Options.Testrunner = {
       );
 
       let vcastRoot = await getVcastRoot();
-      const oldVersion = "2024sp1";
-      const newVersion = "2024sp4";
+      const coded_mock_different_env_version = "2024sp1";
+      const newestRelease = "2024sp4";
 
-      // Set up environment directory
+      // Look up what testing group called this function (coded_mock_different_env or import_coded_test) and
+      // and set the required releases accordingly
       if (process.env.SWITCH_ENV_AT_THE_END) {
-        process.env.VECTORCAST_DIR = path.join(vcastRoot, oldVersion);
+        process.env.VECTORCAST_DIR = path.join(
+          vcastRoot,
+          coded_mock_different_env_version
+        );
 
         // Because we remove release from path in the setup --> Add the old version to PATH
         const currentPath = process.env.PATH || "";
@@ -457,13 +463,8 @@ export const config: Options.Testrunner = {
         clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
       } else {
-        process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, newestRelease);
       }
-
-      console.log("PATH: ");
-      console.log("#########################################");
-      console.log(process.env.PATH);
-      console.log("#########################################");
 
       await prepareConfig(initialWorkdir);
 
@@ -548,7 +549,7 @@ TEST.END`;
       await executeCommand(setEnviro);
       await executeCommand(runTest);
 
-      process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+      process.env.VECTORCAST_DIR = path.join(vcastRoot, newestRelease);
     }
 
     /**
