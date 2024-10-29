@@ -1,3 +1,5 @@
+export const newestVCRelease = "2024sp5";
+
 /**
  * Returns all spec groups.
  * @param useVcast24 Boolean whether release 24 is used or not.
@@ -38,7 +40,7 @@ export function getSpecGroups(useVcast24: boolean) {
     build_different_envs: {
       specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
       env: {
-        VECTORCAST_DIR: `/vcast/release23:${process.env.HOME}/vcast/release23`,
+        VECTORCAST_DIR: `/vcast/2023sp0:${process.env.HOME}/vcast/2023sp0`,
         BUILD_MULTIPLE_ENVS: "True",
       },
       params: {},
@@ -120,6 +122,17 @@ export function getSpecGroups(useVcast24: boolean) {
       specs: ["./**/**/vcast_coded_test_completion.test.ts"],
       env: {},
       params: {},
+    };
+
+    specGroups["coded_mock_different_env"] = {
+      specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
+      env: {
+        VECTORCAST_DIR: `/vcast/2024sp1:${process.env.HOME}/vcast/2024sp1`,
+        SWITCH_ENV_AT_THE_END: "True",
+      },
+      params: {
+        vcReleaseOnPath: false,
+      },
     };
 
     specGroups["import_coded_test"] = {
@@ -210,10 +223,10 @@ export function getSpecs(vcast24: boolean, group: string = null) {
 }
 
 /**
- * Splits all paths from the PATH env variable that contain a "release".
- * @returns New PATH env var without "release" paths
+ * Splits all paths from the PATH env variable that contain a year followed by "sp" and a number (e.g., 2023sp0).
+ * @returns New PATH env var without those paths
  */
-function removeReleaseOnPath(): string | undefined {
+export function removeReleaseOnPath(): string | undefined {
   // Get the PATH environment variable
   const envPath = process.env.PATH;
 
@@ -225,8 +238,11 @@ function removeReleaseOnPath(): string | undefined {
   // Split the PATH on ":"
   const paths = envPath.split(":");
 
-  // Filter out paths that contain "release"
-  const filteredPaths = paths.filter((path) => !path.includes("release"));
+  // Regex to match paths containing "vcast/" followed by a four-digit year and "sp" with a number (e.g., /vcast/2023sp0)
+  const releaseRegex = /\/vcast\/\d{4}sp\d+/;
+
+  // Filter out paths that match the new release pattern
+  const filteredPaths = paths.filter((path) => !releaseRegex.test(path));
 
   // Join the remaining paths back together with ":"
   const newPath = filteredPaths.join(":");

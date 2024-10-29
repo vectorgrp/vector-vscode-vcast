@@ -354,17 +354,11 @@ def generateExecutionReport(enviroPath, testIDObject):
     # We build a clicast command script to generate the execution report
     # since we need multiple commands
     with open(commandFileName, "w") as commandFile:
-        commandFile.write(
-            standardArgs
-            + " report custom actual "
-            + testIDObject.reportName
-            + ".html\n"
-        )
-        commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT TEXT\n")
-        commandFile.write(
-            standardArgs + " report custom actual " + testIDObject.reportName + ".txt\n"
-        )
+        # we force report mode to HTML just to be safe
         commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
+        commandFile.write(
+            standardArgs + " report custom actual " + testIDObject.reportName
+        )
 
     # we ignore the exit code and return the stdout
     exitCode, stdOutput = runClicastScript(enviroPath, commandFileName)
