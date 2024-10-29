@@ -548,7 +548,7 @@ async function loadAllVCTests(
       // get the list of free environments in this workspace and add them
       // the local environmentList, displayName matches buildDirectory
       // for environments that are NOT part of a manage project
-      for (const environment of getEnvironmentList(workspaceRoot)) {]
+      for (const environment of getEnvironmentList(workspaceRoot)) {
         const normalizedPath = normalizePath(environment);
         environmentList.push({
           projectPath: "",
