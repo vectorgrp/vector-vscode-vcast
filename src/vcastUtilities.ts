@@ -354,7 +354,7 @@ function getTestArgument(testID: string, withFlag: boolean): string {
   if (testID.length > 0) {
     // we need to strip the "path part" of the environment directory from the test ID
     // which is the part before the '|' and after the ':'
-    const enviroPath = testID.split("|")[0].split(":")[1];
+    const enviroPath = testID.split("|")[0].split("vcast:")[1];
 
     // now the path to the environment might have a slash if the environment is nested or not
     // so we need to handle that case, since we only want the environment name

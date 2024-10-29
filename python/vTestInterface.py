@@ -29,6 +29,8 @@ from versionChecks import (
     enviroSupportsMocking,
 )
 
+from vector.apps.DataAPI.manage_api import VCProjectApi
+from vector.apps.DataAPI.vcproject_models import EnvironmentType
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
 from vector.enums import COVERAGE_TYPE_TYPE_T
@@ -46,6 +48,7 @@ class UsageError(Exception):
 
 
 modeChoices = [
+    "getProjectData",
     "getEnviroData",
     "executeTest",
     "report",
@@ -554,6 +557,47 @@ def processOptions(optionString):
     return returnObject
 
 
+def isManageEnviroOfInterest(enviroNode):
+
+    returnValue = False
+    # we only care about unit test environments
+    if not enviroNode.definition.env_type == EnvironmentType.COVER:
+        # we don't care about ignored or monitored environments
+        if enviroNode.is_active and not enviroNode.is_monitored:
+            returnValue = True
+
+    return returnValue
+
+
+def manageEnviroIsBuilt(enviroNode, enviroName):
+
+    returnValue = False
+    if os.path.isdir(enviroNode.build_directory):
+        if os.path.isfile(
+            os.path.join(enviroNode.build_directory, enviroName, "UNITDATA.VCD")
+        ):
+            returnValue = True
+    return returnValue
+
+
+def getProjectData(api):
+
+    enviroList = []
+    for enviroNode in api.Environment.all():
+        if isManageEnviroOfInterest(enviroNode):
+            enviroData = {}
+            # string_path is the compiler/test-suite/[group]/enviro string
+            enviroName = enviroNode.string_path.rsplit("/", 1)[1]
+            enviroData["displayName"] = enviroNode.string_path
+            enviroData["buildDirectory"] = (
+                enviroNode.build_directory.replace("\\", "/") + "/" + enviroName
+            )
+            enviroData["isBuilt"] = manageEnviroIsBuilt(enviroNode, enviroName)
+            enviroData["rebuildNeeded"] = enviroNode.rebuild_needed
+            enviroList.append(enviroData)
+    return enviroList
+
+
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     """
     This function does the actual work of processing a vTestInterface command,
@@ -571,7 +615,20 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     # will raise usageError if path is invalid
     validatePath(pathToUse)
 
-    if mode == "getEnviroData":
+    if mode == "getProjectData":
+        topLevel = dict()
+
+        try:
+            api = VCProjectApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+
+        topLevel["projectData"] = getProjectData(api)
+
+        api.close()
+        returnObject = topLevel
+
+    elif mode == "getEnviroData":
         topLevel = dict()
 
         try:
@@ -579,7 +636,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         except Exception as err:
             raise UsageError(err)
 
-        # it is important that getTetDataVCAST() is called first since it sets up
+        # it's important that getTetDataVCAST() is called first since it sets up
         # the global list of testable functions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(api, pathToUse)
         topLevel["unitData"] = getUnitData(api)

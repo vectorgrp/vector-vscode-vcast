@@ -571,6 +571,71 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
 // Direct vpython calls
 // ------------------------------------------------------------------------------------
 
+// Get Project Data ---------------------------------------------------------------
+// Server logic is in a separate function below
+export async function getDataForProject(projectFilePath: string): Promise<any> {
+  // We get back is a JSON formatted string (if the command works)
+  // with a list of environments and their attributes
+
+  // strip the .vcm extension from the project file path
+  let projectDirectoryPath = projectFilePath.slice(0, -4);
+
+  let jsonData: any;
+  if (globalEnviroDataServerActive) {
+    jsonData = await getProjectDataFromServer(projectDirectoryPath);
+  } else {
+    jsonData = getProjectDataFromPython(projectDirectoryPath);
+  }
+
+  return jsonData.projectData;
+}
+
+// vPython Logic
+function getProjectDataFromPython(projectDirectoryPath: string): any {
+  // This function will return the environment data for a single directory
+  // by calling vpython with the appropriate command
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.getProjectData,
+    projectDirectoryPath
+  );
+  let jsonData = getJsonDataFromTestInterface(
+    commandToRun,
+    projectDirectoryPath
+  );
+  return jsonData;
+}
+
+// Server Logic
+async function getProjectDataFromServer(
+  projectDirectoryPath: string
+): Promise<any> {
+  //
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.getProjectData,
+    path: projectDirectoryPath,
+  };
+
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
+
+  // transmitResponse.returnData is an object with exitCode and data properties
+  // for getProjectData we might have a version miss-match if the enviro is newer
+  // than the version of vcast we are using, so handle that here
+  if (transmitResponse.success) {
+    const returnData = transmitResponse.returnData;
+    if (returnData.exitCode == 0) {
+      return returnData.data;
+    } else {
+      vectorMessage(returnData.data.text.join("\n"));
+      return undefined;
+    }
+  } else {
+    await vectorMessage(transmitResponse.statusText);
+    openMessagePane();
+    return undefined;
+  }
+}
+
 // Get Environment Data ---------------------------------------------------------------
 // Server logic is in a separate function below
 export async function getDataForEnvironment(enviroPath: string): Promise<any> {

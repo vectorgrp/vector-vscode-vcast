@@ -237,6 +237,17 @@ export function forceLowerCaseDriveLetter(path?: string): string {
   } else return "";
 }
 
+export function normalizePath(path: string): string {
+  // This function is used to fix the drive letter AS WELL AS
+  // replace any backslashes with forward slashes
+
+  let returnPath = path;
+  if (os.platform() == "win32") {
+    returnPath = forceLowerCaseDriveLetter(path).replace(/\\/g, "/");
+  }
+  return returnPath;
+}
+
 export function getRangeOption(lineIndex: number): vscode.DecorationOptions {
   // this function returns a single line range DecorationOption
   const startPos = new vscode.Position(lineIndex, 0);
