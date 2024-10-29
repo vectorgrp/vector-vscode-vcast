@@ -894,11 +894,12 @@ def processDataAPIException(enviroPath, error):
     in the case where a MigrationError is raised, and it will return
     a choiceDataType
     """
-    errorMessage = f"Language server cannot process environment: {os.path.basename (enviroPath)}\n\n"
+    global globalOutputLog
+    errorMessage = f"Language server encountered an error ... \n\n"
     errorMessage += error.message
-    globalOutputLog.append(errorMessage)
+    globalOutputLog = [errorMessage]
     returnData = choiceDataType()
-    returnData.extraText = "MigrationError"
+    returnData.extraText = "migration-error"
     return returnData
 
 

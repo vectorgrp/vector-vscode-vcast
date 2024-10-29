@@ -173,16 +173,20 @@ async function performCompletionProcessing(
       currentDocument,
       completionData
     );
-    if (returnData.extraText == "MigrationError") {
-      // If we get a migration error, we need to send a message to the client
-      // The error will be the 2nd element in the returnData.messages
+    if (
+      returnData.extraText == "migration-error" ||
+      returnData.extraText == "server-error"
+    ) {
+      // If we get a migration or server error, we let the user
+      // know by generating a diagnostic message in the editor
       generateDiagnosticForTest(
         connection,
-        returnData.messages[1],
+        returnData.messages[0],
         completionData.textDocument.uri,
         completionData.position.line
       );
     }
+
     return buildCompletionList(
       returnData.choiceList,
       convertKind(returnData.choiceKind)
