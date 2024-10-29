@@ -322,6 +322,18 @@ after extension startup, based on the following user actions:
 - Closing the workspace
   - If the Data Server is running, it will be stopped
 
+#### Long running commands
+Because VectorCAST does not support multiple processes accessing a single environment, the underlying
+data server is single threaded.  This means that in the case of a long running process, like a test 
+execution, other server requests will be queued and not executed until the long running process has completed.
+
+The only user impact of this occurs if you start the execution of a long-running test, and before
+it finishes, attempt to use the IntelliSense features for test script or coded test editing.  
+The auto-complete features will not be available while the server is "busy".
+
+If this is a nuisance, you can simply disable the server in this case.
+
+
 #### Error Handling and Reporting
 
 If the Data Server encounters a networking or internal error, the extension will stop the Data Server
