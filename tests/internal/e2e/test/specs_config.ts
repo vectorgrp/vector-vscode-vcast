@@ -1,3 +1,5 @@
+export const newestVCRelease = "2024sp5";
+
 /**
  * Returns all spec groups.
  * @param useVcast24 Boolean whether release 24 is used or not.

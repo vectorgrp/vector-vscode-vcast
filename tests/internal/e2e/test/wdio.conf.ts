@@ -18,7 +18,7 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs } from "./specs_config";
+import { getSpecs, newestVCRelease } from "./specs_config";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -446,7 +446,6 @@ export const config: Options.Testrunner = {
 
       let vcastRoot = await getVcastRoot();
       const coded_mock_different_env_version = "2024sp1";
-      const newestRelease = "2024sp4";
 
       // Look up what testing group called this function (coded_mock_different_env or import_coded_test) and
       // and set the required releases accordingly
@@ -463,7 +462,7 @@ export const config: Options.Testrunner = {
         clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
       } else {
-        process.env.VECTORCAST_DIR = path.join(vcastRoot, newestRelease);
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
       }
 
       await prepareConfig(initialWorkdir);
@@ -549,7 +548,7 @@ TEST.END`;
       await executeCommand(setEnviro);
       await executeCommand(runTest);
 
-      process.env.VECTORCAST_DIR = path.join(vcastRoot, newestRelease);
+      process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
     }
 
     /**
@@ -560,7 +559,6 @@ TEST.END`;
       const vcastRoot = await getVcastRoot();
 
       const oldVersion = "2023sp0";
-      const newVersion = "2024sp4";
 
       // Total amount of envs to be build
       const totalEnvCount = 4;
@@ -624,7 +622,7 @@ ENVIRO.END
         let envName: string;
         // Switch VectorCAST version based on iteration (build 1,3 --> release 23, 2,4 --> release 24)
         if (i % 2 === 0) {
-          process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+          process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
           envName = `ENV_24_${i.toString().padStart(2, "0")}`;
           console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
         } else {
