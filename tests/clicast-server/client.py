@@ -731,8 +731,6 @@ def initializeEnvironment(clicastPath):
 
 def manualTest(args):
 
-    clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
-
     # Replace with with a copy paste from the command being run in the extension
     commandToRun = '{"command":"runClicastCommand","path":"c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE","options":"-eQUOTES_EXAMPLE -uquotes_example -s\\"Moo::honk(int,int,int)\\" -tBASIS-PATH-001 test script create c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE.tst"}'
 
