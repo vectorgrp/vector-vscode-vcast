@@ -180,7 +180,6 @@ async function startServer() {
     serverStatusBarObject.text = "vDataServer Off";
     setServerPort(0);
     setGLobalServerState(false);
-    sendServerStateToLanguageServer(false);
   });
 }
 
