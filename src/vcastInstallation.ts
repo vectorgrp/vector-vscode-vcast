@@ -43,7 +43,12 @@ if (process.platform == "linux") {
 }
 
 export let globalTestInterfacePath: string | undefined = undefined;
-export let globalEnviroDataServerPath: string;
+let globalEnviroDataServerPath: string;
+
+export function getGlobalEnviroDataServerPath() {
+  return globalEnviroDataServerPath;
+}
+
 let globalCrc32Path: string | undefined = undefined;
 
 export let globalPathToSupportFiles: string;
@@ -55,7 +60,11 @@ export let atgCommandToUse: string | undefined = undefined;
 export let atgAvailable: boolean = false;
 
 // this is set to true if the clicast version supports server mode
-export let enviroDataServerAvailable: boolean = false;
+let enviroDataServerAvailable: boolean = false;
+
+export function isEnviroDataServerAvailable() {
+  return enviroDataServerAvailable;
+}
 
 export const configurationFile = "c_cpp_properties.json";
 export const launchFile = "launch.json";

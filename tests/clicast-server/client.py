@@ -675,7 +675,7 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Data Server Test Client")
     parser.add_argument("--test", required=True)
-    parser.add_argument("--port", required=True, help=f"Server port number")
+    parser.add_argument("--port", required=True, help="Server port number")
     parser.add_argument(
         "--nobuild", help=f"Do not build the environment", action="store_true"
     )

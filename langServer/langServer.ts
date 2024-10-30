@@ -287,7 +287,7 @@ connection.onHover(
         textDocumentManager,
         completionData
       );
-      var hover: Hover = { contents: hoverString };
+      const hover: Hover = { contents: hoverString };
       return hover;
     } else {
       return undefined;

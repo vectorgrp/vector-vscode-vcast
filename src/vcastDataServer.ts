@@ -12,8 +12,8 @@ import { errorLevel, vectorMessage } from "./messagePane";
 import { refreshAllExtensionData } from "./testPane";
 
 import {
-  globalEnviroDataServerPath,
-  enviroDataServerAvailable,
+  getGlobalEnviroDataServerPath,
+  isEnviroDataServerAvailable,
   toolVersionType,
   vcastInstallationVersion,
   vPythonCommandToUse,
@@ -136,7 +136,7 @@ async function startServer() {
   // This does the actual work of server startup
 
   // we use spawn directly to control the detached and shell args
-  const vpythonArgs: string[] = [globalEnviroDataServerPath];
+  const vpythonArgs: string[] = [getGlobalEnviroDataServerPath()];
   const serverCWD = whereToStartServer();
   serverProcessObject = spawn(vPythonCommandToUse, vpythonArgs, {
     shell: true,
@@ -266,7 +266,7 @@ export async function initializeServerState() {
   //     - when the useServer option is changed
 
   if (useServerOption()) {
-    if (enviroDataServerAvailable) {
+    if (isEnviroDataServerAvailable()) {
       serverStatusBarObject.show();
       await serverProcessController(serverStateType.running);
     } else {

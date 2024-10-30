@@ -888,14 +888,14 @@ def generateMockForFunction(mockData):
     return whatToReturn
 
 
-def processDataAPIException(enviroPath, error):
+def processDataAPIException(error):
     """
     This is called by the TST and the Coded Mock auto-completion logic
     in the case where a MigrationError is raised, and it will return
     a choiceDataType
     """
     global globalOutputLog
-    errorMessage = f"Language server encountered an error ... \n\n"
+    errorMessage = "Language server encountered an error ... \n\n"
     errorMessage += error.message
     globalOutputLog = [errorMessage]
     returnData = choiceDataType()
@@ -922,7 +922,7 @@ def processMockDefinition(enviroPath, lineSoFar):
     try:
         api = UnitTestApi(enviroPath)
     except MigrationError as error:
-        return processDataAPIException(enviroPath, error)
+        return processDataAPIException(error)
 
     # if what the user entered so far is an each match for the unit and function
     # we will get a single object in each list, else we will get a filtered list
@@ -1015,7 +1015,7 @@ def processTstLine(enviroPath, line):
         try:
             api = UnitTestApi(enviroPath)
         except MigrationError as error:
-            return processDataAPIException(enviroPath, error)
+            return processDataAPIException(error)
 
         # Intelligently split the line into its fields
         pieces = splitExistingLine(line)
