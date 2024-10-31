@@ -82,6 +82,10 @@ jobs:
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
         shell: bash
 
+      - name: Clicast server tests
+        run: ./tests/clicast-server/run_clicast_server_tests.sh
+        shell: bash
+
       - name: Run unit tests
         run: npm run gh-test | tee output.txt
         shell: bash
@@ -282,6 +286,8 @@ jobs:
           echo 'Activating Vcast ${{ matrix.version }}'
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
+          USE_VCAST_24=$(if [[ $(cat $RELEASE_DIR/DATA/tool_version.txt) == 24* ]]; then echo "True"; else echo "False"; fi)
+          echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
         shell: bash
 
       - name: Run tests

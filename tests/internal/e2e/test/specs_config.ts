@@ -133,18 +133,6 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    specGroups["coded_mock_different_env"] = {
-      specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
-      env: {
-        VCAST_USE_PYTHON: "True",
-        VECTORCAST_DIR: `/vcast/2024sp1:${process.env.HOME}/vcast/2024sp1`,
-        SWITCH_ENV_AT_THE_END: "True",
-      },
-      params: {
-        vcReleaseOnPath: false,
-      },
-    };
-
     specGroups["basic_user_interactions_server"] = {
       specs: [
         "./**/**/vcast.build_env.test.ts",
@@ -178,7 +166,7 @@ export function getSpecGroups(useVcast24: boolean) {
     specGroups["build_different_envs_server"] = {
       specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
       env: {
-        VECTORCAST_DIR: `/vcast/release23:${process.env.HOME}/vcast/release23`,
+        VECTORCAST_DIR: `/vcast/2023sp0:${process.env.HOME}/vcast/2023sp0`,
         BUILD_MULTIPLE_ENVS: "True",
       },
       params: {},
@@ -258,17 +246,6 @@ export function getSpecGroups(useVcast24: boolean) {
       specs: ["./**/**/vcast_coded_test_completion.test.ts"],
       env: {},
       params: {},
-    };
-
-    specGroups["coded_mock_different_env_server"] = {
-      specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
-      env: {
-        VECTORCAST_DIR: `/vcast/2024sp1:${process.env.HOME}/vcast/2024sp1`,
-        SWITCH_ENV_AT_THE_END: "True",
-      },
-      params: {
-        vcReleaseOnPath: false,
-      },
     };
 
     specGroups["import_coded_test_server"] = {

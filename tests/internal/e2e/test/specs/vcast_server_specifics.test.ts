@@ -9,16 +9,22 @@ import {
   getLastLineOfOutputView,
   TIMEOUT,
 } from "../test_utils/vcast_utils";
+import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
+  let useDataServer: boolean = true;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
+    let releaseIsSuitableForServer = await checkForServerRunnability();
+    if (process.env.VCAST_USE_PYTHON || !releaseIsSuitableForServer) {
+      useDataServer = false;
+    }
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -96,163 +102,170 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
 
-  it("should set PATH to release24_sp4", async () => {
-    const outputView = await bottomBar.openOutputView();
-    // Check if we are on CI
-    let vcastRoot: string;
-    if (process.env.HOME.startsWith("/github")) {
-      vcastRoot = "/vcast";
-    } else {
-      // Assuming that locally release is on this path.
-      vcastRoot = path.join(process.env.HOME, "vcast");
+  it("should set PATH to 2024sp4", async () => {
+    // Need to skip the checks if we are on 2024sp4 from the beginning (on CI) --> server mode is not activated there
+    if (useDataServer) {
+      const outputView = await bottomBar.openOutputView();
+      // Check if we are on CI
+      let vcastRoot: string;
+      if (process.env.HOME.startsWith("/github")) {
+        vcastRoot = "/vcast";
+      } else {
+        // Assuming that locally release is on this path.
+        vcastRoot = path.join(process.env.HOME, "vcast");
+      }
+
+      const newVersion = "2024sp4";
+      const release24Path = path.join(vcastRoot, newVersion);
+
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+
+      // Put in release 24_sp4 path in settings
+      const settingsEditor = await workbench.openSettings();
+      const unitTestLocationSetting = await settingsEditor.findSetting(
+        "Vectorcast Installation Location",
+        "Vectorcast Test Explorer"
+      );
+
+      await unitTestLocationSetting.setValue(release24Path);
+
+      const notificationsCenter = await workbench.openNotificationsCenter();
+      await notificationsCenter.clearAllNotifications();
+
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("VectorCAST Data Server exited successfully"),
+        { timeout: TIMEOUT }
+      );
+
+      let statusBar = workbench.getStatusBar();
+      // When setting to a wrong path, vDataServer Status Button should be disabled
+      const statusBarInfos = await statusBar.getItems();
+      expect(statusBarInfos.includes("vDataServer On")).toBe(false);
+      expect(statusBarInfos.includes("vDataServer Off")).toBe(false);
     }
-
-    const newVersion = "release24_sp4";
-    const release24Path = path.join(vcastRoot, newVersion);
-
-    const workbench = await browser.getWorkbench();
-    const activityBar = workbench.getActivityBar();
-    const explorerView = await activityBar.getViewControl("Explorer");
-    await explorerView?.openView();
-
-    // Put in release 24_sp4 path in settings
-    const settingsEditor = await workbench.openSettings();
-    const unitTestLocationSetting = await settingsEditor.findSetting(
-      "Vectorcast Installation Location",
-      "Vectorcast Test Explorer"
-    );
-
-    await unitTestLocationSetting.setValue(release24Path);
-
-    const notificationsCenter = await workbench.openNotificationsCenter();
-    await notificationsCenter.clearAllNotifications();
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("VectorCAST Data Server exited successfully"),
-      { timeout: TIMEOUT }
-    );
-
-    let statusBar = workbench.getStatusBar();
-    // When setting to a wrong path, vDataServer Status Button should be disabled
-    const statusBarInfos = await statusBar.getItems();
-    expect(statusBarInfos.includes("vDataServer On")).toBe(false);
-    expect(statusBarInfos.includes("vDataServer Off")).toBe(false);
   });
 
   it("should toggle `Use Data Server` off & on", async () => {
-    await updateTestID();
-    const workbench = await browser.getWorkbench();
-    const settingsEditor = await workbench.openSettings();
+    if (useDataServer) {
+      await updateTestID();
+      const workbench = await browser.getWorkbench();
+      const settingsEditor = await workbench.openSettings();
 
-    console.log("Looking for Use Data Server settings");
-    await settingsEditor.findSetting("vectorcastTestExplorer.useDataServer");
+      console.log("Looking for Use Data Server settings");
+      await settingsEditor.findSetting("vectorcastTestExplorer.useDataServer");
 
-    // Get the initial last line of the output view
-    let lastLineBefore = await getLastLineOfOutputView(bottomBar);
+      // Get the initial last line of the output view
+      let lastLineBefore = await getLastLineOfOutputView(bottomBar);
 
-    // Toggle `Use Data Server` OFF
-    console.log("Turning on `Use Data Server` in Settings");
-    await (await settingsEditor.checkboxSetting$).click();
+      // Toggle `Use Data Server` OFF
+      console.log("Turning on `Use Data Server` in Settings");
+      await (await settingsEditor.checkboxSetting$).click();
 
-    // Wait for 2 seconds to be sure no new messages come as we expect nothing to come
-    await browser.pause(2000);
+      // Wait for 2 seconds to be sure no new messages come as we expect nothing to come
+      await browser.pause(2000);
 
-    // Get the new last line after toggling
-    let lastLineAfter = await getLastLineOfOutputView(bottomBar);
-    expect(lastLineBefore).toEqual(lastLineAfter);
+      // Get the new last line after toggling
+      let lastLineAfter = await getLastLineOfOutputView(bottomBar);
+      expect(lastLineBefore).toEqual(lastLineAfter);
 
-    // Toggle `Use Data Server` OFF
-    console.log("Turning off `Use Data Server` in Settings");
-    await (await settingsEditor.checkboxSetting$).click();
+      // Toggle `Use Data Server` OFF
+      console.log("Turning off `Use Data Server` in Settings");
+      await (await settingsEditor.checkboxSetting$).click();
 
-    // Wait for 2 seconds to be sure no new messages come as we expect nothing to come
-    await browser.pause(2000);
+      // Wait for 2 seconds to be sure no new messages come as we expect nothing to come
+      await browser.pause(2000);
 
-    // Get the new last line after toggling
-    lastLineAfter = await getLastLineOfOutputView(bottomBar);
-    expect(lastLineBefore).toEqual(lastLineAfter);
+      // Get the new last line after toggling
+      lastLineAfter = await getLastLineOfOutputView(bottomBar);
+      expect(lastLineBefore).toEqual(lastLineAfter);
 
-    // Toggle `Use Data Server` ON
-    console.log("Turning on `Use Data Server` in Settings");
-    await (await settingsEditor.checkboxSetting$).click();
+      // Toggle `Use Data Server` ON
+      console.log("Turning on `Use Data Server` in Settings");
+      await (await settingsEditor.checkboxSetting$).click();
 
-    // Wait for 2 seconds to be sure no new messages come as we expect nothing to come
-    await browser.pause(2000);
+      // Wait for 2 seconds to be sure no new messages come as we expect nothing to come
+      await browser.pause(2000);
 
-    // Get the new last line after toggling
-    lastLineAfter = await getLastLineOfOutputView(bottomBar);
-    expect(lastLineBefore).toEqual(lastLineAfter);
+      // Get the new last line after toggling
+      lastLineAfter = await getLastLineOfOutputView(bottomBar);
+      expect(lastLineBefore).toEqual(lastLineAfter);
 
-    // Close all editors at the end of the test
-    await workbench.getEditorView().closeAllEditors();
+      // Close all editors at the end of the test
+      await workbench.getEditorView().closeAllEditors();
+    }
   });
 
   it("should set version to vc24_sp5", async () => {
-    const outputView = await bottomBar.openOutputView();
-    // Check if we are on CI
-    let vcastRoot: string;
-    if (process.env.HOME.startsWith("/github")) {
-      vcastRoot = "/vcast";
-    } else {
-      // Assuming that locally release is on this path.
-      vcastRoot = path.join(process.env.HOME, "vcast");
+    if (useDataServer) {
+      const outputView = await bottomBar.openOutputView();
+      // Check if we are on CI
+      let vcastRoot: string;
+      if (process.env.HOME.startsWith("/github")) {
+        vcastRoot = "/vcast";
+      } else {
+        // Assuming that locally release is on this path.
+        vcastRoot = path.join(process.env.HOME, "vcast");
+      }
+
+      const newVersion = "2024sp5";
+      const release24Path = path.join(vcastRoot, newVersion);
+
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+
+      // Put in release 24_sp5 path in settings
+      const settingsEditor = await workbench.openSettings();
+      const unitTestLocationSetting = await settingsEditor.findSetting(
+        "Vectorcast Installation Location",
+        "Vectorcast Test Explorer"
+      );
+
+      await unitTestLocationSetting.setValue(release24Path);
+
+      const notificationsCenter = await workbench.openNotificationsCenter();
+      await notificationsCenter.clearAllNotifications();
+
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Started VectorCAST Data Server"),
+        { timeout: TIMEOUT }
+      );
+
+      let statusBar = workbench.getStatusBar();
+      await browser.waitUntil(
+        async () => (await statusBar.getItems()).includes("vDataServer On"),
+        { timeout: TIMEOUT }
+      );
+
+      // Set path back again to something "junk"
+      await unitTestLocationSetting.setValue("junk");
+
+      //Need to clear, otherwise we won't wait for the message as it is already there from the steps before
+      outputView.clearText();
+      await bottomBar.toggle(true);
+
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("VectorCAST Data Server exited successfully"),
+        { timeout: TIMEOUT }
+      );
+
+      // When setting to a wrong path, vDataServer Status Button should be disabled
+      const statusBarInfos = await statusBar.getItems();
+      expect(statusBarInfos.includes("vDataServer On")).toBe(false);
+      expect(statusBarInfos.includes("vDataServer Off")).toBe(false);
     }
-
-    const newVersion = "release24_sp5";
-    const release24Path = path.join(vcastRoot, newVersion);
-
-    const workbench = await browser.getWorkbench();
-    const activityBar = workbench.getActivityBar();
-    const explorerView = await activityBar.getViewControl("Explorer");
-    await explorerView?.openView();
-
-    // Put in release 24_sp5 path in settings
-    const settingsEditor = await workbench.openSettings();
-    const unitTestLocationSetting = await settingsEditor.findSetting(
-      "Vectorcast Installation Location",
-      "Vectorcast Test Explorer"
-    );
-
-    await unitTestLocationSetting.setValue(release24Path);
-
-    const notificationsCenter = await workbench.openNotificationsCenter();
-    await notificationsCenter.clearAllNotifications();
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Started VectorCAST Data Server"),
-      { timeout: TIMEOUT }
-    );
-
-    let statusBar = workbench.getStatusBar();
-    await browser.waitUntil(
-      async () => (await statusBar.getItems()).includes("vDataServer On"),
-      { timeout: TIMEOUT }
-    );
-
-    // Set path back again to something "junk"
-    await unitTestLocationSetting.setValue("junk");
-
-    //Need to clear, otherwise we won't wait for the message as it is already there from the steps before
-    outputView.clearText();
-    await bottomBar.toggle(true);
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("VectorCAST Data Server exited successfully"),
-      { timeout: TIMEOUT }
-    );
-
-    // When setting to a wrong path, vDataServer Status Button should be disabled
-    const statusBarInfos = await statusBar.getItems();
-    expect(statusBarInfos.includes("vDataServer On")).toBe(false);
-    expect(statusBarInfos.includes("vDataServer Off")).toBe(false);
   });
 });
