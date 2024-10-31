@@ -136,10 +136,13 @@ export async function checkForServerRunnability(
     // Split away the date (4 (23/10/24) --> 4)
     const spVersion = Number(spPart.split(" ")[0]);
 
+    console.log(`Version: ${majorVersionStr}`);
+    console.log(`Sub-Version: ${spVersion}`);
+
     // Check if major version and sp version meet the criteria
     if (majorVersion < 24 || (majorVersion === 24 && spVersion < 5)) {
       console.log(
-        `Version ${toolVersion} does not meet the minimum requirement of 24sp5.`
+        `Version ${toolVersion} does not meet the minimum requirement of to run the clicast server (24sp5).`
       );
       return false;
     }

@@ -810,7 +810,7 @@ ENVIRO.END
       );
       // Check if VCAST_USE_PYTHON is defined and if the server is runnable
       const useDataServer =
-        process.env.VCAST_USE_PYTHON && !isServerRunnable
+        process.env.VCAST_USE_PYTHON && isServerRunnable
           ? `"vectorcastTestExplorer.useDataServer": false`
           : `"vectorcastTestExplorer.useDataServer": true`;
 
