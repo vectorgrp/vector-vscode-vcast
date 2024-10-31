@@ -94,10 +94,6 @@ export async function getHoverString(
         // just to remind users of the format :)
         hoverString =
           "format: slot-number, unit-name, function-name, iteration-count, test-name";
-      else {
-        // invalid enviroName
-        hoverString = "";
-      }
     }
   }
 
