@@ -3,7 +3,7 @@ import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver-types";
 import {
   clientRequestType,
   globalEnviroDataServerActive,
-  setServerState,
+  setGLobalServerState,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
@@ -37,12 +37,12 @@ export function initializePaths(
 
   console.log("VectorCAST Language Server is Active ...");
   console.log(`  using vpython: ${vpythonPath}`);
-  console.log(`  using environment data server: ${useServer}`);
+  console.log(`  using VectorCAST data server: ${useServer}`);
 
   vPythonCommandToUse = vpythonPath;
   // set the server instance of the globalEnviroDataServerActive flag
   // based on the value passed to us by the client.
-  setServerState(useServer);
+  setGLobalServerState(useServer);
 
   const pathToTestEditorInterface = path.join(
     extensionRoot,
@@ -63,7 +63,7 @@ export function initializePaths(
 
 // Get Choice Data Processing -------------------------------------------------------------
 
-export function generateDiagnositicForTest(
+export function generateDiagnosticForTest(
   connection: any,
   message: string,
   documentUri: string,
@@ -124,7 +124,10 @@ export async function getChoiceDataFromServer(
     return transmitResponse.returnData.data;
   } else {
     console.log(transmitResponse.statusText);
-    return emptyChoiceData;
+    let returnData = emptyChoiceData;
+    returnData.messages.push(transmitResponse.statusText);
+    returnData.extraText = "server-error";
+    return returnData;
   }
 }
 

@@ -9,8 +9,6 @@ import {
   deleteEnvironmentCallback,
 } from "./callbacks";
 
-import { sendServerStateToLanguageServer } from "./client";
-
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 import {
@@ -36,9 +34,7 @@ import {
 import {
   atgCommandToUse,
   clicastCommandToUse,
-  getToolVersionFromPath,
   vcastCommandToUse,
-  vcastInstallationVersion,
 } from "./vcastInstallation";
 
 import {
@@ -51,83 +47,12 @@ import {
   clientRequestType,
   closeConnection,
   globalEnviroDataServerActive,
-  serverIsAlive,
-  setServerState,
-  setLogServerCommandsCallback,
-  setTerminateServerCallback,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
-  serverClicastPath,
 } from "../src-common/vcastServer";
 
-import { refreshAllExtensionData } from "./testPane";
-
 const path = require("path");
-
-function terminateServerProcessing() {
-  // This functions gets called by server transmitCommand()
-  // when there is a fatal server errr.  In this case, we
-  // display a pop up error message, update the test pane
-  refreshAllExtensionData();
-
-  vscode.window.showErrorMessage(
-    "Fatal Error in VectorCAST Environment Data Server - " +
-      "Disabling Server Mode for this Session.  " +
-      "The previous command was discarded, and the " +
-      "Testing Pane has been reloaded"
-  );
-}
-
-function logServerCommands(text: string) {
-  // This function gets called by server - transmitCommand ()
-  // It is implemented as a callback because the server is
-  // used by both the core extension and the language server
-  vectorMessage(text, errorLevel.trace);
-}
-
-export async function determineServerState() {
-  // This function is called during initialization to check if the enviro
-  // data server is alive and if so configure the extension to use it
-
-  // This call saves the path to the clicast version that the
-  // server is running into variable: "serverClicastPath"
-  let newServerState = false;
-  if (await serverIsAlive()) {
-    // the server is running, now check if the clicast versions match
-
-    const serverVersion = getToolVersionFromPath(
-      path.dirname(serverClicastPath)
-    );
-
-    if (
-      vcastInstallationVersion.version == serverVersion.version &&
-      vcastInstallationVersion.servicePack == serverVersion.servicePack
-    ) {
-      setTerminateServerCallback(terminateServerProcessing);
-      setLogServerCommandsCallback(logServerCommands);
-      vectorMessage("VectorCAST Environment Data Server is Active ...\n");
-      newServerState = true;
-    } else {
-      vectorMessage(
-        "VectorCAST Environment Data Server is Active, but the VectorCAST versions are incompatible ..."
-      );
-      vectorMessage(
-        `  The server has been configured with: ${path.dirname(serverClicastPath)}`
-      );
-      vectorMessage(
-        `  The extension has been configured with: ${path.dirname(clicastCommandToUse)}\n`
-      );
-      newServerState = false;
-    }
-  } else {
-    vectorMessage("VectorCAST Environment Data Server is NOT Active ...\n");
-    newServerState = false;
-  }
-
-  setServerState(newServerState);
-  sendServerStateToLanguageServer(newServerState);
-}
 
 // ------------------------------------------------------------------------------------
 // Direct clicast Calls
@@ -235,7 +160,10 @@ export async function deleteSingleTest(
   testNodeID: string
 ): Promise<commandStatusType> {
   const testNode: testNodeType = getTestNode(testNodeID);
-  const clicastArgs: string = getClicastArgsFromTestNode(testNode);
+  const clicastArgs: string = getClicastArgsFromTestNode(
+    testNode,
+    globalEnviroDataServerActive
+  );
   let deleteTestArgs = `${clicastArgs} test delete`;
 
   // special vcast case for delete ALL tests for the environment
@@ -297,7 +225,10 @@ export async function addCodedTestToEnvironment(
 ): Promise<commandStatusType> {
   //
   const enclosingDirectory = path.dirname(enviroPath);
-  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  const clicastArgs = getClicastArgsFromTestNode(
+    testNode,
+    globalEnviroDataServerActive
+  );
   let codedTestArgs: string = `${clicastArgs} test coded ${action} ${userFilePath}`;
 
   let commandStatus: commandStatusType;
@@ -324,7 +255,10 @@ export async function dumpTestScriptFile(
   scriptPath: string
 ): Promise<commandStatusType> {
   const enclosingDirectory = path.dirname(testNode.enviroPath);
-  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  const clicastArgs = getClicastArgsFromTestNode(
+    testNode,
+    globalEnviroDataServerActive
+  );
   let dumpScriptArgs: string = `${clicastArgs} test script create ${scriptPath}`;
 
   vectorMessage(`Creating test script: ${scriptPath}`);
@@ -393,7 +327,10 @@ export async function refreshCodedTests(
 
   const testNode = getTestNode(enviroNodeID);
   const enclosingDirectory = path.dirname(enviroPath);
-  const clicastArgs = getClicastArgsFromTestNode(testNode);
+  const clicastArgs = getClicastArgsFromTestNode(
+    testNode,
+    globalEnviroDataServerActive
+  );
   let refreshCodedArgs: string = `${clicastArgs} test coded refresh`;
 
   let commandStatus: commandStatusType;
@@ -418,9 +355,11 @@ export async function runBasisPathCommands(
   testScriptPath: string,
   loadScriptCallBack: any
 ) {
-  // Execute Clicas tWith Progress() uses spawn() which needs the args as a list
+  // Execute Clicast With Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${clicastCommandToUse}`);
+  // note that we do NOT set the usingServer parameter here
+  // because we always call clicast directly in this case.
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
   argList = argList.concat(["tool", "auto_test", `${testScriptPath}`]);
 
@@ -464,6 +403,8 @@ export async function runATGCommands(
   // Execute Clicast With Progress() uses spawn() which needs the args as a list
   let argList: string[] = [];
   argList.push(`${atgCommandToUse}`);
+  // note that we do NOT set the usingServer parameter here
+  // because we always call clicast directly in this case.
   argList = argList.concat(getClicastArgsFromTestNodeAsList(testNode));
 
   // -F tells atg to NOT use regex for the -s (sub-program) option

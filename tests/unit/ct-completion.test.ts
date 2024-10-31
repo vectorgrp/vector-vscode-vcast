@@ -1,7 +1,7 @@
 import path from "node:path";
 import process from "node:process";
 import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
-import * as nodeFetch from "node-fetch";
+import axios from "axios";
 import {
   describe,
   expect,
@@ -11,31 +11,20 @@ import {
   type SpyInstance,
   beforeEach,
 } from "vitest";
-import { getEnviroNameFromTestScript } from "../../server/serverUtilities";
-import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getEnviroNameFromTestScript } from "../../langServer/serverUtilities";
+import { getCodedTestCompletionData } from "../../langServer/ctCompletions";
 import {
   choiceKindType,
-  generateDiagnositicForTest,
+  generateDiagnosticForTest,
   getChoiceData,
-} from "../../server/pythonUtilities";
-import { setServerState } from "../../src-common/vcastServer";
+} from "../../langServer/pythonUtilities";
+import { setGLobalServerState } from "../../src-common/vcastServer";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
   prepareCodedTestCompletion,
   setupDiagnosticTest,
 } from "./utils";
-
-vi.mock("node-fetch", async () => {
-  const actual = await vi.importActual<typeof nodeFetch>("node-fetch");
-
-  return {
-    ...actual,
-    default: vi.fn(),
-  };
-});
-
-const fetch = vi.mocked(nodeFetch.default);
 
 const expectedReceivedData = [
   {
@@ -290,7 +279,7 @@ describe("Testing pythonUtilities (valid)", () => {
         statusText: "success",
       });
 
-      setServerState(true);
+      setGLobalServerState(true);
 
       const unitTst = ``;
       const lineToComplete = "// vmock";
@@ -317,15 +306,49 @@ describe("Testing pythonUtilities (valid)", () => {
     timeout
   );
 
+  // Mock axios
+  vi.mock("axios");
+  const mockAxiosPost = vi.mocked(axios.post);
+
+  // Generalized function to mock axios post for successful or error responses
+  const mockAxios = (
+    responseBody:
+      | {
+          exitCode: number;
+          data:
+            | Record<string, unknown>
+            | { error: string[] }
+            | { text: string[] };
+        }
+      | Error, // Allow either a valid response or an Error
+    status = 200,
+    statusText = "OK",
+    shouldThrowError = false
+  ) => {
+    if (shouldThrowError) {
+      // Simulate an error scenario
+      mockAxiosPost.mockRejectedValueOnce(responseBody);
+    } else {
+      // Simulate a successful response
+      mockAxiosPost.mockImplementation(async () => ({
+        data: responseBody,
+        status,
+        statusText,
+      }));
+    }
+  };
+
   test(
     "validate getChoiceDataFromServer if it fails",
     async () => {
-      // Mock fetch to simulate a failure and throw an error
-      fetch.mockImplementationOnce(async () => {
-        throw new Error("Failed to fetch: reason: Server down");
-      });
-
-      setServerState(true);
+      // Mock axios to simulate a failure and throw an error
+      mockAxios(
+        new Error("Failed to fetch: reason: Server down"),
+        500,
+        "Internal Server Error",
+        true
+      );
+      setGLobalServerState(true);
 
       const lineToComplete = "// vmock";
       const envName = "vcast";
@@ -354,8 +377,10 @@ describe("Testing pythonUtilities (valid)", () => {
       expect(result).toStrictEqual({
         choiceKind: "",
         choiceList: [],
-        extraText: "",
-        messages: [],
+        extraText: "server-error",
+        messages: [
+          "Enviro server error: command: choiceList-ct, error: Server down",
+        ],
       });
     },
     timeout
@@ -376,7 +401,7 @@ describe("Testing pythonUtilities (valid)", () => {
     const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
 
     // Function under test
-    generateDiagnositicForTest(
+    generateDiagnosticForTest(
       connection,
       "Test message",
       "file:///path/to/document",
@@ -399,7 +424,7 @@ const validateCodedTestCompletion = async (
 ) => {
   // Apply mock if provided
   if (mockOptions) {
-    const pythonUtilities = await import("../../server/pythonUtilities");
+    const pythonUtilities = await import("../../langServer/pythonUtilities");
     vi.spyOn(pythonUtilities, "getChoiceData").mockReturnValue(
       mockOptions.mockReturnValue
     );

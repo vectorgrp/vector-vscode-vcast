@@ -10,16 +10,16 @@ import {
 import { CompletionTriggerKind } from "vscode-languageserver-protocol";
 import URI from "vscode-uri";
 import { vi } from "vitest";
-import { getHoverString } from "../../server/tstHover";
-import { getTstCompletionData } from "../../server/tstCompletion";
-import { validateTextDocument } from "../../server/tstValidation";
-import { initializePaths } from "../../server/pythonUtilities";
-import { getCodedTestCompletionData } from "../../server/ctCompletions";
+import { getHoverString } from "../../langServer/tstHover";
+import { getTstCompletionData } from "../../langServer/tstCompletion";
+import { validateTextDocument } from "../../langServer/tstValidation";
+import { initializePaths } from "../../langServer/pythonUtilities";
+import { getCodedTestCompletionData } from "../../langServer/ctCompletions";
 import {
   buildCompletionList,
   convertKind,
   getEnviroNameFromTestScript,
-} from "../../server/serverUtilities";
+} from "../../langServer/serverUtilities";
 
 export type HoverPosition = {
   line: number;
@@ -283,7 +283,7 @@ export async function prepareCodedTestCompletion(
  * @returns An object containing the mocked connection and sendDiagnostics function.
  */
 export const setupDiagnosticTest = (diagnostic: Diagnostic) => {
-  vi.mock(".../../server/tstValidation", () => ({
+  vi.mock(".../../langServer/tstValidation", () => ({
     getDiagnosticObject: vi.fn().mockReturnValue(diagnostic),
   }));
 

@@ -2,7 +2,7 @@
 // if running on vistr server
 import path from "node:path";
 import { URL } from "node:url";
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import {
@@ -18,7 +18,11 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs, newestVCRelease } from "./specs_config";
+import { getSpecs } from "./specs_config";
+import {
+  checkForServerRunnability,
+  getToolVersion,
+} from "../../../unit/getToolversion";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -399,13 +403,13 @@ export const config: Options.Testrunner = {
         "vcastTutorial"
       );
 
+      // Standard setup when VECTORCAST_DIR is available
       if (process.env.VECTORCAST_DIR) {
-        // Standard setup when VECTORCAST_DIR is available
         await checkVPython();
         clicastExecutablePath = await checkClicast();
         process.env.CLICAST_PATH = clicastExecutablePath;
 
-        await prepareConfig(initialWorkdir);
+        await prepareConfig(initialWorkdir, clicastExecutablePath);
         const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
       } else {
@@ -415,11 +419,12 @@ export const config: Options.Testrunner = {
           process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
           "vpython"
         );
+
         process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
         clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
 
-        await prepareConfig(initialWorkdir);
+        await prepareConfig(initialWorkdir, clicastExecutablePath);
         const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
       }
@@ -427,6 +432,14 @@ export const config: Options.Testrunner = {
       // Execute RGW commands and copy necessary files
       await executeRGWCommands(testInputVcastTutorial);
       await copyPathsToTestLocation(testInputVcastTutorial);
+
+      const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
+
+      // Coded tests support only for >= vc24
+      if (toolVersion >= 24) {
+        const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await executeCommand(setCoded);
+      }
     }
 
     /**
@@ -436,6 +449,10 @@ export const config: Options.Testrunner = {
      * TARGET SPEC GROUP: coded_mock_different_env && import_coded_test
      */
     async function buildEnvsWithSpecificReleases(initialWorkdir: string) {
+      // Setup environment with clicast and vpython
+      await checkVPython();
+      let clicastExecutablePath: string;
+
       const workspacePath = path.join(__dirname, "vcastTutorial");
       const testInputVcastTutorial = path.join(
         initialWorkdir,
@@ -462,10 +479,11 @@ export const config: Options.Testrunner = {
         clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
       } else {
-        process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
+        clicastExecutablePath = await checkClicast();
+        process.env.CLICAST_PATH = clicastExecutablePath;
       }
 
-      await prepareConfig(initialWorkdir);
+      await prepareConfig(initialWorkdir, clicastExecutablePath);
 
       // Execute environment configuration and run RGW commands
       const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP_X`;
@@ -548,7 +566,7 @@ TEST.END`;
       await executeCommand(setEnviro);
       await executeCommand(runTest);
 
-      process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
+      process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
     }
 
     /**
@@ -622,7 +640,7 @@ ENVIRO.END
         let envName: string;
         // Switch VectorCAST version based on iteration (build 1,3 --> release 23, 2,4 --> release 24)
         if (i % 2 === 0) {
-          process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
+          process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
           envName = `ENV_24_${i.toString().padStart(2, "0")}`;
           console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
         } else {
@@ -685,7 +703,10 @@ ENVIRO.END
      * @param initialWorkdir - Path of the initial work dir.
      * @returns {Promise<void>} - A promise that resolves when all preparation operations are complete.
      */
-    async function prepareConfig(initialWorkdir: string): Promise<void> {
+    async function prepareConfig(
+      initialWorkdir: string,
+      clicastExecutablePath: string
+    ): Promise<void> {
       // Set vectorcast directory based on CLICAST_PATH
       vectorcastDir = path.dirname(process.env.CLICAST_PATH);
       process.env.VC_DIR = vectorcastDir;
@@ -720,13 +741,8 @@ ENVIRO.END
           : `touch ${launchJsonPath}`;
       await executeCommand(createLaunchJson);
 
-      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
-      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
-      const createSettingsJson =
-        process.platform == "win32"
-          ? `echo {"\\"vectorcastTestExplorer.verboseLogging\\": true} > ${settingsJsonPath}`
-          : `echo '{ "vectorcastTestExplorer.verboseLogging": true }' > ${settingsJsonPath}`;
-      await executeCommand(createSettingsJson);
+      // Create settings.json
+      await createVscodeSettings(vscodeSettingsPath, clicastExecutablePath);
 
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
       const c_cpp_properties = {
@@ -781,6 +797,40 @@ ENVIRO.END
       } catch (error) {
         console.error(`Error executing command "${command}":`, error);
       }
+    }
+
+    /**
+     * Creates a settings.json for the vscode extension based on our needs for the tests
+     * @param vscodeSettingsPath Path to settings.json
+     */
+    async function createVscodeSettings(
+      vscodeSettingsPath: string,
+      clicastExecutablePath: string
+    ) {
+      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
+      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
+
+      const isServerRunnable = await checkForServerRunnability(
+        clicastExecutablePath
+      );
+
+      // Check if VCAST_USE_PYTHON is defined and if the server is runnable
+      // If the version is < 24sp4 ... we set the useDataServer false either way.
+      const useDataServer = `"vectorcastTestExplorer.useDataServer": ${isServerRunnable && !process.env.VCAST_USE_PYTHON}`;
+
+      // Build the content of settings.json based on the environment
+      let settingsContent = `{ "vectorcastTestExplorer.verboseLogging": true, ${useDataServer} }`;
+
+      console.log("Vscode extension settings content:");
+      console.log(settingsContent);
+
+      // Create the settings.json file
+      const createSettingsJson =
+        process.platform == "win32"
+          ? `echo ${JSON.stringify(settingsContent)} > ${settingsJsonPath}`
+          : `echo '${settingsContent}' > ${settingsJsonPath}`;
+
+      await executeCommand(createSettingsJson);
     }
 
     /**
