@@ -19,7 +19,10 @@ import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
 import { getSpecs, newestVCRelease } from "./specs_config";
-import { getToolVersion } from "../../../unit/getToolversion";
+import {
+  checkForServerRunnability,
+  getToolVersion,
+} from "../../../unit/getToolversion";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -406,7 +409,7 @@ export const config: Options.Testrunner = {
         clicastExecutablePath = await checkClicast();
         process.env.CLICAST_PATH = clicastExecutablePath;
 
-        await prepareConfig(initialWorkdir);
+        await prepareConfig(initialWorkdir, clicastExecutablePath);
         const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
       } else {
@@ -421,7 +424,7 @@ export const config: Options.Testrunner = {
         clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
 
-        await prepareConfig(initialWorkdir);
+        await prepareConfig(initialWorkdir, clicastExecutablePath);
         const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
       }
@@ -475,7 +478,7 @@ export const config: Options.Testrunner = {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
       }
 
-      await prepareConfig(initialWorkdir);
+      await prepareConfig(initialWorkdir, clicastExecutablePath);
 
       // Execute environment configuration and run RGW commands
       const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP_X`;
@@ -695,7 +698,10 @@ ENVIRO.END
      * @param initialWorkdir - Path of the initial work dir.
      * @returns {Promise<void>} - A promise that resolves when all preparation operations are complete.
      */
-    async function prepareConfig(initialWorkdir: string): Promise<void> {
+    async function prepareConfig(
+      initialWorkdir: string,
+      clicastExecutablePath: string
+    ): Promise<void> {
       // Set vectorcast directory based on CLICAST_PATH
       vectorcastDir = path.dirname(process.env.CLICAST_PATH);
       process.env.VC_DIR = vectorcastDir;
@@ -731,7 +737,7 @@ ENVIRO.END
       await executeCommand(createLaunchJson);
 
       // Create settings.json
-      await createVscodeSettings(vscodeSettingsPath);
+      await createVscodeSettings(vscodeSettingsPath, clicastExecutablePath);
 
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
       const c_cpp_properties = {
@@ -792,14 +798,21 @@ ENVIRO.END
      * Creates a settings.json for the vscode extension based on our needs for the tests
      * @param vscodeSettingsPath Path to settings.json
      */
-    async function createVscodeSettings(vscodeSettingsPath: string) {
+    async function createVscodeSettings(
+      vscodeSettingsPath: string,
+      clicastExecutablePath: string
+    ) {
       // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
       const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
 
-      // Check if VCAST_USE_PYTHON is defined, if so we add the setting to NOT use the server mode
-      const useDataServer = process.env.VCAST_USE_PYTHON
-        ? `"vectorcastTestExplorer.useDataServer": false`
-        : `"vectorcastTestExplorer.useDataServer": true`;
+      const isServerRunnable = await checkForServerRunnability(
+        clicastExecutablePath.trimEnd()
+      );
+      // Check if VCAST_USE_PYTHON is defined and if the server is runnable
+      const useDataServer =
+        process.env.VCAST_USE_PYTHON && !isServerRunnable
+          ? `"vectorcastTestExplorer.useDataServer": false`
+          : `"vectorcastTestExplorer.useDataServer": true`;
 
       // Build the content of settings.json based on the environment
       let settingsContent = `{ "vectorcastTestExplorer.verboseLogging": true, ${useDataServer} }`;
