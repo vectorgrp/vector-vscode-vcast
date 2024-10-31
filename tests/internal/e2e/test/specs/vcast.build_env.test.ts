@@ -9,20 +9,22 @@ import {
   checkIfRequestInLogs,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
+import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let useDataServer: boolean = true;
-  if (process.env.VCAST_USE_PYTHON) {
-    useDataServer = false;
-  }
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
+    let releaseIsSuitableForServer = await checkForServerRunnability();
+    if (process.env.VCAST_USE_PYTHON || !releaseIsSuitableForServer) {
+      useDataServer = false;
+    }
   });
 
   it("test 1: should be able to load VS Code", async () => {
