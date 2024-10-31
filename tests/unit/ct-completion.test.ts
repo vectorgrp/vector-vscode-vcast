@@ -354,8 +354,10 @@ describe("Testing pythonUtilities (valid)", () => {
       expect(result).toStrictEqual({
         choiceKind: "",
         choiceList: [],
-        extraText: "",
-        messages: [],
+        extraText: "server-error",
+        messages: [
+          "Enviro server error: command: choiceList-ct, error: Server down",
+        ],
       });
     },
     timeout

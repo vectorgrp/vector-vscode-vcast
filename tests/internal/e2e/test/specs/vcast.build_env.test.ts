@@ -6,12 +6,18 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
+  checkIfRequestInLogs,
+  toggleDataServer,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
+  let useDataServer: boolean = true;
+  if (process.env.VCAST_USE_PYTHON) {
+    useDataServer = false;
+  }
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -91,6 +97,26 @@ describe("vTypeCheck VS Code Extension", () => {
     const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
     await configFile.openContextMenu();
     await (await $("aria/Set as VectorCAST Configuration File")).click();
+  });
+
+  it("should check for server starting logs if in server mode", async () => {
+    const outputView = await bottomBar.openOutputView();
+
+    // Check if server started
+    if (useDataServer) {
+      // Check message pane for expected message
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Started VectorCAST Data Server"),
+        { timeout: TIMEOUT }
+      );
+
+      // Check server logs
+      const logs = await checkIfRequestInLogs(3, ["port:", "clicast"]);
+      expect(logs).toBe(true);
+    }
   });
 
   it("should create VectorCAST environment", async () => {

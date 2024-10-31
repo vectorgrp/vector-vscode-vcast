@@ -2,7 +2,7 @@
 // if running on vistr server
 import path from "node:path";
 import { URL } from "node:url";
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import {
@@ -19,6 +19,7 @@ import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
 import { getSpecs, newestVCRelease } from "./specs_config";
+import { getToolVersion } from "../../../unit/getToolversion";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -399,8 +400,8 @@ export const config: Options.Testrunner = {
         "vcastTutorial"
       );
 
+      // Standard setup when VECTORCAST_DIR is available
       if (process.env.VECTORCAST_DIR) {
-        // Standard setup when VECTORCAST_DIR is available
         await checkVPython();
         clicastExecutablePath = await checkClicast();
         process.env.CLICAST_PATH = clicastExecutablePath;
@@ -415,6 +416,7 @@ export const config: Options.Testrunner = {
           process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
           "vpython"
         );
+
         process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
         clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
@@ -427,6 +429,14 @@ export const config: Options.Testrunner = {
       // Execute RGW commands and copy necessary files
       await executeRGWCommands(testInputVcastTutorial);
       await copyPathsToTestLocation(testInputVcastTutorial);
+
+      const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
+
+      // Coded tests support only for >= vc24
+      if (toolVersion >= 24) {
+        const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await executeCommand(setCoded);
+      }
     }
 
     /**
@@ -720,13 +730,8 @@ ENVIRO.END
           : `touch ${launchJsonPath}`;
       await executeCommand(createLaunchJson);
 
-      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
-      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
-      const createSettingsJson =
-        process.platform == "win32"
-          ? `echo {"\\"vectorcastTestExplorer.verboseLogging\\": true} > ${settingsJsonPath}`
-          : `echo '{ "vectorcastTestExplorer.verboseLogging": true }' > ${settingsJsonPath}`;
-      await executeCommand(createSettingsJson);
+      // Create settings.json
+      await createVscodeSettings(vscodeSettingsPath);
 
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
       const c_cpp_properties = {
@@ -781,6 +786,34 @@ ENVIRO.END
       } catch (error) {
         console.error(`Error executing command "${command}":`, error);
       }
+    }
+
+    /**
+     * Creates a settings.json for the vscode extension based on our needs for the tests
+     * @param vscodeSettingsPath Path to settings.json
+     */
+    async function createVscodeSettings(vscodeSettingsPath: string) {
+      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
+      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
+
+      // Check if VCAST_USE_PYTHON is defined, if so we add the setting to NOT use the server mode
+      const useDataServer = process.env.VCAST_USE_PYTHON
+        ? `"vectorcastTestExplorer.useDataServer": false`
+        : `"vectorcastTestExplorer.useDataServer": true`;
+
+      // Build the content of settings.json based on the environment
+      let settingsContent = `{ "vectorcastTestExplorer.verboseLogging": true, ${useDataServer} }`;
+
+      console.log("Vscode extension settings content:");
+      console.log(settingsContent);
+
+      // Create the settings.json file
+      const createSettingsJson =
+        process.platform == "win32"
+          ? `echo ${JSON.stringify(settingsContent)} > ${settingsJsonPath}`
+          : `echo '${settingsContent}' > ${settingsJsonPath}`;
+
+      await executeCommand(createSettingsJson);
     }
 
     /**

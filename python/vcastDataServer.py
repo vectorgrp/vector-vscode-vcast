@@ -25,7 +25,6 @@ from pythonUtilities import logFileHandle, logMessage, logPrefix
 
 def init_application(logFilePath):
     app = Flask(__name__)
-
     with app.app_context():
 
         @app.route("/ping")

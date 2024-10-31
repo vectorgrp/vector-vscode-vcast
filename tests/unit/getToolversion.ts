@@ -10,44 +10,53 @@ const promisifiedExec = promisify(exec);
 /**
  * Function to get the clicast executable path and check the tool version
  */
-export async function getToolVersion() {
-  // Determine the command to locate clicast
-  const checkClicast =
-    process.platform === "win32" ? "where clicast" : "which clicast";
+export async function getToolVersion(givenClicastPath?: string) {
+  let toolVersionPath = "";
+  // For the E2E, we provide a given path.
+  if (givenClicastPath) {
+    toolVersionPath = path.join(
+      givenClicastPath,
+      "..",
+      "DATA",
+      "tool_version.txt"
+    );
+  } else {
+    // For unit tests we need to find the clicast path first.
+    let clicastExecutablePath = "";
+    const checkClicast =
+      process.platform === "win32" ? "where clicast" : "which clicast";
 
-  let clicastExecutablePath = "";
+    try {
+      // Execute the command to find clicast
+      const { stdout, stderr } = await promisifiedExec(checkClicast);
 
-  try {
-    // Execute the command to find clicast
-    const { stdout, stderr } = await promisifiedExec(checkClicast);
+      if (stderr) {
+        throw new Error(
+          `Error when running ${checkClicast}, make sure clicast is on PATH`
+        );
+      }
 
-    if (stderr) {
+      clicastExecutablePath = stdout.trim();
+      console.log(`clicast found in ${clicastExecutablePath}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      } else {
+        console.error(`Unexpected error: ${String(error)}`);
+      }
+
       throw new Error(
-        `Error when running ${checkClicast}, make sure clicast is on PATH`
+        `Error when running "${checkClicast}", make sure clicast is on PATH`
       );
     }
 
-    clicastExecutablePath = stdout.trim();
-    console.log(`clicast found in ${clicastExecutablePath}`);
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
-    } else {
-      console.error(`Unexpected error: ${String(error)}`);
-    }
-
-    throw new Error(
-      `Error when running "${checkClicast}", make sure clicast is on PATH`
+    toolVersionPath = path.join(
+      clicastExecutablePath,
+      "..",
+      "DATA",
+      "tool_version.txt"
     );
   }
-
-  // Read the tool version from the appropriate path
-  const toolVersionPath = path.join(
-    clicastExecutablePath,
-    "..",
-    "DATA",
-    "tool_version.txt"
-  );
 
   try {
     const toolVersion: string = fs

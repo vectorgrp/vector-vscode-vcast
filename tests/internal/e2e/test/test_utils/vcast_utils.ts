@@ -10,10 +10,33 @@ import {
   ViewContent,
   ContentAssist,
   ContentAssistItem,
+  BottomBarPanel,
 } from "wdio-vscode-service";
+// import * as vscode from "vscode";
+import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
+import http from "http";
+import { workspace } from "vscode";
+// Local VM takes longer and needs a higher TIMEOUT
+export const TIMEOUT = 180_000;
+
+export type ServerMethod =
+  | "GET"
+  | "POST"
+  | "PUT"
+  | "DELETE"
+  | "PATCH"
+  | "HEAD"
+  | "OPTIONS";
+
+export interface ServerOptions {
+  hostname: string;
+  port: number;
+  path: string;
+  method: ServerMethod;
+}
 
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 180_000;
@@ -1251,5 +1274,103 @@ export async function checkForLogsInTestResults(logArray: string[]) {
   // If a log is not present, this will timeout
   for (let log of logArray) {
     await $(`aria/${log}`);
+  }
+}
+
+/**
+ * Function to read the last 'lineNumber' lines of the log file and check if the stringArray elements are present
+ * @param lineNumber Amount of line numbers to look at starting from the end of the log file
+ * @param stringArray List of strings that need to be contained withing last |lineNNumber|
+ * @returns true, if all strings are found, else false
+ */
+export async function checkIfRequestInLogs(
+  lineNumber: number,
+  stringArray: string[]
+): Promise<boolean> {
+  const workspaceFolderName = "vcastTutorial";
+
+  // Construct the full path to the log file
+  const workspaceRootPath = process.cwd();
+  const logFilePath = path.join(
+    workspaceRootPath,
+    "test",
+    workspaceFolderName,
+    "vcastDataServer.log"
+  );
+
+  // Read the log file
+  const logData = fs.readFileSync(logFilePath, "utf-8");
+
+  // Split the log into lines and filter out empty ones
+  const logLines = logData.split("\n").filter((line) => line.trim() !== "");
+
+  // Get the last 'lineNumber' lines from the file
+  const lastLines = logLines.slice(-lineNumber);
+
+  // Check if all strings in the array are present in the last lines
+  let allStringsFound = true;
+
+  console.log("Lines looked at in the log:");
+  console.log(lastLines);
+
+  stringArray.forEach((str) => {
+    const isFound = lastLines.some((line) => line.includes(str));
+    if (!isFound) {
+      console.log(`String not found: "${str}"`);
+      allStringsFound = false;
+    }
+  });
+
+  return allStringsFound; // Return true if all strings are found, otherwise false
+}
+
+/**
+ * Returns the last line of the outputview text.
+ * @param bottomBar vscode bottom bar element
+ * @returns The last line of the outputview
+ */
+export async function getLastLineOfOutputView(bottomBar: BottomBarPanel) {
+  const outputView = await bottomBar.openOutputView();
+  const text = await outputView.getText();
+  const lines = text.toString().split("\n");
+  return lines[lines.length - 1];
+}
+
+/**
+ * Turns the Data Server on or off by clicking on the vDataServer button
+ * @param turnOn - true to turn on the server, false to turn it off
+ */
+export async function toggleDataServer(turnOn: boolean) {
+  let workbench = await browser.getWorkbench();
+  let statusBar = workbench.getStatusBar();
+
+  if (turnOn) {
+    // Be sure that vDataServer On button is shown
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("vDataServer Off"),
+      { timeout: TIMEOUT }
+    );
+
+    await (await statusBar.getItem("vDataServer Off")).click();
+
+    // Be sure that now the vDataServer On button is shown
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("vDataServer On"),
+      { timeout: TIMEOUT }
+    );
+  } else {
+    // Be sure that vDataServer On button is shown
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("vDataServer On"),
+      { timeout: TIMEOUT }
+    );
+
+    await (await statusBar.getItem("vDataServer On")).click();
+
+    // Be sure that now the vDataServer Off button is shown
+    await browser.waitUntil(
+      async () => (await statusBar.getItems()).includes("vDataServer Off"),
+      { timeout: TIMEOUT }
+    );
   }
 }
