@@ -126,31 +126,33 @@ export async function checkForServerRunnability(
 
   // Read and validate tool version from toolVersionPath
   try {
-    const toolVersion: string = fs
-      .readFileSync(toolVersionPath, "utf-8")
-      .trim();
-    const [majorVersionStr, spPart] = toolVersion.split(".sp");
+    const toolVersion: string = fs.readFileSync(toolVersionPath, "utf8").trim();
+
+    const [majorVersionString, spPart] = toolVersion.split(".sp");
 
     // The version number
-    const majorVersion = Number(majorVersionStr);
-    // Split away the date (4 (23/10/24) --> 4)
+    const majorVersion = Number(majorVersionString);
+
+    // Split away the date (e.g., "4 (08/26/24)" --> "4")
     const spVersion = Number(spPart.split(" ")[0]);
 
-    console.log(`Version: ${majorVersionStr}`);
+    console.log(`Version: ${majorVersionString}`);
     console.log(`Sub-Version: ${spVersion}`);
 
     // Check if major version and sp version meet the criteria
     if (majorVersion < 24 || (majorVersion === 24 && spVersion < 5)) {
       console.log(
-        `Version ${toolVersion} does not meet the minimum requirement of to run the clicast server (24sp5).`
+        `Version ${toolVersion} does not meet the minimum requirement to run the clicast server (24sp5).`
       );
       return false;
     }
+
     return true;
   } catch (error) {
     console.error(
       `Error reading tool version: ${error instanceof Error ? error.message : String(error)}`
     );
+
     return false;
   }
 }
