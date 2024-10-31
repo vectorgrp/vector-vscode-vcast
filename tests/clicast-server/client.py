@@ -729,7 +729,7 @@ def initializeEnvironment(clicastPath):
     print("  Environment created successfully ...\n\n")
 
 
-def manualTest(args):
+def manualTest():
 
     # Replace with with a copy paste from the command being run in the extension
     commandToRun = '{"command":"runClicastCommand","path":"c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE","options":"-eQUOTES_EXAMPLE -uquotes_example -s\\"Moo::honk(int,int,int)\\" -tBASIS-PATH-001 test script create c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE.tst"}'
@@ -816,7 +816,7 @@ def main():
     pingServerTest()
 
     if args.test == "manual":
-        manualTest(args)
+        manualTest()
     else:
         enviroBasedTests(args)
 
