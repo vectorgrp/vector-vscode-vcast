@@ -18,7 +18,7 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs, newestVCRelease } from "./specs_config";
+import { getSpecs } from "./specs_config";
 import {
   checkForServerRunnability,
   getToolVersion,
@@ -816,11 +816,7 @@ ENVIRO.END
 
       // Check if VCAST_USE_PYTHON is defined and if the server is runnable
       // If the version is < 24sp4 ... we set the useDataServer false either way.
-      const useDataServer = !isServerRunnable
-        ? `"vectorcastTestExplorer.useDataServer": false`
-        : process.env.VCAST_USE_PYTHON
-          ? `"vectorcastTestExplorer.useDataServer": false`
-          : `"vectorcastTestExplorer.useDataServer": true`;
+      const useDataServer = `"vectorcastTestExplorer.useDataServer": ${isServerRunnable && !process.env.VCAST_USE_PYTHON}`;
 
       // Build the content of settings.json based on the environment
       let settingsContent = `{ "vectorcastTestExplorer.verboseLogging": true, ${useDataServer} }`;
