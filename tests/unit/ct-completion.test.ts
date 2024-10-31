@@ -1,7 +1,7 @@
 import path from "node:path";
 import process from "node:process";
 import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
-import * as nodeFetch from "node-fetch";
+import axios from "axios";
 import {
   describe,
   expect,
@@ -25,17 +25,6 @@ import {
   prepareCodedTestCompletion,
   setupDiagnosticTest,
 } from "./utils";
-
-vi.mock("node-fetch", async () => {
-  const actual = await vi.importActual<typeof nodeFetch>("node-fetch");
-
-  return {
-    ...actual,
-    default: vi.fn(),
-  };
-});
-
-const fetch = vi.mocked(nodeFetch.default);
 
 const expectedReceivedData = [
   {
@@ -317,14 +306,48 @@ describe("Testing pythonUtilities (valid)", () => {
     timeout
   );
 
+  // Mock axios
+  vi.mock("axios");
+  const mockAxiosPost = vi.mocked(axios.post);
+
+  // Generalized function to mock axios post for successful or error responses
+  const mockAxios = (
+    responseBody:
+      | {
+          exitCode: number;
+          data:
+            | Record<string, unknown>
+            | { error: string[] }
+            | { text: string[] };
+        }
+      | Error, // Allow either a valid response or an Error
+    status = 200,
+    statusText = "OK",
+    shouldThrowError = false
+  ) => {
+    if (shouldThrowError) {
+      // Simulate an error scenario
+      mockAxiosPost.mockRejectedValueOnce(responseBody);
+    } else {
+      // Simulate a successful response
+      mockAxiosPost.mockImplementation(async () => ({
+        data: responseBody,
+        status,
+        statusText,
+      }));
+    }
+  };
+
   test(
     "validate getChoiceDataFromServer if it fails",
     async () => {
-      // Mock fetch to simulate a failure and throw an error
-      fetch.mockImplementationOnce(async () => {
-        throw new Error("Failed to fetch: reason: Server down");
-      });
-
+      // Mock axios to simulate a failure and throw an error
+      mockAxios(
+        new Error("Failed to fetch: reason: Server down"),
+        500,
+        "Internal Server Error",
+        true
+      );
       setGLobalServerState(true);
 
       const lineToComplete = "// vmock";
