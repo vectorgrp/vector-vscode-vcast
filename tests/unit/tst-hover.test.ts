@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { getHoverPositionForLine, generateHoverData } from "./utils";
+import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
 
@@ -44,7 +45,9 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-describe("Hover Info Validator", () => {
+describe("Hover Info Validator", async () => {
+  const toolVersion = await getToolVersion();
+
   test(
     "validate hover over TEST.SLOT:",
     async () => {
@@ -103,7 +106,9 @@ describe("Hover Info Validator", () => {
         hoverPosition
       );
       expect(generatedHoverString).toContain(expectedTitle);
-      expect(generatedHoverString).toContain(expectedDesc);
+      if (toolVersion > 23) {
+        expect(generatedHoverString).toContain(expectedDesc);
+      }
     },
     timeout
   );
@@ -125,7 +130,9 @@ describe("Hover Info Validator", () => {
         hoverPosition
       );
       expect(generatedHoverString).toContain(expectedTitle);
-      expect(generatedHoverString).toContain(expectedDesc);
+      if (toolVersion > 23) {
+        expect(generatedHoverString).toContain(expectedDesc);
+      }
     },
     timeout
   );

@@ -191,7 +191,10 @@ export async function transmitCommand(
 
   // this can be useful for debugging server commands outside of the extension
   // Look in the "Debug Console" pane for this output
-  console.log(`Sending command: '${dataAsString}' to server: ${serverURL()}`);
+  console.log(
+    `Sending command: '${requestObject.command}' to server: ${serverURL()}`
+  );
+  console.log(`   payload: "${dataAsString}"`);
 
   const urlToUse = `${serverURL()}/${route}`;
   logServerCommand(
