@@ -449,6 +449,10 @@ export const config: Options.Testrunner = {
      * TARGET SPEC GROUP: coded_mock_different_env && import_coded_test
      */
     async function buildEnvsWithSpecificReleases(initialWorkdir: string) {
+      // Setup environment with clicast and vpython
+      await checkVPython();
+      let clicastExecutablePath: string;
+
       const workspacePath = path.join(__dirname, "vcastTutorial");
       const testInputVcastTutorial = path.join(
         initialWorkdir,
@@ -475,7 +479,8 @@ export const config: Options.Testrunner = {
         clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
       } else {
-        process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
+        clicastExecutablePath = await checkClicast();
+        process.env.CLICAST_PATH = clicastExecutablePath;
       }
 
       await prepareConfig(initialWorkdir, clicastExecutablePath);
@@ -561,7 +566,7 @@ TEST.END`;
       await executeCommand(setEnviro);
       await executeCommand(runTest);
 
-      process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
+      process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
     }
 
     /**
@@ -635,7 +640,7 @@ ENVIRO.END
         let envName: string;
         // Switch VectorCAST version based on iteration (build 1,3 --> release 23, 2,4 --> release 24)
         if (i % 2 === 0) {
-          process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
+          process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
           envName = `ENV_24_${i.toString().padStart(2, "0")}`;
           console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
         } else {
@@ -806,7 +811,7 @@ ENVIRO.END
       const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
 
       const isServerRunnable = await checkForServerRunnability(
-        clicastExecutablePath.trimEnd()
+        clicastExecutablePath
       );
 
       // Check if VCAST_USE_PYTHON is defined and if the server is runnable
@@ -981,7 +986,7 @@ ENVIRO.END
         vcastRoot = "/vcast";
       } else {
         // Assuming that locally release is on this path.
-        vcastRoot = path.join(process.env.HOME, "vcast");
+        vcastRoot = path.join(".", process.env.HOME, "vcast");
       }
 
       return vcastRoot;
