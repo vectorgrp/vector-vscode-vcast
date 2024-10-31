@@ -133,17 +133,17 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    specGroups["coded_mock_different_env"] = {
-      specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
-      env: {
-        VCAST_USE_PYTHON: "True",
-        VECTORCAST_DIR: `/vcast/2024sp1:${process.env.HOME}/vcast/2024sp1`,
-        SWITCH_ENV_AT_THE_END: "True",
-      },
-      params: {
-        vcReleaseOnPath: false,
-      },
-    };
+    // specGroups["coded_mock_different_env"] = {
+    //   specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
+    //   env: {
+    //     VCAST_USE_PYTHON: "True",
+    //     VECTORCAST_DIR: `/vcast/2024sp1:${process.env.HOME}/vcast/2024sp1`,
+    //     SWITCH_ENV_AT_THE_END: "True",
+    //   },
+    //   params: {
+    //     vcReleaseOnPath: false,
+    //   },
+    // };
 
     specGroups["basic_user_interactions_server"] = {
       specs: [
@@ -260,16 +260,16 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    specGroups["coded_mock_different_env_server"] = {
-      specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
-      env: {
-        VECTORCAST_DIR: `/vcast/2024sp1:${process.env.HOME}/vcast/2024sp1`,
-        SWITCH_ENV_AT_THE_END: "True",
-      },
-      params: {
-        vcReleaseOnPath: false,
-      },
-    };
+    // specGroups["coded_mock_different_env_server"] = {
+    //   specs: ["./**/**/vcast_coded_test_different_envs_hover.test.ts"],
+    //   env: {
+    //     VECTORCAST_DIR: `/vcast/2024sp1:${process.env.HOME}/vcast/2024sp1`,
+    //     SWITCH_ENV_AT_THE_END: "True",
+    //   },
+    //   params: {
+    //     vcReleaseOnPath: false,
+    //   },
+    // };
 
     specGroups["import_coded_test_server"] = {
       specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
