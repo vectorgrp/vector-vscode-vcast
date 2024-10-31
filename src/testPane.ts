@@ -443,6 +443,7 @@ let vcastEnviroList: string[] = [];
 let vcastHasCodedTestsList: string[] = [];
 
 export async function updateTestsForEnvironment(
+  parentNode: vcastTestItem,
   enviroData: environmentNodeDataType
 ) {
   // this will add one environment node to the test pane
@@ -491,11 +492,7 @@ export async function updateTestsForEnvironment(
     }
     // starting with VS Code 1.81 the tree was not updating unless I added the delete
     globalController.items.delete(enviroNode.id);
-    if (enviroData.projectPath.length > 0) {
-      globalProjectsNode.children.add(enviroNode);
-    } else {
-      globalEnvironmentsNode.children.add(enviroNode);
-    }
+    parentNode.children.add(enviroNode);
   } else {
     vectorMessage(`Ignoring environment: ${enviroData.displayName}\n`);
   }
@@ -537,7 +534,7 @@ async function loadAllVCTests(
           if (enviroData.isBuilt) {
             environmentList.push({
               projectPath: projectPath,
-              buildDirectory: normalizePath (buildDirectory),
+              buildDirectory: normalizePath(buildDirectory),
               displayName: enviroData.displayName,
               workspaceRoot: workspaceRoot,
             });
@@ -550,10 +547,11 @@ async function loadAllVCTests(
       // for environments that are NOT part of a manage project
       for (const environment of getEnvironmentList(workspaceRoot)) {
         const normalizedPath = normalizePath(environment);
+        const displayName = path.relative(workspaceRoot, normalizedPath);
         environmentList.push({
           projectPath: "",
           buildDirectory: normalizedPath,
-          displayName: normalizedPath,
+          displayName: displayName,
           workspaceRoot: workspaceRoot,
         });
       }
@@ -580,7 +578,8 @@ async function loadAllVCTests(
       if (cancelled) {
         break;
       }
-      await updateTestsForEnvironment(environmentData);
+      const parentNode = getParentNodeForEnvironment(environmentData);
+      await updateTestsForEnvironment(parentNode, environmentData);
     } // for each enviroPath
   } // if workspace folders
 
@@ -1255,6 +1254,43 @@ let globalController: vscode.TestController;
 let globalProjectsNode: vcastTestItem;
 let globalEnvironmentsNode: vcastTestItem;
 
+// We nest each project under the globalProjectsNode, so
+// this is needed to allow us to save and later lookup
+// the parent node for any environment that is part of a project
+let globalProjectMap: Map<string, vcastTestItem> = new Map();
+function getParentNodeForEnvironment(
+  enviroData: environmentNodeDataType
+): vcastTestItem {
+  // if this enviro is NOT part of a project, then the parent
+  // is the globalEnvironmentsNode
+  if (enviroData.projectPath.length == 0) {
+    return globalEnvironmentsNode;
+  } else {
+    // this enviro is part of a project, so check if we already have a tree node for it
+    const currentMapData: vcastTestItem | undefined = globalProjectMap.get(
+      enviroData.projectPath
+    );
+    if (currentMapData) {
+      // return the existing tree node
+      return currentMapData;
+    } else {
+      // we need to create a new tree node for this project
+      const displayName = path.relative(
+        enviroData.workspaceRoot,
+        enviroData.projectPath
+      );
+      const newProjectNode: vcastTestItem = globalController.createTestItem(
+        enviroData.projectPath,
+        displayName
+      );
+      newProjectNode.nodeKind = nodeKind.project;
+      globalProjectsNode.children.add(newProjectNode);
+      globalProjectMap.set(enviroData.projectPath, newProjectNode);
+      return newProjectNode;
+    }
+  }
+}
+
 export function activateTestPane(context: vscode.ExtensionContext) {
   globalController = vscode.tests.createTestController(
     "vector-test-controller",
@@ -1331,7 +1367,8 @@ export async function updateTestPane(enviroPath: string) {
   // test script, or editing a coded test file
 
   const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
-  updateTestsForEnvironment(enviroData);
+  const parentTreeNode = getParentNodeForEnvironment(enviroData);
+  await updateTestsForEnvironment(parentTreeNode, enviroData);
 }
 
 interface codedTestFileDataType {
@@ -1466,6 +1503,7 @@ export async function updateCodedTestCases(editor: any) {
 // special is for compound and init
 export enum nodeKind {
   projectGroup,
+  project,
   environmentGroup,
   environment,
   unit,
