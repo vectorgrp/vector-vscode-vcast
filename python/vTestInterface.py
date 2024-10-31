@@ -24,10 +24,9 @@ import tstUtilities
 
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
-from versionChecks import (
-    vpythonHasCodedTestSupport,
-    enviroSupportsMocking,
-)
+from versionChecks import vpythonHasCodedTestSupport, enviroSupportsMocking
+
+from pythonUtilities import logMessage
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
@@ -45,13 +44,7 @@ class UsageError(Exception):
     pass
 
 
-modeChoices = [
-    "getEnviroData",
-    "executeTest",
-    "report",
-    "parseCBT",
-    "rebuild",
-]
+modeChoices = ["getEnviroData", "executeTest", "report", "parseCBT", "rebuild"]
 
 
 def setupArgs():
@@ -63,19 +56,11 @@ def setupArgs():
 
     # we intentionally do NOT provide a choice list so that we can handle
     # --mode errors manually and control the exit code
-    parser.add_argument(
-        "--mode",
-        required=True,
-        help="Test Explorer Mode",
-    )
+    parser.add_argument("--mode", required=True, help="Test Explorer Mode")
 
     parser.add_argument("--clicast", help="Path to clicast to use")
 
-    parser.add_argument(
-        "--path",
-        required=True,
-        help="Path to Environment Directory",
-    )
+    parser.add_argument("--path", required=True, help="Path to Environment Directory")
 
     parser.add_argument("--test", help="Test ID")
 
@@ -470,12 +455,12 @@ def getResults(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("report")
-        commandOutput = clicastInterface.generateExecutionReport(
-            enviroPath, testIDObject
-        )
-
-        returnText = f"REPORT:{testIDObject.reportName}\n"
-        returnText += commandOutput
+        # commandOutput = clicastInterface.generateExecutionReport(
+        #     enviroPath, testIDObject
+        # )
+        clicastInterface.generate_report(enviroPath, testIDObject)
+        returnText = f"REPORT:{testIDObject.reportName}.txt\n"
+        # returnText += commandOutput
         return returnText
 
 

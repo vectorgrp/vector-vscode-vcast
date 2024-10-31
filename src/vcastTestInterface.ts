@@ -353,6 +353,7 @@ export async function getResultFileForTest(testID: string) {
   // This function will return the path to the result file if it is already saved
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
+
   if (!fs.existsSync(resultFile)) {
     let enviroPath = getEnviroPathFromID(testID);
 
@@ -362,7 +363,11 @@ export async function getResultFileForTest(testID: string) {
       const firstLineOfOutput: string = commandStatus.stdout
         .split("\n", 1)[0]
         .trim();
+
+      // Delete the REPORT substring and change the .txt to .html because
+      // generate_report only generates one html file and we do not have a .txt
       resultFile = firstLineOfOutput.replace("REPORT:", "");
+      resultFile = resultFile.replace(".txt", ".html");
 
       if (!fs.existsSync(resultFile)) {
         vscode.window.showWarningMessage(
@@ -373,6 +378,10 @@ export async function getResultFileForTest(testID: string) {
       }
 
       globalTestStatusArray[testID].resultFilePath = resultFile;
+    } else {
+      vectorMessage(
+        `Retrieving test report was not successful. Command Status: ${commandStatus.errorCode} `
+      );
     }
   }
 

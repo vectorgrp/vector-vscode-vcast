@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import time
+import pathlib
 
 """
 This script contains the clicast stuff tha was previously 
@@ -17,9 +18,10 @@ from pythonUtilities import (
     closeEnvironmentConnection,
     getClicastInstance,
     logMessage,
+    monkeypatch_custom_css,
 )
 from vcastDataServerTypes import errorCodes
-
+from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
 
 # Filename used when we run a clicast command script
@@ -363,3 +365,75 @@ def generateExecutionReport(enviroPath, testIDObject):
     # we ignore the exit code and return the stdout
     exitCode, stdOutput = runClicastScript(enviroPath, commandFileName)
     return stdOutput
+
+
+def generate_report(enviroPath, testObject):
+    """
+    Generates the our custom report for the test case execution data
+
+    File gets written to output
+    """
+
+    # Calculate the location of our custom folder
+    source_root = pathlib.Path(__file__).parent.resolve()
+    custom_dir = source_root / "custom"
+
+    # What's the path to our custom CSS?
+    custom_css = custom_dir / "vscode.css"
+
+    # Patch get_option to use our CSS without setting the CFG option
+    monkeypatch_custom_css(custom_css)
+
+    # Set in the config that the format we use is HTML
+    with open(commandFileName, "w") as commandFile:
+        commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
+
+    runClicastScript(enviroPath, commandFileName)
+
+    # Open-up the unit test API
+    with UnitTestApi(testObject.enviroName) as api:
+        # Find and check for our unit
+        unit_found = False
+        function_found = False
+        test_found = False
+
+        for unit in api.Unit.filter(name=testObject.unitName):
+            unit_found = True
+
+            for function in unit.functions:
+                if function.name != testObject.functionName:
+                    continue
+                function_found = True
+
+                for test in function.testcases:
+                    if test.name != testObject.testName:
+                        continue
+                    test_found = True
+
+                    # Generate our report
+                    api.report(
+                        report_type="per_test_case_report",
+                        formats=["HTML"],
+                        output_file=f"{testObject.reportName}.html",
+                        customization_dir=str(custom_dir),
+                        testcases=[test],
+                    )
+                    break
+
+        # If we don't find our unit, report an error
+        if not unit_found:
+            raise RuntimeError(
+                f"Could not find unit {testObject.unitName} (units should not have extensions)"
+            )
+
+        # If we don't find our function, report an error
+        if not function_found:
+            raise RuntimeError(
+                f"Could not find function {testObject.functionName} in unit {testObject.unitName}"
+            )
+
+        # If we don't find our test, report an error
+        if not test_found:
+            raise RuntimeError(
+                f"Could not find test {testObject.testName} in function {testObject.functionName} (in unit {testObject.unitName})"
+            )
