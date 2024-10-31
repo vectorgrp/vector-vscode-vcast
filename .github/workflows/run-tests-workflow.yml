@@ -82,6 +82,10 @@ jobs:
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
         shell: bash
 
+      - name: Clicast server tests
+        run: ./tests/clicast-server/run_clicast_server_tests.sh
+        shell: bash
+
       - name: Run unit tests
         run: npm run gh-test | tee output.txt
         shell: bash
