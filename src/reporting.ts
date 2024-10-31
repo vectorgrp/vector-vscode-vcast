@@ -117,12 +117,12 @@ pre {
   return returnText;
 }
 
+// TBD TODAY - We switch txt to html ...
 let htmlReportPanel: vscode.WebviewPanel | undefined = undefined;
-function viewResultsReportVC(textFilePath: string) {
+function viewResultsReportVC(htmlFilePath: string) {
   // The stock VectorCAST HTML reports look ugly in VS Code so
   // we do a manual edits, and color changes.
-  const htmlFilePath = textFilePath.replace(".txt", ".html");
-  vectorMessage(`HTML report file path is: ${htmlFilePath}`);
+  vectorMessage(`Report file path is: ${htmlFilePath}`);
   let htmlText = cleanHTML(fs.readFileSync(htmlFilePath, "utf-8"));
   // this displays the html report in a webview panel
   if (!htmlReportPanel) {
@@ -147,9 +147,13 @@ function viewResultsReportVC(textFilePath: string) {
 
 export async function viewResultsReport(testID: string) {
   // make sure that a test is selected
-  const textFilePath = await getResultFileForTest(testID);
-  vectorMessage("Viewing results, result report path: '" + textFilePath + "'");
-  if (fs.existsSync(textFilePath)) {
-    viewResultsReportVC(textFilePath);
+  const htmlFilePath = await getResultFileForTest(testID);
+  if (fs.existsSync(htmlFilePath)) {
+    vectorMessage(
+      "Viewing results, result report path: '" + htmlFilePath + "'"
+    );
+    viewResultsReportVC(htmlFilePath);
+  } else {
+    vectorMessage("Result report file does not exist: '" + htmlFilePath + "'");
   }
 }

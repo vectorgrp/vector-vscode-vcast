@@ -172,7 +172,7 @@ export function getNearest(
   for (lineIndex = 0; lineIndex < currentLine; lineIndex++) {
     const fullLine = getLineText(document, lineIndex);
     if (fullLine.toUpperCase().startsWith(`TEST.${command}:`)) {
-      var pieces = fullLine.split(":");
+      const pieces = fullLine.split(":");
       unitName = pieces[1];
     }
   }
