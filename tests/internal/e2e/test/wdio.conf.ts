@@ -808,9 +808,12 @@ ENVIRO.END
       const isServerRunnable = await checkForServerRunnability(
         clicastExecutablePath.trimEnd()
       );
+
       // Check if VCAST_USE_PYTHON is defined and if the server is runnable
-      const useDataServer =
-        process.env.VCAST_USE_PYTHON && isServerRunnable
+      // If the version is < 24sp4 ... we set the useDataServer false either way.
+      const useDataServer = !isServerRunnable
+        ? `"vectorcastTestExplorer.useDataServer": false`
+        : process.env.VCAST_USE_PYTHON
           ? `"vectorcastTestExplorer.useDataServer": false`
           : `"vectorcastTestExplorer.useDataServer": true`;
 
