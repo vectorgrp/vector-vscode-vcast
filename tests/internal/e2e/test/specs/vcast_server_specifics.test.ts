@@ -103,7 +103,7 @@ describe("vTypeCheck VS Code Extension", () => {
   });
 
   it("should set PATH to 2024sp4", async () => {
-    // Need to skip the checksif we are on 2024sp4 from the beginning (on CI) --> server mode is not activated there
+    // Need to skip the checks if we are on 2024sp4 from the beginning (on CI) --> server mode is not activated there
     if (useDataServer) {
       const outputView = await bottomBar.openOutputView();
       // Check if we are on CI

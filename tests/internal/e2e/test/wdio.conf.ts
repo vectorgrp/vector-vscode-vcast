@@ -986,7 +986,7 @@ ENVIRO.END
         vcastRoot = "/vcast";
       } else {
         // Assuming that locally release is on this path.
-        vcastRoot = path.join(".", process.env.HOME, "vcast");
+        vcastRoot = path.join(process.env.HOME, "vcast");
       }
 
       return vcastRoot;
