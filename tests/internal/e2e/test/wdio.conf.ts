@@ -18,7 +18,7 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs } from "./specs_config";
+import { getSpecs, newestVCRelease } from "./specs_config";
 import { getToolVersion } from "../../../unit/getToolversion";
 
 const noProxyRules = (process.env.no_proxy ?? "")
@@ -324,8 +324,12 @@ export const config: Options.Testrunner = {
     const envActions = new Map([
       ["BUILD_MULTIPLE_ENVS", async () => await setupMultipleEnvironments()],
       [
+        "SWITCH_ENV_AT_THE_END",
+        async () => await buildEnvsWithSpecificReleases(initialWorkdir),
+      ],
+      [
         "IMPORT_CODED_TEST_IN_TST",
-        async () => await setupSingleEnvAndImportCT(initialWorkdir),
+        async () => await buildEnvsWithSpecificReleases(initialWorkdir),
       ],
     ]);
 
@@ -436,15 +440,12 @@ export const config: Options.Testrunner = {
     }
 
     /**
-     * Builds one env with 2024sp3 and switches to vc24 at the end.
-     * TARGET SPEC GROUP: coded_mock_different_env
+     * Builds VectorCAST environments using specific releases, then switches to the latest release.
+     * Tests behavior when environments created with various releases are opened
+     * using the newest release.
+     * TARGET SPEC GROUP: coded_mock_different_env && import_coded_test
      */
-    async function setupSingleEnvAndImportCT(initialWorkdir: string) {
-      // Setup environment with clicast and vpython
-      await checkVPython();
-      clicastExecutablePath = await checkClicast();
-      process.env.CLICAST_PATH = clicastExecutablePath;
-
+    async function buildEnvsWithSpecificReleases(initialWorkdir: string) {
       const workspacePath = path.join(__dirname, "vcastTutorial");
       const testInputVcastTutorial = path.join(
         initialWorkdir,
@@ -453,11 +454,27 @@ export const config: Options.Testrunner = {
         "vcastTutorial"
       );
 
-      const vcastRoot = await getVcastRoot();
-      const newVersion = "2024sp4";
+      let vcastRoot = await getVcastRoot();
+      const coded_mock_different_env_version = "2024sp1";
 
-      // Set up environment directory
-      process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+      // Look up what testing group called this function (coded_mock_different_env or import_coded_test) and
+      // and set the required releases accordingly
+      if (process.env.SWITCH_ENV_AT_THE_END) {
+        process.env.VECTORCAST_DIR = path.join(
+          vcastRoot,
+          coded_mock_different_env_version
+        );
+
+        // Because we remove release from path in the setup --> Add the old version to PATH
+        const currentPath = process.env.PATH || "";
+        const newPath = path.join(process.env.VECTORCAST_DIR || "", "vpython");
+        process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
+        clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
+        process.env.CLICAST_PATH = clicastExecutablePath;
+      } else {
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
+      }
+
       await prepareConfig(initialWorkdir);
 
       // Execute environment configuration and run RGW commands
@@ -531,13 +548,17 @@ TEST.END`;
       await writeFile(testsFile, testsCPP);
       await writeFile(testENVFile, testENVContent);
 
+      const deleteTESTEnv = `cd ${workspacePath} && rm -rf TEST`;
       const setCoded = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
       const setEnviro = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/enviroedg TEST.env`;
       const runTest = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -e TEST test script run template.tst`;
 
+      await executeCommand(deleteTESTEnv);
       await executeCommand(setCoded);
       await executeCommand(setEnviro);
       await executeCommand(runTest);
+
+      process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
     }
 
     /**
@@ -548,7 +569,6 @@ TEST.END`;
       const vcastRoot = await getVcastRoot();
 
       const oldVersion = "2023sp0";
-      const newVersion = "2024sp4";
 
       // Total amount of envs to be build
       const totalEnvCount = 4;
@@ -612,7 +632,7 @@ ENVIRO.END
         let envName: string;
         // Switch VectorCAST version based on iteration (build 1,3 --> release 23, 2,4 --> release 24)
         if (i % 2 === 0) {
-          process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+          process.env.VECTORCAST_DIR = path.join(vcastRoot, newestVCRelease);
           envName = `ENV_24_${i.toString().padStart(2, "0")}`;
           console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
         } else {

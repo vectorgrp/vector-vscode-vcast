@@ -658,11 +658,11 @@ function configureExtension(context: vscode.ExtensionContext) {
   // and since the file on disk has not changed, we would keep the
   // decorations anyway.
   vscode.workspace.onDidSaveTextDocument(
-    (editor) => {
+    async (editor) => {
       // changing the file will invalidate the
       // coverage and editor annotations
       if (editor) {
-        updateCodedTestCases(editor);
+        await updateCodedTestCases(editor);
         updateCOVdecorations();
         updateTestDecorator();
       }

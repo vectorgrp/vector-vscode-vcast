@@ -124,7 +124,10 @@ export async function getChoiceDataFromServer(
     return transmitResponse.returnData.data;
   } else {
     console.log(transmitResponse.statusText);
-    return emptyChoiceData;
+    let returnData = emptyChoiceData;
+    returnData.messages.push(transmitResponse.statusText);
+    returnData.extraText = "server-error";
+    return returnData;
   }
 }
 

@@ -149,6 +149,7 @@ describe("vTypeCheck VS Code Extension", () => {
   });
 
   it("should correctly generate BASIS PATH tests by clicking on flask+ icon", async () => {
+    const outputView = await bottomBar.openOutputView();
     await updateTestID();
     console.log(
       "Generating all BASIS PATH tests for function DataBase::GetTableRecord using Flask icon"
@@ -157,6 +158,13 @@ describe("vTypeCheck VS Code Extension", () => {
       10,
       testGenMethod.BasisPath,
       "database.cpp"
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Script loaded successfully"),
+      { timeout: TIMEOUT }
     );
     await validateGeneratedTest(
       testGenMethod.BasisPath,
@@ -183,11 +191,23 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should correctly generate ATG tests by clicking on flask+ icon", async () => {
     await updateTestID();
+    const outputView = await bottomBar.openOutputView();
+
+    // Clean the output so that we can wait again for the Script loaded successfully message
+    await outputView.clearText();
+
     if (process.env.ENABLE_ATG_FEATURE === "TRUE") {
       console.log(
         "Generating all ATG tests for function DataBase::GetTableRecord using Flask icon"
       );
       await generateFlaskIconTestsFor(10, testGenMethod.ATG, "database.cpp");
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Script loaded successfully"),
+        { timeout: TIMEOUT }
+      );
       await validateGeneratedTest(
         testGenMethod.ATG,
         "cpp/unitTests/DATABASE-MANAGER",

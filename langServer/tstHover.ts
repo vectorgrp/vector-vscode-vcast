@@ -33,7 +33,7 @@ export async function getHoverString(
 
       // generate a list of pieces ...
       // this regex creates a set of delimiters that are either . or : but NOT ::
-      let pieces = fullLine.split(/(?<!:)[:\.](?!:)/);
+      let pieces = fullLine.split(/(?<!:)[:.](?!:)/);
 
       const upperCaseLine: string = fullLine.toUpperCase();
 
@@ -82,8 +82,8 @@ export async function getHoverString(
             lineSoFar
           );
           const valueList = choiceData.choiceList;
-          for (var index = 0; index < valueList.length; index++) {
-            const valuePieces = valueList[index].split("@");
+          for (const valueItem of valueList) {
+            const valuePieces = valueItem.split("@");
             if (valuePieces[0] == fieldObject.text) {
               hoverString = valuePieces[1];
               break;

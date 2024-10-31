@@ -54,7 +54,7 @@ export function validateTextDocument(textDocument: TextDocument) {
     let thisLine: string = lineList[lineIndex];
 
     if (thisLine.startsWith("TEST")) {
-      const pieces = thisLine.split(/(?<!:)[:\.](?!:)/);
+      const pieces = thisLine.split(/(?<!:)[:.](?!:)/);
       let command = "";
       if (pieces.length > 1) command = pieces[1].trim();
 
@@ -126,6 +126,8 @@ export function validateTextDocument(textDocument: TextDocument) {
         ) {
           // TBD: we should validate in python
         } else if (command == "NAME") {
+          // nothing to be done for TEST.NAME
+          // including this for completeness
         } else if (command == "NOTES") {
           withinNotes = true;
         } else if (command == "FLOW") {
