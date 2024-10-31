@@ -131,8 +131,10 @@ export async function checkForServerRunnability(
       .trim();
     const [majorVersionStr, spPart] = toolVersion.split(".sp");
 
+    // The version number
     const majorVersion = Number(majorVersionStr);
-    const spVersion = Number(spPart);
+    // Split away the date (4 (23/10/24) --> 4)
+    const spVersion = Number(spPart.split(" ")[0]);
 
     // Check if major version and sp version meet the criteria
     if (majorVersion < 24 || (majorVersion === 24 && spVersion < 5)) {
