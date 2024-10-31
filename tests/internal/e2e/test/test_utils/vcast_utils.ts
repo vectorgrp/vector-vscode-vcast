@@ -17,8 +17,6 @@ import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
-import http from "http";
-import { workspace } from "vscode";
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 180_000;
 
