@@ -10,6 +10,9 @@ on:
       - main
   release:
   workflow_dispatch:
+  concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
 jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
