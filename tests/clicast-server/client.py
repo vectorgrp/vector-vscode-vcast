@@ -184,9 +184,7 @@ def transmitTestCommand(requestObject):
 
     # TBD: is this the right way to do this, or can I send a class directly?
     # request is a class, so we convert it to a dictionary, then a string
-    returnData = requests.post(
-        f"{serverURL()}/runcommand", json=requestObject.toDict()
-    )
+    returnData = requests.post(f"{serverURL()}/runcommand", json=requestObject.toDict())
     return returnData.json()
 
 
