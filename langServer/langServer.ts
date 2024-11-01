@@ -12,12 +12,12 @@ import {
 import { Hover } from "vscode-languageserver-types";
 
 import { enviroDataType } from "../src-common/commonUtilities";
-import { setServerState } from "../src-common/vcastServer";
+import { setGLobalServerState, setServerPort } from "../src-common/vcastServer";
 
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 
 import {
-  generateDiagnositicForTest,
+  generateDiagnosticForTest,
   initializePaths,
   updateVPythonCommand,
 } from "./pythonUtilities";
@@ -120,10 +120,17 @@ connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
   );
 });
 
-connection.onNotification("vcasttesteditor/updateServerState", (data) => {
-  setServerState(data.useServer);
+connection.onNotification("vcasttesteditor/updateServerPort", (data) => {
+  setServerPort(data.portNumber);
   connection.console.log(
-    "Notification received: use environment data server: " + data.useServer
+    "Notification received: vectorcast data server port: " + data.portNumber
+  );
+});
+
+connection.onNotification("vcasttesteditor/updateServerState", (data) => {
+  setGLobalServerState(data.useServer);
+  connection.console.log(
+    "Notification received: use vectorcast data server: " + data.useServer
   );
 });
 
@@ -166,16 +173,20 @@ async function performCompletionProcessing(
       currentDocument,
       completionData
     );
-    if (returnData.extraText == "MigrationError") {
-      // If we get a migration error, we need to send a message to the client
-      // The error will be the 2nd element in the returnData.messages
-      generateDiagnositicForTest(
+    if (
+      returnData.extraText == "migration-error" ||
+      returnData.extraText == "server-error"
+    ) {
+      // If we get a migration or server error, we let the user
+      // know by generating a diagnostic message in the editor
+      generateDiagnosticForTest(
         connection,
-        returnData.messages[1],
+        returnData.messages[0],
         completionData.textDocument.uri,
         completionData.position.line
       );
     }
+
     return buildCompletionList(
       returnData.choiceList,
       convertKind(returnData.choiceKind)
@@ -217,7 +228,7 @@ async function performCompletionProcessing(
           } else {
             // else the environment does not support mocks
             // help out with a diagnostic message in the editor
-            generateDiagnositicForTest(
+            generateDiagnosticForTest(
               connection,
               "This environment does not support mocks, no auto-completion is available.\nRebuild the environment to use mocks    ",
               completionData.textDocument.uri,
@@ -228,7 +239,7 @@ async function performCompletionProcessing(
         } else {
           // else the VectorCAST version does not support mocks
           // help out with a diagnostic message in the editor
-          generateDiagnositicForTest(
+          generateDiagnosticForTest(
             connection,
             "This currently configured version of VectorCAST does not support mocks.\nUpdate to version 24-SP4 or later to use mocks",
             completionData.textDocument.uri,
@@ -276,7 +287,7 @@ connection.onHover(
         textDocumentManager,
         completionData
       );
-      var hover: Hover = { contents: hoverString };
+      const hover: Hover = { contents: hoverString };
       return hover;
     } else {
       return undefined;

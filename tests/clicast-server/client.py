@@ -206,7 +206,7 @@ def pingServerTest():
         assert False
     if "text" in returnData:
         responseText = returnData["text"]
-        assert responseText.startswith("clicast-path")
+        assert responseText.startswith("alive")
         print("   pingServer Test Passed")
     else:
         print(f"-- Server at {serverURL()} did not respond to ping")
@@ -467,7 +467,7 @@ def rebuildTest(clicastPath, enviroPath):
     print("   Environment Rebuild Test Passed")
 
 
-def shutdownServer():
+def sendShutdownToServer():
     try:
         # this will throw because the server process will exit
         requests.get(f"{serverURL()}/shutdown")
@@ -675,9 +675,7 @@ def setupArgs():
 
     parser = argparse.ArgumentParser(description="VectorCAST Data Server Test Client")
     parser.add_argument("--test", required=True)
-    parser.add_argument(
-        "--port", help=f"Server port number (default={vcastDataServerTypes.PORT})"
-    )
+    parser.add_argument("--port", required=True, help="Server port number")
     parser.add_argument(
         "--nobuild", help=f"Do not build the environment", action="store_true"
     )
@@ -731,29 +729,25 @@ def initializeEnvironment(clicastPath):
     print("  Environment created successfully ...\n\n")
 
 
-def main():
-    """
-    The common way to run the test is with
-        vpython client.py --test=full
+def manualTest():
 
-    To run timing and scalability tests, use:
-        vpython client.py --test=timing
-    """
+    # Replace with with a copy paste from the command being run in the extension
+    commandToRun = '{"command":"runClicastCommand","path":"c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE","options":"-eQUOTES_EXAMPLE -uquotes_example -s\\"Moo::honk(int,int,int)\\" -tBASIS-PATH-001 test script create c:/RDS/VectorCAST/SERVER/e2e/unitTests/QUOTES_EXAMPLE.tst"}'
+
+    print("Starting Manual Test ...")
+    print(f"  running command: '{commandToRun[:80]}' ...")
+    returnData = requests.get(
+        f"{serverURL()}/runcommand", params={"request": commandToRun}
+    )
+    whatToPrint = json.dumps(returnData.json(), indent=4)
+    print(f"  response: {whatToPrint}")
+
+
+def enviroBasedTests(args):
+
     global ENVIRO_PATH
     global SCALABILITY_PATH
 
-    # If no arg is provided, the full tests will be run
-    argParser = setupArgs()
-    args, restOfArgs = argParser.parse_known_args()
-
-    # process port arg if it exists
-    # Note that PORT gets used by function serverURL()
-    vcastDataServerTypes.processPortArg(args)
-
-    # first we run the ping test, because if this fails ... what's the point
-    pingServerTest()
-
-    # Build the VectorCAST environment
     clicastPath = f'{os.path.join (VECTORCAST_DIR, "clicast")}'
     ENVIRO_PATH = os.path.join(os.getcwd(), "SingleEnvironment")
     SCALABILITY_PATH = os.path.join(os.getcwd(), "MultipleEnvironments")
@@ -775,7 +769,7 @@ def main():
     testString = "DEMO1|manager.Manager::PlaceOrder.Test1"
 
     if args.test == "shutdown":
-        shutdownServer()
+        sendShutdownToServer()
     elif args.test == "timing":
         timingTest(clicastPath, enviroPath)
         scalabilityTest(clicastPath)
@@ -799,6 +793,32 @@ def main():
         fullTest(enviroPath, clicastPath, testString)
     else:
         print("Unknown test kind")
+
+
+def main():
+    """
+    The common way to run the test is with
+        vpython client.py --test=full
+
+    To run timing and scalability tests, use:
+        vpython client.py --test=timing
+    """
+
+    # If no arg is provided, the full tests will be run
+    argParser = setupArgs()
+    args, restOfArgs = argParser.parse_known_args()
+
+    # process port arg
+    # Note that PORT gets used by function serverURL()
+    vcastDataServerTypes.processPortArg(args)
+
+    # first we run the ping test, because if this fails ... what's the point
+    pingServerTest()
+
+    if args.test == "manual":
+        manualTest()
+    else:
+        enviroBasedTests(args)
 
 
 if __name__ == "__main__":

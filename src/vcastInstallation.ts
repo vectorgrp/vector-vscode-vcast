@@ -12,7 +12,7 @@ import {
   showSettings,
 } from "./utilities";
 
-import { determineServerState, vcastLicenseOK } from "./vcastAdapter";
+import { vcastLicenseOK } from "./vcastAdapter";
 
 import { executeCommandSync, executeVPythonScript } from "./vcastCommandRunner";
 
@@ -43,17 +43,28 @@ if (process.platform == "linux") {
 }
 
 export let globalTestInterfacePath: string | undefined = undefined;
+let globalEnviroDataServerPath: string;
+
+export function getGlobalEnviroDataServerPath() {
+  return globalEnviroDataServerPath;
+}
+
 let globalCrc32Path: string | undefined = undefined;
 
 export let globalPathToSupportFiles: string;
-
-let globalCodedTestingAvailable: boolean = false;
 
 export let globalIncludePath: string | undefined = undefined;
 
 const atgName = "atg";
 export let atgCommandToUse: string | undefined = undefined;
 export let atgAvailable: boolean = false;
+
+// this is set to true if the clicast version supports server mode
+let enviroDataServerAvailable: boolean = false;
+
+export function isEnviroDataServerAvailable() {
+  return enviroDataServerAvailable;
+}
 
 export const configurationFile = "c_cpp_properties.json";
 export const launchFile = "launch.json";
@@ -67,6 +78,14 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
   if (fs.existsSync(pathToTestInterface)) {
     vectorMessage("Found vTestInterface here: " + pathToTestInterface);
     globalTestInterfacePath = `${pathToTestInterface}`;
+  }
+
+  const pathToEnviroDataServer = context.asAbsolutePath(
+    "./python/vcastDataServer.py"
+  );
+  if (fs.existsSync(pathToEnviroDataServer)) {
+    vectorMessage("Found vcastDataServer here: " + pathToEnviroDataServer);
+    globalEnviroDataServerPath = `${pathToEnviroDataServer}`;
   }
 
   const crc32Path = context.asAbsolutePath("./python/crc32.py");
@@ -147,6 +166,17 @@ function vcastVersionGreaterThan(versionToCheck: toolVersionType): boolean {
       vcastInstallationVersion.servicePack >= versionToCheck.servicePack);
 
   return returnValue;
+}
+
+function initializeServerMode(vcastInstallationPath: string) {
+  // The clicast server mode is only available in vc24sp2 and later
+  enviroDataServerAvailable = vcastVersionGreaterThan({
+    version: 24,
+    servicePack: 5,
+  });
+  if (enviroDataServerAvailable) {
+    vectorMessage(`   clicast server is available in this release`);
+  }
 }
 
 function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
@@ -240,8 +270,10 @@ function findVcastTools(): boolean {
       );
     } else {
       vectorMessage(
-        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
+        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}`
+      );
+      vectorMessage(
+        "   use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
@@ -258,8 +290,10 @@ function findVcastTools(): boolean {
       );
     } else {
       vectorMessage(
-        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
+        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}`
+      );
+      vectorMessage(
+        "   use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
@@ -274,8 +308,10 @@ function findVcastTools(): boolean {
     );
   } else {
     vectorMessage(
-      `   command: '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set, ` +
-        "use the extension options to provide a valid VectorCAST Installation Location."
+      `   '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set`
+    );
+    vectorMessage(
+      "   use the extension options to provide a valid VectorCAST Installation Location."
     );
     showSettings();
   }
@@ -290,9 +326,6 @@ function findVcastTools(): boolean {
     if (toolVersion.version >= 21) {
       // do all of the setup required to use clicast
       foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
-
-      // setup coded-test stuff (new for vc24)
-      initializeCodedTestSupport(vcastInstallationPath);
 
       // check if we have access to a valid crc32 command - this is not fatal
       // must be called after initializeInstallerFiles()
@@ -345,20 +378,11 @@ export async function checkIfInstallationIsOK() {
 
   vectorMessage("-".repeat(100) + "\n");
 
-  if (installationIsOK) {
-    // now check if a server is running and if its compatible with the installation
-    // TBD the server is not yet ready for prime time
-    const VCAST_USE_SERVER = process.env["VCAST_USE_SERVER"];
-    if (VCAST_USE_SERVER) {
-      vectorMessage(
-        "Checking if a VectorCAST Environment Data Server is available ... "
-      );
-      await determineServerState();
-    }
-  } else {
+  if (!installationIsOK) {
     vectorMessage(
       "Please refer to the installation and configuration instructions for details on resolving these issues"
     );
+    enviroDataServerAvailable = false;
     openMessagePane();
   }
   return installationIsOK;
@@ -388,9 +412,16 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
       // we only set toolsFound if we find clicast AND vcastqt
       toolsFound = true;
 
-      // atg existing or being licensed does NOT affect toolsFound
+      // check if atg is available and licensed
       checkForATG(vcastInstallationPath);
 
+      // check if coded tests are available ...
+      initializeCodedTestSupport(vcastInstallationPath);
+
+      // check if the server mode is available ...
+      initializeServerMode(vcastInstallationPath);
+
+      // check if coded mocks are available ...
       // vMock available affects how we do completions in the language server
       // and allows us to issue nice error messages when the user tries to use vMock
       const vMockAvailable = vectorCASTSupportsVMock(vcastInstallationPath);
@@ -398,6 +429,7 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
         vectorMessage(`   vMock is available in this release`);
       }
       updateVMockStatus(vMockAvailable);
+      //
     } else {
       vectorMessage(
         `   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`
@@ -542,9 +574,10 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
   // swap backslashes to make paths consistent for windows users and
   globalIncludePath = candidatePath.replace(/\\/g, "/");
 
+  let codedTestingAvailable: boolean = false;
   if (fs.existsSync(candidatePath)) {
     vectorMessage(`   found coded-test support, initializing ...`);
-    globalCodedTestingAvailable = true;
+    codedTestingAvailable = true;
     if (!includePathExistsInWorkspace()) {
       vscode.window.showInformationMessage(
         "The include path for VectorCAST Coded Testing was not found in your workspace, you should add the " +
@@ -552,13 +585,11 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
           "and choosing 'VectorCAST: Add Coded Test Include Path`  "
       );
     }
-  } else {
-    globalCodedTestingAvailable = false;
   }
-  // this controls the availability of the Add Coded Test Include Path context menu item
+
   vscode.commands.executeCommand(
     "setContext",
     "vectorcastTestExplorer.codedTestingAvailable",
-    globalCodedTestingAvailable
+    codedTestingAvailable
   );
 }
