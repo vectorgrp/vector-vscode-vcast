@@ -427,7 +427,7 @@ def executeVCtest(enviroPath, testIDObject):
                 returnText += "STATUS:passed\n"
             else:
                 returnText += "STATUS:failed\n"
-            returnText += f"REPORT:{testIDObject.reportName}.txt\n"
+            returnText += f"REPORT:{testIDObject.reportName}\n"
 
             # Retrieve the expected value x/y and the test time
             # we don't need to catch dataAPI errors here because
@@ -477,7 +477,7 @@ def getResults(enviroPath, testIDObject):
             enviroPath, testIDObject
         )
 
-        returnText = f"REPORT:{testIDObject.reportName}.txt\n"
+        returnText = f"REPORT:{testIDObject.reportName}\n"
         returnText += commandOutput
         return returnText
 
@@ -519,7 +519,7 @@ class testID:
         # because we use the parameterized name ... so create a hash
         temp = ".".join([self.unitName, self.functionName, self.testName])
         hashString = hashlib.md5(temp.encode("utf-8")).hexdigest()
-        self.reportName = os.path.join(enviroPath, hashString)
+        self.reportName = os.path.join(enviroPath, hashString) + ".html"
 
 
 def validateClicastCommand(command, mode):
@@ -650,7 +650,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         try:
             testIDObject = testID(pathToUse, testString)
             # remove any left over report file ...
-            textReportPath = testIDObject.reportName + ".txt"
+            textReportPath = testIDObject.reportName
             if os.path.isfile(textReportPath):
                 os.remove(textReportPath)
         except:

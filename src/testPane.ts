@@ -962,6 +962,10 @@ export async function runNode(
   const enviroPath = getEnviroPathFromID(node.id);
   return await runVCTest(enviroPath, node.id).then(async (executionResult) => {
     const status = executionResult.status;
+
+    // We show stdout from execution in the "Test Results" pane
+    run.appendOutput(executionResult.details.stdOut);
+
     if (status == testStatus.didNotRun) {
       run.skipped(node);
     } else if (status == testStatus.compileError) {
@@ -978,7 +982,7 @@ export async function runNode(
       if (status == testStatus.passed) {
         run.passed(node);
       } else if (status == testStatus.failed) {
-        const currentTestData = globalTestStatusArray[node.id];
+        const currentTestData = executionResult.details;
 
         // convert the pass fail string from the current test data into a message
         // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
@@ -994,8 +998,8 @@ export async function runNode(
             .split(")")[0]
             .trim();
           failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
-        } catch {
-          failMessageText = "No expected results exist";
+        } catch (err: any) {
+          failMessageText = "Unexpected error processing expected results";
         }
         const failMessage = new TestMessage(failMessageText);
         run.failed(node, failMessage);

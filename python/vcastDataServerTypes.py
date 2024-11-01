@@ -2,8 +2,11 @@ from collections import OrderedDict
 from enum import Enum
 
 
-HOST = "localhost"  # The server's hostname or IP address
-PORT = 60461  # The port used by the server anything > 1023 is OK
+HOST = "localhost"
+# The port will be automatically chosen by the server on
+# startup and stored here, as well as echo'd to stdout
+# The test client will set this via the --port arg
+PORT = 0
 
 
 class errorCodes(str, Enum):
@@ -103,4 +106,4 @@ def processPortArg(args):
         if providedPORT.isdigit():
             PORT = int(providedPORT)
         else:
-            print(f"Provided --port value: '{providedPORT}' is not a number, ignoring")
+            print(f"Provided --port value: '{providedPORT}' is not a number")

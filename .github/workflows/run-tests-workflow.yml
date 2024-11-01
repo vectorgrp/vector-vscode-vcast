@@ -15,14 +15,18 @@ jobs:
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast]
+    env:
+      ENABLE_ATG_FEATURE: TRUE
+      LM_LICENSE_FILE: /vcast/vector-license.lic
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
-      options: --user vcast_user
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     strategy:
       matrix:
-        vcast: [ 23, 24 ]
+        vcast: ${{ fromJSON(vars.VCAST_VERSIONS) }}
 
     steps:
       - name: Check out repository
@@ -66,15 +70,24 @@ jobs:
       - name: Package with VSCE
         run: npm run package
 
-      - name: Run unit tests
+      - name: Vcast activation
         run: |
-          if [[ ${{ matrix.vcast }} == '24' ]]; then
-            echo 'Activating Vcast 24'
-            export VECTORCAST_DIR=/vcast/release24
-            export PATH=/vcast/release24:$PATH
-            export ENABLE_ATG_FEATURE=TRUE
+          RELEASE_DIR=/vcast/${{ matrix.vcast }}
+          if [ ! -d "$RELEASE_DIR" ]; then
+            echo "Error: $RELEASE_DIR does not exist."
+            exit 1
           fi
-          npm run gh-test | tee output.txt
+          echo 'Activating Vcast ${{ matrix.vcast }}'
+          echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
+          echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Clicast server tests
+        run: ./tests/clicast-server/run_clicast_server_tests.sh
+        shell: bash
+
+      - name: Run unit tests
+        run: npm run gh-test | tee output.txt
         shell: bash
 
       - name: Publish Unit Test Results
@@ -88,7 +101,7 @@ jobs:
             ./test-output.xml
 
       - name: Show coverage summary
-        if: ${{ always() && matrix.vcast == '24' }}
+        if: ${{ always() && strategy.job-index == '0' }}
         run: |
           echo "### Coverage summary - Unit tests" >> $GITHUB_STEP_SUMMARY
           {
@@ -98,7 +111,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage artifacts
-        if: ${{ always() && matrix.vcast == '24' }}
+        if: ${{ always() && strategy.job-index == '0' }}
         run: |
           curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
           chmod +x codecov
@@ -116,21 +129,21 @@ jobs:
 
       - name: Upload vectorcasttestexplorer artifact
         uses: actions/upload-artifact@v4
-        if: ${{ always() && matrix.vcast == '24' }}
+        if: ${{ always() && strategy.job-index == '0' }}
         with:
           name: vectorcasttestexplorer
           path: ${{ env.VSIX_FILE }}
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
-        if: ${{ always() && matrix.vcast == '24' }}
+        if: ${{ always() && strategy.job-index == '0' }}
         with:
           name: coverage
           path: ./coverage
 
       # Upload release asset
       - name: Upload release asset
-        if: ${{ github.event_name == 'release' && matrix.vcast == '24' }}
+        if: ${{ github.event_name == 'release' && strategy.job-index == '0' }}
         run: |
           url="${{ github.event.release.upload_url }}" && \
           export upload_url=${url%%\{*}?name=vectorcasttestexplorer-${{ github.event.release.tag_name }}.vsix && \
@@ -149,7 +162,7 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
       options: --user vcast_user
 
     outputs:
@@ -175,6 +188,8 @@ jobs:
 
       - name: Set jobs matrix
         id: set-matrix
+        env:
+          VCAST_VERSIONS: ${{ vars.VCAST_VERSIONS }}
         run: |
           cd tests/internal/e2e/test
           npx tsx get_gha_matrix.ts
@@ -187,8 +202,8 @@ jobs:
     runs-on: [self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
-      options: --user vcast_user
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     strategy:
       matrix:
@@ -198,9 +213,11 @@ jobs:
       BRANCH_REF: ${{ github.ref }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_SHA: ${{ github.sha }}
-      USE_VCAST_24: ${{ matrix.version == 24 && 'True' || 'False' }}
       RUN_BY_GROUP: "True"
       RUN_GROUP_NAME: ${{ matrix.group }}
+      ENABLE_ATG_FEATURE: TRUE
+      LM_LICENSE_FILE: /vcast/vector-license.lic
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
 
     steps:
       - name: Check out repository
@@ -259,6 +276,20 @@ jobs:
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
+      - name: Vcast activation
+        run: |
+          RELEASE_DIR=/vcast/${{ matrix.version }}
+          if [ ! -d "$RELEASE_DIR" ]; then
+            echo "Error: $RELEASE_DIR does not exist."
+            exit 1
+          fi
+          echo 'Activating Vcast ${{ matrix.version }}'
+          echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
+          echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
+          USE_VCAST_24=$(if [[ $(cat $RELEASE_DIR/DATA/tool_version.txt) == 24* ]]; then echo "True"; else echo "False"; fi)
+          echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
+        shell: bash
+
       - name: Run tests
         run: |
           ./tests/internal/e2e/run_e2e_tests.sh
@@ -315,7 +346,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
       options: --user vcast_user
 
     steps:
@@ -366,7 +397,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
       options: --user vcast_user
 
     steps:
@@ -418,7 +449,7 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
       options: --user vcast_user
 
     steps:

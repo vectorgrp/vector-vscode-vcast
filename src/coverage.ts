@@ -71,7 +71,7 @@ function addDecorations(
 
 // Global Data for code coverage ////////////////////////////////////
 let coverageOn: boolean = false;
-let globalStatusBarObject: vscode.StatusBarItem;
+let coverageStatusBarObject: vscode.StatusBarItem;
 /////////////////////////////////////////////////////////////////////
 
 function resetGlobalDecorations() {
@@ -131,20 +131,20 @@ export function updateCOVdecorations() {
         percentage = Math.round((covered / coverable) * 100);
       }
       const statusBarText = `Coverage: ${covered}/${coverable} (${percentage}%)`;
-      globalStatusBarObject.text = statusBarText;
-      globalStatusBarObject.show();
+      coverageStatusBarObject.text = statusBarText;
+      coverageStatusBarObject.show();
     } else if (coverageData.statusString.length > 0) {
       // this handles the case where coverage is out of date (for example)
-      globalStatusBarObject.text = coverageData.statusString;
-      globalStatusBarObject.show();
+      coverageStatusBarObject.text = coverageData.statusString;
+      coverageStatusBarObject.show();
       resetGlobalDecorations();
     } else {
       // we get here for C/C++ files that are not part of an environment
-      globalStatusBarObject.hide();
+      coverageStatusBarObject.hide();
     }
   } else {
     // we get here for non-C/C++ files
-    globalStatusBarObject.hide();
+    coverageStatusBarObject.hide();
   }
 }
 
@@ -152,19 +152,19 @@ function deactivateCoverage() {
   // delete all decorations
   if (uncoveredDecorationType) uncoveredDecorationType.dispose();
   if (coveredDecorationType) coveredDecorationType.dispose();
-  globalStatusBarObject.hide();
+  coverageStatusBarObject.hide();
 }
 
 export function hideStatusBarCoverage() {
-  globalStatusBarObject.hide();
+  coverageStatusBarObject.hide();
 }
 
 export function createCoverageStatusBar() {
-  globalStatusBarObject = vscode.window.createStatusBarItem(
+  coverageStatusBarObject = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     10
   );
-  return globalStatusBarObject;
+  return coverageStatusBarObject;
 }
 
 export function toggleCoverageAction() {
