@@ -184,9 +184,8 @@ def transmitTestCommand(requestObject):
 
     # TBD: is this the right way to do this, or can I send a class directly?
     # request is a class, so we convert it to a dictionary, then a string
-    dataAsString = json.dumps(requestObject.toDict())
-    returnData = requests.get(
-        f"{serverURL()}/runcommand", params={"request": dataAsString}
+    returnData = requests.post(
+        f"{serverURL()}/runcommand", json=requestObject.toDict()
     )
     return returnData.json()
 
@@ -199,7 +198,7 @@ def pingServerTest():
     print("Starting pingServer Test")
 
     try:
-        returnData = requests.get(f"{serverURL()}/ping")
+        returnData = requests.post(f"{serverURL()}/ping")
         returnData = returnData.json()
     except Exception as error:
         print(f"-- Could not connect to server at {serverURL()}")
@@ -470,7 +469,7 @@ def rebuildTest(clicastPath, enviroPath):
 def sendShutdownToServer():
     try:
         # this will throw because the server process will exit
-        requests.get(f"{serverURL()}/shutdown")
+        requests.post(f"{serverURL()}/shutdown")
     except Exception as error:
         pass
     print("Server has been shutdown")
@@ -531,8 +530,8 @@ def getEnviroDataMultipleTimesUsingTheServer(clicastPath, enviroPath):
         )
         # request is a class, so we convert it to a dictionary, then a string
         dataAsString = json.dumps(request.toDict())
-        response = requests.get(
-            f"{serverURL()}/runcommand", params={"request": dataAsString}
+        response = requests.post(
+            f"{serverURL()}/runcommand", json={"request": dataAsString}
         )
         jsonData = response.json()["data"]
         assert alreadyChecked or len(jsonData["unitData"]) > 0
@@ -633,8 +632,8 @@ def errorTests(enviroPath, clicastPath):
 
     # send an invalid request string to the server
     print("  Sending invalid request string to server")
-    returnData = requests.get(
-        f"{serverURL()}/runcommand", params={"request": "nonsense"}
+    returnData = requests.post(
+        f"{serverURL()}/runcommand", json={"request": "nonsense"}
     )
     returnData = returnData.json()
     exitCode = returnData["exitCode"]
@@ -736,8 +735,8 @@ def manualTest():
 
     print("Starting Manual Test ...")
     print(f"  running command: '{commandToRun[:80]}' ...")
-    returnData = requests.get(
-        f"{serverURL()}/runcommand", params={"request": commandToRun}
+    returnData = requests.post(
+        f"{serverURL()}/runcommand", json={"request": commandToRun}
     )
     whatToPrint = json.dumps(returnData.json(), indent=4)
     print(f"  response: {whatToPrint}")
