@@ -350,23 +350,6 @@ def executeTest(enviroPath, testIDObject):
     return executeReturnCode, stdoutText
 
 
-def generateExecutionReport(enviroPath, testIDObject):
-
-    standardArgs = getStandardArgsFromTestObject(testIDObject, False)
-    # We build a clicast command script to generate the execution report
-    # since we need multiple commands
-    with open(commandFileName, "w") as commandFile:
-        # we force report mode to HTML just to be safe
-        commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
-        commandFile.write(
-            standardArgs + " report custom actual " + testIDObject.reportName
-        )
-
-    # we ignore the exit code and return the stdout
-    exitCode, stdOutput = runClicastScript(enviroPath, commandFileName)
-    return stdOutput
-
-
 def generate_report(enviroPath, testObject):
     """
     Generates the our custom report for the test case execution data
@@ -414,7 +397,7 @@ def generate_report(enviroPath, testObject):
                     api.report(
                         report_type="per_test_case_report",
                         formats=["HTML"],
-                        output_file=f"{testObject.reportName}.html",
+                        output_file=testObject.reportName,
                         customization_dir=str(custom_dir),
                         testcases=[test],
                     )
