@@ -380,28 +380,31 @@ def generate_report(enviroPath, testObject):
         function_found = False
         test_found = False
 
-        for unit in api.Unit.filter(name=testObject.unitName):
-            unit_found = True
+        for test_case in api.TestCase.all():
+            # Find the correct unit. "Not-used" is a special case for <<COMPOUND>> or <<INIT>> tests
+            if (
+                test_case.unit_display_name == testObject.unitName
+                or testObject.unitName == "not-used"
+            ):
+                unit_found = True
 
-            for function in unit.functions:
-                if function.name != testObject.functionName:
-                    continue
-                function_found = True
+                # Subprogram
+                if test_case.function_display_name == testObject.functionName:
+                    function_found = True
 
-                for test in function.testcases:
-                    if test.name != testObject.testName:
-                        continue
-                    test_found = True
+                    # Test name
+                    if test_case.name == testObject.testName:
+                        test_found = True
 
-                    # Generate our report
-                    api.report(
-                        report_type="per_test_case_report",
-                        formats=["HTML"],
-                        output_file=testObject.reportName,
-                        customization_dir=str(custom_dir),
-                        testcases=[test],
-                    )
-                    break
+                        # Generate our report
+                        api.report(
+                            report_type="per_test_case_report",
+                            formats=["HTML"],
+                            output_file=testObject.reportName,
+                            customization_dir=str(custom_dir),
+                            testcases=[test_case],
+                        )
+                        break
 
         # If we don't find our unit, report an error
         if not unit_found:
