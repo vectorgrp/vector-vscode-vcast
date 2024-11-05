@@ -373,6 +373,8 @@ def generate_report(enviroPath, testObject):
 
     runClicastScript(enviroPath, commandFileName)
 
+    test_found = False
+
     # Open-up the unit test API
     with UnitTestApi(testObject.enviroName) as api:
         for test_case in api.TestCase.all():
@@ -385,6 +387,7 @@ def generate_report(enviroPath, testObject):
                 and test_case.function_display_name == testObject.functionName
                 and test_case.name == testObject.testName
             ):
+                test_found = True
                 # Generate our report
                 api.report(
                     report_type="per_test_case_report",
@@ -396,6 +399,7 @@ def generate_report(enviroPath, testObject):
                 break
 
     # If we don't find our test, report an error
-    raise RuntimeError(
-        f"Could not find test case with Unit: {testObject.unitName}, Function: {testObject.functionName}, Test: {testObject.testName}"
-    )
+    if not test_found
+        raise RuntimeError(
+            f"Could not find test case with Unit: {testObject.unitName}, Function: {testObject.functionName}, Test: {testObject.testName}"
+        )
