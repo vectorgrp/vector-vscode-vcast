@@ -398,8 +398,8 @@ def generate_report(enviroPath, testObject):
                 )
                 break
 
-    # If we don't find our test, report an error
-    if not test_found
+    # Report an error if our test case is not found
+    if not test_found:
         raise RuntimeError(
             f"Could not find test case with Unit: {testObject.unitName}, Function: {testObject.functionName}, Test: {testObject.testName}"
         )
