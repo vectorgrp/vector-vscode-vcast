@@ -375,51 +375,27 @@ def generate_report(enviroPath, testObject):
 
     # Open-up the unit test API
     with UnitTestApi(testObject.enviroName) as api:
-        # Find and check for our unit
-        unit_found = False
-        function_found = False
-        test_found = False
-
         for test_case in api.TestCase.all():
-            # Find the correct unit. "Not-used" is a special case for <<COMPOUND>> or <<INIT>> tests
+            # Combined condition to find the correct test case
             if (
-                test_case.unit_display_name == testObject.unitName
-                or testObject.unitName == "not-used"
+                (
+                    test_case.unit_display_name == testObject.unitName
+                    or testObject.unitName == "not-used"
+                )
+                and test_case.function_display_name == testObject.functionName
+                and test_case.name == testObject.testName
             ):
-                unit_found = True
+                # Generate our report
+                api.report(
+                    report_type="per_test_case_report",
+                    formats=["HTML"],
+                    output_file=testObject.reportName,
+                    customization_dir=str(custom_dir),
+                    testcases=[test_case],
+                )
+                break
 
-                # Subprogram
-                if test_case.function_display_name == testObject.functionName:
-                    function_found = True
-
-                    # Test name
-                    if test_case.name == testObject.testName:
-                        test_found = True
-
-                        # Generate our report
-                        api.report(
-                            report_type="per_test_case_report",
-                            formats=["HTML"],
-                            output_file=testObject.reportName,
-                            customization_dir=str(custom_dir),
-                            testcases=[test_case],
-                        )
-                        break
-
-        # If we don't find our unit, report an error
-        if not unit_found:
-            raise RuntimeError(
-                f"Could not find unit {testObject.unitName} (units should not have extensions)"
-            )
-
-        # If we don't find our function, report an error
-        if not function_found:
-            raise RuntimeError(
-                f"Could not find function {testObject.functionName} in unit {testObject.unitName}"
-            )
-
-        # If we don't find our test, report an error
-        if not test_found:
-            raise RuntimeError(
-                f"Could not find test {testObject.testName} in function {testObject.functionName} (in unit {testObject.unitName})"
-            )
+    # If we don't find our test, report an error
+    raise RuntimeError(
+        f"Could not find test case with Unit: {testObject.unitName}, Function: {testObject.functionName}, Test: {testObject.testName}"
+    )
