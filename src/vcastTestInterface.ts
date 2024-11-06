@@ -367,7 +367,6 @@ export async function getResultFileForTest(testID: string) {
       // Delete the REPORT substring and change the .txt to .html because
       // generate_report only generates one html file and we do not have a .txt
       resultFile = firstLineOfOutput.replace("REPORT:", "");
-      resultFile = resultFile.replace(".txt", "");
 
       if (!fs.existsSync(resultFile)) {
         vscode.window.showWarningMessage(

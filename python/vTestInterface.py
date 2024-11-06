@@ -456,7 +456,7 @@ def getResults(enviroPath, testIDObject):
         commands = list()
         commands.append("report")
         clicastInterface.generate_report(enviroPath, testIDObject)
-        returnText = f"REPORT:{testIDObject.reportName}.txt\n"
+        returnText = f"REPORT:{testIDObject.reportName}\n"
         return returnText
 
 
