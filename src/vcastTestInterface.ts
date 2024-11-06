@@ -373,10 +373,10 @@ export async function getResultFileForTest(testID: string) {
         if (commandStatus.stdout.includes("Error:")) {
           const errorCode = commandStatus.stdout.split("Error:")[1];
           vscode.window.showWarningMessage(
-            `The report was not generated, so the report file does not exist. Error details: ${errorCode}`
+            `Execution report was not successfully generated. Error details: ${errorCode}`
           );
           vectorMessage(
-            `The report was not generated. \n\n Error details:\n ${errorCode}`
+            `Execution report was not successfully generated. \n\n Error details:\n ${errorCode}`
           );
         } else {
           // In case something different went wrong and the resultFile is not found.
