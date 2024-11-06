@@ -369,7 +369,7 @@ export async function getResultFileForTest(testID: string) {
       resultFile = firstLineOfOutput.replace("REPORT:", "");
 
       if (!fs.existsSync(resultFile)) {
-        // In case the generape_report failed --> We intentionally include the error message in the output
+        // In case the generate_report failed --> We intentionally include the error message in the output
         if (commandStatus.stdout.includes("Error:")) {
           const errorCode = commandStatus.stdout.split("Error:")[1];
           vscode.window.showWarningMessage(
