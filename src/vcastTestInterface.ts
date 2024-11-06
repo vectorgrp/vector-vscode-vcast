@@ -383,7 +383,7 @@ export async function getResultFileForTest(testID: string) {
       else if (firstLineOfOutput.includes("Error:")) {
         const errorDetails = firstLineOfOutput.split("Error:")[1].trim();
         vscode.window.showWarningMessage(
-          `Execution report was not successfully generated. Error details:  ${errorDetails}`
+          `Execution report was not successfully generated. Error details: \n${errorDetails}`
         );
         vectorMessage(
           `Execution report was not successfully generated. Error details: \n${errorDetails}`
@@ -392,9 +392,9 @@ export async function getResultFileForTest(testID: string) {
       // Handle other unexpected cases (After successfull test generation, but without the "REPORT:" string)
       else {
         vscode.window.showWarningMessage(
-          `Unexpected output while generating report.`
+          `Unexpected Error: \n${commandStatus.stdout}`
         );
-        vectorMessage(`Unexpected Error:\n${commandStatus.stdout}`);
+        vectorMessage(`Unexpected Error: \n${commandStatus.stdout}`);
       }
     }
     // Handle command failure
