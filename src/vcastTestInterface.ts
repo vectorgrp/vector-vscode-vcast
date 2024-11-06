@@ -354,46 +354,60 @@ export async function getResultFileForTest(testID: string) {
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
 
+  // Check if the file already exists
   if (!fs.existsSync(resultFile)) {
-    let enviroPath = getEnviroPathFromID(testID);
-
+    // Generate the environment path and request the test report from Python
+    const enviroPath = getEnviroPathFromID(testID);
     const commandStatus = await getTestExecutionReport(enviroPath, testID);
 
-    if (commandStatus.errorCode == 0) {
+    // Check if report generation was successful
+    if (commandStatus.errorCode === 0) {
       const firstLineOfOutput: string = commandStatus.stdout
         .split("\n", 1)[0]
         .trim();
 
-      // Delete the REPORT substring and change the .txt to .html because
-      // generate_report only generates one html file and we do not have a .txt
-      resultFile = firstLineOfOutput.replace("REPORT:", "");
-
-      if (!fs.existsSync(resultFile)) {
-        // In case the generate_report failed --> We intentionally include the error message in the output
-        if (commandStatus.stdout.includes("Error:")) {
-          const errorCode = commandStatus.stdout.split("Error:")[1];
+      // Handle the case where the output contains "REPORT"
+      if (firstLineOfOutput.includes("REPORT:")) {
+        // Verify if the generated report file actually exists
+        if (!fs.existsSync(resultFile)) {
           vscode.window.showWarningMessage(
-            `Execution report was not successfully generated. Error details: ${errorCode}`
+            `The Report: ${resultFile} does not exist.`
           );
           vectorMessage(
-            `Execution report was not successfully generated. \n\n Error details:\n ${errorCode}`
+            `The report was not generated.\nError: ${firstLineOfOutput}`
           );
         } else {
-          // In case something different went wrong and the resultFile is not found.
-          vscode.window.showWarningMessage(
-            `Results report: '${resultFile}' does not exist`
-          );
-          vectorMessage(`Results report: '${resultFile}' does not exist`);
-          vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
+          // This is the normal case --> delete the REPORT to only have the file name
+          resultFile = firstLineOfOutput.replace("REPORT:", "");
         }
       }
-
-      globalTestStatusArray[testID].resultFilePath = resultFile;
-    } else {
+      // If the first line of output contains "Error" --> Test result generation failed
+      else if (firstLineOfOutput.includes("Error:")) {
+        const errorDetails = firstLineOfOutput.split("Error:")[1].trim();
+        vscode.window.showWarningMessage(
+          `Execution report was not successfully generated. Error details:  ${errorDetails}`
+        );
+        vectorMessage(
+          `Execution report was not successfully generated. Error details: \n${errorDetails}`
+        );
+      }
+      // Handle other unexpected cases (After successfull test generation, but without the "REPORT:" string)
+      else {
+        vscode.window.showWarningMessage(
+          `Unexpected output while generating report.`
+        );
+        vectorMessage(`Unexpected Error:\n${commandStatus.stdout}`);
+      }
+    }
+    // Handle command failure
+    else {
       vectorMessage(
-        `Retrieving test report was not successful. Command Status: ${commandStatus.errorCode} `
+        `Retrieving test report was not successful. Command Status: ${commandStatus.errorCode}`
       );
     }
+
+    // Update the global test status with the result file path
+    globalTestStatusArray[testID].resultFilePath = resultFile;
   }
 
   return resultFile;
