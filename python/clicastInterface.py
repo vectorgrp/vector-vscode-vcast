@@ -367,12 +367,6 @@ def generate_report(enviroPath, testObject):
     # Patch get_option to use our CSS without setting the CFG option
     monkeypatch_custom_css(custom_css)
 
-    # Set in the config that the format we use is HTML
-    with open(commandFileName, "w") as commandFile:
-        commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
-
-    runClicastScript(enviroPath, commandFileName)
-
     test_found = False
 
     # Open-up the unit test API
