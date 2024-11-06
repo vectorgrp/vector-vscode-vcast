@@ -460,7 +460,7 @@ def getResults(enviroPath, testIDObject):
             clicastInterface.generate_report(enviroPath, testIDObject)
             returnText = f"REPORT:{testIDObject.reportName}\n"
         except Exception as e:
-            returnText = f"REPORT:{testIDObject.reportName}\nError: {str(e)}\n"
+            returnText = f"Error: {str(e)}\n"
 
         return returnText
 

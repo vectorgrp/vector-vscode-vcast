@@ -365,14 +365,27 @@ export async function getResultFileForTest(testID: string) {
         .trim();
 
       // Delete the REPORT substring and change the .txt to .html because
+      // generate_report only generates one html file and we do not have a .txt
       resultFile = firstLineOfOutput.replace("REPORT:", "");
 
       if (!fs.existsSync(resultFile)) {
-        vscode.window.showWarningMessage(
-          `Results report: '${resultFile}' does not exist`
-        );
-        vectorMessage(`Results report: '${resultFile}' does not exist`);
-        vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
+        // In case the generape_report failed --> We intentionally include the error message in the output
+        if (commandStatus.stdout.includes("Error:")) {
+          const errorCode = commandStatus.stdout.split("Error:")[1];
+          vscode.window.showWarningMessage(
+            `The report was not generated, so the report file does not exist. Error details: ${errorCode}`
+          );
+          vectorMessage(
+            `The report was not generated. \n\n Error details:\n ${errorCode}`
+          );
+        } else {
+          // In case something different went wrong and the resultFile is not found.
+          vscode.window.showWarningMessage(
+            `Results report: '${resultFile}' does not exist`
+          );
+          vectorMessage(`Results report: '${resultFile}' does not exist`);
+          vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
+        }
       }
 
       globalTestStatusArray[testID].resultFilePath = resultFile;

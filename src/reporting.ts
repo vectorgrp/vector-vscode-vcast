@@ -153,7 +153,5 @@ export async function viewResultsReport(testID: string) {
       "Viewing results, result report path: '" + htmlFilePath + "'"
     );
     viewResultsReportVC(htmlFilePath);
-  } else {
-    vectorMessage("Result report file does not exist: '" + htmlFilePath + "'");
   }
 }
