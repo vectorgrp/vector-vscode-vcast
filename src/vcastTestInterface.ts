@@ -373,9 +373,7 @@ export async function getResultFileForTest(testID: string) {
           vscode.window.showWarningMessage(
             `The Report: ${resultFile} does not exist.`
           );
-          vectorMessage(
-            `The report was not generated.\nError: ${firstLineOfOutput}`
-          );
+          vectorMessage(`The Report: ${resultFile} does not exist.`);
         } else {
           // This is the normal case --> delete the REPORT to only have the file name
           resultFile = firstLineOfOutput.replace("REPORT:", "");
