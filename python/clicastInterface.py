@@ -350,7 +350,7 @@ def executeTest(enviroPath, testIDObject):
     return executeReturnCode, stdoutText
 
 
-def generate_report(enviroPath, testObject):
+def generate_report(testObject):
     """
     Generates the our custom report for the test case execution data
 
