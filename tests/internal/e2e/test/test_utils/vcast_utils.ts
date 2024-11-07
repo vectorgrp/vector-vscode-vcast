@@ -1379,11 +1379,11 @@ export async function toggleDataServer(turnOn: boolean) {
  */
 export async function checkElementExistsInHTML(text) {
   try {
-    // Thi either returns true or times out if the element does not exist
+    // This either returns true or times out if the element does not exist.
     await $(`aria/${text}`);
     return true;
   } catch (error) {
-    // If it times out or another error occurs, throw an error and return false
+    // If it times out or another error occurs, throw an error.
     throw new Error(
       `Element with ARIA label "${text}" does not exist or timed out.`
     );
