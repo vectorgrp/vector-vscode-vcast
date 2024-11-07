@@ -3,119 +3,6 @@ import { errorLevel, vectorMessage } from "./messagePane";
 import { getResultFileForTest } from "./vcastTestInterface";
 
 const fs = require("fs");
-const os = require("os");
-
-function cleanHTML(htmlText: string) {
-  // This function will remove the html
-  // section that creates the left margin navigation
-  // bar in the execution report.  This makes
-  // the report look better in VS Code
-
-  let lineList = htmlText.split(os.EOL);
-  let returnText: string = "";
-  let skipping = false;
-
-  for (let line of lineList) {
-    if (skipping) {
-      if (line.includes("ExecutionResults/testcase_header")) {
-        returnText += `
-<style>
-body {
-    overflow-y: scroll;
-    background-color: var(--vscode-editor-background);
-    color: var(--vscode-foreground);
-}
-
-.test-action-header {
-    background-color: var(--vscode-editorGroup-border);
-}
-
-.bs-callout.bs-callout-danger {
-    border-left-width: 3px;
-}
-
-.bs-callout.bs-callout-success {
-    border-left-width: 3px;
-}
-
-.bs-callout.bs-callout-warning {
-    border-left-width: 3px;
-    font-weight: bold;
-}
-
-tr:hover {
-    background-color: var(--vscode-editor-background) !important;
-}
-
-.report-block {
-    height: 100%;
-    width: 100%;
-    overflow: scroll;
-}
-
-.danger, .bg-danger {
-    background-color: var(--vscode-minimap-errorHighlight);
-    color: black;
-    font-weight: bold
-}
-
-.danger:hover, .bg-danger:hover {
-    background-color: var(--vscode-minimap-errorHighlight) !important;
-}
-
-.success, .bg-success {
-    background-color: var(--vscode-testing-iconPassed);
-    color: black;
-    font-weight: bold
-}
-
-.success:hover, .bg-success:hover {
-    background-color: var(--vscode-testing-iconPassed) !important;
-}
-
-.warning, .bg-warning {
-    background-color: var(--vscode-testing-iconQueued);
-    color: black;
-    font-weight: bold
-}
-
-.warning:hover, .bg-warning:hover {
-    background-color: var(--vscode-testing-iconQueued) !important;
-}
-
-pre {
-  border:1px solid var(--vscode-editorGroup-border);
-  background-color:var(--vscode-editorGroup-border);
-  color: var(--vscode-foreground);
-}
-</style>`;
-        returnText += line;
-        skipping = false;
-      }
-    } else {
-      if (line.includes('div id="title-bar"')) {
-        skipping = true;
-      }
-      //default headings from VCAST is annoyingly big
-      else if (line.includes("Execution Results (FAIL)")) {
-        line = line.replace(
-          "Execution Results (FAIL)",
-          "<h4>Execution Results (FAIL)</h4>"
-        );
-        returnText += line;
-      } else if (line.includes("Execution Results (PASS)")) {
-        line = line.replace(
-          "Execution Results (PASS)",
-          "<h4>Execution Results (PASS)</h4>"
-        );
-        returnText += line;
-      } else {
-        returnText += line;
-      }
-    }
-  }
-  return returnText;
-}
 
 // TBD TODAY - We switch txt to html ...
 let htmlReportPanel: vscode.WebviewPanel | undefined = undefined;
@@ -123,7 +10,7 @@ function viewResultsReportVC(htmlFilePath: string) {
   // The stock VectorCAST HTML reports look ugly in VS Code so
   // we do a manual edits, and color changes.
   vectorMessage(`Report file path is: ${htmlFilePath}`);
-  let htmlText = cleanHTML(fs.readFileSync(htmlFilePath, "utf-8"));
+  let htmlText = fs.readFileSync(htmlFilePath, "utf-8");
   // this displays the html report in a webview panel
   if (!htmlReportPanel) {
     vectorMessage("Creating web view panel ...", errorLevel.trace);
@@ -153,7 +40,5 @@ export async function viewResultsReport(testID: string) {
       "Viewing results, result report path: '" + htmlFilePath + "'"
     );
     viewResultsReportVC(htmlFilePath);
-  } else {
-    vectorMessage("Result report file does not exist: '" + htmlFilePath + "'");
   }
 }

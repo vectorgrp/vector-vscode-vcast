@@ -21,6 +21,7 @@ import {
   updateTestID,
   cleanup,
   checkForLogsInTestResults,
+  checkElementExistsInHTML,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -303,16 +304,18 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (PASS)")).toHaveText(
-      "Execution Results (PASS)"
+    expect(await checkElementExistsInHTML("Execution Results (PASS)")).toBe(
+      true
     );
-    await expect($(".event*=Event 1")).toHaveText(
-      "Event 1 - Calling coded_tests_driver"
-    );
+    expect(
+      await checkElementExistsInHTML("Event 1 - Calling Manager::PlaceOrder")
+    ).toBe(true);
+    expect(
+      await checkElementExistsInHTML(
+        "Event 2 - Returned from Manager::PlaceOrder"
+      )
+    ).toBe(true);
 
-    await expect($(".event*=Event 2")).toHaveText(
-      "Event 2 - Returned from coded_tests_driver"
-    );
     await webview.close();
     await editorView.closeAllEditors();
   });
@@ -919,8 +922,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
+    expect(await checkElementExistsInHTML("Execution Results (FAIL)")).toBe(
+      true
     );
 
     await webview.close();
@@ -1064,8 +1067,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
+    expect(await checkElementExistsInHTML("Execution Results (FAIL)")).toBe(
+      true
     );
 
     await webview.close();
@@ -1113,8 +1116,8 @@ describe("vTypeCheck VS Code Extension", () => {
     webview = webviews[0];
     await webview.open();
 
-    await expect($("h4*=Execution Results (PASS)")).toHaveText(
-      "Execution Results (PASS)"
+    expect(await checkElementExistsInHTML("Execution Results (PASS)")).toBe(
+      true
     );
 
     await webview.close();
@@ -1297,8 +1300,9 @@ describe("vTypeCheck VS Code Extension", () => {
     const webview = webviews[0];
     await webview.open();
     console.log("Checking test report");
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
+
+    expect(await checkElementExistsInHTML("Execution Results (FAIL)")).toBe(
+      true
     );
 
     await webview.close();

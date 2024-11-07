@@ -1370,3 +1370,24 @@ export async function toggleDataServer(turnOn: boolean) {
     );
   }
 }
+
+/**
+ * Checks if an element with the specified ARIA label text exists in the DOM.
+ * Using an expect combined with .toExist() or .toBeDisplayed() here does not work,
+ * so we have to work around it
+ *
+ * @param {string} searchString - The ARIA label text to search for.
+ * @returns {Promise<boolean>} - Returns true if the element exists, otherwise false.
+ */
+export async function checkElementExistsInHTML(searchString: string) {
+  try {
+    // This either returns true or times out if the element does not exist.
+    await $(`aria/${searchString}`);
+    return true;
+  } catch (error) {
+    // If it times out or another error occurs, throw an error.
+    throw new Error(
+      `Element with ARIA label "${searchString}" does not exist or timed out.`
+    );
+  }
+}

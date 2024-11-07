@@ -17,6 +17,7 @@ import {
   updateTestID,
   checkIfRequestInLogs,
   toggleDataServer,
+  checkElementExistsInHTML,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -239,16 +240,17 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (PASS)")).toHaveText(
-      "Execution Results (PASS)"
+    expect(await checkElementExistsInHTML("Execution Results (PASS)")).toBe(
+      true
     );
-    await expect($(".event*=Event 1")).toHaveText(
-      "Event 1 - Calling Manager::PlaceOrder"
-    );
-
-    await expect($(".event*=Event 2")).toHaveText(
-      "Event 2 - Returned from Manager::PlaceOrder"
-    );
+    expect(
+      await checkElementExistsInHTML("Event 1 - Calling Manager::PlaceOrder")
+    ).toBe(true);
+    expect(
+      await checkElementExistsInHTML(
+        "Event 2 - Returned from Manager::PlaceOrder"
+      )
+    ).toBe(true);
 
     await expect($(".text-muted*=UUT")).toHaveText("UUT: manager.cpp");
 

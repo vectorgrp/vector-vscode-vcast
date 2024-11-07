@@ -353,27 +353,56 @@ export async function getResultFileForTest(testID: string) {
   // This function will return the path to the result file if it is already saved
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
-  if (!fs.existsSync(resultFile)) {
-    let enviroPath = getEnviroPathFromID(testID);
 
+  // Check if the file already exists
+  if (!fs.existsSync(resultFile)) {
+    // Generate the environment path and request the test report from Python
+    const enviroPath = getEnviroPathFromID(testID);
     const commandStatus = await getTestExecutionReport(enviroPath, testID);
 
-    if (commandStatus.errorCode == 0) {
+    // Check if report generation was successful
+    if (commandStatus.errorCode === 0) {
       const firstLineOfOutput: string = commandStatus.stdout
         .split("\n", 1)[0]
         .trim();
-      resultFile = firstLineOfOutput.replace("REPORT:", "");
 
-      if (!fs.existsSync(resultFile)) {
-        vscode.window.showWarningMessage(
-          `Results report: '${resultFile}' does not exist`
-        );
-        vectorMessage(`Results report: '${resultFile}' does not exist`);
-        vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
+      // Handle the case where the output contains "REPORT"
+      if (firstLineOfOutput.includes("REPORT:")) {
+        // Verify if the generated report file actually exists
+        if (!fs.existsSync(resultFile)) {
+          const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
+          vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
+          vectorMessage(`${reportNotExistentErrorMessage}`);
+        } else {
+          // This is the normal case --> delete the REPORT to only have the file name
+          resultFile = firstLineOfOutput.replace("REPORT:", "");
+        }
       }
 
-      globalTestStatusArray[testID].resultFilePath = resultFile;
+      // If the first line of output contains "Error" --> Test result generation failed
+      else if (firstLineOfOutput.includes("Error:")) {
+        const errorDetails = firstLineOfOutput.split("Error:")[1].trim();
+        const reportGenerationErrorMessage = `Execution report was not successfully generated. Error details: \n${errorDetails}`;
+        vscode.window.showWarningMessage(`${reportGenerationErrorMessage}`);
+        vectorMessage(`${reportGenerationErrorMessage}`);
+      }
+
+      // Handle other unexpected cases (After successfull test generation, but without the "REPORT:" string)
+      else {
+        const unexpectedErrorMessage = `Unexpected Error: \n${commandStatus.stdout}`;
+        vscode.window.showWarningMessage(`${unexpectedErrorMessage}`);
+        vectorMessage(`${unexpectedErrorMessage}`);
+      }
     }
+    // Handle command failure
+    else {
+      vectorMessage(
+        `Retrieving test report was not successful. Command Status: ${commandStatus.errorCode}`
+      );
+    }
+
+    // Update the global test status with the result file path
+    globalTestStatusArray[testID].resultFilePath = resultFile;
   }
 
   return resultFile;

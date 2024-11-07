@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import time
+import pathlib
 
 """
 This script contains the clicast stuff tha was previously 
@@ -17,9 +18,10 @@ from pythonUtilities import (
     closeEnvironmentConnection,
     getClicastInstance,
     logMessage,
+    monkeypatch_custom_css,
 )
 from vcastDataServerTypes import errorCodes
-
+from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
 
 # Filename used when we run a clicast command script
@@ -348,18 +350,50 @@ def executeTest(enviroPath, testIDObject):
     return executeReturnCode, stdoutText
 
 
-def generateExecutionReport(enviroPath, testIDObject):
+def generate_report(testObject):
+    """
+    Generates the our custom report for the test case execution data
 
-    standardArgs = getStandardArgsFromTestObject(testIDObject, False)
-    # We build a clicast command script to generate the execution report
-    # since we need multiple commands
-    with open(commandFileName, "w") as commandFile:
-        # we force report mode to HTML just to be safe
-        commandFile.write("option VCAST_CUSTOM_REPORT_FORMAT HTML\n")
-        commandFile.write(
-            standardArgs + " report custom actual " + testIDObject.reportName
+    File gets written to output
+    """
+
+    # Calculate the location of our custom folder
+    source_root = pathlib.Path(__file__).parent.resolve()
+    custom_dir = source_root / "custom"
+
+    # What's the path to our custom CSS?
+    custom_css = custom_dir / "vscode.css"
+
+    # Patch get_option to use our CSS without setting the CFG option
+    monkeypatch_custom_css(custom_css)
+
+    test_found = False
+
+    # Open-up the unit test API
+    with UnitTestApi(testObject.enviroName) as api:
+        for test_case in api.TestCase.all():
+            # Combined condition to find the correct test case
+            if (
+                (
+                    test_case.unit_display_name == testObject.unitName
+                    or testObject.unitName == "not-used"
+                )
+                and test_case.function_display_name == testObject.functionName
+                and test_case.name == testObject.testName
+            ):
+                test_found = True
+                # Generate our report
+                api.report(
+                    report_type="per_test_case_report",
+                    formats=["HTML"],
+                    output_file=testObject.reportName,
+                    customization_dir=str(custom_dir),
+                    testcases=[test_case],
+                )
+                break
+
+    # Report an error if our test case is not found
+    if not test_found:
+        raise RuntimeError(
+            f"Could not find test case with Unit: {testObject.unitName}, Function: {testObject.functionName}, Test: {testObject.testName}"
         )
-
-    # we ignore the exit code and return the stdout
-    exitCode, stdOutput = runClicastScript(enviroPath, commandFileName)
-    return stdOutput
