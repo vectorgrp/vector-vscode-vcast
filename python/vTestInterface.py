@@ -457,7 +457,7 @@ def getResults(enviroPath, testIDObject):
         commands.append("report")
         try:
             # Attempt to generate the report
-            clicastInterface.generate_report(enviroPath, testIDObject)
+            clicastInterface.generate_report(testIDObject)
             returnText = f"REPORT:{testIDObject.reportName}\n"
         except Exception as e:
             returnText = f"Error: {str(e)}\n"
