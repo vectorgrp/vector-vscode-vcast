@@ -1376,18 +1376,18 @@ export async function toggleDataServer(turnOn: boolean) {
  * Using an expect combined with .toExist() or .toBeDisplayed() here does not work,
  * so we have to work around it
  *
- * @param {string} text - The ARIA label text to search for.
+ * @param {string} searchString - The ARIA label text to search for.
  * @returns {Promise<boolean>} - Returns true if the element exists, otherwise false.
  */
-export async function checkElementExistsInHTML(text) {
+export async function checkElementExistsInHTML(searchString: string) {
   try {
     // This either returns true or times out if the element does not exist.
-    await $(`aria/${text}`);
+    await $(`aria/${searchString}`);
     return true;
   } catch (error) {
     // If it times out or another error occurs, throw an error.
     throw new Error(
-      `Element with ARIA label "${text}" does not exist or timed out.`
+      `Element with ARIA label "${searchString}" does not exist or timed out.`
     );
   }
 }
