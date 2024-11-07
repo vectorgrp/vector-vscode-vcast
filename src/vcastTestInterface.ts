@@ -370,31 +370,28 @@ export async function getResultFileForTest(testID: string) {
       if (firstLineOfOutput.includes("REPORT:")) {
         // Verify if the generated report file actually exists
         if (!fs.existsSync(resultFile)) {
-          vscode.window.showWarningMessage(
-            `The Report: ${resultFile} does not exist.`
-          );
-          vectorMessage(`The Report: ${resultFile} does not exist.`);
+          const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
+          vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
+          vectorMessage(`${reportNotExistentErrorMessage}`);
         } else {
           // This is the normal case --> delete the REPORT to only have the file name
           resultFile = firstLineOfOutput.replace("REPORT:", "");
         }
       }
+
       // If the first line of output contains "Error" --> Test result generation failed
       else if (firstLineOfOutput.includes("Error:")) {
         const errorDetails = firstLineOfOutput.split("Error:")[1].trim();
-        vscode.window.showWarningMessage(
-          `Execution report was not successfully generated. Error details: \n${errorDetails}`
-        );
-        vectorMessage(
-          `Execution report was not successfully generated. Error details: \n${errorDetails}`
-        );
+        const reportGenerationErrorMessage = `Execution report was not successfully generated. Error details: \n${errorDetails}`;
+        vscode.window.showWarningMessage(`${reportGenerationErrorMessage}`);
+        vectorMessage(`${reportGenerationErrorMessage}`);
       }
+
       // Handle other unexpected cases (After successfull test generation, but without the "REPORT:" string)
       else {
-        vscode.window.showWarningMessage(
-          `Unexpected Error: \n${commandStatus.stdout}`
-        );
-        vectorMessage(`Unexpected Error: \n${commandStatus.stdout}`);
+        const unexpectedErrorMessage = `Unexpected Error: \n${commandStatus.stdout}`;
+        vscode.window.showWarningMessage(`${unexpectedErrorMessage}`);
+        vectorMessage(`${unexpectedErrorMessage}`);
       }
     }
     // Handle command failure
