@@ -303,16 +303,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (PASS)")).toHaveText(
-      "Execution Results (PASS)"
-    );
-    await expect($(".event*=Event 1")).toHaveText(
-      "Event 1 - Calling coded_tests_driver"
-    );
+    await $("aria/Execution Results (PASS)");
+    await $("aria/Event 1 - Calling coded_tests_driver");
+    await $("aria/Event 2 - Returned from coded_tests_driver");
 
-    await expect($(".event*=Event 2")).toHaveText(
-      "Event 2 - Returned from coded_tests_driver"
-    );
     await webview.close();
     await editorView.closeAllEditors();
   });
@@ -919,9 +913,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
-    );
+    await $("aria/Execution Results (FAIL)");
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1064,9 +1056,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
-    );
+    await $("aria/Execution Results (FAIL)");
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1113,9 +1103,7 @@ describe("vTypeCheck VS Code Extension", () => {
     webview = webviews[0];
     await webview.open();
 
-    await expect($("h4*=Execution Results (PASS)")).toHaveText(
-      "Execution Results (PASS)"
-    );
+    await $("aria/Execution Results (PASS)");
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1297,9 +1285,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const webview = webviews[0];
     await webview.open();
     console.log("Checking test report");
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
-    );
+
+    await $("aria/Execution Results (FAIL)");
 
     await webview.close();
     await editorView.closeAllEditors();

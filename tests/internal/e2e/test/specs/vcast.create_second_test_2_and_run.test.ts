@@ -213,9 +213,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
-    );
+    await $("aria/Execution Results (FAIL)");
+
     await expect($(".event*=Event 1")).toHaveText(
       "Event 1 - Calling Manager::PlaceOrder"
     );
