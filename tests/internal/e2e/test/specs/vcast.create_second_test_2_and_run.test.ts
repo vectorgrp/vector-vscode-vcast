@@ -14,6 +14,7 @@ import {
   findSubprogramMethod,
   editTestScriptFor,
   updateTestID,
+  checkAriaElementExists,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -213,7 +214,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("aria/Execution Results (FAIL)")).toExist();
+    await expect(await checkAriaElementExists("Execution Results (FAIL)")).toBe(
+      true
+    );
 
     await expect($(".event*=Event 1")).toHaveText(
       "Event 1 - Calling Manager::PlaceOrder"
