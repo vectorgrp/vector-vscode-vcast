@@ -1377,7 +1377,7 @@ export async function toggleDataServer(turnOn: boolean) {
  * @param {string} text - The ARIA label text to search for.
  * @returns {Promise<boolean>} - Returns true if the element exists, otherwise false.
  */
-export async function checkAriaElementExists(text) {
+export async function checkElementExistsInHTML(text) {
   try {
     // Thi either returns true or times out if the element does not exist
     await $(`aria/${text}`);

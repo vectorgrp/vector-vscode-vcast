@@ -21,7 +21,7 @@ import {
   updateTestID,
   cleanup,
   checkForLogsInTestResults,
-  checkAriaElementExists,
+  checkElementExistsInHTML,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -304,12 +304,14 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    expect(await checkAriaElementExists("Execution Results (PASS)")).toBe(true);
+    expect(await checkElementExistsInHTML("Execution Results (PASS)")).toBe(
+      true
+    );
     expect(
-      await checkAriaElementExists("Event 1 - Calling Manager::PlaceOrder")
+      await checkElementExistsInHTML("Event 1 - Calling Manager::PlaceOrder")
     ).toBe(true);
     expect(
-      await checkAriaElementExists(
+      await checkElementExistsInHTML(
         "Event 2 - Returned from Manager::PlaceOrder"
       )
     ).toBe(true);
@@ -920,7 +922,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    expect(await checkAriaElementExists("Execution Results (FAIL)")).toBe(true);
+    expect(await checkElementExistsInHTML("Execution Results (FAIL)")).toBe(
+      true
+    );
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1063,7 +1067,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    expect(await checkAriaElementExists("Execution Results (FAIL)")).toBe(true);
+    expect(await checkElementExistsInHTML("Execution Results (FAIL)")).toBe(
+      true
+    );
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1110,7 +1116,9 @@ describe("vTypeCheck VS Code Extension", () => {
     webview = webviews[0];
     await webview.open();
 
-    expect(await checkAriaElementExists("Execution Results (PASS)")).toBe(true);
+    expect(await checkElementExistsInHTML("Execution Results (PASS)")).toBe(
+      true
+    );
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1293,7 +1301,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await webview.open();
     console.log("Checking test report");
 
-    expect(await checkAriaElementExists("Execution Results (FAIL)")).toBe(true);
+    expect(await checkElementExistsInHTML("Execution Results (FAIL)")).toBe(
+      true
+    );
 
     await webview.close();
     await editorView.closeAllEditors();
