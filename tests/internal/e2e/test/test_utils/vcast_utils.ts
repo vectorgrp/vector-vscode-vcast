@@ -1373,6 +1373,8 @@ export async function toggleDataServer(turnOn: boolean) {
 
 /**
  * Checks if an element with the specified ARIA label text exists in the DOM.
+ * Using an expect combined with .toExist() or .toBeDisplayed() here does not work,
+ * so we have to work around it
  *
  * @param {string} text - The ARIA label text to search for.
  * @returns {Promise<boolean>} - Returns true if the element exists, otherwise false.
