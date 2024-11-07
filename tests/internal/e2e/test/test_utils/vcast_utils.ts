@@ -1370,3 +1370,22 @@ export async function toggleDataServer(turnOn: boolean) {
     );
   }
 }
+
+/**
+ * Checks if an element with the specified ARIA label text exists in the DOM.
+ *
+ * @param {string} text - The ARIA label text to search for.
+ * @returns {Promise<boolean>} - Returns true if the element exists, otherwise false.
+ */
+export async function checkAriaElementExists(text) {
+  try {
+    // Thi either returns true or times out if the element does not exist
+    await $(`aria/${text}`);
+    return true;
+  } catch (error) {
+    // If it times out or another error occurs, throw an error and return false
+    throw new Error(
+      `Element with ARIA label "${text}" does not exist or timed out.`
+    );
+  }
+}

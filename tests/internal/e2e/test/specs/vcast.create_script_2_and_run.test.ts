@@ -17,6 +17,7 @@ import {
   updateTestID,
   checkIfRequestInLogs,
   toggleDataServer,
+  checkAriaElementExists,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -239,13 +240,15 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect(await $("aria/Execution Results (PASS)")).toExist();
-    await expect(
-      await $("aria/Event 1 - Calling Manager::PlaceOrder")
-    ).toExist();
-    await expect(
-      await $("aria/Event 2 - Returned from Manager::PlaceOrder")
-    ).toExist();
+    expect(await checkAriaElementExists("Execution Results (PASS)")).toBe(true);
+    expect(
+      await checkAriaElementExists("Event 1 - Calling Manager::PlaceOrder")
+    ).toBe(true);
+    expect(
+      await checkAriaElementExists(
+        "Event 2 - Returned from Manager::PlaceOrder"
+      )
+    ).toBe(true);
 
     await expect($(".text-muted*=UUT")).toHaveText("UUT: manager.cpp");
 
