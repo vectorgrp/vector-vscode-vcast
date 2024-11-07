@@ -303,9 +303,11 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await $("aria/Execution Results (PASS)");
-    await $("aria/Event 1 - Calling coded_tests_driver");
-    await $("aria/Event 2 - Returned from coded_tests_driver");
+    await expect($("aria/Execution Results (PASS)")).toExist();
+    await expect($("aria/Event 1 - Calling coded_tests_driver")).toExist();
+    await expect(
+      $("aria/Event 2 - Returned from coded_tests_driver")
+    ).toExist();
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -913,7 +915,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await $("aria/Execution Results (FAIL)");
+    await expect($("aria/Execution Results (FAIL)")).toExist();
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1056,7 +1058,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await $("aria/Execution Results (FAIL)");
+    await expect($("aria/Execution Results (FAIL)")).toExist();
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1103,7 +1105,7 @@ describe("vTypeCheck VS Code Extension", () => {
     webview = webviews[0];
     await webview.open();
 
-    await $("aria/Execution Results (PASS)");
+    await expect($("aria/Execution Results (PASS)")).toExist();
 
     await webview.close();
     await editorView.closeAllEditors();
@@ -1286,7 +1288,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await webview.open();
     console.log("Checking test report");
 
-    await $("aria/Execution Results (FAIL)");
+    await expect($("aria/Execution Results (FAIL)")).toExist();
 
     await webview.close();
     await editorView.closeAllEditors();

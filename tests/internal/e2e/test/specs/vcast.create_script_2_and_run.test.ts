@@ -239,9 +239,11 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await $("aria/Execution Results (PASS)");
-    await $("aria/Event 1 - Calling Manager::PlaceOrder");
-    await $("aria/Event 2 - Returned from Manager::PlaceOrder");
+    await expect($("aria/Execution Results (PASS)")).toExist();
+    await expect($("aria/Event 1 - Calling Manager::PlaceOrder")).toExist();
+    await expect(
+      $("aria/Event 2 - Returned from Manager::PlaceOrder")
+    ).toExist();
 
     await expect($(".text-muted*=UUT")).toHaveText("UUT: manager.cpp");
 

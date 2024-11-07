@@ -213,7 +213,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await $("aria/Execution Results (FAIL)");
+    await expect($("aria/Execution Results (FAIL)")).toExist();
 
     await expect($(".event*=Event 1")).toHaveText(
       "Event 1 - Calling Manager::PlaceOrder"
