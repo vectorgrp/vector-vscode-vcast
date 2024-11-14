@@ -100,7 +100,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const coverageKindValue = await coverageKindSetting.getValue();
     expect(coverageKindValue).toEqual("Statement");
 
-    console.log("Deleting env Folder");
+    console.log("Deleting Env Folder");
     // Right-Click on ENV Folder and delete it
 
     const workspaceFolderSection =
@@ -111,7 +111,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await unitTestsFolder.select();
 
     const envFolder = await workspaceFolderSection.findItem("DATABASE-MANAGER");
-    console.log("Deleting Env Folder");
     await envFolder.openContextMenu();
     await (await $("aria/Delete")).click();
 
@@ -137,7 +136,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys([Key.Escape]);
     await tab.save();
 
-    console.log("Right-Click on env file and build env directly");
+    console.log("Building Environment directly from DATABASE-MANAGER.env");
 
     await envFile.openContextMenu();
     await (await $("aria/Build VectorCAST Environment")).click();
@@ -167,6 +166,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const vcastTestingViewContent = await getViewContent("Testing");
     const envName = "cpp/unitTests/DATABASE-MANAGER";
 
+    console.log("Re-Building Environment from Test Explorer");
     // Flask --> Right-click on env --> Re-Build environment
     for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
       for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
@@ -184,6 +184,7 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     }
 
+    console.log("Check for logs that Setting Up Statement Coverage is shown.");
     // Even though DATABASE-MANAGAER.env has Statement+MCDC, the build log should show only "Statement"
     const outputView = await bottomBar.openOutputView();
     await bottomBar.maximize();
@@ -196,6 +197,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await bottomBar.restore();
 
+    console.log("Checking for VSCode Settings");
     // Get the content of the .env file and ensure that the coverage kind there is still "Statement+MCDC"
     const editorView = workbench.getEditorView();
     const tab = (await editorView.openEditor(
