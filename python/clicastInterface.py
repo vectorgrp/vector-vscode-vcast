@@ -382,9 +382,8 @@ def generate_report(testObject):
                 and test_case.name == testObject.testName
             ):
                 test_found = True
+                
                 # Generate our report
-                logMessage(f"    This is the output file for the Test Execution: {testObject.reportName}")
-                logMessage(f"    This is the custom_dir for the Test Execution: {str(custom_dir)}")
                 api.report(
                     report_type="per_test_case_report",
                     formats=["HTML"],
@@ -447,9 +446,6 @@ def generate_mcdc_report(env, unit, line, output):
                 # NOTE: custom/sections/mini_mcdc.py reads this attribute to
                 # know what to filter!
                 api.filter_mcdc_dec_line = mcdc_dec.start_line
-                logMessage(f"    I found the line: {mcdc_dec.start_line}")
-                logMessage(f"    This is the output file: {output}")
-                logMessage(f"    This is the custom dir: {str(custom_dir)}")
 
                 # Generate our report
                 api.report(
