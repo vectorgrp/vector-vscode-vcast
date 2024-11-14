@@ -186,6 +186,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Even though DATABASE-MANAGAER.env has Statement+MCDC, the build log should show only "Statement"
     const outputView = await bottomBar.openOutputView();
+    await bottomBar.maximize();
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
@@ -193,6 +194,7 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Setting Up Statement Coverage"),
       { timeout: TIMEOUT }
     );
+    await bottomBar.restore();
 
     // Get the content of the .env file and ensure that the coverage kind there is still "Statement+MCDC"
     const editorView = workbench.getEditorView();
