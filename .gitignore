@@ -7,3 +7,7 @@ parsing/
 .gitignore
 test_case/
 .env
+input_messages.txt
+vectorcast_guide.md
+notes.md
+playground.py

@@ -1,0 +1,230 @@
+from functools import lru_cache
+import re
+import os
+import tree_sitter_c as tsc
+from tree_sitter import Parser, Language
+
+# Initialize Tree-sitter parser (keeping your existing code)
+C_LANGUAGE = Language(tsc.language())
+parser = Parser(C_LANGUAGE)
+
+class Codebase:
+    def __init__(self, source_dirs):
+        self.source_dirs = source_dirs
+        self.parser = parser  # Using the existing parser
+        self.codebase_files = self._collect_codebase_files()
+        self.include_graph = self._build_include_graph()
+        self.inverted_index = self._build_inverted_index()
+
+    def _collect_codebase_files(self):
+        codebase_files = []
+        for source_dir in self.source_dirs:
+            for root, _, files in os.walk(source_dir):
+                for file in files:
+                    if file.endswith(('.c', '.h')):
+                        codebase_files.append(os.path.join(root, file))
+        return codebase_files
+
+    def get_code_bytes(self, filepath):
+        with open(filepath, 'rb') as f:
+            return f.read()
+
+    @lru_cache(maxsize=4096)
+    def parse_file(self, filepath):
+        code_bytes = self.get_code_bytes(filepath)
+        tree = self.parser.parse(code_bytes)
+        return tree, code_bytes
+
+    def _build_inverted_index(self):
+        inverted_index = {}
+        for filepath in self.codebase_files:
+            tree, code_bytes = self.parse_file(filepath)
+            root_node = tree.root_node
+            self._collect_definitions(root_node, code_bytes, filepath, inverted_index)
+        return inverted_index
+
+    def _build_include_graph(self):
+        include_graph = {}
+        for filepath in self.codebase_files:
+            tree, code_bytes = self.parse_file(filepath)
+            root_node = tree.root_node
+            included_files = self._get_included_files(root_node, filepath)
+            include_graph[filepath] = included_files
+        return include_graph
+
+    def _collect_definitions(self, node, code_bytes, filepath, inverted_index):
+        names = self._get_definition_names(node)
+        if names:
+            definition_code = code_bytes[node.start_byte:node.end_byte].decode('utf8', errors='ignore')
+            for name in names:
+                if name not in inverted_index:
+                    inverted_index[name] = []
+                inverted_index[name].append((definition_code, filepath))
+        for child in node.children:
+            self._collect_definitions(child, code_bytes, filepath, inverted_index)
+
+    def _get_definition_names(self, node):
+        names = []
+        # Function definition
+        if node.type == 'function_definition':
+            declarator_parent = node.child_by_field_name('declarator')
+            if declarator_parent:
+                function_name_node = declarator_parent.child_by_field_name('declarator')
+                if function_name_node:
+                    names.append(function_name_node.text.decode('utf8'))
+        # Struct definition
+        elif node.type == 'struct_specifier':
+            struct_name_node = node.child_by_field_name('name')
+            if struct_name_node:
+                names.append(struct_name_node.text.decode('utf8'))
+        # Macro definition
+        elif node.type == 'preproc_def':
+            macro_name_node = node.child(1)
+            if macro_name_node and macro_name_node.type == 'identifier':
+                names.append(macro_name_node.text.decode('utf8'))
+        # Enum definition and enumerators
+        elif node.type == 'enum_specifier':
+            enum_name_node = node.child_by_field_name('name')
+            if enum_name_node:
+                names.append(enum_name_node.text.decode('utf8'))
+            enumerator_list = node.child_by_field_name('body')
+            if enumerator_list:
+                for enumerator in enumerator_list.named_children:
+                    if enumerator.type == 'enumerator':
+                        enumerator_name_node = enumerator.child_by_field_name('name')
+                        if enumerator_name_node:
+                            names.append(enumerator_name_node.text.decode('utf8'))
+        return names
+
+    def _get_definition_node(self, node, identifier=None):
+        names = self._get_definition_names(node)
+        if identifier and identifier in names:
+            return node
+        return None
+
+    def find_definition(self, identifier, referencing_file, visited_files=None, only_local=False):
+        if visited_files is None:
+            visited_files = set()
+
+        if referencing_file in visited_files:
+            return None  # Avoid cycles
+
+        visited_files.add(referencing_file)
+
+        # Search for definition in the current file
+        definitions = self.inverted_index.get(identifier, [])
+        for definition_code, def_filepath in definitions:
+            if def_filepath == referencing_file:
+                return definition_code
+
+        if only_local:
+            return None
+
+        # Use precomputed include graph to find definitions in included files
+        included_files = self.include_graph.get(referencing_file, [])
+        for inc_filepath in included_files:
+            if inc_filepath not in visited_files:
+                result = self.find_definition(identifier, inc_filepath, visited_files)
+                if result:
+                    return result
+
+        # Fallback: Use definitions from other files
+        for definition_code, def_filepath in definitions:
+            return definition_code
+
+        return None
+
+    def _find_definition(self, node, identifier):
+        definition_node = self._get_definition_node(node, identifier)
+        if definition_node:
+            return definition_node
+        # Recurse into children
+        for child in node.children:
+            result = self._find_definition(child, identifier)
+            if result:
+                return result
+        return None
+
+    def _get_included_files(self, root_node, current_filepath):
+        included_files = []
+        for node in root_node.children:
+            if (node.type == 'preproc_include'):
+                include_text = node.text.decode('utf8')
+                match = re.match(r'#\s*include\s*["<](.*?)[">]', include_text)
+                if match:
+                    include_filename = match.group(1)
+                    inc_filepath = self._resolve_include_path(include_filename, current_filepath)
+                    if inc_filepath:
+                        included_files.append(inc_filepath)
+        return included_files
+
+    def _resolve_include_path(self, include_filename, current_filepath):
+        current_dir = os.path.dirname(current_filepath)
+        # Check relative to current file
+        candidate = os.path.join(current_dir, include_filename)
+        if os.path.exists(candidate):
+            return candidate
+        # Check in source directories and their subdirectories
+        for source_dir in self.source_dirs:
+            for root, _, files in os.walk(source_dir):
+                candidate = os.path.join(root, include_filename)
+                if os.path.exists(candidate):
+                    return candidate
+        return None
+
+    def extract_identifiers(self, node):
+        identifiers = set()
+        if node.type == 'identifier':
+            identifier = node.text.decode('utf8')
+            identifiers.add(identifier)
+        for child in node.children:
+            identifiers.update(self.extract_identifiers(child))
+        return identifiers
+
+    def find_functions_in_file(self, filepath):
+        tree, code_bytes = self.parse_file(filepath)
+        root_node = tree.root_node
+        functions = self._find_functions(root_node)
+        return [(func_node, code_bytes[func_node.start_byte:func_node.end_byte].decode('utf8')) for func_node in functions]
+
+    def _find_functions(self, node):
+        functions = []
+        if node.type == 'function_definition':
+            functions.append(node)
+        for child in node.children:
+            functions.extend(self._find_functions(child))
+        return functions
+
+    def get_identifiers_near_line(self, filepath, line_number, window=5):
+        tree, code_bytes = self.parse_file(filepath)
+        root_node = tree.root_node
+        identifiers = set()
+        self._collect_identifiers_near_line(root_node, code_bytes, line_number, identifiers, window)
+        return identifiers
+
+    def _collect_identifiers_near_line(self, node, code_bytes, line_number, identifiers, window):
+        start_line, _ = node.start_point
+        end_line, _ = node.end_point
+        if start_line <= line_number + window and end_line >= line_number - window:
+            if node.type == 'identifier':
+                identifier = node.text.decode('utf8')
+                identifiers.add(identifier)
+            for child in node.children:
+                self._collect_identifiers_near_line(child, code_bytes, line_number, identifiers, window)
+
+    def find_enclosing_function(self, filepath, line_number, window_tolerance=0):
+        tree, _ = self.parse_file(filepath)
+        root_node = tree.root_node
+        return self._find_function_containing_line(root_node, line_number, window_tolerance)
+
+    def _find_function_containing_line(self, node, line_number, window_tolerance):
+        if node.type == 'function_definition':
+            start_line, _ = node.start_point
+            end_line, _ = node.end_point
+            if start_line - window_tolerance <= line_number <= end_line + window_tolerance:
+                return node
+        for child in node.children:
+            result = self._find_function_containing_line(child, line_number, window_tolerance)
+            if result:
+                return result
+        return None
