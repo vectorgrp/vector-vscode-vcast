@@ -649,6 +649,75 @@ def processCommand(mode, clicast, pathToUse, testString="", options=""):
 
     return returnCode, returnObject
 
+def processMCDCLogic(mode, clicast, pathToUse, envName, unitName, lineNumber):
+    returnCode = 0
+    returnObject = None
+
+    # no need to pass this all around
+    # will raise usageError if path is invalid
+    validateClicastCommand(clicast, mode)
+    pythonUtilities.globalClicastCommand = clicast
+
+    # will raise usageError if path is invalid
+    validatePath(pathToUse)
+
+    if mode == "mcdcReport":
+        returnObject = {"text": getMCDCResults(pathToUse, envName, unitName, lineNumber).split("\n")}
+        # do stuff
+    else:
+        modeListAsString = ",".join(modeChoices)
+        raise UsageError(
+            f"--mode: {mode} is invalid, must be one of: {modeListAsString}"
+        )
+    return returnCode, returnObject
+
+def getMCDCReport(mode, clicast, pathToUse, envName, unitName, lineNumber):
+    """
+    This is a wrapper for process command logic, so that we can process
+    the exceptions in a single place for stand-alone (via main) and server usage
+    """
+    try:
+        returnCode, returnObject = processMCDCLogic(
+            mode, clicast, pathToUse, envName, unitName, lineNumber
+        )
+
+    # because vpython and clicast use a large range of positive return codes
+    # we use values > 990 for internal tool errors
+    except InvalidEnviro as error:
+        returnCode = errorCodes.testInterfaceError
+        whatToReturn = ["Miss-match between Environment and VectorCAST versions"]
+        whatToReturn.extend(str(error).split("\n"))
+        returnObject = {"text": whatToReturn}
+    except UsageError as error:
+        # for usage error we print the issue where we see it
+        returnCode = errorCodes.testInterfaceError
+        returnObject = {"text": [str(error)]}
+    except Exception:
+        returnCode = errorCodes.testInterfaceError
+        traceBackText = traceback.format_exc().split("\n")
+        returnObject = {"text": traceBackText}
+
+    return returnCode, returnObject
+
+def getMCDCResults(enviroPath, envName, unitName, lineNumber):
+    with cd(os.path.dirname(enviroPath)):
+        commands = list()
+        commands.append("mcdcReport")
+        try:
+            # Create a hash for the report name based on the params
+            temp = ".".join([envName, unitName, str(lineNumber)])
+            hashString = hashlib.md5(temp.encode("utf-8")).hexdigest()
+            reportName = os.path.join(enviroPath, hashString) + ".html"
+
+            # Attempt to generate the report
+            clicastInterface.generate_mcdc_report(envName, unitName, lineNumber, reportName)
+
+            # If mcdc report generation does not fail, we return the name of the file
+            returnText = f"REPORT:{reportName}\n"
+        except Exception as e:
+            returnText = f"Error: {str(e)}\n"
+
+        return returnText
 
 def main():
     argParser = setupArgs()

@@ -47,10 +47,12 @@ import {
   clientRequestType,
   closeConnection,
   globalEnviroDataServerActive,
+  mcdcClientRequestType,
   transmitCommand,
   transmitResponseType,
   vcastCommandType,
 } from "../src-common/vcastServer";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 
 const path = require("path");
 
@@ -770,4 +772,50 @@ export async function rebuildEnvironmentUsingServer(
 
   // call the callback to update the test explorer pane
   rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
+}
+
+// Get Execution Report ----------------------------------------------------------------
+// Server logic is in a separate function below
+export async function getMCDCReport(
+  enviroPath: string,
+  enviroName: string,
+  unit: string,
+  lineNumber: number
+): Promise<commandStatusType> {
+  if (globalEnviroDataServerActive) {
+    return await getMCDCReportFromServer(
+      enviroPath,
+      enviroName,
+      unit,
+      lineNumber
+    );
+  } else {
+    // TODO: implement MCDC for Python
+    return getTestExecutionReportFromPython(enviroName, unit);
+  }
+}
+
+// Server Logic
+async function getMCDCReportFromServer(
+  enviroPath: string,
+  enviroName: string,
+  unitName: string,
+  lineNumber: number
+): Promise<commandStatusType> {
+  //
+  const requestObject: mcdcClientRequestType = {
+    command: vcastCommandType.mcdcReport,
+    path: enviroPath,
+    envName: enviroName,
+    unitName: unitName,
+    lineNumber: lineNumber,
+  };
+
+  vectorMessage(
+    `"command: ${requestObject.command}, path: ${requestObject.path}, envName: ${requestObject.envName}, unit: ${requestObject.unitName}, lineNumber: ${requestObject.lineNumber}`
+  );
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
+
+  return convertServerResponseToCommandStatus(transmitResponse);
 }

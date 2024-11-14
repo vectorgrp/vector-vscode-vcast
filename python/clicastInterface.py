@@ -383,6 +383,8 @@ def generate_report(testObject):
             ):
                 test_found = True
                 # Generate our report
+                logMessage(f"    This is the output file for the Test Execution: {testObject.reportName}")
+                logMessage(f"    This is the custom_dir for the Test Execution: {str(custom_dir)}")
                 api.report(
                     report_type="per_test_case_report",
                     formats=["HTML"],
@@ -397,3 +399,74 @@ def generate_report(testObject):
         raise RuntimeError(
             f"Could not find test case with Unit: {testObject.unitName}, Function: {testObject.functionName}, Test: {testObject.testName}"
         )
+
+def generate_mcdc_report(env, unit, line, output):
+    """
+    Generates the our custom report for all of the MCDC decisions on a given line (in a given unit, in a given environment).
+
+    File gets written to output
+    """
+
+    # Calculate the location of our custom folder
+    source_root = pathlib.Path(__file__).parent.resolve()
+    custom_dir = source_root / "custom"
+
+    # What's the path to our custom CSS?
+    custom_css = custom_dir / "vscode.css"
+
+    # Patch get_option to use our CSS without setting the CFG option
+    monkeypatch_custom_css(custom_css)
+
+    # Open-up the unit test API
+    with UnitTestApi(env) as api:
+        # Find and check for our unit
+        unit_found = False
+        for unit in api.Unit.filter(name=unit):
+            unit_found = True
+
+            # Spin through all MCDC decisions looking for the one on our line
+            line_found = False
+            logMessage(f"    I found the unit: {unit}")
+            for mcdc_dec in unit.cover_data.mcdc_decisions:
+                # If it has no conditions, then it generates an empty report
+                #
+                # TODO: do we want to just generate an empty MCDC report?
+                if not mcdc_dec.num_conditions:
+                    continue
+
+                # If the line is not the line we're looking for, continue
+                if mcdc_dec.start_line != line:
+                    continue
+
+                # Mark that we've found our line
+                line_found = True
+
+                # Record in the API instance the line number we're interested
+                # in
+                #
+                # NOTE: custom/sections/mini_mcdc.py reads this attribute to
+                # know what to filter!
+                api.filter_mcdc_dec_line = mcdc_dec.start_line
+                logMessage(f"    I found the line: {mcdc_dec.start_line}")
+                logMessage(f"    This is the output file: {output}")
+                logMessage(f"    This is the custom dir: {str(custom_dir)}")
+
+                # Generate our report
+                api.report(
+                    report_type="per_line_mcdc_report",
+                    formats=["HTML"],
+                    output_file=output,
+                    customization_dir=str(custom_dir),
+                )
+                break
+
+            # If we don't find our line, report an error
+            if not line_found:
+                raise RuntimeError(f"Could not find line {line}")
+
+        # If we don't find our unit, report an error
+        if not unit_found:
+            raise RuntimeError(
+                f"Could not find unit {unit} (units should not have extensions)"
+            )
+

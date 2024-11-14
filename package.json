@@ -203,6 +203,10 @@
         "command": "vectorcastTestExplorer.displayServerLog",
         "category": "VectorCAST Test Explorer",
         "title": "Open Data Server log"
+      },
+      {
+        "command": "extension.getMCDCReport",
+        "title": "Get MCDC Report"
       }
     ],
     "keybindings": [
@@ -491,6 +495,13 @@
           "submenu": "vectorcastTestExplorer.editorSubMenu",
           "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.testableLineList",
           "group": "vcast"
+        },
+        {
+          "command": "extension.getMCDCReport",
+          "args": [
+            "${lineNumber}" 
+          ],
+          "group": "navigation"
         }
       ],
       "testing/item/context": [

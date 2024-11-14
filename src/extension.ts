@@ -37,7 +37,7 @@ import {
   vectorMessage,
 } from "./messagePane";
 
-import { viewResultsReport } from "./reporting";
+import { viewMCDCReport, viewResultsReport } from "./reporting";
 
 import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
@@ -57,6 +57,8 @@ import {
 import {
   addLaunchConfiguration,
   addSettingsFileFilter,
+  getEnvNameForFilePath,
+  getEnvPathForFilePath,
   showSettings,
 } from "./utilities";
 
@@ -625,6 +627,43 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(selectDefaultConfigFile);
+
+  // Command: extension.getMCDCReport////////////////////////////////////////////////////////
+  // This command appears in the context menu of the vscode gutter (same as Add Breakpoint) and
+  // generates the MCDC report.
+  let getMCDCReportCommand = vscode.commands.registerCommand(
+    "extension.getMCDCReport",
+    (args) => {
+      // Get the active editor
+      const activeEditor = vscode.window.activeTextEditor;
+
+      if (activeEditor) {
+        // Get the file name and remove the extension --> For the UNIT parameter.
+        const filePath = activeEditor.document.uri.fsPath;
+
+        const enviroPath = getEnvPathForFilePath(filePath);
+        const enviroName = getEnvNameForFilePath(filePath);
+        const fileName = path.parse(filePath).name;
+
+        vscode.window.showInformationMessage(
+          `Generating MCDC report for ${fileName} in Env ${enviroName} (${enviroPath}) for line ${args.lineNumber}`
+        );
+
+        if (enviroPath && enviroName) {
+          viewMCDCReport(enviroPath, enviroName, fileName, args.lineNumber);
+        } else {
+          vscode.window.showErrorMessage(
+            `Did not find ENV name or path for file: ${filePath}`
+          );
+        }
+      } else {
+        vscode.window.showErrorMessage("No active editor found.");
+      }
+
+      // MCDC LOGIC
+    }
+  );
+  context.subscriptions.push(getMCDCReportCommand);
 
   vscode.workspace.onDidChangeWorkspaceFolders(
     (e) => {

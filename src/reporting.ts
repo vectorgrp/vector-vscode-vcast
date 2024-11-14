@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { errorLevel, vectorMessage } from "./messagePane";
-import { getResultFileForTest } from "./vcastTestInterface";
+import { getMCDCResultFile, getResultFileForTest } from "./vcastTestInterface";
 
 const fs = require("fs");
 
@@ -35,6 +35,27 @@ function viewResultsReportVC(htmlFilePath: string) {
 export async function viewResultsReport(testID: string) {
   // make sure that a test is selected
   const htmlFilePath = await getResultFileForTest(testID);
+  if (fs.existsSync(htmlFilePath)) {
+    vectorMessage(
+      "Viewing results, result report path: '" + htmlFilePath + "'"
+    );
+    viewResultsReportVC(htmlFilePath);
+  }
+}
+
+export async function viewMCDCReport(
+  enviroPath: string,
+  enviroName: string,
+  unit: string,
+  lineNumber: number
+) {
+  // make sure that a test is selected
+  const htmlFilePath = await getMCDCResultFile(
+    enviroPath,
+    enviroName,
+    unit,
+    lineNumber
+  );
   if (fs.existsSync(htmlFilePath)) {
     vectorMessage(
       "Viewing results, result report path: '" + htmlFilePath + "'"

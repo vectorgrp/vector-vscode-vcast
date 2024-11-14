@@ -39,6 +39,7 @@ def init_application(logFilePath):
         def runcommandRoute():
             # Data from the request is a stringyfied json
             clientRequestJson = request.get_json()
+            # Note: this string must match what is in vcastAdapter.ts -> startServer()
             clientRequest = decodeRequest(clientRequestJson)
             # Ensure clientRequest is correctly decoded or processed
             return runcommand(clientRequest, clientRequestJson)
@@ -143,6 +144,17 @@ def runcommand(clientRequest, clientRequestText):
                 clientRequest.path, clientRequest.options
             )
 
+        elif clientRequest.command == commandType.mcdcReport:
+            logMessage(f"  getMCDCReport: {clientRequest.__dict__}")
+            exitCode, returnData = vTestInterface.getMCDCReport(
+                clientRequest.command, 
+                pythonUtilities.globalClicastCommand,
+                clientRequest.path,
+                clientRequest.envName,
+                clientRequest.unitName,
+                clientRequest.lineNumber,
+            )
+
         elif clientRequest.command in vTestInterface.modeChoices:
 
             # Note: globalClicastCommand is initialized in the server
@@ -188,7 +200,15 @@ def decodeRequest(requestString):
     clientRequest = None
     try:
         requestDictionary = requestString
-        clientRequest = vcastDataServerTypes.clientRequest.fromDict(requestDictionary)
+        # Check if the command is "mcdcReport" --> We have different args then
+        isMcdcReport = requestDictionary.get("command") == "mcdcReport"
+        
+        if isMcdcReport:
+            # Perform special handling for "mcdcReport"
+            clientRequest = vcastDataServerTypes.mcdcClientRequest.fromDict(requestDictionary)       
+        else:
+            # Default behavior
+            clientRequest = vcastDataServerTypes.clientRequest.fromDict(requestDictionary)
     except KeyboardInterrupt:
         raise
     except:

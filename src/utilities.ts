@@ -6,6 +6,7 @@ import * as jsonc from "jsonc-parser";
 import { Uri } from "vscode";
 
 import { errorLevel, vectorMessage } from "./messagePane";
+import { getGlobalCoverageData } from "./vcastTestInterface";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -33,6 +34,38 @@ export const jsoncModificationOptions: jsonc.ModificationOptions = {
 export interface jsonDataType {
   jsonData: any;
   jsonDataAsString: string;
+}
+
+export function getEnvNameForFilePath(filePath: string): string | null {
+  const globalCoverageMap = getGlobalCoverageData();
+  const fileData = globalCoverageMap.get(filePath);
+  if (fileData?.enviroList) {
+    // Return the first environment name, if exists
+    // Possible problem here: if a file is covered by multiple environments, we will only return the first one
+    // --> How would we know what ENV we exactly need?
+    const envKey = Array.from(fileData.enviroList.keys())[0];
+    if (envKey) {
+      // Return the last part (ENV name), or null if empty
+      const parts = envKey.split("/");
+      return parts.pop() || null;
+    }
+  }
+  return null;
+}
+
+export function getEnvPathForFilePath(filePath: string): string | null {
+  const globalCoverageMap = getGlobalCoverageData();
+  const fileData = globalCoverageMap.get(filePath);
+
+  if (fileData?.enviroList) {
+    // Retrieve the first environment key, if it exists
+    const envKey = Array.from(fileData.enviroList.keys())[0];
+    if (envKey) {
+      // Return the full environment key (entire path)
+      return envKey;
+    }
+  }
+  return null;
 }
 
 export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {

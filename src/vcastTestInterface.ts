@@ -36,6 +36,7 @@ import {
   buildEnvironmentFromScript,
   codedTestAction,
   executeTest,
+  getMCDCReport,
   getTestExecutionReport,
   setCodedTestOption,
 } from "./vcastAdapter";
@@ -134,6 +135,10 @@ export interface testStatusArrayType {
   [id: string]: testDataType;
 }
 export var globalTestStatusArray = <testStatusArrayType>{};
+
+export function getGlobalCoverageData() {
+  return globalCoverageData;
+}
 
 export function addTestDataToStatusArray(
   testID: string,
@@ -936,4 +941,60 @@ export async function openCodedTest(testNode: testNodeType) {
   if (fs.existsSync(testNode.testFile)) {
     openFileWithLineSelected(testNode.testFile, testNode.testStartLine - 1);
   }
+}
+
+export async function getMCDCResultFile(
+  enviroPath: string,
+  enviroName: string,
+  unit: string,
+  lineNumber: number
+) {
+  // Generate the environment path and request the test report from Python
+  const commandStatus = await getMCDCReport(
+    enviroPath,
+    enviroName,
+    unit,
+    lineNumber
+  );
+  // TODO: Probably should save the resultfile globally somehow like in getResultFileForTest()
+  let resultFile: string = "";
+
+  // Check if report generation was successful
+  if (commandStatus.errorCode === 0) {
+    const firstLineOfOutput: string = commandStatus.stdout
+      .split("\n", 1)[0]
+      .trim();
+
+    resultFile = firstLineOfOutput.split("REPORT:")[1].trim();
+    // Handle the case where the output contains "REPORT"
+    if (firstLineOfOutput.includes("REPORT:")) {
+      // Verify if the generated report file actually exists
+      if (!fs.existsSync(resultFile)) {
+        const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
+        vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
+        vectorMessage(`${reportNotExistentErrorMessage}`);
+      }
+    }
+
+    // If the first line of output contains "Error" --> Test result generation failed
+    else if (firstLineOfOutput.includes("Error:")) {
+      const errorDetails = firstLineOfOutput.split("Error:")[1].trim();
+      const reportGenerationErrorMessage = `Execution report was not successfully generated. Error details: \n${errorDetails}`;
+      vscode.window.showWarningMessage(`${reportGenerationErrorMessage}`);
+      vectorMessage(`${reportGenerationErrorMessage}`);
+    }
+
+    // Handle other unexpected cases (After successfull test generation, but without the "REPORT:" string)
+    else {
+      const unexpectedErrorMessage = `Unexpected Error: \n${commandStatus.stdout}`;
+      vscode.window.showWarningMessage(`${unexpectedErrorMessage}`);
+      vectorMessage(`${unexpectedErrorMessage}`);
+    }
+  } else {
+    const commandErrorString = `Error generating MCDC report. Error Code: ${commandStatus.errorCode}`;
+    vscode.window.showWarningMessage(`${commandErrorString}`);
+    vectorMessage(`${commandErrorString}`);
+  }
+
+  return resultFile;
 }
