@@ -104,3 +104,9 @@ The following sections describe the syntax for specifying the `identifier` and `
 - Use `uut_prototype_stubs` as the unit for subprograms defined outside of the unit of the test case.
   - Example:
     { "identifier": "uut_prototype_stubs.external_subprogram.parameter", "value": 42 }
+
+#### References to Other Identifiers
+- Use the `reference` field to reference another identifier's value instead of setting a value directly
+  - Example:
+    { "identifier": "unit.subprogram.parameter", "reference": "unit.other_subprogram.other_parameter" }
+- This is useful in test cases consisting of multiple parts to set the input values of the next test part based on output values of the previous ones

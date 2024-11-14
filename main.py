@@ -15,6 +15,8 @@ if __name__ == '__main__':
     if result:
         print("Test Description:")
         print(result.test_description)
+        print("Test quantity and quality analysis:")
+        print(result.test_quantity_and_quality_analysis)
         print("Test Mapping Analysis:")
         print(result.test_mapping_analysis)
         for test_case in result.test_cases:
