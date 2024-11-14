@@ -1,0 +1,9 @@
+pi-innovo-parser/
+__pycache__/
+.venv
+.vscode
+Delivery_BuiltCodeDrops_12Sep2017/
+parsing/
+.gitignore
+test_case/
+.env
