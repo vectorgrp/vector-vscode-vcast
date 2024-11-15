@@ -1,10 +1,9 @@
 import json
 import openai
 import os
-from typing import List, Dict, Union
+from typing import List
 from pydantic import BaseModel
 from dotenv import load_dotenv
-import hashlib
 from context_builder import ContextBuilder
 from code_analysis import Codebase
 
@@ -21,6 +20,7 @@ class ReferenceMapping(BaseModel):
 
 class TestCase(BaseModel):
     regular_test_name: str
+    regular_test_description: str
     unit_name: str
     subprogram_name: str
     input_values: List[ValueMapping]
@@ -28,11 +28,19 @@ class TestCase(BaseModel):
     expected_values: List[ValueMapping]
     expected_references: List[ReferenceMapping]
 
-    def to_vectorcast(self) -> str:
+    def to_vectorcast(self, tested_requirements=[]) -> str:
         test_case_str = f"TEST.UNIT:{self.unit_name}\n"
         test_case_str += f"TEST.SUBPROGRAM:{self.subprogram_name}\n"
         test_case_str += "TEST.NEW\n"
         test_case_str += f"TEST.NAME:{self.regular_test_name}\n"
+
+        for req in tested_requirements:
+            test_case_str += f"TEST.REQUIREMENT_KEY:{req}\n"
+
+        test_case_str += "TEST.NOTES:\n"
+        for line in self.regular_test_description.split('\n'):
+            test_case_str += f"{line}\n"
+        test_case_str += "TEST.END_NOTES:\n"
 
         for input_value in self.input_values:
             test_case_str += f"TEST.VALUE:{input_value.identifier}:{input_value.value}\n"
@@ -55,17 +63,27 @@ class TestCase(BaseModel):
 
 class CompoundTestCase(BaseModel):
     compound_test_name: str
+    compound_test_description: str
     sub_test_cases: List[TestCase]
 
-    def to_vectorcast(self) -> str:
+    def to_vectorcast(self, tested_requirements=[]) -> str:
         test_case_str = ""
 
         for test_case in self.sub_test_cases:
-            test_case_str += test_case.to_vectorcast()
+            test_case_str += test_case.to_vectorcast(tested_requirements)
 
         test_case_str += "TEST.SUBPROGRAM:<<COMPOUND>>\n"
         test_case_str += "TEST.NEW\n"
         test_case_str += f"TEST.NAME:{self.compound_test_name}\n"
+
+        for req in tested_requirements:
+            test_case_str += f"TEST.REQUIREMENT_KEY:{req}\n"
+
+        test_case_str += "TEST.NOTES:\n"
+        for line in self.compound_test_description.split('\n'):
+            test_case_str += f"{line}\n"
+        test_case_str += "TEST.END_NOTES:\n"
+
         for idx, test_case in enumerate(self.sub_test_cases, 1):
             test_case_str += f'TEST.SLOT: "{idx}", "{test_case.unit_name}", "{test_case.subprogram_name}", "1", "{test_case.regular_test_name}"\n'
         test_case_str += "TEST.END\n"
@@ -96,7 +114,7 @@ class TestGenerator:
             azure_deployment=os.getenv("OPENAI_GENERATION_DEPLOYMENT")
         )
 
-    def generate_test_case(self, requirement_id, num_context_tests=3, related_tests=True):
+    def generate_test_case(self, requirement_id, num_context_tests=3, related_tests=True, return_raw_completion=False):
         requirement_text = self.requirements.get(requirement_id)
         if not requirement_text:
             print(f"Requirement {requirement_id} not found.")
@@ -136,7 +154,7 @@ Solve the problem using the following steps:
 3. Think about which values need to be set and what we expect to happen in the actual code, i.e., how do we translate from natural language descripion to implementation?
 4. Generate regular test cases (zero or more depending on what you deem to be suitable) to test individual subprograms.
     a. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
-    b. Come up with a descriptive (unique) name for the test case
+    b. Come up with a descriptive (unique) name for the test case and describe in natural language how this test exercises the requirement
     c. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
        Note: Add things to input/expected_values that represent direct values, and add things to input/expected_references that represent references to other values (use the same syntax for the reference as you would for identifiers in general).
 5. Generate compound test cases (if necessary) to test multiple subprograms in sequence (or the same one multiple times).
@@ -165,9 +183,10 @@ Notes:
             max_tokens=2000,
         )
 
-
         try:
             generated_test_case = completion.choices[0].message.parsed
+            if return_raw_completion:
+                return generated_test_case, completion
             return generated_test_case
         except Exception as e:
             print("Failed to parse generated test case.")
