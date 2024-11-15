@@ -128,3 +128,13 @@ This option is new for VectorCAST 23 sp2
 - Fixed issue with the Test Pane not populating properly in some cases #149.
 - The extension now ignores environment directories that are opened directly #173.
 - Fixed an unnecessary update occurring during the insertion of ATG tests
+
+## [1.0.13] - 2024-11-15
+- Added support for utilising VectorCAST in server mode. See README section: "VectorCAST Data Server" for usage details.
+
+### Bug Fixes
+- Improved coverage status bar messages (#211)
+- Execution reports no longer generate text reports (#220) and now use a custom report (#231)
+
+### Code Maintenance
+- `vsce` is now installed locally (from vector-vscode-vcast's `package.json`) and not globally (#196)
