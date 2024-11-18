@@ -206,6 +206,7 @@
       },
       {
         "command": "extension.getMCDCReport",
+        "category": "VectorCAST Test Explorer",
         "title": "Get MCDC Report"
       }
     ],
@@ -498,6 +499,7 @@
         },
         {
           "command": "extension.getMCDCReport",
+          "when": "vectorcastTestExplorer.configured && editorLangId == 'cpp'",
           "args": [
             "${lineNumber}" 
           ],
