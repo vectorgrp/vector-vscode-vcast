@@ -47,27 +47,24 @@ tr:hover {
 }
 
 .danger,
-.bg-danger {
-  background-color: var(--vscode-minimap-errorHighlight);
+.danger:hover,
+.bg-danger,
+.bg-danger:hover {
+  background-color: var(--vscode-minimap-errorHighlight) !important;
 }
 
 .success,
-.bg-success {
-  background-color: var(--vscode-testing-iconPassed);
+.success:hover,
+.bg-success,
+.bg-success:hover {
+  background-color: var(--vscode-testing-iconPassed) !important;
 }
 
 .warning,
-.bg-warning {
-  background-color: var(--vscode-testing-iconQueued);
-}
-
-.danger:hover,
-.bg-danger:hover,
-.success:hover,
-.bg-success:hover,
 .warning:hover,
+.bg-warning,
 .bg-warning:hover {
-  background-color: inherit !important;
+  background-color: var(--vscode-testing-iconQueued) !important;
 }
 
 #main-scroller,
