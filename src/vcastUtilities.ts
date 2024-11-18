@@ -399,6 +399,23 @@ export function getVcastInterfaceCommand(
   return `${commandToRun} ${testArgument}`;
 }
 
+export function getVcastInterfaceCommandForMCDC(
+  command: vcastCommandType,
+  enviroPath: string,
+  enviroName: string,
+  unitName: string,
+  lineNumber: number
+) {
+  const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=${command.toString()} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+  const options = {
+    enviroName: enviroName,
+    unitName: unitName,
+    lineNumber: lineNumber,
+  };
+  const testArgument = `--options='${JSON.stringify(options)}'`;
+  return `${commandToRun} ${testArgument}`;
+}
+
 export function getClientRequestObject(
   command: vcastCommandType,
   path: string,

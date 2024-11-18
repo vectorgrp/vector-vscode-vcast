@@ -41,6 +41,7 @@ import {
   getClientRequestObject,
   getRebuildOptionsString,
   getVcastInterfaceCommand,
+  getVcastInterfaceCommandForMCDC,
 } from "./vcastUtilities";
 
 import {
@@ -791,7 +792,7 @@ export async function getMCDCReport(
     );
   } else {
     // TODO: implement MCDC for Python
-    return getTestExecutionReportFromPython(enviroName, unit);
+    return getMCDCReportFromPython(enviroPath, enviroName, unit, lineNumber);
   }
 }
 
@@ -818,4 +819,29 @@ async function getMCDCReportFromServer(
     await transmitCommand(requestObject);
 
   return convertServerResponseToCommandStatus(transmitResponse);
+}
+
+// python logic
+function getMCDCReportFromPython(
+  enviroPath: string,
+  enviroName: string,
+  unitName: string,
+  lineNumber: number
+): commandStatusType {
+  //
+  const commandToRun = getVcastInterfaceCommandForMCDC(
+    vcastCommandType.mcdcReport,
+    enviroPath,
+    enviroName,
+    unitName,
+    lineNumber
+  );
+  const commandStatus: commandStatusType = executeVPythonScript(
+    commandToRun,
+    enviroPath
+  );
+  vectorMessage(
+    `Commandstatus: ${commandStatus.errorCode} ${commandStatus.stdout}`
+  );
+  return commandStatus;
 }

@@ -425,7 +425,6 @@ def generate_mcdc_report(env, unit, line, output):
 
             # Spin through all MCDC decisions looking for the one on our line
             line_found = False
-            logMessage(f"    I found the unit: {unit}")
             for mcdc_dec in unit.cover_data.mcdc_decisions:
                 # If it has no conditions, then it generates an empty report
                 #

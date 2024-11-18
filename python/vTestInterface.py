@@ -44,7 +44,7 @@ class UsageError(Exception):
     pass
 
 
-modeChoices = ["getEnviroData", "executeTest", "report", "parseCBT", "rebuild"]
+modeChoices = ["getEnviroData", "executeTest", "report", "mcdcReport", "parseCBT", "rebuild"]
 
 
 def setupArgs():
@@ -594,6 +594,18 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             print("Invalid test ID, provide a valid --test argument")
             raise UsageError("--test argument is invalid")
         returnObject = {"text": getResults(pathToUse, testIDObject).split("\n")}
+
+    elif mode == "mcdcReport":
+        try:
+            jsonOptions = processOptions(options)
+            # Access individual fields
+            enviroName = jsonOptions.get("enviroName")
+            unitName = jsonOptions.get("unitName")
+            lineNumber = jsonOptions.get("lineNumber")       
+        except:
+            print("Invalid options, provide a valid --options argument")
+            raise UsageError("--options argument is invalid")
+        returnObject = {"text": getMCDCResults(pathToUse, enviroName, unitName, lineNumber).split("\n")}
 
     elif mode == "parseCBT":
         # This is a special mode used by the unit test driver to parse the CBT
