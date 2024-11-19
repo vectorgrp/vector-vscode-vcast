@@ -297,16 +297,26 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     // Basically like clicking on "Run Test", just as another button in the contextmenu
-    const subprogramMethod = await findSubprogramMethod(
-      subprogram,
-      "Manager::PlaceOrder"
-    );
-    if (!subprogramMethod) {
-      throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      subprogram = await findSubprogram("manager", vcastTestingViewSection);
+      if (subprogram) {
+        await subprogram.expand();
+        testHandle = await getTestHandle(
+          subprogram,
+          "Manager::PlaceOrder",
+          "myFirstTest",
+          1
+        );
+        if (testHandle) {
+          break;
+        } else {
+          throw new Error("Test handle not found for myFirstTest");
+        }
+      }
     }
 
-    if (!subprogramMethod.isExpanded()) {
-      await subprogramMethod.select();
+    if (!subprogram) {
+      throw new Error("Subprogram 'manager' not found");
     }
 
     const contextMenu = await testHandle.openContextMenu();
