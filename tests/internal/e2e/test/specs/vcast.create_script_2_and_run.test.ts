@@ -6,6 +6,7 @@ import {
   type EditorView,
   type Workbench,
   type TreeItem,
+  CustomTreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -234,9 +235,9 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
-    const webviews = await workbench.getAllWebviews();
+    let webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
-    const webview = webviews[0];
+    let webview = webviews[0];
 
     await webview.open();
 
@@ -290,6 +291,42 @@ describe("vTypeCheck VS Code Extension", () => {
         return line.includes("Setting webview text");
       })
     ).not.toBe(undefined);
+
+    console.log(
+      "Click on View Test Results in the Testing pane and check for report"
+    );
+
+    // Basically like clicking on "Run Test", just as another button in the contextmenu
+    const contextMenu = await testHandle.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    const menuElement = await $("aria/View Test Results");
+    await menuElement.click();
+
+    webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    webview = webviews[0];
+
+    await webview.open();
+
+    // Check for the same report
+    expect(await checkElementExistsInHTML("Execution Results (PASS)")).toBe(
+      true
+    );
+    expect(
+      await checkElementExistsInHTML("Event 1 - Calling Manager::PlaceOrder")
+    ).toBe(true);
+    expect(
+      await checkElementExistsInHTML(
+        "Event 2 - Returned from Manager::PlaceOrder"
+      )
+    ).toBe(true);
+
+    await expect($(".text-muted*=UUT")).toHaveText("UUT: manager.cpp");
+
+    await expect($(".subprogram*=Manager")).toHaveText("Manager::PlaceOrder");
+
+    await webview.close();
+    await editorView.closeEditor("VectorCAST Report", 1);
 
     // Check for server logs when running tests
 
