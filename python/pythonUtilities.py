@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 import time
-
+from vector.apps.DataAPI.configuration import EnvironmentMixin
 
 # This contains the clicast command that was used to start the data server
 globalClicastCommand = ""
@@ -187,3 +187,26 @@ def logMessage(message):
     """
     logFileHandle.write(message + "\n")
     logFileHandle.flush()
+
+
+def monkeypatch_custom_css(custom_css):
+    """
+    To inject a custom CSS file, you are **supposed** to set the CFG option of
+    "VCAST_RPTS_CUSTOM_CSS".
+
+    However, we don't want to make changes to the CFG just to generate these
+    reports, so we monkeypatch `EnvironmentMixin.get_option` to return the path
+    to our CSS file when that option is requested.
+    """
+
+    # Back-up old get_option
+    orig_get_option = EnvironmentMixin.get_option
+
+    # Our implementation of get_option that handles "VCAST_RPTS_CUSTOM_CSS"
+    def new_get_opt(*args, **kwargs):
+        if args[1] == "VCAST_RPTS_CUSTOM_CSS":
+            return str(custom_css)
+        return orig_get_option(*args, **kwargs)
+
+    # Replace existing get_option with our one
+    EnvironmentMixin.get_option = new_get_opt

@@ -11,8 +11,9 @@ if [[ $THIS_RELEASE_DATE -lt $VCAST_24_REFERENCE_DATE ]]; then
     exit 0
 fi
 
-export PYTHONPATH=$(realpath $ROOT/../../python)
-$VECTORCAST_DIR/vpython $ROOT/../../python/vcastDataServer.py &
+# shellcheck disable=SC2155
+export PYTHONPATH=$(realpath "$ROOT"/../../python)
+"$VECTORCAST_DIR"/vpython "$ROOT"/../../python/vcastDataServer.py &
 SERVER_PID=$!
 
 echo "Waiting for the Flask server to start..."
@@ -40,7 +41,7 @@ health_check_url="http://127.0.0.1:$SERVER_PORT"
 max_retries=10
 retry_count=0
 echo "Waiting for the Flask server to start..."
-while ! curl -s $health_check_url > /dev/null; do
+while ! curl -s "$health_check_url" > /dev/null; do
     if [[ $retry_count -ge $max_retries ]]; then
         echo "Flask server failed to start."
         kill $SERVER_PID
@@ -50,6 +51,6 @@ while ! curl -s $health_check_url > /dev/null; do
     sleep 1
 done
 
-$VECTORCAST_DIR/vpython $ROOT/client.py --port=$SERVER_PORT --test=full
+"$VECTORCAST_DIR"/vpython "$ROOT"/client.py --port="$SERVER_PORT" --test=full
 
 kill $SERVER_PID

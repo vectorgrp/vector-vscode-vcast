@@ -38,10 +38,10 @@ def init_application(logFilePath):
         @app.route("/runcommand", methods=["POST"])
         def runcommandRoute():
             # Data from the request is a stringyfied json
-            clientRequestText = request.get_json()
-            clientRequest = decodeRequest(clientRequestText)
+            clientRequestJson = request.get_json()
+            clientRequest = decodeRequest(clientRequestJson)
             # Ensure clientRequest is correctly decoded or processed
-            return runcommand(clientRequest, clientRequestText)
+            return runcommand(clientRequest, clientRequestJson)
 
         # Note: this string must match what is in vcastAdapter.ts -> startServer()
         print(
