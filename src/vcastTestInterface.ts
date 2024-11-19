@@ -368,14 +368,14 @@ export async function getResultFileForTest(testID: string) {
 
       // Handle the case where the output contains "REPORT"
       if (firstLineOfOutput.includes("REPORT:")) {
+        // This is the normal case --> delete the REPORT to only have the file name
+        resultFile = firstLineOfOutput.replace("REPORT:", "");
+
         // Verify if the generated report file actually exists
         if (!fs.existsSync(resultFile)) {
           const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
           vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
           vectorMessage(`${reportNotExistentErrorMessage}`);
-        } else {
-          // This is the normal case --> delete the REPORT to only have the file name
-          resultFile = firstLineOfOutput.replace("REPORT:", "");
         }
       }
 
