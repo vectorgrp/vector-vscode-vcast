@@ -297,6 +297,18 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     // Basically like clicking on "Run Test", just as another button in the contextmenu
+    const subprogramMethod = await findSubprogramMethod(
+      subprogram,
+      "Manager::PlaceOrder"
+    );
+    if (!subprogramMethod) {
+      throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
+    }
+
+    if (!subprogramMethod.isExpanded()) {
+      await subprogramMethod.select();
+    }
+
     const contextMenu = await testHandle.openContextMenu();
     await contextMenu.select("VectorCAST");
     const menuElement = await $("aria/View Test Results");
