@@ -138,3 +138,10 @@ This option is new for VectorCAST 23 sp2
 
 ### Code Maintenance
 - `vsce` is now installed locally (from vector-vscode-vcast's `package.json`) and not globally (#196)
+
+## [1.0.14] - 2024-11-19
+
+### Bug Fixes
+- Fix hover colours execution reports (#236)
+- Fix View Test Results context menu (#237)
+
