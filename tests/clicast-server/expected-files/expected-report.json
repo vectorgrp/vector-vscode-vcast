@@ -2,9 +2,6 @@
     "data": {
         "text": [
             "REPORT: report.txt",
-            "=== Running command: clicast -eDEMO1 option VCAST_CUSTOM_REPORT_FORMAT HTML ",
-            "=== Running command: clicast -eDEMO1  report custom actual report.txt",
-            "    The HTML  report was saved to report.txt",
             ""
         ]
     },
