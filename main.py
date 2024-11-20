@@ -11,6 +11,7 @@ def main():
     parser.add_argument('--envs_path', default='pi--innovo/vcast/Pi_Innovo/build', help='Path to environments directory.')
     parser.add_argument('--requirement_references_file', help='Path to a file containing requirement references.')
     parser.add_argument('--requirements_file', default='extracted_reqs.json', help='Path to a file containing requirements.')
+    parser.add_argument('--output_file', help='Path to a file to write the VectorCAST test cases.')
     args = parser.parse_args()
 
     with open(args.requirements_file) as f:
@@ -38,6 +39,10 @@ def main():
             vectorcast_case = test_case.to_vectorcast([args.requirement_id])
             print(vectorcast_case)
             vectorcast_test_cases.append(vectorcast_case)
+        if args.output_file:
+            with open(args.output_file, 'w') as output_file:
+                for vectorcast_case in vectorcast_test_cases:
+                    output_file.write(vectorcast_case + '\n')
         if args.execute:
             from test_environment import TestEnvironmentManager
             env_manager = TestEnvironmentManager(args.envs_path)
