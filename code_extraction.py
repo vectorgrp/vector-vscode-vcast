@@ -58,7 +58,8 @@ def extract_functions(code_str: str, file: str) -> List[Function]:
     
 def extract_requirements(code_str: str, file: str) -> List[RequirementReference]:
     code_str = code_str.replace('\r', '')
-    requirement_regex = "im\s*\[([A-Z0-9\.]+)\]"
+    # Add space to not catch tsim
+    requirement_regex = " im\s*\[([A-Z0-9\.]+)\]"
 
     matches = list(re.finditer(requirement_regex, code_str))
 

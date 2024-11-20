@@ -1,17 +1,30 @@
 import json
+import argparse
 from test_generation import TestGenerator
-from code_extraction import extract_all_requirement_references
+from code_extraction import extract_all_requirement_references, RequirementReference
 
-with open('extracted_reqs.json') as f:
-    requirements = json.load(f)
+def main():
+    parser = argparse.ArgumentParser(description='Generate and optionally execute test cases for a given requirement.')
+    parser.add_argument('requirement_id', nargs='?', default='LLR.PLAT.REG.AVAIL.003', help='Requirement ID to generate tests for.')
+    parser.add_argument('--source_dirs', nargs='+', default=['pi--innovo/src'], help='List of source directories.')
+    parser.add_argument('--execute', action='store_true', help='Execute the generated test cases.')
+    parser.add_argument('--envs_path', default='pi--innovo/vcast/Pi_Innovo/build', help='Path to environments directory.')
+    parser.add_argument('--requirement_references_file', help='Path to a file containing requirement references.')
+    parser.add_argument('--requirements_file', default='extracted_reqs.json', help='Path to a file containing requirements.')
+    args = parser.parse_args()
 
-requirement_references = extract_all_requirement_references('pi--innovo')
-source_dirs = ['pi--innovo']  # Modify as needed to include relevant source directories
+    with open(args.requirements_file) as f:
+        requirements = json.load(f)
 
-if __name__ == '__main__':
-    requirement_id = input('Enter requirement ID (default: LLR.PLAT.REG.AVAIL.003): ') or 'LLR.PLAT.REG.AVAIL.003'
-    test_generator = TestGenerator(requirements, requirement_references, source_dirs)
-    result, completion = test_generator.generate_test_case(requirement_id, 0, False, return_raw_completion=True)
+    if args.requirement_references_file:
+        with open(args.requirement_references_file) as f:
+            requirement_references_data = json.load(f)
+            requirement_references = [RequirementReference(**ref) for ref in requirement_references_data]
+    else:
+        requirement_references = extract_all_requirement_references(args.source_dirs[0])
+
+    test_generator = TestGenerator(requirements, requirement_references, args.source_dirs)
+    result, completion = test_generator.generate_test_case(args.requirement_id, 0, False, return_raw_completion=True)
     if result:
         print("Test Description:")
         print(result.test_description)
@@ -19,9 +32,23 @@ if __name__ == '__main__':
         print(result.test_quantity_and_quality_analysis)
         print("Test Mapping Analysis:")
         print(result.test_mapping_analysis)
+        vectorcast_test_cases = []
         for test_case in result.test_cases:
             print("VectorCAST Test Case:")
-            print(test_case.to_vectorcast([requirement_id]))
+            vectorcast_case = test_case.to_vectorcast([args.requirement_id])
+            print(vectorcast_case)
+            vectorcast_test_cases.append(vectorcast_case)
+        if args.execute:
+            from test_environment import TestEnvironmentManager
+            env_manager = TestEnvironmentManager(args.envs_path)
+            unit_names = set(unit_name for test_case in result.test_cases for unit_name in test_case.unit_names)
+            environment = env_manager.get_environment(unit_names)
+            if environment:
+                output = environment.run_tests(vectorcast_test_cases, execute=True)
+                print("Execution Output:")
+                print(output)
+            else:
+                print("No suitable environment found for execution.")
 
         # Calculate and save cost information
         input_tokens = completion.usage.prompt_tokens
@@ -39,3 +66,6 @@ if __name__ == '__main__':
             cost_file.write(f"Input Cost: €{input_cost:.6f}\n")
             cost_file.write(f"Output Cost: €{output_cost:.6f}\n")
             cost_file.write(f"Total Cost: €{total_cost:.6f}\n")
+
+if __name__ == '__main__':
+    main()

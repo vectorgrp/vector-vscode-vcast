@@ -7,14 +7,22 @@ The format of a test case is as follows:
         { "identifier": <identifier>, "value": <value> },
         ...
     ],
+    "input_references": [
+        { "identifier": <identifier>, "reference": <identifier> },
+        ...
+    ],
     "expected_values": [
         { "identifier": <identifier>, "value": <value> },
+        ...
+    ],
+    "expected_references": [
+        { "identifier": <identifier>, "reference": <identifier> },
         ...
     ]
 }
 
 ### Identifier and Value Syntax
-The following sections describe the syntax for specifying the `identifier` and `value` fields in the test case format. `unit` and `subprogram` refer to file names of C files (without extension) and function names in these files respectively. Of course it is possible to include identifiers from different units and subprograms in the same test.
+The following sections describe the syntax for specifying the `identifier` and `value` (or `reference`) fields in the test case format. `unit` and `subprogram` refer to file names of C files (without extension) and function names in these files respectively. Of course it is possible to include identifiers from different units and subprograms in the same test.
 
 #### Numeric Types
 - Assign the number directly.
@@ -27,6 +35,11 @@ The following sections describe the syntax for specifying the `identifier` and `
   - Example:
     { "identifier": "unit.subprogram.struct_param.field", "value": "CAESAR" }
     { "identifier": "unit.subprogram.struct_param.field", "value": "STEAK" }
+- In case you are accessing the field of a structure pointer, dereference it using `*`. The `->` operator is NEVER valid syntax.
+  - Example:
+    { "identifier": "unit.subprogram.*struct_pointer.field", "value": 'b' }
+    instead of
+    { "identifier": "unit.subprogram.struct_pointer->field", "value": 'b' }
 
 #### Enumeration Types
 - Use the enumeral value directly.
@@ -43,7 +56,7 @@ The following sections describe the syntax for specifying the `identifier` and `
 - For constrained arrays, specify the index and value.
   - Example:
     { "identifier": "unit.subprogram.array_param[2]", "value": 42 }
-- For unconstrained arrays, use `<<malloc int>>` to allocate memory.
+- For unconstrained arrays, use `<<malloc [amount as integer]>>` to allocate memory.
   - Example:
     { "identifier": "unit.subprogram.array_param[]", "value": "<<malloc 2>>" }
     { "identifier": "unit.subprogram.array_param[1]", "value": 3 }
@@ -110,3 +123,9 @@ The following sections describe the syntax for specifying the `identifier` and `
   - Example:
     { "identifier": "unit.subprogram.parameter", "reference": "unit.other_subprogram.other_parameter" }
 - This is useful in test cases consisting of multiple parts to set the input values of the next test part based on output values of the previous ones
+- In case you want to set the value of an identifier to that of another identifier you MUST use a reference. It is not possible to refer to variables in the `value` field
+  - Example:
+    { "identifier": "unit.subprogram.parameter", "reference": "unit.other_subprogram.other_parameter" }
+    instead of
+    { "identifier": "unit.subprogram.parameter", "value": "unit.other_subprogram.other_parameter" }
+- In case you want to set the value of an identifier to a computation involving an identifier, you cannot do so.

@@ -1,6 +1,7 @@
 import json
 import openai
 import os
+import re
 from typing import List
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -14,9 +15,30 @@ class ValueMapping(BaseModel):
     identifier: str
     value: str
 
+    def to_vectorcast(self, is_expected=False) -> str:
+        patched_identifier = re.sub(r'(\w+)->', r'*\1.', self.identifier)
+        if is_expected:
+            return f"TEST.EXPECTED:{patched_identifier}:{self.value}\n"
+        return f"TEST.VALUE:{patched_identifier}:{self.value}\n"
+
 class ReferenceMapping(BaseModel):
     identifier: str
     reference: str
+
+    def to_vectorcast(self, is_expected=False) -> str:
+        patched_identifier = re.sub(r'(\w+)->', r'*\1.', self.identifier)
+        patched_reference = re.sub(r'(\w+)->', r'*\1.', self.reference)
+        if is_expected:
+            return (
+                f"TEST.EXPECTED_USER_CODE:{patched_identifier}\n"
+                f"<<{patched_identifier}>> == ( <<{patched_reference}>> )\n"
+                "TEST.END_EXPECTED_USER_CODE:\n"
+            )
+        return (
+            f"TEST.VALUE_USER_CODE:{patched_identifier}\n"
+            f"<<{patched_identifier}>> = ( <<{patched_reference}>> );\n"
+            "TEST.END_VALUE_USER_CODE:\n"
+        )
 
 class TestCase(BaseModel):
     regular_test_name: str
@@ -27,6 +49,10 @@ class TestCase(BaseModel):
     input_references: List[ReferenceMapping]
     expected_values: List[ValueMapping]
     expected_references: List[ReferenceMapping]
+
+    @property
+    def unit_names(self):
+        return [self.unit_name]
 
     def to_vectorcast(self, tested_requirements=[]) -> str:
         test_case_str = f"TEST.UNIT:{self.unit_name}\n"
@@ -43,20 +69,16 @@ class TestCase(BaseModel):
         test_case_str += "TEST.END_NOTES:\n"
 
         for input_value in self.input_values:
-            test_case_str += f"TEST.VALUE:{input_value.identifier}:{input_value.value}\n"
+            test_case_str += input_value.to_vectorcast()
 
-        for input_value in self.input_references:
-            test_case_str += f"TEST.VALUE_USER_CODE:{input_value.identifier}\n"
-            test_case_str += f"<<{input_value.identifier}>> = ( <<{input_value.reference}>> );\n"
-            test_case_str += "TEST.END_VALUE_USER_CODE:\n"
+        for input_reference in self.input_references:
+            test_case_str += input_reference.to_vectorcast()
 
         for expected_value in self.expected_values:
-            test_case_str += f"TEST.EXPECTED:{expected_value.identifier}:{expected_value.value}\n"
+            test_case_str += expected_value.to_vectorcast(is_expected=True)
             
-        for expected_value in self.expected_references:
-            test_case_str += f"TEST.EXPECTED_USER_CODE:{expected_value.identifier}\n"
-            test_case_str += f"<<{expected_value.identifier}>> == ( <<{expected_value.reference}>> )\n"
-            test_case_str += "TEST.END_EXPECTED_USER_CODE:\n"
+        for expected_reference in self.expected_references:
+            test_case_str += expected_reference.to_vectorcast(is_expected=True)
 
         test_case_str += "TEST.END\n"
         return test_case_str
@@ -65,6 +87,10 @@ class CompoundTestCase(BaseModel):
     compound_test_name: str
     compound_test_description: str
     sub_test_cases: List[TestCase]
+
+    @property
+    def unit_names(self):
+        return [sub_test_case.unit_name for sub_test_case in self.sub_test_cases]
 
     def to_vectorcast(self, tested_requirements=[]) -> str:
         test_case_str = ""
@@ -137,7 +163,7 @@ Based on the following requirement, references and code, generate a test case th
 
 Input and expected value syntax reference:
 {identifier_syntax_reference}
-                
+
 Relevant Code:
 {context}
 
@@ -166,6 +192,7 @@ Notes:
 - You are NOT allowed to invent any units or functions that are not present in the provided code.
 - This is a highly critical task, please ensure that the test case is correct and complete and does not contain any logical or syntactical errors.
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one). To test different subprograms one after the other use a compound test case (and potentially pass information between the test cases using references).
+- Do not duplicate tests by adding them both to regular_test_cases and as part of a compound test
 """
             }
         ]

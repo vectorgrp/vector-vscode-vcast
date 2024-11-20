@@ -5,53 +5,34 @@ class ContextBuilder:
 
     def build_code_context(self, requirement_id):
         context = ""
-
-        # Step 1: Include files where the requirement is referenced
-        referenced_files = set()
-        for ref in self.requirement_references:
-            if ref.id == requirement_id:
-                referenced_files.add(ref.file)
-
-        print(referenced_files)
-
-        for filepath in referenced_files:
-            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                file_content = f.read()
-                context += f"\nFile: {filepath}\n{file_content}\n"
-
-        # Step 2: Find identifiers near requirement references
         identifiers_to_include = set()
+
+        # Step 1: Include code windows around where the requirement is referenced
         for ref in self.requirement_references:
             if ref.id == requirement_id:
                 filepath = ref.file
                 line_number = ref.line
-                # Use the get_identifiers_near_line method from Codebase
-                identifiers = self.codebase.get_identifiers_near_line(filepath, line_number, window=5)
+                # Use the get_code_window_with_lines method to get code window and line numbers
+                code_window, start_line, end_line = self.codebase.get_code_window(filepath, line_number, window=5, return_line_numbers=True)
+                context += f"\nCode from {filepath} around line {line_number}:\n{code_window}\n"
+
+                # Extract identifiers from the code window
+                identifiers = self.codebase.get_identifiers_in_window(filepath, start_line, end_line)
                 identifiers_to_include.update(identifiers)
 
-                # Check if the reference is inside a function
-                function_node = self.codebase.find_enclosing_function(filepath, line_number, window_tolerance=5)
-                if function_node:
-                    # Extract all identifiers from the function
-                    function_identifiers = self.codebase.extract_identifiers(function_node)
-                    identifiers_to_include.update(function_identifiers)
-
-        print(identifiers_to_include)
-
-        # Filter identifiers to include only those defined outside of referenced_files
+        """
+        # Step 2: Filter identifiers to include only those defined outside of the code windows
         filtered_identifiers = set()
         for identifier in identifiers_to_include:
-            for ref_file in referenced_files:
-                definition = self.codebase.find_definition(identifier, ref_file, only_local=True)
-                if definition:
-                    break
-            else:
+            definition = self.codebase.find_definition(identifier, filepath, only_local=True)
+            if not definition:
                 filtered_identifiers.add(identifier)
+        """
+        filtered_identifiers = identifiers_to_include
 
         # Step 3: Include definitions of referenced identifiers
         definition_map = {}
         for identifier in filtered_identifiers:
-            # Pass the referencing file path to find_definition
             definition = self.codebase.find_definition(identifier, filepath)
             print(identifier, definition)
             if definition:

@@ -8,6 +8,8 @@ from tree_sitter import Parser, Language
 C_LANGUAGE = Language(tsc.language())
 parser = Parser(C_LANGUAGE)
 
+_IDENTIFIER_BLACKLIST = {'FUNC'}
+
 class Codebase:
     def __init__(self, source_dirs):
         self.source_dirs = source_dirs
@@ -27,7 +29,13 @@ class Codebase:
 
     def get_code_bytes(self, filepath):
         with open(filepath, 'rb') as f:
-            return f.read()
+            code_bytes = f.read()
+        return self._replace_func_meta(code_bytes)
+
+    def _replace_func_meta(self, code_bytes):
+        code_str = code_bytes.decode('utf8', errors='ignore')
+        code_str = re.sub(r'FUNC\((\w+)\s*,\s*\w+\)', r'\1', code_str)
+        return code_str.encode('utf8')
 
     @lru_cache(maxsize=4096)
     def parse_file(self, filepath):
@@ -53,15 +61,18 @@ class Codebase:
         return include_graph
 
     def _collect_definitions(self, node, code_bytes, filepath, inverted_index):
-        names = self._get_definition_names(node)
-        if names:
-            definition_code = code_bytes[node.start_byte:node.end_byte].decode('utf8', errors='ignore')
-            for name in names:
-                if name not in inverted_index:
-                    inverted_index[name] = []
-                inverted_index[name].append((definition_code, filepath))
-        for child in node.children:
-            self._collect_definitions(child, code_bytes, filepath, inverted_index)
+        try:
+            names = self._get_definition_names(node)
+            if names:
+                definition_code = code_bytes[node.start_byte:node.end_byte].decode('utf8', errors='ignore')
+                for name in names:
+                    if name not in inverted_index:
+                        inverted_index[name] = {}
+                    inverted_index[name][filepath] = definition_code
+            for child in node.children:
+                self._collect_definitions(child, code_bytes, filepath, inverted_index)
+        except RecursionError:
+            print("Recursion error in node:", filepath)
 
     def _get_definition_names(self, node):
         names = []
@@ -94,6 +105,17 @@ class Codebase:
                         enumerator_name_node = enumerator.child_by_field_name('name')
                         if enumerator_name_node:
                             names.append(enumerator_name_node.text.decode('utf8'))
+        # Typedef definition
+        elif node.type == 'type_definition':
+            alias_node = node.child_by_field_name('alias')
+            if alias_node:
+                names.append(alias_node.text.decode('utf8'))
+        # Global variable definition
+        if node.type == 'declaration' and node.parent.type == 'translation_unit':
+            declarator = node.child_by_field_name('declarator')
+            if declarator and declarator.type == 'identifier':
+                names.append(declarator.text.decode('utf8'))
+
         return names
 
     def _get_definition_node(self, node, identifier=None):
@@ -112,10 +134,9 @@ class Codebase:
         visited_files.add(referencing_file)
 
         # Search for definition in the current file
-        definitions = self.inverted_index.get(identifier, [])
-        for definition_code, def_filepath in definitions:
-            if def_filepath == referencing_file:
-                return definition_code
+        definitions_in_file = self.inverted_index.get(identifier, {}).get(referencing_file)
+        if definitions_in_file:
+            return definitions_in_file
 
         if only_local:
             return None
@@ -124,25 +145,16 @@ class Codebase:
         included_files = self.include_graph.get(referencing_file, [])
         for inc_filepath in included_files:
             if inc_filepath not in visited_files:
+                # Search for definition in the included file
+                definitions_in_file = self.inverted_index.get(identifier, {}).get(inc_filepath)
+                if definitions_in_file:
+                    return definitions_in_file
+                # Recursively search in included files
                 result = self.find_definition(identifier, inc_filepath, visited_files)
                 if result:
                     return result
 
-        # Fallback: Use definitions from other files
-        for definition_code, def_filepath in definitions:
-            return definition_code
-
-        return None
-
-    def _find_definition(self, node, identifier):
-        definition_node = self._get_definition_node(node, identifier)
-        if definition_node:
-            return definition_node
-        # Recurse into children
-        for child in node.children:
-            result = self._find_definition(child, identifier)
-            if result:
-                return result
+        # Do not fallback to definitions in other files
         return None
 
     def _get_included_files(self, root_node, current_filepath):
@@ -172,15 +184,6 @@ class Codebase:
                     return candidate
         return None
 
-    def extract_identifiers(self, node):
-        identifiers = set()
-        if node.type == 'identifier':
-            identifier = node.text.decode('utf8')
-            identifiers.add(identifier)
-        for child in node.children:
-            identifiers.update(self.extract_identifiers(child))
-        return identifiers
-
     def find_functions_in_file(self, filepath):
         tree, code_bytes = self.parse_file(filepath)
         root_node = tree.root_node
@@ -194,23 +197,6 @@ class Codebase:
         for child in node.children:
             functions.extend(self._find_functions(child))
         return functions
-
-    def get_identifiers_near_line(self, filepath, line_number, window=5):
-        tree, code_bytes = self.parse_file(filepath)
-        root_node = tree.root_node
-        identifiers = set()
-        self._collect_identifiers_near_line(root_node, code_bytes, line_number, identifiers, window)
-        return identifiers
-
-    def _collect_identifiers_near_line(self, node, code_bytes, line_number, identifiers, window):
-        start_line, _ = node.start_point
-        end_line, _ = node.end_point
-        if start_line <= line_number + window and end_line >= line_number - window:
-            if node.type == 'identifier':
-                identifier = node.text.decode('utf8')
-                identifiers.add(identifier)
-            for child in node.children:
-                self._collect_identifiers_near_line(child, code_bytes, line_number, identifiers, window)
 
     def find_enclosing_function(self, filepath, line_number, window_tolerance=0):
         tree, _ = self.parse_file(filepath)
@@ -228,3 +214,67 @@ class Codebase:
             if result:
                 return result
         return None
+
+    def get_code_window(self, filepath, line_number, window=5, return_line_numbers=False):
+        tree, code_bytes = self.parse_file(filepath)
+        root_node = tree.root_node
+
+        # Find initial start and end lines for the window
+        start_line = max(0, line_number - window)
+        end_line = line_number + window
+
+        # Expand window to include entire functions within the window
+        functions = self._find_functions_in_range(root_node, start_line, end_line)
+        for func_node in functions:
+            func_start_line, _ = func_node.start_point
+            func_end_line, _ = func_node.end_point
+            start_line = min(start_line, func_start_line)
+            end_line = max(end_line, func_end_line)
+
+        # Extract code between start_line and end_line
+        code_lines = code_bytes.decode('utf8', errors='ignore').splitlines()
+        code_window = '\n'.join(code_lines[start_line:end_line + 1])
+
+        if return_line_numbers:
+            return code_window, start_line, end_line
+
+        return code_window
+
+    def _find_functions_in_range(self, node, start_line, end_line):
+        functions = []
+        node_start_line, _ = node.start_point
+        node_end_line, _ = node.end_point
+
+        # If node is outside the range, skip it
+        if node_end_line < start_line or node_start_line > end_line:
+            return functions
+
+        if node.type == 'function_definition':
+            functions.append(node)
+
+        for child in node.children:
+            functions.extend(self._find_functions_in_range(child, start_line, end_line))
+
+        return functions
+
+    def get_identifiers_in_window(self, filepath, start_line, end_line):
+        tree, code_bytes = self.parse_file(filepath)
+        root_node = tree.root_node
+        identifiers = set()
+        self._collect_identifiers_in_range(root_node, start_line, end_line, identifiers)
+        return identifiers - _IDENTIFIER_BLACKLIST
+
+    def _collect_identifiers_in_range(self, node, start_line, end_line, identifiers):
+        node_start_line, _ = node.start_point
+        node_end_line, _ = node.end_point
+
+        # If node is outside the range, skip it
+        if node_end_line < start_line or node_start_line > end_line:
+            return
+
+        if node.type in ('identifier', 'type_identifier'):
+            identifier = node.text.decode('utf8')
+            identifiers.add(identifier)
+
+        for child in node.children:
+            self._collect_identifiers_in_range(child, start_line, end_line, identifiers)
