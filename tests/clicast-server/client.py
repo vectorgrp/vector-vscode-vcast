@@ -805,7 +805,6 @@ def main_throws():
     argParser = setupArgs()
     args, restOfArgs = argParser.parse_known_args()
 
-
     vcastDataServerTypes.processPortArg(args)
 
     # first we run the ping test, because if this fails ... what's the point
@@ -842,6 +841,7 @@ def main():
         print(" ")
 
     return return_code
+
 
 if __name__ == "__main__":
     sys.exit(main())
