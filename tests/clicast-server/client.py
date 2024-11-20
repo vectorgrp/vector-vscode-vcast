@@ -89,17 +89,17 @@ def cleanExecutionData(newData):
     newList = []
     for line in currentList:
         if line.startswith("REPORT:"):
-            newList.append("REPORT: report.txt")
+            newList.append("REPORT: report.html")
         elif line.startswith("TIME:"):
             newList.append("TIME: 00:00:00")
         elif "report custom actual" in line:
             pieces = line.split("report custom actual")
-            newLine = f"{pieces[0]} report custom actual report.txt"
+            newLine = f"{pieces[0]} report custom actual report.html"
             newLine = cleanClicastCommand(newLine)
             newList.append(newLine)
         elif "report was saved to" in line:
             pieces = line.split("report was saved to")
-            newList.append(f"{pieces[0]} report was saved to report.txt")
+            newList.append(f"{pieces[0]} report was saved to report.html")
         elif "Running command" in line:
             newList.append(cleanClicastCommand(line))
         elif line.strip() in outputLinesToIgnore:
