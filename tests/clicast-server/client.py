@@ -792,7 +792,7 @@ def enviroBasedTests(args):
         print("Unknown test kind")
 
 
-def main():
+def main_throws():
     """
     The common way to run the test is with
         vpython client.py --test=full
@@ -805,8 +805,7 @@ def main():
     argParser = setupArgs()
     args, restOfArgs = argParser.parse_known_args()
 
-    # process port arg
-    # Note that PORT gets used by function serverURL()
+
     vcastDataServerTypes.processPortArg(args)
 
     # first we run the ping test, because if this fails ... what's the point
@@ -818,11 +817,11 @@ def main():
         enviroBasedTests(args)
 
 
-if __name__ == "__main__":
+def main():
+    return_code = -1
     try:
-        main()
-        sys.exit(0)
-
+        main_throws()
+        return_code = 0
     except AssertionError:
         _, _, tb = sys.exc_info()
         tb_info = traceback.extract_tb(tb)
@@ -841,3 +840,10 @@ if __name__ == "__main__":
         print(Exception, err)
         print(traceback.format_exc())
         print(" ")
+
+    return return_code
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+# EOF
