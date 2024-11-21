@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 import ast
 from dcheck.processing.code_extraction import FunctionDef
 from pydantic import BaseModel
@@ -7,6 +7,8 @@ class Requirement(BaseModel):
     requirement_text: str
 
 class DesignDecompositionResult(BaseModel):
+    code_paths: List[str]
+    designed_code_paths: List[str]
     requirements: List[Requirement]
 
 class DesignDecomposer:
@@ -24,37 +26,24 @@ class DesignDecomposer:
         messages = [
             {
                 "role": "system",
-                "content": "You are a world-class software engineer."
+                "content": "You are a world-class software engineer that does requirements engineering for a living."
             },
             {
                 "role": "user",
                 "content": f"""
-Please decompose this high-level design into individual flows/paths/requirements through the code, such that each flow/requirements can be tested separately by a single unit test.
+Derive a complete list of requirements for the given function definition. Use only vocabulary used in the design, not the code. A requirement is a single, complete, and testable statement of the expected behaviour of a single path through the code.
+                
+Design:
+{func_def.design}
 
 Code:
 {func_def.code}
 
-High-level design:
-{func_def.design}
+To solve this task, first enumerate all potential paths through the code. A path is fully defined by a series of IF (both in code and the preprocessor) conditions and the decision made at each. Ignore looping constructs when deriving the paths.
+Then enumerate all paths you just derived and only keep those who have been explicitly designed.
+For each such path, derive the expected behaviour of the code path. This behaviour should be a single, complete, and testable statement. It has to be understandable independent of other requirements.
 
-Clarification of terms:
-- High-level design: A description of the code's behaviour, in effect often a textual version of the code.
-- Low-level functional requirement: A textual description of the expected behaviour of a single path through the code. Often only one or two sentences.
-
-Detailed task description:
-Translate the given high-level design into a list of low-level requirements.
-
-Solve the problem by translating the high-level design into a list of low-level requirements one by one. For each one:
-1. Describe the single code path this requirement describes in terms of the path taken at branch points in the code (if, switch, while, for, etc.). This description should be complete and not rely on the reader's knowledge of the code or other requirements.
-2. Describe the expected behaviour of the code path.
-
-Notes:
-- The crucial difference between design and requirement then, is that the design covers all paths through the code, while a requirement only covers a single path.
-- Each requirement should be detailed enough that a developer could implement the code to meet the requirement without further clarification.
-- Each requirement should be self-contained, i.e. not refer to information contained explicitly or implicitly in other requirements.
-- No requirement should be a subset of another requirement.
-- Taken together, the requirements should allow a developer to reconstruct the high-level design.
-- If you create a requirement that depends on having read another requirement to understand it, you have FAILED. Avoid this at all costs, be repetetive if necessary.
+The success of this task is critical. The purpose is to derive unit tests, exactly one per requirement, that will test the behaviour of the exact code path described in the final requirements_text.
 """
             }
         ]
