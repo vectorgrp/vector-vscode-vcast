@@ -154,8 +154,10 @@ class Codebase:
                 if result:
                     return result
 
-        # Do not fallback to definitions in other files
-        return None
+        # Fallback to all definitions in the codebase
+        all_definitions = [defn for defn in self.inverted_index.get(identifier, {}).values()]
+        
+        return all_definitions[0] if all_definitions else None
 
     def _get_included_files(self, root_node, current_filepath):
         included_files = []
