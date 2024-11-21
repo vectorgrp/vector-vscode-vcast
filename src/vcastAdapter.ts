@@ -51,6 +51,7 @@ import {
   transmitResponseType,
   vcastCommandType,
 } from "../src-common/vcastServer";
+import { synchronizeVSCodeSettingsWithEnv } from "./utilities";
 
 const path = require("path");
 
@@ -70,7 +71,7 @@ export function vcastLicenseOK(): boolean {
 }
 
 // Build Environment - no server logic needed ----------------------------------------
-export function buildEnvironmentFromScript(
+export async function buildEnvironmentFromScript(
   unitTestLocation: string,
   enviroName: string
 ) {
@@ -79,6 +80,10 @@ export function buildEnvironmentFromScript(
 
   // this call runs clicast in the background
   const enviroPath = path.join(unitTestLocation, enviroName);
+
+  // We need to synchronize the VSCode settings with the env file content in case the user changed it per hand
+  await synchronizeVSCodeSettingsWithEnv(enviroPath);
+
   const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
   openMessagePane();
@@ -691,6 +696,9 @@ export async function rebuildEnvironment(
   rebuildEnvironmentCallback: any
 ) {
   setCodedTestOption(path.dirname(enviroPath));
+
+  // We need to synchronize the VSCode settings with the env file content in case the user changed it per hand
+  await synchronizeVSCodeSettingsWithEnv(enviroPath);
 
   if (globalEnviroDataServerActive) {
     rebuildEnvironmentUsingServer(enviroPath, rebuildEnvironmentCallback);
