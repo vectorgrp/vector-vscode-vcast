@@ -267,6 +267,20 @@
             "order": 7,
             "default": false,
             "description": "Log internal extension details"
+          },
+          "vectorcastTestExplorer.mcdcCoverageGutterIcons": {
+            "type": "string",
+            "enum": [
+              "➡",
+              "M"
+            ],
+            "enumDescriptions": [
+              "Arrow cover icon for MC/DC",
+              "Marker cover icon for MC/DC"
+            ],
+            "order": 8,
+            "default": "➡",
+            "description": "Selects the icons displayed in the coverage gutter"
           }
         }
       },
@@ -499,7 +513,7 @@
         },
         {
           "command": "extension.getMCDCReport",
-          "when": "vectorcastTestExplorer.configured && editorLangId == 'cpp'",
+          "when": "vectorcastTestExplorer.configured && editorLangId == 'cpp' && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
           "args": [
             "${lineNumber}" 
           ],
