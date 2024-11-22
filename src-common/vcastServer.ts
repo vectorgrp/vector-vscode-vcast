@@ -1,4 +1,3 @@
-import { vectorMessage } from "../src/messagePane";
 import { pythonErrorCodes } from "./vcastServerTypes";
 import axios from "axios";
 
