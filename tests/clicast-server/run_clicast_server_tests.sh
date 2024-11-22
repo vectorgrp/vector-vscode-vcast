@@ -53,4 +53,8 @@ done
 
 "$VECTORCAST_DIR"/vpython "$ROOT"/client.py --port="$SERVER_PORT" --test=full
 
+rc=$?
+
 kill $SERVER_PID
+
+exit $rc
