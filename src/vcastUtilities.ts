@@ -26,6 +26,7 @@ import {
   clicastCommandToUse,
   configFileContainsCorrectInclude,
   globalIncludePath,
+  globalMCDCReportPath,
   globalTestInterfacePath,
   vPythonCommandToUse,
   vUnitIncludeSuffix,
@@ -414,6 +415,16 @@ export function getVcastInterfaceCommandForMCDC(
   };
   const testArgument = `--options='${JSON.stringify(options)}'`;
   return `${commandToRun} ${testArgument}`;
+}
+
+/**
+ * Generates the command to get all mcdc coverage lines in an env.
+ * @param enviroName Name of env.
+ * @returns Command to get all mcdc coverage lines in an env.
+ */
+export function getMCDCLineCoverageCommand(enviroName: string) {
+  const commandToRun = `${vPythonCommandToUse} ${globalMCDCReportPath}  --env=${enviroName}`;
+  return commandToRun;
 }
 
 export function getClientRequestObject(

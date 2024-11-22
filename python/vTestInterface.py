@@ -685,7 +685,7 @@ def processMCDCLogic(mode, clicast, pathToUse, envName, unitName, lineNumber):
 
 def getMCDCReport(mode, clicast, pathToUse, envName, unitName, lineNumber):
     """
-    This is a wrapper for process command logic, so that we can process
+    This is a wrapper for process mcdc command logic, so that we can process
     the exceptions in a single place for stand-alone (via main) and server usage
     """
     try:

@@ -39,6 +39,7 @@ import {
 
 import {
   getClientRequestObject,
+  getMCDCLineCoverageCommand,
   getRebuildOptionsString,
   getVcastInterfaceCommand,
   getVcastInterfaceCommandForMCDC,
@@ -791,7 +792,6 @@ export async function getMCDCReport(
       lineNumber
     );
   } else {
-    // TODO: implement MCDC for Python
     return getMCDCReportFromPython(enviroPath, enviroName, unit, lineNumber);
   }
 }
@@ -844,4 +844,21 @@ function getMCDCReportFromPython(
     `Commandstatus: ${commandStatus.errorCode} ${commandStatus.stdout}`
   );
   return commandStatus;
+}
+
+/**
+ * Gets all MCDC lines for every unit contained in the Environment
+ * @param enviroPath Path to Environment
+ * @returns Set of units including their covered MCDC lines
+ */
+export function getMCDCCoverageLines(enviroPath: string) {
+  const commandToRun = getMCDCLineCoverageCommand(enviroPath);
+  const commandStatus: commandStatusType = executeCommandSync(
+    commandToRun,
+    process.cwd()
+  );
+  vectorMessage(
+    `Commandstatus: ${commandStatus.errorCode} ${commandStatus.stdout}`
+  );
+  return cleanVectorcastOutput(commandStatus.stdout);
 }
