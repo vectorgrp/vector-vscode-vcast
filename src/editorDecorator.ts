@@ -29,10 +29,6 @@ let testableFunctionsDecorations: vscode.DecorationOptions[] = [];
  * Fetches all lines with MCDC coverage for the current active editor's unit from the Data API.
  */
 export function updateCurrentActiveUnitMCDCLines() {
-  // Check in the vscode settings first if MCDC coverage is activated
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const coverage = settings.get("build.coverageKind");
-
   let activeEditor = vscode.window.activeTextEditor;
   if (activeEditor) {
     // First we need to get the env name from the active file
@@ -44,7 +40,7 @@ export function updateCurrentActiveUnitMCDCLines() {
     const unitName = path.basename(fullPath, path.extname(fullPath));
 
     // Get all mcdc lines for every unit and parse it into JSON
-    if (enviroPath && coverage === "Statement+MCDC") {
+    if (enviroPath) {
       // Replace single quotes with double quotes to make it a valid JSON string
       try {
         let mcdcCoverageLinesString = getMCDCCoverageLines(enviroPath).replace(

@@ -632,13 +632,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   // This command appears in the context menu of the vscode gutter (same as Add Breakpoint) and
   // generates the MCDC report.
   let getMCDCReportCommand = vscode.commands.registerCommand(
-    "extension.getMCDCReport",
+    "vectorcastTestExplorer.viewMCDCReport",
     async (args) => {
-      // Check in the vscode settings first if MCDC coverage is activated
-      let settings = vscode.workspace.getConfiguration(
-        "vectorcastTestExplorer"
-      );
-      const coverageKind = settings.get("build.coverageKind");
       const activeEditor = vscode.window.activeTextEditor;
 
       if (activeEditor) {
@@ -647,53 +642,12 @@ function configureExtension(context: vscode.ExtensionContext) {
         const enviroPath = getEnvPathForFilePath(filePath);
         const enviroName = getEnvNameForFilePath(filePath);
         const fileName = path.parse(filePath).name;
-
-        // First we need to check whether the coverage kind is correct
-        if (coverageKind == "Statement+MCDC") {
-          vscode.window.showInformationMessage(
-            `Generating MCDC report for ${fileName} in Env ${enviroName} (${enviroPath}) for line ${args.lineNumber}`
-          );
-
-          if (enviroPath && enviroName) {
-            viewMCDCReport(enviroPath, enviroName, fileName, args.lineNumber);
-          } else {
-            vscode.window.showErrorMessage(
-              `Did not find ENV name or path for file: ${filePath}`
-            );
-          }
+        if (enviroPath && enviroName) {
+          viewMCDCReport(enviroPath, enviroName, fileName, args.lineNumber);
         } else {
-          // If the Coverage is not set to Statement+MCDC, we help the user by providing him a shortcut to set the Coverage, Re-Build the environment and generate the Report
-          // By just clicking on one button in the Information Message.
-          const action = await vscode.window.showInformationMessage(
-            `MCDC coverage is not activated. Please activate it in the VS Code settings: VectorCAST Test Explorer -> Build -> Coverage Kind and select Statement+MCDC. Afterwards, please Re-Build the environment.`,
-            "Set Coverage & Re-Build"
+          vscode.window.showErrorMessage(
+            `Did not find environment name ${enviroName} or path for file: ${filePath}`
           );
-
-          if (action === "Set Coverage & Re-Build") {
-            // Set the coverage kind to "Statement+MCDC"
-            await settings.update(
-              "build.coverageKind",
-              "Statement+MCDC",
-              vscode.ConfigurationTarget.Workspace
-            );
-
-            if (enviroPath && enviroName) {
-              // Call the rebuildEnvironment function
-              rebuildEnvironment(enviroPath, () => {
-                vscode.window.showInformationMessage(
-                  "Environment rebuilt successfully with MCDC coverage activated."
-                );
-              });
-              // Now that everything is set --> Get MCDC Report
-              viewMCDCReport(enviroPath, enviroName, fileName, args.lineNumber);
-            } else {
-              vscode.window.showErrorMessage(
-                "Could not determine the environment path for rebuilding."
-              );
-            }
-          } else {
-            vscode.window.showErrorMessage("No active editor found.");
-          }
         }
       }
     }

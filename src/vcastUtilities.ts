@@ -413,7 +413,9 @@ export function getVcastInterfaceCommandForMCDC(
     unitName: unitName,
     lineNumber: lineNumber,
   };
-  const testArgument = `--options='${JSON.stringify(options)}'`;
+  // Escape the JSON for shell safety
+  const escapedOptions = `'${JSON.stringify(options).replace(/"/g, '\\"')}'`;
+  const testArgument = `--options=${escapedOptions}`;
   return `${commandToRun} ${testArgument}`;
 }
 
