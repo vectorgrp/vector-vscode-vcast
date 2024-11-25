@@ -205,9 +205,9 @@
         "title": "Open Data Server log"
       },
       {
-        "command": "extension.getMCDCReport",
+        "command": "vectorcastTestExplorer.viewMCDCReport",
         "category": "VectorCAST Test Explorer",
-        "title": "Get MCDC Report"
+        "title": "View MCDC Report"
       }
     ],
     "keybindings": [
@@ -440,6 +440,10 @@
         {
           "command": "vectorcastTestExplorer.displayServerLog",
           "when": "vectorcastTestExplorer.serverLogAvailable"
+        },
+        {
+          "command": "vectorcastTestExplorer.viewMCDCReport",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -512,8 +516,8 @@
           "group": "vcast"
         },
         {
-          "command": "extension.getMCDCReport",
-          "when": "vectorcastTestExplorer.configured && (editorLangId == 'cpp' || editorLangId == 'c') && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
+          "command": "vectorcastTestExplorer.viewMCDCReport",
+          "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
           "args": [
             "${lineNumber}" 
           ],
