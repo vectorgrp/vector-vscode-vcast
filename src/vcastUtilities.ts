@@ -408,14 +408,15 @@ export function getVcastInterfaceCommandForMCDC(
   lineNumber: number
 ) {
   const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=${command.toString()} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
-  const options = {
-    enviroName: enviroName,
-    unitName: unitName,
-    lineNumber: lineNumber,
-  };
-  // Escape the JSON for shell safety
-  const escapedOptions = `'${JSON.stringify(options).replace(/"/g, '\\"')}'`;
-  const testArgument = `--options=${escapedOptions}`;
+  let optionsDict: { [command: string]: string | number } = {};
+  optionsDict["enviroName"] = enviroName;
+  optionsDict["unitName"] = unitName;
+  optionsDict["lineNumber"] = lineNumber;
+  const jsonOptions: string = JSON.stringify(optionsDict).replaceAll(
+    '"',
+    '\\"'
+  );
+  const testArgument = `--options="${jsonOptions}"`;
   return `${commandToRun} ${testArgument}`;
 }
 
