@@ -513,7 +513,7 @@
         },
         {
           "command": "extension.getMCDCReport",
-          "when": "vectorcastTestExplorer.configured && editorLangId == 'cpp' && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
+          "when": "vectorcastTestExplorer.configured && (editorLangId == 'cpp' || editorLangId == 'c') && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
           "args": [
             "${lineNumber}" 
           ],
