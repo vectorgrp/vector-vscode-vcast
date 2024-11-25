@@ -89,17 +89,17 @@ def cleanExecutionData(newData):
     newList = []
     for line in currentList:
         if line.startswith("REPORT:"):
-            newList.append("REPORT: report.txt")
+            newList.append("REPORT: report.html")
         elif line.startswith("TIME:"):
             newList.append("TIME: 00:00:00")
         elif "report custom actual" in line:
             pieces = line.split("report custom actual")
-            newLine = f"{pieces[0]} report custom actual report.txt"
+            newLine = f"{pieces[0]} report custom actual report.html"
             newLine = cleanClicastCommand(newLine)
             newList.append(newLine)
         elif "report was saved to" in line:
             pieces = line.split("report was saved to")
-            newList.append(f"{pieces[0]} report was saved to report.txt")
+            newList.append(f"{pieces[0]} report was saved to report.html")
         elif "Running command" in line:
             newList.append(cleanClicastCommand(line))
         elif line.strip() in outputLinesToIgnore:
@@ -792,7 +792,7 @@ def enviroBasedTests(args):
         print("Unknown test kind")
 
 
-def main():
+def main_throws():
     """
     The common way to run the test is with
         vpython client.py --test=full
@@ -805,8 +805,6 @@ def main():
     argParser = setupArgs()
     args, restOfArgs = argParser.parse_known_args()
 
-    # process port arg
-    # Note that PORT gets used by function serverURL()
     vcastDataServerTypes.processPortArg(args)
 
     # first we run the ping test, because if this fails ... what's the point
@@ -818,11 +816,11 @@ def main():
         enviroBasedTests(args)
 
 
-if __name__ == "__main__":
+def main():
+    return_code = -1
     try:
-        main()
-        sys.exit(0)
-
+        main_throws()
+        return_code = 0
     except AssertionError:
         _, _, tb = sys.exc_info()
         tb_info = traceback.extract_tb(tb)
@@ -841,3 +839,11 @@ if __name__ == "__main__":
         print(Exception, err)
         print(traceback.format_exc())
         print(" ")
+
+    return return_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+# EOF
