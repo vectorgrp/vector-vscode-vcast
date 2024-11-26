@@ -24,10 +24,20 @@ def main():
     else:
         requirement_references = extract_all_requirement_references(args.source_dirs[0])
 
-    test_generator = TestGenerator(requirements, requirement_references, args.source_dirs)
+    from test_environment import TestEnvironmentManager
+
+    if args.execute:
+        env_manager = TestEnvironmentManager(args.envs_path)
+    else:
+        env_manager = None
+
+    test_generator = TestGenerator(
+        requirements, requirement_references, args.source_dirs, environment_manager=env_manager)
+
     vectorcast_test_cases = []
     for requirement_id in args.requirement_ids:
-        result, completion = test_generator.generate_test_case(requirement_id, 0, False, return_raw_completion=True)
+        result, completion = test_generator.generate_test_case(
+            requirement_id, 0, False, return_raw_completion=True)
         if result:
             print(f"Test Description for {requirement_id}:")
             print(result.test_description)
@@ -45,8 +55,6 @@ def main():
             for vectorcast_case in vectorcast_test_cases:
                 output_file.write(vectorcast_case + '\n')
     if args.execute:
-        from test_environment import TestEnvironmentManager
-        env_manager = TestEnvironmentManager(args.envs_path)
         unit_names = set(unit_name for test_case in result.test_cases for unit_name in test_case.unit_names)
         environment = env_manager.get_environment(unit_names)
         if environment:

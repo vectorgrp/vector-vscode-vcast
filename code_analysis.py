@@ -1,6 +1,7 @@
 from functools import lru_cache
 import re
 import os
+from tqdm import tqdm
 import tree_sitter_c as tsc
 from tree_sitter import Parser, Language
 
@@ -8,7 +9,7 @@ from tree_sitter import Parser, Language
 C_LANGUAGE = Language(tsc.language())
 parser = Parser(C_LANGUAGE)
 
-_IDENTIFIER_BLACKLIST = {'FUNC'}
+_IDENTIFIER_BLACKLIST = {'FUNC', 'VAR'}
 
 class Codebase:
     def __init__(self, source_dirs):
@@ -45,7 +46,7 @@ class Codebase:
 
     def _build_inverted_index(self):
         inverted_index = {}
-        for filepath in self.codebase_files:
+        for filepath in tqdm(self.codebase_files):
             tree, code_bytes = self.parse_file(filepath)
             root_node = tree.root_node
             self._collect_definitions(root_node, code_bytes, filepath, inverted_index)
@@ -53,7 +54,7 @@ class Codebase:
 
     def _build_include_graph(self):
         include_graph = {}
-        for filepath in self.codebase_files:
+        for filepath in tqdm(self.codebase_files):
             tree, code_bytes = self.parse_file(filepath)
             root_node = tree.root_node
             included_files = self._get_included_files(root_node, filepath)

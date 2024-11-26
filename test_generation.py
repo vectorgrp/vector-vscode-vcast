@@ -128,7 +128,7 @@ class TestGenerationResult(BaseModel):
         return self.regular_test_cases + self.compound_test_cases
 
 class TestGenerator:
-    def __init__(self, requirements, requirement_references, source_dirs):
+    def __init__(self, requirements, requirement_references, source_dirs, environment_manager=None):
         self.requirements = requirements
         self.requirement_references = requirement_references
         self.codebase = Codebase(source_dirs)
@@ -139,6 +139,7 @@ class TestGenerator:
             azure_endpoint=os.getenv("OPENAI_API_BASE"),
             azure_deployment=os.getenv("OPENAI_GENERATION_DEPLOYMENT")
         )
+        self.environment_manager = environment_manager  # Optional environment manager
 
     def generate_test_case(self, requirement_id, num_context_tests=3, related_tests=True, return_raw_completion=False):
         requirement_text = self.requirements.get(requirement_id)
@@ -211,13 +212,111 @@ Notes:
         )
 
         try:
-            generated_test_case = completion.choices[0].message.parsed
+            test_generation_result = completion.choices[0].message.parsed
+            if self.environment_manager:
+                # Perform error correction if environment_manager is provided
+                test_generation_result = self._iterative_error_correction(
+                    requirement_id, test_generation_result, messages)
             if return_raw_completion:
-                return generated_test_case, completion
-            return generated_test_case
+                return test_generation_result, completion
+            return test_generation_result
         except Exception as e:
             print("Failed to parse generated test case.")
             print("Error:", e)
             print("Assistant's response:")
             print(completion.choices[0].message)
             return None
+
+    def _iterative_error_correction(self, requirement_id, test_generation_result, messages, max_iterations=3):
+        iteration = 0
+        fix_messages = messages
+        while iteration < max_iterations:
+            iteration += 1
+            # Generate vectorcast test cases for all test cases
+            vectorcast_cases = [tc.to_vectorcast([requirement_id]) for tc in test_generation_result.test_cases]
+            # Execute tests and collect output
+            all_units = set(unit_name for test_case in test_generation_result.test_cases for unit_name in test_case.unit_names)
+            environment = self.environment_manager.get_environment(all_units)
+            if not environment:
+                print("No suitable environment found for execution.")
+                break
+            output = environment.run_tests(vectorcast_cases, execute=True)
+            errors = self._parse_error_output(output)
+            if not errors:
+                break  # No errors, exit loop
+            # Prepare new messages with errors for the model
+            fix_messages += [
+                {
+                    "role": "assistant",
+                    "content": test_generation_result.model_dump_json(indent=4)
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+There were errors when executing the test case:
+
+Error Output:
+{errors}
+
+Please fix the test case accordingly, ensuring that the identifiers match exactly the syntax described in the reference.
+
+Remember:
+- Do not change the units or functions being tested.
+- Do not create new test cases; fix the existing ones.
+- Use the syntax reference provided.
+
+Tip:
+- If you see something like this in the errors: error: expected expression before ‘<<’ token, then that likely means you are setting a macro in a reference which is not allowed.
+"""
+                }
+            ]
+
+            with open("fix_messages.txt", "w") as f:
+                for message in fix_messages:
+                    f.write(f"{message['role']}: {message['content']}\n\n")
+            
+            # Call the model to get the fixed test case
+            completion = self.client.beta.chat.completions.parse(
+                model="gpt-4o",
+                messages=fix_messages,
+                response_format=TestGenerationResult,
+                temperature=0.5,
+                seed=42,
+                max_tokens=2000,
+            )
+            try:
+                test_generation_result = completion.choices[0].message.parsed
+            except Exception as e:
+                print("Failed to parse fixed test case.")
+                print("Error:", e)
+                break
+        return test_generation_result
+
+    def _parse_error_output(self, output):
+        error_lines = []
+
+        # Extract error messages starting with (E) and include indented lines
+        lines = output.split('\n')
+        collecting_error = False
+        for line in lines:
+            if re.match(r'\(E\)', line):
+                if "TEST.REQUIREMENT_KEY" in line:
+                    continue  # Skip requirement key errors
+                error_lines.append(line)
+                collecting_error = True
+                continue
+            if collecting_error:
+                if line.startswith('    ') or line.strip() == '':
+                    error_lines.append(line)
+                else:
+                    collecting_error = False
+
+        # Check for compile errors
+        compile_error_index = output.find("Compile Failed")
+        # Include all lines after "Compile Failed"
+        compile_error_output = output[compile_error_index:]
+
+        if compile_error_output.strip():
+            error_lines.append(compile_error_output.strip())
+
+        return '\n'.join(error_lines) if error_lines else None
