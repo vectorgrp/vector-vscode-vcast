@@ -207,7 +207,7 @@
       {
         "command": "vectorcastTestExplorer.viewMCDCReport",
         "category": "VectorCAST Test Explorer",
-        "title": "View MCDC Report"
+        "title": "VectorCAST MC/DC Report"
       }
     ],
     "keybindings": [
@@ -267,21 +267,7 @@
             "order": 7,
             "default": false,
             "description": "Log internal extension details"
-          },
-          "vectorcastTestExplorer.mcdcCoverageGutterIcons": {
-            "type": "string",
-            "enum": [
-              "➡",
-              "M"
-            ],
-            "enumDescriptions": [
-              "Arrow cover icon for MC/DC",
-              "Marker cover icon for MC/DC"
-            ],
-            "order": 8,
-            "default": "➡",
-            "description": "Selects the icons displayed in the coverage gutter"
-          }
+          }         
         }
       },
       {

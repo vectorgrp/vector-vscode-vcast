@@ -50,7 +50,16 @@ export function initializeCodeCoverageFeatures(
     //fontWeight: "bold",
     gutterIconPath: context.asAbsolutePath("./images/light/no-cover-icon.svg"),
   };
-
+  uncoveredRenderOptionsWithMCDC = {
+    gutterIconPath: context.asAbsolutePath(
+      "./images/light/no-cover-icon-with-mcdc.svg"
+    ),
+  };
+  coveredRenderOptionsWithMCDC = {
+    gutterIconPath: context.asAbsolutePath(
+      "./images/light/cover-icon-with-mcdc.svg"
+    ),
+  };
   coveredRenderOptions = {
     //backgroundColor: 'green',
     //color: 'white',
@@ -58,62 +67,6 @@ export function initializeCodeCoverageFeatures(
     //fontWeight: "bold",
     gutterIconPath: context.asAbsolutePath("./images/light/cover-icon.svg"),
   };
-
-  updateMCDCRenderOptions();
-}
-
-/**
- * Applies the correct icon for MCDC coverage lines based on the vscode settings.
- */
-function updateMCDCRenderOptions() {
-  const coverageFilePath = __filename;
-
-  // Get the directory of the current file for the images because we can't use context here since
-  // this function is also called on updateCOVdecorations() and context is not available there.
-  const coverageDir = path.dirname(coverageFilePath);
-
-  // Retrieve the current value of the setting for MC/DC coverage gutter icons
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  let mcdcSetting = settings.get("mcdcCoverageGutterIcons");
-
-  // Use a switch to adjust the MC/DC specific render options based on the setting
-  switch (mcdcSetting) {
-    case "➡": // For the right arrow
-      uncoveredRenderOptionsWithMCDC = {
-        gutterIconPath: path.resolve(
-          coverageDir,
-          "../images/light/no-cover-icon-with-mcdc.svg"
-        ),
-      };
-      coveredRenderOptionsWithMCDC = {
-        gutterIconPath: path.resolve(
-          coverageDir,
-          "../images/light/cover-icon-with-mcdc.svg"
-        ),
-      };
-      break;
-
-    case "M": // For the "M" symbol
-      uncoveredRenderOptionsWithMCDC = {
-        gutterIconPath: path.resolve(
-          coverageDir,
-          "../images/light/no-cover-icon-with-mcdc-M.svg"
-        ),
-      };
-      coveredRenderOptionsWithMCDC = {
-        gutterIconPath: path.resolve(
-          coverageDir,
-          "../images/light/cover-icon-with-mcdc-M.svg"
-        ),
-      };
-      break;
-
-    default:
-      // Default to no MC/DC rendering if the setting is not recognized. Should not happen since the arrow is the default value and you can not pick an empty item, but just in case.
-      uncoveredRenderOptionsWithMCDC = uncoveredRenderOptions;
-      coveredRenderOptionsWithMCDC = coveredRenderOptions;
-      break;
-  }
 }
 
 // global decoration arrays
@@ -174,9 +127,6 @@ export function updateCOVdecorations() {
 
   // Everytime we update the coverage decoration, we also need to update the mcdc lines
   updateCurrentActiveUnitMCDCLines();
-
-  // Update the correct MCDC gutter icons based on the settings
-  updateMCDCRenderOptions();
 
   let activeEditor = vscode.window.activeTextEditor;
 
