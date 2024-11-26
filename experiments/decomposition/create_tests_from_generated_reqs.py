@@ -9,6 +9,8 @@ import charset_normalizer
 # Import TestGenerator and RequirementReference
 from test_generation import TestGenerator
 from code_extraction import RequirementReference
+# Import TestEnvironmentManager
+from test_environment import TestEnvironmentManager
 
 def main():
     parser = argparse.ArgumentParser(description='Generate tests from requirements.')
@@ -20,6 +22,8 @@ def main():
                         help='List of source directories to search for function definitions.')
     # Add argument for requirement references file
     parser.add_argument('--requirement_references', help='Path to a file containing requirement references.')
+    # Add argument for environments path
+    parser.add_argument('--envs_path', help='Path to environments directory.')
     args = parser.parse_args()
 
     # Load requirements from JSON file
@@ -52,8 +56,11 @@ def main():
         requirement_references_data = json.load(f)
         requirement_references = [RequirementReference(**ref) for ref in requirement_references_data]
 
-    # Instantiate TestGenerator
-    test_generator = TestGenerator(requirements, requirement_references, args.source_dirs)
+    # Instantiate TestEnvironmentManager
+    env_manager = TestEnvironmentManager(args.envs_path)
+
+    # Instantiate TestGenerator with environment manager
+    test_generator = TestGenerator(requirements, requirement_references, args.source_dirs, environment_manager=env_manager)
 
     # Generate tests and save to output file
     with open(args.output_file, 'w') as output_file:
@@ -85,6 +92,16 @@ def main():
                 for test_case in result.test_cases:
                     vectorcast_case = test_case.to_vectorcast([requirement_id])
                     output_file.write(vectorcast_case + '\n')
+                    # Execute the test case and capture the output
+                    unit_names = set(test_case.unit_names)
+                    environment = env_manager.get_environment(unit_names)
+                    if environment:
+                        output = environment.run_tests([vectorcast_case], execute=True)
+                        # Write the output to the file
+                        output_file.write('Execution Output:\n')
+                        output_file.write(output + '\n')
+                    else:
+                        output_file.write('No suitable environment found for execution.\n')
                 output_file.write('=' * 40 + '\n')
             else:
                 output_file.write(f'Could not generate test for {requirement_id}\n')
