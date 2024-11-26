@@ -628,17 +628,23 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(selectDefaultConfigFile);
 
-  // Command: extension.getMCDCReport////////////////////////////////////////////////////////
   // This command appears in the context menu of the vscode gutter (same as Add Breakpoint) and
   // generates the MCDC report.
   let getMCDCReportCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.viewMCDCReport",
     async (args) => {
       const activeEditor = vscode.window.activeTextEditor;
+      let fileFromUri = args.uri.path;
 
-      if (activeEditor) {
+      if (activeEditor || fileFromUri) {
         // Get the file name and remove the extension --> For the UNIT parameter.
-        const filePath = activeEditor.document.uri.fsPath;
+        // Prioritize activeEditor for user convenience—it reflects the file in focus.
+        // Fallback to fileFromUri ensures the command works
+        // (if the focus is on no file --> activeEditor undefined --> command wont work)
+        // But we still can get the file üath from where it s called via the uri
+        const filePath = activeEditor
+          ? activeEditor.document.uri.fsPath
+          : fileFromUri;
         const enviroPath = getEnvPathForFilePath(filePath);
         const enviroName = getEnvNameForFilePath(filePath);
         const fileName = path.parse(filePath).name;

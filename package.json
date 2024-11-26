@@ -505,7 +505,7 @@
           "command": "vectorcastTestExplorer.viewMCDCReport",
           "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
           "args": [
-            "${lineNumber}" 
+            "${lineNumber}"
           ],
           "group": "navigation"
         }
