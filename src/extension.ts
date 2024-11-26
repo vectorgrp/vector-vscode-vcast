@@ -108,6 +108,8 @@ let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
 
+import { forceLowerCaseDriveLetter } from "./utilities";
+
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
@@ -634,7 +636,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.viewMCDCReport",
     async (args) => {
       const activeEditor = vscode.window.activeTextEditor;
-      let fileFromUri = args.uri.path;
+      let fileFromUri = forceLowerCaseDriveLetter(args.uri.fsPath);
 
       if (activeEditor || fileFromUri) {
         // Get the file name and remove the extension --> For the UNIT parameter.
