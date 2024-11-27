@@ -26,7 +26,6 @@ export enum vcastCommandType {
 }
 
 export interface mcdcClientRequestType extends clientRequestType {
-  envName: string;
   unitName: string;
   lineNumber: number;
 }

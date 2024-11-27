@@ -45,17 +45,11 @@ export async function viewResultsReport(testID: string) {
 
 export async function viewMCDCReport(
   enviroPath: string,
-  enviroName: string,
   unit: string,
   lineNumber: number
 ) {
   // make sure that a test is selected
-  const htmlFilePath = await getMCDCResultFile(
-    enviroPath,
-    enviroName,
-    unit,
-    lineNumber
-  );
+  const htmlFilePath = await getMCDCResultFile(enviroPath, unit, lineNumber);
   if (fs.existsSync(htmlFilePath)) {
     vectorMessage(
       "Viewing results, result report path: '" + htmlFilePath + "'"

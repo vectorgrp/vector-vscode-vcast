@@ -946,17 +946,11 @@ export async function openCodedTest(testNode: testNodeType) {
 
 export async function getMCDCResultFile(
   enviroPath: string,
-  enviroName: string,
   unit: string,
   lineNumber: number
 ) {
   // Generate the environment path and request the test report from Python
-  const commandStatus = await getMCDCReport(
-    enviroPath,
-    enviroName,
-    unit,
-    lineNumber
-  );
+  const commandStatus = await getMCDCReport(enviroPath, unit, lineNumber);
   // TODO: Probably should save the resultfile globally somehow like in getResultFileForTest()
   let resultFile: string = "";
 

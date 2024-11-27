@@ -403,13 +403,11 @@ export function getVcastInterfaceCommand(
 export function getVcastInterfaceCommandForMCDC(
   command: vcastCommandType,
   enviroPath: string,
-  enviroName: string,
   unitName: string,
   lineNumber: number
 ) {
   const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=${command.toString()} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
   let optionsDict: { [command: string]: string | number } = {};
-  optionsDict["enviroName"] = enviroName;
   optionsDict["unitName"] = unitName;
   optionsDict["lineNumber"] = lineNumber;
   const jsonOptions: string = JSON.stringify(optionsDict).replaceAll(
@@ -425,8 +423,8 @@ export function getVcastInterfaceCommandForMCDC(
  * @param enviroName Name of env.
  * @returns Command to get all mcdc coverage lines in an env.
  */
-export function getMCDCLineCoverageCommand(enviroName: string) {
-  const commandToRun = `${vPythonCommandToUse} ${globalMCDCReportPath}  --env=${enviroName}`;
+export function getMCDCLineCoverageCommand(enviroPath: string) {
+  const commandToRun = `${vPythonCommandToUse} ${globalMCDCReportPath}  --env=${enviroPath}`;
   return commandToRun;
 }
 

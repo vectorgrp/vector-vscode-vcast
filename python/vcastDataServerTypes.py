@@ -72,10 +72,9 @@ class clientRequest:
         return cls(command, clicast, path, test, options)
 
 class mcdcClientRequest:
-    def __init__(self, command, path="", envName="", unitName="", lineNumber=0):
+    def __init__(self, command, path="", unitName="", lineNumber=0):
         self.command = command
         self.path = path
-        self.envName = envName
         self.unitName = unitName
         self.lineNumber = lineNumber
 
@@ -83,7 +82,6 @@ class mcdcClientRequest:
         data = {}
         data["command"] = self.command
         data["path"] = self.path
-        data["envName"] = self.envName
         data["unitName"] = self.unitName
         data["lineNumber"] = self.lineNumber
         return data
@@ -93,10 +91,9 @@ class mcdcClientRequest:
         # these fields are mandatory
         command = data["command"]
         path = data["path"]
-        envName = data.get("envName", "")
         unitName = data.get("unitName", "")
         lineNumber = data.get("lineNumber", "")
-        return cls(command, path, envName, unitName, lineNumber)
+        return cls(command, path, unitName, lineNumber)
 
 
 class environmentData:

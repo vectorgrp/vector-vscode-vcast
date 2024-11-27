@@ -780,26 +780,19 @@ export async function rebuildEnvironmentUsingServer(
 // Server logic is in a separate function below
 export async function getMCDCReport(
   enviroPath: string,
-  enviroName: string,
   unit: string,
   lineNumber: number
 ): Promise<commandStatusType> {
   if (globalEnviroDataServerActive) {
-    return await getMCDCReportFromServer(
-      enviroPath,
-      enviroName,
-      unit,
-      lineNumber
-    );
+    return await getMCDCReportFromServer(enviroPath, unit, lineNumber);
   } else {
-    return getMCDCReportFromPython(enviroPath, enviroName, unit, lineNumber);
+    return getMCDCReportFromPython(enviroPath, unit, lineNumber);
   }
 }
 
 // Server Logic
 async function getMCDCReportFromServer(
   enviroPath: string,
-  enviroName: string,
   unitName: string,
   lineNumber: number
 ): Promise<commandStatusType> {
@@ -807,13 +800,12 @@ async function getMCDCReportFromServer(
   const requestObject: mcdcClientRequestType = {
     command: vcastCommandType.mcdcReport,
     path: enviroPath,
-    envName: enviroName,
     unitName: unitName,
     lineNumber: lineNumber,
   };
 
   vectorMessage(
-    `"command: ${requestObject.command}, path: ${requestObject.path}, envName: ${requestObject.envName}, unit: ${requestObject.unitName}, lineNumber: ${requestObject.lineNumber}`
+    `"command: ${requestObject.command}, path: ${requestObject.path}, unit: ${requestObject.unitName}, lineNumber: ${requestObject.lineNumber}`
   );
   let transmitResponse: transmitResponseType =
     await transmitCommand(requestObject);
@@ -824,7 +816,6 @@ async function getMCDCReportFromServer(
 // python logic
 function getMCDCReportFromPython(
   enviroPath: string,
-  enviroName: string,
   unitName: string,
   lineNumber: number
 ): commandStatusType {
@@ -832,7 +823,6 @@ function getMCDCReportFromPython(
   const commandToRun = getVcastInterfaceCommandForMCDC(
     vcastCommandType.mcdcReport,
     enviroPath,
-    enviroName,
     unitName,
     lineNumber
   );

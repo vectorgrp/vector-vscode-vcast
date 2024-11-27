@@ -648,13 +648,12 @@ function configureExtension(context: vscode.ExtensionContext) {
           ? activeEditor.document.uri.fsPath
           : fileFromUri;
         const enviroPath = getEnvPathForFilePath(filePath);
-        const enviroName = getEnvNameForFilePath(filePath);
         const fileName = path.parse(filePath).name;
-        if (enviroPath && enviroName) {
-          viewMCDCReport(enviroPath, enviroName, fileName, args.lineNumber);
+        if (enviroPath) {
+          viewMCDCReport(enviroPath, fileName, args.lineNumber);
         } else {
           vscode.window.showErrorMessage(
-            `Did not find environment name ${enviroName} or path for file: ${filePath}`
+            `Did not find environment name ${enviroPath} or path for file: ${filePath}`
           );
         }
       }

@@ -599,13 +599,12 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         try:
             jsonOptions = processOptions(options)
             # Access individual fields
-            enviroName = jsonOptions.get("enviroName")
             unitName = jsonOptions.get("unitName")
             lineNumber = jsonOptions.get("lineNumber")       
         except:
             print("Invalid options, provide a valid --options argument")
             raise UsageError("--options argument is invalid")
-        returnObject = {"text": getMCDCResults(pathToUse, enviroName, unitName, lineNumber).split("\n")}
+        returnObject = {"text": getMCDCResults(pathToUse, unitName, lineNumber).split("\n")}
 
     elif mode == "parseCBT":
         # This is a special mode used by the unit test driver to parse the CBT
@@ -661,7 +660,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options=""):
 
     return returnCode, returnObject
 
-def processMCDCLogic(mode, clicast, pathToUse, envName, unitName, lineNumber):
+def processMCDCLogic(mode, clicast, pathToUse, unitName, lineNumber):
     returnCode = 0
     returnObject = None
 
@@ -674,7 +673,7 @@ def processMCDCLogic(mode, clicast, pathToUse, envName, unitName, lineNumber):
     validatePath(pathToUse)
 
     if mode == "mcdcReport":
-        returnObject = {"text": getMCDCResults(pathToUse, envName, unitName, lineNumber).split("\n")}
+        returnObject = {"text": getMCDCResults(pathToUse, unitName, lineNumber).split("\n")}
         # do stuff
     else:
         modeListAsString = ",".join(modeChoices)
@@ -683,14 +682,14 @@ def processMCDCLogic(mode, clicast, pathToUse, envName, unitName, lineNumber):
         )
     return returnCode, returnObject
 
-def getMCDCReport(mode, clicast, pathToUse, envName, unitName, lineNumber):
+def getMCDCReport(mode, clicast, pathToUse, unitName, lineNumber):
     """
     This is a wrapper for process mcdc command logic, so that we can process
     the exceptions in a single place for stand-alone (via main) and server usage
     """
     try:
         returnCode, returnObject = processMCDCLogic(
-            mode, clicast, pathToUse, envName, unitName, lineNumber
+            mode, clicast, pathToUse, unitName, lineNumber
         )
 
     # because vpython and clicast use a large range of positive return codes
@@ -711,18 +710,18 @@ def getMCDCReport(mode, clicast, pathToUse, envName, unitName, lineNumber):
 
     return returnCode, returnObject
 
-def getMCDCResults(enviroPath, envName, unitName, lineNumber):
+def getMCDCResults(enviroPath, unitName, lineNumber):
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("mcdcReport")
         try:
             # Create a hash for the report name based on the params
-            temp = ".".join([envName, unitName, str(lineNumber)])
+            temp = ".".join([unitName, str(lineNumber)])
             hashString = hashlib.md5(temp.encode("utf-8")).hexdigest()
             reportName = os.path.join(enviroPath, hashString) + ".html"
 
             # Attempt to generate the report
-            clicastInterface.generate_mcdc_report(envName, unitName, lineNumber, reportName)
+            clicastInterface.generate_mcdc_report(enviroPath, unitName, lineNumber, reportName)
 
             # If mcdc report generation does not fail, we return the name of the file
             returnText = f"REPORT:{reportName}\n"

@@ -150,7 +150,6 @@ def runcommand(clientRequest, clientRequestText):
                 clientRequest.command, 
                 pythonUtilities.globalClicastCommand,
                 clientRequest.path,
-                clientRequest.envName,
                 clientRequest.unitName,
                 clientRequest.lineNumber,
             )
