@@ -77,6 +77,14 @@ export function getSpecGroups(useVcast24: boolean) {
       env: { VCAST_USE_PYTHON: "True" },
       params: {},
     },
+    coverage: {
+      specs: [
+        "./**/**/vcast.build_env.test.ts",
+        "./**/**/vcast_coverage_rebuild_bug.test.ts",
+      ],
+      env: { VCAST_USE_PYTHON: "True" },
+      params: {},
+    },
     env_basis: {
       specs: [
         "./**/**/vcast_testgen_env_basis.test.ts",
@@ -148,6 +156,14 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
       },
+      params: {},
+    };
+    specGroups["coverage_server"] = {
+      specs: [
+        "./**/**/vcast.build_env.test.ts",
+        "./**/**/vcast_coverage_rebuild_bug.test.ts",
+      ],
+      env: {},
       params: {},
     };
     specGroups["build_env_failure_server"] = {
