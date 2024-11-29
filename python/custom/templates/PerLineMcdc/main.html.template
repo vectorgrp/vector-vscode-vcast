@@ -4,7 +4,6 @@
       <div class='report-block'>
   {%- if has_some_mcdc_coverage %}
     {%- for obj in objs %}
-      <div class='report-block'>
     {%- if report.obj.has_table_of_contents %}
           <div class="return-to-top"><span class="pull-right"><a href="#TableOfContents">Top</a></span></div>
     {%- endif %}
@@ -105,7 +104,6 @@ contribute to a satisfied pair are displayed.")|format(num=mcdc.num_conditions, 
           </div>
         {%- endfor %} {# end mcdc loop #}  
       {%- endfor %} {# end functions loop #}
-        </div>
     {%- endfor %}  {# end objs loop #}
   {%- else %} {# end has_some_mcdc_coverage #}
         <p>{% trans %}No MC/DC condition tables exist{% endtrans %}.</p>
