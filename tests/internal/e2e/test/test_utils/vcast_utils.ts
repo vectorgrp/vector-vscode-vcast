@@ -1391,3 +1391,43 @@ export async function checkElementExistsInHTML(searchString: string) {
     );
   }
 }
+
+export async function generateMCDCReportFromGutter(
+  line: number,
+  unitFileName: string,
+  icon: string
+) {
+  const workbench = await browser.getWorkbench();
+  const activityBar = workbench.getActivityBar();
+  const explorerView = await activityBar.getViewControl("Explorer");
+  const explorerSideBarView = await explorerView?.openView();
+
+  const workspaceFolderSection =
+    await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+  let managerCpp = await workspaceFolderSection.findItem(unitFileName);
+  if (!managerCpp) {
+    const cppFolder = workspaceFolderSection.findItem("cpp");
+    await (await cppFolder).select();
+    managerCpp = await workspaceFolderSection.findItem(unitFileName);
+  }
+  await managerCpp.select();
+
+  const editorView = workbench.getEditorView();
+  const tab = (await editorView.openEditor(unitFileName)) as TextEditor;
+
+  await tab.moveCursor(line, 1);
+
+  const lineNumberElement = await $(`.line-numbers=${line}`);
+  const flaskElement = await (
+    await lineNumberElement.parentElement()
+  ).$(".cgmr.codicon");
+  const backgroundImageCSS =
+    await flaskElement.getCSSProperty("background-image");
+  const backgroundImageURL = backgroundImageCSS.value;
+  const BEAKER = `/${icon}`;
+  expect(backgroundImageURL.includes(BEAKER)).toBe(true);
+  await flaskElement.click({ button: 2 });
+
+  await (await $("aria/VectorCAST MC/DC Report")).click();
+}
