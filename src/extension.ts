@@ -57,7 +57,6 @@ import {
 import {
   addLaunchConfiguration,
   addSettingsFileFilter,
-  getEnvNameForFilePath,
   getEnvPathForFilePath,
   showSettings,
 } from "./utilities";
