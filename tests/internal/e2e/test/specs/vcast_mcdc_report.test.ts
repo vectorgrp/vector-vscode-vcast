@@ -348,7 +348,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("VectorCAST Report", 1);
   });
 
-  it("should build new env with nearly identical files and check for mcdc report", async () => {
+  it("should build new env with nearly identical files and check for mcdc report for double report", async () => {
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
