@@ -14,6 +14,9 @@ import {
   checkElementExistsInHTML,
   findSubprogram,
   getTestHandle,
+  executeCtrlClickOn,
+  releaseCtrl,
+  expandWorkspaceFolderSectionInExplorer,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -267,9 +270,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.close();
 
-    // Generating another Report for a correct line to check for the bug that did not let us
-    // generate a report without interacting with the editor first.
-    // Thats also why bth calls are with the false flag.
+    // Generating another report for a valid line to verify the bug
+    // that prevented report generation without prior interaction with the editor.
+    // Both calls use the "false" flag for this reason.
     await generateMCDCReportFromGutter(
       19,
       "manager.cpp",
@@ -340,6 +343,87 @@ describe("vTypeCheck VS Code Extension", () => {
     await expect(await checkElementExistsInHTML("WaitingListSize > (9)")).toBe(
       true
     );
+
+    await webview.close();
+    await editorView.closeEditor("VectorCAST Report", 1);
+  });
+
+  it("should build new env with nearly identical files and check for mcdc report", async () => {
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+    const mooCpp = await workspaceFolderSection.findItem("moo.cpp");
+    const fooCpp = await workspaceFolderSection.findItem("foo.cpp");
+    await executeCtrlClickOn(mooCpp);
+    await executeCtrlClickOn(fooCpp);
+    await releaseCtrl();
+
+    await fooCpp.openContextMenu();
+    await (await $("aria/Create VectorCAST Environment")).click();
+
+    // Making sure notifications are shown
+    await (await $("aria/Notifications")).click();
+
+    console.log(
+      "Waiting for clicast and waiting for environment to get processed"
+    );
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Environment built Successfully"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Finished creating vcast environment");
+    await browser.takeScreenshot();
+    await browser.saveScreenshot(
+      "info_finished_creating_vcast_environment.png"
+    );
+    // Clearing all notifications
+    await (await $(".codicon-notifications-clear-all")).click();
+
+    const outputView = await bottomBar.openOutputView();
+
+    // Red MCDC Gutter icon
+    await generateMCDCReportFromGutter(
+      15,
+      "foo.cpp",
+      "no-cover-icon-with-mcdc",
+      true
+    );
+    await browser.waitUntil(
+      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT }
+    );
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+
+    await webview.open();
+
+    // Retrieve the HTML and count the number of div.mcdc-condition no-cvg
+    const reportBlockCount = await browser.execute(() => {
+      // Use querySelectorAll to count how many <div class="mcdc-condition.no-cvg"> elements are in the document
+      // In the double report bug there were 2
+      return document.querySelectorAll("div.mcdc-condition.no-cvg").length;
+    });
+
+    expect(reportBlockCount).toEqual(1);
+
+    // Some important lines we want to check for in the report
+    await expect(await checkElementExistsInHTML("foo.cpp")).toBe(true);
+
+    await expect(await checkElementExistsInHTML("15")).toBe(true);
 
     await webview.close();
   });
