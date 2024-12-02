@@ -17,6 +17,7 @@ import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
+import { moveCursor } from "node:readline";
 
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 180_000;
@@ -1395,7 +1396,8 @@ export async function checkElementExistsInHTML(searchString: string) {
 export async function generateMCDCReportFromGutter(
   line: number,
   unitFileName: string,
-  icon: string
+  icon: string,
+  moveCursor: boolean
 ) {
   const workbench = await browser.getWorkbench();
   const activityBar = workbench.getActivityBar();
@@ -1405,18 +1407,31 @@ export async function generateMCDCReportFromGutter(
   const workspaceFolderSection =
     await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
 
+  // Need to check if cpp was already selected
+  // --> otherwise we close it again and we can not find manager.cpp
   let managerCpp = await workspaceFolderSection.findItem(unitFileName);
   if (!managerCpp) {
     const cppFolder = workspaceFolderSection.findItem("cpp");
     await (await cppFolder).select();
     managerCpp = await workspaceFolderSection.findItem(unitFileName);
   }
-  await managerCpp.select();
-
+  // Check if the file is already open in the editor
   const editorView = workbench.getEditorView();
+  // List of open editor titles
+  const openEditors = await editorView.getOpenEditorTitles();
+  const isFileOpen = openEditors.includes(unitFileName);
+
+  if (!isFileOpen) {
+    // Select file from the explorer if not already open
+    await managerCpp.select();
+  }
+
   const tab = (await editorView.openEditor(unitFileName)) as TextEditor;
 
-  await tab.moveCursor(line, 1);
+  // If the line is not visible in the first place (>40) we need to scroll down
+  if (moveCursor) {
+    await tab.moveCursor(line, 1);
+  }
 
   const lineNumberElement = await $(`.line-numbers=${line}`);
   const flaskElement = await (

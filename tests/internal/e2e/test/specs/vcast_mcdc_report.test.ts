@@ -240,7 +240,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await generateMCDCReportFromGutter(
       22,
       "manager.cpp",
-      "cover-icon-with-mcdc"
+      "cover-icon-with-mcdc",
+      false
     );
     await browser.waitUntil(
       async () => (await outputView.getText()).toString().includes("REPORT:"),
@@ -251,9 +252,9 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await workbench.getAllWebviews()).length > 0,
       { timeout: TIMEOUT }
     );
-    const webviews = await workbench.getAllWebviews();
+    let webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
-    const webview = webviews[0];
+    let webview = webviews[0];
 
     await webview.open();
 
@@ -263,6 +264,37 @@ describe("vTypeCheck VS Code Extension", () => {
     await expect(await checkElementExistsInHTML("22")).toBe(true);
 
     await expect(await checkElementExistsInHTML("((a && b) && c)")).toBe(true);
+
+    await webview.close();
+
+    // Generating another Report for a correct line to check for the bug that did not let us
+    // generate a report without interacting with the editor first.
+    // Thats also why bth calls are with the false flag.
+    await generateMCDCReportFromGutter(
+      19,
+      "manager.cpp",
+      "cover-icon-with-mcdc",
+      false
+    );
+    await browser.waitUntil(
+      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT }
+    );
+    webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    webview = webviews[0];
+
+    await webview.open();
+
+    // Some important lines we want to check for in the report
+    await expect(await checkElementExistsInHTML("manager.cpp")).toBe(true);
+
+    await expect(await checkElementExistsInHTML("19")).toBe(true);
 
     await webview.close();
   });
@@ -275,7 +307,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await generateMCDCReportFromGutter(
       84,
       "manager.cpp",
-      "no-cover-icon-with-mcdc"
+      "no-cover-icon-with-mcdc",
+      true
     );
     await browser.waitUntil(
       async () => (await outputView.getText()).toString().includes("REPORT:"),
@@ -290,6 +323,14 @@ describe("vTypeCheck VS Code Extension", () => {
     const webview = webviews[0];
 
     await webview.open();
+
+    // Retrieve the HTML and count the number of div.report-block
+    const reportBlockCount = await browser.execute(() => {
+      // Use querySelectorAll to count how many <div class="report-block"> elements are in the document
+      return document.querySelectorAll("div.report-block").length;
+    });
+
+    expect(reportBlockCount).toEqual(1);
 
     // Some important lines we want to check for in the report
     await expect(await checkElementExistsInHTML("manager.cpp")).toBe(true);
