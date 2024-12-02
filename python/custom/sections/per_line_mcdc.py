@@ -14,7 +14,10 @@ class PatchMcdcDecisions:
         # Filter the data
         new_data = []
         for decn in data:
-            if decn.start_line == self.__api.filter_mcdc_dec_line:
+            if (
+                decn.function.instrumented_file.name == self.__api.mcdc_filter["unit"]
+                and decn.start_line == self.__api.mcdc_filter["line"]
+            ):
                 new_data.append(decn)
         return new_data
 

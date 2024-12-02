@@ -36,23 +36,6 @@ export interface jsonDataType {
   jsonDataAsString: string;
 }
 
-export function getEnvNameForFilePath(filePath: string): string | null {
-  const globalCoverageMap = getGlobalCoverageData();
-  const fileData = globalCoverageMap.get(filePath);
-  if (fileData?.enviroList) {
-    // Return the first environment name, if exists
-    // Possible problem here: if a file is covered by multiple environments, we will only return the first one
-    // --> How would we know what ENV we exactly need?
-    const envKey = Array.from(fileData.enviroList.keys())[0];
-    if (envKey) {
-      // Return the last part (ENV name), or null if empty
-      const parts = envKey.split("/");
-      return parts.pop() || null;
-    }
-  }
-  return null;
-}
-
 export function getEnvPathForFilePath(filePath: string): string | null {
   const globalCoverageMap = getGlobalCoverageData();
   const fileData = globalCoverageMap.get(filePath);
