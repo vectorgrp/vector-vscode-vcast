@@ -121,11 +121,11 @@ function resetGlobalDecorations() {
 }
 
 const url = require("url");
-export function updateCOVdecorations() {
+export async function updateCOVdecorations() {
   // this updates the decorations for the currently active fill
 
   // Everytime we update the coverage decoration, we also need to update the mcdc lines
-  updateCurrentActiveUnitMCDCLines();
+  await updateCurrentActiveUnitMCDCLines();
 
   let activeEditor = vscode.window.activeTextEditor;
 
