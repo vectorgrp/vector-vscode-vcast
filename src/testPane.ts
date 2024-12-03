@@ -440,6 +440,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
 // to see where we reference them
 // this list in a "when" clause
 let vcastEnviroList: string[] = [];
+let vcastUnbuiltEnviroList: string[] = [];
 let vcastHasCodedTestsList: string[] = [];
 
 export async function updateTestsForEnvironment(
@@ -498,6 +499,29 @@ export async function updateTestsForEnvironment(
   }
 }
 
+function addUnbuiltEnviroToTestPane(
+  parentNode: vcastTestItem,
+  enviroData: environmentNodeDataType
+) {
+  const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
+
+  const enviroNode: vcastTestItem = globalController.createTestItem(
+    enviroNodeID,
+    enviroData.displayName
+  );
+  enviroNode.nodeKind = nodeKind.environment;
+  parentNode.children.add(enviroNode);
+
+  if (!vcastUnbuiltEnviroList.includes(enviroNodeID)) {
+    vcastUnbuiltEnviroList.push(enviroNodeID);
+    vscode.commands.executeCommand(
+      "setContext",
+      "vectorcastTestExplorer.vcastUnbuiltEnviroList",
+      vcastUnbuiltEnviroList
+    );
+  }
+}
+
 export function removeEnvironmentFromTestPane(enviroID: string) {
   // called from the deleteEnviro command
   globalController.items.delete(enviroID);
@@ -510,6 +534,7 @@ async function loadAllVCTests(
 ) {
   // loads all vcast test environments found in the workspace
   vcastEnviroList = [];
+  vcastUnbuiltEnviroList = [];
   clearEnviroDataCache();
   clearTestNodeCache();
 
@@ -531,14 +556,13 @@ async function loadAllVCTests(
       // build a list of environments from projects in this workspace
       for (const [projectPath, projectData] of globalProjectDataCache) {
         for (const [buildDirectory, enviroData] of projectData) {
-          if (enviroData.isBuilt) {
-            environmentList.push({
-              projectPath: projectPath,
-              buildDirectory: normalizePath(buildDirectory),
-              displayName: enviroData.displayName,
-              workspaceRoot: workspaceRoot,
-            });
-          }
+          environmentList.push({
+            projectPath: projectPath,
+            buildDirectory: normalizePath(buildDirectory),
+            isBuilt: enviroData.isBuilt,
+            displayName: enviroData.displayName,
+            workspaceRoot: workspaceRoot,
+          });
         }
       }
 
@@ -551,6 +575,7 @@ async function loadAllVCTests(
         environmentList.push({
           projectPath: "",
           buildDirectory: normalizedPath,
+          isBuilt: true,
           displayName: displayName,
           workspaceRoot: workspaceRoot,
         });
@@ -564,22 +589,30 @@ async function loadAllVCTests(
     const increment = (1 / environmentList.length) * 100;
 
     for (const environmentData of environmentList) {
-      progress.report({
-        increment: increment,
-        message: "Loading data for environment: " + environmentData.displayName,
-      });
-      // This is needed to allow the message window to update ...
-      await new Promise<void>((r) => setTimeout(r, 0));
-      if (token) {
-        token.onCancellationRequested(() => {
-          cancelled = true;
+      if (environmentData.isBuilt) {
+        progress.report({
+          increment: increment,
+          message:
+            "Loading data for environment: " + environmentData.displayName,
         });
+        // This is needed to allow the message window to update ...
+        await new Promise<void>((r) => setTimeout(r, 0));
+        if (token) {
+          token.onCancellationRequested(() => {
+            cancelled = true;
+          });
+        }
+        if (cancelled) {
+          break;
+        }
+        const parentNode = getParentNodeForEnvironment(environmentData);
+        await updateTestsForEnvironment(parentNode, environmentData);
+      } else {
+        // We show Environments that are not yes built in the test pane
+        // to allow users to build them directly
+        const parentNode = getParentNodeForEnvironment(environmentData);
+        addUnbuiltEnviroToTestPane(parentNode, environmentData);
       }
-      if (cancelled) {
-        break;
-      }
-      const parentNode = getParentNodeForEnvironment(environmentData);
-      await updateTestsForEnvironment(parentNode, environmentData);
     } // for each enviroPath
   } // if workspace folders
 

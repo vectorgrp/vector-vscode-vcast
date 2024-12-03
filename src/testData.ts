@@ -3,6 +3,7 @@ import { normalizePath, quote } from "./utilities";
 export interface environmentNodeDataType {
   projectPath: string;
   buildDirectory: string;
+  isBuilt: boolean;
   displayName: string;
   workspaceRoot: string;
 }

@@ -581,6 +581,17 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(rebuildEnviro);
 
+  // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
+  let buildProjectEnviro = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.buildProjectEnviro",
+    (enviroNode: any) => {
+      // TBD TODAY
+      // need to issue a vcast manage command to build the enviro
+      console.log("Building project environment: " + enviroNode.id);
+    }
+  );
+  context.subscriptions.push(buildProjectEnviro);
+
   // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
   let deleteEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteEnviro",
