@@ -23,11 +23,12 @@ export enum vcastCommandType {
   choiceListTst = "choiceList-tst",
   choiceListCT = "choiceList-ct",
   mcdcReport = "mcdcReport",
+  mcdcLines = "mcdcLines",
 }
 
 export interface mcdcClientRequestType extends clientRequestType {
-  unitName: string;
-  lineNumber: number;
+  unitName?: string;
+  lineNumber?: number;
 }
 
 export interface clientRequestType {

@@ -28,6 +28,7 @@ def parse_args():
     # Parse the arguments
     return parser.parse_args()
 
+
 def get_mcdc_lines(env):
     all_lines_with_data = {}
 
@@ -40,8 +41,9 @@ def get_mcdc_lines(env):
                     all_lines_with_data[unit.name] = []
                 if mcdc_dec.start_line not in all_lines_with_data[unit.name]:
                     all_lines_with_data[unit.name].append(mcdc_dec.start_line)
-    
+
     return all_lines_with_data
+
 
 def generate_mcdc_report(env, unit, line, output):
     """
@@ -127,7 +129,7 @@ def main():
 
     # If only env is defined --> We only want the MCDC lines for that env and not the report
     if not args.unit and not args.line and not args.output:
-        mcdc_set = get_mcdc_lines(args.env) 
+        mcdc_set = get_mcdc_lines(args.env)
         print(mcdc_set)
     else:
         # Generate the report

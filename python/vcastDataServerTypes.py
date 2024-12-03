@@ -35,6 +35,7 @@ class commandType(str, Enum):
     choiceListTst = "choiceList-tst"
     choiceListCT = "choiceList-ct"
     mcdcReport = "mcdcReport"
+    mcdcLines = "mcdcLines"
 
 
 class clientRequest:
@@ -70,6 +71,7 @@ class clientRequest:
         if "options" in data:
             options = data["options"]
         return cls(command, clicast, path, test, options)
+
 
 class mcdcClientRequest:
     def __init__(self, command, path="", unitName="", lineNumber=0):

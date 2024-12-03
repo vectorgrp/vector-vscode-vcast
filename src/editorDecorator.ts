@@ -28,7 +28,7 @@ let testableFunctionsDecorations: vscode.DecorationOptions[] = [];
  * Updates the global variable `currentActiveUnitMCDCLines`, which is exported and used in coverage.ts.
  * Fetches all lines with MCDC coverage for the current active editor's unit from the Data API.
  */
-export function updateCurrentActiveUnitMCDCLines() {
+export async function updateCurrentActiveUnitMCDCLines() {
   let activeEditor = vscode.window.activeTextEditor;
   if (activeEditor) {
     // First we need to get the env name from the active file
@@ -43,10 +43,9 @@ export function updateCurrentActiveUnitMCDCLines() {
     if (enviroPath) {
       // Replace single quotes with double quotes to make it a valid JSON string
       try {
-        let mcdcCoverageLinesString = getMCDCCoverageLines(enviroPath).replace(
-          /'/g,
-          '"'
-        );
+        let mcdcCoverageLinesString = (
+          await getMCDCCoverageLines(enviroPath)
+        ).replace(/'/g, '"');
         mcdcUnitCoverageLines = JSON.parse(mcdcCoverageLinesString);
       } catch (error) {
         vectorMessage(`Error trying to parse MCDC coverage lines: ${error}`);
