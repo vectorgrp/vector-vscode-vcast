@@ -411,6 +411,14 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
+    const html = await browser.execute(() => {
+      // Use querySelectorAll to count how many <div class="mcdc-condition.no-cvg"> elements are in the document
+      // In the double report bug there were 2
+      return document.documentElement.outerHTML;
+    });
+
+    console.log(html);
+
     // Retrieve the HTML and count the number of div.mcdc-condition no-cvg
     const reportBlockCount = await browser.execute(() => {
       // Use querySelectorAll to count how many <div class="mcdc-condition.no-cvg"> elements are in the document
