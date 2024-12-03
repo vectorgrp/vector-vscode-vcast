@@ -382,7 +382,7 @@ def generate_report(testObject):
                 and test_case.name == testObject.testName
             ):
                 test_found = True
-                
+
                 # Generate our report
                 api.report(
                     report_type="per_test_case_report",
@@ -398,6 +398,7 @@ def generate_report(testObject):
         raise RuntimeError(
             f"Could not find test case with Unit: {testObject.unitName}, Function: {testObject.functionName}, Test: {testObject.testName}"
         )
+
 
 def generate_mcdc_report(env, unit_filter, line_filter, output):
     """

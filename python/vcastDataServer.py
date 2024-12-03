@@ -144,10 +144,18 @@ def runcommand(clientRequest, clientRequestText):
                 clientRequest.path, clientRequest.options
             )
 
+        elif clientRequest.command == commandType.mcdcLines:
+            logMessage(f"  getMCDCLines: {clientRequest.__dict__}")
+            exitCode, returnData = vTestInterface.processMCDCCommand(
+                clientRequest.command,
+                pythonUtilities.globalClicastCommand,
+                clientRequest.path,
+            )
+
         elif clientRequest.command == commandType.mcdcReport:
             logMessage(f"  getMCDCReport: {clientRequest.__dict__}")
-            exitCode, returnData = vTestInterface.getMCDCReport(
-                clientRequest.command, 
+            exitCode, returnData = vTestInterface.processMCDCCommand(
+                clientRequest.command,
                 pythonUtilities.globalClicastCommand,
                 clientRequest.path,
                 clientRequest.unitName,
@@ -201,13 +209,17 @@ def decodeRequest(requestString):
         requestDictionary = requestString
         # Check if the command is "mcdcReport" --> We have different args then
         isMcdcReport = requestDictionary.get("command") == "mcdcReport"
-        
+
         if isMcdcReport:
             # Perform special handling for "mcdcReport"
-            clientRequest = vcastDataServerTypes.mcdcClientRequest.fromDict(requestDictionary)       
+            clientRequest = vcastDataServerTypes.mcdcClientRequest.fromDict(
+                requestDictionary
+            )
         else:
             # Default behavior
-            clientRequest = vcastDataServerTypes.clientRequest.fromDict(requestDictionary)
+            clientRequest = vcastDataServerTypes.clientRequest.fromDict(
+                requestDictionary
+            )
     except KeyboardInterrupt:
         raise
     except:

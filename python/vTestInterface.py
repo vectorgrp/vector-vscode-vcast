@@ -21,6 +21,7 @@ This script must be run under vpython
 import clicastInterface
 import pythonUtilities
 import tstUtilities
+import mcdcReport
 
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
@@ -44,7 +45,15 @@ class UsageError(Exception):
     pass
 
 
-modeChoices = ["getEnviroData", "executeTest", "report", "mcdcReport", "parseCBT", "rebuild"]
+modeChoices = [
+    "getEnviroData",
+    "executeTest",
+    "report",
+    "mcdcReport",
+    "mcdcLines",
+    "parseCBT",
+    "rebuild",
+]
 
 
 def setupArgs():
@@ -600,11 +609,13 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             jsonOptions = processOptions(options)
             # Access individual fields
             unitName = jsonOptions.get("unitName")
-            lineNumber = jsonOptions.get("lineNumber")       
+            lineNumber = jsonOptions.get("lineNumber")
         except:
             print("Invalid options, provide a valid --options argument")
             raise UsageError("--options argument is invalid")
-        returnObject = {"text": getMCDCResults(pathToUse, unitName, lineNumber).split("\n")}
+        returnObject = {
+            "text": getMCDCResults(pathToUse, unitName, lineNumber).split("\n")
+        }
 
     elif mode == "parseCBT":
         # This is a special mode used by the unit test driver to parse the CBT
@@ -660,6 +671,7 @@ def processCommand(mode, clicast, pathToUse, testString="", options=""):
 
     return returnCode, returnObject
 
+
 def processMCDCLogic(mode, clicast, pathToUse, unitName, lineNumber):
     returnCode = 0
     returnObject = None
@@ -673,8 +685,11 @@ def processMCDCLogic(mode, clicast, pathToUse, unitName, lineNumber):
     validatePath(pathToUse)
 
     if mode == "mcdcReport":
-        returnObject = {"text": getMCDCResults(pathToUse, unitName, lineNumber).split("\n")}
-        # do stuff
+        returnObject = {
+            "text": getMCDCResults(pathToUse, unitName, lineNumber).split("\n")
+        }
+    elif mode == "mcdcLines":
+        returnObject = {"text": getMCDCLines(pathToUse).split("\n")}
     else:
         modeListAsString = ",".join(modeChoices)
         raise UsageError(
@@ -682,7 +697,8 @@ def processMCDCLogic(mode, clicast, pathToUse, unitName, lineNumber):
         )
     return returnCode, returnObject
 
-def getMCDCReport(mode, clicast, pathToUse, unitName, lineNumber):
+
+def processMCDCCommand(mode, clicast, pathToUse, unitName="", lineNumber=-1):
     """
     This is a wrapper for process mcdc command logic, so that we can process
     the exceptions in a single place for stand-alone (via main) and server usage
@@ -710,7 +726,11 @@ def getMCDCReport(mode, clicast, pathToUse, unitName, lineNumber):
 
     return returnCode, returnObject
 
+
 def getMCDCResults(enviroPath, unitName, lineNumber):
+    """
+    Returns the MCDC Report for a specific line in a specific unit.
+    """
     with cd(os.path.dirname(enviroPath)):
         commands = list()
         commands.append("mcdcReport")
@@ -721,7 +741,9 @@ def getMCDCResults(enviroPath, unitName, lineNumber):
             reportName = os.path.join(enviroPath, hashString) + ".html"
 
             # Attempt to generate the report
-            clicastInterface.generate_mcdc_report(enviroPath, unitName, lineNumber, reportName)
+            clicastInterface.generate_mcdc_report(
+                enviroPath, unitName, lineNumber, reportName
+            )
 
             # If mcdc report generation does not fail, we return the name of the file
             returnText = f"REPORT:{reportName}\n"
@@ -729,6 +751,24 @@ def getMCDCResults(enviroPath, unitName, lineNumber):
             returnText = f"Error: {str(e)}\n"
 
         return returnText
+
+
+def getMCDCLines(enviroPath):
+    """
+    Returns all MCDC lines for all units within an environment.
+    """
+    with cd(os.path.dirname(enviroPath)):
+        commands = list()
+        commands.append("mcdcLines")
+        try:
+            # Attempt to retrieve the lines
+            mcdcLines = mcdcReport.get_mcdc_lines(enviroPath)
+            returnText = f"{mcdcLines}\n"
+        except Exception as e:
+            returnText = f"Error: {str(e)}\n"
+
+        return returnText
+
 
 def main():
     argParser = setupArgs()
