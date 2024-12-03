@@ -37,7 +37,7 @@ import {
   vectorMessage,
 } from "./messagePane";
 
-import { viewResultsReport } from "./reporting";
+import { viewMCDCReport, viewResultsReport } from "./reporting";
 
 import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
@@ -57,6 +57,7 @@ import {
 import {
   addLaunchConfiguration,
   addSettingsFileFilter,
+  getEnvPathForFilePath,
   showSettings,
 } from "./utilities";
 
@@ -105,6 +106,8 @@ const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
+
+import { forceLowerCaseDriveLetter } from "./utilities";
 
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
@@ -625,6 +628,37 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(selectDefaultConfigFile);
+
+  // This command appears in the context menu of the vscode gutter (same as Add Breakpoint) and
+  // generates the MCDC report.
+  let getMCDCReportCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.viewMCDCReport",
+    async (args) => {
+      const activeEditor = vscode.window.activeTextEditor;
+      let fileFromUri = forceLowerCaseDriveLetter(args.uri.fsPath);
+
+      if (activeEditor || fileFromUri) {
+        // Get the file name and remove the extension --> For the UNIT parameter.
+        // Prioritize activeEditor for user convenience—it reflects the file in focus.
+        // Fallback to fileFromUri ensures the command works
+        // (if the focus is on no file --> activeEditor undefined --> command wont work)
+        // But we still can get the file üath from where it s called via the uri
+        const filePath = activeEditor
+          ? activeEditor.document.uri.fsPath
+          : fileFromUri;
+        const enviroPath = getEnvPathForFilePath(filePath);
+        const fileName = path.parse(filePath).name;
+        if (enviroPath) {
+          viewMCDCReport(enviroPath, fileName, args.lineNumber);
+        } else {
+          vscode.window.showErrorMessage(
+            `Did not find environment name ${enviroPath} or path for file: ${filePath}`
+          );
+        }
+      }
+    }
+  );
+  context.subscriptions.push(getMCDCReportCommand);
 
   vscode.workspace.onDidChangeWorkspaceFolders(
     (e) => {

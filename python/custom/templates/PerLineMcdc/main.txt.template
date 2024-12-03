@@ -1,0 +1,64 @@
+{%- import "McdcTables/tables.txt.template" as tables -%}
+--------------------------------------------------------------------------------
+{{_(title)}}
+--------------------------------------------------------------------------------
+{%- if has_some_mcdc_coverage -%}
+{%- for obj in objs -%}
+{%- for function in obj.functions -%}
+{%- for mcdc in function.mcdcs %}
+  --------------------------------------------------------------------------------
+  {% trans %}File{% endtrans %}: {{mcdc.unit_name}}
+  {%- if is_sfp %}
+  {% trans %}Subprogram{% endtrans %}: {{function.name}}
+  {% trans %}Decision{% endtrans %}: # {{ mcdc.data.decision_index }}
+  {%- else %}
+  {% trans %}Subprogram{% endtrans %}: {{function.name}}
+  {% trans %}Condition{% endtrans %}: # {{ mcdc.data.line }}
+  {%- endif %}
+  --------------------------------------------------------------------------------
+{%- if mcdc.num_conditions == 0 %}
+  {% trans %}*** MAX CONDITIONS EXCEEDED ***{% endtrans %}
+{% endif %}
+  {% trans %}Source line{% endtrans %}: {{ mcdc.data.start_line }}
+  {% trans %}Actual Expression is{% endtrans %}: {{ mcdc.data.actual_expr|indent_wrapped_lines(2) }}
+{{-tables.write_mcdc_conditions(mcdc.data)}}
+{%- if mcdc.num_conditions > 0 %}
+  {% trans %}Simplified Expression is{% endtrans %}: {{ mcdc.data.simplified_expr }}
+{%- endif %}
+{%- if mcdc.max_sub_conditions_msg %}
+  {{ _("This expression exceeds the maximum number of
+subconditions (%(max)s) that can be instrumented for MC/DC.
+Therefore, no MC/DC Equivalence Matrix has been generated.")|format(max=obj.MAXIMUM_POSSIBLE_MCDC_SUBCONDITIONS)|indent(2) }}
+{%- endif %}
+{%- if mcdc.rows_not_calculated_display_msg %}
+  {{ _("The MC/DC Equivalence Matrix for this expression has not been
+calculated because the number of subconditions (%(num)s)
+exceeds the value specified by the Coverage option
+'Maximum subconditions for MC/DC table row display:'
+which is set to %(max)s. No matrix rows are displayed,
+but pair data is provided.")|format(num=mcdc.num_conditions, max=opt_VCAST_MAX_TABLE_SUBCONDITIONS)|indent(2) }}
+
+{% endif %}
+{%- if mcdc.rows_not_calculated_pre_calc_msg %}
+  {{ _("The MC/DC Equivalence Matrix rows for this expression
+have not been calculated because the number of subconditions (%(num)s)
+exceeds the value specified by the Coverage option
+'Maximum subconditions for MC/DC table pre-calculations:'
+which is set to %(max)s. As test results are added, rows that
+contribute to a satisfied pair are displayed.")|format(num=mcdc.num_conditions, max=opt_VCAST_MAX_MCDC_CONDITIONS)|indent(2) }}
+{%- endif %}
+{%- if mcdc.show_table %}
+{{-tables.write_mcdc_table(mcdc.table_data)}}
+{%- endif %}
+{%- if mcdc.show_pairs %}
+{{-tables.write_pairs_satisfied(mcdc.pairs_satisfied)}}
+{%- endif %}
+{{-"\n"-}}
+{{-"\n"-}}
+{%- endfor -%} {# end mcdc loop #}  
+{%- endfor -%} {# end functions loop #}
+{%- endfor -%}  {# end objs loop #}
+{%- else %} {# end has_some_mcdc_coverage #}
+  {% trans %}No MC/DC condition tables exist{% endtrans %}.
+
+{% endif -%} {# end !has_some_mcdc_coverage #}
