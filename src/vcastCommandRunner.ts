@@ -150,12 +150,12 @@ export function executeWithRealTimeEcho(
   // this function is used to build and rebuild environments
   // long running commands where we want to show real-time output
 
-  // it uses spawn to execute a clicast command, log the output to the
+  // it uses spawn to execute a clicast | manage command, log the output to the
   // message pane, and update the test explorer when the command completes
 
   // To debug what's going on with vcast, you can add -dall to
-  // argList, which will dump debug info for the clicast invocation
-  let clicast = spawn(command, argList, { cwd: CWD });
+  // argList, which will dump debug info for the clicast | manage invocation
+  let processHandle = spawn(command, argList, { cwd: CWD });
   vectorMessage("-".repeat(100));
 
   // maybe this is a hack, but after reading stackoverflow for a while I could
@@ -167,11 +167,24 @@ export function executeWithRealTimeEcho(
   // condition because the exit might not have saved it when the close is seen.
 
   vectorMessage("-".repeat(100));
-  clicast.stdout.on("data", function (data: any) {
+  let messageFragment: string = "";
+  processHandle.stdout.on("data", function (data: any) {
     // split raw message based on \n or \r because messages
     // that come directly from the compiler are LF terminated
     const rawString = data.toString();
     const lineArray = rawString.split(/[\n\r?]/);
+
+    // add any left over fragment to the end of the first line
+    if (messageFragment.length > 0) {
+      lineArray[0] = messageFragment + lineArray[0];
+      messageFragment = "";
+    }
+
+    // handle the case where the last line is not complete
+    if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
+      messageFragment = lineArray.pop();
+    }
+
     for (const line of lineArray) {
       if (line.length > 0) {
         vectorMessage(line.replace(/\n/g, ""));
@@ -179,14 +192,14 @@ export function executeWithRealTimeEcho(
     }
   });
 
-  clicast.stdout.on("close", function (code: any) {
+  processHandle.stdout.on("close", function (code: any) {
     vectorMessage("-".repeat(100));
   });
 
-  clicast.on("exit", function (code: any) {
+  processHandle.on("exit", function (code: any) {
     vectorMessage("-".repeat(100));
     vectorMessage(
-      `clicast: '${argList.join(" ")}' returned exit code: ${code.toString()}`
+      `${path.basename(command)}: '${argList.join(" ")}' returned exit code: ${code.toString()}`
     );
     vectorMessage("-".repeat(100));
     if (callback) {

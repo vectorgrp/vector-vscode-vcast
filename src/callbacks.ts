@@ -30,8 +30,8 @@ const fs = require("fs");
 const path = require("path");
 
 export function buildEnvironmentCallback(enviroPath: string, code: number) {
-  // This function gets called after the newEnviroVCAST command
-  // We check the return code and cleanup on failure
+  // This function gets called after we build an environment
+  // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
     updateDataForEnvironment(enviroPath);

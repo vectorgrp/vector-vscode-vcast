@@ -34,6 +34,7 @@ import {
 import {
   atgCommandToUse,
   clicastCommandToUse,
+  manageCommandToUse,
   vcastCommandToUse,
 } from "./vcastInstallation";
 
@@ -53,6 +54,35 @@ import {
 } from "../src-common/vcastServer";
 
 const path = require("path");
+
+// ------------------------------------------------------------------------------------
+// Direct manage Calls
+// ------------------------------------------------------------------------------------
+
+// Build Project Environment - no server logic needed ---------------------------------
+export function buildProjectEnvironment(
+  projectFilePath: string,
+  levelString: string,
+  enviroPath: string
+) {
+  // Used to build a manage project environment that has is not currently built
+  // need to issue a vcast manage command to build the enviro, similar to this
+  // manage -p SecondaryProject --level=GNU_Native_Automatic_C++17/Suite3/FOO --build
+
+  const projectName = path.basename(projectFilePath);
+  const projectLocation = path.dirname(projectFilePath);
+  const manageArgs = [`-p${projectName}`, `--level=${levelString}`, "--build"];
+
+  // This is long running commands so we open the message pane to give the user a sense of what is going on.
+  openMessagePane();
+  executeWithRealTimeEcho(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    buildEnvironmentCallback,
+    enviroPath
+  );
+}
 
 // ------------------------------------------------------------------------------------
 // Direct clicast Calls

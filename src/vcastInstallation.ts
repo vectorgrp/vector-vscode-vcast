@@ -28,6 +28,8 @@ export let vcastInstallationVersion: toolVersionType = {
 
 export const clicastName = "clicast";
 export let clicastCommandToUse: string;
+export const manageName = "manage";
+export let manageCommandToUse: string;
 
 const vPythonName = "vpython";
 const vpythonFromPath = which.sync(vPythonName, { nothrow: true });
@@ -400,6 +402,11 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
     vcastCommandToUse = path.join(
       vcastInstallationPath,
       exeFilename(vcastqtName)
+    );
+
+    manageCommandToUse = path.join(
+      vcastInstallationPath,
+      exeFilename(manageName)
     );
 
     // compute the installation version once ...

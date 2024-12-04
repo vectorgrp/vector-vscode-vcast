@@ -39,7 +39,13 @@ import {
 
 import { viewResultsReport } from "./reporting";
 
-import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+import {
+  environmentNodeDataType,
+  getEnviroNodeData,
+  getEnviroPathFromID,
+  getTestNode,
+  testNodeType,
+} from "./testData";
 
 import {
   activateTestPane,
@@ -62,6 +68,7 @@ import {
 
 import {
   buildEnvironmentFromScript,
+  buildProjectEnvironment,
   deleteEnvironment,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
@@ -585,9 +592,13 @@ function configureExtension(context: vscode.ExtensionContext) {
   let buildProjectEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.buildProjectEnviro",
     (enviroNode: any) => {
-      // TBD TODAY
-      // need to issue a vcast manage command to build the enviro
-      console.log("Building project environment: " + enviroNode.id);
+      // displayName is the what will be passed as the --level arg value
+      const displayName = enviroNode.label;
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      console.log("Building project environment: " + displayName);
+
+      buildProjectEnvironment(enviroData.projectPath, displayName, enviroPath);
     }
   );
   context.subscriptions.push(buildProjectEnviro);

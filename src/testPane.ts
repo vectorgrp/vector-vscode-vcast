@@ -499,6 +499,14 @@ export async function updateTestsForEnvironment(
   }
 }
 
+function pushUnbuiltEnviroListToContextMenu() {
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.vcastUnbuiltEnviroList",
+    vcastUnbuiltEnviroList
+  );
+}
+
 function addUnbuiltEnviroToTestPane(
   parentNode: vcastTestItem,
   enviroData: environmentNodeDataType
@@ -512,13 +520,11 @@ function addUnbuiltEnviroToTestPane(
   enviroNode.nodeKind = nodeKind.environment;
   parentNode.children.add(enviroNode);
 
+  saveEnviroNodeData(enviroData.buildDirectory, enviroData);
+
   if (!vcastUnbuiltEnviroList.includes(enviroNodeID)) {
     vcastUnbuiltEnviroList.push(enviroNodeID);
-    vscode.commands.executeCommand(
-      "setContext",
-      "vectorcastTestExplorer.vcastUnbuiltEnviroList",
-      vcastUnbuiltEnviroList
-    );
+    pushUnbuiltEnviroListToContextMenu();
   }
 }
 
@@ -605,6 +611,7 @@ async function loadAllVCTests(
         if (cancelled) {
           break;
         }
+
         const parentNode = getParentNodeForEnvironment(environmentData);
         await updateTestsForEnvironment(parentNode, environmentData);
       } else {
@@ -1090,6 +1097,12 @@ export async function updateDataForEnvironment(enviroPath: string) {
   updateDisplayedCoverage();
   updateExploreDecorations();
   updateTestDecorator();
+
+  // remove environment from the unbuilt list if it's there
+  vcastUnbuiltEnviroList = vcastUnbuiltEnviroList.filter(
+    (item) => item !== `vcast:${enviroPath}`
+  );
+  pushUnbuiltEnviroListToContextMenu();
 }
 
 function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {
