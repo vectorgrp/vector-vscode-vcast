@@ -17,6 +17,7 @@ import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
+import { moveCursor } from "node:readline";
 
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 180_000;
@@ -374,6 +375,29 @@ export async function openTestScriptFor(subprogramMethod: CustomTreeItem) {
     async () =>
       (await (await editorView.getActiveTab()).getTitle()) ===
       "vcast-template.tst"
+  );
+}
+
+/**
+ * Generates ATG tests for a given subprogram method.
+ * @param subprogramMethod Subprogram method for which to generate ATG tests.
+ */
+export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  const contextMenu = await subprogramMethod.openContextMenu();
+  await contextMenu.select("VectorCAST");
+
+  const menuElement = await $("aria/Insert Basis Path Tests");
+  await menuElement.click();
+
+  const editorView = workbench.getEditorView();
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
   );
 }
 
@@ -1390,4 +1414,58 @@ export async function checkElementExistsInHTML(searchString: string) {
       `Element with ARIA label "${searchString}" does not exist or timed out.`
     );
   }
+}
+
+export async function generateMCDCReportFromGutter(
+  line: number,
+  unitFileName: string,
+  icon: string,
+  moveCursor: boolean
+) {
+  const workbench = await browser.getWorkbench();
+  const activityBar = workbench.getActivityBar();
+  const explorerView = await activityBar.getViewControl("Explorer");
+  const explorerSideBarView = await explorerView?.openView();
+
+  const workspaceFolderSection =
+    await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+  // Need to check if cpp was already selected
+  // --> otherwise we close it again and we can not find manager.cpp
+  let managerCpp = await workspaceFolderSection.findItem(unitFileName);
+  if (!managerCpp) {
+    const cppFolder = workspaceFolderSection.findItem("cpp");
+    await (await cppFolder).select();
+    managerCpp = await workspaceFolderSection.findItem(unitFileName);
+  }
+  // Check if the file is already open in the editor
+  const editorView = workbench.getEditorView();
+  // List of open editor titles
+  const openEditors = await editorView.getOpenEditorTitles();
+  const isFileOpen = openEditors.includes(unitFileName);
+
+  if (!isFileOpen) {
+    // Select file from the explorer if not already open
+    await managerCpp.select();
+  }
+
+  const tab = (await editorView.openEditor(unitFileName)) as TextEditor;
+
+  // If the line is not visible in the first place (>40) we need to scroll down
+  if (moveCursor) {
+    await tab.moveCursor(line, 1);
+  }
+
+  const lineNumberElement = await $(`.line-numbers=${line}`);
+  const flaskElement = await (
+    await lineNumberElement.parentElement()
+  ).$(".cgmr.codicon");
+  const backgroundImageCSS =
+    await flaskElement.getCSSProperty("background-image");
+  const backgroundImageURL = backgroundImageCSS.value;
+  const BEAKER = `/${icon}`;
+  expect(backgroundImageURL.includes(BEAKER)).toBe(true);
+  await flaskElement.click({ button: 2 });
+
+  await (await $("aria/VectorCAST MC/DC Report")).click();
 }

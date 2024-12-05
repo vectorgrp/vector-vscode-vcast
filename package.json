@@ -695,6 +695,6 @@
   },
   "extensionDependencies": [],
   "engines": {
-    "vscode": "^1.78.0"
+    "vscode": "^1.79.0"
   }
 }
