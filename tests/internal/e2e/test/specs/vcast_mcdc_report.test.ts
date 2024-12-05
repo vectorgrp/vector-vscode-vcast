@@ -139,7 +139,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
   });
 
-  it("should generate ATG tests and check for a fully passed report", async () => {
+  it("should generate Basis Path tests and check for a fully passed report", async () => {
     // Generating ATG tests is the quickest way to get full coverage and to check for a full covered report.
     workbench = await browser.getWorkbench();
     bottomBar = workbench.getBottomBar();
@@ -207,12 +207,29 @@ describe("vTypeCheck VS Code Extension", () => {
       true
     );
 
+    await browser.waitUntil(
+      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT }
+    );
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+
+    await webview.open();
+
     // Some important lines we want to check for in the report
     await expect(await checkElementExistsInHTML("manager.cpp")).toBe(true);
     await expect(await checkElementExistsInHTML("19")).toBe(true);
     await expect(
       await checkElementExistsInHTML("Pairs satisfied: 1 of 1 ( 100% )")
     ).toBe(true);
+
+    await webview.close();
+    await editorView.closeEditor("VectorCAST Report", 1);
   });
 
   it("should check if uncovered mcdc line generates mcdc report", async () => {
