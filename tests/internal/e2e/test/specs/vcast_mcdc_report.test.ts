@@ -18,7 +18,7 @@ import {
   releaseCtrl,
   expandWorkspaceFolderSectionInExplorer,
   findSubprogramMethod,
-  insertATGTestFor,
+  insertBasisPathTestFor,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -183,7 +183,7 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
-    await insertATGTestFor(subprogramMethod);
+    await insertBasisPathTestFor(subprogramMethod);
 
     // Run the tests and wait for them to finish
     await (
@@ -195,7 +195,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await (await bottomBar.openOutputView()).getText())
           .toString()
-          .includes("Starting execution of test: ATG-TEST-4"),
+          .includes("Starting execution of test: BASIS-PATH-004"),
       { timeout: TIMEOUT }
     );
 

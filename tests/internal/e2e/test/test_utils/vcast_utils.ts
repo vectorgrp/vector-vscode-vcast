@@ -382,13 +382,13 @@ export async function openTestScriptFor(subprogramMethod: CustomTreeItem) {
  * Generates ATG tests for a given subprogram method.
  * @param subprogramMethod Subprogram method for which to generate ATG tests.
  */
-export async function insertATGTestFor(subprogramMethod: CustomTreeItem) {
+export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
   let workbench = await browser.getWorkbench();
   let bottomBar = workbench.getBottomBar();
   const contextMenu = await subprogramMethod.openContextMenu();
   await contextMenu.select("VectorCAST");
 
-  const menuElement = await $("aria/Insert ATG Tests");
+  const menuElement = await $("aria/Insert Basis Path Tests");
   await menuElement.click();
 
   const editorView = workbench.getEditorView();
