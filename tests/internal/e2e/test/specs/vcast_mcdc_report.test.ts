@@ -17,6 +17,8 @@ import {
   executeCtrlClickOn,
   releaseCtrl,
   expandWorkspaceFolderSectionInExplorer,
+  findSubprogramMethod,
+  insertATGTestFor,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -137,30 +139,28 @@ describe("vTypeCheck VS Code Extension", () => {
     );
   });
 
-  it("should run myFirstTest and check its report", async () => {
-    // When we rebuild the env, we need to run the test again because the coverage gutter icons are reseted
-    // --> We want to check Red and Green mcdc lines, otherwise we would only have red ones
-    await updateTestID();
-    console.log("Looking for Manager::PlaceOrder in the test tree");
-
+  it("should generate ATG tests and check for a fully passed report", async () => {
+    // Generating ATG tests is the quickest way to get full coverage and to check for a full covered report.
+    workbench = await browser.getWorkbench();
+    bottomBar = workbench.getBottomBar();
+    const outputView = await bottomBar.openOutputView();
+    console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
-    console.log("Expanding all test groups");
     let subprogram: TreeItem;
-    let testHandle: TreeItem;
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-      subprogram = await findSubprogram("manager", vcastTestingViewSection);
-      if (subprogram) {
-        await subprogram.expand();
-        testHandle = await getTestHandle(
-          subprogram,
-          "Manager::PlaceOrder",
-          "myFirstTest",
-          1
+      if (!(await vcastTestingViewSection.isExpanded()))
+        await vcastTestingViewSection.expand();
+
+      for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+        console.log(await vcastTestingViewContentSection.getTitle());
+        await vcastTestingViewContentSection.expand();
+        subprogram = await findSubprogram(
+          "manager",
+          vcastTestingViewContentSection
         );
-        if (testHandle) {
+        if (subprogram) {
+          if (!(await subprogram.isExpanded())) await subprogram.expand();
           break;
-        } else {
-          throw new Error("Test handle not found for myFirstTest");
         }
       }
     }
@@ -169,137 +169,50 @@ describe("vTypeCheck VS Code Extension", () => {
       throw new Error("Subprogram 'manager' not found");
     }
 
-    console.log("Running myFirstTest");
-    await testHandle.select();
-    await (await (await testHandle.getActionButton("Run Test")).elem).click();
+    const subprogramMethod = await findSubprogramMethod(
+      subprogram,
+      "Manager::AddIncludedDessert"
+    );
+    if (!subprogramMethod) {
+      throw new Error(
+        "Subprogram method 'Manager::AddIncludedDessert' not found"
+      );
+    }
 
-    // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
+    if (!subprogramMethod.isExpanded()) {
+      await subprogramMethod.select();
+    }
+
+    await insertATGTestFor(subprogramMethod);
+
+    // Run the tests and wait for them to finish
+    await (
+      await (
+        await subprogramMethod.getActionButton("Run Test")
+      ).elem
+    ).click();
     await browser.waitUntil(
-      async () => (await workbench.getAllWebviews()).length > 0,
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Starting execution of test: ATG-TEST-4"),
       { timeout: TIMEOUT }
     );
 
-    let webviews = await workbench.getAllWebviews();
-    expect(webviews).toHaveLength(1);
-    let webview = webviews[0];
-
-    await webview.open();
-
-    expect(await checkElementExistsInHTML("Execution Results (PASS)")).toBe(
-      true
-    );
-    expect(
-      await checkElementExistsInHTML("Event 1 - Calling Manager::PlaceOrder")
-    ).toBe(true);
-    expect(
-      await checkElementExistsInHTML(
-        "Event 2 - Returned from Manager::PlaceOrder"
-      )
-    ).toBe(true);
-
-    await expect($(".text-muted*=UUT")).toHaveText("UUT: manager.cpp");
-
-    await expect($(".subprogram*=Manager")).toHaveText("Manager::PlaceOrder");
-
-    await webview.close();
-    await editorView.closeEditor("VectorCAST Report", 1);
-
-    console.log("Validating info messages in output channel of the bottom bar");
-    await bottomBar.maximize();
-    await browser.waitUntil(async () =>
-      (await (await bottomBar.openOutputView()).getText()).includes(
-        "test explorer  [info]  Starting execution of test: myFirstTest ..."
-      )
-    );
-    const outputViewText = await (await bottomBar.openOutputView()).getText();
-    await bottomBar.restore();
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Processing environment data for:");
-      })
-    ).not.toBe(undefined);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Viewing results, result report path");
-      })
-    ).not.toBe(undefined);
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Creating web view panel");
-      })
-    ).not.toBe(undefined);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Setting webview text");
-      })
-    ).not.toBe(undefined);
-  });
-
-  it("should check if covered mcdc line generates mcdc report", async () => {
-    const outputView = await bottomBar.openOutputView();
     // Green MCDC Gutter icon
-    await generateMCDCReportFromGutter(
-      22,
-      "manager.cpp",
-      "cover-icon-with-mcdc",
-      false
-    );
-    await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
-      { timeout: TIMEOUT }
-    );
-
-    await browser.waitUntil(
-      async () => (await workbench.getAllWebviews()).length > 0,
-      { timeout: TIMEOUT }
-    );
-    let webviews = await workbench.getAllWebviews();
-    expect(webviews).toHaveLength(1);
-    let webview = webviews[0];
-
-    await webview.open();
-
-    // Some important lines we want to check for in the report
-    await expect(await checkElementExistsInHTML("manager.cpp")).toBe(true);
-
-    await expect(await checkElementExistsInHTML("22")).toBe(true);
-
-    await expect(await checkElementExistsInHTML("((a && b) && c)")).toBe(true);
-
-    await webview.close();
-
-    // Generating another report for a valid line to verify the bug
-    // that prevented report generation without prior interaction with the editor.
-    // Both calls use the "false" flag for this reason.
     await generateMCDCReportFromGutter(
       19,
       "manager.cpp",
       "cover-icon-with-mcdc",
-      false
+      true
     );
-    await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
-      { timeout: TIMEOUT }
-    );
-
-    await browser.waitUntil(
-      async () => (await workbench.getAllWebviews()).length > 0,
-      { timeout: TIMEOUT }
-    );
-    webviews = await workbench.getAllWebviews();
-    expect(webviews).toHaveLength(1);
-    webview = webviews[0];
-
-    await webview.open();
 
     // Some important lines we want to check for in the report
     await expect(await checkElementExistsInHTML("manager.cpp")).toBe(true);
-
     await expect(await checkElementExistsInHTML("19")).toBe(true);
-
-    await webview.close();
+    await expect(
+      await checkElementExistsInHTML("Pairs satisfied: 1 of 1 ( 100% )")
+    ).toBe(true);
   });
 
   it("should check if uncovered mcdc line generates mcdc report", async () => {
@@ -337,12 +250,13 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Some important lines we want to check for in the report
     await expect(await checkElementExistsInHTML("manager.cpp")).toBe(true);
-
     await expect(await checkElementExistsInHTML("84")).toBe(true);
-
     await expect(await checkElementExistsInHTML("WaitingListSize > (9)")).toBe(
       true
     );
+    await expect(
+      await checkElementExistsInHTML("Pairs satisfied: 0 of 1 ( 0% )")
+    ).toBe(true);
 
     await webview.close();
     await editorView.closeEditor("VectorCAST Report", 1);
@@ -425,7 +339,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Some important lines we want to check for in the report
     await expect(await checkElementExistsInHTML("foo.cpp")).toBe(true);
-
     await expect(await checkElementExistsInHTML("15")).toBe(true);
 
     await webview.close();

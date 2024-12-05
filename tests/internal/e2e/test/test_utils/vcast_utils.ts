@@ -378,6 +378,29 @@ export async function openTestScriptFor(subprogramMethod: CustomTreeItem) {
   );
 }
 
+/**
+ * Generates ATG tests for a given subprogram method.
+ * @param subprogramMethod Subprogram method for which to generate ATG tests.
+ */
+export async function insertATGTestFor(subprogramMethod: CustomTreeItem) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  const contextMenu = await subprogramMethod.openContextMenu();
+  await contextMenu.select("VectorCAST");
+
+  const menuElement = await $("aria/Insert ATG Tests");
+  await menuElement.click();
+
+  const editorView = workbench.getEditorView();
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+}
+
 export async function deleteTest(testHandle: CustomTreeItem) {
   const contextMenu = await testHandle.openContextMenu();
   await contextMenu.select("VectorCAST");
