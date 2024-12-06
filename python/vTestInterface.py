@@ -443,17 +443,37 @@ def getCoverageData(sourceObject):
                         metrics.max_covered_statements > 0
                         or metrics.max_annotations_statements > 0
                     ):
-                        if (
+                        # Check if it's a branch line
+                        if metrics.branches > 0:
+                            # If every branch is covered --> green
+                            if (
+                                metrics.max_covered_branches
+                                + metrics.max_annotations_branches
+                                == metrics.branches
+                            ):
+                                coveredString += str(line.line_number) + ","
+
+                            # If only a part of the branch is covered --> orange
+                            elif (
+                                metrics.max_covered_branches
+                                + metrics.max_annotations_branches
+                                > 0
+                            ):
+                                partiallyCoveredString += str(line.line_number) + ","
+
+                            # If it s a branch but nothing is covered --> red
+                            else:
+                                uncoveredString += str(line.line_number) + ","
+
+                        # It's not a branch line but a fully covered statement line --> green
+                        elif (
                             metrics.max_covered_statements
                             + metrics.max_annotations_statements
                             == metrics.statements
-                            and metrics.max_covered_branches
-                            + metrics.max_annotations_branches
-                            == metrics.branches
                         ):
                             coveredString += str(line.line_number) + ","
-                        else:
-                            partiallyCoveredString += str(line.line_number) + ","
+
+                    # It's a statement line but not covered --> red
                     elif metrics.statements > 0:
                         uncoveredString += str(line.line_number) + ","
 
