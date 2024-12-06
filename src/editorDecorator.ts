@@ -3,9 +3,11 @@ import { DecorationRenderOptions, TextEditorDecorationType } from "vscode";
 
 import { testNodeType } from "./testData";
 
-import { getRangeOption } from "./utilities";
+import { getEnvPathForFilePath, getRangeOption } from "./utilities";
 
 import { checksumMatchesEnvironment } from "./vcastTestInterface";
+import { getMCDCCoverageLines } from "./vcastAdapter";
+import { vectorMessage } from "./messagePane";
 
 const path = require("path");
 
@@ -13,9 +15,62 @@ const path = require("path");
 // Search for 'vectorcastTestExplorer.testableLineList' in package.json to see where we reference it
 let testableLineList: number[] = [];
 
+// Determines the lines in package.json where the "Get MCDC Report" command is available.
+// Also used in coverage.ts to highlight MCDC lines, visually indicating their interactivity for the user.
+let mcdcUnitCoverageLines: { [unit: string]: number[] } = {};
+export let currentActiveUnitMCDCLines: number[] = [];
+
 let testableFunctionDecorationType: TextEditorDecorationType;
 let testableFunctionOptions: DecorationRenderOptions;
 let testableFunctionsDecorations: vscode.DecorationOptions[] = [];
+
+/**
+ * Updates the global variable `currentActiveUnitMCDCLines`, which is exported and used in coverage.ts.
+ * Fetches all lines with MCDC coverage for the current active editor's unit from the Data API.
+ */
+export async function updateCurrentActiveUnitMCDCLines() {
+  let activeEditor = vscode.window.activeTextEditor;
+  if (activeEditor) {
+    // First we need to get the env name from the active file
+    const filePath = activeEditor.document.uri.fsPath;
+    const enviroPath = getEnvPathForFilePath(filePath);
+
+    // Get the unit name based on the file name without extension
+    const fullPath = activeEditor.document.fileName;
+    const unitName = path.basename(fullPath, path.extname(fullPath));
+
+    // Get all mcdc lines for every unit and parse it into JSON
+    if (enviroPath) {
+      // Replace single quotes with double quotes to make it a valid JSON string
+      try {
+        let mcdcCoverageLinesString = (
+          await getMCDCCoverageLines(enviroPath)
+        ).replace(/'/g, '"');
+        mcdcUnitCoverageLines = JSON.parse(mcdcCoverageLinesString);
+      } catch (error) {
+        vectorMessage(`Error trying to parse MCDC coverage lines: ${error}`);
+      }
+      // Update the current active unit MCDC lines
+      const mcdcLinesForUnit = mcdcUnitCoverageLines[unitName];
+      // Check if there are no MCDC lines for the unit --> for example when the env is build with only Statement coverage
+      // and the user changes it to Statement+MCDC in the settings
+      if (mcdcLinesForUnit) {
+        currentActiveUnitMCDCLines = mcdcUnitCoverageLines[unitName];
+      } else {
+        currentActiveUnitMCDCLines = [];
+      }
+    } else {
+      currentActiveUnitMCDCLines = [];
+    }
+
+    // Push the updated currentActiveUnitMCDCLines to control the possible "Get MCDC Report" command
+    vscode.commands.executeCommand(
+      "setContext",
+      "vectorcastTestExplorer.currentMCDCLines",
+      currentActiveUnitMCDCLines
+    );
+  }
+}
 
 export function initializeTestDecorator(context: vscode.ExtensionContext) {
   testableFunctionOptions = {
