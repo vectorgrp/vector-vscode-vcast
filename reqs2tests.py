@@ -35,13 +35,10 @@ async def main():
     test_generator = TestGenerator(
         requirements, requirement_references, environment_manager=env_manager)
 
-    failed_requirements = []
-
     vectorcast_test_cases = []
 
     async def generate_and_process_test_case(requirement_id):
-        result, completion = await test_generator.generate_test_case(
-            requirement_id, return_raw_completion=True, max_retries=args.retries)
+        result = await test_generator.generate_test_case(requirement_id, max_retries=args.retries)
         if result:
             print(f"Test Description for {requirement_id}:")
             print(result.test_description)
@@ -62,12 +59,9 @@ async def main():
                     print(output)
                 else:
                     print("No suitable environment found for execution.")
-        else:
-            failed_requirements.append(requirement_id)
-        return completion
 
     requirements_to_check = args.requirement_ids or requirements.keys()
-    completions = await tqdm_asyncio.gather(
+    await tqdm_asyncio.gather(
         *[generate_and_process_test_case(requirement_id) for requirement_id in requirements_to_check]
     )
 
@@ -76,25 +70,45 @@ async def main():
             for vectorcast_case in vectorcast_test_cases:
                 output_file.write(vectorcast_case + '\n')
 
-    print("Failed requirements:")
-    print(failed_requirements)
+    # Analyze info_logger data
+    info_data = test_generator.info_logger.data
 
-    # Calculate and save cost information
-    input_tokens = sum(completion.usage.prompt_tokens for completion in completions if completion)
-    output_tokens = sum(completion.usage.completion_tokens for completion in completions if completion)
-    total_tokens = input_tokens + output_tokens
+    # Derive failed requirements
+    failed_requirements = [req_id for req_id, data in info_data.items()
+                           if not data['test_generated']]
 
-    input_cost = (input_tokens / 1000) * 0.00275
-    output_cost = (output_tokens / 1000) * 0.011
-    total_cost = input_cost + output_cost
+    if failed_requirements:
+        print("Warning: Failed to generate tests for the following requirements:")
+        for req_id in failed_requirements:
+            print(f"- {req_id}")
 
-    with open('cost.txt', 'w') as cost_file:
-        cost_file.write(f"Input Tokens: {input_tokens}\n")
-        cost_file.write(f"Output Tokens: {output_tokens}\n")
-        cost_file.write(f"Total Tokens: {total_tokens}\n")
-        cost_file.write(f"Input Cost: €{input_cost:.6f}\n")
-        cost_file.write(f"Output Cost: €{output_cost:.6f}\n")
-        cost_file.write(f"Total Cost: €{total_cost:.6f}\n")
+    # Warn about requirements with test run failure feedback
+    test_failure_requirements = [req_id for req_id, data in info_data.items()
+                                 if data['test_run_failure_feedback']]
+
+    if test_failure_requirements:
+        print("Warning: Failing tests were generated and their output used as feedback for the following requirements:")
+        for req_id in test_failure_requirements:
+            print(f"- {req_id}")
+
+    # Calculate total cost
+    total_input_tokens = sum(data['input_tokens'] for data in info_data.values())
+    total_output_tokens = sum(data['output_tokens'] for data in info_data.values())
+    total_tokens = total_input_tokens + total_output_tokens
+    total_input_cost = (total_input_tokens / 1000) * 0.00275
+    total_output_cost = (total_output_tokens / 1000) * 0.011
+    total_cost = total_input_cost + total_output_cost
+
+    print(f"Total Input Tokens: {total_input_tokens}")
+    print(f"Total Output Tokens: {total_output_tokens}")
+    print(f"Total Tokens: {total_tokens}")
+    print(f"Input Cost: €{total_input_cost:.6f}")
+    print(f"Output Cost: €{total_output_cost:.6f}")
+    print(f"Total Cost: €{total_cost:.6f}")
+
+    # Save info logger data to a JSON file
+    with open('info_logger.json', 'w') as info_file:
+        json.dump(info_data, info_file, indent=4)
 
 if __name__ == '__main__':
     asyncio.run(main())

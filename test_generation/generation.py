@@ -12,6 +12,7 @@ from test_generation.vcast_context_builder import VcastContextBuilder
 from test_generation.requirement_locator import RequirementLocator
 import asyncio
 from openai import AsyncAzureOpenAI
+from test_generation.info_logger import InfoLogger  # Add this import
 
 # Load environment variables from .env file
 load_dotenv()
@@ -116,23 +117,25 @@ class TestGenerator:
             azure_endpoint=os.getenv("OPENAI_API_BASE"),
             azure_deployment=os.getenv("OPENAI_GENERATION_DEPLOYMENT")
         )
+        # Replace info_logger dict with InfoLogger instance
+        self.info_logger = InfoLogger()
 
-    async def generate_test_case(self, *args, max_retries=1, return_raw_completion=False, **kwargs):
+    async def generate_test_case(self, requirement_id, max_retries=1):
+        self.info_logger.start_requirement(requirement_id)
         first_try = True
         for _ in range(max_retries):
+            self.info_logger.increment_retries_used(requirement_id)
             temperature = 0.0 if first_try else 1.0
-            result = await self._generate_test_case_no_retries(*args, return_raw_completion=return_raw_completion, temperature=temperature, **kwargs)
+            result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature)
             if result:
+                self.info_logger.set_test_generated(requirement_id)
                 return result
             else:
                 first_try = False
 
-        if return_raw_completion:
-            return None, None
-
         return None
 
-    async def _generate_test_case_no_retries(self, requirement_id, return_raw_completion=False, temperature=0):
+    async def _generate_test_case_no_retries(self, requirement_id, temperature=0):
         requirement_text = self.requirements.get(requirement_id)
         if not requirement_text:
             print(f"Requirement {requirement_id} not found.")
@@ -208,7 +211,12 @@ Notes:
                 seed=42,
                 max_tokens=2000,
             )
-        except:
+
+            # Update tokens used and money spent
+            input_tokens = completion.usage.prompt_tokens
+            output_tokens = completion.usage.completion_tokens
+            self.info_logger.update_tokens(requirement_id, input_tokens, output_tokens)
+        except Exception as e:
             print("Failed to generate test case.")
             return None
 
@@ -221,8 +229,6 @@ Notes:
             if test_generation_result is None:
                 return None
 
-            if return_raw_completion:
-                return test_generation_result, completion
             return test_generation_result
         except Exception as e:
             print("Failed to parse generated test case.")
@@ -234,6 +240,7 @@ Notes:
     async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, max_iterations=3):
         iteration = 0
         fix_messages = messages
+        self.info_logger.set_error_correction_needed(requirement_id)
         while iteration < max_iterations:
             iteration += 1
             # Generate vectorcast test cases for all test cases
@@ -244,37 +251,47 @@ Notes:
             if not environment:
                 print("No suitable environment found for execution.")
                 break
-            output = environment.run_tests(vectorcast_cases, execute=True)
-            errors = self._parse_error_output(output)
-            if not errors:
-                break  # No errors, exit loop
 
-            # Prepare new messages with errors for the model
-            fix_messages += [
-                {
-                    "role": "assistant",
-                    "content": test_generation_result.model_dump_json(indent=4)
-                },
-                {
-                    "role": "user",
-                    "content": f"""
+            output = environment.run_tests(vectorcast_cases, execute=True)
+            errors, test_failures = self._parse_error_output(output)
+
+            if not errors and not test_failures:
+                break
+
+            # Set test_run_failure_feedback only if test failures are detected
+            if test_failures:
+                self.info_logger.set_test_run_failure_feedback(requirement_id)
+
+            if errors or test_failures:
+                # Prepare new messages with errors for the model
+                fix_messages += [
+                    {
+                        "role": "assistant",
+                        "content": test_generation_result.model_dump_json(indent=4)
+                    },
+                    {
+                        "role": "user",
+                        "content": f"""
 There were errors when executing the test case:
 
 Error Output:
-{errors}
+```
+{errors or test_failures}
+```
 
 Please fix the test case accordingly, ensuring that the identifiers match exactly the syntax described in the reference.
 
 Remember:
 - Do not change the units or functions being tested.
-- Do not create new test cases; fix the existing ones.
 - Use the syntax reference provided.
+- Ensure that the test case is correct and complete and does not contain any logical or syntactical errors.
 
 Tip:
-- If you see something like this in the errors: error: expected expression before ‘<<’ token, then that likely means you are setting a macro in a reference which is not allowed.
+- If you see something like this in the errors: error: expected expression before '<<' token, then that likely means you are setting a macro in a reference which is not allowed.
+- If you see something like this in the errors: [  FAIL  ], then that means the test case failed to pass. Likely because you misunderstood the requirement, the code or the testing framework.
 """
-                }
-            ]
+                    }
+                ]
 
             with open("fix_messages.txt", "w") as f:
                 for message in fix_messages:
@@ -289,20 +306,26 @@ Tip:
                 seed=42,
                 max_tokens=2000,
             )
+
+            input_tokens = completion.usage.prompt_tokens
+            output_tokens = completion.usage.completion_tokens
+            self.info_logger.update_tokens(requirement_id, input_tokens, output_tokens)
+
             try:
                 test_generation_result = completion.choices[0].message.parsed
             except Exception as e:
                 print("Failed to parse fixed test case.")
                 print("Error:", e)
                 break
-        if errors:
-            print(f"Failed to fix errors after {iteration} iterations")
+        if errors or test_failures:
+            print(f"Failed to fix errors and test failures after {iteration} iterations")
             return None
 
         return test_generation_result
 
     def _parse_error_output(self, output):
         error_lines = []
+        test_fail_lines = []
 
         # Extract error messages starting with (E) and include indented lines
         lines = output.split('\n')
@@ -323,33 +346,28 @@ Tip:
         # Check for compile errors
         compile_error_index = output.find("Compile Failed")
         # Include all lines after "Compile Failed"
-        compile_error_output = output[compile_error_index:]
+        if compile_error_index != -1:
+            compile_error_output = output[compile_error_index:]
 
-        if compile_error_output.strip():
-            error_lines.append(compile_error_output.strip())
-
-        """
-        # Extract feedback from test execution
-        # We likely do not want to include this
-        test_run_fail_lines = []
-        if not compile_error_output:
+            if compile_error_output.strip():
+                error_lines.append(compile_error_output.strip())
+        else:
+            # Extract feedback from test execution
+            # We likely do not want to include this
             for line in lines:
                 if '========' in line:
                     break
                 elif re.search(r'\[\s+FAIL\s+\]', line):
-                    test_run_fail_lines.append(line.strip())
-                elif re.search(r'\[\w+\]', line):
-                    test_run_fail_lines.append(line.strip())
-
-        if test_run_fail_lines:
-            test_run_fail_lines.insert(0, "Test Run Failures:")
-            error_lines += test_run_fail_lines
-        """
+                    test_fail_lines.append(line.strip())
+                elif re.search(r'\[\s+\]', line):
+                    test_fail_lines.append(line.strip())
 
         print("Output:")
         print(output)
 
-        print("Errors and Feedback:")
+        print("Errors:")
         print('\n'.join(error_lines))
+        print("Test Failures:")
+        print('\n'.join(test_fail_lines))
 
-        return '\n'.join(error_lines) if error_lines else None
+        return '\n'.join(error_lines) if error_lines else None, '\n'.join(test_fail_lines) if test_fail_lines else None
