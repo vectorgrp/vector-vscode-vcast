@@ -123,7 +123,6 @@ class Environment:
         identifiers = set()
         lines = content.splitlines()
         for line in lines:
-            #match = re.match(r'TEST\.(?:VALUE|EXPECTED):([^:]+):', line)
             if line.startswith('TEST.VALUE') or line.startswith('TEST.EXPECTED'):
                 identifier = line.split(':', 1)[1].rsplit(':', 1)[0]
                 identifiers.add(identifier)
