@@ -27,8 +27,6 @@ from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
 from versionChecks import vpythonHasCodedTestSupport, enviroSupportsMocking
 
-from pythonUtilities import logMessage
-
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.lib.core.system import cd
 from vector.enums import COVERAGE_TYPE_TYPE_T
@@ -275,13 +273,16 @@ def getUnitData(api):
     for sourceObject in sourceObjects:
         sourcePath = sourceObject.display_path
         if sourceObject.is_instrumented:
-            covered, uncovered, checksum = getCoverageData(sourceObject)
+            covered, uncovered, partiallyCovered, checksum = getCoverageData(
+                sourceObject
+            )
             unitInfo = dict()
             unitInfo["path"] = sourcePath
             unitInfo["functionList"] = getFunctionData(sourceObject)
             unitInfo["cmcChecksum"] = checksum
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
+            unitInfo["partiallyCovered"] = partiallyCovered
             unitList.append(unitInfo)
 
         elif len(sourcePath) > 0:
@@ -294,6 +295,7 @@ def getUnitData(api):
             unitInfo["cmcChecksum"] = "0"
             unitInfo["covered"] = ""
             unitInfo["uncovered"] = ""
+            unitInfo["partiallyCovered"] = ""
             unitList.append(unitInfo)
 
     return unitList
@@ -330,9 +332,12 @@ statementCoverList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH,
     COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
     COVERAGE_TYPE_TYPE_T.STATEMENT_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
+]
+
+mcdcCoverageList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC,
     COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC_FUNCTION_CALL,
-    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
 ]
 
 
@@ -351,7 +356,7 @@ def getCoverageKind(sourceObject):
         return CoverageKind.statement
     elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.BRANCH:
         return CoverageKind.branch
-    elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.MCDC:
+    elif sourceObject.coverage_type in mcdcCoverageList:
         return CoverageKind.mcdc
     else:
         return CoverageKind.ignore
@@ -364,10 +369,12 @@ def getCoverageData(sourceObject):
     """
     coveredString = ""
     uncoveredString = ""
+    partiallyCoveredString = ""
     checksum = 0
     if sourceObject and sourceObject.is_instrumented:
         checksum = sourceObject.checksum
         coverageKind = getCoverageKind(sourceObject)
+        mcdc_line_dic = getMCDCLineDic(sourceObject)
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
@@ -380,25 +387,65 @@ def getCoverageData(sourceObject):
                         coveredString += str(line.line_number) + ","
                     elif metrics.statements > 0:
                         uncoveredString += str(line.line_number) + ","
-                elif coverageKind in [CoverageKind.branch, CoverageKind.mcdc]:
-                    # for mcdc we only report on the top level branch
-                    # not the sub-conditions, so for if (a && b)  we report
-                    # covered if the if statement has been true and false
+                elif coverageKind == CoverageKind.mcdc:
+                    has_coverage = (
+                        metrics.max_covered_statements > 0
+                        or metrics.max_annotations_statements > 0
+                    )
+                    line_number = line.line_number
+
+                    if has_coverage:
+                        mcdc_line_coverage = mcdc_line_dic[sourceObject.unit_name].get(
+                            line_number, MCDCLineCoverage.uncovered
+                        )
+
+                        # To be fully covered: All Statements + All Branches + All MCDC pairs
+                        is_fully_covered = (
+                            metrics.max_covered_statements
+                            + metrics.max_annotations_statements
+                            == metrics.statements
+                            and metrics.max_covered_branches
+                            + metrics.max_annotations_branches
+                            == metrics.branches
+                            and mcdc_line_coverage == MCDCLineCoverage.covered
+                        )
+
+                        if is_fully_covered:
+                            coveredString += f"{line.line_number},"
+                        elif mcdc_line_coverage == MCDCLineCoverage.partially_covered:
+                            partiallyCoveredString += f"{line.line_number},"
+                        else:
+                            uncoveredString += str(line.line_number) + ","
+
+                    # If it s no mcdc line but still a statement --> uncovered
+                    elif metrics.statements > 0:
+                        uncoveredString += str(line.line_number) + ","
+
+                elif coverageKind == CoverageKind.branch:
                     if (
-                        metrics.branches > 0
-                        and metrics.max_covered_branches
-                        + metrics.max_annotations_branches
-                        == metrics.branches
+                        metrics.max_covered_statements > 0
+                        or metrics.max_annotations_statements > 0
                     ):
-                        coveredString += str(line.line_number) + ","
-                    elif metrics.max_uncovered_branches > 0:
+                        if (
+                            metrics.max_covered_statements
+                            + metrics.max_annotations_statements
+                            == metrics.statements
+                            and metrics.max_covered_branches
+                            + metrics.max_annotations_branches
+                            == metrics.branches
+                        ):
+                            coveredString += str(line.line_number) + ","
+                        else:
+                            partiallyCoveredString += str(line.line_number) + ","
+                    elif metrics.statements > 0:
                         uncoveredString += str(line.line_number) + ","
 
             # print, but drop the last colon
             coveredString = coveredString[:-1]
             uncoveredString = uncoveredString[:-1]
+            partiallyCoveredString = partiallyCoveredString[:-1]
 
-    return coveredString, uncoveredString, checksum
+    return coveredString, uncoveredString, partiallyCoveredString, checksum
 
 
 def executeVCtest(enviroPath, testIDObject):
@@ -768,6 +815,41 @@ def getMCDCLines(enviroPath):
             returnText = f"Error: {str(e)}\n"
 
         return returnText
+
+
+class MCDCLineCoverage:
+    covered = 0
+    partially_covered = 1
+    uncovered = 2
+
+
+def getMCDCLineDic(sourceObject):
+    mcdc_unit_line_dic = dict()
+    temp_line_coverage_dic = dict()
+    for mcdc in sourceObject.cover_data.mcdc_decisions:
+        start_line = mcdc.start_line
+
+        # Per default, we set the line to be uncovered
+        temp_line_coverage_dic[start_line] = MCDCLineCoverage.uncovered
+        mcdc_unit_line_dic[sourceObject.unit_name] = temp_line_coverage_dic
+
+        covered_mcdc_found = False
+        uncovered_mcdc_found = False
+        for row in mcdc.rows:
+            if row.has_any_coverage != 0:
+                covered_mcdc_found = True
+            else:
+                uncovered_mcdc_found = True
+
+        if covered_mcdc_found == True:
+            # We found covered and uncovered mcdc pairs --> Partially covered
+            if uncovered_mcdc_found == True:
+                temp_line_coverage_dic[start_line] = MCDCLineCoverage.partially_covered
+            else:
+                # We found only covered mcdc pairs --> Fully covered
+                temp_line_coverage_dic[start_line] = MCDCLineCoverage.covered
+
+    return mcdc_unit_line_dic
 
 
 def main():
