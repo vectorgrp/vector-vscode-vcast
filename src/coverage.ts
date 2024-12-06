@@ -21,15 +21,19 @@ import {
 // to dispose of them when the coverage id turned off
 let uncoveredDecorationType: TextEditorDecorationType;
 let coveredDecorationType: TextEditorDecorationType;
+let partiallyCoveredDecorationType: TextEditorDecorationType;
 let coveredDecorationTypeWithMCDC: TextEditorDecorationType;
 let uncoveredDecorationTypeWithMCDC: TextEditorDecorationType;
+let partiallyCoveredDecorationTypeWithMCDC: TextEditorDecorationType;
 
 // these are really constants, but I set the values via a function
 // so that we could support the user controlling options for the decorations
 let uncoveredRenderOptions: DecorationRenderOptions;
 let coveredRenderOptions: DecorationRenderOptions;
+let partiallyCoveredRenderOptions: DecorationRenderOptions;
 let uncoveredRenderOptionsWithMCDC: DecorationRenderOptions;
 let coveredRenderOptionsWithMCDC: DecorationRenderOptions;
+let partiallyCoveredRenderOptionsWithMCDC: DecorationRenderOptions;
 
 export function initializeCodeCoverageFeatures(
   context: vscode.ExtensionContext
@@ -59,6 +63,19 @@ export function initializeCodeCoverageFeatures(
       "./images/light/cover-icon-with-mcdc.svg"
     ),
   };
+
+  partiallyCoveredRenderOptionsWithMCDC = {
+    gutterIconPath: context.asAbsolutePath(
+      "./images/light/partially-cover-icon-with-mcdc.svg"
+    ),
+  };
+
+  partiallyCoveredRenderOptions = {
+    gutterIconPath: context.asAbsolutePath(
+      "./images/light/partially-cover-icon.svg"
+    ),
+  };
+
   coveredRenderOptions = {
     //backgroundColor: 'green',
     //color: 'white',
@@ -71,20 +88,31 @@ export function initializeCodeCoverageFeatures(
 // global decoration arrays
 let coveredDecorations: vscode.DecorationOptions[] = [];
 let uncoveredDecorations: vscode.DecorationOptions[] = [];
+let partiallyCoveredDecorations: vscode.DecorationOptions[] = [];
 let coveredDecorationsWithMCDC: vscode.DecorationOptions[] = [];
 let uncoveredDecorationsWithMCDC: vscode.DecorationOptions[] = [];
+let partiallyCoveredDecorationsWithMCDC: vscode.DecorationOptions[] = [];
 
 function addDecorations(
   activeEditor: vscode.TextEditor,
   covered: number[],
-  uncovered: number[]
+  uncovered: number[],
+  partiallyCovered: number[]
 ) {
   const lineCount = activeEditor.document.lineCount;
   let lineIndex;
   // these are lists of line numbers
 
   for (lineIndex = 0; lineIndex < lineCount; lineIndex++) {
-    if (covered.includes(lineIndex + 1)) {
+    if (partiallyCovered.includes(lineIndex + 1)) {
+      // Check if the line is also a MCDC line
+      if (currentActiveUnitMCDCLines.includes(lineIndex + 1)) {
+        partiallyCoveredDecorationsWithMCDC.push(getRangeOption(lineIndex));
+      } else {
+        // If its only a covered line without MCDC coverage --> Add to normal covered array
+        partiallyCoveredDecorations.push(getRangeOption(lineIndex));
+      }
+    } else if (covered.includes(lineIndex + 1)) {
       // Check if the line is also a MCDC line
       if (currentActiveUnitMCDCLines.includes(lineIndex + 1)) {
         coveredDecorationsWithMCDC.push(getRangeOption(lineIndex));
@@ -110,14 +138,19 @@ let coverageStatusBarObject: vscode.StatusBarItem;
 function resetGlobalDecorations() {
   uncoveredDecorations = [];
   coveredDecorations = [];
+  partiallyCoveredDecorations = [];
   coveredDecorationsWithMCDC = [];
   uncoveredDecorationsWithMCDC = [];
+  partiallyCoveredDecorationsWithMCDC = [];
   // and throw away the old decorations
   if (uncoveredDecorationType) uncoveredDecorationType.dispose();
   if (coveredDecorationType) coveredDecorationType.dispose();
+  if (partiallyCoveredDecorationType) partiallyCoveredDecorationType.dispose();
   if (coveredDecorationTypeWithMCDC) coveredDecorationTypeWithMCDC.dispose();
   if (uncoveredDecorationTypeWithMCDC)
     uncoveredDecorationTypeWithMCDC.dispose();
+  if (partiallyCoveredDecorationTypeWithMCDC)
+    partiallyCoveredDecorationTypeWithMCDC.dispose();
 }
 
 const url = require("url");
@@ -148,7 +181,8 @@ export async function updateCOVdecorations() {
       addDecorations(
         activeEditor,
         coverageData.covered,
-        coverageData.uncovered
+        coverageData.uncovered,
+        coverageData.partiallyCovered
       );
 
       // Add the decorations to the editor
@@ -163,7 +197,25 @@ export async function updateCOVdecorations() {
         window.createTextEditorDecorationType(coveredRenderOptions);
       activeEditor.setDecorations(coveredDecorationType, coveredDecorations);
 
+      partiallyCoveredDecorationType = window.createTextEditorDecorationType(
+        partiallyCoveredRenderOptions
+      );
+      activeEditor.setDecorations(
+        partiallyCoveredDecorationType,
+        partiallyCoveredDecorations
+      );
+
       // Coverage lines with MCDC
+
+      partiallyCoveredDecorationTypeWithMCDC =
+        window.createTextEditorDecorationType(
+          partiallyCoveredRenderOptionsWithMCDC
+        );
+      activeEditor.setDecorations(
+        partiallyCoveredDecorationTypeWithMCDC,
+        partiallyCoveredDecorationsWithMCDC
+      );
+
       coveredDecorationTypeWithMCDC = window.createTextEditorDecorationType(
         coveredRenderOptionsWithMCDC
       );
@@ -184,7 +236,8 @@ export async function updateCOVdecorations() {
       const coverable =
         covered +
         uncoveredDecorations.length +
-        uncoveredDecorationsWithMCDC.length;
+        uncoveredDecorationsWithMCDC.length +
+        partiallyCoveredDecorationsWithMCDC.length;
       let percentage: number;
       if (coverable == 0) {
         percentage = 0;
@@ -213,9 +266,12 @@ function deactivateCoverage() {
   // delete all decorations
   if (uncoveredDecorationType) uncoveredDecorationType.dispose();
   if (coveredDecorationType) coveredDecorationType.dispose();
+  if (partiallyCoveredDecorationType) partiallyCoveredDecorationType.dispose();
   if (coveredDecorationTypeWithMCDC) coveredDecorationTypeWithMCDC.dispose();
   if (uncoveredDecorationTypeWithMCDC)
     uncoveredDecorationTypeWithMCDC.dispose();
+  if (partiallyCoveredDecorationTypeWithMCDC)
+    partiallyCoveredDecorationTypeWithMCDC.dispose();
   coverageStatusBarObject.hide();
 }
 

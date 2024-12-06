@@ -166,6 +166,7 @@ interface coverageDataType {
   crc32Checksum: number;
   covered: number[];
   uncovered: number[];
+  partiallyCovered: number[];
 }
 
 interface fileCoverageType {
@@ -187,6 +188,7 @@ interface coverageSummaryType {
   statusString: string;
   covered: number[];
   uncovered: number[];
+  partiallyCovered: number[];
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -207,6 +209,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
     statusString: "",
     covered: [],
     uncovered: [],
+    partiallyCovered: [],
   };
 
   const dataForThisFile = globalCoverageData.get(filePath);
@@ -218,10 +221,14 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
       const checksum: number = getChecksum(filePath);
       let coveredList: number[] = [];
       let uncoveredList: number[] = [];
+      let partiallyCoveredList: number[] = [];
       for (const enviroData of dataForThisFile.enviroList.values()) {
         if (enviroData.crc32Checksum == checksum) {
           coveredList = coveredList.concat(enviroData.covered);
           uncoveredList = uncoveredList.concat(enviroData.uncovered);
+          partiallyCoveredList = partiallyCoveredList.concat(
+            enviroData.partiallyCovered
+          );
         }
       }
 
@@ -234,6 +241,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
         // remove duplicates
         returnData.covered = [...new Set(coveredList)];
         returnData.uncovered = [...new Set(uncoveredList)];
+        returnData.partiallyCovered = [...new Set(partiallyCoveredList)];
       }
     } else {
       // This status is for files that are part of
@@ -298,11 +306,18 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     if (fileList[fileIndex].uncovered.length > 0)
       uncoveredList = fileList[fileIndex].uncovered.split(",").map(Number);
 
+    let partiallyCoveredList: number[] = [];
+    if (fileList[fileIndex].partiallyCovered.length > 0)
+      partiallyCoveredList = fileList[fileIndex].partiallyCovered
+        .split(",")
+        .map(Number);
+
     const checksum = fileList[fileIndex].cmcChecksum;
     let coverageData: coverageDataType = {
       crc32Checksum: checksum,
       covered: coveredList,
       uncovered: uncoveredList,
+      partiallyCovered: partiallyCoveredList,
     };
 
     let fileData: fileCoverageType | undefined =
@@ -317,7 +332,8 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     fileData.hasCoverage =
       fileData.hasCoverage ||
       coverageData.covered.length > 0 ||
-      coverageData.uncovered.length > 0;
+      coverageData.uncovered.length > 0 ||
+      coverageData.partiallyCovered.length > 0;
     fileData.enviroList.set(enviroPath, coverageData);
 
     // if we are displaying the file decoration in the explorer view
