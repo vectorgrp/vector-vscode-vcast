@@ -329,8 +329,6 @@ class CoverageKind:
 
 statementCoverList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT,
-    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH,
-    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
     COVERAGE_TYPE_TYPE_T.STATEMENT_FUNCTION_CALL,
     COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
 ]
@@ -338,6 +336,12 @@ statementCoverList = [
 mcdcCoverageList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC,
     COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC_FUNCTION_CALL,
+]
+
+branchCoverageList = [
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.BRANCH,
 ]
 
 
@@ -354,7 +358,7 @@ def getCoverageKind(sourceObject):
     # older version of vcast, we do the interpretation of the enum manually here
     if sourceObject.coverage_type in statementCoverList:
         return CoverageKind.statement
-    elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.BRANCH:
+    elif sourceObject.coverage_type in branchCoverageList:
         return CoverageKind.branch
     elif sourceObject.coverage_type in mcdcCoverageList:
         return CoverageKind.mcdc
@@ -399,8 +403,8 @@ def getCoverageData(sourceObject):
                             line_number, MCDCLineCoverage.uncovered
                         )
 
-                        # To be fully covered: All Statements + All Branches + All MCDC pairs
-                        is_fully_covered = (
+                        # To be fully mcdc covered: All Statements + All Branches + All MCDC pairs
+                        is_fully_mcdc_covered = (
                             metrics.max_covered_statements
                             + metrics.max_annotations_statements
                             == metrics.statements
@@ -410,14 +414,27 @@ def getCoverageData(sourceObject):
                             and mcdc_line_coverage == MCDCLineCoverage.covered
                         )
 
-                        if is_fully_covered:
+                        # Fully coverage for statement line sonly
+                        is_fully_statement_covered = (
+                            metrics.max_covered_statements
+                            + metrics.max_annotations_statements
+                            == metrics.statements
+                        )
+                        # If it's fully covered --> It's an mcdc line and fully covered --> green
+                        if is_fully_mcdc_covered:
                             coveredString += f"{line.line_number},"
+                        # Partially covered mcdc line --> orange
                         elif mcdc_line_coverage == MCDCLineCoverage.partially_covered:
                             partiallyCoveredString += f"{line.line_number},"
+                        # If is_fully_statement_covered --> It's a fully covered statement and not a mcdc line --> green
+                        elif is_fully_statement_covered:
+                            coveredString += f"{line.line_number},"
+                        # If is_fully_statement_covered is not true here, it can not be a statement line but
+                        # a mcdc line that has no coverage --> Red
                         else:
-                            uncoveredString += str(line.line_number) + ","
+                            uncoveredString += f"{line.line_number},"
 
-                    # If it s no mcdc line but still a statement --> uncovered
+                    # If it s no mcdc line is not covered but still has statement --> uncovered statement line --> red
                     elif metrics.statements > 0:
                         uncoveredString += str(line.line_number) + ","
 
@@ -824,6 +841,11 @@ class MCDCLineCoverage:
 
 
 def getMCDCLineDic(sourceObject):
+    """
+    Returns a dictionary with the MCDC line coverage for each unit.
+    {unit_name: {line_number: MCDCLineCoverage}}
+    A line number can have the coverage states: covered, partially covered, uncovered (defined in MCDCLineCoverage).
+    """
     mcdc_unit_line_dic = dict()
     temp_line_coverage_dic = dict()
     for mcdc in sourceObject.cover_data.mcdc_decisions:
