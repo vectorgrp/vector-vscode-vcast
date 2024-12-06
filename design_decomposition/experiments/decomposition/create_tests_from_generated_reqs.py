@@ -7,10 +7,10 @@ from dcheck.misc.util import paths_to_files
 import charset_normalizer
 
 # Import TestGenerator and RequirementReference
-from test_generation import TestGenerator
-from code_extraction import RequirementReference
+from test_generation.generation import TestGenerator
+from codebase.extraction import RequirementReference
 # Import TestEnvironmentManager
-from test_environment import TestEnvironmentManager
+from test_generation.environment import TestEnvironmentManager
 
 def main():
     parser = argparse.ArgumentParser(description='Generate tests from requirements.')

@@ -2,31 +2,32 @@ from functools import lru_cache
 import re
 import os
 from tqdm import tqdm
-import tree_sitter_c as tsc
+from dcheck.misc.util import paths_to_files
+#import tree_sitter_c as tsc
+#from tree_sitter import Parser, Language
+
+# Initialize Tree-sitter parser for C++
+import tree_sitter_cpp as ts_cpp
 from tree_sitter import Parser, Language
 
-# Initialize Tree-sitter parser (keeping your existing code)
-C_LANGUAGE = Language(tsc.language())
-parser = Parser(C_LANGUAGE)
+# ...existing code...
+
+#C_LANGUAGE = Language(tsc.language())
+CXX_LANGUAGE = Language(ts_cpp.language())
+parser = Parser(CXX_LANGUAGE)
 
 _IDENTIFIER_BLACKLIST = {'FUNC', 'VAR'}
 
 class Codebase:
     def __init__(self, source_dirs):
         self.source_dirs = source_dirs
-        self.parser = parser  # Using the existing parser
+        self.parser = parser  # Using the updated C++ parser
         self.codebase_files = self._collect_codebase_files()
         self.include_graph = self._build_include_graph()
         self.inverted_index = self._build_inverted_index()
 
     def _collect_codebase_files(self):
-        codebase_files = []
-        for source_dir in self.source_dirs:
-            for root, _, files in os.walk(source_dir):
-                for file in files:
-                    if file.endswith(('.c', '.h')):
-                        codebase_files.append(os.path.join(root, file))
-        return codebase_files
+        return paths_to_files(self.source_dirs, file_extensions=['.c', '.h', '.cpp', '.hpp', '.cc', '.hh'])
 
     def get_code_bytes(self, filepath):
         with open(filepath, 'rb') as f:
@@ -78,12 +79,26 @@ class Codebase:
     def _get_definition_names(self, node):
         names = []
         # Function definition
-        if node.type == 'function_definition':
+        if node.type == 'function_definition' or node.type == 'function_declaration':
             declarator_parent = node.child_by_field_name('declarator')
             if declarator_parent:
                 function_name_node = declarator_parent.child_by_field_name('declarator')
                 if function_name_node:
                     names.append(function_name_node.text.decode('utf8'))
+        # Class definition
+        elif node.type == 'class_specifier':
+            class_name_node = node.child_by_field_name('name')
+            if class_name_node:
+                names.append(class_name_node.text.decode('utf8'))
+        # Namespace definition
+        elif node.type == 'namespace_definition':
+            namespace_name_node = node.child_by_field_name('name')
+            if namespace_name_node:
+                names.append(namespace_name_node.text.decode('utf8'))
+        # Template definition
+        elif node.type == 'template_declaration':
+            # Handle templates if necessary
+            pass
         # Struct definition
         elif node.type == 'struct_specifier':
             struct_name_node = node.child_by_field_name('name')
@@ -163,11 +178,11 @@ class Codebase:
     def _get_included_files(self, root_node, current_filepath):
         included_files = []
         for node in root_node.children:
-            if (node.type == 'preproc_include'):
+            if node.type == 'preproc_include' or node.type == 'preproc_import':
                 include_text = node.text.decode('utf8')
-                match = re.match(r'#\s*include\s*["<](.*?)[">]', include_text)
+                match = re.match(r'#\s*(include|import)\s*["<](.*?)[">]', include_text)
                 if match:
-                    include_filename = match.group(1)
+                    include_filename = match.group(2)
                     inc_filepath = self._resolve_include_path(include_filename, current_filepath)
                     if inc_filepath:
                         included_files.append(inc_filepath)
@@ -281,3 +296,23 @@ class Codebase:
 
         for child in node.children:
             self._collect_identifiers_in_range(child, start_line, end_line, identifiers)
+
+    def get_all_functions(self):
+        functions = []
+        for filepath in tqdm(self.codebase_files):
+            tree, code_bytes = self.parse_file(filepath)
+            root_node = tree.root_node
+            func_nodes = self._find_functions(root_node)
+            for func_node in func_nodes:
+                declarator = func_node.child_by_field_name('declarator')
+                if declarator:
+                    func_name_node = declarator.child_by_field_name('declarator')
+                    if func_name_node:
+                        func_name = func_name_node.text.decode('utf8')
+                        start_line = func_node.start_point[0] + 1
+                        functions.append({
+                            'name': func_name,
+                            'file': filepath,
+                            'line': start_line
+                        })
+        return functions

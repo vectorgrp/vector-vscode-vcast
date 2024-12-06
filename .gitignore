@@ -1,4 +1,5 @@
 pi-innovo-parser/
+pi--innovo/
 __pycache__/
 .venv
 .vscode
@@ -11,3 +12,6 @@ input_messages.txt
 vectorcast_guide.md
 notes.md
 playground.py
+DrvI2c/
+graveyard/
+data/
