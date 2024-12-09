@@ -9,9 +9,11 @@ class VcastContextBuilder:
         self.requirement_locator = requirement_locator
 
     async def build_code_context(self, requirement_id, reduce_context=False):
-        context = ""
         unit_names, unit_paths = self.requirement_locator.get_unit_names_and_paths(requirement_id)
 
+        assert len(unit_paths) == 1
+
+        context = ""
         for unit_name, unit_path in zip(unit_names, unit_paths):
             env = self.test_environment_manager.get_environment([unit_name])
             if env is not None:
@@ -32,7 +34,7 @@ class VcastContextBuilder:
                     with open(tu_file_path, 'r', errors="ignore") as f:
                         lines = f.readlines()
 
-                    snippet_lines = [f"Code from {unit_name}.c(pp):\n"]
+                    snippet_lines = []
                     potential_snippet_lines = []
                     saw_marker = False
                     in_unit = False
@@ -67,12 +69,15 @@ class VcastContextBuilder:
             unit_contents = []
             for unit_path in unit_paths:
                 with open(unit_path, 'r') as f:
-                    unit_contents.append(f.read())
+                    unit_contents.append(f"Code from {unit_name}.c(pp):\n" + f.read())
                     
             context += "\n".join(unit_contents)
         
         if reduce_context:
             search_engine = SearchEngine(context)
-            context = await search_engine.search(f"Give me only the relevant code to test this requirement: {requirement_id}. Include all necessary transitive dependencies in terms of type definitions, called functions, etc. but not anything else.")
+            context = await search_engine.search(f"Give me only the relevant code to test this requirement: {requirement_id}. Include all necessary transitive dependencies in terms of type definitions, called functions, etc. but not anything else. Also include the name of the file where the code is located.")
+
+        # Add unit name to context
+        context = f"// {unit_name}.c(pp)\n" + context
 
         return context

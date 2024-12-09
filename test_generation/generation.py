@@ -1,5 +1,6 @@
 from enum import Enum
 import json
+import instructor
 import openai
 import os
 import re
@@ -11,8 +12,8 @@ from codebase.analysis import Codebase
 from test_generation.vcast_context_builder import VcastContextBuilder
 from test_generation.requirement_locator import RequirementLocator
 import asyncio
-from openai import AsyncAzureOpenAI
 from test_generation.info_logger import InfoLogger  # Add this import
+from llm_client import LLMClient  # Import the new LLMClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -106,19 +107,14 @@ def _derive_schema(allowed_identifiers=None):
     return TestGenerationResult
 
 class TestGenerator:
-    def __init__(self, requirements, requirement_references, environment_manager):
+    def __init__(self, requirements, requirement_references, environment_manager, use_extended_reasoning=False):
         self.requirements = requirements
         self.requirement_locator = RequirementLocator(requirement_references)
         self.environment_manager = environment_manager
         self.context_builder = VcastContextBuilder(self.environment_manager, self.requirement_locator)
-        self.client = AsyncAzureOpenAI(
-            api_key=os.getenv("OPENAI_API_KEY"),  
-            api_version="2024-08-01-preview",
-            azure_endpoint=os.getenv("OPENAI_API_BASE"),
-            azure_deployment=os.getenv("OPENAI_GENERATION_DEPLOYMENT")
-        )
-        # Replace info_logger dict with InfoLogger instance
-        self.info_logger = InfoLogger()
+        self.llm_client = LLMClient()  # Use LLMClient instead of OpenAI clients
+        self.info_logger = InfoLogger()  # InfoLogger without token counting
+        self.use_extended_reasoning = use_extended_reasoning  # Add this line
 
     async def generate_test_case(self, requirement_id, max_retries=1):
         self.info_logger.start_requirement(requirement_id)
@@ -126,7 +122,8 @@ class TestGenerator:
         for _ in range(max_retries):
             self.info_logger.increment_retries_used(requirement_id)
             temperature = 0.0 if first_try else 1.0
-            result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature)
+            extended_reasoning = self.use_extended_reasoning and not first_try  # Modify this line
+            result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature, extended_reasoning=extended_reasoning)
             if result:
                 self.info_logger.set_test_generated(requirement_id)
                 return result
@@ -135,7 +132,7 @@ class TestGenerator:
 
         return None
 
-    async def _generate_test_case_no_retries(self, requirement_id, temperature=0):
+    async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False):
         requirement_text = self.requirements.get(requirement_id)
         if not requirement_text:
             print(f"Requirement {requirement_id} not found.")
@@ -149,7 +146,7 @@ class TestGenerator:
 
         if not environment:
             print("No suitable environment found for the requirement.")
-            return
+            return None
 
         with open("test_framework_reference.md", "r") as f:
             test_framework_reference = f.read()
@@ -203,20 +200,11 @@ Notes:
         schema = _derive_schema(environment.allowed_identifiers)
 
         try:
-            completion = await self.client.beta.chat.completions.parse(
-                model="gpt-4o",
-                messages=messages,
-                response_format=schema,
-                temperature=temperature,
-                seed=42,
-                max_tokens=2000,
-            )
-
-            # Update tokens used and money spent
-            input_tokens = completion.usage.prompt_tokens
-            output_tokens = completion.usage.completion_tokens
-            self.info_logger.update_tokens(requirement_id, input_tokens, output_tokens)
+            completion = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
+            # Removed for_requirement parameter
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print("Failed to generate test case.")
             return None
 
@@ -224,7 +212,7 @@ Notes:
         try:
             test_generation_result = completion.choices[0].message.parsed
             test_generation_result = await self._iterative_error_correction(
-                requirement_id, test_generation_result, messages, schema, temperature=temperature)
+                requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
 
             if test_generation_result is None:
                 return None
@@ -237,7 +225,7 @@ Notes:
             print(completion.choices[0].message)
             return None
 
-    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, max_iterations=3):
+    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3):
         iteration = 0
         fix_messages = messages
         self.info_logger.set_error_correction_needed(requirement_id)
@@ -298,22 +286,13 @@ Tip:
                     f.write(f"{message['role']}: {message['content']}\n\n")
             
             # Call the model to get the fixed test case
-            completion = await self.client.beta.chat.completions.parse(
-                model="gpt-4o",
-                messages=fix_messages,
-                response_format=schema,
-                temperature=temperature,
-                seed=42,
-                max_tokens=2000,
-            )
-
-            input_tokens = completion.usage.prompt_tokens
-            output_tokens = completion.usage.completion_tokens
-            self.info_logger.update_tokens(requirement_id, input_tokens, output_tokens)
+            completion = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
+            # Removed for_requirement parameter
 
             try:
                 test_generation_result = completion.choices[0].message.parsed
             except Exception as e:
+                print(completion.choices[0].message)
                 print("Failed to parse fixed test case.")
                 print("Error:", e)
                 break

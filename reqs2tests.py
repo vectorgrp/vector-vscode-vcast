@@ -16,6 +16,7 @@ async def main():
     parser.add_argument('--requirements_file', default='data/pi--innovo/extracted_reqs.json', help='Path to a file containing requirements.')
     parser.add_argument('--output_file', help='Path to a file to write the VectorCAST test cases.')
     parser.add_argument('--retries', type=int, default=3, help='Number of retries for test generation.')
+    parser.add_argument('--extended_reasoning', action='store_true', help='Use extended reasoning for test generation.')  # Add this line
     args = parser.parse_args()
 
     with open(args.requirements_file) as f:
@@ -33,7 +34,7 @@ async def main():
     env_manager = TestEnvironmentManager(args.envs_path)
 
     test_generator = TestGenerator(
-        requirements, requirement_references, environment_manager=env_manager)
+        requirements, requirement_references, environment_manager=env_manager, use_extended_reasoning=args.extended_reasoning)  # Modify this line
 
     vectorcast_test_cases = []
 
@@ -91,20 +92,23 @@ async def main():
         for req_id in test_failure_requirements:
             print(f"- {req_id}")
 
-    # Calculate total cost
-    total_input_tokens = sum(data['input_tokens'] for data in info_data.values())
-    total_output_tokens = sum(data['output_tokens'] for data in info_data.values())
-    total_tokens = total_input_tokens + total_output_tokens
-    total_input_cost = (total_input_tokens / 1000) * 0.00275
-    total_output_cost = (total_output_tokens / 1000) * 0.011
-    total_cost = total_input_cost + total_output_cost
+    # Get token usage and total cost from LLMClient
+    token_usage = test_generator.llm_client.get_token_usage()
+    total_cost_info = test_generator.llm_client.total_cost
 
-    print(f"Total Input Tokens: {total_input_tokens}")
-    print(f"Total Output Tokens: {total_output_tokens}")
-    print(f"Total Tokens: {total_tokens}")
-    print(f"Input Cost: €{total_input_cost:.6f}")
-    print(f"Output Cost: €{total_output_cost:.6f}")
-    print(f"Total Cost: €{total_cost:.6f}")
+    # Display token usage and costs
+    print("Token Usage and Costs:")
+    print(f"Generation Model - Input Tokens: {token_usage['generation']['input_tokens']}")
+    print(f"Generation Model - Output Tokens: {token_usage['generation']['output_tokens']}")
+    print(f"Reasoning Model - Input Tokens: {token_usage['reasoning']['input_tokens']}")
+    print(f"Reasoning Model - Output Tokens: {token_usage['reasoning']['output_tokens']}")
+    print(f"Total Tokens: {token_usage['generation']['input_tokens'] + token_usage['generation']['output_tokens'] + token_usage['reasoning']['input_tokens'] + token_usage['reasoning']['output_tokens']}")
+
+    print(f"Generation Model - Input Cost: ${total_cost_info['generation']['input_cost']:.6f}")
+    print(f"Generation Model - Output Cost: ${total_cost_info['generation']['output_cost']:.6f}")
+    print(f"Reasoning Model - Input Cost: ${total_cost_info['reasoning']['input_cost']:.6f}")
+    print(f"Reasoning Model - Output Cost: ${total_cost_info['reasoning']['output_cost']:.6f}")
+    print(f"Total Cost: ${total_cost_info['total_cost']:.6f}")
 
     # Save info logger data to a JSON file
     with open('info_logger.json', 'w') as info_file:

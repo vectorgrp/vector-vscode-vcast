@@ -4,6 +4,7 @@ import re
 from typing import List
 from pydantic import BaseModel
 from openai import AsyncAzureOpenAI
+from llm_client import LLMClient  # Import the LLMClient
 
 class TextRange(BaseModel):
     start_line: int
@@ -15,12 +16,7 @@ class SearchOutput(BaseModel):
 class SearchEngine:
     def __init__(self, reference):
         self.reference = reference
-        self.client = AsyncAzureOpenAI(
-            api_key=os.getenv("OPENAI_API_KEY"),
-            api_version="2024-08-01-preview",
-            azure_endpoint=os.getenv("OPENAI_API_BASE"),
-            azure_deployment=os.getenv("OPENAI_GENERATION_DEPLOYMENT")
-        )
+        self.llm_client = LLMClient()  # Use LLMClient instead of OpenAI client
 
     async def search(self, query: str) -> List[TextRange]:
         # Add line numbers to the text
@@ -58,12 +54,8 @@ Notes:
             }
         ]
 
-        completion = await self.client.beta.chat.completions.parse(
-            model="gpt-4o",
-            messages=messages,
-            response_format=SearchOutput,
-            temperature=0.0,
-            max_tokens=500,
+        completion = await self.llm_client.call_model(
+            messages, SearchOutput, temperature=0.0, extended_reasoning=False
         )
 
         try:
