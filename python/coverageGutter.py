@@ -1,4 +1,7 @@
-from vTestInterface import MCDCLineCoverage
+class MCDCLineCoverage:
+    covered = 0
+    partially_covered = 1
+    uncovered = 2
 
 
 def getMCDCLineDic(sourceObject):
@@ -41,6 +44,21 @@ def getMCDCLineDic(sourceObject):
     return mcdc_unit_line_dic
 
 
+def handleStatementCoverage(
+    line, coveredString, partiallyCoveredString, uncoveredString
+):
+    """
+    Returns the coverage strings for Statement Coverage.
+    """
+    metrics = line.metrics
+    if metrics.max_covered_statements > 0 or metrics.max_annotations_statements > 0:
+        coveredString += str(line.line_number) + ","
+    elif metrics.statements > 0:
+        uncoveredString += str(line.line_number) + ","
+
+    return coveredString, uncoveredString
+
+
 def handleMcdcCoverage(
     sourceObject,
     mcdc_line_dic,
@@ -49,8 +67,10 @@ def handleMcdcCoverage(
     partiallyCoveredString,
     uncoveredString,
 ):
+    """
+    Returns the coverage strings for MCDC Coverage.
+    """
     metrics = line.metrics
-
     line_number = line.line_number
 
     # Since we only have mcdc lines and not statements, we first need to check whether our unit is in the dic first
@@ -98,6 +118,9 @@ def handleStatementMcdcCoverage(
     partiallyCoveredString,
     uncoveredString,
 ):
+    """
+    Returns the coverage strings for Statement + MCDC Coverage.
+    """
     metrics = line.metrics
     line_number = line.line_number
 
@@ -146,6 +169,81 @@ def handleStatementMcdcCoverage(
     # If it s no mcdc line is not covered but still has statements --> uncovered statement line --> red
     elif metrics.statements > 0:
         uncoveredString += str(line.line_number) + ","
+
+    return coveredString, partiallyCoveredString, uncoveredString
+
+
+def handleStatementBranchCoverage(
+    line,
+    coveredString,
+    partiallyCoveredString,
+    uncoveredString,
+):
+    """
+    Returns the coverage strings for Statement + Branch Coverage.
+    """
+    metrics = line.metrics
+    if metrics.max_covered_statements > 0 or metrics.max_annotations_statements > 0:
+        # Check if it's a branch line
+        if metrics.branches > 0:
+            # If every branch is covered --> green
+            if (
+                metrics.max_covered_branches + metrics.max_annotations_branches
+                == metrics.branches
+            ):
+                coveredString += str(line.line_number) + ","
+
+            # If only a part of the branch is covered --> orange
+            elif metrics.max_covered_branches + metrics.max_annotations_branches > 0:
+                partiallyCoveredString += str(line.line_number) + ","
+
+            # If it s a branch but nothing is covered --> red
+            else:
+                uncoveredString += str(line.line_number) + ","
+
+        # It's not a branch line but a fully covered statement line --> green
+        elif (
+            metrics.max_covered_statements + metrics.max_annotations_statements
+            == metrics.statements
+        ):
+            coveredString += str(line.line_number) + ","
+
+    # It's a statement line but not covered --> red
+    elif metrics.statements > 0:
+        uncoveredString += str(line.line_number) + ","
+
+    return coveredString, partiallyCoveredString, uncoveredString
+
+
+def handleBranchCoverage(
+    line,
+    functionLineList,
+    coveredString,
+    partiallyCoveredString,
+    uncoveredString,
+):
+    """
+    Returns the coverage strings for Branch Coverage.
+    """
+    metrics = line.metrics
+    line_number = line.line_number
+
+    # Check if it's a branch line and filter out function lines
+    if metrics.branches > 0 and line_number not in functionLineList:
+        # If every branch is covered --> green
+        if (
+            metrics.max_covered_branches + metrics.max_annotations_branches
+            == metrics.branches
+        ):
+            coveredString += str(line_number) + ","
+
+        # If only a part of the branch is covered --> orange
+        elif metrics.max_covered_branches + metrics.max_annotations_branches > 0:
+            partiallyCoveredString += str(line_number) + ","
+
+        # If it s a branch but nothing is covered --> red
+        else:
+            uncoveredString += str(line_number) + ","
 
     return coveredString, partiallyCoveredString, uncoveredString
 
