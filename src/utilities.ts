@@ -6,6 +6,7 @@ import * as jsonc from "jsonc-parser";
 import { Uri } from "vscode";
 
 import { errorLevel, vectorMessage } from "./messagePane";
+import { getGlobalCoverageData } from "./vcastTestInterface";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -33,6 +34,21 @@ export const jsoncModificationOptions: jsonc.ModificationOptions = {
 export interface jsonDataType {
   jsonData: any;
   jsonDataAsString: string;
+}
+
+export function getEnvPathForFilePath(filePath: string): string | null {
+  const globalCoverageMap = getGlobalCoverageData();
+  const fileData = globalCoverageMap.get(filePath);
+
+  if (fileData?.enviroList) {
+    // Retrieve the first environment key, if it exists
+    const envKey = Array.from(fileData.enviroList.keys())[0];
+    if (envKey) {
+      // Return the full environment key (entire path)
+      return envKey;
+    }
+  }
+  return null;
 }
 
 export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
