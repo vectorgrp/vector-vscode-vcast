@@ -18,6 +18,7 @@ This script must be run under vpython
 ///////////////////////////////////////////////////////////////////////////////////////////
 """
 
+import coverageGutter
 import clicastInterface
 import pythonUtilities
 import tstUtilities
@@ -323,8 +324,9 @@ class CoverageKind:
     other = 0
     statement = 1
     branch = 2
-    mcdc = 3
-    ignore = 4
+    statementMcdc = 3
+    mcdc = 4
+    ignore = 5
 
 
 statementCoverList = [
@@ -361,6 +363,8 @@ def getCoverageKind(sourceObject):
     elif sourceObject.coverage_type in branchCoverageList:
         return CoverageKind.branch
     elif sourceObject.coverage_type in mcdcCoverageList:
+        return CoverageKind.statementMcdc
+    elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.MCDC:
         return CoverageKind.mcdc
     else:
         return CoverageKind.ignore
@@ -378,7 +382,7 @@ def getCoverageData(sourceObject):
     if sourceObject and sourceObject.is_instrumented:
         checksum = sourceObject.checksum
         coverageKind = getCoverageKind(sourceObject)
-        mcdc_line_dic = getMCDCLineDic(sourceObject)
+        mcdc_line_dic = coverageGutter.getMCDCLineDic(sourceObject)
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
@@ -392,51 +396,28 @@ def getCoverageData(sourceObject):
                     elif metrics.statements > 0:
                         uncoveredString += str(line.line_number) + ","
                 elif coverageKind == CoverageKind.mcdc:
-                    has_coverage = (
-                        metrics.max_covered_statements > 0
-                        or metrics.max_annotations_statements > 0
+                    coveredString, partiallyCoveredString, uncoveredString = (
+                        coverageGutter.handleMcdcCoverage(
+                            sourceObject,
+                            mcdc_line_dic,
+                            line,
+                            coveredString,
+                            partiallyCoveredString,
+                            uncoveredString,
+                        )
                     )
-                    line_number = line.line_number
 
-                    if has_coverage:
-                        mcdc_line_coverage = mcdc_line_dic[sourceObject.unit_name].get(
-                            line_number, MCDCLineCoverage.uncovered
+                elif coverageKind == CoverageKind.statementMcdc:
+                    coveredString, partiallyCoveredString, uncoveredString = (
+                        coverageGutter.handleStatementMcdcCoverage(
+                            sourceObject,
+                            mcdc_line_dic,
+                            line,
+                            coveredString,
+                            partiallyCoveredString,
+                            uncoveredString,
                         )
-
-                        # To be fully mcdc covered: All Statements + All Branches + All MCDC pairs
-                        is_fully_mcdc_covered = (
-                            metrics.max_covered_statements
-                            + metrics.max_annotations_statements
-                            == metrics.statements
-                            and metrics.max_covered_branches
-                            + metrics.max_annotations_branches
-                            == metrics.branches
-                            and mcdc_line_coverage == MCDCLineCoverage.covered
-                        )
-
-                        # Fully coverage for statement line sonly
-                        is_fully_statement_covered = (
-                            metrics.max_covered_statements
-                            + metrics.max_annotations_statements
-                            == metrics.statements
-                        )
-                        # If it's fully covered --> It's an mcdc line and fully covered --> green
-                        if is_fully_mcdc_covered:
-                            coveredString += f"{line.line_number},"
-                        # Partially covered mcdc line --> orange
-                        elif mcdc_line_coverage == MCDCLineCoverage.partially_covered:
-                            partiallyCoveredString += f"{line.line_number},"
-                        # If is_fully_statement_covered --> It's a fully covered statement and not a mcdc line --> green
-                        elif is_fully_statement_covered:
-                            coveredString += f"{line.line_number},"
-                        # If is_fully_statement_covered is not true here, it can not be a statement line but
-                        # a mcdc line that has no coverage --> Red
-                        else:
-                            uncoveredString += f"{line.line_number},"
-
-                    # If it s no mcdc line is not covered but still has statement --> uncovered statement line --> red
-                    elif metrics.statements > 0:
-                        uncoveredString += str(line.line_number) + ","
+                    )
 
                 elif coverageKind == CoverageKind.branch:
                     if (
@@ -869,6 +850,10 @@ def getMCDCLineDic(sourceObject):
     mcdc_unit_line_dic = dict()
     temp_line_coverage_dic = dict()
     for mcdc in sourceObject.cover_data.mcdc_decisions:
+
+        if not mcdc.num_conditions:
+            continue
+
         start_line = mcdc.start_line
 
         # Per default, we set the line to be uncovered
@@ -877,6 +862,7 @@ def getMCDCLineDic(sourceObject):
 
         covered_mcdc_found = False
         uncovered_mcdc_found = False
+
         for row in mcdc.rows:
             if row.has_any_coverage != 0:
                 covered_mcdc_found = True
