@@ -1,6 +1,9 @@
 import os
 from openai import AsyncAzureOpenAI
 from typing import List, Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class LLMClient:
     def __init__(self):

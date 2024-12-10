@@ -3,7 +3,7 @@ import json
 import shutil
 from tqdm.asyncio import tqdm_asyncio
 from requirement_generation.generation import RequirementsGenerator
-from codebase.analysis import Codebase
+from codebase import Codebase
 from test_generation.environment import Environment
 from pathlib import Path
 import csv
