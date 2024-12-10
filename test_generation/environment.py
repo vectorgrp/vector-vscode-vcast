@@ -1,46 +1,16 @@
+from functools import cached_property
 import os
 import re
 from typing import List, Optional
-import subprocess  # Add import to use subprocess
-import tempfile  # Add import to use tempfile
-# from test_generation.requirement_locator import RequirementLocator
-
-class TestEnvironmentManager:
-    def __init__(self, envs_path: str):
-        self.envs_path = envs_path
-        self.environments = self._collect_environments()
-
-    def _collect_environments(self) -> List[str]:
-        environments = []
-        for root, _, files in os.walk(self.envs_path):
-            for file in files:
-                if file.endswith('.env'):
-                    env_file_path = os.path.join(root, file)
-                    environments.append(env_file_path)
-        return environments
-
-    def get_environment(self, unit_names: List[str]):
-        for env_file in self.environments:
-            if self._environment_matches(env_file, unit_names):
-                return Environment(env_file)
-        return None
-
-    def _environment_matches(self, env_file: str, unit_names: List[str]) -> bool:
-        with open(env_file, 'r') as f:
-            content = f.read()
-        stub_by_functions = re.findall(r'ENVIRO\.STUB_BY_FUNCTION:\s*(\w+)', content)
-        return all(unit_name in stub_by_functions for unit_name in unit_names)
-
-    def get_environment_for_requirement(self, requirement_id, requirement_locator):
-        unit_names, _ = requirement_locator.get_unit_names_and_paths(requirement_id)
-        return self.get_environment(unit_names)
+import subprocess
+import tempfile
+import sqlite3
+import logging
 
 class Environment:
     def __init__(self, env_file_path: str):
         self.env_file_path = env_file_path
         self.env_name = os.path.basename(env_file_path).replace('.env', '')
-        self.units = self._get_units()  # Add public property units
-
 
     def build(self):
         env_name = self.env_name
@@ -51,10 +21,10 @@ class Environment:
             result = subprocess.run(cmd, shell=True, cwd=env_dir, env=env_vars,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
         except subprocess.TimeoutExpired:
-            print(f"Command '{cmd}' timed out after 30 seconds")
+            logging.error(f"Command '{cmd}' timed out after 30 seconds")
             return None
         
-        print("Command:", cmd, "Return code:", result.returncode)
+        logging.debug("Command: %s Return code: %s", cmd, result.returncode)
         
         if result.returncode != 0:
             error_msg = f"Build command '{cmd}' failed with error:\n{result.stderr or result.stdout}"
@@ -68,7 +38,7 @@ class Environment:
             temp_tst_file.write('-- VectorCAST 6.4s (05/01/17)\n')
             temp_tst_file.write('-- Test Case Script\n')
             temp_tst_file.write(f'-- Environment    : {self.env_name}\n')
-            temp_tst_file.write(f'-- Unit(s) Under Test: {", ".join(self._get_units())}\n')
+            temp_tst_file.write(f'-- Unit(s) Under Test: {", ".join(self.units)}\n')
             temp_tst_file.write('-- \n')
             temp_tst_file.write('-- Script Features\n')
             temp_tst_file.write('TEST.SCRIPT_FEATURE:C_DIRECT_ARRAY_INDEXING\n')
@@ -99,14 +69,14 @@ class Environment:
         os.close(fd)  # Close the file descriptor
 
         # Run the command to generate the test script template
-        cmd = f'clicast -e {env_name} test script template {tst_file_path}'
+        cmd = f'$VECTORCAST_DIR/clicast -e {env_name} test script template {tst_file_path}'
         env_vars = os.environ.copy()
         try:
             result = subprocess.run(cmd, shell=True, cwd=env_dir, env=env_vars,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
         except subprocess.TimeoutExpired:
             os.remove(tst_file_path)
-            print(f"Command '{cmd}' timed out after 30 seconds")
+            logging.error(f"Command '{cmd}' timed out after 30 seconds")
             return None
         
         if result.returncode != 0:
@@ -128,19 +98,48 @@ class Environment:
                 identifiers.add(identifier)
         return list(identifiers)
 
-    def _get_units(self) -> List[str]:
-        with open(self.env_file_path, 'r') as f:
-            content = f.read()
-        units = re.findall(r'ENVIRO\.STUB_BY_FUNCTION:\s*(\w+)', content)
+    @cached_property
+    def source_files(self) -> List[str]:
+        env_dir = os.path.dirname(self.env_file_path)
+        db_path = os.path.join(env_dir, self.env_name, 'master.db')
+
+        if not os.path.exists(db_path):
+            raise FileNotFoundError(f"Database file '{db_path}' not found. Ensure the environment is built.")
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        query = """
+        SELECT path 
+        FROM sourcefiles 
+        WHERE path NOT LIKE '%vcast_preprocess%' 
+          AND path NOT LIKE '%S0000008%' 
+          AND (type = 'CPP_FILE' OR type = 'C_FILE');
+        """
+
+        cursor.execute(query)
+        results = cursor.fetchall()
+
+        conn.close()
+
+        source_files = [row[0] for row in results]
+        return source_files
+
+    @cached_property
+    def units(self) -> List[str]:
+        source_files = self.source_files
+        units = [os.path.splitext(os.path.basename(file))[0] for file in source_files]
+
         return units
+            
 
     def _execute_commands(self, tst_file_path: str, show_run_script_output: bool) -> Optional[str]:
         env_name = self.env_name
         env_dir = os.path.dirname(self.env_file_path)
         
         commands = [
-            f'clicast -lc -e {env_name} Test Script Run {tst_file_path}',
-            f'clicast -lc -e {env_name} Execute All'
+            f'$VECTORCAST_DIR/clicast -lc -e {env_name} Test Script Run {tst_file_path}',
+            f'$VECTORCAST_DIR/clicast -lc -e {env_name} Execute All'
         ]
         output = ''
         env_vars = os.environ.copy()
@@ -150,14 +149,13 @@ class Environment:
                 result = subprocess.run(cmd, shell=True, cwd=env_dir, env=env_vars,
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
             except subprocess.TimeoutExpired:
-                print(f"Command '{cmd}' timed out after 30 seconds")
+                logging.error(f"Command '{cmd}' timed out after 30 seconds")
                 return None
 
-            print("Command:", cmd, "Return code:", result.returncode)
+            logging.debug("Command: %s Return code: %s", cmd, result.returncode)
 
             if show_run_script_output:
-                print(f"Command '{cmd}' output:")
-                print(result.stdout)
+                logging.info("Command '%s' output:\n%s", cmd, result.stdout)
 
             output += result.stdout
             """

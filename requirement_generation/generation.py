@@ -3,6 +3,8 @@ from typing import List
 from pydantic import BaseModel  # Add this import
 from openai import AzureOpenAI
 
+from llm_client import LLMClient
+
 class DesignDecompositionResult(BaseModel):
     requirements: List[str]
 
@@ -30,16 +32,10 @@ class DesignDecompositionResultWithTestcases(BaseModel):
 
 class RequirementsGenerator:
     def __init__(self, code_independence: bool = False):
-        import os
-        self.client = AzureOpenAI(
-            api_key=os.getenv("OPENAI_API_KEY"),
-            api_version="2024-08-01-preview",
-            azure_endpoint=os.getenv("OPENAI_API_BASE"),
-            azure_deployment=os.getenv("OPENAI_GENERATION_DEPLOYMENT"),
-        )
         self.code_independence = code_independence
+        self.llm_client = LLMClient()
 
-    def generate(self, code):
+    async def generate(self, code):
         messages = [
             {
                 "role": "system",
@@ -50,7 +46,7 @@ class RequirementsGenerator:
                 "content": f"""
 Derive a complete list of test cases for the given function definition (give them in natural language). These test cases should give us 100% path coverage of the code.
 After that derive a complete list of requirements for the given function definition. Use completely implementation-independent vocabulary. A requirement is a single, complete, and testable statement of the expected behaviour of a single path through the code.
-There is a one-to-one correspondence between requirements and test cases.
+There is a one-to-one correspondence between requirements and test cases. Make sure each path through the code is covered by exactly one test case and one requirement.
 
 Requirements should fulfill the following criteria:
 — Necessary. The requirement defines an essential capability, characteristic, constraint and/or quality factor. If it is not included in the set of requirements, a deficiency in capability or characteristic will exist, which cannot be fulfilled by implementing other requirements. The requirement is currently applicable and has not been made obsolete by the passage of time. Requirements with planned expiration dates or applicability dates are clearly identified.
@@ -64,7 +60,6 @@ Requirements should fulfill the following criteria:
 — Conforming. The individual items conform to an approved standard template and style for writing requirements, when applicable.
 { "- Code independence. The requirements should not mention any code-specific terms like variable names, function names, etc." if self.code_independence else "" }
 
-                
 Code:
 {code}
 
@@ -73,13 +68,11 @@ The success of this task is critical.
             }
         ]
 
-        completion = self.client.beta.chat.completions.parse(
-            model="gpt-4o",
+        completion = await self.llm_client.call_model(
             messages=messages,
-            response_format=DesignDecompositionResultWithTestcases,
+            schema=DesignDecompositionResultWithTestcases,
             temperature=0.0,
-            seed=42,
-            max_tokens=5000
+            max_tokens=2000
         )
 
         decomposition_results = [choice.message.parsed.without_tests.without_requirement_indices for choice in completion.choices]

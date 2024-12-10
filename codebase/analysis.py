@@ -1,7 +1,6 @@
 from functools import lru_cache
 import re
 import os
-from tqdm import tqdm
 from dcheck.misc.util import paths_to_files
 #import tree_sitter_c as tsc
 #from tree_sitter import Parser, Language
@@ -47,7 +46,7 @@ class Codebase:
 
     def _build_inverted_index(self):
         inverted_index = {}
-        for filepath in tqdm(self.codebase_files):
+        for filepath in self.codebase_files:
             tree, code_bytes = self.parse_file(filepath)
             root_node = tree.root_node
             self._collect_definitions(root_node, code_bytes, filepath, inverted_index)
@@ -55,7 +54,7 @@ class Codebase:
 
     def _build_include_graph(self):
         include_graph = {}
-        for filepath in tqdm(self.codebase_files):
+        for filepath in self.codebase_files:
             tree, code_bytes = self.parse_file(filepath)
             root_node = tree.root_node
             included_files = self._get_included_files(root_node, filepath)
@@ -299,7 +298,7 @@ class Codebase:
 
     def get_all_functions(self):
         functions = []
-        for filepath in tqdm(self.codebase_files):
+        for filepath in self.codebase_files:
             tree, code_bytes = self.parse_file(filepath)
             root_node = tree.root_node
             func_nodes = self._find_functions(root_node)

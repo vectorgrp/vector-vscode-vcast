@@ -21,7 +21,7 @@ class LLMClient:
             'reasoning': {'input_tokens': 0, 'output_tokens': 0}
         }
 
-    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, extended_reasoning=False, **kwargs):
+    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=2000, seed=42, extended_reasoning=False, **kwargs):
         model = "gpt-4o" if extended_reasoning else "o1-mini"
         client = self.reasoning_client if extended_reasoning else self.client
 
@@ -34,8 +34,8 @@ class LLMClient:
                 messages=messages,
                 response_format=schema,
                 temperature=temperature,
-                seed=42,
-                max_tokens=2000,
+                seed=seed,
+                max_tokens=max_tokens,
                 **kwargs
             )
             # Update token usage for the generation model

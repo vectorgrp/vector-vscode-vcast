@@ -1,17 +1,10 @@
 from enum import Enum
-import json
-import instructor
-import openai
-import os
 import re
 from typing import List
-from pydantic import BaseModel, create_model, Field
+from pydantic import BaseModel
 from dotenv import load_dotenv
-from test_generation.ast_context_builder import ASTContextBuilder
-from codebase.analysis import Codebase
 from test_generation.vcast_context_builder import VcastContextBuilder
-from test_generation.requirement_locator import RequirementLocator
-import asyncio
+import logging
 from test_generation.info_logger import InfoLogger  # Add this import
 from llm_client import LLMClient  # Import the new LLMClient
 
@@ -107,14 +100,13 @@ def _derive_schema(allowed_identifiers=None):
     return TestGenerationResult
 
 class TestGenerator:
-    def __init__(self, requirements, requirement_references, environment_manager, use_extended_reasoning=False):
+    def __init__(self, requirements, environment, use_extended_reasoning=False):
         self.requirements = requirements
-        self.requirement_locator = RequirementLocator(requirement_references)
-        self.environment_manager = environment_manager
-        self.context_builder = VcastContextBuilder(self.environment_manager, self.requirement_locator)
-        self.llm_client = LLMClient()  # Use LLMClient instead of OpenAI clients
-        self.info_logger = InfoLogger()  # InfoLogger without token counting
-        self.use_extended_reasoning = use_extended_reasoning  # Add this line
+        self.environment = environment  # Use the provided environment
+        self.context_builder = VcastContextBuilder(self.environment)
+        self.llm_client = LLMClient()
+        self.info_logger = InfoLogger()
+        self.use_extended_reasoning = use_extended_reasoning
 
     async def generate_test_case(self, requirement_id, max_retries=1):
         self.info_logger.start_requirement(requirement_id)
@@ -135,17 +127,14 @@ class TestGenerator:
     async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False):
         requirement_text = self.requirements.get(requirement_id)
         if not requirement_text:
-            print(f"Requirement {requirement_id} not found.")
+            logging.warning(f"Requirement {requirement_id} not found.")
             return None
 
+        # Build code context using the environment
         context = await self.context_builder.build_code_context(requirement_id, reduce_context=True)
 
-        environment = self.environment_manager.get_environment_for_requirement(
-            requirement_id, self.requirement_locator
-        )
-
-        if not environment:
-            print("No suitable environment found for the requirement.")
+        if not self.environment:
+            logging.error("Environment is not available.")
             return None
 
         with open("test_framework_reference.md", "r") as f:
@@ -197,15 +186,13 @@ Notes:
             for message in messages:
                 f.write(f"{message['role']}: {message['content']}\n\n")
 
-        schema = _derive_schema(environment.allowed_identifiers)
+        schema = _derive_schema(self.environment.allowed_identifiers)
 
         try:
             completion = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
             # Removed for_requirement parameter
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print("Failed to generate test case.")
+            logging.exception("Failed to generate test case.")
             return None
 
 
@@ -219,10 +206,7 @@ Notes:
 
             return test_generation_result
         except Exception as e:
-            print("Failed to parse generated test case.")
-            print("Error:", e)
-            print("Assistant's response:")
-            print(completion.choices[0].message)
+            logging.exception("Failed to parse generated test case.")
             return None
 
     async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3):
@@ -233,14 +217,8 @@ Notes:
             iteration += 1
             # Generate vectorcast test cases for all test cases
             vectorcast_cases = [tc.to_vectorcast([requirement_id]) for tc in test_generation_result.test_cases]
-            # Execute tests and collect output
-            all_units = set(unit_name for test_case in test_generation_result.test_cases for unit_name in test_case.unit_names)
-            environment = self.environment_manager.get_environment(all_units)
-            if not environment:
-                print("No suitable environment found for execution.")
-                break
 
-            output = environment.run_tests(vectorcast_cases, execute=True)
+            output = self.environment.run_tests(vectorcast_cases, execute=True)
             errors, test_failures = self._parse_error_output(output)
 
             if not errors and not test_failures:
@@ -252,6 +230,7 @@ Notes:
 
             if errors or test_failures:
                 # Prepare new messages with errors for the model
+                logging.info("Errors detected in test case. Iteration %d", iteration)
                 fix_messages += [
                     {
                         "role": "assistant",
@@ -292,12 +271,12 @@ Tip:
             try:
                 test_generation_result = completion.choices[0].message.parsed
             except Exception as e:
-                print(completion.choices[0].message)
-                print("Failed to parse fixed test case.")
-                print("Error:", e)
+                logging.exception(completion.choices[0].message)
+                logging.exception("Failed to parse fixed test case.")
+                logging.exception("Error:", e)
                 break
         if errors or test_failures:
-            print(f"Failed to fix errors and test failures after {iteration} iterations")
+            logging.warning(f"Failed to fix errors and test failures after {iteration} iterations")
             return None
 
         return test_generation_result
@@ -341,12 +320,8 @@ Tip:
                 elif re.search(r'\[\s+\]', line):
                     test_fail_lines.append(line.strip())
 
-        print("Output:")
-        print(output)
-
-        print("Errors:")
-        print('\n'.join(error_lines))
-        print("Test Failures:")
-        print('\n'.join(test_fail_lines))
+        logging.debug("Output:\n%s", output)
+        logging.debug("Errors:\n%s", '\n'.join(error_lines))
+        logging.debug("Test Failures:\n%s", '\n'.join(test_fail_lines))
 
         return '\n'.join(error_lines) if error_lines else None, '\n'.join(test_fail_lines) if test_fail_lines else None
