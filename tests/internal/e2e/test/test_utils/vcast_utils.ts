@@ -399,6 +399,20 @@ export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
         .includes("Script loaded successfully"),
     { timeout: TIMEOUT }
   );
+
+  // Run the tests and wait for them to finish
+  await (
+    await (
+      await subprogramMethod.getActionButton("Run Test")
+    ).elem
+  ).click();
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Starting execution of test: BASIS-PATH-004"),
+    { timeout: TIMEOUT }
+  );
 }
 
 export async function generateBasisPathTestForSubprogram(
@@ -1458,6 +1472,14 @@ export async function checkElementExistsInHTML(searchString: string) {
   }
 }
 
+/**
+ * Checks for a specific gutter icon on a specific line in a file and generates a report if specified.
+ * @param line Line where to look at.
+ * @param unitFileName File / Unit where to look at.
+ * @param icon Icon that should be in the gutter.
+ * @param moveCursor In case the line is not visible (>40), move the cursor to the line.
+ * @param generateReport Flag if we want to generate the MCDC report or only check for the gutter icon.
+ */
 export async function checkForGutterAndGenerateReport(
   line: number,
   unitFileName: string,
@@ -1513,5 +1535,33 @@ export async function checkForGutterAndGenerateReport(
   if (generateReport) {
     await flaskElement.click({ button: 2 });
     await (await $("aria/VectorCAST MC/DC Report")).click();
+  }
+}
+
+/**
+ * Rebuilds env directly from the Testing pane.
+ * @param envName Name of environment.
+ */
+export async function rebuildEnvironmentFromTestingPane(envName: string) {
+  const workbench = await browser.getWorkbench();
+  const vcastTestingViewContent = await getViewContent("Testing");
+  const env = `cpp/unitTests/${envName}`;
+
+  console.log("Re-Building Environment from Test Explorer");
+  // Flask --> Right-click on env --> Re-Build environment
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+
+      const subprogramGroup = visibleItem as CustomTreeItem;
+      if ((await subprogramGroup.getTooltip()).includes(env)) {
+        await subprogramGroup.expand();
+        const menuItemLabel = "Re-Build Environment";
+        const contextMenu = await subprogramGroup.openContextMenu();
+        await contextMenu.select("VectorCAST");
+        await (await $(`aria/${menuItemLabel}`)).click();
+        break;
+      }
+    }
   }
 }

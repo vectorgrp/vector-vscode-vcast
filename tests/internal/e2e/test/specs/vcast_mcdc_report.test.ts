@@ -21,6 +21,7 @@ import {
   insertBasisPathTestFor,
   generateBasisPathTestForSubprogram,
   deleteGeneratedTest,
+  rebuildEnvironmentFromTestingPane,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -30,6 +31,7 @@ describe("vTypeCheck VS Code Extension", () => {
   let workbench: Workbench;
   let editorView: EditorView;
   let useDataServer: boolean = true;
+  let subprogramMethod: CustomTreeItem;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -171,7 +173,7 @@ describe("vTypeCheck VS Code Extension", () => {
       throw new Error("Subprogram 'manager' not found");
     }
 
-    const subprogramMethod = await findSubprogramMethod(
+    subprogramMethod = await findSubprogramMethod(
       subprogram,
       "Manager::AddIncludedDessert"
     );
@@ -186,20 +188,6 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     await insertBasisPathTestFor(subprogramMethod);
-
-    // Run the tests and wait for them to finish
-    await (
-      await (
-        await subprogramMethod.getActionButton("Run Test")
-      ).elem
-    ).click();
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Starting execution of test: BASIS-PATH-004"),
-      { timeout: TIMEOUT }
-    );
 
     // Green MCDC Gutter icon
     await checkForGutterAndGenerateReport(
@@ -331,93 +319,64 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should rebuild env with different coverageKinds and check for gutter icons", async () => {
     const coverageKindList = [
-      "BRANCH",
-      "Statement+BRANCH",
+      "Branch",
+      "Statement+Branch",
       "MCDC",
       "Statement+MCDC",
     ];
+
+    // We need a mapper because the the settings are not named 100% the same as the output
     const coverageKindOutputMapper = {
-      BRANCH: "Branch",
-      "Statement+BRANCH": "Statement+Branch",
+      Branch: "Branch",
+      "Statement+Branch": "Statement+Branch",
       MCDC: "MC/DC",
       "Statement+MCDC": "Statement+MC/DC",
     };
 
+    // Coverage checklist for Branch
     const branchGutterLines = [
       {
         "19": "cover-icon",
-        "22": "partially-cover-icon",
+        "28": "partially-cover-icon",
         "84": "no-cover-icon",
       },
     ];
+
+    // Coverage checklist for MCDC
     const mcdcGutterLines = [
       {
         "19": "cover-icon-with-mcdc",
-        "22": "partially-cover-icon-with-mcdc",
+        "28": "partially-cover-icon-with-mcdc",
         "84": "no-cover-icon-with-mcdc",
       },
     ];
 
+    // Iterate thorugh all possible coverage kinds --> change setting --> rebuild env --> check for gutter icons
     for (let coverage of coverageKindList) {
       const workbench = await browser.getWorkbench();
       const activityBar = workbench.getActivityBar();
       const explorerView = await activityBar.getViewControl("Explorer");
       await explorerView?.openView();
-      console.log("Deleting Env Folder");
-      // Right-Click on ENV Folder and delete it
 
-      const workspaceFolderSection =
-        await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-      // const cppFolder = await workspaceFolderSection.findItem("cpp");
-      // await cppFolder.select();
-      const unitTestsFolder =
-        await workspaceFolderSection.findItem("unitTests");
-      await unitTestsFolder.select();
-
-      const envFolder =
-        await workspaceFolderSection.findItem("DATABASE-MANAGER");
-      await envFolder.openContextMenu();
-      await (await $("aria/Delete")).click();
+      console.log(`Setting coverageKind to ${coverage}`);
+      let settingsEditor = await workbench.openSettings();
+      const coverageKindSetting = await settingsEditor.findSetting(
+        "Coverage Kind",
+        "Vectorcast Test Explorer",
+        "Build"
+      );
+      await coverageKindSetting.setValue(coverage);
 
       console.log(
-        "Change Coverage Kind in DATABASE-MANAGER.env to Statement+MCDC"
+        `Rebuild the environment for the new coverage kind ${coverage}`
       );
+      const envName = "DATABASE-MANAGER";
+      await rebuildEnvironmentFromTestingPane(envName);
 
-      // Open the Editor for the env file and edit the coverage kind by hand
-      const envFile = await workspaceFolderSection.findItem(
-        "DATABASE-MANAGER.env"
-      );
-      await envFile.select();
-      const editorView = workbench.getEditorView();
-      const tab = (await editorView.openEditor(
-        "DATABASE-MANAGER.env"
-      )) as TextEditor;
-
-      // Search for the line containing the substring
-      const content = await tab.getText();
-      const lines = content.split("\n");
-
-      const searchTerm = "ENVIRO.COVERAGE_TYPE:";
-      const replacement = `ENVIRO.COVERAGE_TYPE: ${coverage}`;
-
-      // Find the line containing the search term and replace the whole line
-      const updatedContent = lines
-        .map((line) => (line.includes(searchTerm) ? replacement : line))
-        .join("\n");
-
-      await tab.setText(updatedContent);
-      await tab.save();
-
-      console.log("Building Environment directly from DATABASE-MANAGER.env");
-
-      await envFile.openContextMenu();
-      await (await $("aria/Build VectorCAST Environment")).click();
-
+      // The build log should show that the coverage kind is set to the correct coverageKind
       console.log(
-        `Check for logs that Setting Up ${coverageKindOutputMapper[coverage]} Coverage is shown.`
+        `Check for logs that Setting Up ${coverage} Coverage is shown.`
       );
-
-      // The build log should show that the coverage kind is set to Statement+MCDC
       const outputView = await bottomBar.openOutputView();
       await browser.waitUntil(
         async () =>
@@ -429,6 +388,7 @@ describe("vTypeCheck VS Code Extension", () => {
         { timeout: TIMEOUT }
       );
 
+      // Generate tests and delete one so that we also can check for partially covered lines
       console.log("Generating BASIS-PATHS tests.");
       await generateBasisPathTestForSubprogram(
         "manager",
@@ -448,20 +408,22 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log("Checking for coverage icons.");
       let listToIterate = [];
 
-      if (coverage == "BRANCH" || coverage == "Statement+BRANCH") {
+      if (coverage == "Branch" || coverage == "Statement+Branch") {
         listToIterate = branchGutterLines;
       } else {
         listToIterate = mcdcGutterLines;
       }
 
-      for (let line in listToIterate) {
-        await checkForGutterAndGenerateReport(
-          parseInt(line),
-          "manager.cpp",
-          listToIterate[line],
-          true,
-          false
-        );
+      for (const gutterObject of listToIterate) {
+        for (const line in gutterObject) {
+          await checkForGutterAndGenerateReport(
+            parseInt(line),
+            "manager.cpp",
+            gutterObject[line],
+            true,
+            false
+          );
+        }
       }
     }
   });
