@@ -3,7 +3,7 @@ from typing import List
 from pydantic import BaseModel  # Add this import
 from openai import AzureOpenAI
 
-from llm_client import LLMClient
+from ..llm_client import LLMClient
 
 class DesignDecompositionResult(BaseModel):
     requirements: List[str]

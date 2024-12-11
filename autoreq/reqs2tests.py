@@ -3,10 +3,11 @@ import csv
 import argparse
 import asyncio
 import logging
-import os  # Add this import
+import os
+import tempfile  # Add this import if not already present
 from tqdm.asyncio import tqdm_asyncio
-from test_generation.generation import TestGenerator
-from test_generation.environment import Environment  # Import Environment instead of TestEnvironmentManager
+from .test_generation.generation import TestGenerator
+from .test_generation.environment import Environment  # Ensure Environment is imported
 
 async def main():
     parser = argparse.ArgumentParser(description='Generate and optionally execute test cases for given requirements.')
@@ -17,6 +18,7 @@ async def main():
     parser.add_argument('--export-tst', help='Path to a file to write the VectorCAST test cases.')
     parser.add_argument('--retries', type=int, default=3, help='Number of retries for test generation.')
     parser.add_argument('--extended_reasoning', action='store_true', help='Use extended reasoning for test generation.')
+    parser.add_argument('--export-env', action='store_true', help='Run the generated test script in the real environment.')
     args = parser.parse_args()
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
@@ -59,10 +61,35 @@ async def main():
         *[generate_and_process_test_case(requirement_id) for requirement_id in requirements_to_check]
     )
 
+    environment.cleanup()
+
     if args.export_tst:
         with open(args.export_tst, 'w') as output_file:
             for vectorcast_case in vectorcast_test_cases:
                 output_file.write(vectorcast_case + '\n')
+
+    if args.export_env:
+        if not args.export_tst:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.tst', mode='w') as temp_tst_file:
+                tst_file_path = temp_tst_file.name
+                for vectorcast_case in vectorcast_test_cases:
+                    temp_tst_file.write(vectorcast_case + '\n')
+        else:
+            tst_file_path = args.export_tst
+
+        # Instantiate real environment without sandbox
+        real_environment = Environment(args.env_path, use_sandbox=False)
+
+        # Run the test script in the real environment
+        output = real_environment.run_test_script(tst_file_path)
+        logging.info("Execution Output in real environment:\n%s", output)
+
+        # Cleanup real environment
+        real_environment.cleanup()
+
+        # Remove temporary test script file if it was created
+        if not args.export_tst:
+            os.remove(tst_file_path)
 
     # Analyze info_logger data
     info_data = test_generator.info_logger.data
@@ -105,5 +132,9 @@ async def main():
     with open('info_logger.json', 'w') as info_file:
         json.dump(info_data, info_file, indent=4)
 
-if __name__ == '__main__':
+
+def cli():
     asyncio.run(main())
+
+if __name__ == '__main__':
+    cli()

@@ -5,12 +5,18 @@
 To install the required dependencies, run the following command:
 
 ```sh
-pip install -r requirements.txt
+pip install --editable .
 ```
+
+Further the following environment variables need to be set:
+- OPENAI_API_BASE (Azure API base)
+- OPENAI_API_KEY
+- OPENAI_GENERATION_DEPLOYMENT (deployment for the main generation model)
+- OPENAI_ADVANCED_GENERATION_DEPLOYMENT (deployment for an advanced reasoning model)
 
 ## Usage
 
-### `code2reqs.py`
+### `code2reqs`
 
 This script generates requirements for the functions in a given VectorCAST environment.
 
@@ -24,10 +30,10 @@ This script generates requirements for the functions in a given VectorCAST envir
 #### Example
 
 ```sh
-python code2reqs.py /path/to/vectorcast/environment.env --export-csv requirements.csv --export-html requirements.html --export-repository /path/to/requirements_repository
+code2reqs /path/to/vectorcast/environment.env --export-csv requirements.csv --export-html requirements.html --export-repository /path/to/requirements_repository
 ```
 
-### `reqs2tests.py`
+### `reqs2tests`
 
 This script generates test cases for the given requirements in a VectorCAST environment.
 
@@ -40,9 +46,10 @@ This script generates test cases for the given requirements in a VectorCAST envi
 - `--export-tst`: Path to a file to write the VectorCAST test cases.
 - `--retries`: Number of retries for test generation (default: 3).
 - `--extended_reasoning`: Use extended reasoning for test generation.
+- `--export-env`: Add generated tests to environment
 
 #### Example
 
 ```sh
-python reqs2tests.py /path/to/vectorcast/environment.env requirements.csv --execute --export-tst test_cases.tst
+reqs2tests.py /path/to/vectorcast/environment.env requirements.csv --execute --export-tst test_cases.tst
 ```

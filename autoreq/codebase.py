@@ -1,7 +1,7 @@
 from functools import lru_cache
 import re
 import os
-from util import paths_to_files
+from .util import paths_to_files
 #import tree_sitter_c as tsc
 #from tree_sitter import Parser, Language
 

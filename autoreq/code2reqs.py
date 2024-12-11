@@ -2,9 +2,6 @@ import argparse
 import json
 import shutil
 from tqdm.asyncio import tqdm_asyncio
-from requirement_generation.generation import RequirementsGenerator
-from codebase import Codebase
-from test_generation.environment import Environment
 from pathlib import Path
 import csv
 import os
@@ -12,7 +9,10 @@ import subprocess
 import tempfile
 import asyncio
 import logging
-from llm_client import LLMClient  # Import LLMClient
+
+from .codebase import Codebase
+from .test_generation.environment import Environment
+from .requirement_generation.generation import RequirementsGenerator
 
 def save_requirements_to_json(requirements, output_file):
     with open(output_file, 'w') as f:
@@ -132,6 +132,8 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     await tqdm_asyncio.gather(*[generate_requirements(func) for func in functions])
 
+    environment.cleanup()
+
     if export_csv:
         csv_path = export_csv
         save_requirements_to_csv(requirements, csv_path)
@@ -146,7 +148,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
     if export_repository:
         execute_rgw_commands(env_path, csv_path, export_repository)
 
-if __name__ == "__main__":
+def cli():
     parser = argparse.ArgumentParser(description="Decompose design of functions into requirements.")
     parser.add_argument("env_path", help="Path to the VectorCAST environment directory.")
     parser.add_argument("--export-csv", help="Path to the output CSV file for requirements.")
@@ -156,3 +158,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     asyncio.run(main(args.env_path, args.export_csv, args.export_html, args.export_repository))
+
+if __name__ == "__main__":
+    cli()

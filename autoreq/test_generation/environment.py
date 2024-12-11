@@ -8,17 +8,24 @@ import sqlite3
 import logging
 
 class Environment:
-    def __init__(self, env_file_path: str):
+    def __init__(self, env_file_path: str, use_sandbox: bool = True):
         self.env_file_path = env_file_path
         self.env_name = os.path.basename(env_file_path).replace('.env', '')
+        env_dir = os.path.dirname(env_file_path)
+        if use_sandbox:
+            import shutil
+            self.temp_dir = tempfile.TemporaryDirectory()
+            self.env_dir = self.temp_dir.name
+            shutil.copytree(env_dir, self.env_dir, dirs_exist_ok=True)
+        else:
+            self.env_dir = env_dir
 
     def build(self):
         env_name = self.env_name
-        env_dir = os.path.dirname(self.env_file_path)
         cmd = f'VCAST_FORCE_OVERWRITE_ENV_DIR=1 enviroedg {env_name}.env'
         env_vars = os.environ.copy()
         try:
-            result = subprocess.run(cmd, shell=True, cwd=env_dir, env=env_vars,
+            result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
         except subprocess.TimeoutExpired:
             logging.error(f"Command '{cmd}' timed out after 30 seconds")
@@ -59,10 +66,16 @@ class Environment:
 
         return None
 
+    def run_test_script(self, tst_file_path: str, rebuild: bool = False, show_run_script_output: bool = False) -> Optional[str]:
+        if rebuild:
+            self.build()
+
+        output = self._execute_commands(tst_file_path, show_run_script_output)
+        return output
+
     @property
     def allowed_identifiers(self) -> List[str]:
         env_name = self.env_name
-        env_dir = os.path.dirname(self.env_file_path)
         
         # Create a temporary file
         fd, tst_file_path = tempfile.mkstemp(suffix='.tst')
@@ -72,7 +85,7 @@ class Environment:
         cmd = f'$VECTORCAST_DIR/clicast -e {env_name} test script template {tst_file_path}'
         env_vars = os.environ.copy()
         try:
-            result = subprocess.run(cmd, shell=True, cwd=env_dir, env=env_vars,
+            result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
         except subprocess.TimeoutExpired:
             os.remove(tst_file_path)
@@ -100,8 +113,7 @@ class Environment:
 
     @cached_property
     def source_files(self) -> List[str]:
-        env_dir = os.path.dirname(self.env_file_path)
-        db_path = os.path.join(env_dir, self.env_name, 'master.db')
+        db_path = os.path.join(self.env_dir, self.env_name, 'master.db')
 
         if not os.path.exists(db_path):
             raise FileNotFoundError(f"Database file '{db_path}' not found. Ensure the environment is built.")
@@ -135,7 +147,6 @@ class Environment:
 
     def _execute_commands(self, tst_file_path: str, show_run_script_output: bool) -> Optional[str]:
         env_name = self.env_name
-        env_dir = os.path.dirname(self.env_file_path)
         
         commands = [
             f'$VECTORCAST_DIR/clicast -lc -e {env_name} Test Script Run {tst_file_path}',
@@ -146,7 +157,7 @@ class Environment:
         # Execute the commands using subprocess and capture the outputs
         for idx, cmd in enumerate(commands):
             try:
-                result = subprocess.run(cmd, shell=True, cwd=env_dir, env=env_vars,
+                result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
             except subprocess.TimeoutExpired:
                 logging.error(f"Command '{cmd}' timed out after 30 seconds")
@@ -165,3 +176,7 @@ class Environment:
                 raise RuntimeError(error_msg)
             """
         return output
+
+    def cleanup(self):
+        if hasattr(self, 'temp_dir'):
+            self.temp_dir.cleanup()

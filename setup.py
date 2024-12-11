@@ -1,0 +1,23 @@
+from setuptools import setup, find_packages
+
+setup( 
+  name ='autoreq', 
+  version='0.0.1',
+  packages = find_packages(), 
+  entry_points ={ 
+    'console_scripts': [ 
+      'code2reqs = autoreq.code2reqs:cli',
+      'reqs2tests = autoreq.reqs2tests:cli'
+    ] 
+  }, 
+  install_requires = [
+    'openai==1.54.4',
+    'pydantic==2.9.2',
+    'python-dotenv==1.0.0',
+    'tqdm==4.66.1',
+    'tree-sitter==0.23.2',
+    'tree-sitter-c==0.23.1',
+    'tree-sitter-cpp==0.23.4'
+  ],
+  include_package_data=True
+)

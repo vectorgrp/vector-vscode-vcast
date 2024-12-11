@@ -3,10 +3,12 @@ import re
 from typing import List
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from test_generation.vcast_context_builder import VcastContextBuilder
 import logging
-from test_generation.info_logger import InfoLogger  # Add this import
-from llm_client import LLMClient  # Import the new LLMClient
+
+from .vcast_context_builder import VcastContextBuilder
+from .info_logger import InfoLogger  # Add this import
+from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
+from ..llm_client import LLMClient  # Import the new LLMClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -137,7 +139,7 @@ class TestGenerator:
             logging.error("Environment is not available.")
             return None
 
-        with open("test_framework_reference.md", "r") as f:
+        with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
 
         messages = [

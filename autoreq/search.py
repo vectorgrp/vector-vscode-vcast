@@ -1,10 +1,6 @@
-import os
-import json
-import re
 from typing import List
 from pydantic import BaseModel
-from openai import AsyncAzureOpenAI
-from llm_client import LLMClient  # Import the LLMClient
+from .llm_client import LLMClient  # Import the LLMClient
 
 class TextRange(BaseModel):
     start_line: int

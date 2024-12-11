@@ -1,7 +1,7 @@
 import os
 import re
 
-from search import SearchEngine
+from ..search import SearchEngine
 
 class VcastContextBuilder:
     def __init__(self, environment):
