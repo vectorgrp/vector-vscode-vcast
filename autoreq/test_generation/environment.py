@@ -22,7 +22,7 @@ class Environment:
 
     def build(self):
         env_name = self.env_name
-        cmd = f'VCAST_FORCE_OVERWRITE_ENV_DIR=1 enviroedg {env_name}.env'
+        cmd = f'VCAST_FORCE_OVERWRITE_ENV_DIR=1 $VECTORCAST_DIR/enviroedg {env_name}.env'
         env_vars = os.environ.copy()
         try:
             result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
