@@ -401,6 +401,48 @@ export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
   );
 }
 
+export async function generateBasisPathTestForSubprogram(
+  unit: string,
+  subprogramName: string
+) {
+  const vcastTestingViewContent = await getViewContent("Testing");
+  let subprogram: TreeItem;
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    if (!(await vcastTestingViewSection.isExpanded()))
+      await vcastTestingViewSection.expand();
+
+    for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+      console.log(await vcastTestingViewContentSection.getTitle());
+      await vcastTestingViewContentSection.expand();
+      subprogram = await findSubprogram(unit, vcastTestingViewContentSection);
+      if (subprogram) {
+        if (!(await subprogram.isExpanded())) await subprogram.expand();
+        break;
+      }
+    }
+  }
+
+  if (!subprogram) {
+    throw new Error("Subprogram 'manager' not found");
+  }
+
+  const subprogramMethod = await findSubprogramMethod(
+    subprogram,
+    subprogramName
+  );
+  if (!subprogramMethod) {
+    throw new Error(
+      "Subprogram method 'Manager::AddIncludedDessert' not found"
+    );
+  }
+
+  if (!subprogramMethod.isExpanded()) {
+    await subprogramMethod.select();
+  }
+
+  await insertBasisPathTestFor(subprogramMethod);
+}
+
 export async function deleteTest(testHandle: CustomTreeItem) {
   const contextMenu = await testHandle.openContextMenu();
   await contextMenu.select("VectorCAST");
@@ -1416,11 +1458,12 @@ export async function checkElementExistsInHTML(searchString: string) {
   }
 }
 
-export async function generateMCDCReportFromGutter(
+export async function checkForGutterAndGenerateReport(
   line: number,
   unitFileName: string,
   icon: string,
-  moveCursor: boolean
+  moveCursor: boolean,
+  generateReport: boolean
 ) {
   const workbench = await browser.getWorkbench();
   const activityBar = workbench.getActivityBar();
@@ -1465,7 +1508,10 @@ export async function generateMCDCReportFromGutter(
   const backgroundImageURL = backgroundImageCSS.value;
   const BEAKER = `/${icon}`;
   expect(backgroundImageURL.includes(BEAKER)).toBe(true);
-  await flaskElement.click({ button: 2 });
 
-  await (await $("aria/VectorCAST MC/DC Report")).click();
+  // Only if we want to generate the report and not only check the gutter icon
+  if (generateReport) {
+    await flaskElement.click({ button: 2 });
+    await (await $("aria/VectorCAST MC/DC Report")).click();
+  }
 }

@@ -4,21 +4,23 @@ import {
   type Workbench,
   CustomTreeItem,
   EditorView,
+  TextEditor,
   TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   getViewContent,
   updateTestID,
-  generateMCDCReportFromGutter,
+  checkForGutterAndGenerateReport,
   checkElementExistsInHTML,
   findSubprogram,
-  getTestHandle,
   executeCtrlClickOn,
   releaseCtrl,
   expandWorkspaceFolderSectionInExplorer,
   findSubprogramMethod,
   insertBasisPathTestFor,
+  generateBasisPathTestForSubprogram,
+  deleteGeneratedTest,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -200,10 +202,11 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     // Green MCDC Gutter icon
-    await generateMCDCReportFromGutter(
+    await checkForGutterAndGenerateReport(
       19,
       "manager.cpp",
       "cover-icon-with-mcdc",
+      true,
       true
     );
 
@@ -232,15 +235,62 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("VectorCAST Report", 1);
   });
 
+  it("should check if partially-covered mcdc line generates mcdc report", async () => {
+    workbench = await browser.getWorkbench();
+    bottomBar = workbench.getBottomBar();
+    const outputView = await bottomBar.openOutputView();
+    // Orange MCDC Gutter icon
+    await checkForGutterAndGenerateReport(
+      22,
+      "manager.cpp",
+      "partially-cover-icon-with-mcdc",
+      true,
+      true
+    );
+    await browser.waitUntil(
+      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT }
+    );
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+
+    await webview.open();
+
+    // Retrieve the HTML and count the number of div.report-block
+    const reportBlockCount = await browser.execute(() => {
+      // Use querySelectorAll to count how many <div class="report-block"> elements are in the document
+      return document.querySelectorAll("div.report-block").length;
+    });
+
+    expect(reportBlockCount).toEqual(1);
+
+    // Some important lines we want to check for in the report
+    await expect(await checkElementExistsInHTML("manager.cpp")).toBe(true);
+    await expect(await checkElementExistsInHTML("22")).toBe(true);
+    await expect(await checkElementExistsInHTML("((a && b) && c)")).toBe(true);
+    await expect(
+      await checkElementExistsInHTML("Pairs satisfied: 1 of 3 ( 33% )")
+    ).toBe(true);
+
+    await webview.close();
+    await editorView.closeEditor("VectorCAST Report", 1);
+  });
+
   it("should check if uncovered mcdc line generates mcdc report", async () => {
     workbench = await browser.getWorkbench();
     bottomBar = workbench.getBottomBar();
     const outputView = await bottomBar.openOutputView();
     // Red MCDC Gutter icon
-    await generateMCDCReportFromGutter(
+    await checkForGutterAndGenerateReport(
       84,
       "manager.cpp",
       "no-cover-icon-with-mcdc",
+      true,
       true
     );
     await browser.waitUntil(
@@ -277,6 +327,143 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.close();
     await editorView.closeEditor("VectorCAST Report", 1);
+  });
+
+  it("should rebuild env with different coverageKinds and check for gutter icons", async () => {
+    const coverageKindList = [
+      "BRANCH",
+      "Statement+BRANCH",
+      "MCDC",
+      "Statement+MCDC",
+    ];
+    const coverageKindOutputMapper = {
+      BRANCH: "Branch",
+      "Statement+BRANCH": "Statement+Branch",
+      MCDC: "MC/DC",
+      "Statement+MCDC": "Statement+MC/DC",
+    };
+
+    const branchGutterLines = [
+      {
+        "19": "cover-icon",
+        "22": "partially-cover-icon",
+        "84": "no-cover-icon",
+      },
+    ];
+    const mcdcGutterLines = [
+      {
+        "19": "cover-icon-with-mcdc",
+        "22": "partially-cover-icon-with-mcdc",
+        "84": "no-cover-icon-with-mcdc",
+      },
+    ];
+
+    for (let coverage of coverageKindList) {
+      const workbench = await browser.getWorkbench();
+      const activityBar = workbench.getActivityBar();
+      const explorerView = await activityBar.getViewControl("Explorer");
+      await explorerView?.openView();
+      console.log("Deleting Env Folder");
+      // Right-Click on ENV Folder and delete it
+
+      const workspaceFolderSection =
+        await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+      // const cppFolder = await workspaceFolderSection.findItem("cpp");
+      // await cppFolder.select();
+      const unitTestsFolder =
+        await workspaceFolderSection.findItem("unitTests");
+      await unitTestsFolder.select();
+
+      const envFolder =
+        await workspaceFolderSection.findItem("DATABASE-MANAGER");
+      await envFolder.openContextMenu();
+      await (await $("aria/Delete")).click();
+
+      console.log(
+        "Change Coverage Kind in DATABASE-MANAGER.env to Statement+MCDC"
+      );
+
+      // Open the Editor for the env file and edit the coverage kind by hand
+      const envFile = await workspaceFolderSection.findItem(
+        "DATABASE-MANAGER.env"
+      );
+      await envFile.select();
+      const editorView = workbench.getEditorView();
+      const tab = (await editorView.openEditor(
+        "DATABASE-MANAGER.env"
+      )) as TextEditor;
+
+      // Search for the line containing the substring
+      const content = await tab.getText();
+      const lines = content.split("\n");
+
+      const searchTerm = "ENVIRO.COVERAGE_TYPE:";
+      const replacement = `ENVIRO.COVERAGE_TYPE: ${coverage}`;
+
+      // Find the line containing the search term and replace the whole line
+      const updatedContent = lines
+        .map((line) => (line.includes(searchTerm) ? replacement : line))
+        .join("\n");
+
+      await tab.setText(updatedContent);
+      await tab.save();
+
+      console.log("Building Environment directly from DATABASE-MANAGER.env");
+
+      await envFile.openContextMenu();
+      await (await $("aria/Build VectorCAST Environment")).click();
+
+      console.log(
+        `Check for logs that Setting Up ${coverageKindOutputMapper[coverage]} Coverage is shown.`
+      );
+
+      // The build log should show that the coverage kind is set to Statement+MCDC
+      const outputView = await bottomBar.openOutputView();
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes(
+              `Setting Up ${coverageKindOutputMapper[coverage]} Coverage`
+            ),
+        { timeout: TIMEOUT }
+      );
+
+      console.log("Generating BASIS-PATHS tests.");
+      await generateBasisPathTestForSubprogram(
+        "manager",
+        "Manager::AddIncludedDessert"
+      );
+
+      console.log(
+        "Deleting one BASIS-PATHS test for more individual coverage icons."
+      );
+      await deleteGeneratedTest(
+        "manager",
+        "Manager::AddIncludedDessert",
+        "BASIS-PATH-002",
+        4
+      );
+
+      console.log("Checking for coverage icons.");
+      let listToIterate = [];
+
+      if (coverage == "BRANCH" || coverage == "Statement+BRANCH") {
+        listToIterate = branchGutterLines;
+      } else {
+        listToIterate = mcdcGutterLines;
+      }
+
+      for (let line in listToIterate) {
+        await checkForGutterAndGenerateReport(
+          parseInt(line),
+          "manager.cpp",
+          listToIterate[line],
+          true,
+          false
+        );
+      }
+    }
   });
 
   it("should build new env with nearly identical files and check for mcdc report for double report", async () => {
@@ -322,10 +509,11 @@ describe("vTypeCheck VS Code Extension", () => {
     const outputView = await bottomBar.openOutputView();
 
     // Red MCDC Gutter icon
-    await generateMCDCReportFromGutter(
+    await checkForGutterAndGenerateReport(
       15,
       "foo.cpp",
       "no-cover-icon-with-mcdc",
+      true,
       true
     );
     await browser.waitUntil(
