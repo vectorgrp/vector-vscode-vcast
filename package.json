@@ -280,13 +280,17 @@
             "enum": [
               "None",
               "Statement",
+              "Branch",
               "Statement+Branch",
+              "MCDC",
               "Statement+MCDC"
             ],
             "enumDescriptions": [
               "Coverage disabled",
               "Statement coverage",
+              "Branch coverage",
               "Statement and branch coverage",
+              "MC/DC coverage",
               "Statement and MC/DC coverage"
             ],
             "order": 1,
