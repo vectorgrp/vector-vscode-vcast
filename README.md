@@ -51,5 +51,5 @@ This script generates test cases for the given requirements in a VectorCAST envi
 #### Example
 
 ```sh
-reqs2tests.py /path/to/vectorcast/environment.env requirements.csv --execute --export-tst test_cases.tst
+reqs2tests /path/to/vectorcast/environment.env requirements.csv --execute --export-tst test_cases.tst
 ```
