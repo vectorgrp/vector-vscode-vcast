@@ -384,9 +384,9 @@ def getCoverageData(sourceObject):
     if sourceObject and sourceObject.is_instrumented:
 
         # We need to get the lines where the function starts to filter them out, because otherwise they are also recognized as "Branches"
-        funciton_line_list = []
+        function_line_list = []
         for function in sourceObject.cover_data.functions:
-            funciton_line_list.append(function.actual_start_line)
+            function_line_list.append(function.start_line)
 
         checksum = sourceObject.checksum
         coverageKind = getCoverageKind(sourceObject)
@@ -448,7 +448,7 @@ def getCoverageData(sourceObject):
                     coveredString, partiallyCoveredString, uncoveredString = (
                         coverageGutter.handleBranchCoverage(
                             line,
-                            funciton_line_list,
+                            function_line_list,
                             coveredString,
                             partiallyCoveredString,
                             uncoveredString,
