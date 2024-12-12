@@ -383,10 +383,15 @@ def getCoverageData(sourceObject):
     checksum = 0
     if sourceObject and sourceObject.is_instrumented:
 
+        # Unit name with deleted extension.
+        # Normally i would do it with sourceObject.unit_name but release 21 does not have this method.
+        unitFile = sourceObject.cover_data.name
+        unit = unitFile.rsplit(".", 1)[0]
+
         # We need to get the lines where the function starts to filter them out, because otherwise they are also recognized as "Branches"
-        function_line_list = []
+        functionLineList = []
         for function in sourceObject.cover_data.functions:
-            function_line_list.append(function.start_line)
+            functionLineList.append(function.start_line)
 
         checksum = sourceObject.checksum
         coverageKind = getCoverageKind(sourceObject)
@@ -410,7 +415,7 @@ def getCoverageData(sourceObject):
                 elif coverageKind == CoverageKind.mcdc:
                     coveredString, partiallyCoveredString, uncoveredString = (
                         coverageGutter.handleMcdcCoverage(
-                            sourceObject,
+                            unit,
                             mcdc_line_dic,
                             line,
                             coveredString,
@@ -423,7 +428,7 @@ def getCoverageData(sourceObject):
                 elif coverageKind == CoverageKind.statementMcdc:
                     coveredString, partiallyCoveredString, uncoveredString = (
                         coverageGutter.handleStatementMcdcCoverage(
-                            sourceObject,
+                            unit,
                             mcdc_line_dic,
                             line,
                             coveredString,
@@ -448,7 +453,7 @@ def getCoverageData(sourceObject):
                     coveredString, partiallyCoveredString, uncoveredString = (
                         coverageGutter.handleBranchCoverage(
                             line,
-                            function_line_list,
+                            functionLineList,
                             coveredString,
                             partiallyCoveredString,
                             uncoveredString,
