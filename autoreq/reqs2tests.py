@@ -19,6 +19,7 @@ async def main():
     parser.add_argument('--retries', type=int, default=3, help='Number of retries for test generation.')
     parser.add_argument('--extended_reasoning', action='store_true', help='Use extended reasoning for test generation.')
     parser.add_argument('--export-env', action='store_true', help='Run the generated test script in the real environment.')
+    parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
     args = parser.parse_args()
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
@@ -41,8 +42,20 @@ async def main():
 
     vectorcast_test_cases = []
 
+    # Initialize progress tracking
+    requirements_to_check = requirements if len(args.requirement_ids) == 0 else args.requirement_ids
+    total_requirements = len(requirements_to_check)
+    processed_requirements = 0
+
     async def generate_and_process_test_case(requirement_id):
+        nonlocal processed_requirements
         result = await test_generator.generate_test_case(requirement_id, max_retries=args.retries)
+        processed_requirements += 1
+        progress = processed_requirements / total_requirements
+
+        if args.json_events:
+            print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
+
         if result:
             logging.info(f"Test Description for {requirement_id}:\n{result.test_description}")
             logging.info("Test Mapping Analysis:\n%s", result.test_mapping_analysis)
@@ -53,8 +66,6 @@ async def main():
             if args.execute:
                 output = environment.run_tests(vectorcast_test_cases, execute=True)
                 logging.info("Execution Output:\n%s", output)
-
-    requirements_to_check = requirements if len(args.requirement_ids) == 0 else args.requirement_ids
 
     # Generate tests for all requirements
     await tqdm_asyncio.gather(
@@ -102,6 +113,9 @@ async def main():
         logging.warning("Failed to generate tests for the following requirements:")
         logging.warning(", ".join(failed_requirements))
 
+        if args.json_events:
+            print(json.dumps({'event': 'problem', 'value': f'Test generation failed for {", ".join(failed_requirements)}'}), flush=True)
+
     # Warn about requirements with test run failure feedback
     test_failure_requirements = [req_id for req_id, data in info_data.items()
                                  if data['test_run_failure_feedback'] and data['test_generated']]
@@ -109,6 +123,9 @@ async def main():
     if test_failure_requirements:
         logging.warning("Failing tests were given as feedback for the following requirements:")
         logging.warning(", ".join(test_failure_requirements))
+
+        if args.json_events:
+            print(json.dumps({'event': 'problem', 'value': f'Failing tests were given as feedback for {", ".join(test_failure_requirements)}'}), flush=True)
 
     # Get token usage and total cost from LLMClient
     token_usage = test_generator.llm_client.get_token_usage()

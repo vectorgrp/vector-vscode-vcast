@@ -32,12 +32,12 @@ def save_requirements_to_html(requirements, output_file):
     <head>
         <title>Requirements</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; background-color: #f9f9f9; }
+            body { font-family: Arial, sans-serif; margin: 20px; background-color: #ffffff; color: #000000; }
             h1 { color: #2c3e50; }
             h2 { color: #34495e; margin-top: 30px; }
-            .requirement { background-color: #fff; padding: 15px; margin: 10px 0; border-radius: 5px; }
+            .requirement { background-color: #f7f7f7; padding: 15px; margin: 10px 0; border-radius: 5px; }
             .req-key { font-weight: bold; color: #2980b9; }
-            .req-description { margin-top: 10px; }
+            .req-description { margin-top: 10px; color: #333333; }
         </style>
     </head>
     <body>
@@ -94,7 +94,7 @@ def execute_rgw_commands(env_path, csv_path, export_repository):
     for rgw_prep_command in rgw_prep_commands:
         execute_command(rgw_prep_command)
 
-async def main(env_path, export_csv=None, export_html=None, export_repository=None):
+async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False):
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level)
@@ -103,6 +103,8 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
     environment.build()  # Build the environment to ensure master.db is available
     source_files = environment.source_files  # Get source files from environment
 
+    print(source_files)
+
     codebase = Codebase(source_files)
     functions = codebase.get_all_functions()
 
@@ -110,25 +112,35 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     requirements = []
 
+    # Initialize progress tracking
+    total_functions = len(functions)
+    processed_functions = 0
+
     async def generate_requirements(func):
+        nonlocal processed_functions
         func_name = func['name']
         func_file = func['file']
         func_code = codebase.find_definition(func_name, func_file)
         result = await generator.generate(func_code)
-        module = os.path.basename(func_file).replace('.cpp', '').replace('.c', '').title()
+        processed_functions += 1
+        progress = processed_functions / total_functions
 
-        for i, req in enumerate(result):
-            req_id = f"{func_name}.{i+1}"
-            # Use the first sentence as the title
-            requirement = {
-                'Key': req_id,
-                'ID': req_id,
-                'Module': module,
-                'Title': req_id,
-                'Description': req,
-                'Function': func_name  # Add function name to requirement
-            }
-            requirements.append(requirement)
+        if json_events:
+            print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
+
+        if result:
+            module = os.path.basename(func_file).replace('.cpp', '').replace('.c', '').title()
+            for i, req in enumerate(result):
+                req_id = f"{func_name}.{i+1}"
+                requirement = {
+                    'Key': req_id,
+                    'ID': req_id,
+                    'Module': module,
+                    'Title': req,
+                    'Description': req,
+                    'Function': func_name
+                }
+                requirements.append(requirement)
 
     await tqdm_asyncio.gather(*[generate_requirements(func) for func in functions])
 
@@ -154,10 +166,17 @@ def cli():
     parser.add_argument("--export-csv", help="Path to the output CSV file for requirements.")
     parser.add_argument("--export-html", help="Optional path to the output HTML file for pretty-printed requirements.")
     parser.add_argument("--export-repository", help="Path to the VCAST_REPOSITORY for registering requirements.")
+    parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
 
     args = parser.parse_args()
 
-    asyncio.run(main(args.env_path, args.export_csv, args.export_html, args.export_repository))
+    asyncio.run(main(
+        args.env_path,
+        args.export_csv,
+        args.export_html,
+        args.export_repository,
+        json_events=args.json_events
+    ))
 
 if __name__ == "__main__":
     cli()

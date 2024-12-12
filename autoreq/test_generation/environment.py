@@ -73,7 +73,7 @@ class Environment:
         output = self._execute_commands(tst_file_path, show_run_script_output)
         return output
 
-    @property
+    @cached_property
     def allowed_identifiers(self) -> List[str]:
         env_name = self.env_name
         
