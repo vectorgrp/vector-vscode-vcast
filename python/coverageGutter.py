@@ -12,6 +12,9 @@ def getMCDCLineDic(sourceObject):
     """
     mcdc_unit_line_dic = dict()
     temp_line_coverage_dic = dict()
+
+    unitFile = sourceObject.cover_data.name
+    unit = unitFile.rsplit(".", 1)[0]
     for mcdc in sourceObject.cover_data.mcdc_decisions:
 
         # If it s not a mcdc pair --> continue
@@ -22,7 +25,7 @@ def getMCDCLineDic(sourceObject):
 
         # Per default, we set the line to be uncovered
         temp_line_coverage_dic[start_line] = MCDCLineCoverage.uncovered
-        mcdc_unit_line_dic[sourceObject.unit_name] = temp_line_coverage_dic
+        mcdc_unit_line_dic[unit] = temp_line_coverage_dic
 
         covered_mcdc_found = False
         uncovered_mcdc_found = False
@@ -60,7 +63,7 @@ def handleStatementCoverage(
 
 
 def handleMcdcCoverage(
-    sourceObject,
+    unit,
     mcdc_line_dic,
     line,
     coveredString,
@@ -74,7 +77,7 @@ def handleMcdcCoverage(
     line_number = line.line_number
 
     # Since we only have mcdc lines and not statements, we first need to check whether our unit is in the dic first
-    unit_mcdc_lines = mcdc_line_dic.get(sourceObject.unit_name, {})
+    unit_mcdc_lines = mcdc_line_dic.get(unit, {})
     mcdc_line_coverage = unit_mcdc_lines.get(line_number, None)
 
     if mcdc_line_coverage is not None:
@@ -83,7 +86,7 @@ def handleMcdcCoverage(
         )
         # First check for the branch coverage. If it has none, it can not be partially covered / covered
         if has_branch_coverage:
-            mcdc_line_coverage = mcdc_line_dic[sourceObject.unit_name].get(
+            mcdc_line_coverage = mcdc_line_dic[unit].get(
                 line_number, MCDCLineCoverage.uncovered
             )
 
@@ -111,7 +114,7 @@ def handleMcdcCoverage(
 
 
 def handleStatementMcdcCoverage(
-    sourceObject,
+    unit,
     mcdc_line_dic,
     line,
     coveredString,
@@ -132,11 +135,11 @@ def handleStatementMcdcCoverage(
     if has_coverage:
 
         # Check if the unit is in the dic
-        unit_mcdc_lines = mcdc_line_dic.get(sourceObject.unit_name, {})
+        unit_mcdc_lines = mcdc_line_dic.get(unit, {})
         mcdc_line_coverage = unit_mcdc_lines.get(line_number, None)
 
         if mcdc_line_coverage is not None:
-            mcdc_line_coverage = mcdc_line_dic[sourceObject.unit_name].get(
+            mcdc_line_coverage = mcdc_line_dic[unit].get(
                 line_number, MCDCLineCoverage.uncovered
             )
 
