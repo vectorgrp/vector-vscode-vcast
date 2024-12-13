@@ -6,6 +6,9 @@ import * as jsonc from "jsonc-parser";
 import { Uri } from "vscode";
 
 import { errorLevel, vectorMessage } from "./messagePane";
+import { getGlobalCoverageData } from "./vcastTestInterface";
+import { rebuildEnvironment } from "./vcastAdapter";
+import { rebuildEnvironmentCallback } from "./callbacks";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -306,6 +309,8 @@ export function removeFilePattern(enviroPath: string, pattern: string) {
   }
 }
 
+export let surpressConfigurationChange: boolean = false;
+
 /**
  * Synchronized the VSCode settings with the env file content
  * @param enviroPath Path to env folder
@@ -323,11 +328,15 @@ export async function synchronizeVSCodeSettingsWithEnv(
       switch (key) {
         case "ENVIRO.COVERAGE_TYPE":
           try {
+            // We do this because the update triggers the onDidChangeConfiguration function.
+            // We don't want to trigger the function when we are updating the settings from the env file.
+            surpressConfigurationChange = true;
             await settings.update(
               "build.coverageKind",
               value,
               vscode.ConfigurationTarget.Workspace
             );
+            surpressConfigurationChange = false;
           } catch (error) {
             vectorMessage(
               `Error trying to set the coverage type form the env file: ${error}`
@@ -372,5 +381,27 @@ export function parseEnvFile(
   } catch (error) {
     vectorMessage(`Error reading or parsing the env file: ${error}`);
     return null;
+  }
+}
+
+/**
+ * Updates the env file with the new settings from the VSCode settings
+ */
+export async function updateCoverageAndRebuildEnv() {
+  const globalCoverageMap = getGlobalCoverageData();
+  const mapValues = [...globalCoverageMap.values()];
+  let envArray: string[] = [];
+
+  for (let envValues of mapValues) {
+    for (let enviroPath of envValues["enviroList"].keys()) {
+      // If multiple units are in the env, the env is there multiple times
+      if (!envArray.includes(enviroPath)) {
+        envArray.push(enviroPath);
+      }
+    }
+  }
+  // Now rebuild every env so that the coverage is updated
+  for (let enviroPath of envArray) {
+    rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
   }
 }

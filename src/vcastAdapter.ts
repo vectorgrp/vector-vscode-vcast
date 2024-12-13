@@ -697,9 +697,6 @@ export async function rebuildEnvironment(
 ) {
   setCodedTestOption(path.dirname(enviroPath));
 
-  // We need to synchronize the VSCode settings with the env file content in case the user changed it per hand
-  await synchronizeVSCodeSettingsWithEnv(enviroPath);
-
   if (globalEnviroDataServerActive) {
     rebuildEnvironmentUsingServer(enviroPath, rebuildEnvironmentCallback);
   } else {
