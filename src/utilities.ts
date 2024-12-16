@@ -6,6 +6,9 @@ import * as jsonc from "jsonc-parser";
 import { Uri } from "vscode";
 
 import { errorLevel, vectorMessage } from "./messagePane";
+import { getGlobalCoverageData } from "./vcastTestInterface";
+import { rebuildEnvironment } from "./vcastAdapter";
+import { rebuildEnvironmentCallback } from "./callbacks";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -303,5 +306,102 @@ export function removeFilePattern(enviroPath: string, pattern: string) {
   let fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
   for (let filePath of fileList) {
     fs.unlinkSync(filePath);
+  }
+}
+
+export let surpressConfigurationChange: boolean = false;
+
+/**
+ * Synchronized the VSCode settings with the env file content
+ * @param enviroPath Path to env folder
+ */
+export async function synchronizeVSCodeSettingsWithEnv(
+  enviroPath: string
+): Promise<void> {
+  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  // Get the env file as a JSON Object
+  const envJSON = parseEnvFile(enviroPath);
+
+  // Go through all the settings from the env that we want to synchronize with VSCode
+  if (envJSON) {
+    for (const [key, value] of Object.entries(envJSON)) {
+      switch (key) {
+        case "ENVIRO.COVERAGE_TYPE":
+          try {
+            // We do this because the update triggers the onDidChangeConfiguration function.
+            // We don't want to trigger the function when we are updating the settings from the env file.
+            surpressConfigurationChange = true;
+            await settings.update(
+              "build.coverageKind",
+              value,
+              vscode.ConfigurationTarget.Workspace
+            );
+            surpressConfigurationChange = false;
+          } catch (error) {
+            vectorMessage(
+              `Error trying to set the coverage type form the env file: ${error}`
+            );
+          }
+      }
+    }
+  } else {
+    vectorMessage("The parsed env file is undefined.");
+  }
+}
+
+/**
+ * Gets the env file from the env path and parses its content into a JSON
+ * @param enviroPath Path to env folder
+ * @returns JSON Object with the content of the env file
+ */
+export function parseEnvFile(
+  enviroPath: string
+): { [key: string]: string } | null {
+  // Create the env name fron the env folder path
+  const envName = `${enviroPath}.env`;
+
+  try {
+    // Read the File and create a JSON from its content
+    const fileContent = fs.readFileSync(envName, "utf-8");
+    const lines = fileContent.split("\n");
+    const result: { [key: string]: string } = {};
+
+    // Iterate through lines
+    for (const line of lines) {
+      // Skip empty lines or lines without a colon
+      if (!line.includes(":")) continue;
+      // Split the line at the first colon to separate key and value
+      const [key, ...valueParts] = line.split(":");
+      // Rejoin in case the value has colons
+      const value = valueParts.join(":").trim();
+      result[key.trim()] = value;
+    }
+
+    return result;
+  } catch (error) {
+    vectorMessage(`Error reading or parsing the env file: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Updates the env file with the new settings from the VSCode settings
+ */
+export async function updateCoverageAndRebuildEnv() {
+  const globalCoverageMap = getGlobalCoverageData();
+  const mapValues = [...globalCoverageMap.values()];
+  let envArray: string[] = [];
+
+  for (let envValues of mapValues) {
+    for (let enviroPath of envValues["enviroList"].keys()) {
+      // If multiple units are in the env, the env is there multiple times
+      if (!envArray.includes(enviroPath)) {
+        envArray.push(enviroPath);
+      }
+    }
+  }
+  // Now rebuild every env so that the coverage is updated
+  for (let enviroPath of envArray) {
+    rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
   }
 }
