@@ -9,7 +9,7 @@ import {
   deleteEnvironmentCallback,
 } from "./callbacks";
 
-import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
+import { openMessagePane, vectorMessage } from "./messagePane";
 
 import {
   getClicastArgsFromTestNode,
