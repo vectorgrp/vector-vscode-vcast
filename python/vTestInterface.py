@@ -808,7 +808,7 @@ def getMCDCResults(enviroPath, unitName, lineNumber):
             reportName = os.path.join(enviroPath, hashString) + ".html"
 
             # Attempt to generate the report
-            clicastInterface.generate_mcdc_report(
+            mcdcReport.generate_mcdc_report(
                 enviroPath, unitName, lineNumber, reportName
             )
 
