@@ -45,9 +45,10 @@ def get_mcdc_lines(env):
     return all_lines_with_data
 
 
-def generate_mcdc_report(env, unit, line, output):
+def generate_mcdc_report(env, unit_filter, line_filter, output):
     """
-    Generates the our custom report for all of the MCDC decisions on a given line (in a given unit, in a given environment).
+    Generates the our custom report for all of the MCDC decisions on a given
+    line (in a given unit, in a given environment).
 
     File gets written to output
     """
@@ -66,15 +67,12 @@ def generate_mcdc_report(env, unit, line, output):
     with UnitTestApi(env) as api:
         # Find and check for our unit
         unit_found = False
-        for unit in api.Unit.filter(name=unit):
+        for unit in api.Unit.filter(name=unit_filter):
             unit_found = True
-            print(unit.cover_data)
 
             # Spin through all MCDC decisions looking for the one on our line
             line_found = False
             for mcdc_dec in unit.cover_data.mcdc_decisions:
-
-                print(mcdc_dec)
                 # If it has no conditions, then it generates an empty report
                 #
                 # TODO: do we want to just generate an empty MCDC report?
@@ -82,7 +80,7 @@ def generate_mcdc_report(env, unit, line, output):
                     continue
 
                 # If the line is not the line we're looking for, continue
-                if mcdc_dec.start_line != line:
+                if mcdc_dec.start_line != line_filter:
                     continue
 
                 # Mark that we've found our line
@@ -93,14 +91,14 @@ def generate_mcdc_report(env, unit, line, output):
                 #
                 # NOTE: custom/sections/mini_mcdc.py reads this attribute to
                 # know what to filter!
-                api.filter_mcdc_dec_line = mcdc_dec.start_line
+                api.mcdc_filter = {"unit": unit_filter, "line": line_filter}
 
                 # Generate our report
                 api.report(
                     report_type="per_line_mcdc_report",
                     formats=["HTML"],
                     output_file=output,
-                    customization_dir=custom_dir,
+                    customization_dir=str(custom_dir),
                 )
                 break
 
