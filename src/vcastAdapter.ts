@@ -51,7 +51,6 @@ import {
   transmitResponseType,
   vcastCommandType,
 } from "../src-common/vcastServer";
-import { synchronizeVSCodeSettingsWithEnv } from "./utilities";
 
 const path = require("path");
 
@@ -80,9 +79,6 @@ export async function buildEnvironmentFromScript(
 
   // this call runs clicast in the background
   const enviroPath = path.join(unitTestLocation, enviroName);
-
-  // We need to synchronize the VSCode settings with the env file content in case the user changed it per hand
-  await synchronizeVSCodeSettingsWithEnv(enviroPath);
 
   const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
@@ -698,9 +694,9 @@ export async function rebuildEnvironment(
   setCodedTestOption(path.dirname(enviroPath));
 
   if (globalEnviroDataServerActive) {
-    rebuildEnvironmentUsingServer(enviroPath, rebuildEnvironmentCallback);
+    await rebuildEnvironmentUsingServer(enviroPath, rebuildEnvironmentCallback);
   } else {
-    rebuildEnvironmentUsingPython(enviroPath, rebuildEnvironmentCallback);
+    await rebuildEnvironmentUsingPython(enviroPath, rebuildEnvironmentCallback);
   }
 }
 
@@ -708,36 +704,46 @@ export async function rebuildEnvironmentUsingPython(
   enviroPath: string,
   rebuildEnvironmentCallback: any
 ) {
-  // this returns a string including the vpython command
   const commandToRun = getVcastInterfaceCommand(
     vcastCommandType.rebuild,
     enviroPath
   );
   const optionString = `--options=${getRebuildOptionsString()}`;
 
-  // executeWithRealTimeEcho uses spawn which needs an arg list so create list
   let commandPieces = commandToRun.split(" ");
-  // add the option string
   commandPieces.push(optionString);
-  // pop the first arg which is the vpython command
   const commandVerb = commandPieces[0];
   commandPieces.shift();
 
   const unitTestLocation = path.dirname(enviroPath);
 
-  // This uses the python binding to clicast to do the rebuild
-  // We open the message pane to give the user a sense of what's going on
-  openMessagePane();
-  vectorMessage(
-    `Rebuilding environment command: ${commandVerb} ${commandPieces.join(" ")}`,
-    errorLevel.trace
-  );
-  executeWithRealTimeEcho(
-    commandVerb,
-    commandPieces,
-    unitTestLocation,
-    rebuildEnvironmentCallback,
-    enviroPath
+  // The progress bar ensures the execution waits and prevents failure when rebuilding
+  // multiple environments (for instance when changing the coverageKind).
+  // It also provides visual progress to the user.
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Rebuilding environment: ${path.basename(enviroPath)}...`,
+      cancellable: false,
+    },
+    async (progress) => {
+      progress.report({ increment: 25 });
+
+      await new Promise<void>((resolve) => {
+        executeWithRealTimeEcho(
+          commandVerb,
+          commandPieces,
+          unitTestLocation,
+          (envPath: string, errorCode: number) => {
+            rebuildEnvironmentCallback(envPath, errorCode);
+            resolve();
+          },
+          enviroPath
+        );
+      });
+
+      progress.report({ increment: 100 });
+    }
   );
 }
 
