@@ -68,13 +68,11 @@ The success of this task is critical.
             }
         ]
 
-        completion = await self.llm_client.call_model(
+        result = await self.llm_client.call_model(
             messages=messages,
             schema=DesignDecompositionResultWithTestcases,
             temperature=0.0,
-            max_tokens=2000
+            max_tokens=5000
         )
 
-        decomposition_results = [choice.message.parsed.without_tests.without_requirement_indices for choice in completion.choices]
-
-        return decomposition_results[0].requirements
+        return result.requirements

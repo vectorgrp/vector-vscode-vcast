@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import logging
 
 from .vcast_context_builder import VcastContextBuilder
+from .atg_context_builder import ATGContextBuilder  # Add this import
 from .info_logger import InfoLogger  # Add this import
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
 from ..llm_client import LLMClient  # Import the new LLMClient
@@ -33,27 +34,6 @@ def _derive_schema(allowed_identifiers=None):
             if is_expected:
                 return f"TEST.EXPECTED:{patched_identifier}:{self.value}\n"
             return f"TEST.VALUE:{patched_identifier}:{self.value}\n"
-
-    class ReferenceMapping(BaseModel):
-        identifier: Identifier # type: ignore
-        reference: Identifier # type: ignore
-
-        def to_vectorcast(self, is_expected=False) -> str:
-            patched_identifier = re.sub(r'(\w+)->', r'*\1[0].', self.identifier)
-            patched_identifier = re.sub(r'\*(\w+)\.', r'*\1[0].', patched_identifier)
-            patched_reference = re.sub(r'(\w+)->', r'*\1[0].', self.reference)
-            patched_reference = re.sub(r'\*(\w+)\.', r'*\1[0].', patched_reference)
-            if is_expected:
-                return (
-                    f"TEST.EXPECTED_USER_CODE:{patched_identifier}\n"
-                    f"<<{patched_identifier}>> == ( <<{patched_reference}>> )\n"
-                    "TEST.END_EXPECTED_USER_CODE:\n"
-                )
-            return (
-                f"TEST.VALUE_USER_CODE:{patched_identifier}\n"
-                f"<<{patched_identifier}>> = ( <<{patched_reference}>> );\n"
-                "TEST.END_VALUE_USER_CODE:\n"
-            )
 
     class TestCase(BaseModel):
         test_name: str
@@ -106,6 +86,7 @@ class TestGenerator:
         self.requirements = requirements
         self.environment = environment  # Use the provided environment
         self.context_builder = VcastContextBuilder(self.environment)
+        self.atg_context_builder = ATGContextBuilder(self.environment)  # Add this line
         self.llm_client = LLMClient()
         self.info_logger = InfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
@@ -133,7 +114,12 @@ class TestGenerator:
             return None
 
         # Build code context using the environment
-        context = await self.context_builder.build_code_context(requirement_id, reduce_context=True)
+        # TODO: Pass the function for real
+        function_name = requirement_id.rsplit('.', 1)[0]
+        context = await self.context_builder.build_code_context(function_name, reduce_context=True)
+        
+        # Get ATG example test cases
+        atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name)
 
         if not self.environment:
             logging.error("Environment is not available.")
@@ -150,7 +136,7 @@ class TestGenerator:
             {
                 "role": "user",
                 "content": f"""
-Based on the following requirement, references and code, generate unit tests that exercise the requirement.
+Based on the following requirement, references, code and example test cases, generate unit tests that exercise the requirement.
 
 Test framework reference:
 {test_framework_reference}
@@ -158,6 +144,11 @@ Test framework reference:
 Relevant Code:
 ```cpp
 {context}
+```
+
+Example Test Cases:
+```json
+{atg_examples}
 ```
 
 Requirement ID: {requirement_id}
@@ -191,30 +182,23 @@ Notes:
         schema = _derive_schema(self.environment.allowed_identifiers)
 
         try:
-            completion = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
+            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
             # Removed for_requirement parameter
         except Exception as e:
             logging.exception("Failed to generate test case.")
             return None
 
+        test_generation_result = await self._iterative_error_correction(
+            requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
 
-        try:
-            test_generation_result = completion.choices[0].message.parsed
-            test_generation_result = await self._iterative_error_correction(
-                requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
-
-            if test_generation_result is None:
-                return None
-
-            return test_generation_result
-        except Exception as e:
-            logging.exception("Failed to parse generated test case.")
+        if test_generation_result is None:
             return None
+
+        return test_generation_result
 
     async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3):
         iteration = 0
         fix_messages = messages
-        self.info_logger.set_error_correction_needed(requirement_id)
         while iteration < max_iterations:
             iteration += 1
             # Generate vectorcast test cases for all test cases
@@ -231,6 +215,7 @@ Notes:
                 self.info_logger.set_test_run_failure_feedback(requirement_id)
 
             if errors or test_failures:
+                self.info_logger.set_error_correction_needed(requirement_id)
                 # Prepare new messages with errors for the model
                 logging.info("Errors detected in test case. Iteration %d", iteration)
                 fix_messages += [
@@ -262,21 +247,13 @@ Tip:
                     }
                 ]
 
-            with open("fix_messages.txt", "w") as f:
-                for message in fix_messages:
-                    f.write(f"{message['role']}: {message['content']}\n\n")
-            
-            # Call the model to get the fixed test case
-            completion = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
-            # Removed for_requirement parameter
+                with open(f"fix_messages_{requirement_id}.txt", "w") as f:
+                    for message in fix_messages:
+                        f.write(f"{message['role']}: {message['content']}\n\n")
+                
+                # Call the model to get the fixed test case
+                test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
 
-            try:
-                test_generation_result = completion.choices[0].message.parsed
-            except Exception as e:
-                logging.exception(completion.choices[0].message)
-                logging.exception("Failed to parse fixed test case.")
-                logging.exception("Error:", e)
-                break
         if errors or test_failures:
             logging.warning(f"Failed to fix errors and test failures after {iteration} iterations")
             return None

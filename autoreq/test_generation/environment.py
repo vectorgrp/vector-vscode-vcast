@@ -9,6 +9,7 @@ import logging
 
 class Environment:
     def __init__(self, env_file_path: str, use_sandbox: bool = True):
+        env_file_path = os.path.abspath(env_file_path)
         self.env_file_path = env_file_path
         self.env_name = os.path.basename(env_file_path).replace('.env', '')
         env_dir = os.path.dirname(env_file_path)
@@ -143,7 +144,117 @@ class Environment:
         units = [os.path.splitext(os.path.basename(file))[0] for file in source_files]
 
         return units
+
+    @cached_property
+    def atg_tests(self) -> str:
+        env_name = self.env_name
+        cmd = f'$VECTORCAST_DIR/atg -e {env_name} --baselining'
+        env_vars = os.environ.copy()
+        
+        try:
+            result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            logging.error(f"Command '{cmd}' timed out after 60 seconds")
+            return ""
             
+        if result.returncode != 0:
+            logging.error(f"ATG command failed with error:\n{result.stderr}")
+            return ""
+            
+        atg_file = os.path.join(self.env_dir, 'atg.tst')
+        if not os.path.exists(atg_file):
+            logging.error("ATG file not generated")
+            return ""
+            
+        with open(atg_file, 'r') as f:
+            test_file_contents = f.read()
+
+        return self._parse_test_script(atg_file)
+
+    def _parse_test_script(self, tst_file_path: str) -> str:
+        with open(tst_file_path, 'r') as f:
+            content = f.readlines()
+
+        test_cases = []
+        current_test = None
+        current_unit = None
+        current_subprogram = None
+        description_lines = []
+        continue_reading = False
+
+        for line in content:
+            line = line.strip()
+            
+            # Skip empty lines and comments that don't start with TEST
+            if not line or (line.startswith('--') and not line.startswith('TEST')):
+                continue
+
+            if line.startswith('TEST.UNIT:'):
+                current_unit = line.split(':', 1)[1].strip()
+            
+            elif line.startswith('TEST.SUBPROGRAM:'):
+                current_subprogram = line.split(':', 1)[1].strip()
+            
+            elif line.startswith('TEST.NAME:'):
+                if current_test:
+                    test_cases.append(current_test)
+                
+                test_name = line.split(':', 1)[1].strip()
+                current_test = {
+                    "test_name": test_name,
+                    "test_description": "",
+                    "unit_name": current_unit,
+                    "subprogram_name": current_subprogram,
+                    "input_values": [],
+                    "expected_values": []
+                }
+            
+            elif line.startswith('TEST.VALUE:'):
+                if not current_test:
+                    continue
+                    
+                # Split into identifier and value
+                _, rest = line.split(':', 1)
+                identifier, value = rest.rsplit(':', 1)
+                current_test["input_values"].append({
+                    "identifier": identifier.strip(),
+                    "value": value.strip()
+                })
+            
+            elif line.startswith('TEST.NOTES:'):
+                if current_test:
+                    description_lines = []
+                    continue_reading = True
+                    
+            elif line.startswith('TEST.END_NOTES:'):
+                if current_test and description_lines:
+                    current_test["test_description"] = "\n".join(description_lines)
+                continue_reading = False
+            
+            elif line.startswith('TEST.EXPECTED:'):
+                if not current_test:
+                    continue
+                    
+                _, rest = line.split(':', 1)
+                identifier, value = rest.rsplit(':', 1)
+                current_test["expected_values"].append({
+                    "identifier": identifier.strip(),
+                    "value": value.strip()
+                })
+
+            elif continue_reading:
+                description_lines.append(line)
+
+            elif line.startswith('TEST.END'):
+                if current_test:
+                    test_cases.append(current_test)
+                    current_test = None
+
+        # Add the last test if exists
+        if current_test:
+            test_cases.append(current_test)
+        return test_cases
 
     def _execute_commands(self, tst_file_path: str, show_run_script_output: bool) -> Optional[str]:
         env_name = self.env_name

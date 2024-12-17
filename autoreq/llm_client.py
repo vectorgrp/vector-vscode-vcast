@@ -1,9 +1,12 @@
 import os
+from aiolimiter import AsyncLimiter
 from openai import AsyncAzureOpenAI
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
 load_dotenv()
+
+RATE_LIMIT = AsyncLimiter(30, 60)
 
 class LLMClient:
     def __init__(self):
@@ -24,50 +27,56 @@ class LLMClient:
             'reasoning': {'input_tokens': 0, 'output_tokens': 0}
         }
 
-    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=2000, seed=42, extended_reasoning=False, **kwargs):
-        model = "gpt-4o" if extended_reasoning else "o1-mini"
-        client = self.reasoning_client if extended_reasoning else self.client
+    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, **kwargs):
+        async with RATE_LIMIT:
+            if extended_reasoning:
+                raise ValueError("Copilot cannot be used with extended reasoning.")
 
-        if extended_reasoning:
-            messages = [m for m in messages if m["role"] != "system"]
+            model = "gpt-4o" if extended_reasoning else "o1-mini"
 
-        if not extended_reasoning:
-            completion = await client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                response_format=schema,
-                temperature=temperature,
-                seed=seed,
-                max_tokens=max_tokens,
-                **kwargs
-            )
-            # Update token usage for the generation model
-            self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
-            self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
-        else:
-            raw_completion = await client.chat.completions.create(
-                model=model,
-                messages=messages
-            )
-            # Update token usage for the reasoning model
-            self.token_usage['reasoning']['input_tokens'] += raw_completion.usage.prompt_tokens
-            self.token_usage['reasoning']['output_tokens'] += raw_completion.usage.completion_tokens
+            if extended_reasoning:
+                messages = [m for m in messages if m["role"] != "system"]
 
-            completion = await self.client.beta.chat.completions.parse(
-                model="gpt-4o",
-                messages=messages + [
-                    {"role": "assistant", "content": raw_completion.choices[0].message.content},
-                    {"role": "user", "content": "Please convert this into JSON."}
-                ],
-                response_format=schema,
-                temperature=temperature,
-                max_tokens=2000
-            )
-            # Update token usage for parsing step (considered as generation model)
-            self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
-            self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
+            if not extended_reasoning:
+                completion = await self.client.beta.chat.completions.parse(
+                    model=model,
+                    messages=messages,
+                    response_format=schema,
+                    temperature=temperature,
+                    seed=seed,
+                    max_tokens=max_tokens,
+                    **kwargs
+                )
+                # Update token usage for the generation model
+                self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
+                self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
+            else:
+                raw_completion = await self.reasoning_client.chat.completions.create(
+                    model=model,
+                    messages=messages
+                )
+                # Update token usage for the reasoning model
+                self.token_usage['reasoning']['input_tokens'] += raw_completion.usage.prompt_tokens
+                self.token_usage['reasoning']['output_tokens'] += raw_completion.usage.completion_tokens
 
-        return completion
+                completion = await self.client.beta.chat.completions.parse(
+                    model="gpt-4o",
+                    messages=messages + [
+                        {"role": "assistant", "content": raw_completion.choices[0].message.content},
+                        {"role": "user", "content": "Please convert this into JSON."}
+                    ],
+                    response_format=schema,
+                    temperature=temperature,
+                    max_tokens=5000
+                )
+                # Update token usage for parsing step (considered as generation model)
+                self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
+                self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
+
+            if return_raw_completion:
+                return completion, raw_completion
+
+            return completion.choices[0].message.parsed
 
     def get_token_usage(self):
         return self.token_usage

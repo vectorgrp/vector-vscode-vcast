@@ -9,22 +9,14 @@ The format of a test case is as follows:
         { "identifier": <identifier>, "value": <value> },
         ...
     ],
-    "input_references": [
-        { "identifier": <identifier>, "reference": <identifier> },
-        ...
-    ],
     "expected_values": [
         { "identifier": <identifier>, "value": <value> },
-        ...
-    ],
-    "expected_references": [
-        { "identifier": <identifier>, "reference": <identifier> },
         ...
     ]
 }
 
 ### Identifier and Value Syntax
-The following sections describe the syntax for specifying the `identifier` and `value` (or `reference`) fields in the test case format. `unit_name` and `subprogram_name` refer to file names of C/C++ files (without extension) and function names in these files respectively (to refer to methods in classes use `<class name>::<method name>`). It is only possible to include identifiers from different units and other subprograms if they are called/used in the subprogram being tested.
+The following sections describe the syntax for specifying the `identifier` and `value` fields in the test case format. `unit_name` and `subprogram_name` refer to file names of C/C++ files (without extension) and function names in these files respectively (to refer to methods in classes use `<class name>::<method name>`). It is only possible to include identifiers from different units and other subprograms if they are called/used in the subprogram being tested.
 
 #### Numeric Types
 - Assign the number directly.

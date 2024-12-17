@@ -50,35 +50,26 @@ Notes:
             }
         ]
 
-        completion = await self.llm_client.call_model(
+        result = await self.llm_client.call_model(
             messages, SearchOutput, temperature=0.0, extended_reasoning=False
         )
 
-        try:
-            result = completion.choices[0].message.parsed
-            
-            # Now construct the parts of the text that are relevant to the query
-            #for text_range in result.ranges:
-            #    relevant_text += "\n".join(self.reference.splitlines()[max(text_range.start_line-1, 0):max(text_range.end_line, 0)]) + "\n"
+        # First sort the ranges and then merge adjacent ranges
+        result.ranges.sort(key=lambda x: x.start_line)
+        merged_ranges = []
+        
+        for text_range in result.ranges:
+            if not merged_ranges or text_range.start_line > merged_ranges[-1].end_line + 1:
+                merged_ranges.append(text_range)
+            else:
+                merged_ranges[-1].end_line = text_range.end_line
+                
+        # Now construct the parts of the text that are relevant to the query
+        relevant_text_parts = []
+        for text_range in merged_ranges:
+            relevant_text_parts.append("\n".join(self.reference.splitlines()[max(text_range.start_line-1, 0):max(text_range.end_line, 0)]) + "\n")
 
-            # First sort the ranges and then merge adjacent ranges
-            result.ranges.sort(key=lambda x: x.start_line)
-            merged_ranges = []
-            
-            for text_range in result.ranges:
-                if not merged_ranges or text_range.start_line > merged_ranges[-1].end_line + 1:
-                    merged_ranges.append(text_range)
-                else:
-                    merged_ranges[-1].end_line = text_range.end_line
-                    
-            # Now construct the parts of the text that are relevant to the query
-            relevant_text_parts = []
-            for text_range in merged_ranges:
-                relevant_text_parts.append("\n".join(self.reference.splitlines()[max(text_range.start_line-1, 0):max(text_range.end_line, 0)]) + "\n")
-
-            # Merge the parts into a single string
-            relevant_text = "\n\n...\n\n".join(relevant_text_parts)
-            
-            return relevant_text
-        except Exception as e:
-            return None
+        # Merge the parts into a single string
+        relevant_text = "\n\n...\n\n".join(relevant_text_parts)
+        
+        return relevant_text

@@ -43,7 +43,17 @@ async def main():
     vectorcast_test_cases = []
 
     # Initialize progress tracking
-    requirements_to_check = requirements if len(args.requirement_ids) == 0 else args.requirement_ids
+
+    if len(args.requirement_ids) == 0:
+        requirements_to_check = requirements
+    else:
+        requirements_to_check = []
+        for req_id in args.requirement_ids:
+            if req_id in requirements:
+                requirements_to_check.append(req_id)
+            else:
+                requirements_to_check.extend([r for r in requirements if r.startswith(req_id)])
+        
     total_requirements = len(requirements_to_check)
     processed_requirements = 0
 
