@@ -400,6 +400,15 @@ export function getVcastInterfaceCommand(
   return `${commandToRun} ${testArgument}`;
 }
 
+/**
+ * Generates the command to interface with MCDC coverage tools.
+ *
+ * @param {vcastCommandType} command - The type of command to execute.
+ * @param {string} enviroPath - The path to the environment.
+ * @param {string} unitName - The unit name.
+ * @param {number} lineNumber - The specific line number for the MCDC report.
+ * @returns {string} The fully constructed command string to execute the MCDC interface.
+ */
 export function getVcastInterfaceCommandForMCDC(
   command: vcastCommandType,
   enviroPath: string,

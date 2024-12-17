@@ -43,6 +43,14 @@ export async function viewResultsReport(testID: string) {
   }
 }
 
+/**
+ * Displays the MCDC report for a specified line.
+ *
+ * @param {string} enviroPath - The path to the environment.
+ * @param {string} unit - The unit in which the line appears.
+ * @param {number} lineNumber - The line number we want to get the report from.
+ * @returns {Promise<void>} A promise that resolves when the report is viewed.
+ */
 export async function viewMCDCReport(
   enviroPath: string,
   unit: string,

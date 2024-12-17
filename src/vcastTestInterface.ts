@@ -960,6 +960,14 @@ export async function openCodedTest(testNode: testNodeType) {
   }
 }
 
+/**
+ * Generates and retrieves the MCDC html result file.
+ *
+ * @param {string} enviroPath - The path to the environment or directory.
+ * @param {string} unit - The unit which includes the line.
+ * @param {number} lineNumber - The line number for which the report is generated.
+ * @returns {Promise<string>} A promise that resolves to the path of the result file if successful, or an empty string on failure.
+ */
 export async function getMCDCResultFile(
   enviroPath: string,
   unit: string,

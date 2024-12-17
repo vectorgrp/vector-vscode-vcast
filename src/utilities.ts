@@ -36,6 +36,12 @@ export interface jsonDataType {
   jsonDataAsString: string;
 }
 
+/**
+ * Retrieves the environment path associated with a given file path.
+ *
+ * @param {string} filePath - The file path for which the environment path is needed.
+ * @returns {string | null} The environment path if found, otherwise null.
+ */
 export function getEnvPathForFilePath(filePath: string): string | null {
   const globalCoverageMap = getGlobalCoverageData();
   const fileData = globalCoverageMap.get(filePath);
