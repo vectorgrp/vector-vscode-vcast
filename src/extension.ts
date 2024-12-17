@@ -58,7 +58,6 @@ import {
   addLaunchConfiguration,
   addSettingsFileFilter,
   showSettings,
-  surpressConfigurationChange,
   updateCoverageAndRebuildEnv,
 } from "./utilities";
 
@@ -718,11 +717,7 @@ async function installPreActivationEventHandlers(
       } else if (
         event.affectsConfiguration("vectorcastTestExplorer.build.coverageKind")
       ) {
-        // We also implemented that the vscode setting gets synchronized when building
-        // the env directly from the script. This makes sure that the env is not build twice.
-        if (!surpressConfigurationChange) {
-          updateCoverageAndRebuildEnv();
-        }
+        await updateCoverageAndRebuildEnv();
       } else if (
         event.affectsConfiguration(
           "vectorcastTestExplorer.vectorcastInstallationLocation"
