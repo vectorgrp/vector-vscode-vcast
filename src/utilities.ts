@@ -7,6 +7,8 @@ import { Uri } from "vscode";
 
 import { errorLevel, vectorMessage } from "./messagePane";
 import { getGlobalCoverageData } from "./vcastTestInterface";
+import { rebuildEnvironment } from "./vcastAdapter";
+import { rebuildEnvironmentCallback } from "./callbacks";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -325,5 +327,27 @@ export function removeFilePattern(enviroPath: string, pattern: string) {
   let fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
   for (let filePath of fileList) {
     fs.unlinkSync(filePath);
+  }
+}
+
+/**
+ * Updates the env file with the new settings from the VSCode settings
+ */
+export async function updateCoverageAndRebuildEnv() {
+  const globalCoverageMap = getGlobalCoverageData();
+  const mapValues = [...globalCoverageMap.values()];
+  let envArray: string[] = [];
+
+  for (let envValues of mapValues) {
+    for (let enviroPath of envValues["enviroList"].keys()) {
+      // If multiple units are in the env, the env is there multiple times
+      if (!envArray.includes(enviroPath)) {
+        envArray.push(enviroPath);
+      }
+    }
+  }
+  // Now rebuild every env so that the coverage is updated
+  for (let enviroPath of envArray) {
+    await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
   }
 }

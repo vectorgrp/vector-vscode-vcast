@@ -134,6 +134,7 @@ export interface testDataType {
 export interface testStatusArrayType {
   [id: string]: testDataType;
 }
+
 export var globalTestStatusArray = <testStatusArrayType>{};
 
 export function getGlobalCoverageData() {

@@ -49,7 +49,10 @@ export function buildEnvironmentCallback(enviroPath: string, code: number) {
   }
 }
 
-export function rebuildEnvironmentCallback(enviroPath: string, code: number) {
+export async function rebuildEnvironmentCallback(
+  enviroPath: string,
+  code: number
+) {
   // This function gets called after the rebuildEnviro command
   // When the rebuild succeeds, we delete the BAK stuff
 
@@ -65,7 +68,7 @@ export function rebuildEnvironmentCallback(enviroPath: string, code: number) {
     } catch {
       // ignore errors
     }
-    updateDataForEnvironment(enviroPath);
+    await updateDataForEnvironment(enviroPath);
   }
 }
 

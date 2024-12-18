@@ -59,6 +59,7 @@ import {
   addSettingsFileFilter,
   getEnvPathForFilePath,
   showSettings,
+  updateCoverageAndRebuildEnv,
   forceLowerCaseDriveLetter,
 } from "./utilities";
 
@@ -746,6 +747,10 @@ async function installPreActivationEventHandlers(
         event.affectsConfiguration("vectorcastTestExplorer.useDataServer")
       ) {
         initializeServerState();
+      } else if (
+        event.affectsConfiguration("vectorcastTestExplorer.build.coverageKind")
+      ) {
+        await updateCoverageAndRebuildEnv();
       } else if (
         event.affectsConfiguration(
           "vectorcastTestExplorer.vectorcastInstallationLocation"
