@@ -147,7 +147,7 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-const suprogrammWithoutCTDriver = `-- Environment: @TEST
+const subprogramWithoutCodedTestsDriver = `-- Environment: @TEST
 TEST.UNIT:
 TEST.SUBPROGRAM:bar
 TEST.NEW
@@ -1303,7 +1303,7 @@ describe("Text Completion", () => {
   test(
     "validate that TEST.CODED_TEST_FILE has no autocompletion.",
     async () => {
-      const tstText = suprogrammWithoutCTDriver;
+      const tstText = subprogramWithoutCodedTestsDriver;
       const lineToComplete = "TEST.CODED_TEST_FILE:";
       const completionPosition = getCompletionPositionForLine(
         lineToComplete,
