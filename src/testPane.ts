@@ -40,6 +40,7 @@ import {
 
 import {
   addLaunchConfiguration,
+  cleanTestResultsPaneMessage,
   forceLowerCaseDriveLetter,
   loadLaunchFile,
   openFileWithLineSelected,
@@ -850,7 +851,11 @@ export async function runNode(
     const status = executionResult.status;
 
     // We show stdout from execution in the "Test Results" pane
-    run.appendOutput(executionResult.details.stdOut);
+    // We need to clean the string first because the logs in the Test Results pane are handled differently
+    let cleanedOutput = cleanTestResultsPaneMessage(
+      executionResult.details.stdOut
+    );
+    run.appendOutput(cleanedOutput);
 
     if (status == testStatus.didNotRun) {
       run.skipped(node);
