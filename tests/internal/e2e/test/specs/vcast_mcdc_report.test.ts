@@ -105,28 +105,6 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(coverageKindValue).toEqual("Statement");
     await coverageKindSetting.setValue("Statement+MCDC");
 
-    workbench = await browser.getWorkbench();
-    const vcastTestingViewContent = await getViewContent("Testing");
-    const envName = "cpp/unitTests/DATABASE-MANAGER";
-
-    // When we change the coverage kind --> rebuild env to take effect
-    console.log("Re-Building Environment from Test Explorer");
-    // Flask --> Right-click on env --> Re-Build environment
-    for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
-      for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
-        await visibleItem.select();
-
-        const subprogramGroup = visibleItem as CustomTreeItem;
-        if ((await subprogramGroup.getTooltip()).includes(envName)) {
-          await subprogramGroup.expand();
-          const menuItemLabel = "Re-Build Environment";
-          const contextMenu = await subprogramGroup.openContextMenu();
-          await contextMenu.select("VectorCAST");
-          await (await $(`aria/${menuItemLabel}`)).click();
-          break;
-        }
-      }
-    }
     const outputView = await bottomBar.openOutputView();
     await browser.waitUntil(
       async () =>
@@ -352,6 +330,10 @@ describe("vTypeCheck VS Code Extension", () => {
       const explorerView = await activityBar.getViewControl("Explorer");
       await explorerView?.openView();
 
+      // Clear the text so that we wait for the new messages to appearS
+      const outputView = await bottomBar.openOutputView();
+      await outputView.clearText();
+
       console.log(`Setting coverageKind to ${coverage}`);
       let settingsEditor = await workbench.openSettings();
       const coverageKindSetting = await settingsEditor.findSetting(
@@ -364,14 +346,12 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log(
         `Rebuild the environment for the new coverage kind ${coverage}`
       );
-      const envName = "DATABASE-MANAGER";
-      await rebuildEnvironmentFromTestingPane(envName);
 
       // The build log should show that the coverage kind is set to the correct coverageKind
       console.log(
         `Check for logs that Setting Up ${coverage} Coverage is shown.`
       );
-      const outputView = await bottomBar.openOutputView();
+
       await browser.waitUntil(
         async () =>
           (await outputView.getText())
@@ -379,6 +359,14 @@ describe("vTypeCheck VS Code Extension", () => {
             .includes(
               `Setting Up ${coverageKindOutputMapper[coverage]} Coverage`
             ),
+        { timeout: TIMEOUT }
+      );
+
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Environment re-build complete"),
         { timeout: TIMEOUT }
       );
 
