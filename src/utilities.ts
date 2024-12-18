@@ -6,6 +6,9 @@ import * as jsonc from "jsonc-parser";
 import { Uri } from "vscode";
 
 import { errorLevel, vectorMessage } from "./messagePane";
+import { getGlobalCoverageData } from "./vcastTestInterface";
+import { rebuildEnvironment } from "./vcastAdapter";
+import { rebuildEnvironmentCallback } from "./callbacks";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -33,6 +36,27 @@ export const jsoncModificationOptions: jsonc.ModificationOptions = {
 export interface jsonDataType {
   jsonData: any;
   jsonDataAsString: string;
+}
+
+/**
+ * Retrieves the environment path associated with a given file path.
+ *
+ * @param {string} filePath - The file path for which the environment path is needed.
+ * @returns {string | null} The environment path if found, otherwise null.
+ */
+export function getEnvPathForFilePath(filePath: string): string | null {
+  const globalCoverageMap = getGlobalCoverageData();
+  const fileData = globalCoverageMap.get(filePath);
+
+  if (fileData?.enviroList) {
+    // Retrieve the first environment key, if it exists
+    const envKey = Array.from(fileData.enviroList.keys())[0];
+    if (envKey) {
+      // Return the full environment key (entire path)
+      return envKey;
+    }
+  }
+  return null;
 }
 
 export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
@@ -332,4 +356,26 @@ export function cleanTestResultsPaneMessage(testResultString: string) {
     .join("\r\n");
 
   return alignedOutput;
+}
+
+/**
+ * Updates the env file with the new settings from the VSCode settings
+ */
+export async function updateCoverageAndRebuildEnv() {
+  const globalCoverageMap = getGlobalCoverageData();
+  const mapValues = [...globalCoverageMap.values()];
+  let envArray: string[] = [];
+
+  for (let envValues of mapValues) {
+    for (let enviroPath of envValues["enviroList"].keys()) {
+      // If multiple units are in the env, the env is there multiple times
+      if (!envArray.includes(enviroPath)) {
+        envArray.push(enviroPath);
+      }
+    }
+  }
+  // Now rebuild every env so that the coverage is updated
+  for (let enviroPath of envArray) {
+    await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
+  }
 }
