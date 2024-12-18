@@ -147,6 +147,17 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
+const suprogrammWithoutCTDriver = `-- Environment: @TEST
+TEST.UNIT:
+TEST.SUBPROGRAM:bar
+TEST.NEW
+TEST.CODED_TEST_FILE:
+TEST.NAME:
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
 describe("Text Completion", () => {
   test(
     "validate tst completion for TEST.SUBPROGRAM:",
@@ -167,22 +178,28 @@ describe("Text Completion", () => {
 
       expect(generatedCompletionData).toEqual([
         {
-          label: "<<INIT>>",
-          kind: 3,
-          detail: "",
           data: 0,
-        },
-        {
-          label: "<<COMPOUND>>",
-          kind: 3,
           detail: "",
-          data: 1,
-        },
-        {
+          kind: 3,
           label: "bar",
-          kind: 3,
+        },
+        {
+          data: 1,
           detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
           data: 2,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -1001,19 +1018,25 @@ describe("Text Completion", () => {
           data: 0,
           detail: "",
           kind: 3,
-          label: "<<INIT>>",
+          label: "bar",
         },
         {
           data: 1,
           detail: "",
           kind: 3,
-          label: "<<COMPOUND>>",
+          label: "<<INIT>>",
         },
         {
           data: 2,
           detail: "",
           kind: 3,
-          label: "bar",
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -1058,19 +1081,25 @@ describe("Text Completion", () => {
           data: 0,
           detail: "",
           kind: 3,
-          label: "<<INIT>>",
+          label: "bar",
         },
         {
           data: 1,
           detail: "",
           kind: 3,
-          label: "<<COMPOUND>>",
+          label: "<<INIT>>",
         },
         {
           data: 2,
           detail: "",
           kind: 3,
-          label: "bar",
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -1097,19 +1126,25 @@ describe("Text Completion", () => {
           data: 0,
           detail: "",
           kind: 3,
-          label: "<<INIT>>",
+          label: "bar",
         },
         {
           data: 1,
           detail: "",
           kind: 3,
-          label: "<<COMPOUND>>",
+          label: "<<INIT>>",
         },
         {
           data: 2,
           detail: "",
           kind: 3,
-          label: "bar",
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -1261,6 +1296,27 @@ describe("Text Completion", () => {
           data: 3,
         },
       ]);
+    },
+    timeout
+  );
+
+  test(
+    "validate that TEST.CODED_TEST_FILE has no autocompletion.",
+    async () => {
+      const tstText = suprogrammWithoutCTDriver;
+      const lineToComplete = "TEST.CODED_TEST_FILE:";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const generatedCompletionData = await generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter
+      );
+      expect(generatedCompletionData).toEqual([]);
     },
     timeout
   );

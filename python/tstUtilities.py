@@ -427,8 +427,7 @@ def processSubprogramLines(api, pieces, triggerCharacter, unit):
         objectList = api.Unit.all()
         returnData.choiceList = getFunctionList(api, unit)
         returnData.choiceKind = choiceKindType.Function
-        returnData.choiceList.append("<<INIT>>")
-        returnData.choiceList.append("<<COMPOUND>>")
+        returnData.choiceList.extend(["<<INIT>>", "<<COMPOUND>>", "coded_tests_driver"])
     else:
         # TODO: Current implementation just to make it work. --> See what alse can come after
         processStandardLines(api, pieces, triggerCharacter)
@@ -1062,6 +1061,10 @@ def processTstLine(enviroPath, line, unit=None):
         elif line.upper().startswith("TEST.REQUIREMENT_KEY"):
             returnData = processRequirementLines(api, pieces, triggerCharacter)
         elif line.upper().startswith("TEST.SUBPROGRAM"):
+            if unit == None:
+                globalOutputLog.append(
+                    "Additional 'unit' parameter is requiered for TEST.SUBPROGRAM: autocompletion."
+                )
             returnData = processSubprogramLines(api, pieces, triggerCharacter, unit)
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)
