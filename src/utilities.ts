@@ -331,6 +331,34 @@ export function removeFilePattern(enviroPath: string, pattern: string) {
 }
 
 /**
+ * Cleans the message we want to show in the output. The Test Results pane handles logs differently.
+ * @param testResultString Test result we want to clean
+ * @returns Cleaned message, ready for the Test Results pane
+ */
+export function cleanTestResultsPaneMessage(testResultString: string) {
+  let cleanedOutput = testResultString.split("\n");
+
+  // Determine the leading spaces in the second line
+  // We want that the first line is left-aligned, and all subsequent lines are aligned to the second line
+  let secondLine = cleanedOutput[1] || "";
+  let secondLinePadding = secondLine.match(/^(\s*)/)?.[0] || "";
+
+  // Align all lines after the first one to match the second line's padding
+  let alignedOutput = cleanedOutput
+    .map((line, index) => {
+      // First line stays unmodified
+      if (index === 0) {
+        return line.trim();
+      }
+      // Apply second line padding to subsequent lines
+      return secondLinePadding + line.trim();
+    })
+    .join("\r\n");
+
+  return alignedOutput;
+}
+
+/**
  * Updates the env file with the new settings from the VSCode settings
  */
 export async function updateCoverageAndRebuildEnv() {
