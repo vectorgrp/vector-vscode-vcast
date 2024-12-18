@@ -3,6 +3,7 @@ The format of a test case is as follows:
 {
     "test_name": <some descriptive test name>,
     "test_description": <more details about the test>
+    "requirement_id": <requirement being tested by this test> (optional)
     "unit_name": <unit_name>,
     "subprogram_name": <subprogram_name>,
     "input_values": [
@@ -131,5 +132,6 @@ The following sections describe the syntax for specifying the `identifier` and `
 - Unless a function is called inside the checked subprogram their identifiers are not updated and should not be used as expected values.
 - All function calls from external files, i.e, those referenced with `uut_prototype_stubs` are stubbed and do not implement any behaviour. Setting their input values has no effect on their output values (instead default values are output unless you specify values for them).
 - In general any value not set (input of course), will fall back to a default value. However this should be avoided to prevent undefined behaviour. This means all input variables (and outputs of stubbed values) should be exhaustively described.
+- If the RETURN value of a called function is set as an input, the function will be stubbed during execution and not implement any behaviour.
 - In particular, to access methods of a class and set values it is imperative to first instantiate the class using a constructor. For all classes a default object is ready to be initialized if needed using the respective constructor.
 
