@@ -406,7 +406,6 @@ def getCoverageData(sourceObject):
                         coverageGutter.handleStatementCoverage(
                             line,
                             coveredString,
-                            partiallyCoveredString,
                             uncoveredString,
                         )
                     )

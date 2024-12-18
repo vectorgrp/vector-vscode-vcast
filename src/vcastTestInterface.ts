@@ -391,9 +391,7 @@ export async function getResultFileForTest(testID: string) {
       if (firstLineOfOutput.includes("REPORT:")) {
         // This is the normal case --> delete the REPORT to only have the file name
         resultFile = firstLineOfOutput.replace("REPORT:", "");
-
-        // Verify if the generated report file actually exists
-        resultFile = firstLineOfOutput.replace("REPORT:", "");
+        // Check if the file exists
         if (!fs.existsSync(resultFile)) {
           const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
           vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
@@ -975,7 +973,6 @@ export async function getMCDCResultFile(
 ) {
   // Generate the environment path and request the test report from Python
   const commandStatus = await getMCDCReport(enviroPath, unit, lineNumber);
-  // TODO: Probably should save the resultfile globally somehow like in getResultFileForTest()
   let resultFile: string = "";
 
   // Check if report generation was successful

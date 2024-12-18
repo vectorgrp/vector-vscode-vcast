@@ -59,6 +59,7 @@ import {
   addSettingsFileFilter,
   getEnvPathForFilePath,
   showSettings,
+  forceLowerCaseDriveLetter,
 } from "./utilities";
 
 import {
@@ -106,8 +107,6 @@ const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
-
-import { forceLowerCaseDriveLetter } from "./utilities";
 
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;

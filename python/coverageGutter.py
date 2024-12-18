@@ -47,9 +47,7 @@ def getMCDCLineDic(sourceObject):
     return mcdc_unit_line_dic
 
 
-def handleStatementCoverage(
-    line, coveredString, partiallyCoveredString, uncoveredString
-):
+def handleStatementCoverage(line, coveredString, uncoveredString):
     """
     Returns the coverage strings for Statement Coverage.
     """
@@ -252,6 +250,7 @@ def handleBranchCoverage(
 
 
 def main():
+    # This script is not designed to be executed directly from the command line.
     pass
 
 

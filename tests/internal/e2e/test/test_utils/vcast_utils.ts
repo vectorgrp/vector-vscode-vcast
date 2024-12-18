@@ -12,12 +12,10 @@ import {
   ContentAssistItem,
   BottomBarPanel,
 } from "wdio-vscode-service";
-// import * as vscode from "vscode";
 import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
-import { moveCursor } from "node:readline";
 
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 180_000;
@@ -391,7 +389,6 @@ export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
   const menuElement = await $("aria/Insert Basis Path Tests");
   await menuElement.click();
 
-  const editorView = workbench.getEditorView();
   await browser.waitUntil(
     async () =>
       (await (await bottomBar.openOutputView()).getText())
@@ -1490,7 +1487,7 @@ export async function checkForGutterAndGenerateReport(
   const workbench = await browser.getWorkbench();
   const activityBar = workbench.getActivityBar();
   const explorerView = await activityBar.getViewControl("Explorer");
-  const explorerSideBarView = await explorerView?.openView();
+  await explorerView?.openView();
 
   const workspaceFolderSection =
     await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
@@ -1543,7 +1540,6 @@ export async function checkForGutterAndGenerateReport(
  * @param envName Name of environment.
  */
 export async function rebuildEnvironmentFromTestingPane(envName: string) {
-  const workbench = await browser.getWorkbench();
   const vcastTestingViewContent = await getViewContent("Testing");
   const env = `cpp/unitTests/${envName}`;
 

@@ -4,7 +4,6 @@ import {
   type Workbench,
   CustomTreeItem,
   EditorView,
-  TextEditor,
   TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
@@ -22,15 +21,14 @@ import {
   generateBasisPathTestForSubprogram,
   deleteGeneratedTest,
   rebuildEnvironmentFromTestingPane,
+  TIMEOUT,
 } from "../test_utils/vcast_utils";
-import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  let useDataServer: boolean = true;
   let subprogramMethod: CustomTreeItem;
   before(async () => {
     workbench = await browser.getWorkbench();
@@ -39,10 +37,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     editorView = workbench.getEditorView();
     process.env.E2E_TEST_ID = "0";
-    let releaseIsSuitableForServer = await checkForServerRunnability();
-    if (process.env.VCAST_USE_PYTHON || !releaseIsSuitableForServer) {
-      useDataServer = false;
-    }
   });
 
   it("test 1: should be able to load VS Code", async () => {
