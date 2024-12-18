@@ -67,7 +67,7 @@ Notes:
         # Now construct the parts of the text that are relevant to the query
         relevant_text_parts = []
         for text_range in merged_ranges:
-            relevant_text_parts.append("\n".join(self.reference.splitlines()[max(text_range.start_line-1, 0):max(text_range.end_line, 0)]) + "\n")
+            relevant_text_parts.append("\n".join(self.reference.splitlines()[max(text_range.start_line-1, 0):max(text_range.end_line+1, 0)]) + "\n")
 
         # Merge the parts into a single string
         relevant_text = "\n\n...\n\n".join(relevant_text_parts)

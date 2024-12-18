@@ -171,19 +171,35 @@ class TestGenerator:
             return None
 
         # Build code context using the environment
-        # TODO: Pass the function for real
         function_name = requirement_id.rsplit('.', 1)[0]
         context = await self.context_builder.build_code_context(function_name, reduce_context=True)
+        logging.debug("Generated code context: %s", context)
         
-        # Get ATG example test cases
-        atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name)
+        # Determine number of example test cases based on context length
+        context_lines = len(context.strip().split('\n'))
+        if context_lines < 200:
+            num_examples = 1
+            basis_path = False
+        else:
+            num_examples = 3
+            basis_path = True
 
-        if not self.environment:
-            logging.error("Environment is not available.")
-            return None
+        atg_examples = ""
+        logging.info(f"Fetching {num_examples} ATG example test cases")
+        atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
+        logging.debug("Retrieved ATG examples: %s", atg_examples)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
+
+        example_test_cases_section = ""
+        if num_examples > 0:
+            example_test_cases_section = f"""
+Example Test Cases:
+```json
+{atg_examples}
+```
+"""
 
         messages = [
             {
@@ -202,12 +218,7 @@ Relevant Code:
 ```cpp
 {context}
 ```
-
-Example Test Cases:
-```json
-{atg_examples}
-```
-
+{example_test_cases_section}
 Requirement ID: {requirement_id}
 Requirement Text: {requirement_text}
 

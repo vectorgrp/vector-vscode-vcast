@@ -23,7 +23,7 @@ class ATGContextBuilder:
 
             # Initialize test cases if not done yet
             if self._test_cases is None:
-                self._test_cases = self.environment.atg_tests
+                self._test_cases = self.environment.basis_path_tests
                 if not self._test_cases:
                     return ""
 

@@ -167,10 +167,31 @@ class Environment:
             logging.error("ATG file not generated")
             return ""
             
-        with open(atg_file, 'r') as f:
-            test_file_contents = f.read()
-
         return self._parse_test_script(atg_file)
+        
+    @cached_property
+    def basis_path_tests(self) -> str:
+        env_name = self.env_name
+        cmd = f'$VECTORCAST_DIR/clicast -e {env_name} tool auto_test basis.tst'
+        env_vars = os.environ.copy()
+        
+        try:
+            result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            logging.error(f"Command '{cmd}' timed out after 60 seconds")
+            return ""
+            
+        if result.returncode != 0:
+            logging.error(f"Basis path command failed with error:\n{result.stderr}")
+            return ""
+            
+        basis_test_file = os.path.join(self.env_dir, 'basis.tst')
+        if not os.path.exists(basis_test_file):
+            logging.error("Basis path file not generated")
+            return ""
+            
+        return self._parse_test_script(basis_test_file)
 
     def _parse_test_script(self, tst_file_path: str) -> str:
         with open(tst_file_path, 'r') as f:
