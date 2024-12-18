@@ -842,7 +842,7 @@ function getMCDCReportFromPython(
     enviroPath
   );
   vectorMessage(
-    `Commandstatus: ${commandStatus.errorCode} ${commandStatus.stdout}`
+    `Commandstatus: ${commandStatus.errorCode}, MCDC Lines: ${commandStatus.stdout}`
   );
   return commandStatus;
 }
