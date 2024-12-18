@@ -42,12 +42,14 @@ class clientRequest:
         command,
         clicast="",
         path="",
+        test="",
         options="",
         unit="",
     ):
         self.command = command
         self.clicast = clicast
         self.path = path
+        self.test = test
         self.options = options
         self.unit = unit
 
@@ -56,6 +58,7 @@ class clientRequest:
         data["command"] = self.command
         data["clicast"] = self.clicast
         data["path"] = self.path
+        data["test"] = self.test
         data["options"] = self.options
         data["unit"] = self.unit
         return data
@@ -69,13 +72,16 @@ class clientRequest:
         clicast = ""
         if "clicast" in data:
             clicast = data["clicast"]
+        test = ""
+        if "test" in data:
+            test = data["test"]
         options = ""
         if "options" in data:
             options = data["options"]
         unit = ""
         if "unit" in data:
             unit = data["unit"]
-        return cls(command, clicast, path, options, unit)
+        return cls(command, clicast, path, test, options, unit)
 
 
 class environmentData:

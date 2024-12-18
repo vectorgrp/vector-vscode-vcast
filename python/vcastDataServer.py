@@ -105,9 +105,6 @@ def runcommand(clientRequest, clientRequestText):
             # because we are not restarting, we need to clear the global output log
             testEditorInterface.globalOutputLog.clear()
 
-            logMessage(
-                f"  clientRequest '{clientRequest.options}' ###### '{clientRequest.path}' ##### '{clientRequest.unit}'"
-            )
             choiceData = testEditorInterface.processTstLine(
                 clientRequest.path, clientRequest.options, clientRequest.unit
             )
