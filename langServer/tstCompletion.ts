@@ -24,6 +24,10 @@ function filterArray(currentArray: string[], whatToRemove: string) {
   return currentArray.filter((element) => element !== whatToRemove);
 }
 
+// This is a cache map for the clicast option so that we don't have to check it every time
+// Otherwise we would run <clicast get_option> everytime we want autocompletion
+const clicastOptionCache = new Map<string, boolean>();
+
 /**
  * Checks if a specific VectorCAST option is set to a given value in the specified environment.
  *
@@ -38,18 +42,35 @@ export async function checkClicastOption(
   optionValue: string
 ): Promise<boolean> {
   const execAsync = promisify(exec);
-  const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast get_option ${option}`;
 
-  const { stdout, stderr } = await execAsync(getCodedTestsSupportCommand, {
-    cwd: enviroPath,
-  });
+  // Create a unique cache key using the parameters
+  const cacheKey = `${enviroPath}:${option}:${optionValue}`;
 
-  if (stderr) {
-    console.error(`Error executing command: ${stderr}`);
-    return false;
+  // Check if the result is already cached
+  if (clicastOptionCache.has(cacheKey)) {
+    return clicastOptionCache.get(cacheKey)!;
   }
 
-  return stdout.includes(`${optionValue}`);
+  const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast get_option ${option}`;
+
+  try {
+    const { stdout, stderr } = await execAsync(getCodedTestsSupportCommand, {
+      cwd: enviroPath,
+    });
+
+    if (stderr) {
+      console.error(`Error executing command: ${stderr}`);
+      return false;
+    }
+
+    const result = stdout.includes(`${optionValue}`);
+    // Store the result in the cache
+    clicastOptionCache.set(cacheKey, result);
+    return result;
+  } catch (error: any) {
+    console.error(`Error executing command: ${error.message}`);
+    return false;
+  }
 }
 
 /**

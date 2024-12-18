@@ -414,7 +414,7 @@ export function getClientRequestObject(
   const requestObject: clientRequestType = {
     command: command,
     path: path,
-    test: testArgWithoutQuotes,
+    options: testArgWithoutQuotes,
   };
 
   return requestObject;
