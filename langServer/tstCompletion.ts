@@ -38,18 +38,18 @@ export async function checkClicastOption(
   optionValue: string
 ): Promise<boolean> {
   const execAsync = promisify(exec);
-  const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast option ${option}`;
+  const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast get_option ${option}`;
 
-  try {
-    const { stdout } = await execAsync(getCodedTestsSupportCommand, {
-      cwd: enviroPath,
-    });
+  const { stdout, stderr } = await execAsync(getCodedTestsSupportCommand, {
+    cwd: enviroPath,
+  });
 
-    return stdout.includes(`${optionValue}`);
-  } catch (stderr) {
+  if (stderr) {
     console.error(`Error executing command: ${stderr}`);
     return false;
   }
+
+  return stdout.includes(`${optionValue}`);
 }
 
 /**
@@ -89,7 +89,7 @@ export async function getTstCompletionData(
   let codedTestsEnabled;
 
   if (enviroPath) {
-    codedTestsEnabled = checkClicastOption(
+    codedTestsEnabled = await checkClicastOption(
       enviroPath,
       "VCAST_CODED_TESTS_SUPPORT",
       "True"
@@ -154,21 +154,23 @@ export async function getTstCompletionData(
       returnData.choiceList = scriptFeatureList;
     } else if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
       // find closest TEST.UNIT above this line ...
-      const unitName = getNearest(
+      const unit = getNearest(
         currentDocument,
         "UNIT",
         completionData.position.line
       );
+
       // TBD will need to change how this is done during the fix for issue #170
       // we use python to get a list of subprograms by creating a fake VALUE line
       // with the unitName set to what we found
-      let choiceArray = ["<<INIT>>", "<<COMPOUND>>"];
-      let choiceKind = "Keyword";
-      if (unitName.length > 0) {
+      let choiceKind = "";
+      let choiceArray: string[] = [];
+      if (unit.length > 0) {
         const choiceData = await getChoiceData(
           choiceKindType.choiceListTST,
           enviroPath,
-          "TEST.VALUE:" + unitName + "."
+          upperCaseLine,
+          unit
         );
         returnData.extraText = choiceData.extraText;
         returnData.messages = choiceData.messages;

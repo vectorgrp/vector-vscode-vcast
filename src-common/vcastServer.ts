@@ -27,8 +27,8 @@ export enum vcastCommandType {
 export interface clientRequestType {
   command: vcastCommandType;
   path: string;
-  test?: string;
   options?: string;
+  unit?: string;
 }
 
 // This is set when the VectorCAST Data Server process is started

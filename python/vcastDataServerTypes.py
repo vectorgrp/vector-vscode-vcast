@@ -37,20 +37,27 @@ class commandType(str, Enum):
 
 
 class clientRequest:
-    def __init__(self, command, clicast="", path="", test="", options=""):
+    def __init__(
+        self,
+        command,
+        clicast="",
+        path="",
+        options="",
+        unit="",
+    ):
         self.command = command
         self.clicast = clicast
         self.path = path
-        self.test = test
         self.options = options
+        self.unit = unit
 
     def toDict(self):
         data = {}
         data["command"] = self.command
         data["clicast"] = self.clicast
         data["path"] = self.path
-        data["test"] = self.test
         data["options"] = self.options
+        data["unit"] = self.unit
         return data
 
     @classmethod
@@ -62,13 +69,13 @@ class clientRequest:
         clicast = ""
         if "clicast" in data:
             clicast = data["clicast"]
-        test = ""
-        if "test" in data:
-            test = data["test"]
         options = ""
         if "options" in data:
             options = data["options"]
-        return cls(command, clicast, path, test, options)
+        unit = ""
+        if "unit" in data:
+            unit = data["unit"]
+        return cls(command, clicast, path, options, unit)
 
 
 class environmentData:

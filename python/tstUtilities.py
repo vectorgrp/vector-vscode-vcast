@@ -413,6 +413,28 @@ class choiceDataType:
         return data
 
 
+def processSubprogramLines(api, pieces, triggerCharacter, unit):
+    """
+    This function will handle the TEST.SUBPROGRAM line completions
+    """
+    global globalOutputLog
+    returnData = choiceDataType()
+    lengthOfCommand = len(pieces)
+    globalOutputLog.append("Last piece: " + pieces[2])
+    globalOutputLog.append("pieces length: " + str(lengthOfCommand))
+    # TEST.SUBPROGRAM:
+    if lengthOfCommand == 3 and triggerCharacter == ":":
+        objectList = api.Unit.all()
+        returnData.choiceList = getFunctionList(api, unit)
+        returnData.choiceKind = choiceKindType.Function
+        returnData.choiceList.append("<<INIT>>")
+        returnData.choiceList.append("<<COMPOUND>>")
+    else:
+        # TODO: Current implementation just to make it work. --> See what alse can come after
+        processStandardLines(api, pieces, triggerCharacter)
+    return returnData
+
+
 def processRequirementLines(api, pieces, triggerCharacter):
     """
     This function will compute the list of possible requirement keys and return
@@ -985,7 +1007,7 @@ def buildChoiceResponse(choiceData: choiceDataType):
     return responseObject
 
 
-def processTstLine(enviroPath, line):
+def processTstLine(enviroPath, line, unit=None):
     """
 
     This function will process TEST.<command> line completions
@@ -1039,6 +1061,8 @@ def processTstLine(enviroPath, line):
             returnData = processSlotLines(api, pieces, triggerCharacter)
         elif line.upper().startswith("TEST.REQUIREMENT_KEY"):
             returnData = processRequirementLines(api, pieces, triggerCharacter)
+        elif line.upper().startswith("TEST.SUBPROGRAM"):
+            returnData = processSubprogramLines(api, pieces, triggerCharacter, unit)
         else:
             returnData = processStandardLines(api, pieces, triggerCharacter)
 
