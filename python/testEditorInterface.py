@@ -9,19 +9,50 @@ This file provides the interface between the VSCode plugin server
 and the VectorCAST environment, using the VectorCAST dataAPI
 """
 
+import argparse
 import json
 import re
 import sys
+import os
 
+# Available modes
+modeChoices = ["choiceList-ct", "choiceList-tst"]
 
 from tstUtilities import (
     buildChoiceResponse,
     choiceDataType,
     globalOutputLog,
     processTstLine,
-    processTstLine,
     processMockDefinition,
 )
+
+
+def setupArgs():
+    """
+    Add Command Line Args
+    """
+    parser = argparse.ArgumentParser(description="VectorCAST Test Editor Interface")
+
+    parser.add_argument(
+        "--mode",
+        choices=modeChoices,
+        required=True,
+        help="Test Editor Mode: choiceList-ct or choiceList-tst",
+    )
+
+    parser.add_argument(
+        "--enviroName",
+        required=True,
+        help="Path to the environment directory or cbt file",
+    )
+
+    parser.add_argument(
+        "--inputLine", required=True, help="Contents of the line from the editor so far"
+    )
+
+    parser.add_argument("--unit", help="Unit name (optional)")
+
+    return parser
 
 
 def main():
@@ -33,40 +64,23 @@ def main():
     # We get here when the user types a "." or ":"
 
     # argv has the name of the script as arg 1 and then user args
-    if len(sys.argv) == 4:
-        # What to do choiceList-ct or choiceList-tst
-        mode = sys.argv[1]
+    argParser = setupArgs()
+    args, restOfArgs = argParser.parse_known_args()
+    pathToUse = os.path.abspath(args.enviroName)
 
-        # Path to the environment folder
-        enviroPath = sys.argv[2]
-
-        # Contents of the line from the editor so far
-        inputLine = sys.argv[3]
-
-        if mode == "choiceList-ct":
-            # if the line starts with "void vmock" then we are processing vmock definition
-            if re.match("^\s*\/\/\s*vmock", inputLine):
-                choiceData = processMockDefinition(enviroPath, inputLine)
-            else:
-                # noting to be done
-                choiceData = choiceDataType()
-
-        elif mode == "choiceList-tst":
-            choiceData = processTstLine(enviroPath, inputLine)
-
+    if args.mode == "choiceList-ct":
+        if re.match("^\s*\/\/\s*vmock", args.inputLine):
+            choiceData = processMockDefinition(pathToUse, args.inputLine)
         else:
             choiceData = choiceDataType()
-            globalOutputLog.append("Invalid mode: " + mode)
 
+    elif args.mode == "choiceList-tst":
+        choiceData = processTstLine(pathToUse, args.inputLine, args.unit)
     else:
         choiceData = choiceDataType()
-        # first arg is the name of the script, so we subtract 1
-        globalOutputLog.append(
-            f"Invalid number of arguments: {len(sys.argv)-1}, 3 expected"
-        )
+        globalOutputLog.append("Invalid mode: " + args.mode)
 
     outputDictionary = buildChoiceResponse(choiceData)
-
     print(json.dumps(outputDictionary, indent=4))
 
     sys.exit(0)

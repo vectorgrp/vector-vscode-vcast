@@ -101,7 +101,8 @@ export const emptyChoiceData: choiceDataType = {
 export async function getChoiceDataFromServer(
   kind: choiceKindType,
   enviroPath: string,
-  lineSoFar: string
+  lineSoFar: string,
+  unit?: string
 ): Promise<choiceDataType> {
   // We are re-using options for the line fragment in the request
 
@@ -113,6 +114,7 @@ export async function getChoiceDataFromServer(
     command: commandToUse,
     path: enviroPath,
     options: lineSoFar,
+    ...(unit !== undefined && { unit }), // only add unitName if it is defined
   };
 
   let transmitResponse: transmitResponseType =
@@ -138,11 +140,12 @@ export enum choiceKindType {
 export function getChoiceDataFromPython(
   kind: choiceKindType,
   enviroName: string,
-  lineSoFar: string
+  lineSoFar: string,
+  unit?: string
 ): choiceDataType {
   // NOTE: we cannot use executeCommand() here because it is in the client only!
   // commandOutput is a buffer: (Uint8Array)
-  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} ${kind} ${enviroName} "${lineSoFar}"`;
+  const commandToRun = `${vPythonCommandToUse} ${testEditorScriptPath} --mode ${kind} --enviroName ${enviroName} --inputLine "${lineSoFar}" --unit ${unit}`;
   let commandOutputBuffer = execSync(commandToRun).toString();
 
   // see detailed comment with the function definition
@@ -157,15 +160,16 @@ export function getChoiceDataFromPython(
 export async function getChoiceData(
   kind: choiceKindType,
   enviroPath: string,
-  lineSoFar: string
+  lineSoFar: string,
+  unit?: string
 ): Promise<choiceDataType> {
   //
 
   let jsonData: any;
   if (globalEnviroDataServerActive) {
-    jsonData = await getChoiceDataFromServer(kind, enviroPath, lineSoFar);
+    jsonData = await getChoiceDataFromServer(kind, enviroPath, lineSoFar, unit);
   } else {
-    jsonData = getChoiceDataFromPython(kind, enviroPath, lineSoFar);
+    jsonData = getChoiceDataFromPython(kind, enviroPath, lineSoFar, unit);
   }
 
   for (const msg of jsonData.messages) {
