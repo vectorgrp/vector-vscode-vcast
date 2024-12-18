@@ -67,6 +67,16 @@ The following sections describe the syntax for specifying the `identifier` and `
   - Example:
     { "identifier": "unit.subprogram.RETURN", "value": 23.0 }
 
+#### Local Function variables
+- It is not possible to set the value of variables locally defined in the function (only its inputs and return value)
+- However, it is possible that it is sometimes necessary:
+  - If a local variable is supposed to be modified by a function called inside the tested subprogram (by reference), this does not work if the function is stubbed (for instance as is the case for an externally defined subprogram outside the current unit)
+  - In this case you should set the value of the stub input variable to implicitly update the local variable along with it
+  - Just setting a value directly will not work, instead we need to use a special variable construct only for this purpose called VECTORCAST_INT1
+  - For example assume we have a local variable x that is modified by a stubbed called to foo(&x). Then you can change the value of x tp 10 like so:
+    { "identifier": "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_INT1", "value": 10 }
+    { "identifier": "uut_prototype_stubs.foo.x", "value": "VECTORCAST_INT1" }
+
 #### Global Objects
 - Use the syntax `UNIT.<<GLOBAL>>.OBJECT` to set values for global objects.
   - Example:
