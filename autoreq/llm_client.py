@@ -1,8 +1,10 @@
 import os
+import backoff
 from aiolimiter import AsyncLimiter
 from openai import AsyncAzureOpenAI
 from typing import List, Dict, Any
 from dotenv import load_dotenv
+import openai
 
 load_dotenv()
 
@@ -27,11 +29,9 @@ class LLMClient:
             'reasoning': {'input_tokens': 0, 'output_tokens': 0}
         }
 
+    @backoff.on_exception(backoff.expo, openai.RateLimitError)
     async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, **kwargs):
         async with RATE_LIMIT:
-            if extended_reasoning:
-                raise ValueError("Copilot cannot be used with extended reasoning.")
-
             model = "gpt-4o" if extended_reasoning else "o1-mini"
 
             if extended_reasoning:
@@ -53,7 +53,8 @@ class LLMClient:
             else:
                 raw_completion = await self.reasoning_client.chat.completions.create(
                     model=model,
-                    messages=messages
+                    messages=messages,
+                    max_completion_tokens=max_tokens,
                 )
                 # Update token usage for the reasoning model
                 self.token_usage['reasoning']['input_tokens'] += raw_completion.usage.prompt_tokens
@@ -67,7 +68,7 @@ class LLMClient:
                     ],
                     response_format=schema,
                     temperature=temperature,
-                    max_tokens=5000
+                    max_tokens=max_tokens
                 )
                 # Update token usage for parsing step (considered as generation model)
                 self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens

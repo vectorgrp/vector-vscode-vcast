@@ -51,7 +51,7 @@ Notes:
         ]
 
         result = await self.llm_client.call_model(
-            messages, SearchOutput, temperature=0.0, extended_reasoning=False
+            messages, SearchOutput, temperature=0.0, max_tokens=15000, extended_reasoning=False
         )
 
         # First sort the ranges and then merge adjacent ranges

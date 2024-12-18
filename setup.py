@@ -17,7 +17,8 @@ setup(
     'tqdm==4.66.1',
     'tree-sitter==0.23.2',
     'tree-sitter-c==0.23.1',
-    'tree-sitter-cpp==0.23.4'
+    'tree-sitter-cpp==0.23.4',
+    'backoff==2.2.1'
   ],
   include_package_data=True
 )
