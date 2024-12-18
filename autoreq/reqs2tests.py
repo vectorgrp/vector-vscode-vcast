@@ -70,8 +70,8 @@ async def main():
             logging.info(f"Test Description for {requirement_id}:\n{result.test_description}")
             logging.info("Test Mapping Analysis:\n%s", result.test_mapping_analysis)
             for test_case in result.test_cases:
-                logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast([requirement_id]))
-                vectorcast_test_cases.append(test_case.to_vectorcast([requirement_id]))
+                logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
+                vectorcast_test_cases.append(test_case.to_vectorcast())
 
             if args.execute:
                 output = environment.run_tests(vectorcast_test_cases, execute=True)

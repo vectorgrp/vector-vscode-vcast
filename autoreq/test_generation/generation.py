@@ -23,7 +23,7 @@ def _derive_schema(allowed_identifiers=None):
         Identifier = TempEnum("Identifier", [(ident, ident) for ident in allowed_identifiers])
     else:
         Identifier = str
-    
+
     class ValueMapping(BaseModel):
         identifier: Identifier # type: ignore
         value: str
@@ -35,9 +35,28 @@ def _derive_schema(allowed_identifiers=None):
                 return f"TEST.EXPECTED:{patched_identifier}:{self.value}\n"
             return f"TEST.VALUE:{patched_identifier}:{self.value}\n"
 
+        @property
+        def needed_stub_as_input(self):
+            return_match = re.match(r'([^\.]+\.[^\.]+).*\.return', self.identifier, re.IGNORECASE)
+
+            if return_match:
+                return return_match.group(1)
+            else:
+                return None
+
+        @property
+        def needed_stub_as_expected(self):
+            match = re.match(r'([^\.]+\.[^\.]+)', self.identifier)
+
+            if match:
+                return match.group(1)
+            else:
+                return None
+
     class TestCase(BaseModel):
         test_name: str
         test_description: str
+        requirement_id: str
         unit_name: str
         subprogram_name: str
         input_values: List[ValueMapping]
@@ -47,29 +66,67 @@ def _derive_schema(allowed_identifiers=None):
         def unit_names(self):
             return [self.unit_name]
 
-        def to_vectorcast(self, tested_requirements=[], is_compound=False) -> str:
+        def to_vectorcast(self, is_compound=False) -> str:
             test_case_str = f"TEST.UNIT:{self.unit_name}\n"
             test_case_str += f"TEST.SUBPROGRAM:{self.subprogram_name}\n"
             test_case_str += "TEST.NEW\n"
             test_case_str += f"TEST.NAME:{('compound' if is_compound else '') + self.test_name}\n"
 
-            for req in tested_requirements:
-                test_case_str += f"TEST.REQUIREMENT_KEY:{req}\n"
+            test_case_str += f"TEST.REQUIREMENT_KEY:{self.requirement_id}\n"
 
             test_case_str += "TEST.NOTES:\n"
             for line in self.test_description.split('\n'):
                 test_case_str += f"{line}\n"
             test_case_str += "TEST.END_NOTES:\n"
 
+            for stub in self._get_needed_stubs():
+                test_case_str += f"TEST.STUB:{stub}\n"
+
             for input_value in self.input_values:
                 test_case_str += input_value.to_vectorcast()
 
             for expected_value in self.expected_values:
                 test_case_str += expected_value.to_vectorcast(is_expected=True)
-                
+
             test_case_str += "TEST.END\n"
             return test_case_str
 
+        def _get_needed_stubs(self):
+            needed_stubs = set()
+            for input_value in self.input_values:
+                stub = input_value.needed_stub_as_input
+
+                if not stub:
+                    continue
+
+                unit_name, subprogram_name = stub.split('.', 1)
+
+                if self.subprogram_name.startswith(subprogram_name):
+                    continue
+
+                if subprogram_name == '<<GLOBAL>>':
+                    continue
+                
+                needed_stubs.add(stub)
+
+            for expected_value in self.expected_values:
+                stub = expected_value.needed_stub_as_expected
+
+                if not stub:
+                    continue
+
+                unit_name, subprogram_name = stub.split('.', 1)
+
+                if self.subprogram_name.startswith(subprogram_name):
+                    continue
+
+                if subprogram_name == '<<GLOBAL>>':
+                    continue
+                
+                needed_stubs.add(stub)
+
+            return needed_stubs
+    
     class TestGenerationResult(BaseModel):
         test_description: str
         test_mapping_analysis: str
@@ -162,8 +219,8 @@ Solve the problem using the following steps:
 1. Give a description in natural language of how the requirement should be tested.
 3. Think about which values need to be set to what and what we expect to happen in the actual code, i.e., how do we translate from natural language descripion to implementation?
 4. Generate a test case (one or more depending on what you deem to be suitable) to test individual subprograms.
-    a. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
-    b. Come up with a descriptive (unique) name for the test case and describe in natural language how this test exercises the requirement
+    a. Come up with a descriptive (unique) name for the test case and describe in natural language how this test exercises the requirement
+    b. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
     c. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
 
 Notes:
@@ -202,7 +259,7 @@ Notes:
         while iteration < max_iterations:
             iteration += 1
             # Generate vectorcast test cases for all test cases
-            vectorcast_cases = [tc.to_vectorcast([requirement_id]) for tc in test_generation_result.test_cases]
+            vectorcast_cases = [tc.to_vectorcast() for tc in test_generation_result.test_cases]
 
             output = self.environment.run_tests(vectorcast_cases, execute=True)
             errors, test_failures = self._parse_error_output(output)
