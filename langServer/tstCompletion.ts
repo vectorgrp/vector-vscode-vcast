@@ -154,7 +154,6 @@ export async function getTstCompletionData(
         }
 
         // Remove "VALUE" and "EXPECTED" as it is not allowed with coded_tests_driver
-        // TODO: Check if we can get rid of those in getFunctionList()
         returnData.choiceList = returnData.choiceList.filter(
           (item) => item !== "VALUE" && item !== "EXPECTED"
         );

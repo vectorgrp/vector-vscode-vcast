@@ -429,7 +429,6 @@ def processSubprogramLines(api, pieces, triggerCharacter, unit):
         returnData.choiceKind = choiceKindType.Function
         returnData.choiceList.extend(["<<INIT>>", "<<COMPOUND>>", "coded_tests_driver"])
     else:
-        # TODO: Current implementation just to make it work. --> See what alse can come after
         processStandardLines(api, pieces, triggerCharacter)
     return returnData
 
