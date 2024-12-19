@@ -92,7 +92,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
-  it("should edit Test Script check for autocompletion", async () => {
+  it("should edit Test Script and check for autocompletion", async () => {
     await updateTestID();
 
     console.log("Opening Testing View");
@@ -141,9 +141,6 @@ describe("vTypeCheck VS Code Extension", () => {
     )) as TextEditor;
 
     console.log("Check for TEST.SUBPROGRAM:coded_tests_driver autocompletion");
-    // Need to activate contentAssist before getting the object
-    // That way we avoid a timeout that is a result of
-    // toggleContentAssist() implementation
     await browser.keys([Key.Ctrl, Key.Space]);
     const contentAssist = await tab.toggleContentAssist(true);
 
@@ -175,8 +172,6 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     currentLine = await tab.getLineOfText("TEST.VALUE");
-
-    // Get the tooltip text when hovering over the "// vmock" comment
     let hoverText = await getGeneratedTooltipTextAt(
       currentLine,
       "TEST.VALUE".length - 1,
