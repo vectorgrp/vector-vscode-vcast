@@ -26,6 +26,7 @@ import {
   clicastCommandToUse,
   configFileContainsCorrectInclude,
   globalIncludePath,
+  globalMCDCReportPath,
   globalTestInterfacePath,
   vPythonCommandToUse,
   vUnitIncludeSuffix,
@@ -397,6 +398,43 @@ export function getVcastInterfaceCommand(
   const commandToRun = getCommonCommandString(command, enviroPath);
   const testArgument = getTestArgument(testID, true);
   return `${commandToRun} ${testArgument}`;
+}
+
+/**
+ * Generates the command to interface with MCDC coverage tools.
+ *
+ * @param {vcastCommandType} command - The type of command to execute.
+ * @param {string} enviroPath - The path to the environment.
+ * @param {string} unitName - The unit name.
+ * @param {number} lineNumber - The specific line number for the MCDC report.
+ * @returns {string} The fully constructed command string to execute the MCDC interface.
+ */
+export function getVcastInterfaceCommandForMCDC(
+  command: vcastCommandType,
+  enviroPath: string,
+  unitName: string,
+  lineNumber: number
+) {
+  const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=${command.toString()} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+  let optionsDict: { [command: string]: string | number } = {};
+  optionsDict["unitName"] = unitName;
+  optionsDict["lineNumber"] = lineNumber;
+  const jsonOptions: string = JSON.stringify(optionsDict).replaceAll(
+    '"',
+    '\\"'
+  );
+  const testArgument = `--options="${jsonOptions}"`;
+  return `${commandToRun} ${testArgument}`;
+}
+
+/**
+ * Generates the command to get all mcdc coverage lines in an env.
+ * @param enviroName Name of env.
+ * @returns Command to get all mcdc coverage lines in an env.
+ */
+export function getMCDCLineCoverageCommand(enviroPath: string) {
+  const commandToRun = `${vPythonCommandToUse} ${globalMCDCReportPath}  --env=${enviroPath}`;
+  return commandToRun;
 }
 
 export function getClientRequestObject(
