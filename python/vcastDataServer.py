@@ -106,7 +106,7 @@ def runcommand(clientRequest, clientRequestText):
             testEditorInterface.globalOutputLog.clear()
 
             choiceData = testEditorInterface.processTstLine(
-                clientRequest.path, clientRequest.options
+                clientRequest.path, clientRequest.options, clientRequest.unit
             )
             returnData = tstUtilities.buildChoiceResponse(choiceData)
             logMessage(f"  line received: '{clientRequest.options}'")
