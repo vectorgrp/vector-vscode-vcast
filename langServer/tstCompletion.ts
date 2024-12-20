@@ -54,15 +54,9 @@ export async function checkClicastOption(
   const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast get_option ${option}`;
 
   try {
-    const { stdout, stderr } = await execAsync(getCodedTestsSupportCommand, {
+    const { stdout } = await execAsync(getCodedTestsSupportCommand, {
       cwd: enviroPath,
     });
-
-    if (stderr) {
-      console.error(`Error executing command: ${stderr}`);
-      return false;
-    }
-
     const result = stdout.includes(`${optionValue}`);
     // Store the result in the cache
     clicastOptionCache.set(cacheKey, result);
@@ -72,7 +66,6 @@ export async function checkClicastOption(
     return false;
   }
 }
-
 /**
  * Checks if a specific keyword followed by a colon and a given value exists in the extracted text.
  *
@@ -107,16 +100,6 @@ export async function getTstCompletionData(
   const enviroPath = getEnviroNameFromTestScript(testScriptPath);
   const extractedText = currentDocument.getText();
 
-  let codedTestsEnabled;
-
-  if (enviroPath) {
-    codedTestsEnabled = await checkClicastOption(
-      enviroPath,
-      "VCAST_CODED_TESTS_SUPPORT",
-      "True"
-    );
-  }
-
   if (enviroPath && fs.existsSync(enviroPath)) {
     // The work we do is dependent on the trigger
     const context = completionData.context;
@@ -147,15 +130,25 @@ export async function getTstCompletionData(
         "TEST.SUBPROGRAM",
         "coded_tests_driver"
       );
-      if (codedTestsEnabled && codedTestsDriverInSubprogram) {
-        // Check if its already there, otherwise it will be pushed multiple times
-        if (!returnData.choiceList.includes("CODED_TEST_FILE")) {
-          returnData.choiceList.push("CODED_TEST_FILE");
-        }
 
+      let codedTestsEnabled;
+
+      if (enviroPath) {
+        codedTestsEnabled = await checkClicastOption(
+          enviroPath,
+          "VCAST_CODED_TESTS_SUPPORT",
+          "TRUE"
+        );
+      }
+      if (codedTestsEnabled && codedTestsDriverInSubprogram) {
         // Remove "VALUE" and "EXPECTED" as it is not allowed with coded_tests_driver
         returnData.choiceList = returnData.choiceList.filter(
           (item) => item !== "VALUE" && item !== "EXPECTED"
+        );
+      } else {
+        // If coded tests are not enabled, remove "CODED_TEST_FILE"
+        returnData.choiceList = returnData.choiceList.filter(
+          (item) => item !== "CODED_TEST_FILE"
         );
       }
     } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:") {
@@ -180,9 +173,6 @@ export async function getTstCompletionData(
         completionData.position.line
       );
 
-      // TBD will need to change how this is done during the fix for issue #170
-      // we use python to get a list of subprograms by creating a fake VALUE line
-      // with the unitName set to what we found
       let choiceKind = "";
       let choiceArray: string[] = [];
       if (unit.length > 0) {

@@ -102,7 +102,7 @@ export async function getChoiceDataFromServer(
   kind: choiceKindType,
   enviroPath: string,
   lineSoFar: string,
-  unit?: string
+  unitName?: string
 ): Promise<choiceDataType> {
   // We are re-using options for the line fragment in the request
 
@@ -114,7 +114,7 @@ export async function getChoiceDataFromServer(
     command: commandToUse,
     path: enviroPath,
     options: lineSoFar,
-    ...(unit !== undefined && { unit }), // only add unitName if it is defined
+    unit: unitName,
   };
 
   let transmitResponse: transmitResponseType =

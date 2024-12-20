@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { generateDiagnosticMessages } from "./utils";
+import { generateDiagnosticMessages, runCommand } from "./utils";
+import path from "path";
+import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
 
@@ -115,6 +117,39 @@ TEST.EXPECTED:
 TEST.STUB:
 TEST.END
 `;
+
+const codedTestFileTst = `
+TEST.UNIT:unit
+TEST.SUBPROGRAM:definitely_NOT_coded_tests_driver
+TEST.NEW
+TEST.NAME:
+TEST.CODED_TEST_FILE
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
+const testValueWithCTDriver = `
+TEST.UNIT:unit
+TEST.SUBPROGRAM:coded_tests_driver
+TEST.NEW
+TEST.NAME:
+TEST.CODED_TEST_FILE
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
+const testExpectedWithCTDriver = `
+TEST.UNIT:unit
+TEST.SUBPROGRAM:coded_tests_driver
+TEST.NEW
+TEST.NAME:
+TEST.CODED_TEST_FILE
+TEST.EXPECTED:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
 
 describe("Text Document Validator", () => {
   test(
@@ -321,6 +356,84 @@ describe("Text Document Validator", () => {
       const tstText = [initialTst, testAllowedTestCommandTst].join("\n");
       const diagnosticMessages = generateDiagnosticMessages(tstText);
       expect(diagnosticMessages).toEqual(expect.arrayContaining([]));
+    },
+    timeout
+  );
+
+  test(
+    "validate error detection when TEST.SUBPROGRAM is not set to coded_tests_driver and TEST.CODED_TEST_FILE is used",
+    async () => {
+      const tstText = codedTestFileTst;
+      const diagnosticMessages = generateDiagnosticMessages(tstText);
+      expect(diagnosticMessages).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining(
+            "TEST.CODED_TEST_FILE is not valid when TEST.SUBPROGRAM is not set to coded_tests_driver"
+          ),
+        ])
+      );
+    },
+    timeout
+  );
+
+  test(
+    "validate error detection when TEST.SUBPROGRAM is set to coded_tests_driver and TEST.VALUE is used",
+    async () => {
+      const testEnvPath = path.join(
+        process.env.PACKAGE_PATH as string,
+        "tests",
+        "unit",
+        "vcast",
+        "TEST"
+      );
+      const clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
+      const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
+
+      // Coded tests support only for >= vc24
+      if (toolVersion >= 24) {
+        const setCoded = `cd ${testEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await runCommand(setCoded);
+        const tstText = testValueWithCTDriver;
+        const diagnosticMessages = generateDiagnosticMessages(tstText);
+        expect(diagnosticMessages).toEqual(
+          expect.arrayContaining([
+            expect.stringContaining(
+              "TEST.VALUE and TEST.EXPECTED are not valid when TEST.SUBPROGRAM is set to coded_tests_driver"
+            ),
+          ])
+        );
+      }
+    },
+    timeout
+  );
+
+  test(
+    "validate error detection when TEST.SUBPROGRAM is set to coded_tests_driver and TEST.EXPECTED is used",
+    async () => {
+      const testEnvPath = path.join(
+        process.env.PACKAGE_PATH as string,
+        "tests",
+        "unit",
+        "vcast",
+        "TEST"
+      );
+      const clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
+      const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
+
+      // Coded tests support only for >= vc24
+      if (toolVersion >= 24) {
+        const setCoded = `cd ${testEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await runCommand(setCoded);
+        const tstText = testExpectedWithCTDriver;
+        const diagnosticMessages = generateDiagnosticMessages(tstText);
+        expect(diagnosticMessages).toEqual(
+          expect.arrayContaining([
+            expect.stringContaining(
+              "TEST.VALUE and TEST.EXPECTED are not valid when TEST.SUBPROGRAM is set to coded_tests_driver"
+            ),
+          ])
+        );
+      }
     },
     timeout
   );

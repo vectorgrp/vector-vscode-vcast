@@ -1062,7 +1062,7 @@ def processTstLine(enviroPath, line, unit=None):
         elif line.upper().startswith("TEST.SUBPROGRAM"):
             if unit == None:
                 globalOutputLog.append(
-                    "Additional 'unit' parameter is requiered for TEST.SUBPROGRAM: autocompletion."
+                    "Additional 'unit' parameter is required for TEST.SUBPROGRAM: autocompletion."
                 )
             returnData = processSubprogramLines(api, pieces, triggerCharacter, unit)
         else:

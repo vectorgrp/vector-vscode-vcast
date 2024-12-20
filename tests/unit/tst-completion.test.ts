@@ -1,13 +1,16 @@
 import path from "node:path";
 import process from "node:process";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { TextDocument, TextDocuments } from "vscode-languageserver";
 import URI from "vscode-uri";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
   storeNewDocument,
+  runCommand,
 } from "./utils";
+import { getToolVersion } from "./getToolversion";
+import { checkClicastOption } from "../../langServer/tstCompletion";
 
 const timeout = 30_000; // 30 seconds
 
@@ -123,7 +126,7 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-const globalValueTst = `
+const globalValueTst = `    vi.mocked(promisify).mockReturnValue(execAsyncMock);
 TEST.NEW
 TEST.NAME:fieldValTest
 TEST.VALUE:unit.<<GLOBAL>>.
@@ -158,7 +161,22 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
+const codedTestFileTst = `
+TEST.UNIT:
+TEST.SUBPROGRAM:coded_tests_driver
+TEST.
+TEST.NEW
+TEST.NAME:
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
 describe("Text Completion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test(
     "validate tst completion for TEST.SUBPROGRAM:",
     async () => {
@@ -1320,4 +1338,93 @@ describe("Text Completion", () => {
     },
     timeout
   );
+
+  test(
+    "validate completion for TEST.CODED_TEST_FILE with codedTestsEnabled and codedTestsDriverInSubprogram",
+    async () => {
+      const testEnvPath = path.join(
+        process.env.PACKAGE_PATH as string,
+        "tests",
+        "unit",
+        "vcast",
+        "TEST"
+      );
+      const clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
+      const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
+
+      // Coded tests support only for >= vc24
+      // We are setting Coded test support to be true in order to get the TEST.CODED_TEST_FILE completion
+      if (toolVersion >= 24) {
+        const setCoded = `cd ${testEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await runCommand(setCoded);
+
+        const tstText = codedTestFileTst;
+
+        const lineToComplete = "TEST.";
+        const completionPosition = getCompletionPositionForLine(
+          lineToComplete,
+          tstText
+        );
+        const triggerCharacter = ".";
+
+        const generatedCompletionData = await generateCompletionData(
+          tstText,
+          completionPosition,
+          triggerCharacter
+        );
+
+        const expectedCompletionData = [
+          { data: 0, detail: "", kind: 14, label: "SCRIPT_FEATURE" },
+          { data: 1, detail: "", kind: 14, label: "UNIT" },
+          { data: 2, detail: "", kind: 14, label: "SUBPROGRAM" },
+          { data: 3, detail: "", kind: 14, label: "NEW" },
+          { data: 4, detail: "", kind: 14, label: "REPLACE" },
+          { data: 5, detail: "", kind: 14, label: "ADD" },
+          { data: 6, detail: "", kind: 14, label: "END" },
+          { data: 7, detail: "", kind: 14, label: "NAME" },
+          { data: 8, detail: "", kind: 14, label: "CODED_TEST_FILE" },
+          { data: 9, detail: "", kind: 14, label: "NOTES" },
+          { data: 10, detail: "", kind: 14, label: "END_NOTES" },
+          { data: 11, detail: "", kind: 14, label: "FLOW" },
+          { data: 12, detail: "", kind: 14, label: "END_FLOW" },
+          { data: 13, detail: "", kind: 14, label: "SLOT" },
+          { data: 14, detail: "", kind: 14, label: "STUB" },
+          { data: 15, detail: "", kind: 14, label: "REQUIREMENT_KEY" },
+          { data: 16, detail: "", kind: 14, label: "VALUE_USER_CODE" },
+          { data: 17, detail: "", kind: 14, label: "END_VALUE_USER_CODE" },
+          { data: 18, detail: "", kind: 14, label: "EXPECTED_USER_CODE" },
+          { data: 19, detail: "", kind: 14, label: "END_EXPECTED_USER_CODE" },
+          { data: 20, detail: "", kind: 14, label: "IMPORT_FAILURES" },
+          { data: 21, detail: "", kind: 14, label: "END_IMPORT_FAILURES" },
+          { data: 22, detail: "", kind: 14, label: "COMPOUND_ONLY" },
+        ];
+
+        expect(generatedCompletionData).toEqual(expectedCompletionData);
+      }
+    },
+    timeout
+  );
+
+  test("should test the error catch of checkClicastOption", async () => {
+    // Mock execAsync to throw an error
+    const execAsyncMock = vi.fn();
+    execAsyncMock.mockRejectedValue(new Error("Command failed"));
+
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const result = await checkClicastOption(
+      "/some/path",
+      "someOption",
+      "someValue"
+    );
+
+    // If an error is thrown --> false should be returned
+    expect(result).toBe(false);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Error executing command: spawn /bin/sh ENOENT"
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
 });
