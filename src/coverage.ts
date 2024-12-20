@@ -277,15 +277,26 @@ export async function updateCOVdecorations() {
 }
 
 function deactivateCoverage() {
-  // delete all decorations
-  if (uncoveredDecorationType) uncoveredDecorationType.dispose();
-  if (coveredDecorationType) coveredDecorationType.dispose();
-  if (partiallyCoveredDecorationType) partiallyCoveredDecorationType.dispose();
-  if (coveredDecorationTypeWithMCDC) coveredDecorationTypeWithMCDC.dispose();
-  if (uncoveredDecorationTypeWithMCDC)
-    uncoveredDecorationTypeWithMCDC.dispose();
-  if (partiallyCoveredDecorationTypeWithMCDC)
-    partiallyCoveredDecorationTypeWithMCDC.dispose();
+  const decorationTypes = [
+    uncoveredDecorationType,
+    coveredDecorationType,
+    partiallyCoveredDecorationType,
+    coveredDecorationTypeWithMCDC,
+    uncoveredDecorationTypeWithMCDC,
+    partiallyCoveredDecorationTypeWithMCDC,
+  ];
+
+  // Debug log to verify contents of decorationTypes
+  console.log("Decoration Types Before Disposal:", decorationTypes);
+
+  // Iterate over the list and dispose of each decoration type if it exists
+  for (const decorationType of decorationTypes) {
+    if (decorationType) {
+      console.log("Disposing decoration type:", decorationType);
+      decorationType.dispose();
+    }
+  }
+
   coverageStatusBarObject.hide();
 }
 
