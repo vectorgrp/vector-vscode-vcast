@@ -285,6 +285,40 @@ start of the function being tested.
 
 You then simply need to set a breakpoint and use F5 to start the debugger.
 
+
+### MCDC Report
+
+The extension supports generating MC/DC reports for specific lines with MC/DC coverage. Follow the steps below to enable and generate these reports.
+
+#### Steps to Generate MC/DC Reports
+
+1. Configure Coverage Type
+    - Open the settings:
+      - Press `Ctrl + P` and select **Open Settings**.
+    - Navigate to:  
+    **VectorCAST Test Explorer > Environment Build > Coverage Kind**.
+    - Select the desired coverage type:
+      - **MCDC** or **STATEMENT+MCDC**.
+
+2. Rebuild the Environment: 
+    - After setting the coverage type, the environment(s) will rebuild automatically.
+
+3. Open an Instrumented File
+    - Open any C/C++ file that is instrumented in one of your environments.
+
+4. View Coverage Icons
+    - Check the **coverage gutter** (the area left of the line numbers).
+    - For MC/DC-specific lines, coverage icons with arrows will appear:
+      - **Green**: Fully covered.  
+      - **Yellow**: Partially covered.  
+      - **Red**: Not covered.
+
+5. Generate an MC/DC Report
+    - Right-click on a coverage icon.
+    - Select **VectorCAST MC/DC Report**.
+    - The report will open in a separate window on the right.
+
+
 ### VectorCAST Data Server
 
 #### Introduction

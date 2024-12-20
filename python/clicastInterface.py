@@ -382,6 +382,7 @@ def generate_report(testObject):
                 and test_case.name == testObject.testName
             ):
                 test_found = True
+
                 # Generate our report
                 api.report(
                     report_type="per_test_case_report",

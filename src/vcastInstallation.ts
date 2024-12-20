@@ -43,6 +43,7 @@ if (process.platform == "linux") {
 }
 
 export let globalTestInterfacePath: string | undefined = undefined;
+export let globalMCDCReportPath: string | undefined = undefined;
 let globalEnviroDataServerPath: string;
 
 export function getGlobalEnviroDataServerPath() {
@@ -75,9 +76,15 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
   const pathToTestInterface = context.asAbsolutePath(
     "./python/vTestInterface.py"
   );
+  const pathToMCDCReport = context.asAbsolutePath("./python/mcdcReport.py");
   if (fs.existsSync(pathToTestInterface)) {
     vectorMessage("Found vTestInterface here: " + pathToTestInterface);
     globalTestInterfacePath = `${pathToTestInterface}`;
+  }
+
+  if (fs.existsSync(pathToMCDCReport)) {
+    vectorMessage("Found mcdcReport here: " + pathToMCDCReport);
+    globalMCDCReportPath = `${pathToMCDCReport}`;
   }
 
   const pathToEnviroDataServer = context.asAbsolutePath(

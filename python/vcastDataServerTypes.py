@@ -34,6 +34,8 @@ class commandType(str, Enum):
     parseCBT = "parseCBT"
     choiceListTst = "choiceList-tst"
     choiceListCT = "choiceList-ct"
+    mcdcReport = "mcdcReport"
+    mcdcLines = "mcdcLines"
 
 
 class clientRequest:
@@ -82,6 +84,31 @@ class clientRequest:
         if "unit" in data:
             unit = data["unit"]
         return cls(command, clicast, path, test, options, unit)
+
+
+class mcdcClientRequest:
+    def __init__(self, command, path="", unitName="", lineNumber=0):
+        self.command = command
+        self.path = path
+        self.unitName = unitName
+        self.lineNumber = lineNumber
+
+    def toDict(self):
+        data = {}
+        data["command"] = self.command
+        data["path"] = self.path
+        data["unitName"] = self.unitName
+        data["lineNumber"] = self.lineNumber
+        return data
+
+    @classmethod
+    def fromDict(cls, data):
+        # these fields are mandatory
+        command = data["command"]
+        path = data["path"]
+        unitName = data.get("unitName", "")
+        lineNumber = data.get("lineNumber", "")
+        return cls(command, path, unitName, lineNumber)
 
 
 class environmentData:
