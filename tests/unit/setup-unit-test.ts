@@ -13,7 +13,6 @@ module.exports = async () => {
   // If PACKAGE_PATH is already defined by vscode launch.json (debugger) --> Don't override it
   process.env.PACKAGE_PATH ??= process.env.INIT_CWD;
   process.env.TST_FILENAME = tstFilename;
-  process.env.VECTORCAST_DIR = "";
 
   const checkVpython: string =
     process.platform === "win32" ? "where vpython" : "which vpython";

@@ -17,9 +17,78 @@ import {
   emptyChoiceData,
   getChoiceData,
 } from "./pythonUtilities";
+import { promisify } from "util";
+import { exec } from "child_process";
 
 function filterArray(currentArray: string[], whatToRemove: string) {
   return currentArray.filter((element) => element !== whatToRemove);
+}
+
+// This is a cache map for the clicast option so that we don't have to check it every time
+// Otherwise we would run <clicast get_option> everytime we want autocompletion
+const clicastOptionCache = new Map<string, boolean>();
+
+/**
+ * Checks if a specific VectorCAST option is set to a given value in the specified environment.
+ *
+ * @param {string} enviroPath - The file path to the environment where the command should be executed.
+ * @param {string} option - The VectorCAST option to check (e.g., 'VCAST_CODED_TESTS_SUPPORT').
+ * @param {string} optionValue - The expected value of the option (e.g., 'True', ...).
+ * @returns {Promise<boolean>} - Resolves to `true` if the option value matches, otherwise `false`.
+ */
+export async function checkClicastOption(
+  enviroPath: string,
+  option: string,
+  optionValue: string
+): Promise<boolean> {
+  const execAsync = promisify(exec);
+
+  // Create a unique cache key using the parameters
+  const cacheKey = `${enviroPath}:${option}:${optionValue}`;
+
+  // Check if the result is already cached
+  if (clicastOptionCache.has(cacheKey)) {
+    return clicastOptionCache.get(cacheKey)!;
+  }
+
+  const getCodedTestsSupportCommand = `${process.env.VECTORCAST_DIR}/clicast get_option ${option}`;
+
+  try {
+    const { stdout } = await execAsync(getCodedTestsSupportCommand, {
+      cwd: enviroPath,
+    });
+    const result = stdout.includes(`${optionValue}`);
+    // Store the result in the cache
+    clicastOptionCache.set(cacheKey, result);
+    return result;
+  } catch (error: any) {
+    console.error(`Error executing command: ${error.message}`);
+    return false;
+  }
+}
+/**
+ * Checks if a specific keyword followed by a colon and a given value exists in the extracted text.
+ *
+ * @param {string} extractedText - The text to search within.
+ * @param {string} keyword - The keyword to search for.
+ * @param {string} value - The value that should follow the colon after the keyword.
+ * @returns {Promise<boolean>} - Resolves to `true` if the keyword and value are found in the text, otherwise `false`.
+ */
+export function checkForKeywordInLine(
+  extractedText: string,
+  keyword: string,
+  value: string
+): boolean {
+  const regex = new RegExp(`^${keyword}:${value}$`);
+  const lines = extractedText.split(/\r?\n/);
+
+  for (const line of lines) {
+    if (regex.test(line.trim())) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export async function getTstCompletionData(
@@ -29,6 +98,7 @@ export async function getTstCompletionData(
   let returnData: choiceDataType = emptyChoiceData;
   const testScriptPath = url.fileURLToPath(completionData.textDocument.uri);
   const enviroPath = getEnviroNameFromTestScript(testScriptPath);
+  const extractedText = currentDocument.getText();
 
   if (enviroPath && fs.existsSync(enviroPath)) {
     // The work we do is dependent on the trigger
@@ -54,6 +124,33 @@ export async function getTstCompletionData(
     } else if (trigger == "DOT" && upperCaseLine == "TEST.") {
       returnData.choiceKind = "Keyword";
       returnData.choiceList = testCommandList;
+
+      const codedTestsDriverInSubprogram = checkForKeywordInLine(
+        extractedText,
+        "TEST.SUBPROGRAM",
+        "coded_tests_driver"
+      );
+
+      let codedTestsEnabled;
+
+      if (enviroPath) {
+        codedTestsEnabled = await checkClicastOption(
+          enviroPath,
+          "VCAST_CODED_TESTS_SUPPORT",
+          "TRUE"
+        );
+      }
+      if (codedTestsEnabled && codedTestsDriverInSubprogram) {
+        // Remove "VALUE" and "EXPECTED" as it is not allowed with coded_tests_driver
+        returnData.choiceList = returnData.choiceList.filter(
+          (item) => item !== "VALUE" && item !== "EXPECTED"
+        );
+      } else {
+        // If coded tests are not enabled, remove "CODED_TEST_FILE"
+        returnData.choiceList = returnData.choiceList.filter(
+          (item) => item !== "CODED_TEST_FILE"
+        );
+      }
     } else if (trigger == "COLON" && upperCaseLine == "TEST.NAME:") {
       returnData.choiceKind = "Text";
       returnData.choiceList = ["<test-name>"];
@@ -70,21 +167,20 @@ export async function getTstCompletionData(
       returnData.choiceList = scriptFeatureList;
     } else if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
       // find closest TEST.UNIT above this line ...
-      const unitName = getNearest(
+      const unit = getNearest(
         currentDocument,
         "UNIT",
         completionData.position.line
       );
-      // TBD will need to change how this is done during the fix for issue #170
-      // we use python to get a list of subprograms by creating a fake VALUE line
-      // with the unitName set to what we found
-      let choiceArray = ["<<INIT>>", "<<COMPOUND>>"];
-      let choiceKind = "Keyword";
-      if (unitName.length > 0) {
+
+      let choiceKind = "";
+      let choiceArray: string[] = [];
+      if (unit.length > 0) {
         const choiceData = await getChoiceData(
           choiceKindType.choiceListTST,
           enviroPath,
-          "TEST.VALUE:" + unitName + "."
+          upperCaseLine,
+          unit
         );
         returnData.extraText = choiceData.extraText;
         returnData.messages = choiceData.messages;
@@ -128,6 +224,10 @@ export async function getTstCompletionData(
         const title = pieces[1].trim().replace(/['"]+/g, "");
         returnData.choiceList[i] = `${key} | ${title}`;
       }
+      // No autocompletion yet for TEST.CODED_TEST_FILE:
+    } else if (upperCaseLine.startsWith("TEST.CODED_TEST_FILE:")) {
+      returnData.choiceKind = "Keyword";
+      returnData.choiceList = [];
     }
   } // enviroPath is valid
 

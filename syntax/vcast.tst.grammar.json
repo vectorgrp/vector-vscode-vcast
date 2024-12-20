@@ -27,6 +27,24 @@
       }
     },
     {
+      "match": "^TEST\\.CODED_TEST_FILE(:)(.*?)(:|$)(.*)$",
+      "name": "keyword",
+      "captures": {
+        "1": {
+          "name": "keyword"
+        },
+        "2": {
+          "name": "string", 
+          "patterns": [
+            {
+              "match": "(\\.\\./|\\./|/)?[^\\s]*",
+              "name": "path"
+            }
+          ]
+        }     
+      }
+    },
+    {
       "match": "^TEST\\.(?:VALUE|EXPECTED)(:)(.*?)(?<!:)(:|$)(?!:)(.*)$",
       "name": "keyword",
       "captures": {

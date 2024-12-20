@@ -264,6 +264,7 @@ export const testCommandList = [
   "END",
   // test scope
   "NAME",
+  "CODED_TEST_FILE",
   "NOTES",
   "END_NOTES",
   "FLOW",
