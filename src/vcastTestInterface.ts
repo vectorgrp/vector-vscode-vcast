@@ -36,6 +36,7 @@ import {
   buildEnvironmentFromScript,
   codedTestAction,
   executeTest,
+  getMCDCReport,
   getTestExecutionReport,
   setCodedTestOption,
 } from "./vcastAdapter";
@@ -133,7 +134,12 @@ export interface testDataType {
 export interface testStatusArrayType {
   [id: string]: testDataType;
 }
+
 export var globalTestStatusArray = <testStatusArrayType>{};
+
+export function getGlobalCoverageData() {
+  return globalCoverageData;
+}
 
 export function addTestDataToStatusArray(
   testID: string,
@@ -161,6 +167,7 @@ interface coverageDataType {
   crc32Checksum: number;
   covered: number[];
   uncovered: number[];
+  partiallyCovered: number[];
 }
 
 interface fileCoverageType {
@@ -182,6 +189,7 @@ interface coverageSummaryType {
   statusString: string;
   covered: number[];
   uncovered: number[];
+  partiallyCovered: number[];
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -202,6 +210,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
     statusString: "",
     covered: [],
     uncovered: [],
+    partiallyCovered: [],
   };
 
   const dataForThisFile = globalCoverageData.get(filePath);
@@ -213,10 +222,14 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
       const checksum: number = getChecksum(filePath);
       let coveredList: number[] = [];
       let uncoveredList: number[] = [];
+      let partiallyCoveredList: number[] = [];
       for (const enviroData of dataForThisFile.enviroList.values()) {
         if (enviroData.crc32Checksum == checksum) {
           coveredList = coveredList.concat(enviroData.covered);
           uncoveredList = uncoveredList.concat(enviroData.uncovered);
+          partiallyCoveredList = partiallyCoveredList.concat(
+            enviroData.partiallyCovered
+          );
         }
       }
 
@@ -229,6 +242,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
         // remove duplicates
         returnData.covered = [...new Set(coveredList)];
         returnData.uncovered = [...new Set(uncoveredList)];
+        returnData.partiallyCovered = [...new Set(partiallyCoveredList)];
       }
     } else {
       // This status is for files that are part of
@@ -293,11 +307,18 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     if (fileList[fileIndex].uncovered.length > 0)
       uncoveredList = fileList[fileIndex].uncovered.split(",").map(Number);
 
+    let partiallyCoveredList: number[] = [];
+    if (fileList[fileIndex].partiallyCovered.length > 0)
+      partiallyCoveredList = fileList[fileIndex].partiallyCovered
+        .split(",")
+        .map(Number);
+
     const checksum = fileList[fileIndex].cmcChecksum;
     let coverageData: coverageDataType = {
       crc32Checksum: checksum,
       covered: coveredList,
       uncovered: uncoveredList,
+      partiallyCovered: partiallyCoveredList,
     };
 
     let fileData: fileCoverageType | undefined =
@@ -312,7 +333,8 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     fileData.hasCoverage =
       fileData.hasCoverage ||
       coverageData.covered.length > 0 ||
-      coverageData.uncovered.length > 0;
+      coverageData.uncovered.length > 0 ||
+      coverageData.partiallyCovered.length > 0;
     fileData.enviroList.set(enviroPath, coverageData);
 
     // if we are displaying the file decoration in the explorer view
@@ -370,8 +392,7 @@ export async function getResultFileForTest(testID: string) {
       if (firstLineOfOutput.includes("REPORT:")) {
         // This is the normal case --> delete the REPORT to only have the file name
         resultFile = firstLineOfOutput.replace("REPORT:", "");
-
-        // Verify if the generated report file actually exists
+        // Check if the file exists
         if (!fs.existsSync(resultFile)) {
           const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
           vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
@@ -936,4 +957,61 @@ export async function openCodedTest(testNode: testNodeType) {
   if (fs.existsSync(testNode.testFile)) {
     openFileWithLineSelected(testNode.testFile, testNode.testStartLine - 1);
   }
+}
+
+/**
+ * Generates and retrieves the MCDC html result file.
+ *
+ * @param {string} enviroPath - The path to the environment or directory.
+ * @param {string} unit - The unit which includes the line.
+ * @param {number} lineNumber - The line number for which the report is generated.
+ * @returns {Promise<string>} A promise that resolves to the path of the result file if successful, or an empty string on failure.
+ */
+export async function getMCDCResultFile(
+  enviroPath: string,
+  unit: string,
+  lineNumber: number
+) {
+  // Generate the environment path and request the test report from Python
+  const commandStatus = await getMCDCReport(enviroPath, unit, lineNumber);
+  let resultFile: string = "";
+
+  // Check if report generation was successful
+  if (commandStatus.errorCode === 0) {
+    const firstLineOfOutput: string = commandStatus.stdout
+      .split("\n", 1)[0]
+      .trim();
+
+    resultFile = firstLineOfOutput.split("REPORT:")[1].trim();
+    // Handle the case where the output contains "REPORT"
+    if (firstLineOfOutput.includes("REPORT:")) {
+      // Verify if the generated report file actually exists
+      if (!fs.existsSync(resultFile)) {
+        const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
+        vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
+        vectorMessage(`${reportNotExistentErrorMessage}`);
+      }
+    }
+
+    // If the first line of output contains "Error" --> Test result generation failed
+    else if (firstLineOfOutput.includes("Error:")) {
+      const errorDetails = firstLineOfOutput.split("Error:")[1].trim();
+      const reportGenerationErrorMessage = `Execution report was not successfully generated. Error details: \n${errorDetails}`;
+      vscode.window.showWarningMessage(`${reportGenerationErrorMessage}`);
+      vectorMessage(`${reportGenerationErrorMessage}`);
+    }
+
+    // Handle other unexpected cases (After successfull test generation, but without the "REPORT:" string)
+    else {
+      const unexpectedErrorMessage = `Unexpected Error: \n${commandStatus.stdout}`;
+      vscode.window.showWarningMessage(`${unexpectedErrorMessage}`);
+      vectorMessage(`${unexpectedErrorMessage}`);
+    }
+  } else {
+    const commandErrorString = `Error generating MCDC report. Error Code: ${commandStatus.errorCode}`;
+    vscode.window.showWarningMessage(`${commandErrorString}`);
+    vectorMessage(`${commandErrorString}`);
+  }
+
+  return resultFile;
 }
