@@ -290,7 +290,7 @@ You then simply need to set a breakpoint and use F5 to start the debugger.
 
 The extension supports generating MC/DC reports for specific lines with MC/DC coverage. Follow the steps below to enable and generate these reports.
 
-#### Steps to Enable MC/DC Reports
+#### Steps to Generate MC/DC Reports
 
 1. Configure Coverage Type
     - Open the settings:
