@@ -3,6 +3,7 @@ import process from "node:process";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { TextDocument, TextDocuments } from "vscode-languageserver";
 import URI from "vscode-uri";
+import { checkClicastOption } from "../../langServer/tstCompletion";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
@@ -10,7 +11,6 @@ import {
   runCommand,
 } from "./utils";
 import { getToolVersion } from "./getToolversion";
-import { checkClicastOption } from "../../langServer/tstCompletion";
 
 const timeout = 30_000; // 30 seconds
 
@@ -1410,9 +1410,13 @@ describe("Text Completion", () => {
     const execAsyncMock = vi.fn();
     execAsyncMock.mockRejectedValue(new Error("Command failed"));
 
+    // Just log something, xo does not like empty functions
     const consoleErrorSpy = vi
       .spyOn(console, "error")
-      .mockImplementation(() => {});
+      .mockImplementation((message?: any, ...optionalParameters: any[]) => {
+        console.log(message, ...optionalParameters);
+      });
+
     const result = await checkClicastOption(
       "/some/path",
       "someOption",

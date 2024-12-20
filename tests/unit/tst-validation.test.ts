@@ -1,6 +1,7 @@
+/* eslint-disable n/prefer-global/process */
+import path from "node:path";
 import { describe, expect, test } from "vitest";
 import { generateDiagnosticMessages, runCommand } from "./utils";
-import path from "path";
 import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
@@ -129,7 +130,7 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-const testValueWithCTDriver = `
+const testValueWithCtDriver = `
 TEST.UNIT:unit
 TEST.SUBPROGRAM:coded_tests_driver
 TEST.NEW
@@ -140,7 +141,7 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-const testExpectedWithCTDriver = `
+const testExpectedWithCtDriver = `
 TEST.UNIT:unit
 TEST.SUBPROGRAM:coded_tests_driver
 TEST.NEW
@@ -380,7 +381,7 @@ describe("Text Document Validator", () => {
     "validate error detection when TEST.SUBPROGRAM is set to coded_tests_driver and TEST.VALUE is used",
     async () => {
       const testEnvPath = path.join(
-        process.env.PACKAGE_PATH as string,
+        process.env.PACKAGE_PATH!,
         "tests",
         "unit",
         "vcast",
@@ -393,7 +394,7 @@ describe("Text Document Validator", () => {
       if (toolVersion >= 24) {
         const setCoded = `cd ${testEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
         await runCommand(setCoded);
-        const tstText = testValueWithCTDriver;
+        const tstText = testValueWithCtDriver;
         const diagnosticMessages = generateDiagnosticMessages(tstText);
         expect(diagnosticMessages).toEqual(
           expect.arrayContaining([
@@ -411,7 +412,7 @@ describe("Text Document Validator", () => {
     "validate error detection when TEST.SUBPROGRAM is set to coded_tests_driver and TEST.EXPECTED is used",
     async () => {
       const testEnvPath = path.join(
-        process.env.PACKAGE_PATH as string,
+        process.env.PACKAGE_PATH!,
         "tests",
         "unit",
         "vcast",
@@ -424,7 +425,7 @@ describe("Text Document Validator", () => {
       if (toolVersion >= 24) {
         const setCoded = `cd ${testEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
         await runCommand(setCoded);
-        const tstText = testExpectedWithCTDriver;
+        const tstText = testExpectedWithCtDriver;
         const diagnosticMessages = generateDiagnosticMessages(tstText);
         expect(diagnosticMessages).toEqual(
           expect.arrayContaining([
