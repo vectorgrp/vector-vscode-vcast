@@ -377,7 +377,7 @@ export async function openTestScriptFor(subprogramMethod: CustomTreeItem) {
 }
 
 /**
- * Generates ATG tests for a given subprogram method.
+ * Generates Basis Path tests for a given subprogram method.
  * @param subprogramMethod Subprogram method for which to generate ATG tests.
  */
 export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {

@@ -101,31 +101,31 @@ function addDecorations(
 ) {
   const lineCount = activeEditor.document.lineCount;
   let lineIndex;
-  // these are lists of line numbers
 
   for (lineIndex = 0; lineIndex < lineCount; lineIndex++) {
-    if (partiallyCovered.includes(lineIndex + 1)) {
-      // Check if the line is also a MCDC line
-      if (currentActiveUnitMCDCLines.includes(lineIndex + 1)) {
-        partiallyCoveredDecorationsWithMCDC.push(getRangeOption(lineIndex));
-      } else {
-        // If its only a covered line without MCDC coverage --> Add to normal covered array
-        partiallyCoveredDecorations.push(getRangeOption(lineIndex));
-      }
-    } else if (covered.includes(lineIndex + 1)) {
-      // Check if the line is also a MCDC line
-      if (currentActiveUnitMCDCLines.includes(lineIndex + 1)) {
-        coveredDecorationsWithMCDC.push(getRangeOption(lineIndex));
-      } else {
-        // If its only a covered line without MCDC coverage --> Add to normal covered array
-        coveredDecorations.push(getRangeOption(lineIndex));
-      }
-    } else if (uncovered.includes(lineIndex + 1)) {
-      if (currentActiveUnitMCDCLines.includes(lineIndex + 1)) {
-        uncoveredDecorationsWithMCDC.push(getRangeOption(lineIndex));
-      } else {
-        uncoveredDecorations.push(getRangeOption(lineIndex));
-      }
+    const lineNumber = lineIndex + 1;
+    const isMCDCLine = currentActiveUnitMCDCLines.includes(lineNumber);
+
+    if (partiallyCovered.includes(lineNumber)) {
+      (isMCDCLine
+        ? partiallyCoveredDecorationsWithMCDC
+        : partiallyCoveredDecorations
+      ).push(getRangeOption(lineIndex));
+      continue;
+    }
+
+    if (covered.includes(lineNumber)) {
+      (isMCDCLine ? coveredDecorationsWithMCDC : coveredDecorations).push(
+        getRangeOption(lineIndex)
+      );
+      continue;
+    }
+
+    if (uncovered.includes(lineNumber)) {
+      (isMCDCLine ? uncoveredDecorationsWithMCDC : uncoveredDecorations).push(
+        getRangeOption(lineIndex)
+      );
+      continue;
     }
   }
 }
@@ -136,21 +136,35 @@ let coverageStatusBarObject: vscode.StatusBarItem;
 /////////////////////////////////////////////////////////////////////
 
 function resetGlobalDecorations() {
-  uncoveredDecorations = [];
-  coveredDecorations = [];
-  partiallyCoveredDecorations = [];
-  coveredDecorationsWithMCDC = [];
-  uncoveredDecorationsWithMCDC = [];
-  partiallyCoveredDecorationsWithMCDC = [];
-  // and throw away the old decorations
-  if (uncoveredDecorationType) uncoveredDecorationType.dispose();
-  if (coveredDecorationType) coveredDecorationType.dispose();
-  if (partiallyCoveredDecorationType) partiallyCoveredDecorationType.dispose();
-  if (coveredDecorationTypeWithMCDC) coveredDecorationTypeWithMCDC.dispose();
-  if (uncoveredDecorationTypeWithMCDC)
-    uncoveredDecorationTypeWithMCDC.dispose();
-  if (partiallyCoveredDecorationTypeWithMCDC)
-    partiallyCoveredDecorationTypeWithMCDC.dispose();
+  // Group decorations into a list
+  const decorations = [
+    uncoveredDecorations,
+    coveredDecorations,
+    partiallyCoveredDecorations,
+    coveredDecorationsWithMCDC,
+    uncoveredDecorationsWithMCDC,
+    partiallyCoveredDecorationsWithMCDC,
+  ];
+
+  // Group decoration types into a list
+  const decorationTypes = [
+    uncoveredDecorationType,
+    coveredDecorationType,
+    partiallyCoveredDecorationType,
+    coveredDecorationTypeWithMCDC,
+    uncoveredDecorationTypeWithMCDC,
+    partiallyCoveredDecorationTypeWithMCDC,
+  ];
+
+  // Reset all decorations
+  for (let i = 0; i < decorations.length; i++) {
+    decorations[i] = [];
+  }
+
+  // Dispose of all decoration types
+  for (const decorationType of decorationTypes) {
+    if (decorationType) decorationType.dispose();
+  }
 }
 
 const url = require("url");
@@ -263,15 +277,19 @@ export async function updateCOVdecorations() {
 }
 
 function deactivateCoverage() {
-  // delete all decorations
-  if (uncoveredDecorationType) uncoveredDecorationType.dispose();
-  if (coveredDecorationType) coveredDecorationType.dispose();
-  if (partiallyCoveredDecorationType) partiallyCoveredDecorationType.dispose();
-  if (coveredDecorationTypeWithMCDC) coveredDecorationTypeWithMCDC.dispose();
-  if (uncoveredDecorationTypeWithMCDC)
-    uncoveredDecorationTypeWithMCDC.dispose();
-  if (partiallyCoveredDecorationTypeWithMCDC)
-    partiallyCoveredDecorationTypeWithMCDC.dispose();
+  const decorationTypes = [
+    uncoveredDecorationType,
+    coveredDecorationType,
+    partiallyCoveredDecorationType,
+    coveredDecorationTypeWithMCDC,
+    uncoveredDecorationTypeWithMCDC,
+    partiallyCoveredDecorationTypeWithMCDC,
+  ];
+
+  // Iterate over the list and dispose each decoration type if existent
+  for (const decorationType of decorationTypes) {
+    if (decorationType) decorationType.dispose();
+  }
   coverageStatusBarObject.hide();
 }
 
