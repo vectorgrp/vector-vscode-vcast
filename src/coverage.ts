@@ -136,15 +136,20 @@ let coverageStatusBarObject: vscode.StatusBarItem;
 /////////////////////////////////////////////////////////////////////
 
 function resetGlobalDecorations() {
-  // Group decorations into a list
-  const decorations = [
-    uncoveredDecorations,
-    coveredDecorations,
-    partiallyCoveredDecorations,
-    coveredDecorationsWithMCDC,
-    uncoveredDecorationsWithMCDC,
-    partiallyCoveredDecorationsWithMCDC,
+  // Use references to global variables
+  const decorationRefs = [
+    () => (uncoveredDecorations = []),
+    () => (coveredDecorations = []),
+    () => (partiallyCoveredDecorations = []),
+    () => (coveredDecorationsWithMCDC = []),
+    () => (uncoveredDecorationsWithMCDC = []),
+    () => (partiallyCoveredDecorationsWithMCDC = []),
   ];
+
+  // Reset all decorations
+  for (const resetDecoration of decorationRefs) {
+    resetDecoration();
+  }
 
   // Group decoration types into a list
   const decorationTypes = [
@@ -155,11 +160,6 @@ function resetGlobalDecorations() {
     uncoveredDecorationTypeWithMCDC,
     partiallyCoveredDecorationTypeWithMCDC,
   ];
-
-  // Reset all decorations
-  for (let i = 0; i < decorations.length; i++) {
-    decorations[i] = [];
-  }
 
   // Dispose of all decoration types
   for (const decorationType of decorationTypes) {
@@ -277,19 +277,15 @@ export async function updateCOVdecorations() {
 }
 
 function deactivateCoverage() {
-  const decorationTypes = [
-    uncoveredDecorationType,
-    coveredDecorationType,
-    partiallyCoveredDecorationType,
-    coveredDecorationTypeWithMCDC,
-    uncoveredDecorationTypeWithMCDC,
-    partiallyCoveredDecorationTypeWithMCDC,
-  ];
-
-  // Iterate over the list and dispose each decoration type if existent
-  for (const decorationType of decorationTypes) {
-    if (decorationType) decorationType.dispose();
-  }
+  // delete all decorations
+  if (uncoveredDecorationType) uncoveredDecorationType.dispose();
+  if (coveredDecorationType) coveredDecorationType.dispose();
+  if (partiallyCoveredDecorationType) partiallyCoveredDecorationType.dispose();
+  if (coveredDecorationTypeWithMCDC) coveredDecorationTypeWithMCDC.dispose();
+  if (uncoveredDecorationTypeWithMCDC)
+    uncoveredDecorationTypeWithMCDC.dispose();
+  if (partiallyCoveredDecorationTypeWithMCDC)
+    partiallyCoveredDecorationTypeWithMCDC.dispose();
   coverageStatusBarObject.hide();
 }
 
