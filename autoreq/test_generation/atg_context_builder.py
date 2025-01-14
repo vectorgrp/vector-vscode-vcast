@@ -10,7 +10,7 @@ class ATGContextBuilder:
         self._test_cases = None
         random.seed(42)  # Fixed seed for reproducibility
 
-    async def get_relevant_test_cases(self, function_name: str, k: int = 3) -> str:
+    async def get_relevant_test_cases(self, function_name: str, k: int = 3, basis_path=False) -> str:
         if function_name in self.cache:
             return self.cache[function_name]
 
@@ -23,7 +23,10 @@ class ATGContextBuilder:
 
             # Initialize test cases if not done yet
             if self._test_cases is None:
-                self._test_cases = self.environment.basis_path_tests
+                if basis_path:
+                    self._test_cases = self.environment.basis_path_tests
+                else:
+                    self._test_cases = self.environment.atg_tests
                 if not self._test_cases:
                     return ""
 
