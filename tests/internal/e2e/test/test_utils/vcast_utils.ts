@@ -696,17 +696,10 @@ export async function generateAndValidateAllTestsFor(
         let subprogram: TreeItem;
         let testHandle: TreeItem;
         for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+          await vcastTestingViewSection.expand();
           subprogram = await findSubprogram(unitName, vcastTestingViewSection);
-          console.log(unitName);
-          console.log(vcastTestingViewSection);
           if (subprogram) {
             await subprogram.expand();
-            console.log("#######################################");
-            console.log(subprogram);
-            console.log(functionName);
-            console.log(testName);
-            console.log(Object.entries(tests).length);
-            console.log("#######################################");
             await browser.waitUntil(
               async () =>
                 (await getTestHandle(
