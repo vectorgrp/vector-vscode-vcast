@@ -19,7 +19,6 @@ import {
   getTestHandle,
   findSubprogramMethod,
   updateTestID,
-  cleanup,
   checkForLogsInTestResults,
   checkElementExistsInHTML,
 } from "../test_utils/vcast_utils";

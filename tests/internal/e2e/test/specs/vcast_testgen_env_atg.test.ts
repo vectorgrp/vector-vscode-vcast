@@ -11,10 +11,7 @@ import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
   testGenMethod,
-  deleteAllTestsForEnv,
-  validateTestDeletionForFunction,
   generateAndValidateAllTestsFor,
-  cleanup,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 

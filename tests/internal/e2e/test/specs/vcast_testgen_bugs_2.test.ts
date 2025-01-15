@@ -8,7 +8,6 @@ import {
   validateGeneratedTestsForFunction,
   deleteAllTestsForFunction,
   validateTestDeletionForFunction,
-  cleanup,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -152,10 +151,5 @@ describe("vTypeCheck VS Code Extension", () => {
     } else {
       console.log("Skipping ATG tests");
     }
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

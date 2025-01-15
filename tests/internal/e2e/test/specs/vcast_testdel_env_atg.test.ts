@@ -5,12 +5,7 @@ import {
   type Workbench,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
-import {
-  updateTestID,
-  deleteAllTestsForEnv,
-  validateTestDeletionForFunction,
-  cleanup,
-} from "../test_utils/vcast_utils";
+import { updateTestID, deleteAllTestsForEnv } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -89,10 +84,5 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(
       `Validating deletion of all ATG tests for the environment ${envName}`
     );
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });
