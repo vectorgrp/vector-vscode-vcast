@@ -5,8 +5,6 @@ import {
   updateTestID,
   testGenMethod,
   deleteAllTestsForUnit,
-  validateTestDeletionForFunction,
-  cleanup,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -80,10 +78,5 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Deleting all ATG tests for unit database");
     await deleteAllTestsForUnit("database", testGenMethod.ATG);
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

@@ -5,8 +5,6 @@ import {
   updateTestID,
   testGenMethod,
   deleteAllTestsForFunction,
-  validateTestDeletionForFunction,
-  cleanup,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -83,10 +81,5 @@ describe("vTypeCheck VS Code Extension", () => {
       "DataBase::GetTableRecord",
       testGenMethod.ATG
     );
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

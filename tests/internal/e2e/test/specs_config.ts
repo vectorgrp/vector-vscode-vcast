@@ -131,7 +131,11 @@ export function getSpecGroups(useVcast24: boolean) {
     };
 
     specGroups["coded_tests"] = {
-      specs: ["./**/**/vcast_coded_tests.test.ts"],
+      specs: [
+        "./**/**/vcast_coded_tests.test.ts",
+        "./**/**/vcast.create_script_1.test.ts",
+        "./**/**/vcast_coded_tests_tst_autocompletion.test.ts",
+      ],
       env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
@@ -254,7 +258,11 @@ export function getSpecGroups(useVcast24: boolean) {
     };
 
     specGroups["coded_tests_server"] = {
-      specs: ["./**/**/vcast_coded_tests.test.ts"],
+      specs: [
+        "./**/**/vcast_coded_tests.test.ts",
+        "./**/**/vcast.create_script_1.test.ts",
+        "./**/**/vcast_coded_tests_tst_autocompletion.test.ts",
+      ],
       env: {},
       params: {},
     };

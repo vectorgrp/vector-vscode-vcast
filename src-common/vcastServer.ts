@@ -36,6 +36,7 @@ export interface clientRequestType {
   path: string;
   test?: string;
   options?: string;
+  unit?: string;
 }
 
 // This is set when the VectorCAST Data Server process is started

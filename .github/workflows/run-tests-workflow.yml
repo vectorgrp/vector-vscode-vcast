@@ -104,7 +104,7 @@ jobs:
             ./test-output.xml
 
       - name: Show coverage summary
-        if: ${{ always() && strategy.job-index == '0' }}
+        if: ${{ always() && strategy.job-index == '3' }}
         run: |
           echo "### Coverage summary - Unit tests" >> $GITHUB_STEP_SUMMARY
           {
@@ -114,7 +114,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage artifacts
-        if: ${{ always() && strategy.job-index == '0' }}
+        if: ${{ always() && strategy.job-index == '3' }}
         run: |
           curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
           chmod +x codecov

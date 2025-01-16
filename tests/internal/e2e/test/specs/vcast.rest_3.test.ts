@@ -18,7 +18,6 @@ import {
   getTestHandle,
   deleteTest,
   updateTestID,
-  cleanup,
   assertTestsDeleted,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
@@ -279,10 +278,5 @@ describe("vTypeCheck VS Code Extension", () => {
 
       console.log(stdout);
     }
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

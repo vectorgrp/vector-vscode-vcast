@@ -347,10 +347,10 @@ export async function getTestHandle(
   }
 
   for (const testHandle of await customSubprogramMethod.getChildren()) {
-    if (
-      (await (await (testHandle as CustomTreeItem).elem).getText()) ===
-      expectedTestName
-    ) {
+    const testName = await (
+      await (testHandle as CustomTreeItem).elem
+    ).getText();
+    if (testName.includes(expectedTestName)) {
       return testHandle;
     }
   }
@@ -696,6 +696,7 @@ export async function generateAndValidateAllTestsFor(
         let subprogram: TreeItem;
         let testHandle: TreeItem;
         for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+          await vcastTestingViewSection.expand();
           subprogram = await findSubprogram(unitName, vcastTestingViewSection);
           if (subprogram) {
             await subprogram.expand();
