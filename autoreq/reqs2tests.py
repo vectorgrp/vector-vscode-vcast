@@ -16,7 +16,7 @@ async def main():
     parser.add_argument('requirement_ids', nargs='*', help='ID of the requirement to generate test cases for.')
     parser.add_argument('--execute', action='store_true', help='Execute the generated test cases.')
     parser.add_argument('--export-tst', help='Path to a file to write the VectorCAST test cases.')
-    parser.add_argument('--retries', type=int, default=3, help='Number of retries for test generation.')
+    parser.add_argument('--retries', type=int, default=2, help='Number of retries for test generation.')
     parser.add_argument('--extended_reasoning', action='store_true', help='Use extended reasoning for test generation.')
     parser.add_argument('--export-env', action='store_true', help='Run the generated test script in the real environment.')
     parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
