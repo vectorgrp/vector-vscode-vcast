@@ -447,10 +447,12 @@ export async function updateTestsForEnvironment(
   parentNode: vcastTestItem,
   enviroData: environmentNodeDataType
 ) {
-  // this will add one environment node to the test pane
-  // this includes all units, functions, and tests for that environment
+  // This will add one environment node to the test pane.
+  // This includes all units, functions, and tests for that environment.
 
-  // This is all of the data for a single environment
+  // Explicitly clear children of the parent node
+  parentNode.children.forEach((child) => parentNode.children.delete(child.id));
+
   const jsonData = await getDataForEnvironment(enviroData.buildDirectory);
 
   if (jsonData) {
@@ -458,8 +460,6 @@ export async function updateTestsForEnvironment(
 
     updateGlobalDataForFile(enviroData.buildDirectory, jsonData.unitData);
 
-    // the vcast: prefix to allow package.json nodes to control
-    // when the VectorCAST context menu should be shown
     const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
 
     createTestNodeInCache(
@@ -474,7 +474,6 @@ export async function updateTestsForEnvironment(
     );
     enviroNode.nodeKind = nodeKind.environment;
 
-    // process functions and tests and add child notes to enviroNode
     processVCtestData(
       enviroData.buildDirectory,
       enviroNodeID,
@@ -482,7 +481,6 @@ export async function updateTestsForEnvironment(
       jsonData
     );
 
-    // this is used by the package.json to control content (right click) menu choices
     if (!vcastEnviroList.includes(enviroNodeID)) {
       vcastEnviroList.push(enviroNodeID);
       vscode.commands.executeCommand(
@@ -491,9 +489,13 @@ export async function updateTestsForEnvironment(
         vcastEnviroList
       );
     }
-    // starting with VS Code 1.81 the tree was not updating unless I added the delete
+
     globalController.items.delete(enviroNode.id);
     parentNode.children.add(enviroNode);
+
+    // Force a refresh of the parent node otherwise the collapse icon is still present even though all tests are deleted.
+    globalController.items.delete(parentNode.id);
+    globalController.items.add(parentNode);
   } else {
     vectorMessage(`Ignoring environment: ${enviroData.displayName}\n`);
   }
