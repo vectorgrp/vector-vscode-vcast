@@ -1,4 +1,5 @@
 from functools import cached_property
+from dataclasses import dataclass
 import os
 import re
 from typing import List, Optional
@@ -6,6 +7,46 @@ import subprocess
 import tempfile
 import sqlite3
 import logging
+
+@dataclass
+class ValueMapping:
+    identifier: str
+    value: str
+
+    def to_dict(self):
+        return {
+            "identifier": self.identifier,
+            "value": self.value
+        }
+
+@dataclass
+class TestCase:
+    test_name: str
+    test_description: str
+    unit_name: str
+    subprogram_name: str
+    input_values: List[ValueMapping]
+    expected_values: List[ValueMapping]
+    requirement_id: Optional[str] = None
+
+    @property
+    def path(self) -> str:
+        # Use regex to find lines containing (number) patterns
+        path_pattern = re.compile(r'.*\(\d+\).*')
+        path_lines = [line.split(')', 1)[1].strip() for line in self.test_description.split('\n')
+                     if path_pattern.match(line)]
+        return '\n'.join(path_lines)
+
+    def to_dict(self):
+        return {
+            "test_name": self.test_name,
+            "test_description": self.test_description,
+            "unit_name": self.unit_name,
+            "subprogram_name": self.subprogram_name,
+            "input_values": [v.to_dict() for v in self.input_values],
+            "expected_values": [v.to_dict() for v in self.expected_values],
+            "requirement_id": self.requirement_id
+        }
 
 class Environment:
     def __init__(self, env_file_path: str, use_sandbox: bool = True):
@@ -193,7 +234,7 @@ class Environment:
             
         return self._parse_test_script(basis_test_file)
 
-    def _parse_test_script(self, tst_file_path: str) -> str:
+    def _parse_test_script(self, tst_file_path: str) -> List[TestCase]:
         with open(tst_file_path, 'r') as f:
             content = f.readlines()
 
@@ -222,26 +263,25 @@ class Environment:
                     test_cases.append(current_test)
                 
                 test_name = line.split(':', 1)[1].strip()
-                current_test = {
-                    "test_name": test_name,
-                    "test_description": "",
-                    "unit_name": current_unit,
-                    "subprogram_name": current_subprogram,
-                    "input_values": [],
-                    "expected_values": []
-                }
+                current_test = TestCase(
+                    test_name=test_name,
+                    test_description="",
+                    unit_name=current_unit,
+                    subprogram_name=current_subprogram,
+                    input_values=[],
+                    expected_values=[]
+                )
             
             elif line.startswith('TEST.VALUE:'):
                 if not current_test:
                     continue
                     
-                # Split into identifier and value
                 _, rest = line.split(':', 1)
                 identifier, value = rest.rsplit(':', 1)
-                current_test["input_values"].append({
-                    "identifier": identifier.strip(),
-                    "value": value.strip()
-                })
+                current_test.input_values.append(ValueMapping(
+                    identifier=identifier.strip(),
+                    value=value.strip()
+                ))
             
             elif line.startswith('TEST.NOTES:'):
                 if current_test:
@@ -250,7 +290,7 @@ class Environment:
                     
             elif line.startswith('TEST.END_NOTES:'):
                 if current_test and description_lines:
-                    current_test["test_description"] = "\n".join(description_lines)
+                    current_test.test_description = "\n".join(description_lines)
                 continue_reading = False
             
             elif line.startswith('TEST.EXPECTED:'):
@@ -259,10 +299,10 @@ class Environment:
                     
                 _, rest = line.split(':', 1)
                 identifier, value = rest.rsplit(':', 1)
-                current_test["expected_values"].append({
-                    "identifier": identifier.strip(),
-                    "value": value.strip()
-                })
+                current_test.expected_values.append(ValueMapping(
+                    identifier=identifier.strip(),
+                    value=value.strip()
+                ))
 
             elif continue_reading:
                 description_lines.append(line)

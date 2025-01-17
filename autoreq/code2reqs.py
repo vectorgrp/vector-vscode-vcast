@@ -108,7 +108,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
     codebase = Codebase(source_files)
     functions = codebase.get_all_functions()
 
-    generator = RequirementsGenerator()
+    generator = RequirementsGenerator(environment)
 
     requirements = []
 
@@ -121,7 +121,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
         func_name = func['name']
         func_file = func['file']
         func_code = codebase.find_definition(func_name, func_file)
-        result = await generator.generate(func_code)
+        result = await generator.generate(func_code, function_name=func_name)
         processed_functions += 1
         progress = processed_functions / total_functions
 

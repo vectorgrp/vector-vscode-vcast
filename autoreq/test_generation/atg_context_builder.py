@@ -1,6 +1,13 @@
+from typing import List, Dict, Optional
+from pydantic import BaseModel
 import asyncio
 import random
 import json
+from ..llm_client import LLMClient
+
+class PathSelection(BaseModel):
+    analysis: str
+    selected_path: int
 
 class ATGContextBuilder:
     def __init__(self, environment):
@@ -30,10 +37,10 @@ class ATGContextBuilder:
                 if not self._test_cases:
                     return ""
 
-            # Filter test cases by function name prefix
+            # Filter test cases by function name prefix and convert to dict
             matching_tests = [
-                test for test in self._test_cases 
-                if test['subprogram_name'].startswith(function_name)
+                test.to_dict() for test in self._test_cases 
+                if test.subprogram_name.startswith(function_name)
             ]
 
             # Select up to k random tests
