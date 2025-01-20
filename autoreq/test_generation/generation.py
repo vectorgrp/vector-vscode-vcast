@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import logging
 
 from .vcast_context_builder import VcastContextBuilder
+from .reduced_vcast_context_builder import VcastReducedContextBuilder
 from .atg_context_builder import ATGContextBuilder  # Add this import
 from .info_logger import InfoLogger  # Add this import
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
@@ -142,7 +143,7 @@ class TestGenerator:
     def __init__(self, requirements, environment, use_extended_reasoning=False):
         self.requirements = requirements
         self.environment = environment  # Use the provided environment
-        self.context_builder = VcastContextBuilder(self.environment)
+        self.context_builder = VcastReducedContextBuilder(self.environment)
         self.atg_context_builder = ATGContextBuilder(self.environment)  # Add this line
         self.llm_client = LLMClient()
         self.info_logger = InfoLogger()
@@ -172,7 +173,7 @@ class TestGenerator:
 
         # Build code context using the environment
         function_name = requirement_id.rsplit('.', 1)[0]
-        context = await self.context_builder.build_code_context(function_name, reduce_context=True)
+        context = await self.context_builder.build_code_context(function_name)
         logging.debug("Generated code context: %s", context)
         
         # Determine number of example test cases based on context length

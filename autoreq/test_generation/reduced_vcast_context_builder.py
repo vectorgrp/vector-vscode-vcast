@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 from enum import Enum
 import tempfile
@@ -10,7 +11,7 @@ class ReductionMode(Enum):
     AST = "ast"
 
 class VcastReducedContextBuilder(VcastContextBuilder):
-    def __init__(self, environment, reduction_mode=ReductionMode.LLM):
+    def __init__(self, environment, reduction_mode=ReductionMode.AST):
         super().__init__(environment)
         self.reduction_mode = reduction_mode
 
@@ -42,40 +43,33 @@ class VcastReducedContextBuilder(VcastContextBuilder):
         return reduced_context
 
     def _reduce_context_ast(self, context, function_name):
-
-        with open("ayy.cpp", "w") as f:
-            f.write(context)
-        # Use tempfile to safely create and manage temporary file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=True) as temp_file:
             temp_file.write(context)
             temp_file.flush()
 
             codebase = Codebase([temp_file.name])
             
-            # Find the function definition
-            functions = codebase.get_all_functions()
-            target_function = next((f for f in functions if f['name'] == function_name), None)
+            relevant_definitions = codebase.get_definitions_for_function(temp_file.name, function_name, collapse_function_body=True, return_dict=True)
 
-            if not target_function:
+
+            # If this fails, return the unreduced context?
+            if not relevant_definitions:
                 return context
 
-            # Get code window around function
-            code_window = codebase.get_code_window(temp_file.name, target_function['line'], window=1)
-            
-            # Get identifiers in the window
-            identifiers = codebase.get_identifiers_in_window(
-                temp_file.name, 
-                target_function['line'] - 1, 
-                target_function['line'] + 1
-            )
+            definition_groups = defaultdict(list)
 
-            # Build reduced context with function and its dependencies
-            reduced_context = [code_window]
-            
-            # Add definitions for referenced identifiers
-            for identifier in identifiers:
-                definition = codebase.find_definition(identifier, temp_file.name, only_local=True)
-                if definition:
-                    reduced_context.append(f"\nDefinition of {identifier}:\n{definition}")
+            for symbol, definition in relevant_definitions.items():
+                if symbol == function_name:
+                    continue
+                definition_groups[definition].append(symbol)
+                
+            reduced_context = []
+
+            reduced_context.append("Definitions of types, called functions and data structures:")
+            for definition, symbols in definition_groups.items():
+                symbols_list = ", ".join(symbols)
+                reduced_context.append(f"\n{definition}")
+
+            reduced_context.append(f"\nCode for {function_name}:\n{codebase.find_definitions_by_name(function_name)[0]}")
 
             return "\n".join(reduced_context)

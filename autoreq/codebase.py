@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Set, Tuple
+from typing import List, Dict, Optional, Set, Tuple, Union
 from monitors4codegen.multilspy import SyncLanguageServer
 from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
 from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
@@ -201,10 +201,6 @@ class Codebase:
                     
         return None
 
-    def get_identifiers_in_window(self, filepath: str, start_line: int, end_line: int) -> List[str]:
-        """Get identifiers in a window of lines (placeholder for future implementation)"""
-        raise NotImplementedError("This functionality will be implemented later")
-
     def _get_symbol_references_in_window(self, code_bytes: bytes, start_line: int, end_line: int) -> Set[str]:
         """Extract all potential symbol references in a given window of code using tree-sitter"""
         tree = self.ts_parser.parse(code_bytes)
@@ -222,7 +218,7 @@ class Codebase:
         visit_node(root_node)
         return symbols
 
-    def get_definitions_for_window(self, filepath: str, start_line: int, end_line: int, collapse_function_body: bool = False) -> List[str]:
+    def get_definitions_for_window(self, filepath: str, start_line: int, end_line: int, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
         """Get definitions for all symbols referenced in a window of code"""
         abs_path = self._make_absolute(filepath)
         
@@ -233,15 +229,23 @@ class Codebase:
         # Get all symbol references in the window
         symbols = self._get_symbol_references_in_window(code_bytes, start_line, end_line)
         
-        # Collect all definitions
-        definitions = []
-        for symbol in symbols:
-            symbol_definitions = self.find_definitions_by_name(symbol, collapse_function_body)
-            definitions.extend(symbol_definitions)
-            
-        return definitions
+        if return_dict:
+            # Return dictionary mapping symbols to their definitions
+            definitions = {}
+            for symbol in symbols:
+                symbol_definitions = self.find_definitions_by_name(symbol, collapse_function_body)
+                if symbol_definitions:  # Only include symbols that have definitions
+                    definitions[symbol] = symbol_definitions[0]
+            return definitions
+        else:
+            # Return flat list of all definitions
+            definitions = []
+            for symbol in symbols:
+                symbol_definitions = self.find_definitions_by_name(symbol, collapse_function_body)
+                definitions.append(symbol_definitions[0])
+            return definitions
 
-    def get_definitions_for_function(self, filepath: str, function_name: str, collapse_function_body: bool = False) -> List[str]:
+    def get_definitions_for_function(self, filepath: str, function_name: str, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
         """Get definitions for all symbols referenced in a function"""
         abs_path = self._make_absolute(filepath)
         
@@ -254,7 +258,7 @@ class Codebase:
                 break
                 
         if not target_function:
-            return []
+            return {} if return_dict else []
             
         # Get the function's line range
         line = target_function['line']
@@ -262,4 +266,4 @@ class Codebase:
         end_line = line + len(target_function['definition'].splitlines()) - 1
         
         # Use the window-based definition lookup
-        return self.get_definitions_for_window(filepath, line - 1, end_line, collapse_function_body)
+        return self.get_definitions_for_window(filepath, line - 1, end_line, collapse_function_body, return_dict)

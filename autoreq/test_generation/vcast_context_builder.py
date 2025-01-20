@@ -44,9 +44,7 @@ class VcastContextBuilder:
                         lines = f.readlines()
 
                     snippet_lines = []
-                    potential_snippet_lines = []
-                    saw_marker = False
-                    in_unit = False
+                    in_relevant_context = False
                     marker_pattern = re.compile(r'^#\s+\d+\s+"(.+)"')
 
                     for line in lines:
@@ -56,19 +54,11 @@ class VcastContextBuilder:
                             file_path_in_marker = os.path.abspath(match.group(1))
 
                             if file_path_in_marker == unit_path:
-                                snippet_lines += potential_snippet_lines
-                                saw_marker = True
-                                in_unit = True
-                            else:
-                                in_unit = False
-
-                            line = None
-
-                        if saw_marker and line:
-                            if in_unit:
-                                snippet_lines.append(line)
-                            else:
-                                potential_snippet_lines.append(line)
+                                in_relevant_context = True
+                            elif match.group(1).startswith("vcast_preprocess"):
+                                in_relevant_context = False
+                        elif in_relevant_context:
+                            snippet_lines.append(line)
 
                     if snippet_lines:
                         context += "\n" + "".join(snippet_lines)
