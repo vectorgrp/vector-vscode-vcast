@@ -1,0 +1,13 @@
+{
+    "_description": "Used to download the runtime dependencies for running ccls",
+    "runtimeDependencies": [
+        {
+            "id": "Ccls",
+            "description": "Ccls",
+            "url": "https://github.com/MaskRay/ccls/archive/refs/tags/0.20240202.zip",
+            "platformId": "linux-x64",
+            "archiveType": "zip",
+            "binaryName": "ccls"
+        }
+    ]
+}
