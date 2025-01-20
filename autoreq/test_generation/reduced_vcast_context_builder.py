@@ -49,7 +49,7 @@ class VcastReducedContextBuilder(VcastContextBuilder):
 
             codebase = Codebase([temp_file.name])
             
-            relevant_definitions = codebase.get_definitions_for_function(temp_file.name, function_name, collapse_function_body=True, return_dict=True)
+            relevant_definitions = codebase.get_definitions_for_function(temp_file.name, function_name, collapse_function_body=True, return_dict=True, depth=3)
 
 
             # If this fails, return the unreduced context?

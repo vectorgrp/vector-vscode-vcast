@@ -84,7 +84,7 @@ class Codebase:
                             end_line = symbol['range']['end']['line']
                             
                             # Extract the actual definition text
-                            definition_lines = file_content.splitlines()[start_line:end_line + 1]
+                            definition_lines = file_content.splitlines()[start_line:end_line+1]
                             definition_text = '\n'.join(definition_lines)
                             
                             if name not in self._definition_index:
@@ -93,8 +93,8 @@ class Codebase:
                                 'name': name,
                                 'kind': symbol['kind'],
                                 'file': abs_file,
-                                'line': start_line + 1,
-                                'character': symbol['range']['start']['character'],
+                                'start_line': start_line,
+                                'end_line': end_line,
                                 'definition': definition_text
                             })
 
@@ -162,11 +162,18 @@ class Codebase:
         
         return functions
 
-    def find_definitions_by_name(self, identifier: str, collapse_function_body: bool = False) -> List[str]:
+    def find_definitions_by_name(self, identifier: str, collapse_function_body: bool = False, return_raw: bool = False) -> List[str]:
         """Find all definitions of an identifier by name, returns the actual definition text"""
         definitions = self._definition_index.get(identifier, [])
+
         if collapse_function_body:
-            return [self._collapse_function_body(d['definition']) if d['kind'] in self.FUNCTION_KINDS else d['definition'] for d in definitions]
+            definitions = deepcopy(definitions)
+            for d in definitions:
+                if d['kind'] in self.FUNCTION_KINDS:
+                    d['definition'] = self._collapse_function_body(d['definition'])
+
+        if return_raw:
+            return definitions
 
         return [d['definition'] for d in definitions]
 
@@ -218,7 +225,7 @@ class Codebase:
         visit_node(root_node)
         return symbols
 
-    def get_definitions_for_window(self, filepath: str, start_line: int, end_line: int, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
+    def get_definitions_for_window(self, filepath: str, start_line: int, end_line: int, depth=1, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
         """Get definitions for all symbols referenced in a window of code"""
         abs_path = self._make_absolute(filepath)
         
@@ -226,26 +233,38 @@ class Codebase:
         with open(abs_path, 'rb') as f:
             code_bytes = f.read()
             
+        definitions = self._get_definitions_for_window(code_bytes, start_line, end_line, collapse_function_body, depth)
+
+        if return_dict:
+            return {k: v['definition'] for k, v in definitions.items()}
+
+        return list(set(v['definition'] for v in definitions.values()))
+
+    def _get_definitions_for_window(self, code_bytes: bytes, start_line: int, end_line: int, collapse_function_body: bool = False, depth=1) -> Dict[str, List[str]]:
+        """Get definitions for all symbols referenced in a window of code"""
         # Get all symbol references in the window
         symbols = self._get_symbol_references_in_window(code_bytes, start_line, end_line)
         
-        if return_dict:
-            # Return dictionary mapping symbols to their definitions
-            definitions = {}
-            for symbol in symbols:
-                symbol_definitions = self.find_definitions_by_name(symbol, collapse_function_body)
-                if symbol_definitions:  # Only include symbols that have definitions
-                    definitions[symbol] = symbol_definitions[0]
-            return definitions
-        else:
-            # Return flat list of all definitions
-            definitions = []
-            for symbol in symbols:
-                symbol_definitions = self.find_definitions_by_name(symbol, collapse_function_body)
-                definitions.append(symbol_definitions[0])
-            return definitions
+        # Return dictionary mapping symbols to their definitions
+        definitions = {}
+        for symbol in symbols:
+            symbol_definitions = self.find_definitions_by_name(symbol, collapse_function_body, return_raw=True)
+            if symbol_definitions:
+                definition = symbol_definitions[0]
 
-    def get_definitions_for_function(self, filepath: str, function_name: str, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
+                if depth > 1:
+                    # Recursively get definitions for symbols in the definition
+                    symbol_definitions = self._get_definitions_for_window(
+                        code_bytes, definition['start_line'], definition['end_line'], collapse_function_body, depth - 1
+                    )
+                    definitions.update(symbol_definitions)
+
+                definitions[symbol] = definition
+
+        return definitions
+
+
+    def get_definitions_for_function(self, filepath: str, function_name: str, depth=1, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
         """Get definitions for all symbols referenced in a function"""
         abs_path = self._make_absolute(filepath)
         
@@ -260,10 +279,8 @@ class Codebase:
         if not target_function:
             return {} if return_dict else []
             
-        # Get the function's line range
-        line = target_function['line']
-        # Calculate end line by counting lines in definition
-        end_line = line + len(target_function['definition'].splitlines()) - 1
+        start_line = target_function['start_line']
+        end_line = target_function['end_line']
         
         # Use the window-based definition lookup
-        return self.get_definitions_for_window(filepath, line - 1, end_line, collapse_function_body, return_dict)
+        return self.get_definitions_for_window(filepath, start_line, end_line, depth, collapse_function_body, return_dict)
