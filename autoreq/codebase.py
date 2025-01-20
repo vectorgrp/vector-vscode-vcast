@@ -1,317 +1,286 @@
-from functools import lru_cache
-import re
+from typing import List, Dict, Optional, Set, Tuple, Union
+from monitors4codegen.multilspy import SyncLanguageServer
+from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
+from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
+from pathlib import Path
 import os
-from .util import paths_to_files
-#import tree_sitter_c as tsc
-#from tree_sitter import Parser, Language
-
-# Initialize Tree-sitter parser for C++
 import tree_sitter_cpp as ts_cpp
 from tree_sitter import Parser, Language
-
-# ...existing code...
-
-#C_LANGUAGE = Language(tsc.language())
-CXX_LANGUAGE = Language(ts_cpp.language())
-parser = Parser(CXX_LANGUAGE)
-
-_IDENTIFIER_BLACKLIST = {'FUNC', 'VAR'}
+from copy import deepcopy
 
 class Codebase:
-    def __init__(self, source_dirs):
-        self.source_dirs = source_dirs
-        self.parser = parser  # Using the updated C++ parser
-        self.codebase_files = self._collect_codebase_files()
-        self.include_graph = self._build_include_graph()
-        self.inverted_index = self._build_inverted_index()
+    # All LSP symbol kinds that we want to index
+    INDEXABLE_KINDS = {
+        12,  # Function
+        6,   # Method
+        13,  # Variable
+        5,   # Class
+        23,  # Namespace
+        22,  # Struct
+        10,  # Enum
+        11,   # Interface,
+        252  # Type defs
+    }
+    
+    FUNCTION_KINDS = {12, 6}  # Both functions and methods
 
-    def _collect_codebase_files(self):
-        return paths_to_files(self.source_dirs, file_extensions=['.c', '.h', '.cpp', '.hpp', '.cc', '.hh'])
+    def _make_absolute(self, path: str) -> str:
+        """Convert a path to absolute path"""
+        return str(Path(path).resolve())
 
-    def get_code_bytes(self, filepath):
-        with open(filepath, 'rb') as f:
-            code_bytes = f.read()
-        return self._replace_func_meta(code_bytes)
-
-    def _replace_func_meta(self, code_bytes):
-        code_str = code_bytes.decode('utf8', errors='ignore')
-        code_str = re.sub(r'FUNC\((\w+)\s*,\s*\w+\)', r'\1', code_str)
-        return code_str.encode('utf8')
-
-    @lru_cache(maxsize=4096)
-    def parse_file(self, filepath):
-        code_bytes = self.get_code_bytes(filepath)
-        tree = self.parser.parse(code_bytes)
-        return tree, code_bytes
-
-    def _build_inverted_index(self):
-        inverted_index = {}
-        for filepath in self.codebase_files:
-            tree, code_bytes = self.parse_file(filepath)
-            root_node = tree.root_node
-            self._collect_definitions(root_node, code_bytes, filepath, inverted_index)
-        return inverted_index
-
-    def _build_include_graph(self):
-        include_graph = {}
-        for filepath in self.codebase_files:
-            tree, code_bytes = self.parse_file(filepath)
-            root_node = tree.root_node
-            included_files = self._get_included_files(root_node, filepath)
-            include_graph[filepath] = included_files
-        return include_graph
-
-    def _collect_definitions(self, node, code_bytes, filepath, inverted_index):
-        try:
-            names = self._get_definition_names(node)
-            if names:
-                definition_code = code_bytes[node.start_byte:node.end_byte].decode('utf8', errors='ignore')
-                for name in names:
-                    if name not in inverted_index:
-                        inverted_index[name] = {}
-                    inverted_index[name][filepath] = definition_code
-            for child in node.children:
-                self._collect_definitions(child, code_bytes, filepath, inverted_index)
-        except RecursionError:
-            print("Recursion error in node:", filepath)
-
-    def _get_definition_names(self, node):
-        names = []
-        # Function definition
-        if node.type == 'function_definition' or node.type == 'function_declaration':
-            declarator_parent = node.child_by_field_name('declarator')
-            if declarator_parent:
-                function_name_node = declarator_parent.child_by_field_name('declarator')
-                if function_name_node:
-                    names.append(function_name_node.text.decode('utf8'))
-        # Class definition
-        elif node.type == 'class_specifier':
-            class_name_node = node.child_by_field_name('name')
-            if class_name_node:
-                names.append(class_name_node.text.decode('utf8'))
-        # Namespace definition
-        elif node.type == 'namespace_definition':
-            namespace_name_node = node.child_by_field_name('name')
-            if namespace_name_node:
-                names.append(namespace_name_node.text.decode('utf8'))
-        # Template definition
-        elif node.type == 'template_declaration':
-            # Handle templates if necessary
-            pass
-        # Struct definition
-        elif node.type == 'struct_specifier':
-            struct_name_node = node.child_by_field_name('name')
-            if struct_name_node:
-                names.append(struct_name_node.text.decode('utf8'))
-        # Macro definition
-        elif node.type == 'preproc_def':
-            macro_name_node = node.child(1)
-            if macro_name_node and macro_name_node.type == 'identifier':
-                names.append(macro_name_node.text.decode('utf8'))
-        # Enum definition and enumerators
-        elif node.type == 'enum_specifier':
-            enum_name_node = node.child_by_field_name('name')
-            if enum_name_node:
-                names.append(enum_name_node.text.decode('utf8'))
-            enumerator_list = node.child_by_field_name('body')
-            if enumerator_list:
-                for enumerator in enumerator_list.named_children:
-                    if enumerator.type == 'enumerator':
-                        enumerator_name_node = enumerator.child_by_field_name('name')
-                        if enumerator_name_node:
-                            names.append(enumerator_name_node.text.decode('utf8'))
-        # Typedef definition
-        elif node.type == 'type_definition':
-            alias_node = node.child_by_field_name('alias')
-            if alias_node:
-                names.append(alias_node.text.decode('utf8'))
-        # Global variable definition
-        if node.type == 'declaration' and node.parent.type == 'translation_unit':
-            declarator = node.child_by_field_name('declarator')
-            if declarator and declarator.type == 'identifier':
-                names.append(declarator.text.decode('utf8'))
-
-        return names
-
-    def _get_definition_node(self, node, identifier=None):
-        names = self._get_definition_names(node)
-        if identifier and identifier in names:
-            return node
-        return None
-
-    def find_definition(self, identifier, referencing_file, visited_files=None, only_local=False):
-        if visited_files is None:
-            visited_files = set()
-
-        if referencing_file in visited_files:
-            return None  # Avoid cycles
-
-        visited_files.add(referencing_file)
-
-        # Search for definition in the current file
-        definitions_in_file = self.inverted_index.get(identifier, {}).get(referencing_file)
-        if definitions_in_file:
-            return definitions_in_file
-
-        if only_local:
-            return None
-
-        # Use precomputed include graph to find definitions in included files
-        included_files = self.include_graph.get(referencing_file, [])
-        for inc_filepath in included_files:
-            if inc_filepath not in visited_files:
-                # Search for definition in the included file
-                definitions_in_file = self.inverted_index.get(identifier, {}).get(inc_filepath)
-                if definitions_in_file:
-                    return definitions_in_file
-                # Recursively search in included files
-                result = self.find_definition(identifier, inc_filepath, visited_files)
-                if result:
-                    return result
-
-        # Fallback to all definitions in the codebase
-        all_definitions = [defn for defn in self.inverted_index.get(identifier, {}).values()]
+    def _find_common_prefix(self, paths: List[str]) -> str:
+        """Find the longest common prefix of all paths"""
+        if not paths:
+            return ""
+        abs_paths = [self._make_absolute(p) for p in paths]
+        return os.path.commonpath(abs_paths)
+    
+    def __init__(self, source_dirs: List[str]):
+        # Initialize tree-sitter parser
+        self.ts_parser = Parser(Language(ts_cpp.language()))
         
-        return all_definitions[0] if all_definitions else None
+        # Convert all source directories to absolute paths
+        self.source_dirs = [self._make_absolute(d) for d in source_dirs]
+        
+        # Find common prefix for LSP server
+        common_prefix = self._find_common_prefix(self.source_dirs)
+        common_prefix_dir = common_prefix if os.path.isdir(common_prefix) else os.path.dirname(common_prefix)
+        
+        self.config = MultilspyConfig.from_dict({'code_language': 'cpp'})
+        self.logger = MultilspyLogger()
+        self.lsp = SyncLanguageServer.create(
+            self.config, 
+            self.logger, 
+            common_prefix_dir
+        )
 
-    def _get_included_files(self, root_node, current_filepath):
-        included_files = []
-        for node in root_node.children:
-            if node.type == 'preproc_include' or node.type == 'preproc_import':
-                include_text = node.text.decode('utf8')
-                match = re.match(r'#\s*(include|import)\s*["<](.*?)[">]', include_text)
-                if match:
-                    include_filename = match.group(2)
-                    inc_filepath = self._resolve_include_path(include_filename, current_filepath)
-                    if inc_filepath:
-                        included_files.append(inc_filepath)
-        return included_files
+        # Index mapping names to their definitions
+        self._definition_index: Dict[str, List[Dict]] = {}
+        self._build_definition_index()
 
-    def _resolve_include_path(self, include_filename, current_filepath):
-        current_dir = os.path.dirname(current_filepath)
-        # Check relative to current file
-        candidate = os.path.join(current_dir, include_filename)
-        if os.path.exists(candidate):
-            return candidate
-        # Check in source directories and their subdirectories
-        for source_dir in self.source_dirs:
-            for root, _, files in os.walk(source_dir):
-                candidate = os.path.join(root, include_filename)
-                if os.path.exists(candidate):
-                    return candidate
+    def _build_definition_index(self):
+        """Build an index mapping symbol names to their definitions"""
+        with self.lsp.start_server():
+            for source_dir in self.source_dirs:
+                path = Path(source_dir)
+                if path.is_file():
+                    files = [path]
+                else:
+                    files = list(path.rglob('*.cpp')) + list(path.rglob('*.c'))
+                
+                for file in files:
+                    abs_file = self._make_absolute(str(file))
+                    with open(abs_file, 'r', encoding='utf-8', errors='ignore') as f:
+                        file_content = f.read()
+                    
+                    symbols = self.lsp.request_document_symbols(abs_file)
+                    if symbols and isinstance(symbols, tuple):
+                        symbols = symbols[0]
+                    
+                    for symbol in symbols or []:
+                        if symbol.get('kind') in self.INDEXABLE_KINDS:
+                            name = symbol['name']
+                            start_line = symbol['range']['start']['line']
+                            end_line = symbol['range']['end']['line']
+                            
+                            # Extract the actual definition text
+                            definition_lines = file_content.splitlines()[start_line:end_line+1]
+                            definition_text = '\n'.join(definition_lines)
+                            
+                            if name not in self._definition_index:
+                                self._definition_index[name] = []
+                            self._definition_index[name].append({
+                                'name': name,
+                                'kind': symbol['kind'],
+                                'file': abs_file,
+                                'start_line': start_line,
+                                'end_line': end_line,
+                                'definition': definition_text
+                            })
+
+    def _has_function_body(self, definition_text: str) -> bool:
+        """Check if a function definition contains a body (implementation)"""
+        # Remove any trailing semicolon and whitespace
+        definition_text = definition_text.strip().rstrip(';')
+        # Check if it contains curly braces (indicating a body)
+        return '{' in definition_text and '}' in definition_text
+
+    def _collapse_function_body(self, definition_text: str) -> str:
+        """Remove the body of a function definition"""
+        # Find the opening and closing braces
+        open_brace_index = definition_text.find('{')
+        close_brace_index = definition_text.rfind('}')
+        
+        if open_brace_index != -1 and close_brace_index != -1 and open_brace_index < close_brace_index:
+            # Keep everything up to the opening brace and after the closing brace
+            return definition_text[:open_brace_index + 1] + ' ... ' + definition_text[close_brace_index:]
+        
+        return definition_text
+
+    def get_all_functions(self, only_with_body: bool = True, collapse_function_body: bool = False) -> List[Dict]:
+        """Get all functions and methods from all files in the codebase"""
+        functions = [
+            def_info for defs in self._definition_index.values()
+            for def_info in defs
+            if def_info['kind'] in self.FUNCTION_KINDS
+        ]
+        
+        if only_with_body:
+            functions = [
+                f for f in functions
+                if self._has_function_body(f['definition'])
+            ]
+        
+        if collapse_function_body:
+            # Create deep copies to avoid mutating original data
+            functions = deepcopy(functions)
+            for func in functions:
+                func['definition'] = self._collapse_function_body(func['definition'])
+        
+        return functions
+
+    def get_functions_in_file(self, filepath: str, only_with_body: bool = True, collapse_function_body: bool = False) -> List[Dict]:
+        """Get all functions and methods from a specific file"""
+        abs_path = self._make_absolute(filepath)
+        functions = [
+            def_info for defs in self._definition_index.values()
+            for def_info in defs
+            if def_info['kind'] in self.FUNCTION_KINDS and def_info['file'] == abs_path
+        ]
+        
+        if only_with_body:
+            functions = [
+                f for f in functions
+                if self._has_function_body(f['definition'])
+            ]
+        
+        if collapse_function_body:
+            # Create deep copies to avoid mutating original data
+            functions = deepcopy(functions)
+            for func in functions:
+                func['definition'] = self._collapse_function_body(func['definition'])
+        
+        return functions
+
+    def find_definitions_by_name(self, identifier: str, collapse_function_body: bool = False, return_raw: bool = False) -> List[str]:
+        """Find all definitions of an identifier by name, returns the actual definition text"""
+        definitions = self._definition_index.get(identifier, [])
+
+        if collapse_function_body:
+            definitions = deepcopy(definitions)
+            for d in definitions:
+                if d['kind'] in self.FUNCTION_KINDS:
+                    d['definition'] = self._collapse_function_body(d['definition'])
+
+        if return_raw:
+            return definitions
+
+        return [d['definition'] for d in definitions]
+
+    def find_definition_by_location(self, referencing_file: str, line: int, character: int, collapse_function_body: bool = False) -> Optional[str]:
+        """Find definition of an identifier at a specific location"""
+        with self.lsp.start_server():
+            definition = self.lsp.request_definition(
+                referencing_file,
+                line,
+                character
+            )
+            if definition and isinstance(definition, tuple):
+                definition = definition[0]
+            if isinstance(definition, list):
+                definition = definition[0]
+                
+            if definition:
+                # Get the file content and extract the definition text
+                target_file = definition['absolutePath']
+                with open(target_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    file_content = f.read()
+                
+                start_line = definition['range']['start']['line']
+                end_line = definition['range']['end']['line']
+                definition_lines = file_content.splitlines()[start_line:end_line + 1]
+                definition_text = '\n'.join(definition_lines)
+                
+                if collapse_function_body and definition['kind'] in self.FUNCTION_KINDS:
+                    return self._collapse_function_body(definition_text)
+                
+                return definition_text
+                    
         return None
 
-    def find_functions_in_file(self, filepath):
-        tree, code_bytes = self.parse_file(filepath)
+    def _get_symbol_references_in_window(self, code_bytes: bytes, start_line: int, end_line: int) -> Set[str]:
+        """Extract all potential symbol references in a given window of code using tree-sitter"""
+        tree = self.ts_parser.parse(code_bytes)
         root_node = tree.root_node
-        functions = self._find_functions(root_node)
-        return [(func_node, code_bytes[func_node.start_byte:func_node.end_byte].decode('utf8')) for func_node in functions]
+        symbols = set()
 
-    def _find_functions(self, node):
-        functions = []
-        if node.type == 'function_definition':
-            functions.append(node)
-        for child in node.children:
-            functions.extend(self._find_functions(child))
-        return functions
+        def visit_node(node):
+            if node.type in ('identifier', 'type_identifier', 'field_identifier'):
+                node_start_line = node.start_point[0]
+                if start_line <= node_start_line <= end_line:
+                    symbols.add(node.text.decode('utf-8'))
+            for child in node.children:
+                visit_node(child)
 
-    def find_enclosing_function(self, filepath, line_number, window_tolerance=0):
-        tree, _ = self.parse_file(filepath)
-        root_node = tree.root_node
-        return self._find_function_containing_line(root_node, line_number, window_tolerance)
+        visit_node(root_node)
+        return symbols
 
-    def _find_function_containing_line(self, node, line_number, window_tolerance):
-        if node.type == 'function_definition':
-            start_line, _ = node.start_point
-            end_line, _ = node.end_point
-            if start_line - window_tolerance <= line_number <= end_line + window_tolerance:
-                return node
-        for child in node.children:
-            result = self._find_function_containing_line(child, line_number, window_tolerance)
-            if result:
-                return result
-        return None
+    def get_definitions_for_window(self, filepath: str, start_line: int, end_line: int, depth=1, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
+        """Get definitions for all symbols referenced in a window of code"""
+        abs_path = self._make_absolute(filepath)
+        
+        # Read the file content
+        with open(abs_path, 'rb') as f:
+            code_bytes = f.read()
+            
+        definitions = self._get_definitions_for_window(code_bytes, start_line, end_line, collapse_function_body, depth)
 
-    def get_code_window(self, filepath, line_number, window=5, return_line_numbers=False):
-        tree, code_bytes = self.parse_file(filepath)
-        root_node = tree.root_node
+        if return_dict:
+            return {k: v['definition'] for k, v in definitions.items()}
 
-        # Find initial start and end lines for the window
-        start_line = max(0, line_number - window)
-        end_line = line_number + window
+        return list(set(v['definition'] for v in definitions.values()))
 
-        # Expand window to include entire functions within the window
-        functions = self._find_functions_in_range(root_node, start_line, end_line)
-        for func_node in functions:
-            func_start_line, _ = func_node.start_point
-            func_end_line, _ = func_node.end_point
-            start_line = min(start_line, func_start_line)
-            end_line = max(end_line, func_end_line)
+    def _get_definitions_for_window(self, code_bytes: bytes, start_line: int, end_line: int, collapse_function_body: bool = False, depth=1) -> Dict[str, List[str]]:
+        """Get definitions for all symbols referenced in a window of code"""
+        # Get all symbol references in the window
+        symbols = self._get_symbol_references_in_window(code_bytes, start_line, end_line)
+        
+        # Return dictionary mapping symbols to their definitions
+        definitions = {}
+        for symbol in symbols:
+            symbol_definitions = self.find_definitions_by_name(symbol, collapse_function_body, return_raw=True)
+            if symbol_definitions:
+                definition = symbol_definitions[0]
 
-        # Extract code between start_line and end_line
-        code_lines = code_bytes.decode('utf8', errors='ignore').splitlines()
-        code_window = '\n'.join(code_lines[start_line:end_line + 1])
+                if depth > 1:
+                    # Recursively get definitions for symbols in the definition
+                    symbol_definitions = self._get_definitions_for_window(
+                        code_bytes, definition['start_line'], definition['end_line'], collapse_function_body, depth - 1
+                    )
+                    definitions.update(symbol_definitions)
 
-        if return_line_numbers:
-            return code_window, start_line, end_line
+                definitions[symbol] = definition
 
-        return code_window
+        return definitions
 
-    def _find_functions_in_range(self, node, start_line, end_line):
-        functions = []
-        node_start_line, _ = node.start_point
-        node_end_line, _ = node.end_point
 
-        # If node is outside the range, skip it
-        if node_end_line < start_line or node_start_line > end_line:
-            return functions
-
-        if node.type == 'function_definition':
-            functions.append(node)
-
-        for child in node.children:
-            functions.extend(self._find_functions_in_range(child, start_line, end_line))
-
-        return functions
-
-    def get_identifiers_in_window(self, filepath, start_line, end_line):
-        tree, code_bytes = self.parse_file(filepath)
-        root_node = tree.root_node
-        identifiers = set()
-        self._collect_identifiers_in_range(root_node, start_line, end_line, identifiers)
-        return identifiers - _IDENTIFIER_BLACKLIST
-
-    def _collect_identifiers_in_range(self, node, start_line, end_line, identifiers):
-        node_start_line, _ = node.start_point
-        node_end_line, _ = node.end_point
-
-        # If node is outside the range, skip it
-        if node_end_line < start_line or node_start_line > end_line:
-            return
-
-        if node.type in ('identifier', 'type_identifier'):
-            identifier = node.text.decode('utf8')
-            identifiers.add(identifier)
-
-        for child in node.children:
-            self._collect_identifiers_in_range(child, start_line, end_line, identifiers)
-
-    def get_all_functions(self):
-        functions = []
-        for filepath in self.codebase_files:
-            tree, code_bytes = self.parse_file(filepath)
-            root_node = tree.root_node
-            func_nodes = self._find_functions(root_node)
-            for func_node in func_nodes:
-                declarator = func_node.child_by_field_name('declarator')
-                if declarator:
-                    func_name_node = declarator.child_by_field_name('declarator')
-                    if func_name_node:
-                        func_name = func_name_node.text.decode('utf8')
-                        start_line = func_node.start_point[0] + 1
-                        functions.append({
-                            'name': func_name,
-                            'file': filepath,
-                            'line': start_line
-                        })
-        return functions
+    def get_definitions_for_function(self, filepath: str, function_name: str, depth=1, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
+        """Get definitions for all symbols referenced in a function"""
+        abs_path = self._make_absolute(filepath)
+        
+        # Find the function definition
+        functions = self.get_functions_in_file(abs_path)
+        target_function = None
+        for func in functions:
+            if func['name'] == function_name:
+                target_function = func
+                break
+                
+        if not target_function:
+            return {} if return_dict else []
+            
+        start_line = target_function['start_line']
+        end_line = target_function['end_line']
+        
+        # Use the window-based definition lookup
+        return self.get_definitions_for_window(filepath, start_line, end_line, depth, collapse_function_body, return_dict)
