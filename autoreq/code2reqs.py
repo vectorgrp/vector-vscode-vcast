@@ -127,7 +127,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
         func_name = func['name']
         func_file = func['file']
         func_code = codebase.find_definitions_by_name(func_name)[0]
-        result = await generator.generate(func_code)
+        result = await generator.generate(func_code, func_name)
         processed_functions += 1
         progress = processed_functions / total_functions
 
