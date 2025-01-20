@@ -1,5 +1,9 @@
+import re
 import glob
 import os
+import tempfile
+import shutil
+from typing import Callable, Optional
 
 
 def paths_to_files(paths, file_extensions=['c']):
@@ -22,3 +26,50 @@ def paths_to_files(paths, file_extensions=['c']):
             files |= set(p for ext in file_extensions for p in glob.glob(os.path.join(path, '**', '*') + '.' + ext, recursive=True))
 
     return files
+
+
+class TempCopy:
+    def __init__(self, source_path: str, transform: Optional[Callable[[str], str]] = None):
+        """
+        Context manager that creates a temporary copy of a file with optional content transformation.
+        
+        Args:
+            source_path (str): Path to the source file to copy
+            transform (Callable[[str], str], optional): Function to transform the file contents
+        """
+        self.source_path = source_path
+        self.transform = transform
+        self.temp_path = None
+
+    def __enter__(self) -> str:
+        # Create temporary file with same extension as source
+        _, ext = os.path.splitext(self.source_path)
+        temp_fd, self.temp_path = tempfile.mkstemp(suffix=ext)
+        os.close(temp_fd)
+
+        # Copy content with optional transformation
+        with open(self.source_path, 'r') as src:
+            content = src.read()
+            if self.transform:
+                content = self.transform(content)
+            with open(self.temp_path, 'w') as dst:
+                dst.write(content)
+
+        return self.temp_path
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.temp_path and os.path.exists(self.temp_path):
+            os.unlink(self.temp_path)
+
+
+def replace_func_and_var(code: str):
+    FUNC_REGEX = re.compile(r'FUNC\((\w+?), ?\w+?\)')
+    VAR_REGEX = re.compile(r'VAR\((\w+?), ?\w+?\)')
+    
+    def replace(match):
+        return match.group(1)
+    
+    code = FUNC_REGEX.sub(replace, code)
+    code = VAR_REGEX.sub(replace, code)
+    
+    return code

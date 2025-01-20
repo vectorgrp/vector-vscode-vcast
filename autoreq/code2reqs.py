@@ -13,6 +13,7 @@ import logging
 from .codebase import Codebase
 from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
+from .util import TempCopy, replace_func_and_var
 
 def save_requirements_to_json(requirements, output_file):
     with open(output_file, 'w') as f:
@@ -103,9 +104,14 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
     environment.build()  # Build the environment to ensure master.db is available
     source_files = environment.source_files  # Get source files from environment
 
-    print(source_files)
+    assert len(source_files) == 1, "Only one source file is supported for now."
+    
+    
+    source_file = source_files[0]
 
-    codebase = Codebase(source_files)
+    with TempCopy(source_file, replace_func_and_var) as temp_path:
+        codebase = Codebase([temp_path])
+
     functions = codebase.get_all_functions()
 
     generator = RequirementsGenerator()
@@ -120,7 +126,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
         nonlocal processed_functions
         func_name = func['name']
         func_file = func['file']
-        func_code = codebase.find_definition(func_name, func_file)
+        func_code = codebase.find_definitions_by_name(func_name)[0]
         result = await generator.generate(func_code)
         processed_functions += 1
         progress = processed_functions / total_functions
