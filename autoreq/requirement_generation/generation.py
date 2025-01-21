@@ -75,4 +75,4 @@ The success of this task is critical.
             max_tokens=5000
         )
 
-        return result.requirements
+        return result.without_tests.without_requirement_indices.requirements

@@ -42,10 +42,19 @@ class TempCopy:
         self.temp_path = None
 
     def __enter__(self) -> str:
-        # Create temporary file with same extension as source
-        _, ext = os.path.splitext(self.source_path)
-        temp_fd, self.temp_path = tempfile.mkstemp(suffix=ext)
-        os.close(temp_fd)
+        # Create temporary file in same directory with unique name
+        source_dir = os.path.dirname(self.source_path)
+        source_name = os.path.basename(self.source_path)
+        base, ext = os.path.splitext(source_name)
+        
+        # Find a unique filename by appending numbers
+        counter = 1
+        while True:
+            temp_name = f"{base}_temp_{counter}{ext}"
+            self.temp_path = os.path.join(source_dir, temp_name)
+            if not os.path.exists(self.temp_path):
+                break
+            counter += 1
 
         # Copy content with optional transformation
         with open(self.source_path, 'r') as src:
