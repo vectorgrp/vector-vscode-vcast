@@ -1,6 +1,7 @@
 import os
 import re
 import asyncio  # Add asyncio import
+import charset_normalizer
 
 from ..search import SearchEngine
 
@@ -40,8 +41,10 @@ class VcastContextBuilder:
 
                 if os.path.exists(tu_file_path):
                     # Extract the required snippet from the .tu.c file
-                    with open(tu_file_path, 'r', errors="ignore") as f:
-                        lines = f.readlines()
+                    #with open(tu_file_path, 'r', errors="ignore") as f:
+                    #    lines = f.readlines()
+
+                    lines = str(charset_normalizer.from_path(tu_file_path).best()).splitlines()
 
                     snippet_lines = []
                     in_relevant_context = False
@@ -61,7 +64,7 @@ class VcastContextBuilder:
                             snippet_lines.append(line)
 
                     if snippet_lines:
-                        context += "\n" + "".join(snippet_lines)
+                        context += "\n" + "\n".join(snippet_lines)
 
             # Add unit name to context
             context = f"// {unit_name}.c(pp)\n" + context
