@@ -230,8 +230,8 @@ Make sure the generated test case clearly test the provided requirement.
 
 Solve the problem using the following steps:
 1. Give a description in natural language of how the requirement should be tested.
-3. Think about which values need to be set to what and what we expect to happen in the actual code, i.e., how do we translate from natural language descripion to implementation?
-4. Generate a test case (one or more depending on what you deem to be suitable) to test individual subprograms.
+2. Think about which values need to be set to what and what we expect to happen in the actual code, i.e., how do we translate from natural language descripion to implementation?
+3. Generate a test case in the syntax provided above.
     a. Come up with a descriptive (unique) name for the test case and describe in natural language how this test exercises the requirement
     b. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
     c. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
