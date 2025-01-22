@@ -265,6 +265,18 @@ Notes:
 
         return test_generation_result
 
+    def _create_partial_test_case(self, test_generation_result):
+        """Creates a partial test case by removing expected values."""
+        # Create a copy of the test generation result
+        partial_result = test_generation_result.model_copy(deep=True)
+        
+        # Remove expected values from each test case
+        for test_case in partial_result.test_cases:
+            test_case.expected_values = []
+            test_case.test_name = test_case.test_name + "-PARTIAL"
+        
+        return partial_result
+
     async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3):
         iteration = 0
         fix_messages = messages
@@ -323,9 +335,12 @@ Tip:
                 # Call the model to get the fixed test case
                 test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
 
-        if errors or test_failures:
-            logging.warning(f"Failed to fix errors and test failures after {iteration} iterations")
+        if errors:
+            logging.warning(f"Failed to fix errors after {iteration} iterations")
             return None
+        elif test_failures:
+            logging.info("Converting to partial test case due to persistent test failures")
+            return self._create_partial_test_case(test_generation_result)
 
         return test_generation_result
 
