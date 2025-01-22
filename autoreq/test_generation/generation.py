@@ -156,7 +156,8 @@ class TestGenerator:
             self.info_logger.increment_retries_used(requirement_id)
             temperature = 0.0 if first_try else 1.0
             extended_reasoning = self.use_extended_reasoning and not first_try  # Modify this line
-            result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature, extended_reasoning=extended_reasoning)
+            allow_partial = True
+            result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial)
             if result:
                 self.info_logger.set_test_generated(requirement_id)
                 return result
@@ -165,7 +166,7 @@ class TestGenerator:
 
         return None
 
-    async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False):
+    async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False, allow_partial=False):
         requirement_text = self.requirements.get(requirement_id)
         if not requirement_text:
             logging.warning(f"Requirement {requirement_id} not found.")
@@ -258,7 +259,7 @@ Notes:
             return None
 
         test_generation_result = await self._iterative_error_correction(
-            requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
+            requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial)
 
         if test_generation_result is None:
             return None
@@ -277,7 +278,7 @@ Notes:
         
         return partial_result
 
-    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3):
+    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3, allow_partial=False):
         iteration = 0
         fix_messages = messages
         while iteration < max_iterations:
@@ -340,7 +341,9 @@ Tip:
             return None
         elif test_failures:
             logging.info("Converting to partial test case due to persistent test failures")
-            return self._create_partial_test_case(test_generation_result)
+            
+            if allow_partial:
+                return self._create_partial_test_case(test_generation_result)
 
         return test_generation_result
 
