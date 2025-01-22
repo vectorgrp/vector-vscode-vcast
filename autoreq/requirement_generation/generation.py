@@ -46,6 +46,63 @@ class RequirementsGenerator:
                 "content": f"""
 Derive a complete list of test cases for the given function definition (give them in natural language). These test cases should give us 100% path coverage of the code.
 After that derive a complete list of requirements for the given function definition. Use completely implementation-independent vocabulary. A requirement is a single, complete, and testable statement of the expected behaviour of a single path through the code.
+
+Here are some examples:
+
+Example 1:
+```c
+float calculate_discount(float total_amount, bool is_member) {{
+    if (total_amount < 0) {{
+        return -1.0;  // Error case
+    }}
+    if (is_member) {{
+        return total_amount * 0.9;
+    }}
+    return total_amount;
+}}
+```
+Test cases:
+1. Test with negative total amount
+2. Test with member status and positive amount
+3. Test with non-member status and positive amount
+
+Requirements:
+1. The system shall return an error indicator when the total amount is negative
+2. The system shall apply a 10% discount when calculating the final amount for members
+3. The system shall return the original amount without modification for non-members
+
+Example 2:
+```c
+bool validate_password(const char* password) {{
+    if (password == NULL) {{
+        return false;
+    }}
+    if (strlen(password) < 8) {{
+        return false;
+    }}
+    bool has_uppercase = false;
+    for (int i = 0; password[i] != '\0'; i++) {{
+        if (isupper(password[i])) {{
+            has_uppercase = true;
+            break;
+        }}
+    }}
+    return has_uppercase;
+}}
+```
+Test cases:
+1. Test with NULL password pointer
+2. Test with password shorter than 8 characters
+3. Test with password of 8+ characters but no uppercase letter
+4. Test with password of 8+ characters including uppercase letter
+
+Requirements:
+1. The system shall reject invalid password pointers
+2. The system shall reject passwords that are less than 8 characters in length
+3. The system shall reject passwords that do not contain at least one uppercase letter
+4. The system shall accept passwords that are at least 8 characters long and contain at least one uppercase letter
+
+
 There is a one-to-one correspondence between requirements and test cases. Make sure each path through the code is covered by exactly one test case and one requirement.
 
 Requirements should fulfill the following criteria:
