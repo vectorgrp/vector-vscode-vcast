@@ -293,7 +293,7 @@ Notes:
         
         return partial_result
 
-    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=1, allow_partial=False):
+    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3, allow_partial=False):
         iteration = 0
         fix_messages = messages
         while iteration < max_iterations:
