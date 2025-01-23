@@ -107,6 +107,9 @@ class FileUtils:
                         return inp_file.read()
                 except UnicodeError:
                     continue
+            import charset_normalizer
+            
+            return str(charset_normalizer.from_path(file_path).best())
         except Exception as exc:
             logger.log(f"File read '{file_path}' failed: {exc}", logging.ERROR)
             raise MultilspyException("File read failed.") from None
