@@ -59,7 +59,11 @@ async def main():
 
     async def generate_and_process_test_case(requirement_id):
         nonlocal processed_requirements
-        result = await test_generator.generate_test_case(requirement_id, max_retries=args.retries)
+        try:
+            result = await test_generator.generate_test_case(requirement_id, max_retries=args.retries)
+        except Exception as e:
+            logging.error(f"Failed to generate test case for requirement {requirement_id}: {e}")
+            result = None
         processed_requirements += 1
         progress = processed_requirements / total_requirements
 
@@ -67,6 +71,8 @@ async def main():
             print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
 
         if result:
+            with open(f"last_result.json", "w") as f:
+                json.dump(result.dict(), f, indent=4)
             logging.info(f"Test Description for {requirement_id}:\n{result.test_description}")
             logging.info("Test Mapping Analysis:\n%s", result.test_mapping_analysis)
             for test_case in result.test_cases:
