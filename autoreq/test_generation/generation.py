@@ -83,11 +83,26 @@ def _derive_schema(allowed_identifiers=None):
             for stub in self._get_needed_stubs():
                 test_case_str += f"TEST.STUB:{stub}\n"
 
+            # Sometimes the LLM duplicates assignments. Deduplicating them is a free win
+            seen_inputs = set()
             for input_value in self.input_values:
-                test_case_str += input_value.to_vectorcast()
+                vectorcast_input = input_value.to_vectorcast()
 
+                if vectorcast_input in seen_inputs:
+                    continue
+
+                test_case_str += vectorcast_input
+                seen_inputs.add(vectorcast_input)
+
+            seen_expected = set()
             for expected_value in self.expected_values:
-                test_case_str += expected_value.to_vectorcast(is_expected=True)
+                vectorcast_expected = expected_value.to_vectorcast(is_expected=True)
+
+                if vectorcast_expected in seen_expected:
+                    continue
+
+                test_case_str += vectorcast_expected
+                seen_expected.add(vectorcast_expected)
 
             test_case_str += "TEST.END\n"
             return test_case_str
@@ -278,7 +293,7 @@ Notes:
         
         return partial_result
 
-    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3, allow_partial=False):
+    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=1, allow_partial=False):
         iteration = 0
         fix_messages = messages
         while iteration < max_iterations:
