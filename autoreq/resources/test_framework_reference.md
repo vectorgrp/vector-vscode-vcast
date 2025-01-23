@@ -115,7 +115,7 @@ The following sections describe the syntax for specifying the `identifier` and `
 - Use parentheses for repeated values.
   - Example:
     { "identifier": "unit.subprogram.parameter", "value": "1,(4)2,4" }
-- Note: This is used in case something needs to be set multiple times (like for a stub return) during one call, NOT to specify values in an array, use the regular index syntax as outlined above instead.
+- Note: This is used in case something needs to be set multiple times (like for a stub return) during one call, NOT to specify values in an array. To do so, use the regular index syntax as outlined above instead.
 
 #### Working with Overloaded Subprograms
 - Append the parameter type list to the subprogram name.

@@ -1,4 +1,5 @@
 from enum import Enum
+import json
 import re
 from typing import List
 from pydantic import BaseModel
@@ -171,7 +172,7 @@ class TestGenerator:
             self.info_logger.increment_retries_used(requirement_id)
             temperature = 0.0 if first_try else 1.0
             extended_reasoning = self.use_extended_reasoning and not first_try  # Modify this line
-            allow_partial = True
+            allow_partial = not first_try
             result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial)
             if result:
                 self.info_logger.set_test_generated(requirement_id)
@@ -265,6 +266,10 @@ Notes:
                 f.write(f"{message['role']}: {message['content']}\n\n")
 
         schema = _derive_schema(self.environment.allowed_identifiers)
+
+        # Check if the schema is too large, if so we fall back to a less constrained, smaller schema
+        if len(json.dumps(schema.model_json_schema())) > 15000:
+            schema = _derive_schema(None)
 
         try:
             test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
