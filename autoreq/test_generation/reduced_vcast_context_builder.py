@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 from enum import Enum
 import tempfile
+import asyncio  # Add asyncio import
 from ..search import SearchEngine
 from .vcast_context_builder import VcastContextBuilder
 from ..codebase import Codebase
@@ -14,14 +15,29 @@ class VcastReducedContextBuilder(VcastContextBuilder):
     def __init__(self, environment, reduction_mode=ReductionMode.AST):
         super().__init__(environment)
         self.reduction_mode = reduction_mode
+        self.reduced_cache = {}  # Add cache for reduced contexts
+        self.reduced_locks = {}  # Add locks for reduced contexts
 
     async def build_code_context(self, function_name):
-        context = await super().build_code_context(function_name)
+        if function_name in self.reduced_cache:
+            return self.reduced_cache[function_name]
 
-        if self.reduction_mode == ReductionMode.LLM:
-            return await self._reduce_context_ai(context, function_name)
-        else:
-            return self._reduce_context_ast(context, function_name)
+        if function_name not in self.reduced_locks:
+            self.reduced_locks[function_name] = asyncio.Lock()
+
+        async with self.reduced_locks[function_name]:
+            if function_name in self.reduced_cache:
+                return self.reduced_cache[function_name]
+
+            context = await super().build_code_context(function_name)
+
+            if self.reduction_mode == ReductionMode.LLM:
+                reduced_context = await self._reduce_context_ai(context, function_name)
+            else:
+                reduced_context = self._reduce_context_ast(context, function_name)
+
+            self.reduced_cache[function_name] = reduced_context
+            return reduced_context
 
     async def _reduce_context_ai(self, context, function_name):
         if len(context) > 1000000 or len(context.split("\n")) > 1000:
