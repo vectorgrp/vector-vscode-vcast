@@ -115,6 +115,7 @@ The following sections describe the syntax for specifying the `identifier` and `
 - Use parentheses for repeated values.
   - Example:
     { "identifier": "unit.subprogram.parameter", "value": "1,(4)2,4" }
+- Note: This is used to call the test case multiple times with different values, NOT to specify values in an array, use the regular index syntax as outlined above instead.
 
 #### Working with Overloaded Subprograms
 - Append the parameter type list to the subprogram name.
