@@ -278,7 +278,7 @@ Notes:
             return None
 
         test_generation_result = await self._iterative_error_correction(
-            requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial)
+            requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial, allow_early_partial=True)
 
         if test_generation_result is None:
             return None
@@ -297,7 +297,7 @@ Notes:
         
         return partial_result
 
-    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3, allow_partial=False):
+    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3, allow_partial=False, allow_early_partial=False):
         iteration = 0
         fix_messages = messages
         while iteration < max_iterations:
@@ -310,6 +310,9 @@ Notes:
 
             if not errors and not test_failures:
                 break
+
+            if not errors and allow_partial and allow_early_partial:
+                return self._create_partial_test_case(test_generation_result)
 
             # Set test_run_failure_feedback only if test failures are detected
             if test_failures:
