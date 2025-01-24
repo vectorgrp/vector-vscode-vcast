@@ -1,8 +1,9 @@
+import asyncio
 from enum import Enum
 import json
 import re
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, create_model
 from dotenv import load_dotenv
 import logging
 
@@ -15,7 +16,7 @@ from ..llm_client import LLMClient  # Import the new LLMClient
 # Load environment variables from .env file
 load_dotenv()
 
-def _derive_schema(allowed_identifiers=None):
+def _derive_test_case_schema(allowed_identifiers=None):
     class TempEnum(str, Enum):
         pass
 
@@ -66,6 +67,18 @@ def _derive_schema(allowed_identifiers=None):
         @property
         def unit_names(self):
             return [self.unit_name]
+
+        @property
+        def as_partial(self):
+            return TestCase(
+                test_name=self.test_name + '-PARTIAL',
+                test_description=self.test_description,
+                requirement_id=self.requirement_id,
+                unit_name=self.unit_name,
+                subprogram_name=self.subprogram_name,
+                input_values=self.input_values,
+                expected_values=[]
+            )
 
         def to_vectorcast(self, is_compound=False) -> str:
             test_case_str = f"TEST.UNIT:{self.unit_name}\n"
@@ -142,17 +155,33 @@ def _derive_schema(allowed_identifiers=None):
                 needed_stubs.add(stub)
 
             return needed_stubs
+
+    return TestCase
+
+def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None):
+    TestCase = _derive_test_case_schema(allowed_identifiers=allowed_identifiers)
     
-    class TestGenerationResult(BaseModel):
-        test_description: str
-        test_mapping_analysis: str
-        test_case: TestCase
+    if not batched:
+        class TestGenerationResult(BaseModel):
+            test_description: str
+            test_mapping_analysis: str
+            test_case: TestCase # type: ignore
 
-        @property
-        def test_cases(self):
-            return [self.test_case]
+            @property
+            def test_cases(self):
+                return [self.test_case]
 
-    return TestGenerationResult
+        schema = TestGenerationResult
+    else:
+        assert batch_size is not None, "Batch size must be provided when generating a batched schema."
+        result_keys = {f"test_case_for_requirement_{i+1}": (TestCase, ...) for i in range(batch_size)}
+        schema = create_model('TestGenerationResult', **result_keys)
+
+    if len(json.dumps(schema.model_json_schema())) > 15000:
+        return _derive_completion_schema(batched, allowed_identifiers=None, batch_size=batch_size)
+
+    return schema
+
 
 class TestGenerator:
     def __init__(self, requirements, environment, use_extended_reasoning=False):
@@ -163,6 +192,96 @@ class TestGenerator:
         self.llm_client = LLMClient()
         self.info_logger = InfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
+
+    async def generate_batched_test_cases(self, requirement_ids, **kwargs):
+        if not requirement_ids:
+            return
+
+        # Extract function names and verify they're all the same
+        function_names = [req_id.rsplit('.', 1)[0] for req_id in requirement_ids]
+        assert len(set(function_names)) == 1, "All requirements must belong to the same function."
+
+        function_name = function_names[0]
+        requirements_text = "\n".join([f"{i+1}. {req_id}: {self.requirements.get(req_id)}" for i, req_id in enumerate(requirement_ids)])
+
+        # Build context similar to single test case generation
+        context = await self.context_builder.build_code_context(function_name)
+        atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=3, basis_path=True)
+
+        with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
+            test_framework_reference = f.read()
+
+        messages = [
+            {
+                "role": "system",
+                "content": "You are an AI assistant that generates test code for given requirements."
+            },
+            {
+                "role": "user",
+                "content": f"""
+Based on the following requirements, references, and code, generate test cases that exercise the given requirements.
+
+Test framework reference:
+{test_framework_reference}
+
+Relevant Code:
+```cpp
+{context}
+```
+
+Example Test Cases:
+```json
+{atg_examples}
+```
+
+Requirements:
+{requirements_text}
+
+Detailed task description:
+Based on the above requirements and code, generate unit tests that exercise all requirements.
+Make sure the generated test cases clearly test the provided requirements.
+
+Solve the problem using the following approach:
+For each requirement...
+    1. Come up with descriptive (unique) name for the test case and describe in natural language how this test exercises the requirements
+    2. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
+    3. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
+
+Notes:
+- You are NOT allowed to invent any syntax that is not specified in the syntax reference. Stick to the syntax provided.
+- You are NOT allowed to invent any units or functions that are not present in the provided code.
+- This is a highly critical task, please ensure that the test cases are correct and complete and do not contain any logical or syntactical errors.
+- Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
+"""
+            }
+        ]
+
+        schema = _derive_completion_schema(self.environment.allowed_identifiers, batch_size=len(requirement_ids))
+
+        try:
+            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning)
+        except Exception as e:
+            logging.exception("Failed to generate batched test cases.")
+            return
+
+        test_cases = []
+        for i, req_id in enumerate(requirement_ids):
+            test_case = test_generation_result[f"test_case_for_requirement_{i+1}"]
+            test_cases.append(test_case)
+
+        async def process_generated_test_case(test_case):
+            output = self.environment.run_tests([test_case.to_vectorcast()], execute=True)
+            errors, test_failures = self._parse_error_output(output)
+
+            if errors:
+                return await self.generate_test_case(req_id, **kwargs)
+            elif test_failures:
+                return test_case.as_partial
+
+            return test_case
+
+        for test_case in asyncio.as_completed(*[process_generated_test_case(test_case) for test_case in test_cases]):
+            yield await test_case
 
     async def generate_test_case(self, requirement_id, max_retries=1):
         self.info_logger.start_requirement(requirement_id)
@@ -201,7 +320,6 @@ class TestGenerator:
             num_examples = 3
             basis_path = True
 
-        atg_examples = ""
         logging.info(f"Fetching {num_examples} ATG example test cases")
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
         logging.debug("Retrieved ATG examples: %s", atg_examples)
@@ -264,11 +382,7 @@ Notes:
             for message in messages:
                 f.write(f"{message['role']}: {message['content']}\n\n")
 
-        schema = _derive_schema(self.environment.allowed_identifiers)
-
-        # Check if the schema is too large, if so we fall back to a less constrained, smaller schema
-        if len(json.dumps(schema.model_json_schema())) > 15000:
-            schema = _derive_schema(None)
+        schema = _derive_completion_schema(False, allowed_identifiers=self.environment.allowed_identifiers)
 
         try:
             test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
@@ -283,29 +397,15 @@ Notes:
         if test_generation_result is None:
             return None
 
-        return test_generation_result
-
-    def _create_partial_test_case(self, test_generation_result):
-        """Creates a partial test case by removing expected values."""
-        # Create a copy of the test generation result
-        partial_result = test_generation_result.model_copy(deep=True)
-        
-        # Remove expected values from each test case
-        for test_case in partial_result.test_cases:
-            test_case.expected_values = []
-            test_case.test_name = test_case.test_name + "-PARTIAL"
-        
-        return partial_result
+        return test_generation_result.test_case
 
     async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3, allow_partial=False, allow_early_partial=False):
         iteration = 0
         fix_messages = messages
         while iteration < max_iterations:
             iteration += 1
-            # Generate vectorcast test cases for all test cases
-            vectorcast_cases = [tc.to_vectorcast() for tc in test_generation_result.test_cases]
 
-            output = self.environment.run_tests(vectorcast_cases, execute=True)
+            output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()], execute=True)
             errors, test_failures = self._parse_error_output(output)
 
             if not errors and not test_failures:
@@ -369,6 +469,12 @@ Tip:
                 return None
 
         return test_generation_result
+
+    def _create_partial_test_case(self, test_generation_result):
+        partial_result = test_generation_result.model_copy(deep=True)
+        partial_result.test_case = partial_result.test_case.as_partial
+        
+        return partial_result
 
     def _parse_error_output(self, output):
         error_lines = []

@@ -14,7 +14,6 @@ async def main():
     parser.add_argument('env_path', help='Path to the VectorCAST environment file.')
     parser.add_argument('requirements_csv', help='Path to the CSV file containing requirements.')
     parser.add_argument('requirement_ids', nargs='*', help='ID of the requirement to generate test cases for.')
-    parser.add_argument('--execute', action='store_true', help='Execute the generated test cases.')
     parser.add_argument('--export-tst', help='Path to a file to write the VectorCAST test cases.')
     parser.add_argument('--retries', type=int, default=2, help='Number of retries for test generation.')
     parser.add_argument('--extended_reasoning', action='store_true', help='Use extended reasoning for test generation.')
@@ -60,28 +59,19 @@ async def main():
     async def generate_and_process_test_case(requirement_id):
         nonlocal processed_requirements
         try:
-            result = await test_generator.generate_test_case(requirement_id, max_retries=args.retries)
+            test_case = await test_generator.generate_test_case(requirement_id, max_retries=args.retries)
         except Exception as e:
             logging.error(f"Failed to generate test case for requirement {requirement_id}: {e}")
-            result = None
+            test_case = None
         processed_requirements += 1
         progress = processed_requirements / total_requirements
 
         if args.json_events:
             print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
 
-        if result:
-            with open(f"last_result.json", "w") as f:
-                json.dump(result.dict(), f, indent=4)
-            logging.info(f"Test Description for {requirement_id}:\n{result.test_description}")
-            logging.info("Test Mapping Analysis:\n%s", result.test_mapping_analysis)
-            for test_case in result.test_cases:
-                logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
-                vectorcast_test_cases.append(test_case.to_vectorcast())
-
-            if args.execute:
-                output = environment.run_tests(vectorcast_test_cases, execute=True)
-                logging.info("Execution Output:\n%s", output)
+        if test_case:
+            logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
+            vectorcast_test_cases.append(test_case.to_vectorcast())
 
     # Generate tests for all requirements
     await tqdm_asyncio.gather(
