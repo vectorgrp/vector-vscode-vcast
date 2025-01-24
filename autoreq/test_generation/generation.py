@@ -359,10 +359,11 @@ Tip:
             logging.warning(f"Failed to fix errors after {iteration} iterations")
             return None
         elif test_failures:
-            logging.info("Converting to partial test case due to persistent test failures")
-            
             if allow_partial:
+                logging.info("Converting to partial test case due to persistent test failures")
                 return self._create_partial_test_case(test_generation_result)
+            else:
+                return None
 
         return test_generation_result
 
