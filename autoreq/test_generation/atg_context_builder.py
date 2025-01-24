@@ -33,7 +33,7 @@ class ATGContextBuilder:
             # Filter test cases by function name prefix
             matching_tests = [
                 test for test in self._test_cases 
-                if test['subprogram_name'].startswith(function_name)
+                if test['subprogram_name'].endswith(function_name)
             ]
 
             # Select up to k random tests
