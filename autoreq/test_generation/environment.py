@@ -215,8 +215,25 @@ class Environment:
         for function in functions:
             if function['definition'] in reduced_content:
                 testable_functions.append(function)
-                
-        return testable_functions
+
+        if testable_functions:
+            return testable_functions
+
+        logging.warning("No testable functions found in the translation unit")
+        logging.warning("Falling back to scraping from ATG")
+
+        assert len(self.source_files) == 1
+
+        tested_subprograms = {test['subprogram_name'] for test in self.atg_tests}
+
+        return [
+            {
+                'name': subprogram,
+                'file': self.source_files[0]
+            }
+            for subprogram in tested_subprograms
+        ]
+
 
     def get_tu_content(self, reduction_level='medium'):
         """Get the content of the translation unit file.
