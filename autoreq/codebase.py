@@ -264,23 +264,23 @@ class Codebase:
         return definitions
 
 
-    def get_definitions_for_function(self, filepath: str, function_name: str, depth=1, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
-        """Get definitions for all symbols referenced in a function"""
-        abs_path = self._make_absolute(filepath)
-        
-        # Find the function definition
-        functions = self.get_functions_in_file(abs_path)
-        target_function = None
-        for func in functions:
-            if func['name'] == function_name:
-                target_function = func
-                break
+    def get_definitions_for_symbol(self, symbol_name: str, filepath=None, depth=1, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
+        """Get definitions for all symbols referenced in the definition of a symbol"""
+        definitions = self.find_definitions_by_name(symbol_name, collapse_function_body, return_raw=True)
+
+        target = None
+        if filepath is None:
+            if len(definitions) > 0:
+                target = definitions[0]
+                filepath = self._make_absolute(target['file'])
+        else:
+            target = next((d for d in definitions if self._make_absolute(d['file']) == filepath), None)
                 
-        if not target_function:
+        if not target:
             return {} if return_dict else []
-            
-        start_line = target_function['start_line']
-        end_line = target_function['end_line']
+        
+        start_line = target['start_line']
+        end_line = target['end_line']
         
         # Use the window-based definition lookup
         return self.get_definitions_for_window(filepath, start_line, end_line, depth, collapse_function_body, return_dict)

@@ -31,7 +31,7 @@ class LLMClient:
 
     @backoff.on_exception(backoff.expo, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError), max_time=120)
     async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, **kwargs):
-        with open("last_messages.json", "w") as f:
+        with open("last_messages.txt", "w") as f:
             for message in messages:
                 f.write(f"{message['role']}: {message['content']}\n")
             

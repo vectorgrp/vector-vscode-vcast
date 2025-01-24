@@ -10,7 +10,7 @@ import tempfile
 import asyncio
 import logging
 
-from autoreq.test_generation.reduced_vcast_context_builder import VcastReducedContextBuilder
+from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 
 from .codebase import Codebase
 from .test_generation.environment import Environment
@@ -104,21 +104,12 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     environment = Environment(env_path)
     environment.build()  # Build the environment to ensure master.db is available
-    source_files = environment.source_files  # Get source files from environment
 
-    assert len(source_files) == 1, "Only one source file is supported for now."
-    
-    
-    source_file = source_files[0]
-
-    with TempCopy(source_file, replace_func_and_var) as temp_path:
-        codebase = Codebase([temp_path])
-
-    functions = codebase.get_all_functions()
+    functions = environment.testable_functions
 
     generator = RequirementsGenerator()
 
-    context_builder = VcastReducedContextBuilder(environment)
+    context_builder = VcastContextBuilder(environment)
 
     requirements = []
 

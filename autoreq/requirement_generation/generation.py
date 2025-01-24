@@ -1,7 +1,6 @@
 from typing import List
 
-from pydantic import BaseModel  # Add this import
-from openai import AzureOpenAI
+from pydantic import BaseModel
 
 from ..llm_client import LLMClient
 

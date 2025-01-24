@@ -6,6 +6,9 @@ import subprocess
 import tempfile
 import sqlite3
 import logging
+import charset_normalizer  # Add import
+
+from ..codebase import Codebase
 
 class Environment:
     def __init__(self, env_file_path: str, use_sandbox: bool = True):
@@ -20,6 +23,7 @@ class Environment:
             shutil.copytree(env_dir, self.env_dir, dirs_exist_ok=True)
         else:
             self.env_dir = env_dir
+        self._tu_codebase_path = None
 
     def build(self):
         env_name = self.env_name
@@ -193,6 +197,88 @@ class Environment:
             
         return self._parse_test_script(basis_test_file)
 
+    @cached_property
+    def tu_codebase(self):
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as temp_file:
+            temp_file.write(self.get_tu_content(reduction_level='medium'))
+            temp_file.flush()
+            self._tu_codebase_path = temp_file.name
+            return Codebase([temp_file.name])
+
+    @cached_property
+    def testable_functions(self):
+        functions = self.tu_codebase.get_all_functions()
+
+        reduced_content = self.get_tu_content(reduction_level='high')
+
+        testable_functions = []
+        for function in functions:
+            if function['definition'] in reduced_content:
+                testable_functions.append(function)
+                
+        return testable_functions
+
+    def get_tu_content(self, reduction_level='medium'):
+        """Get the content of the translation unit file.
+
+        Args:
+            reduction_level (str, optional): The level of reduction to apply to the translation unit content.
+                The levels are:
+                - low: The entire translation unit content is returned.
+                - medium: Build-in definitions and declarations are removed.
+                - high: Only the processed code from the actual source file is returned.
+
+        Raises:
+            FileNotFoundError: If the translation unit file is not found.
+
+        Returns:
+            str: The content of the translation unit file.
+        """
+        assert len(self.units) == len(self.source_files)
+        assert len(self.units) == 1
+
+        unit_name = self.units[0]
+        unit_path = self.source_files[0]
+
+        tu_path_c = os.path.join(self.env_dir, self.env_name, f"{unit_name}.tu.c")
+        tu_path_cpp = os.path.join(self.env_dir, self.env_name, f"{unit_name}.tu.cpp")
+        
+        if os.path.exists(tu_path_c):
+            tu_path = tu_path_c
+        elif os.path.exists(tu_path_cpp):
+            tu_path = tu_path_cpp
+        else:
+            raise FileNotFoundError(f"Translation unit file not found for {unit_name}")
+
+        content = str(charset_normalizer.from_path(tu_path).best())
+
+        if reduction_level == 'low':
+            return content
+
+        lines = content.splitlines()
+
+        relevant_lines = []
+        in_relevant_context = False
+        marker_pattern = re.compile(r'^#\s+\d+\s+"(.+)"')
+
+        for line in lines:
+            stripped_line = line.strip()
+            match = marker_pattern.match(stripped_line)
+            if match:
+                file_path_in_marker = os.path.abspath(match.group(1))
+
+                if file_path_in_marker == unit_path:
+                    in_relevant_context = True
+                elif match.group(1).startswith("vcast_preprocess") or reduction_level == 'high':
+                    in_relevant_context = False
+            elif in_relevant_context:
+                relevant_lines.append(line)
+
+        relevant_content = "\n".join(relevant_lines)
+
+        return relevant_content
+
+
     def _parse_test_script(self, tst_file_path: str) -> str:
         with open(tst_file_path, 'r') as f:
             content = f.readlines()
@@ -310,5 +396,7 @@ class Environment:
         return output
 
     def cleanup(self):
+        if self._tu_codebase_path and os.path.exists(self._tu_codebase_path):
+            os.remove(self._tu_codebase_path)
         if hasattr(self, 'temp_dir'):
             self.temp_dir.cleanup()
