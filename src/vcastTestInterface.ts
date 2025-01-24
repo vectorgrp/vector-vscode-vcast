@@ -2,7 +2,10 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { cleanVectorcastOutput } from "../src-common/commonUtilities";
+import {
+  cleanVectorcastOutput,
+  getEnviroNameFromScript,
+} from "../src-common/commonUtilities";
 import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 import {
   configFilename,
@@ -38,6 +41,7 @@ import {
   executeTest,
   getTestExecutionReport,
   setCodedTestOption,
+  updateProjectData,
 } from "./vcastAdapter";
 
 import {
@@ -859,6 +863,7 @@ async function commonCodedTestProcessing(
 ) {
   let testNode: testNodeType = getTestNode(testID);
   const enviroPath = getEnviroPathFromID(testID);
+  const enviroName = path.basename(enviroPath);
 
   await vectorMessage(
     `Adding coded test file: ${userFilePath} for environment: ${enviroPath}`
@@ -873,7 +878,10 @@ async function commonCodedTestProcessing(
   );
 
   await updateTestPane(enviroPath);
-  if (commandStatus.errorCode == 0) {
+
+  if (commandStatus.errorCode == 0 && enviroName) {
+    // update project data after the script is loaded
+    await updateProjectData(enviroPath, enviroName);
     vscode.window.showInformationMessage(`Coded Tests added successfully`);
   } else {
     openTestFileAndErrors(testNode);

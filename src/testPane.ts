@@ -57,6 +57,7 @@ import {
   getDataForProject,
   loadTestScriptIntoEnvironment,
   refreshCodedTests,
+  updateProjectData,
 } from "./vcastAdapter";
 
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
@@ -1234,8 +1235,11 @@ export async function deleteTests(nodeList: any[]) {
   for (let enviroNodeID of changedEnvironmentIDList) {
     // remove any coded test files from the cache since
     // they will be re-added by the update
+    const enviroPath = getEnviroPathFromID(enviroNodeID);
+    const enviroName = path.basename(enviroPath);
     removeCBTfilesCacheForEnviro(enviroNodeID);
-    await updateDataForEnvironment(getEnviroPathFromID(enviroNodeID));
+    await updateDataForEnvironment(enviroPath);
+    await updateProjectData(enviroPath, enviroName);
   }
 }
 

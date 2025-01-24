@@ -12,9 +12,11 @@ import {
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 import {
+  environmentNodeDataType,
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
   getEnviroNameFromID,
+  getEnviroNodeData,
   getEnviroPathFromID,
   getTestNode,
   testNodeType,
@@ -29,6 +31,7 @@ import {
   executeVPythonScript,
   executeWithRealTimeEcho,
   getJsonDataFromTestInterface,
+  executeWithRealTimeEchoAndTerminate,
 } from "./vcastCommandRunner";
 
 import {
@@ -52,6 +55,7 @@ import {
   transmitResponseType,
   vcastCommandType,
 } from "../src-common/vcastServer";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 
 const path = require("path");
 
@@ -145,18 +149,47 @@ export async function deleteEnvironment(
   );
 }
 
+/**
+ * Updates the project data for the given environment
+ * @param enviroPath Path to the environment
+ * @param enviroName Name of the environment
+ */
+export async function updateProjectData(
+  enviroPath: string,
+  enviroName: string
+) {
+  const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+  const projectFilePath: string = enviroData.projectPath;
+  const projectName: string = path.basename(projectFilePath);
+  const projectLocation: string = path.dirname(projectFilePath);
+  const manageArgs: string[] = [
+    `-p${projectName}`,
+    `-e${enviroName}`,
+    "--apply-changes",
+  ];
+  const terminationString: string = "Update";
+
+  openMessagePane();
+  executeWithRealTimeEchoAndTerminate(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    terminationString
+  );
+}
+
 // Load Test Script - server logic included -----------------------------------------
 export async function loadTestScriptIntoEnvironment(
   enviroName: string,
   scriptPath: string
 ) {
+  const enviroPath = path.join(path.dirname(scriptPath), enviroName);
   // call clicast to load the test script
   let loadScriptArgs: string = `-e${enviroName} test script run ${scriptPath}`;
 
   let commandStatus: commandStatusType;
   // using server ....
   if (globalEnviroDataServerActive) {
-    const enviroPath = path.join(path.dirname(scriptPath), enviroName);
     commandStatus = await executeClicastCommandUsingServer(
       enviroPath,
       loadScriptArgs
@@ -172,7 +205,10 @@ export async function loadTestScriptIntoEnvironment(
   // will open the message pane.  If the load passes, we want to give the
   // user an indication that it worked ...
   if (commandStatus.errorCode == 0) {
+    // update project data after the script is loaded successfully
     vectorMessage("Script loaded successfully");
+    await updateProjectData(enviroPath, enviroName);
+
     // Maybe this will be annoying to users, but I think
     // it's good to know when the load is complete.
     vscode.window.showInformationMessage(`Test script loaded successfully`);
