@@ -193,9 +193,21 @@ class TestGenerator:
         self.info_logger = InfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
 
+    async def generate_test_cases(self, requirement_ids, batched=True, **kwargs):
+        if batched:
+            async for test_case in self.generate_batched_test_cases(requirement_ids, **kwargs):
+                yield test_case
+        else:
+            routines = [self.generate_test_case(req_id, **kwargs) for req_id in requirement_ids]
+            for test_case in asyncio.as_completed(routines):
+                yield await test_case
+
     async def generate_batched_test_cases(self, requirement_ids, **kwargs):
         if not requirement_ids:
             return
+
+        for req_id in requirement_ids:
+            self.info_logger.start_requirement(req_id)
 
         # Extract function names and verify they're all the same
         function_names = [req_id.rsplit('.', 1)[0] for req_id in requirement_ids]
@@ -219,7 +231,7 @@ class TestGenerator:
             {
                 "role": "user",
                 "content": f"""
-Based on the following requirements, references, and code, generate test cases that exercise the given requirements.
+Based on the following requirements, references, and code, generate one test case per given requirement that exercises it.
 
 Test framework reference:
 {test_framework_reference}
@@ -242,8 +254,8 @@ Based on the above requirements and code, generate unit tests that exercise all 
 Make sure the generated test cases clearly test the provided requirements.
 
 Solve the problem using the following approach:
-For each requirement...
-    1. Come up with descriptive (unique) name for the test case and describe in natural language how this test exercises the requirements
+For each requirement in order...
+    1. Come up with descriptive (unique) name for the test case and describe in natural language how this test exercises the requirement
     2. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
     3. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
 
@@ -252,39 +264,63 @@ Notes:
 - You are NOT allowed to invent any units or functions that are not present in the provided code.
 - This is a highly critical task, please ensure that the test cases are correct and complete and do not contain any logical or syntactical errors.
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
+- Generate exactly one test case per requirement.
+
+Return your answer in the following format:
+```json
+{{
+    "test_case_for_requirement_1": <test case testing the first requirement in the list>,
+    "test_case_for_requirement_2": <test case testing the second requirement in the list>,
+    ...
+}}
+```
 """
             }
         ]
 
-        schema = _derive_completion_schema(self.environment.allowed_identifiers, batch_size=len(requirement_ids))
+        schema = _derive_completion_schema(True, allowed_identifiers=self.environment.allowed_identifiers, batch_size=len(requirement_ids))
 
         try:
-            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning)
+            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=16384)
         except Exception as e:
-            logging.exception("Failed to generate batched test cases.")
-            return
+            logging.exception("Failed to generate batched test cases because model call failed. Falling back to individual generation.")
+            async for test_case in self.generate_test_cases(requirement_ids, batched=False, **kwargs):
+                yield test_case
 
         test_cases = []
         for i, req_id in enumerate(requirement_ids):
-            test_case = test_generation_result[f"test_case_for_requirement_{i+1}"]
+            test_case = getattr(test_generation_result, f"test_case_for_requirement_{i+1}")
             test_cases.append(test_case)
 
+        unseen_requirements = set(requirement_ids)
+
         async def process_generated_test_case(test_case):
+            nonlocal unseen_requirements
+            unseen_requirements.remove(test_case.requirement_id)
+
             output = self.environment.run_tests([test_case.to_vectorcast()], execute=True)
             errors, test_failures = self._parse_error_output(output)
 
-            if errors:
-                return await self.generate_test_case(req_id, **kwargs)
-            elif test_failures:
-                return test_case.as_partial
+            if errors or test_failures:
+                self.info_logger.set_individual_test_generation_needed(test_case.requirement_id)
+                return await self.generate_test_case(test_case.requirement_id, already_started=True, **kwargs)
+            else:
+                self.info_logger.set_test_generated(test_case.requirement_id)
 
             return test_case
 
-        for test_case in asyncio.as_completed(*[process_generated_test_case(test_case) for test_case in test_cases]):
+        for test_case in asyncio.as_completed([process_generated_test_case(test_case) for test_case in test_cases]):
             yield await test_case
 
-    async def generate_test_case(self, requirement_id, max_retries=1):
-        self.info_logger.start_requirement(requirement_id)
+
+        if unseen_requirements:
+            routines = [self.generate_test_case(req_id, already_started=True, **kwargs) for req_id in unseen_requirements]
+            for test_case in asyncio.as_completed(routines):
+                yield await test_case
+
+    async def generate_test_case(self, requirement_id, already_started=False, max_retries=1):
+        if not already_started:
+            self.info_logger.start_requirement(requirement_id)
         first_try = True
         for _ in range(max_retries):
             self.info_logger.increment_retries_used(requirement_id)
