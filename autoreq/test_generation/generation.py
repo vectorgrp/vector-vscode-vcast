@@ -296,7 +296,11 @@ Return your answer in the following format:
 
         async def process_generated_test_case(test_case):
             nonlocal unseen_requirements
-            unseen_requirements.remove(test_case.requirement_id)
+            
+            if test_case.requirement_id in unseen_requirements:
+                unseen_requirements.remove(test_case.requirement_id)
+            else:
+                logging.warning(f"Requirement {test_case.requirement_id} was generated multiple times or was not requested.")
 
             output = self.environment.run_tests([test_case.to_vectorcast()], execute=True)
             errors, test_failures = self._parse_error_output(output)
