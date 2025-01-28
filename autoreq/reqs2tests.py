@@ -9,15 +9,29 @@ from tqdm import tqdm
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
 
-def group_requirements_by_function(requirements_dict):
-    """Group requirements by their function name (part before the last dot)."""
+def group_requirements_by_function(requirements_dict, batch_size=8):
+    """Group requirements by their function name and split into batches if too large."""
+    # First group by function
     grouped = {}
     for req_id in requirements_dict:
         function_name = req_id.rsplit('.', 1)[0]
         if function_name not in grouped:
             grouped[function_name] = []
         grouped[function_name].append(req_id)
-    return grouped
+    
+    # Then split large groups into smaller batches
+    batched = {}
+    for function_name, req_ids in grouped.items():
+        if len(req_ids) <= batch_size:
+            batched[function_name] = req_ids
+        else:
+            # Split into smaller batches
+            for i in range(0, len(req_ids), batch_size):
+                batch = req_ids[i:i + batch_size]
+                batch_key = f"{function_name}_batch_{i//batch_size}"
+                batched[batch_key] = batch
+    
+    return batched
 
 async def main():
     parser = argparse.ArgumentParser(description='Generate and optionally execute test cases for given requirements.')
@@ -26,10 +40,11 @@ async def main():
     parser.add_argument('requirement_ids', nargs='*', help='ID of the requirement to generate test cases for.')
     parser.add_argument('--export-tst', help='Path to a file to write the VectorCAST test cases.')
     parser.add_argument('--retries', type=int, default=2, help='Number of retries for test generation.')
-    parser.add_argument('--extended_reasoning', action='store_true', help='Use extended reasoning for test generation.')
+    parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning for test generation.')
     parser.add_argument('--export-env', action='store_true', help='Run the generated test script in the real environment.')
     parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
     parser.add_argument('--batched', action='store_true', help='Enable batched test generation.')
+    parser.add_argument('--batch-size', type=int, default=8, help='Maximum number of requirements to process in one batch.')
     args = parser.parse_args()
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
@@ -64,7 +79,7 @@ async def main():
                 matching_reqs = {r: requirements[r] for r in requirements if r.startswith(req_id)}
                 requirements_to_check.update(matching_reqs)
 
-    grouped_requirements = group_requirements_by_function(requirements_to_check)
+    grouped_requirements = group_requirements_by_function(requirements_to_check, args.batch_size)
     
     vectorcast_test_cases = []
     total_requirements = len(requirements_to_check)
