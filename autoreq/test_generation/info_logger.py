@@ -4,6 +4,7 @@ class InfoLogger:
 
     def start_requirement(self, requirement_id):
         self.data[requirement_id] = {
+            'individual_test_generation_needed': False,
             'error_correction_needed': False,
             'retries_used': 0,
             'test_run_failure_feedback': False,
@@ -18,6 +19,9 @@ class InfoLogger:
 
     def set_test_run_failure_feedback(self, requirement_id):
         self.data[requirement_id]['test_run_failure_feedback'] = True
+
+    def set_individual_test_generation_needed(self, requirement_id):
+        self.data[requirement_id]['individual_test_generation_needed'] = True
 
     def set_test_generated(self, requirement_id):
         self.data[requirement_id]['test_generated'] = True

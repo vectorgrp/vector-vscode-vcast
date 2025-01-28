@@ -10,6 +10,8 @@ import tempfile
 import asyncio
 import logging
 
+from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
+
 from .codebase import Codebase
 from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
@@ -102,19 +104,12 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     environment = Environment(env_path)
     environment.build()  # Build the environment to ensure master.db is available
-    source_files = environment.source_files  # Get source files from environment
 
-    assert len(source_files) == 1, "Only one source file is supported for now."
-    
-    
-    source_file = source_files[0]
-
-    with TempCopy(source_file, replace_func_and_var) as temp_path:
-        codebase = Codebase([temp_path])
-
-    functions = codebase.get_all_functions()
+    functions = environment.testable_functions
 
     generator = RequirementsGenerator(environment)
+
+    context_builder = VcastContextBuilder(environment)
 
     requirements = []
 
@@ -126,7 +121,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
         nonlocal processed_functions
         func_name = func['name']
         func_file = func['file']
-        func_code = codebase.find_definitions_by_name(func_name)[0]
+        func_code = await context_builder.build_code_context(func_name)
         result = await generator.generate(func_code, func_name)
         processed_functions += 1
         progress = processed_functions / total_functions

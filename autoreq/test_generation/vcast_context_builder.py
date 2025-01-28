@@ -1,14 +1,14 @@
-import os
-import re
+from collections import defaultdict
 import asyncio  # Add asyncio import
-
 from ..search import SearchEngine
 
+
 class VcastContextBuilder:
-    def __init__(self, environment):
+    def __init__(self, environment, reduce_context=True):
         self.environment = environment
+        self.reduce_context = reduce_context
         self.cache = {}
-        self.locks = {}  # Add a dictionary to store locks
+        self.locks = {}
 
     async def build_code_context(self, function_name):
         if function_name in self.cache:
@@ -21,52 +21,52 @@ class VcastContextBuilder:
             if function_name in self.cache:
                 return self.cache[function_name]
 
-            context = ""
-            env_dir = os.path.dirname(self.environment.env_file_path)
-            env_name = self.environment.env_name
+            ast_context = self._reduce_context_ast(function_name)
+            if ast_context:
+                self.cache[function_name] = ast_context
+                return ast_context
 
-            # Build the environment
-            self.environment.build()
+            llm_context = await self._reduce_context_llm(function_name)
+            if llm_context:
+                self.cache[function_name] = llm_context
+                return llm_context
 
-            assert len(self.environment.units) == len(self.environment.source_files)
-            assert len(self.environment.units) == 1
+            return self.environment.get_tu_content(reduction_level='high')
 
-            for unit_name, unit_path in zip(self.environment.units, self.environment.source_files):
-                built_env_dir = os.path.join(env_dir, env_name)
-                tu_file_path = os.path.join(built_env_dir, f"{unit_name}.tu.c")
+    async def _reduce_context_llm(self, function_name):
+        context = self.environment.get_tu_content(reduction_level='medium') 
+        if len(context) > 1000000 or len(context.split("\n")) > 1000:
+            context = self.environment.get_tu_content(reduction_level='high') 
 
-                if not os.path.exists(tu_file_path):
-                    tu_file_path = os.path.join(built_env_dir, f"{unit_name}.tu.cpp")
+        search_engine = SearchEngine(context)
+        reduced_context = await search_engine.search(
+            f"Give me only the relevant code to test this function: {function_name}. "
+            "Include all necessary transitive dependencies in terms of type definitions, "
+            "called functions, etc. but not anything else. Also include the name of "
+            "the file where the code is located."
+        )
 
-                if os.path.exists(tu_file_path):
-                    # Extract the required snippet from the .tu.c file
-                    with open(tu_file_path, 'r', errors="ignore") as f:
-                        lines = f.readlines()
+        return reduced_context
 
-                    snippet_lines = []
-                    in_relevant_context = False
-                    marker_pattern = re.compile(r'^#\s+\d+\s+"(.+)"')
+    def _reduce_context_ast(self, function_name):
+        codebase = self.environment.tu_codebase
+        relevant_definitions = codebase.get_definitions_for_symbol(function_name, collapse_function_body=True, return_dict=True, depth=3)
 
-                    for line in lines:
-                        stripped_line = line.strip()
-                        match = marker_pattern.match(stripped_line)
-                        if match:
-                            file_path_in_marker = os.path.abspath(match.group(1))
+        if not relevant_definitions:
+            return None
 
-                            if file_path_in_marker == unit_path:
-                                in_relevant_context = True
-                            elif match.group(1).startswith("vcast_preprocess"):
-                                in_relevant_context = False
-                        elif in_relevant_context:
-                            snippet_lines.append(line)
+        definition_groups = defaultdict(list)
+        for symbol, definition in relevant_definitions.items():
+            if symbol == function_name:
+                continue
+            definition_groups[definition].append(symbol)
+            
+        reduced_context = []
 
-                    if snippet_lines:
-                        context += "\n" + "".join(snippet_lines)
+        reduced_context.append("Definitions of types, called functions and data structures:")
+        for definition, _ in definition_groups.items():
+            reduced_context.append(f"\n{definition}")
 
-            # Add unit name to context
-            context = f"// {unit_name}.c(pp)\n" + context
+        reduced_context.append(f"\nCode for {function_name}:\n{codebase.find_definitions_by_name(function_name)[0]}")
 
-            # Cache the context
-            self.cache[function_name] = context
-
-        return context
+        return "\n".join(reduced_context)

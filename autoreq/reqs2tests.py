@@ -5,21 +5,31 @@ import asyncio
 import logging
 import os
 import tempfile  # Add this import if not already present
-from tqdm.asyncio import tqdm_asyncio
+from tqdm import tqdm
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
+
+def group_requirements_by_function(requirements_dict):
+    """Group requirements by their function name (part before the last dot)."""
+    grouped = {}
+    for req_id in requirements_dict:
+        function_name = req_id.rsplit('.', 1)[0]
+        if function_name not in grouped:
+            grouped[function_name] = []
+        grouped[function_name].append(req_id)
+    return grouped
 
 async def main():
     parser = argparse.ArgumentParser(description='Generate and optionally execute test cases for given requirements.')
     parser.add_argument('env_path', help='Path to the VectorCAST environment file.')
     parser.add_argument('requirements_csv', help='Path to the CSV file containing requirements.')
     parser.add_argument('requirement_ids', nargs='*', help='ID of the requirement to generate test cases for.')
-    parser.add_argument('--execute', action='store_true', help='Execute the generated test cases.')
     parser.add_argument('--export-tst', help='Path to a file to write the VectorCAST test cases.')
     parser.add_argument('--retries', type=int, default=2, help='Number of retries for test generation.')
     parser.add_argument('--extended_reasoning', action='store_true', help='Use extended reasoning for test generation.')
     parser.add_argument('--export-env', action='store_true', help='Run the generated test script in the real environment.')
     parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
+    parser.add_argument('--batched', action='store_true', help='Enable batched test generation.')
     args = parser.parse_args()
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
@@ -42,46 +52,55 @@ async def main():
 
     vectorcast_test_cases = []
 
-    # Initialize progress tracking
-
+    # Group requirements by function
     if len(args.requirement_ids) == 0:
         requirements_to_check = requirements
     else:
-        requirements_to_check = []
+        requirements_to_check = {}
         for req_id in args.requirement_ids:
             if req_id in requirements:
-                requirements_to_check.append(req_id)
+                requirements_to_check[req_id] = requirements[req_id]
             else:
-                requirements_to_check.extend([r for r in requirements if r.startswith(req_id)])
-        
+                matching_reqs = {r: requirements[r] for r in requirements if r.startswith(req_id)}
+                requirements_to_check.update(matching_reqs)
+
+    grouped_requirements = group_requirements_by_function(requirements_to_check)
+    
+    vectorcast_test_cases = []
     total_requirements = len(requirements_to_check)
-    processed_requirements = 0
 
-    async def generate_and_process_test_case(requirement_id):
-        nonlocal processed_requirements
-        result = await test_generator.generate_test_case(requirement_id, max_retries=args.retries)
-        processed_requirements += 1
-        progress = processed_requirements / total_requirements
+    # Create progress bar for all requirements
+    pbar = tqdm(total=total_requirements, desc="Generating tests")
 
-        if args.json_events:
-            print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
+    async def generate_and_process_requirement_group(requirement_ids):
+        untested_requirements = set(requirement_ids)
+        try:
+            test_cases = test_generator.generate_test_cases(requirement_ids, max_retries=args.retries, batched=args.batched)
 
-        if result:
-            logging.info(f"Test Description for {requirement_id}:\n{result.test_description}")
-            logging.info("Test Mapping Analysis:\n%s", result.test_mapping_analysis)
-            for test_case in result.test_cases:
-                logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
-                vectorcast_test_cases.append(test_case.to_vectorcast())
+            async for test_case in test_cases:
+                if test_case.requirement_id in untested_requirements:
+                    untested_requirements.remove(test_case.requirement_id)
+                    pbar.update(1)  # Update progress for each completed requirement
+                    
+                if args.json_events:
+                    print(json.dumps({'event': 'progress', 'value': pbar.n / total_requirements}), flush=True)
 
-            if args.execute:
-                output = environment.run_tests(vectorcast_test_cases, execute=True)
-                logging.info("Execution Output:\n%s", output)
+                if test_case:
+                    logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
+                    vectorcast_test_cases.append(test_case.to_vectorcast())
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            logging.error(f"Failed to generate test cases for requirements {untested_requirements}: {e}")
+            test_case = None
 
     # Generate tests for all requirements
-    await tqdm_asyncio.gather(
-        *[generate_and_process_test_case(requirement_id) for requirement_id in requirements_to_check]
+    await asyncio.gather(
+        *[generate_and_process_requirement_group(req_ids) for req_ids in grouped_requirements.values()]
     )
-
+    
+    pbar.refresh()
+    pbar.close()
     environment.cleanup()
 
     if args.export_tst:
@@ -114,6 +133,17 @@ async def main():
 
     # Analyze info_logger data
     info_data = test_generator.info_logger.data
+
+    # Derive individual test generation was necessary requirements
+    individual_test_generation_needed = [req_id for req_id, data in info_data.items()
+                                           if data['individual_test_generation_needed']]
+
+    if individual_test_generation_needed:
+        logging.warning("Individual test generation was necessary for the following requirements:")
+        logging.warning(", ".join(individual_test_generation_needed))
+
+        if args.json_events:
+            print(json.dumps({'event': 'problem', 'value': f'Individual test generation was necessary for {", ".join(individual_test_generation_needed)}'}), flush=True)
 
     # Derive failed requirements
     failed_requirements = [req_id for req_id, data in info_data.items()
