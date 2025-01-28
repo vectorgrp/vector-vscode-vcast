@@ -1,6 +1,5 @@
 from typing import List
-
-from pydantic import BaseModel
+from pydantic import BaseModel, create_model
 
 from ..llm_client import LLMClient
 
@@ -29,6 +28,25 @@ class DesignDecompositionResultWithTestcases(BaseModel):
             requirements=self.requirements
         )
 
+def _derive_requirement_schema(num_paths):
+    """Creates a dynamic schema that forces exactly one requirement per path."""
+    
+    class TestCase(BaseModel):
+        description: str
+
+    class Requirement(BaseModel):
+        statement: str
+
+    # Create fields for each path
+    result_keys = {
+        f"test_case_for_path_{i+1}": (TestCase, ...) for i in range(num_paths)
+    }
+    result_keys.update({
+        f"requirement_for_path_{i+1}": (Requirement, ...) for i in range(num_paths)
+    })
+
+    return create_model('RequirementGenerationResult', **result_keys)
+
 class RequirementsGenerator:
     def __init__(self, environment, code_independence: bool = False):
         self.llm_client = LLMClient()
@@ -40,7 +58,7 @@ class RequirementsGenerator:
 
         paths = []
         for test in self.environment.atg_tests:
-            if test.subprogram_name.startswith(function_name):
+            if test.subprogram_name.endswith(function_name):
                 if test.path:  # Only include if path is not empty
                     paths.append(test.path)
         return paths
@@ -55,6 +73,7 @@ class RequirementsGenerator:
             prettified_paths.append(index_prefix + indented_path)
 
         available_paths = "\n".join(prettified_paths) if prettified_paths else "Only one path through the code is available."
+        num_paths = len(paths) if paths else 1
 
         messages = [
             {
@@ -137,6 +156,17 @@ Requirements should fulfill the following criteria:
 — Conforming. The individual items conform to an approved standard template and style for writing requirements, when applicable.
 { "- Code independence. The requirements should not mention any code-specific terms like variable names, function names, etc." if self.code_independence else "" }
 
+Return your answer in the following format:
+```json
+{{
+    "test_case_for_path_1": {{ "description": "<test case for first path>" }},
+    "requirement_for_path_1": {{ "statement": "<requirement for first path>" }},
+    "test_case_for_path_2": {{ "description": "<test case for second path>" }},
+    "requirement_for_path_2": {{ "statement": "<requirement for second path>" }},
+    ...
+}}
+```
+
 Code:
 {function_body}
 
@@ -154,9 +184,10 @@ The success of this task is critical. If you do not generate exactly one test ca
 
         result = await self.llm_client.call_model(
             messages=messages,
-            schema=DesignDecompositionResultWithTestcases,
+            schema=_derive_requirement_schema(num_paths),
             temperature=0.0,
-            max_tokens=5000
+            max_tokens=16000
         )
 
-        return result.without_tests.without_requirement_indices.requirements
+        requirements = [getattr(result, f"requirement_for_path_{i+1}").statement for i in range(num_paths)]
+        return requirements
