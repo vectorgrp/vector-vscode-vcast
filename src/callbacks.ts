@@ -22,19 +22,29 @@ import {
 } from "./testPane";
 
 import { removeFilePattern } from "./utilities";
-import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
+import {
+  loadTestScriptIntoEnvironment,
+  updateProjectData,
+  updateProjectTree,
+} from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
 
 const fs = require("fs");
 const path = require("path");
 
-export function buildEnvironmentCallback(enviroPath: string, code: number) {
+export async function buildEnvironmentCallback(
+  enviroPath: string,
+  code: number
+) {
   // This function gets called after we build an environment
   // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
-    updateDataForEnvironment(enviroPath);
+    await updateDataForEnvironment(enviroPath);
+    const enviroName = path.basename(enviroPath);
+    await updateProjectData(enviroPath, enviroName);
+    await updateProjectTree();
   } else {
     try {
       // remove the environment directory, as well as the .vce file
@@ -49,7 +59,10 @@ export function buildEnvironmentCallback(enviroPath: string, code: number) {
   }
 }
 
-export function rebuildEnvironmentCallback(enviroPath: string, code: number) {
+export async function rebuildEnvironmentCallback(
+  enviroPath: string,
+  code: number
+) {
   // This function gets called after the rebuildEnviro command
   // When the rebuild succeeds, we delete the BAK stuff
 
@@ -65,11 +78,16 @@ export function rebuildEnvironmentCallback(enviroPath: string, code: number) {
     } catch {
       // ignore errors
     }
-    updateDataForEnvironment(enviroPath);
+    await updateDataForEnvironment(enviroPath);
+    const enviroName = path.basename(enviroPath);
+    await updateProjectData(enviroPath, enviroName);
   }
 }
 
-export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
+export async function deleteEnvironmentCallback(
+  enviroNodeID: string,
+  code: number
+) {
   // this function gets called after the clicast env delete completes
 
   // if the delete succeeded then we need to remove the environment from the test pane
@@ -87,6 +105,7 @@ export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
     removeFilePattern(enviroPath, ".*");
+    await updateProjectTree();
   }
 }
 

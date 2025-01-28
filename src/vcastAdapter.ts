@@ -56,6 +56,11 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import { cleanVectorcastOutput } from "../src-common/commonUtilities";
+import {
+  buildProjectDataCache,
+  refreshAllExtensionData,
+  updateTestPane,
+} from "./testPane";
 
 const path = require("path");
 
@@ -104,7 +109,7 @@ export function vcastLicenseOK(): boolean {
 }
 
 // Build Environment - no server logic needed ----------------------------------------
-export function buildEnvironmentFromScript(
+export async function buildEnvironmentFromScript(
   unitTestLocation: string,
   enviroName: string
 ) {
@@ -147,6 +152,21 @@ export async function deleteEnvironment(
     deleteEnvironmentCallback,
     enviroNodeID
   );
+  const enviroName = path.basename(enviroPath);
+  await updateProjectData(enviroPath, enviroName);
+}
+
+/**
+ * Updates the Project data cache and refreshes the extension data
+ */
+export async function updateProjectTree() {
+  if (vscode.workspace.workspaceFolders) {
+    for (const workspace of vscode.workspace.workspaceFolders) {
+      const workspaceRoot = workspace.uri.fsPath;
+      await buildProjectDataCache(workspaceRoot);
+      refreshAllExtensionData();
+    }
+  }
 }
 
 /**

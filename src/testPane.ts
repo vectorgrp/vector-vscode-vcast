@@ -361,7 +361,7 @@ async function convertProjectDataToMap(
   return returnData;
 }
 
-async function buildProjectDataCache(baseDirectory: string) {
+export async function buildProjectDataCache(baseDirectory: string) {
   const options = { cwd: baseDirectory, absolute: true, strict: false };
   const projectFileList = glob.sync("**/*.vcm", options);
 
@@ -450,10 +450,6 @@ export async function updateTestsForEnvironment(
 ) {
   // This will add one environment node to the test pane.
   // This includes all units, functions, and tests for that environment.
-
-  // Explicitly clear children of the parent node
-  parentNode.children.forEach((child) => parentNode.children.delete(child.id));
-
   const jsonData = await getDataForEnvironment(enviroData.buildDirectory);
 
   if (jsonData) {
