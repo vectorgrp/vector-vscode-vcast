@@ -156,7 +156,20 @@ class Environment:
             if line.startswith('TEST.VALUE') or line.startswith('TEST.EXPECTED'):
                 identifier = line.split(':', 1)[1].rsplit(':', 1)[0]
                 identifiers.add(identifier)
-        return list(identifiers)
+
+        if len(identifiers) > 0:
+            return list(identifiers)
+
+        logging.warning("No identifiers found in the test script template")
+        logging.warning("Falling back to scraping from ATG")
+        
+        used_identifiers = set()
+        for test in self.atg_tests:
+            for value in test.input_values + test.expected_values:
+                used_identifiers.add(value.identifier)
+                
+        return list(used_identifiers)
+        
 
     @cached_property
     def source_files(self) -> List[str]:
