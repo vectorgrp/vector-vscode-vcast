@@ -366,7 +366,6 @@ export async function buildProjectDataCache(baseDirectory: string) {
   const projectFileList = glob.sync("**/*.vcm", options);
 
   for (const projectFile of projectFileList) {
-    vectorMessage(`Processing project: ${projectFile} ...`);
     // enviroList is a list of json objects with fields:
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
     // See python function vTestInterface.py:getProjectData()
@@ -560,6 +559,7 @@ async function loadAllVCTests(
 
       // build a list of environments from projects in this workspace
       for (const [projectPath, projectData] of globalProjectDataCache) {
+        vectorMessage(`Processing project: ${projectPath} ...`);
         for (const [buildDirectory, enviroData] of projectData) {
           environmentList.push({
             projectPath: projectPath,

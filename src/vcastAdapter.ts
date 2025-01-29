@@ -55,12 +55,7 @@ import {
   transmitResponseType,
   vcastCommandType,
 } from "../src-common/vcastServer";
-import { cleanVectorcastOutput } from "../src-common/commonUtilities";
-import {
-  buildProjectDataCache,
-  refreshAllExtensionData,
-  updateTestPane,
-} from "./testPane";
+import { buildProjectDataCache, refreshAllExtensionData } from "./testPane";
 
 const path = require("path");
 
@@ -152,8 +147,6 @@ export async function deleteEnvironment(
     deleteEnvironmentCallback,
     enviroNodeID
   );
-  const enviroName = path.basename(enviroPath);
-  await updateProjectData(enviroPath, enviroName);
 }
 
 /**
@@ -186,15 +179,18 @@ export async function updateProjectData(
     `-p${projectName}`,
     `-e${enviroName}`,
     "--apply-changes",
+    "--force",
   ];
   const terminationString: string = "Update";
 
   openMessagePane();
+  const progressMessage = "Updating project data ...";
   executeWithRealTimeEchoAndTerminate(
     manageCommandToUse,
     manageArgs,
     projectLocation,
-    terminationString
+    terminationString,
+    progressMessage
   );
 }
 

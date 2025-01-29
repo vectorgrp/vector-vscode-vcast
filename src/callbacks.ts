@@ -24,7 +24,6 @@ import {
 import { removeFilePattern } from "./utilities";
 import {
   loadTestScriptIntoEnvironment,
-  updateProjectData,
   updateProjectTree,
 } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
@@ -42,8 +41,6 @@ export async function buildEnvironmentCallback(
 
   if (code == 0) {
     await updateDataForEnvironment(enviroPath);
-    const enviroName = path.basename(enviroPath);
-    await updateProjectData(enviroPath, enviroName);
     await updateProjectTree();
   } else {
     try {
@@ -79,8 +76,6 @@ export async function rebuildEnvironmentCallback(
       // ignore errors
     }
     await updateDataForEnvironment(enviroPath);
-    const enviroName = path.basename(enviroPath);
-    await updateProjectData(enviroPath, enviroName);
   }
 }
 

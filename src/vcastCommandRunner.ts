@@ -222,64 +222,83 @@ export function executeWithRealTimeEchoAndTerminate(
   argList: string[],
   CWD: string,
   terminationString: string,
+  vscodeMessage: string,
   callback?: any,
   enviroPath?: string
 ) {
-  let processHandle = spawn(command, argList, { cwd: CWD });
-  vectorMessage("-".repeat(100));
-  vectorMessage("-".repeat(100));
-  let messageFragment: string = "";
+  return vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `${vscodeMessage}...`,
+      cancellable: false,
+    },
+    // We add a progress dialog that the user is informed about the ongoing process
+    async (progress) => {
+      progress.report({ increment: 10 });
 
-  processHandle.stdout.on("data", function (data: any) {
-    // split raw message based on \n or \r because messages
-    // that come directly from the compiler are LF terminated
-    const rawString = data.toString();
-    const lineArray = rawString.split(/[\n\r?]/);
+      let processHandle = spawn(command, argList, { cwd: CWD });
+      vectorMessage("-".repeat(100));
+      vectorMessage("-".repeat(100));
+      let messageFragment: string = "";
 
-    // add any left over fragment to the end of the first line
-    if (messageFragment.length > 0) {
-      lineArray[0] = messageFragment + lineArray[0];
-      messageFragment = "";
-    }
-
-    // handle the case where the last line is not complete
-    if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
-      messageFragment = lineArray.pop();
-    }
-
-    for (let i = 0; i < lineArray.length; i++) {
-      const line = lineArray[i];
-      if (line.length > 0) {
-        vectorMessage(line.replace(/\n/g, ""));
-
-        // Check if this is the last line in the array and matches the termination string
-        if (i === lineArray.length - 1 && line === terminationString) {
-          vectorMessage(`Process finished. Terminating process.`);
-          //Kill the process
-          processHandle.kill();
+      // Just increment the progress bar every 3 seconds. Gives the user a better feeling of progress.
+      let progressValue = 10;
+      const progressInterval = setInterval(() => {
+        if (progressValue < 90) {
+          progressValue += 15;
+          progress.report({ increment: 10 });
         }
-      }
+      }, 3000);
+
+      await new Promise<void>((resolve) => {
+        processHandle.stdout.on("data", function (data: any) {
+          const rawString = data.toString();
+          const lineArray = rawString.split(/[\n\r?]/);
+
+          if (messageFragment.length > 0) {
+            lineArray[0] = messageFragment + lineArray[0];
+            messageFragment = "";
+          }
+
+          if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
+            messageFragment = lineArray.pop();
+          }
+
+          for (let i = 0; i < lineArray.length; i++) {
+            const line = lineArray[i];
+            if (line.length > 0) {
+              vectorMessage(line.replace(/\n/g, ""));
+              if (i === lineArray.length - 1 && line === terminationString) {
+                vectorMessage(`Process finished. Terminating process.`);
+                processHandle.kill();
+              }
+            }
+          }
+        });
+
+        processHandle.on("exit", function (code: any) {
+          clearInterval(progressInterval);
+          // Progress bar should be at 100% when the process is done
+          progress.report({ increment: 100 });
+          vectorMessage("-".repeat(100));
+          vectorMessage(
+            `${path.basename(command)}: '${argList.join(" ")}' returned exit code: ${code.toString()}`
+          );
+          vectorMessage("-".repeat(100));
+          if (callback) {
+            callback(enviroPath, code);
+          }
+          resolve();
+        });
+
+        processHandle.on("error", (error) => {
+          clearInterval(progressInterval);
+          vectorMessage(`Error occurred: ${error.message}`);
+          resolve();
+        });
+      });
     }
-  });
-
-  processHandle.stdout.on("close", function (code: any) {
-    vectorMessage("-".repeat(100));
-  });
-
-  processHandle.on("exit", function (code: any) {
-    vectorMessage("-".repeat(100));
-    vectorMessage(
-      `${path.basename(command)}: '${argList.join(" ")}' returned exit code: ${code.toString()}`
-    );
-    vectorMessage("-".repeat(100));
-    if (callback) {
-      callback(enviroPath, code);
-    }
-  });
-
-  processHandle.on("error", (error) => {
-    vectorMessage(`Error occurred: ${error.message}`);
-  });
+  );
 }
 
 export function executeCommandWithProgress(
