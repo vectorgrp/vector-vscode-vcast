@@ -215,13 +215,11 @@ export function executeWithRealTimeEcho(
 }
 
 // A command runner simmilar to executeWithRealTimeEcho for long running commands
-// like build and rebuild environment that need to be terminated manually
-// because the process does not close / exit on its own
-export function executeWithRealTimeEchoAndTerminate(
+// like build and rebuild environment but having a progress bar.
+export function executeWithRealTimeEchoWithProgress(
   command: string,
   argList: string[],
   CWD: string,
-  terminationString: string,
   vscodeMessage: string,
   callback?: any,
   enviroPath?: string
@@ -268,10 +266,6 @@ export function executeWithRealTimeEchoAndTerminate(
             const line = lineArray[i];
             if (line.length > 0) {
               vectorMessage(line.replace(/\n/g, ""));
-              if (i === lineArray.length - 1 && line === terminationString) {
-                vectorMessage(`Process finished. Terminating process.`);
-                processHandle.kill();
-              }
             }
           }
         });

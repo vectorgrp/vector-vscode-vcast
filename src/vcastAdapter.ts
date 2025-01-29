@@ -31,7 +31,7 @@ import {
   executeVPythonScript,
   executeWithRealTimeEcho,
   getJsonDataFromTestInterface,
-  executeWithRealTimeEchoAndTerminate,
+  executeWithRealTimeEchoWithProgress,
 } from "./vcastCommandRunner";
 
 import {
@@ -181,15 +181,13 @@ export async function updateProjectData(
     "--apply-changes",
     "--force",
   ];
-  const terminationString: string = "Update";
 
   openMessagePane();
   const progressMessage = "Updating project data ...";
-  executeWithRealTimeEchoAndTerminate(
+  executeWithRealTimeEchoWithProgress(
     manageCommandToUse,
     manageArgs,
     projectLocation,
-    terminationString,
     progressMessage
   );
 }
