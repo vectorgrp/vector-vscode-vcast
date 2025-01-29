@@ -202,7 +202,8 @@ class TestGenerator:
             for test_case in asyncio.as_completed(routines):
                 yield await test_case
 
-    async def generate_batched_test_cases(self, requirement_ids, **kwargs):
+    async def generate_batched_test_cases(self, requirement_ids, allow_partial=False, **kwargs):
+        logging.info("Generating batched test cases", requirement_ids)
         if not requirement_ids:
             return
 
@@ -305,13 +306,19 @@ Return your answer in the following format:
             output = self.environment.run_tests([test_case.to_vectorcast()], execute=True)
             errors, test_failures = self._parse_error_output(output)
 
-            if errors or test_failures:
+            if errors or (not allow_partial and test_failures):
                 self.info_logger.set_individual_test_generation_needed(test_case.requirement_id)
-                return await self.generate_test_case(test_case.requirement_id, already_started=True, **kwargs)
+                if test_failures:
+                    self.info_logger.set_test_run_failure_feedback(test_case.requirement_id)
+
+                return await self.generate_test_case(test_case.requirement_id, already_started=True, allow_partial=allow_partial, **kwargs)
             else:
                 self.info_logger.set_test_generated(test_case.requirement_id)
 
-            return test_case
+            if test_failures:
+                return test_case.as_partial
+            else:
+                return test_case
 
         for test_case in asyncio.as_completed([process_generated_test_case(test_case) for test_case in test_cases]):
             yield await test_case
@@ -322,7 +329,7 @@ Return your answer in the following format:
             for test_case in asyncio.as_completed(routines):
                 yield await test_case
 
-    async def generate_test_case(self, requirement_id, already_started=False, max_retries=1):
+    async def generate_test_case(self, requirement_id, already_started=False, max_retries=1, allow_partial=False):
         if not already_started:
             self.info_logger.start_requirement(requirement_id)
         first_try = True
@@ -330,7 +337,6 @@ Return your answer in the following format:
             self.info_logger.increment_retries_used(requirement_id)
             temperature = 0.0 if first_try else 1.0
             extended_reasoning = self.use_extended_reasoning and not first_try  # Modify this line
-            allow_partial = True#not first_try
             result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial)
             if result:
                 self.info_logger.set_test_generated(requirement_id)
@@ -425,7 +431,7 @@ Notes:
         schema = _derive_completion_schema(False, allowed_identifiers=self.environment.allowed_identifiers)
 
         try:
-            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
+            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=16384)
             # Removed for_requirement parameter
         except Exception as e:
             logging.exception("Failed to generate test case.")
@@ -496,7 +502,7 @@ Tip:
                         f.write(f"{message['role']}: {message['content']}\n\n")
                 
                 # Call the model to get the fixed test case
-                test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning)
+                test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=16384)
 
         if errors:
             logging.warning(f"Failed to fix errors after {iteration} iterations")

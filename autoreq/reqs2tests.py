@@ -45,6 +45,7 @@ async def main():
     parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
     parser.add_argument('--batched', action='store_true', help='Enable batched test generation.')
     parser.add_argument('--batch-size', type=int, default=8, help='Maximum number of requirements to process in one batch.')
+    parser.add_argument('--allow-partial', action='store_true', help='Allow partial test generation.')
     args = parser.parse_args()
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
@@ -90,7 +91,7 @@ async def main():
     async def generate_and_process_requirement_group(requirement_ids):
         untested_requirements = set(requirement_ids)
         try:
-            test_cases = test_generator.generate_test_cases(requirement_ids, max_retries=args.retries, batched=args.batched)
+            test_cases = test_generator.generate_test_cases(requirement_ids, max_retries=args.retries, batched=args.batched, allow_partial=args.allow_partial)
 
             async for test_case in test_cases:
                 if test_case.requirement_id in untested_requirements:
