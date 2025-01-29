@@ -135,8 +135,8 @@ The following sections describe the syntax for specifying the `identifier` and `
     { "identifier": "uut_prototype_stubs.name_of_external_subprogram.parameter", "value": 42 }
 
 ## Test Case Execution
-1. The test framework will called the specified subprogram/function
-2. When a value of a variable would be read, if it is specified as a test value it is set to that value instead
+1. The test framework will call the specified subprogram/function
+2. When a value of a variable would be read, if it is specified as a test value, it is set to that value instead
 3. After the subprogram finishes, the expected values are checked against the actual values at that point
 
 - All tests are executed in isolation. The execution of one test does not influence the execution of others.
