@@ -266,7 +266,7 @@ class Environment:
 
         assert len(self.source_files) == 1
 
-        tested_subprograms = {test['subprogram_name'] for test in self.atg_tests}
+        tested_subprograms = {test.subprogram_name for test in self.atg_tests}
 
         return [
             {
