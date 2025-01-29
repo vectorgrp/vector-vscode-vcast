@@ -241,11 +241,30 @@ class Environment:
 
     @cached_property
     def tu_codebase(self):
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as temp_file:
-            temp_file.write(self.get_tu_content(reduction_level='medium'))
-            temp_file.flush()
-            self._tu_codebase_path = temp_file.name
-            return Codebase([temp_file.name])
+        content = self.get_tu_content(reduction_level='medium')
+        lines = content.splitlines()
+
+        # CCLS cannot process files with more than 65535 lines, so split the file into chunks if necessary
+        # This is a bit hacky but mostly fine for our needs. A more prinicpled approach would be a forked version of CCLS.
+        # See: https://github.com/MaskRay/ccls/issues/366
+        
+        if len(lines) <= 65535:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as temp_file:
+                temp_file.write(content)
+                temp_file.flush()
+                self._tu_codebase_path = temp_file.name
+                return Codebase([temp_file.name])
+        else:
+            chunk_size = 65535
+            chunk_files = []
+            for i in range(0, len(lines), chunk_size):
+                chunk_content = "\n".join(lines[i:i+chunk_size])
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as temp_file:
+                    temp_file.write(chunk_content)
+                    temp_file.flush()
+                    chunk_files.append(temp_file.name)
+            self._tu_codebase_path = chunk_files
+            return Codebase(chunk_files)
 
     @cached_property
     def testable_functions(self):
@@ -454,7 +473,12 @@ class Environment:
         return output
 
     def cleanup(self):
-        if self._tu_codebase_path and os.path.exists(self._tu_codebase_path):
-            os.remove(self._tu_codebase_path)
+        if self._tu_codebase_path:
+            if isinstance(self._tu_codebase_path, list):
+                for path in self._tu_codebase_path:
+                    if os.path.exists(path):
+                        os.remove(path)
+            elif os.path.exists(self._tu_codebase_path):
+                os.remove(self._tu_codebase_path)
         if hasattr(self, 'temp_dir'):
             self.temp_dir.cleanup()
