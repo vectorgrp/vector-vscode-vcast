@@ -38,10 +38,20 @@ class ATGContextBuilder:
                     return ""
 
             # Filter test cases by function name prefix and convert to dict
-            matching_tests = [
+            matching_tests_nopartial = [
+                test.to_dict() for test in self._test_cases 
+                if test.subprogram_name.endswith(function_name) and all(keyword not in test.test_name for keyword in ["PARTIAL", "INCOMPLETE"])
+            ]
+
+            matching_tests_all = [
                 test.to_dict() for test in self._test_cases 
                 if test.subprogram_name.endswith(function_name)
             ]
+
+            if len(matching_tests_all) >= k:
+                matching_tests = matching_tests_nopartial
+            else:
+                matching_tests = matching_tests_all
 
             # Select up to k random tests
             selected_tests = random.sample(matching_tests, min(k, len(matching_tests))) if matching_tests else []
