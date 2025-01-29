@@ -8,7 +8,8 @@ class InfoLogger:
             'error_correction_needed': False,
             'retries_used': 0,
             'test_run_failure_feedback': False,
-            'test_generated': False
+            'test_generated': False,
+            'partial_test_generated': False  # Add new field
         }
 
     def increment_retries_used(self, requirement_id):
@@ -25,3 +26,6 @@ class InfoLogger:
 
     def set_test_generated(self, requirement_id):
         self.data[requirement_id]['test_generated'] = True
+
+    def set_partial_test_generated(self, requirement_id):
+        self.data[requirement_id]['partial_test_generated'] = True

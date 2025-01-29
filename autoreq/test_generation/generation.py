@@ -193,17 +193,17 @@ class TestGenerator:
         self.info_logger = InfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
 
-    async def generate_test_cases(self, requirement_ids, batched=True, **kwargs):
+    async def generate_test_cases(self, requirement_ids, batched=True, allow_partial=False, allow_batch_partial=False, **kwargs):
         if batched:
-            async for test_case in self.generate_batched_test_cases(requirement_ids, **kwargs):
+            async for test_case in self.generate_batched_test_cases(requirement_ids, allow_partial=allow_batch_partial, individual_partial=allow_partial, **kwargs):
                 yield test_case
         else:
-            routines = [self.generate_test_case(req_id, **kwargs) for req_id in requirement_ids]
+            routines = [self.generate_test_case(req_id, allow_partial=allow_partial, **kwargs) for req_id in requirement_ids]
             for test_case in asyncio.as_completed(routines):
                 yield await test_case
 
-    async def generate_batched_test_cases(self, requirement_ids, allow_partial=False, **kwargs):
-        logging.info("Generating batched test cases", requirement_ids)
+    async def generate_batched_test_cases(self, requirement_ids, allow_partial=False, individual_partial=False, **kwargs):
+        logging.info(f"Generating batched test cases: {requirement_ids}")
         if not requirement_ids:
             return
 
@@ -285,8 +285,9 @@ Return your answer in the following format:
             test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=16384)
         except Exception as e:
             logging.exception("Failed to generate batched test cases because model call failed. Falling back to individual generation.")
-            async for test_case in self.generate_test_cases(requirement_ids, batched=False, **kwargs):
+            async for test_case in self.generate_test_cases(requirement_ids, batched=False, allow_partial=individual_partial, **kwargs):
                 yield test_case
+            return
 
         test_cases = []
         for i, req_id in enumerate(requirement_ids):
@@ -311,11 +312,12 @@ Return your answer in the following format:
                 if test_failures:
                     self.info_logger.set_test_run_failure_feedback(test_case.requirement_id)
 
-                return await self.generate_test_case(test_case.requirement_id, already_started=True, allow_partial=allow_partial, **kwargs)
+                return await self.generate_test_case(test_case.requirement_id, already_started=True, allow_partial=individual_partial, **kwargs)
             else:
                 self.info_logger.set_test_generated(test_case.requirement_id)
 
             if test_failures:
+                self.info_logger.set_partial_test_generated(test_case.requirement_id)
                 return test_case.as_partial
             else:
                 return test_case
@@ -325,7 +327,7 @@ Return your answer in the following format:
 
 
         if unseen_requirements:
-            routines = [self.generate_test_case(req_id, already_started=True, **kwargs) for req_id in unseen_requirements]
+            routines = [self.generate_test_case(req_id, already_started=True, allow_partial=individual_partial, **kwargs) for req_id in unseen_requirements]
             for test_case in asyncio.as_completed(routines):
                 yield await test_case
 
@@ -519,7 +521,7 @@ Tip:
     def _create_partial_test_case(self, test_generation_result):
         partial_result = test_generation_result.model_copy(deep=True)
         partial_result.test_case = partial_result.test_case.as_partial
-        
+        self.info_logger.set_partial_test_generated(partial_result.test_case.requirement_id)
         return partial_result
 
     def _parse_error_output(self, output):

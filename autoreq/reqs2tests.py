@@ -46,6 +46,7 @@ async def main():
     parser.add_argument('--batched', action='store_true', help='Enable batched test generation.')
     parser.add_argument('--batch-size', type=int, default=8, help='Maximum number of requirements to process in one batch.')
     parser.add_argument('--allow-partial', action='store_true', help='Allow partial test generation.')
+    parser.add_argument('--allow-batch-partial', action='store_true', help='Allow partial test generation during batch processing.')
     args = parser.parse_args()
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
@@ -91,7 +92,13 @@ async def main():
     async def generate_and_process_requirement_group(requirement_ids):
         untested_requirements = set(requirement_ids)
         try:
-            test_cases = test_generator.generate_test_cases(requirement_ids, max_retries=args.retries, batched=args.batched, allow_partial=args.allow_partial)
+            test_cases = test_generator.generate_test_cases(
+                requirement_ids, 
+                max_retries=args.retries, 
+                batched=args.batched, 
+                allow_partial=args.allow_partial,
+                allow_batch_partial=args.allow_batch_partial
+            )
 
             async for test_case in test_cases:
                 if test_case.requirement_id in untested_requirements:
@@ -182,6 +189,17 @@ async def main():
 
         if args.json_events:
             print(json.dumps({'event': 'problem', 'value': f'Failing tests were given as feedback for {", ".join(test_failure_requirements)}'}), flush=True)
+
+    # After existing warning blocks, add new block for partial tests
+    partial_test_requirements = [req_id for req_id, data in info_data.items()
+                               if data['partial_test_generated']]
+
+    if partial_test_requirements:
+        logging.warning("Partial tests were generated for the following requirements:")
+        logging.warning(", ".join(partial_test_requirements))
+
+        if args.json_events:
+            print(json.dumps({'event': 'problem', 'value': f'Partial tests were generated for {", ".join(partial_test_requirements)}'}), flush=True)
 
     # Get token usage and total cost from LLMClient
     token_usage = test_generator.llm_client.get_token_usage()
