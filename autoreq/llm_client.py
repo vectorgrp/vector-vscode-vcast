@@ -4,6 +4,7 @@ from aiolimiter import AsyncLimiter
 from openai import AsyncAzureOpenAI
 from typing import List, Dict, Any
 from dotenv import load_dotenv
+from structured_logprobs import add_logprobs
 import openai
 
 load_dotenv()
@@ -30,7 +31,7 @@ class LLMClient:
         }
 
     @backoff.on_exception(backoff.expo, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError), max_time=120)
-    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, **kwargs):
+    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, return_logprobs=False, **kwargs):
         with open("last_messages.txt", "w") as f:
             for message in messages:
                 f.write(f"{message['role']}: {message['content']}\n")
@@ -49,8 +50,10 @@ class LLMClient:
                     temperature=temperature,
                     seed=seed,
                     max_tokens=max_tokens,
+                    logprobs=True,
                     **kwargs
                 )
+
                 # Update token usage for the generation model
                 self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
                 self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
@@ -58,7 +61,7 @@ class LLMClient:
                 raw_completion = await self.reasoning_client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    max_completion_tokens=max_tokens,
+                    max_completion_tokens=max_tokens
                 )
                 # Update token usage for the reasoning model
                 self.token_usage['reasoning']['input_tokens'] += raw_completion.usage.prompt_tokens
@@ -72,16 +75,25 @@ class LLMClient:
                     ],
                     response_format=schema,
                     temperature=temperature,
-                    max_tokens=max_tokens
+                    max_tokens=max_tokens,
+                    logprobs=True
                 )
+
                 # Update token usage for parsing step (considered as generation model)
                 self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
                 self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
 
-            if return_raw_completion:
-                return completion, raw_completion
+            result = completion.choices[0].message.parsed
+            logprobs = add_logprobs(completion).log_probs[0]
 
-            return completion.choices[0].message.parsed
+            if return_raw_completion and return_logprobs:
+                return result, completion, logprobs
+            elif return_raw_completion:
+                return result, completion
+            elif return_logprobs:
+                return result, logprobs
+            else:
+                return result
 
     def get_token_usage(self):
         return self.token_usage
