@@ -1,4 +1,5 @@
 import asyncio
+from aiostream.stream import merge
 from enum import Enum
 import json
 import re
@@ -184,19 +185,48 @@ def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None
 
 
 class TestGenerator:
-    def __init__(self, requirements, environment, use_extended_reasoning=False):
-        self.requirements = requirements
-        self.environment = environment  # Use the provided environment
+    def __init__(self, requirements_manager, environment, use_extended_reasoning=False):
+        self.requirements_manager = requirements_manager
+        self.environment = environment
         self.context_builder = VcastContextBuilder(self.environment)
-        self.atg_context_builder = ATGContextBuilder(self.environment)  # Add this line
+        self.atg_context_builder = ATGContextBuilder(self.environment)
         self.llm_client = LLMClient()
         self.info_logger = InfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
 
-    async def generate_test_cases(self, requirement_ids, batched=True, allow_partial=False, allow_batch_partial=False, **kwargs):
+    def _group_requirements_into_batches(self, requirement_ids, batch_size):
+        """Group requirements by function and split into batches of specified size."""
+        # Group by function
+        by_function = {}
+        for req_id in requirement_ids:
+            func = self.requirements_manager.get_function(req_id)
+            if func not in by_function:
+                by_function[func] = []
+            by_function[func].append(req_id)
+        
+        # Split each function's requirements into batches
+        batches = []
+        for func_reqs in by_function.values():
+            for i in range(0, len(func_reqs), batch_size):
+                batches.append(func_reqs[i:i + batch_size])
+        
+        return batches
+
+    async def generate_test_cases(self, requirement_ids, batched=True, allow_partial=False, allow_batch_partial=False, batch_size=8, **kwargs):
+        if not requirement_ids:
+            return
+
         if batched:
-            async for test_case in self.generate_batched_test_cases(requirement_ids, allow_partial=allow_batch_partial, individual_partial=allow_partial, **kwargs):
+            # Split requirements into appropriate batches
+            batches = self._group_requirements_into_batches(requirement_ids, batch_size)
+            
+            # Create generators
+            generators = [self.generate_batched_test_cases(batch, allow_partial=allow_batch_partial, individual_partial=allow_partial, **kwargs) 
+                        for batch in batches]
+            
+            async for test_case in merge(*generators):
                 yield test_case
+
         else:
             routines = [self.generate_test_case(req_id, allow_partial=allow_partial, **kwargs) for req_id in requirement_ids]
             for test_case in asyncio.as_completed(routines):
@@ -210,12 +240,16 @@ class TestGenerator:
         for req_id in requirement_ids:
             self.info_logger.start_requirement(req_id)
 
-        # Extract function names and verify they're all the same
-        function_names = [req_id.rsplit('.', 1)[0] for req_id in requirement_ids]
-        assert len(set(function_names)) == 1, "All requirements must belong to the same function."
+        # Verify all requirements belong to the same function using requirements_manager
+        functions = {self.requirements_manager.get_function(req_id) for req_id in requirement_ids}
+        if len(functions) != 1:
+            logging.warning("Requirements from different functions detected in batch. Falling back to individual generation.")
+            async for test_case in self.generate_test_cases(requirement_ids, batched=False, allow_partial=individual_partial, **kwargs):
+                yield test_case
+            return
 
-        function_name = function_names[0]
-        requirements_text = "\n".join([f"{i+1}. {req_id}: {self.requirements.get(req_id)}" for i, req_id in enumerate(requirement_ids)])
+        function_name = functions.pop()
+        requirements_text = "\n".join([f"{i+1}. {req_id}: {self.requirements_manager.get_description(req_id)}" for i, req_id in enumerate(requirement_ids)])
 
         # Build context similar to single test case generation
         context = await self.context_builder.build_code_context(function_name)
@@ -332,30 +366,38 @@ Return your answer in the following format:
                 yield await test_case
 
     async def generate_test_case(self, requirement_id, already_started=False, max_retries=1, allow_partial=False):
-        if not already_started:
-            self.info_logger.start_requirement(requirement_id)
-        first_try = True
-        for _ in range(max_retries):
-            self.info_logger.increment_retries_used(requirement_id)
-            temperature = 0.0 if first_try else 1.0
-            extended_reasoning = self.use_extended_reasoning and not first_try  # Modify this line
-            result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial)
-            if result:
-                self.info_logger.set_test_generated(requirement_id)
-                return result
-            else:
-                first_try = False
+        try:
+            if not already_started:
+                self.info_logger.start_requirement(requirement_id)
+            first_try = True
+            for _ in range(max_retries):
+                self.info_logger.increment_retries_used(requirement_id)
+                temperature = 0.0 if first_try else 1.0
+                extended_reasoning = self.use_extended_reasoning and not first_try  # Modify this line
+                result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial)
+                if result:
+                    self.info_logger.set_test_generated(requirement_id)
+                    return result
+                else:
+                    first_try = False
+        except Exception as e:
+            import traceback
+            logging.exception(f"Failed to generate test case for requirement {requirement_id}: {traceback.format_exc()}")
 
         return None
 
     async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False, allow_partial=False):
-        requirement_text = self.requirements.get(requirement_id)
+        requirement_text = self.requirements_manager.get_description(requirement_id)
         if not requirement_text:
             logging.warning(f"Requirement {requirement_id} not found.")
             return None
 
+        function_name = self.requirements_manager.get_function(requirement_id)
+        if not function_name:
+            logging.warning(f"Function not found for requirement {requirement_id}.")
+            return None
+
         # Build code context using the environment
-        function_name = requirement_id.rsplit('.', 1)[0]
         context = await self.context_builder.build_code_context(function_name)
         logging.debug("Generated code context: %s", context)
         

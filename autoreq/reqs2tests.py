@@ -8,30 +8,7 @@ import tempfile  # Add this import if not already present
 from tqdm import tqdm
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
-
-def group_requirements_by_function(requirements_dict, batch_size=8):
-    """Group requirements by their function name and split into batches if too large."""
-    # First group by function
-    grouped = {}
-    for req_id in requirements_dict:
-        function_name = req_id.rsplit('.', 1)[0]
-        if function_name not in grouped:
-            grouped[function_name] = []
-        grouped[function_name].append(req_id)
-    
-    # Then split large groups into smaller batches
-    batched = {}
-    for function_name, req_ids in grouped.items():
-        if len(req_ids) <= batch_size:
-            batched[function_name] = req_ids
-        else:
-            # Split into smaller batches
-            for i in range(0, len(req_ids), batch_size):
-                batch = req_ids[i:i + batch_size]
-                batch_key = f"{function_name}_batch_{i//batch_size}"
-                batched[batch_key] = batch
-    
-    return batched
+from .requirements_manager import RequirementsManager  # Add this import
 
 async def main():
     parser = argparse.ArgumentParser(description='Generate and optionally execute test cases for given requirements.')
@@ -56,75 +33,56 @@ async def main():
     # Initialize the environment directly
     environment = Environment(args.env_path)
 
-    # Load requirements from CSV file
-    with open(args.requirements_csv, newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
-        requirements = {}
-        for row in reader:
-            req_id = row['ID']
-            requirements[req_id] = row['Description']
+    # Instantiate the requirements manager
+    rm = RequirementsManager(args.requirements_csv)
+
+    # Retrieve requirement IDs from the manager
+    if len(args.requirement_ids) == 0:
+        requirement_ids = rm.requirement_ids
+    else:
+        # Filter for direct matches or prefix matches as before
+        matched_ids = []
+        for rid in args.requirement_ids:
+            # Instead of building a local dict, track requirement IDs
+            matched_ids.extend([
+                req_id for req_id in rm.requirement_ids
+                if req_id == rid or req_id.startswith(rid)
+            ])
+        requirement_ids = matched_ids
 
     test_generator = TestGenerator(
-        requirements, environment=environment, use_extended_reasoning=args.extended_reasoning)  # Pass environment directly
-
-    vectorcast_test_cases = []
-
-    # Group requirements by function
-    if len(args.requirement_ids) == 0:
-        requirements_to_check = requirements
-    else:
-        requirements_to_check = {}
-        for req_id in args.requirement_ids:
-            if req_id in requirements:
-                requirements_to_check[req_id] = requirements[req_id]
-            else:
-                matching_reqs = {r: requirements[r] for r in requirements if r.startswith(req_id)}
-                requirements_to_check.update(matching_reqs)
-
-    grouped_requirements = group_requirements_by_function(requirements_to_check, args.batch_size)
-    
-    vectorcast_test_cases = []
-    total_requirements = len(requirements_to_check)
-
-    # Create progress bar for all requirements
-    pbar = tqdm(total=total_requirements, desc="Generating tests")
-
-    async def generate_and_process_requirement_group(requirement_ids):
-        untested_requirements = set(requirement_ids)
-        try:
-            test_cases = test_generator.generate_test_cases(
-                requirement_ids, 
-                max_retries=args.retries, 
-                batched=args.batched, 
-                allow_partial=args.allow_partial,
-                allow_batch_partial=args.allow_batch_partial
-            )
-
-            async for test_case in test_cases:
-                if test_case.requirement_id in untested_requirements:
-                    untested_requirements.remove(test_case.requirement_id)
-                    pbar.update(1)  # Update progress for each completed requirement
-                    
-                if args.json_events:
-                    print(json.dumps({'event': 'progress', 'value': pbar.n / total_requirements}), flush=True)
-
-                if test_case:
-                    logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
-                    vectorcast_test_cases.append(test_case.to_vectorcast())
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            logging.error(f"Failed to generate test cases for requirements {untested_requirements}: {e}")
-            test_case = None
-
-    # Generate tests for all requirements
-    await asyncio.gather(
-        *[generate_and_process_requirement_group(req_ids) for req_ids in grouped_requirements.values()]
+        rm,  # Pass the RequirementsManager instead of raw requirements
+        environment=environment, 
+        use_extended_reasoning=args.extended_reasoning
     )
-    
-    pbar.refresh()
-    pbar.close()
-    environment.cleanup()
+
+    vectorcast_test_cases = []
+    pbar = tqdm(total=len(requirement_ids), desc="Generating tests")
+
+    try:
+        async for test_case in test_generator.generate_test_cases(
+            requirement_ids, 
+            max_retries=args.retries, 
+            batched=args.batched, 
+            allow_partial=args.allow_partial,
+            allow_batch_partial=args.allow_batch_partial,
+            batch_size=args.batch_size
+        ):
+            if test_case:
+                logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
+                vectorcast_test_cases.append(test_case.to_vectorcast())
+            
+            pbar.update(1)
+            if args.json_events:
+                print(json.dumps({'event': 'progress', 'value': pbar.n / pbar.total}), flush=True)
+
+    except Exception as e:
+        logging.error(f"Unexpected error during test generation: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        pbar.close()
+        environment.cleanup()
 
     if args.export_tst:
         with open(args.export_tst, 'w') as output_file:
