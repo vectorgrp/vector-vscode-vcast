@@ -18,7 +18,9 @@ setup(
     'tree-sitter==0.23.2',
     'tree-sitter-c==0.23.1',
     'tree-sitter-cpp==0.23.4',
-    'backoff==2.2.1'
+    'backoff==2.2.1',
+    'aiostream==0.6.4',
+    'structured-logprobs==0.1.5'
   ],
   include_package_data=True
 )
