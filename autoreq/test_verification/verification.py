@@ -106,6 +106,11 @@ Provide your analysis in JSON format:
     "analysis": "Your detailed analysis here",
     "tests_requirement": true | false
 }}
+
+Note:
+- You can assume that the test case has valid syntax and is correctly formatted. The test framework reference is a guideline but not 100% comprehensive.
+- This is especially true for stubbing related matters
+- Therefore: Focus on the test case's ability to test the requirement, not on the test case's syntax or formatting.
 """
             }
         ]
