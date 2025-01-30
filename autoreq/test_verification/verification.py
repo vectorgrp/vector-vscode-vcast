@@ -3,44 +3,75 @@ from enum import Enum
 from pydantic import BaseModel
 import logging
 from typing import List, Optional, Tuple
+import math
 
 from ..llm_client import LLMClient
 from ..test_generation.vcast_context_builder import VcastContextBuilder
 from ..test_generation.info_logger import InfoLogger
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
 
-class TestVerification(BaseModel):
-    analysis: str
-    is_valid: bool
+class VerificationResult(str, Enum):
+    YES = "yes"
+    NO = "no"
 
-# TODO: Numeric probability value as derived property using structured logprobs on is_valid
-# TODO: Rename is valid to something more descriptive/suitable
+class TestVerificationResult(BaseModel):
+    analysis: str
+    tests_requirement: VerificationResult
+
+class VerificationOutput(BaseModel):
+    analysis: str
+    tests_requirement: bool
+    confidence: float
 
 class TestVerifier:
-    def __init__(self, requirements, environment):
-        self.requirements = requirements
+    def __init__(self, requirements_manager, environment):
+        self.requirements_manager = requirements_manager
         self.environment = environment
         self.context_builder = VcastContextBuilder(self.environment)
         self.llm_client = LLMClient()
         self.info_logger = InfoLogger()
 
-    async def verify_test_case(self, requirement_id: str, test_case) -> TestVerification:
-        requirement_text = self.requirements.get(requirement_id)
+    async def verify_test_case(self, test_case, requirement_id: Optional[str] = None) -> VerificationOutput:
+        if test_case is None:
+            return VerificationOutput(
+                tests_requirement=False,
+                analysis="No test case provided",
+                confidence=1.0  # We are certain that None doesn't test requirements
+            )
+
+        req_id = requirement_id or test_case.requirement_id
+        if not req_id:
+            return VerificationOutput(
+                tests_requirement=False,
+                analysis="No requirement ID provided or found in test case",
+                confidence=0.0
+            )
+
+        requirement_text = self.requirements_manager.get_description(req_id)
         if not requirement_text:
-            logging.warning(f"Requirement {requirement_id} not found.")
-            return TestVerification(
-                requirement_id=requirement_id,
-                test_name=test_case.test_name,
-                is_valid=False,
-                analysis="Requirement not found in database"
+            logging.warning(f"Requirement {req_id} not found.")
+            return VerificationOutput(
+                tests_requirement=False,
+                analysis="Requirement not found in database",
+                confidence=0.0
+            )
+
+        function_name = self.requirements_manager.get_function(req_id)
+        if not function_name:
+            logging.warning(f"Function not found for requirement {req_id}.")
+            return VerificationOutput(
+                tests_requirement=False,
+                analysis="Function not found for requirement",
+                confidence=0.0
             )
 
         # Build code context
-        function_name = requirement_id.rsplit('.', 1)[0]
         context = await self.context_builder.build_code_context(function_name)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
+
+        test_case_json = test_case.model_dump_json(indent=2)
 
         messages = [
             {
@@ -58,11 +89,11 @@ Test framework reference:
 Relevant Code:
 {context}
 
-Requirement ID: {requirement_id}
+Requirement ID: {req_id}
 Requirement Text: {requirement_text}
 
 Test Case:
-{test_case.model_dump_json()}
+{test_case_json}
 
 Please analyze:
 - Does the test case properly test the requirement?
@@ -73,40 +104,53 @@ Please analyze:
 Provide your analysis in JSON format:
 {{
     "analysis": "Your detailed analysis here",
-    "is_valid": true | false
+    "tests_requirement": true | false
 }}
 """
             }
         ]
 
         try:
-            result = await self.llm_client.call_model(
+            result, log_probs = await self.llm_client.call_model(
                 messages,
-                TestVerification
+                TestVerificationResult,
+                return_logprobs=True
             )
-            return result
+            confidence = math.exp(log_probs['tests_requirement'])
+            return VerificationOutput(
+                analysis=result.analysis,
+                tests_requirement=result.tests_requirement == VerificationResult.YES,
+                confidence=confidence
+            )
         except Exception as e:
             logging.exception("Failed to verify test case")
-            return TestVerification(
-                requirement_id=requirement_id,
-                test_name=test_case.test_name,
-                is_valid=False,
-                analysis=f"Verification failed due to error: {str(e)}"
+            return VerificationOutput(
+                analysis=f"Verification failed due to error: {str(e)}",
+                tests_requirement=False,
+                confidence=0.0
             )
 
-    async def verify_test_cases(self, verification_tasks: List[Tuple[str, object]]) -> List[TestVerification]:
+    async def verify_test_cases(
+        self, 
+        test_cases: List[Optional[object]], 
+        requirement_ids: Optional[List[str]] = None
+    ) -> List[VerificationOutput]:
         """
         Verify multiple test cases in parallel
         
         Args:
-            verification_tasks: List of tuples containing (requirement_id, test_case)
+            test_cases: List of test cases (can contain None values)
+            requirement_ids: Optional list of requirement IDs to use instead of test_case.requirement_id
         
         Returns:
-            List of TestVerification results
+            List of VerificationOutput results
         """
-        tasks = [
-            self.verify_test_case(req_id, test_case)
-            for req_id, test_case in verification_tasks
-        ]
-        results = await asyncio.gather(*tasks)
-        return results
+        if requirement_ids:
+            tasks = [
+                self.verify_test_case(test_case, req_id) 
+                for test_case, req_id in zip(test_cases, requirement_ids)
+            ]
+        else:
+            tasks = [self.verify_test_case(test_case) for test_case in test_cases]
+            
+        return await asyncio.gather(*tasks)
