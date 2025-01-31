@@ -69,6 +69,7 @@ import {
 import {
   buildEnvironmentFromScript,
   buildProjectEnvironment,
+  buildAllUnbuiltEnvironmentInProject,
   deleteEnvironment,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
@@ -587,6 +588,17 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(rebuildEnviro);
+
+  // Command: vectorcastTestExplorer.buildAllUnbuiltEnviro  ////////////////////////////////////////////////////////
+  let buildAllUnbuiltEnviroInProject = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.buildAllUnbuiltEnviroInProject",
+    async (projectNode: any) => {
+      // Get the full file path
+      const projectPath = projectNode.id;
+      buildAllUnbuiltEnvironmentInProject(projectPath);
+    }
+  );
+  context.subscriptions.push(buildAllUnbuiltEnviroInProject);
 
   // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
   let buildProjectEnviro = vscode.commands.registerCommand(

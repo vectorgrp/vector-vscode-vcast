@@ -336,10 +336,9 @@ type enviroListAsMapType = Map<string, projectEnvironmentType>;
 // This is built once each time we load a workspace.
 // The outer map key is the project filename,
 // the inner map key is the build directory
-let globalProjectDataCache = new Map<string, enviroListAsMapType>();
+export let globalProjectDataCache = new Map<string, enviroListAsMapType>();
 
-async function convertProjectDataToMap(
-  baseDirectory: string,
+export async function convertProjectDataToMap(
   enviroList: any[]
 ): Promise<enviroListAsMapType> {
   let returnData: enviroListAsMapType = new Map<
@@ -372,10 +371,7 @@ export async function buildProjectDataCache(baseDirectory: string) {
     const enviroList = await getDataForProject(projectFile);
 
     // convert the raw json data into a map for the cache
-    const enviroListAsMap = await convertProjectDataToMap(
-      baseDirectory,
-      enviroList
-    );
+    const enviroListAsMap = await convertProjectDataToMap(enviroList);
 
     // we turn this into a typescript object and then store in a map
     globalProjectDataCache.set(projectFile, enviroListAsMap);

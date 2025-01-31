@@ -24,6 +24,7 @@ import {
 import { removeFilePattern } from "./utilities";
 import {
   loadTestScriptIntoEnvironment,
+  updateProjectData,
   updateProjectTree,
 } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
@@ -98,9 +99,9 @@ export async function deleteEnvironmentCallback(
 
     removeNodeFromCache(enviroNodeID);
 
+    await updateProjectTree();
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
     removeFilePattern(enviroPath, ".*");
-    await updateProjectTree();
   }
 }
 

@@ -295,6 +295,107 @@ export function executeWithRealTimeEchoWithProgress(
   );
 }
 
+// A command runner simmilar to executeWithRealTimeEcho for long running commands
+// With the difference that it runs multiple commands sequentially and waits for each to finish
+export function executeWithRealTimeEchoWithProgressSequential(
+  command: string,
+  argLists: string[][],
+  progressMessages: string[],
+  CWD: string,
+  callback?: any,
+  enviroPath?: string[]
+) {
+  return vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      cancellable: false,
+    },
+    async (progress) => {
+      let enviroPathIndex = 0;
+      // Track total progress used
+      let totalProgress = 0;
+
+      // We spawn for each env an own process and wait for it to finish
+      // unit we continue with the next one
+      for (const [index, argList] of argLists.entries()) {
+        // Reset per iteration
+        let progressValue = 0;
+        enviroPathIndex = index;
+        const message = `${progressMessages[index]} [ ${index + 1} / ${argLists.length} ] ...`;
+
+        // **Reset Progress**: Subtract total progress from 100
+        if (totalProgress > 0) {
+          progress.report({ increment: -totalProgress, message });
+          totalProgress = 0;
+        }
+
+        await new Promise<void>((resolve) => {
+          let processHandle = spawn(command, argList, { cwd: CWD });
+          vectorMessage("-".repeat(100));
+          vectorMessage(`Executing: ${command} ${argList.join(" ")}`);
+          let messageFragment: string = "";
+
+          // Just increment the progress bar every 3 seconds. Gives the user a better feeling of progress.
+          const progressInterval = setInterval(() => {
+            if (progressValue < 80) {
+              progressValue += 5;
+              totalProgress += 5;
+              progress.report({ increment: 5, message });
+            }
+          }, 3000);
+
+          processHandle.stdout.on("data", function (data: any) {
+            const rawString = data.toString();
+            const lineArray = rawString.split(/[\n\r?]/);
+
+            if (messageFragment.length > 0) {
+              lineArray[0] = messageFragment + lineArray[0];
+              messageFragment = "";
+            }
+
+            if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
+              messageFragment = lineArray.pop();
+            }
+
+            // We basically print the output line by line
+            for (const line of lineArray) {
+              if (line.length > 0) {
+                vectorMessage(line.replace(/\n/g, ""));
+              }
+            }
+          });
+
+          processHandle.on("exit", function (code: any) {
+            clearInterval(progressInterval);
+            if (callback && enviroPath) {
+              let currentEnviroPath = enviroPath[enviroPathIndex];
+              callback(currentEnviroPath, code);
+            }
+
+            // Ensure it reaches exactly 100% before finishing
+            let finalIncrement = 100 - progressValue;
+            progress.report({
+              increment: finalIncrement,
+              message: `Finished: ${message}`,
+            });
+            // Track total progress used
+            totalProgress += finalIncrement;
+
+            vectorMessage(`Process finished with exit code: ${code}`);
+            resolve();
+          });
+
+          processHandle.on("error", (error) => {
+            clearInterval(progressInterval);
+            vectorMessage(`Error occurred: ${error.message}`);
+            resolve();
+          });
+        });
+      }
+    }
+  );
+}
+
 export function executeCommandWithProgress(
   title: string,
   commandAndArgs: string[],
