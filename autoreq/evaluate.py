@@ -43,7 +43,8 @@ async def evaluate_environment(
     extended_reasoning: bool = False,
     allow_partial: bool = False,
     batched: bool = True,
-    batch_size: int = 8
+    batch_size: int = 8,
+    max_retries: int = 2
 ) -> EvaluationResult:
     env = Environment(env_path)
     
@@ -60,7 +61,8 @@ async def evaluate_environment(
         requirement_ids,
         batched=batched,
         allow_partial=allow_partial,
-        batch_size=batch_size
+        batch_size=batch_size,
+        max_retries=max_retries
     ):
         if test_case:
             test_cases.append(test_case)
@@ -84,7 +86,7 @@ async def evaluate_environment(
     generated_tests = len(non_null_tests)
     
     precision = verified_tests / len(verification_results) if verification_results else 0
-    recall = generated_tests / total_reqs if total_reqs > 0 else 0
+    recall = verified_tests / total_reqs if total_reqs > 0 else 0
     f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
     # Get problem requirements
@@ -184,7 +186,8 @@ async def main():
     parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning.')
     parser.add_argument('--allow-partial', action='store_true', help='Allow partial test generation.')
     parser.add_argument('--batch-size', type=int, default=8, help='Batch size for test generation.')
-    parser.add_argument('--no-batched', action='store_true', help='Disable batched processing.')
+    parser.add_argument('--batched', action='store_true', help='Enable batched processing.')
+    parser.add_argument('--retries', type=int, default=2, help='Number of retries for test generation.')
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -217,8 +220,9 @@ async def main():
             args.requirement_ids,
             args.extended_reasoning,
             args.allow_partial,
-            not args.no_batched,
-            args.batch_size
+            args.batched,
+            args.batch_size,
+            args.retries
         )
         all_results.append(result)
         env.cleanup()
