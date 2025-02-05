@@ -145,4 +145,4 @@ The following sections describe the syntax for specifying the `identifier` and `
 - In general any value not set (input of course), will fall back to a default value. However this should be avoided to prevent undefined behaviour. This means all input variables (and outputs of stubbed values) should be exhaustively described.
 - If the RETURN value of a called function is set as an input, the function will be stubbed during execution and not implement any behaviour.
 - In particular, to access methods of a class and set values it is imperative to first instantiate the class using a constructor. For all classes a default object is ready to be initialized if needed using the respective constructor.
-
+- Do not set an identifier multiple times, it just results in overriding of the previous value

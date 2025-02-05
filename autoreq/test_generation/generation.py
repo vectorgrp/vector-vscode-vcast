@@ -316,7 +316,7 @@ Return your answer in the following format:
         schema = _derive_completion_schema(True, allowed_identifiers=self.environment.allowed_identifiers, batch_size=len(requirement_ids))
 
         try:
-            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=16384)
+            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=4096)
         except Exception as e:
             logging.exception("Failed to generate batched test cases because model call failed. Falling back to individual generation.")
             async for test_case in self.generate_test_cases(requirement_ids, batched=False, allow_partial=individual_partial, **kwargs):
@@ -369,6 +369,7 @@ Return your answer in the following format:
         try:
             if not already_started:
                 self.info_logger.start_requirement(requirement_id)
+            self.info_logger.set_individual_test_generation_needed(requirement_id)
             first_try = True
             for _ in range(max_retries):
                 self.info_logger.increment_retries_used(requirement_id)
@@ -475,7 +476,7 @@ Notes:
         schema = _derive_completion_schema(False, allowed_identifiers=self.environment.allowed_identifiers)
 
         try:
-            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=16384)
+            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)
             # Removed for_requirement parameter
         except Exception as e:
             logging.exception("Failed to generate test case.")
@@ -546,7 +547,7 @@ Tip:
                         f.write(f"{message['role']}: {message['content']}\n\n")
                 
                 # Call the model to get the fixed test case
-                test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=16384)
+                test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)
 
         if errors:
             logging.warning(f"Failed to fix errors after {iteration} iterations")

@@ -43,16 +43,21 @@ class LLMClient:
                 messages = [m for m in messages if m["role"] != "system"]
 
             if not extended_reasoning:
-                completion = await self.client.beta.chat.completions.parse(
-                    model=model,
-                    messages=messages,
-                    response_format=schema,
-                    temperature=temperature,
-                    seed=seed,
-                    max_tokens=max_tokens,
-                    logprobs=True,
-                    **kwargs
-                )
+                try:
+                    completion = await self.client.beta.chat.completions.parse(
+                        model=model,
+                        messages=messages,
+                        response_format=schema,
+                        temperature=temperature,
+                        seed=seed,
+                        max_completion_tokens=max_tokens,
+                        logprobs=True,
+                        **kwargs
+                    )
+                except openai.LengthFinishReasonError as e:
+                    with open("length_error.txt", "w") as f:
+                        f.write(e.completion.model_dump_json(indent=2))
+                    print("Length error")
 
                 # Update token usage for the generation model
                 self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
@@ -75,7 +80,7 @@ class LLMClient:
                     ],
                     response_format=schema,
                     temperature=temperature,
-                    max_tokens=max_tokens,
+                    max_completion_tokens=max_tokens,
                     logprobs=True
                 )
 
