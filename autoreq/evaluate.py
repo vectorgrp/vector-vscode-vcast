@@ -44,7 +44,8 @@ async def evaluate_environment(
     allow_partial: bool = False,
     batched: bool = True,
     batch_size: int = 8,
-    max_retries: int = 2
+    max_retries: int = 2,
+    allow_batch_partial: bool = False
 ) -> EvaluationResult:
     env = Environment(env_path)
     
@@ -62,7 +63,8 @@ async def evaluate_environment(
         batched=batched,
         allow_partial=allow_partial,
         batch_size=batch_size,
-        max_retries=max_retries
+        max_retries=max_retries,
+        allow_batch_partial=allow_batch_partial
     ):
         if test_case:
             test_cases.append(test_case)
@@ -188,6 +190,8 @@ async def main():
     parser.add_argument('--batch-size', type=int, default=8, help='Batch size for test generation.')
     parser.add_argument('--batched', action='store_true', help='Enable batched processing.')
     parser.add_argument('--retries', type=int, default=2, help='Number of retries for test generation.')
+    parser.add_argument('--allow-batch-partial', action='store_true', 
+                       help='Allow partial test generation during batch processing.')
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -222,7 +226,8 @@ async def main():
             args.allow_partial,
             args.batched,
             args.batch_size,
-            args.retries
+            args.retries,
+            args.allow_batch_partial
         )
         all_results.append(result)
         env.cleanup()
