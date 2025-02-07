@@ -7,12 +7,13 @@ setup(
   entry_points ={ 
     'console_scripts': [ 
       'code2reqs = autoreq.code2reqs:cli',
-      'reqs2tests = autoreq.reqs2tests:cli'
+      'reqs2tests = autoreq.reqs2tests:cli',
+      'reqs2tests-eval = autoreq.evaluate:cli'
     ] 
   }, 
   install_requires = [
-    'openai==1.54.4',
-    'pydantic==2.9.2',
+    'openai>=1.54.0',
+    'pydantic>=2.9.2',
     'python-dotenv==1.0.0',
     'tqdm==4.66.1',
     'tree-sitter==0.23.2',
