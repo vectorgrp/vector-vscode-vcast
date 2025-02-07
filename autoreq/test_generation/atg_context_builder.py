@@ -14,10 +14,10 @@ class ATGContextBuilder:
         self.environment = environment
         self.cache = {}
         self.locks = {}
-        self._test_cases = None
-        random.seed(42)  # Fixed seed for reproducibility
 
-    async def get_relevant_test_cases(self, function_name: str, k: int = 3, basis_path=False) -> str:
+    async def get_relevant_test_cases(self, function_name: str, k: int = 3, basis_path=False, seed=42) -> str:
+        random.seed(seed)
+
         if function_name in self.cache:
             return self.cache[function_name]
 
@@ -28,33 +28,25 @@ class ATGContextBuilder:
             if function_name in self.cache:
                 return self.cache[function_name]
 
-            # Initialize test cases if not done yet
-            if self._test_cases is None:
-                if basis_path:
-                    self._test_cases = self.environment.basis_path_tests
-                else:
-                    self._test_cases = self.environment.atg_tests
-                if not self._test_cases:
-                    return ""
+            test_cases = self.environment.atg_tests if not basis_path else self.environment.basis_path_tests
 
             # Filter test cases by function name prefix and convert to dict
             matching_tests_nopartial = [
-                test.to_dict() for test in self._test_cases 
-                if test.subprogram_name.endswith(function_name) and all(keyword not in test.test_name for keyword in ["PARTIAL", "INCOMPLETE"])
+                test.to_dict() for test in test_cases
+                if test.subprogram_name.endswith(function_name) and all(keyword not in test.test_name for keyword in ["PARTIAL", "INCOMPLETE", "TEMPLATE"])
             ]
 
-            matching_tests_all = [
-                test.to_dict() for test in self._test_cases 
-                if test.subprogram_name.endswith(function_name)
+            matching_tests_partial = [
+                test.to_dict() for test in test_cases
+                if test.subprogram_name.endswith(function_name) and any(keyword in test.test_name for keyword in ["PARTIAL", "INCOMPLETE", "TEMPLATE"])
             ]
-
-            if len(matching_tests_all) >= k:
-                matching_tests = matching_tests_nopartial
-            else:
-                matching_tests = matching_tests_all
 
             # Select up to k random tests
-            selected_tests = random.sample(matching_tests, min(k, len(matching_tests))) if matching_tests else []
+            selected_tests_optimal = random.sample(matching_tests_nopartial, min(k, len(matching_tests_nopartial))) if matching_tests_nopartial else []
+            selected_tests_rest = random.sample(matching_tests_partial, min(k - len(selected_tests_optimal), len(matching_tests_partial))) if matching_tests_partial else []
+
+            selected_tests = selected_tests_optimal + selected_tests_rest
+
             formatted_tests = json.dumps(selected_tests, indent=2)
 
             self.cache[function_name] = formatted_tests

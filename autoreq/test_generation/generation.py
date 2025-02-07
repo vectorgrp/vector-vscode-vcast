@@ -409,7 +409,7 @@ Return your answer in the following format:
             basis_path = False
         else:
             num_examples = 3
-            basis_path = True
+            basis_path = False
 
         logging.info(f"Fetching {num_examples} ATG example test cases")
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
