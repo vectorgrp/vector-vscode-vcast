@@ -13,6 +13,9 @@ from .requirements_manager import RequirementsManager
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment
 from .test_verification.verification import TestVerifier
+from .summary import SummaryEngine
+
+logging.basicConfig(level=logging.INFO)
 
 @dataclass
 class EvaluationResult:
@@ -34,6 +37,7 @@ class EvaluationResult:
     partial_test_rate: float
     individual_generation_reqs: List[str]
     individual_generation_rate: float
+    verification_summary: str  # Add this new field
 
 async def evaluate_environment(
     env_path: str,
@@ -73,13 +77,24 @@ async def evaluate_environment(
 
     non_null_tests = [tc for tc in test_cases if tc is not None]
 
-    # Verify tests with progress bar
+    # Verify tests in parallel while preserving order
     verification_results = []
     pbar = tqdm(total=len(non_null_tests), desc=f"Verifying tests for {Path(env_path).stem}")
-    for test_case in non_null_tests:
-        result = await test_verifier.verify_test_case(test_case)
-        verification_results.append(result)
+    
+    # Create a list of coroutines for verification
+    verification_tasks = [test_verifier.verify_test_case(test_case) for test_case in non_null_tests]
+    
+    async def verify_with_progress(coro):
+        result = await coro
         pbar.update(1)
+        return result
+    
+    # Wrap each verification task with progress tracking
+    wrapped_tasks = [verify_with_progress(task) for task in verification_tasks]
+    
+    # Wait for all verifications to complete while preserving order
+    verification_results = await asyncio.gather(*wrapped_tasks)
+    
     pbar.close()
 
     # Calculate metrics
@@ -118,6 +133,22 @@ async def evaluate_environment(
     test_failure_feedback_rate = len(test_failure_feedback_reqs) / total_reqs if total_reqs > 0 else 0
     partial_test_rate = len(partial_test_reqs) / total_reqs if total_reqs > 0 else 0
     individual_generation_rate = len(individual_generation_reqs) / total_reqs if total_reqs > 0 else 0
+
+    # After verification results are collected, generate a summary
+    verification_context = "\n\n".join([
+        f"Requirement {tc.requirement_id if tc else 'unknown'}:\n"
+        f"Analysis: {vr.analysis}\n"
+        f"Tests Requirement: {vr.tests_requirement}"
+        for tc, vr in zip(test_cases, verification_results)
+    ])
+
+    summary_engine = SummaryEngine(verification_context)
+    verification_summary = await summary_engine.summarize(
+        "Summarize the main verification problems and patterns found across all test cases. "
+        "Focus on common issues, types of failures, and any notable patterns in the verification results. "
+        "Structure your summary with bullet points for key findings."
+        "Provide examples (and provide the requirement ID) to illustrate your points."
+    )
 
     # Export results
     env_output_dir = output_dir / Path(env_path).stem
@@ -165,7 +196,8 @@ async def evaluate_environment(
         partial_test_reqs=partial_test_reqs,
         partial_test_rate=partial_test_rate,
         individual_generation_reqs=individual_generation_reqs,
-        individual_generation_rate=individual_generation_rate
+        individual_generation_rate=individual_generation_rate,
+        verification_summary=verification_summary
     )
 
 def parse_env_req_pair(pair: str) -> tuple[str, str]:
@@ -246,6 +278,10 @@ async def main():
                 "average_test_failure_feedback_rate": sum(r.test_failure_feedback_rate for r in all_results) / len(all_results),
                 "average_partial_test_rate": sum(r.partial_test_rate for r in all_results) / len(all_results),
                 "average_individual_generation_rate": sum(r.individual_generation_rate for r in all_results) / len(all_results),
+                "verification_summaries": {
+                    Path(r.environment_path).stem: r.verification_summary 
+                    for r in all_results
+                }
             }
         }, f, indent=2)
 
@@ -262,6 +298,8 @@ async def main():
         print(f"Total Cost: ${result.total_cost:.4f}")
         if result.unverified_requirements:
             print(f"Unverified Requirements (test does not properly test requirement): {', '.join(result.unverified_requirements)}")
+        print("\nVerification Summary:")
+        print(result.verification_summary)
         print("\nGeneration Statistics:")
         print(f"Failed Generation Rate: {result.failed_generation_rate:.2%}")
         if result.failed_generation_reqs:
