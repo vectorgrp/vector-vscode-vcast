@@ -51,24 +51,72 @@ def _batch_paths(paths, batch_size=50):
     for i in range(0, len(paths), batch_size):
         yield paths[i:i+batch_size]
 
+class PathEnumerationResult(BaseModel):
+    paths: List[str]
+
 class RequirementsGenerator:
     def __init__(self, environment, code_independence: bool = False):
         self.llm_client = LLMClient()
         self.environment = environment
         self.code_independence = code_independence
 
-    def _get_available_paths(self, function_name: str) -> List[str]:
+    async def _get_available_paths(self, function_body: str, function_name: str) -> List[str]:
         """Returns a list of paths through the given function"""
 
         paths = []
+        any_found = False
         for test in self.environment.atg_tests:
             if test.subprogram_name.endswith(function_name):
+                any_found = True
                 if test.path:  # Only include if path is not empty
                     paths.append(test.path)
-        return paths
+
+        if any_found:
+            return paths
+
+        # Fallback to generating paths using LLM
+        messages = [
+            {
+                "role": "system",
+                "content": "You are an expert in software engineering and path analysis."
+            },
+            {
+                "role": "user",
+                "content": f"""
+Analyze the following function and enumerate all possible execution paths through the code.
+Return the paths in a list format.
+
+Function:
+{function_body}
+
+Return the paths in a clear, structured format. Each path should be labeled and should include both the conditions and the sequence of statements.
+"""
+            }
+        ]
+
+        #  In case there are too many limit yourself to 20.
+
+        result = await self.llm_client.call_model(
+            messages=messages,
+            schema=PathEnumerationResult,
+            temperature=0.0
+        )
+
+        return self._process_enumerated_paths(result.paths)
+
+    def _process_enumerated_paths(self, raw_paths: List[str]) -> List[str]:
+        """Process and validate the paths returned by the LLM."""
+        processed_paths = []
+        for path in raw_paths:
+            # Remove any path numbers or labels
+            cleaned_path = path.split(":", 1)[-1].strip()
+            # Remove any leading dashes or bullets
+            cleaned_path = cleaned_path.lstrip("- *•")
+            processed_paths.append(cleaned_path)
+        return processed_paths
 
     async def generate(self, function_body, function_name):
-        paths = self._get_available_paths(function_name)
+        paths = await self._get_available_paths(function_body, function_name)
         prettified_paths = []
         for i, path in enumerate(paths):
             index_prefix = f"{i+1}. "
