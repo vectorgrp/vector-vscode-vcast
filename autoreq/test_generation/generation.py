@@ -160,6 +160,9 @@ def _derive_test_case_schema(allowed_identifiers=None):
     return TestCase
 
 def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None):
+    if allowed_identifiers:
+        logging.info(f"Creating schema with {len(allowed_identifiers)} allowed identifiers")
+
     TestCase = _derive_test_case_schema(allowed_identifiers=allowed_identifiers)
     
     if not batched:
@@ -178,7 +181,11 @@ def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None
         result_keys = {f"test_case_for_requirement_{i+1}": (TestCase, ...) for i in range(batch_size)}
         schema = create_model('TestGenerationResult', **result_keys)
 
-    if len(json.dumps(schema.model_json_schema())) > 15000:
+    schema_json = json.dumps(schema.model_json_schema())
+    logging.info(f"Generated schema size: {len(schema_json)} chars")
+
+    if len(schema_json) > 15000:
+        logging.warning(f"Schema size is too large ({len(schema_json)} chars). Ignoring allowed identifiers.")
         return _derive_completion_schema(batched, allowed_identifiers=None, batch_size=batch_size)
 
     return schema
@@ -211,6 +218,12 @@ class TestGenerator:
                 batches.append(func_reqs[i:i + batch_size])
         
         return batches
+
+    def _get_allowed_identifiers_for_function(self, function_name):
+        """Helper method to get allowed identifiers for a function with logging."""
+        allowed_identifiers = self.environment.get_allowed_identifiers_for_function(function_name)
+        logging.debug(f"Retrieved {len(allowed_identifiers)} allowed identifiers for function {function_name}")
+        return allowed_identifiers
 
     async def generate_test_cases(self, requirement_ids, batched=True, allow_partial=False, allow_batch_partial=False, batch_size=8, **kwargs):
         if not requirement_ids:
@@ -249,11 +262,22 @@ class TestGenerator:
             return
 
         function_name = functions.pop()
+        allowed_identifiers = self._get_allowed_identifiers_for_function(function_name)
         requirements_text = "\n".join([f"{i+1}. {req_id}: {self.requirements_manager.get_description(req_id)}" for i, req_id in enumerate(requirement_ids)])
+
 
         # Build context similar to single test case generation
         context = await self.context_builder.build_code_context(function_name, include_unit_name=True)
-        atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=3, basis_path=True)
+
+        context_lines = len(context.strip().split('\n'))
+        if context_lines < 200:
+            num_examples = 1
+            basis_path = True
+        else:
+            num_examples = 3
+            basis_path = True
+
+        atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
@@ -313,7 +337,7 @@ Return your answer in the following format:
             }
         ]
 
-        schema = _derive_completion_schema(True, allowed_identifiers=self.environment.allowed_identifiers, batch_size=len(requirement_ids))
+        schema = _derive_completion_schema(True, allowed_identifiers=allowed_identifiers, batch_size=len(requirement_ids))
 
         try:
             test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=4096)
@@ -370,12 +394,22 @@ Return your answer in the following format:
             if not already_started:
                 self.info_logger.start_requirement(requirement_id)
             self.info_logger.set_individual_test_generation_needed(requirement_id)
+
+            function_name = self.requirements_manager.get_function(requirement_id)
+            allowed_identifiers = self._get_allowed_identifiers_for_function(function_name)
+            
             first_try = True
             for _ in range(max_retries):
                 self.info_logger.increment_retries_used(requirement_id)
                 temperature = 0.0 if first_try else 1.0
-                extended_reasoning = self.use_extended_reasoning and not first_try  # Modify this line
-                result = await self._generate_test_case_no_retries(requirement_id, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial)
+                extended_reasoning = self.use_extended_reasoning and not first_try
+                result = await self._generate_test_case_no_retries(
+                    requirement_id, 
+                    temperature=temperature, 
+                    extended_reasoning=extended_reasoning, 
+                    allow_partial=allow_partial,
+                    schema=_derive_completion_schema(False, allowed_identifiers=allowed_identifiers)
+                )
                 if result:
                     self.info_logger.set_test_generated(requirement_id)
                     return result
@@ -387,7 +421,9 @@ Return your answer in the following format:
 
         return None
 
-    async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False, allow_partial=False):
+    async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False, 
+                                           allow_partial=False, schema=None):
+        # Remove allowed_identifiers parameter since schema is passed directly
         requirement_text = self.requirements_manager.get_description(requirement_id)
         if not requirement_text:
             logging.warning(f"Requirement {requirement_id} not found.")
@@ -473,8 +509,7 @@ Notes:
             for message in messages:
                 f.write(f"{message['role']}: {message['content']}\n\n")
 
-        schema = _derive_completion_schema(False, allowed_identifiers=self.environment.allowed_identifiers)
-
+        # Use provided schema instead of creating a new one
         try:
             test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)
             # Removed for_requirement parameter
@@ -490,7 +525,10 @@ Notes:
 
         return test_generation_result.test_case
 
-    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, temperature=0.0, extended_reasoning=False, max_iterations=3, allow_partial=False, allow_early_partial=False):
+    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, 
+                                        temperature=0.0, extended_reasoning=False, max_iterations=3, 
+                                        allow_partial=False, allow_early_partial=False):
+        # Schema is now passed directly, no need to modify this method
         iteration = 0
         fix_messages = messages
         while iteration < max_iterations:

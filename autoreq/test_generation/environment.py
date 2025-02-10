@@ -169,7 +169,40 @@ class Environment:
                 used_identifiers.add(value.identifier)
                 
         return list(used_identifiers)
-        
+
+    def get_allowed_identifiers_for_function(self, function_name):
+        all_identifiers = self.allowed_identifiers
+        relevant_definitions = self.tu_codebase.find_definitions_by_name(function_name)
+
+        relevant_identifiers = set()
+        for identifier in all_identifiers:
+            try:
+                unit, subprogram, entity = identifier.split('.')[:3]
+
+                subprogram = subprogram.split('::')[-1]  # Remove namespace if present
+                entity = entity.split('[', 1)[0]  # Remove array index if present
+                
+                if unit == "USER_GLOBALS_VCAST":
+                    relevant_identifiers.add(identifier)
+                    continue
+
+                if entity == '(cl)':
+                    relevant_identifiers.add(identifier)
+                    continue
+                
+                if subprogram == "<<GLOBAL>>":
+                    search_term = entity
+                else:
+                    search_term = subprogram
+                
+                if any(search_term in defn for defn in relevant_definitions):
+                    relevant_identifiers.add(identifier)
+            except IndexError:
+                logging.warning(f"Invalid identifier format: {identifier}")
+                continue
+
+        logging.debug(f"Found {len(relevant_identifiers)} relevant identifiers for function {function_name}")
+        return list(relevant_identifiers)
 
     @cached_property
     def source_files(self) -> List[str]:
