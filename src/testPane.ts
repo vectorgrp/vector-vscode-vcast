@@ -436,15 +436,17 @@ function getEnvironmentList(baseDirectory: string): string[] {
 // to see where we reference them
 // this list in a "when" clause
 let vcastEnviroList: string[] = [];
-let vcastUnbuiltEnviroList: string[] = [];
+export let vcastUnbuiltEnviroList: string[] = [];
 let vcastHasCodedTestsList: string[] = [];
 
 export async function updateTestsForEnvironment(
   parentNode: vcastTestItem,
   enviroData: environmentNodeDataType
 ) {
-  // This will add one environment node to the test pane.
-  // This includes all units, functions, and tests for that environment.
+  // this will add one environment node to the test pane
+  // this includes all units, functions, and tests for that environment
+
+  // This is all of the data for a single environment
   const jsonData = await getDataForEnvironment(enviroData.buildDirectory);
 
   if (jsonData) {
@@ -452,6 +454,8 @@ export async function updateTestsForEnvironment(
 
     updateGlobalDataForFile(enviroData.buildDirectory, jsonData.unitData);
 
+    // the vcast: prefix to allow package.json nodes to control
+    // when the VectorCAST context menu should be shown
     const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
 
     createTestNodeInCache(
@@ -466,6 +470,7 @@ export async function updateTestsForEnvironment(
     );
     enviroNode.nodeKind = nodeKind.environment;
 
+    // process functions and tests and add child notes to enviroNode
     processVCtestData(
       enviroData.buildDirectory,
       enviroNodeID,
@@ -473,6 +478,7 @@ export async function updateTestsForEnvironment(
       jsonData
     );
 
+    // this is used by the package.json to control content (right click) menu choices
     if (!vcastEnviroList.includes(enviroNodeID)) {
       vcastEnviroList.push(enviroNodeID);
       vscode.commands.executeCommand(
@@ -481,13 +487,9 @@ export async function updateTestsForEnvironment(
         vcastEnviroList
       );
     }
-
+    // starting with VS Code 1.81 the tree was not updating unless I added the delete
     globalController.items.delete(enviroNode.id);
     parentNode.children.add(enviroNode);
-
-    // Force a refresh of the parent node otherwise the collapse icon is still present even though all tests are deleted.
-    globalController.items.delete(parentNode.id);
-    globalController.items.add(parentNode);
   } else {
     vectorMessage(`Ignoring environment: ${enviroData.displayName}\n`);
   }
@@ -523,8 +525,22 @@ function addUnbuiltEnviroToTestPane(
 }
 
 export function removeEnvironmentFromTestPane(enviroID: string) {
-  // called from the deleteEnviro command
-  globalController.items.delete(enviroID);
+  // Start searching from top-level items
+  globalController.items.forEach((item) => {
+    deleteItemByID(item, enviroID);
+  });
+}
+
+// Deletes the item with the matching enviroID
+function deleteItemByID(item: vscode.TestItem, enviroID: string) {
+  item.children.forEach((child) => {
+    if (child.id === enviroID) {
+      item.children.delete(child.id);
+    } else {
+      // Continue searching recursively
+      deleteItemByID(child, enviroID);
+    }
+  });
 }
 
 export let vcastEnvironmentsFound: boolean = false;
@@ -1298,7 +1314,7 @@ export async function refreshAllExtensionData() {
 }
 
 // create the controller
-let globalController: vscode.TestController;
+export let globalController: vscode.TestController;
 let globalProjectsNode: vcastTestItem;
 let globalEnvironmentsNode: vcastTestItem;
 

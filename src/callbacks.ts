@@ -15,10 +15,12 @@ import {
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
+  globalController,
   removeCBTfilesCacheForEnviro,
   removeEnvironmentFromTestPane,
   updateDataForEnvironment,
   updateTestPane,
+  vcastUnbuiltEnviroList,
 } from "./testPane";
 
 import { removeFilePattern } from "./utilities";
@@ -91,7 +93,20 @@ export async function deleteEnvironmentCallback(
     removeEnvironmentFromTestPane(enviroNodeID);
     removeCBTfilesCacheForEnviro(enviroNodeID);
 
-    const enviroPath = getEnviroPathFromID(enviroNodeID);
+    let enviroPath = getEnviroPathFromID(enviroNodeID);
+    if (!enviroPath) {
+      // We check if it is present in the unbuilt list
+      // If so, we take the id and split it after "vcast:" to get the path
+      // In case that is not possible, we throw an error message
+      if (vcastUnbuiltEnviroList.includes(enviroNodeID)) {
+        enviroPath = enviroNodeID.split(":")[1];
+      } else {
+        vscode.window.showErrorMessage(
+          `Unable to determine environment path from node: ${enviroNodeID}`
+        );
+        return;
+      }
+    }
     removeCoverageDataForEnviro(enviroPath);
     updateDisplayedCoverage();
     updateExploreDecorations();
@@ -99,8 +114,8 @@ export async function deleteEnvironmentCallback(
 
     removeNodeFromCache(enviroNodeID);
 
-    await updateProjectTree();
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
+    await updateProjectTree();
     removeFilePattern(enviroPath, ".*");
   }
 }

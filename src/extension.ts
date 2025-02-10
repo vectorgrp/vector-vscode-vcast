@@ -58,6 +58,7 @@ import {
   refreshAllExtensionData,
   updateCodedTestCases,
   updateDataForEnvironment,
+  vcastUnbuiltEnviroList,
 } from "./testPane";
 
 import {
@@ -74,6 +75,7 @@ import {
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
   rebuildEnvironment,
+  removeTestsuiteFromProject,
 } from "./vcastAdapter";
 
 import {
@@ -614,6 +616,31 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(buildProjectEnviro);
+
+  // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
+  let removeTestsuite = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.removeTestsuite",
+    (enviroNode: any) => {
+      // this returns the full path to the environment directory
+      let enviroPath = getEnviroPathFromID(enviroNode.id);
+      // In case the env is not built, it will be not present in the cache
+      if (!enviroPath) {
+        // So we check if it is present in the unbuilt list
+        // If so, we take the id and split it after "vcast:" to get the path
+        // In case that is not possible, we throw an error message
+        if (vcastUnbuiltEnviroList.includes(enviroNode.id)) {
+          enviroPath = enviroNode.id.split(":")[1];
+        } else {
+          vscode.window.showErrorMessage(
+            `Unable to determine environment path from node: ${enviroNode.id}`
+          );
+          return;
+        }
+      }
+      removeTestsuiteFromProject(enviroPath, enviroNode.id);
+    }
+  );
+  context.subscriptions.push(removeTestsuite);
 
   // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
   let deleteEnviro = vscode.commands.registerCommand(

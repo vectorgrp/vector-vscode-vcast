@@ -207,6 +207,48 @@ export async function deleteEnvironment(
   );
 }
 
+export async function removeTestsuiteFromProject(
+  enviroPath: string,
+  enviroNodeID: string
+) {
+  let manageArgs: string[] = [];
+  let progressMessage: string = "";
+  let projectLocation: string = "";
+
+  // if we are in server mode, close any existing connection to the environment
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+
+  for (const [projectPath, projectData] of globalProjectDataCache) {
+    for (const [cachedEnviroPath, enviroData] of projectData) {
+      // We search for the correct environment in the cache in order to get the project
+      if (cachedEnviroPath === enviroPath) {
+        const projectName = path.basename(projectPath);
+        const levelString = enviroData.displayName;
+        projectLocation = path.dirname(projectPath);
+        const testsuite = path.dirname(levelString);
+        const envName = path.basename(enviroPath);
+
+        manageArgs = [
+          `-p${projectName}`,
+          `--level=${testsuite}`,
+          "--remove",
+          `${envName}`,
+        ];
+        progressMessage = `Removing Testsuite ${levelString} from Project ${projectName}`;
+        break;
+      }
+    }
+  }
+  executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    progressMessage,
+    deleteEnvironmentCallback,
+    enviroNodeID
+  );
+}
+
 /**
  * Updates the Project data cache and refreshes the extension data
  */
@@ -215,7 +257,7 @@ export async function updateProjectTree() {
     for (const workspace of vscode.workspace.workspaceFolders) {
       const workspaceRoot = workspace.uri.fsPath;
       await buildProjectDataCache(workspaceRoot);
-      refreshAllExtensionData();
+      await refreshAllExtensionData();
     }
   }
 }

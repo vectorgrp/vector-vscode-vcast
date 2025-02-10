@@ -90,6 +90,11 @@
         "title": "Delete Environment"
       },
       {
+        "command": "vectorcastTestExplorer.removeTestsuite",
+        "category": "VectorCAST Test Explorer",
+        "title": "Remove Testsuite from Project"  
+      },
+      {
         "command": "vectorcastTestExplorer.newEnviroVCAST",
         "category": "VectorCAST Test Explorer",
         "title": "Create VectorCAST Environment"
@@ -341,6 +346,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.removeTestsuite",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
           "when": "never"
         },
@@ -556,6 +565,11 @@
           "command": "vectorcastTestExplorer.deleteEnviro",
           "group": "vcast@3",
           "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.removeTestsuite",
+          "group": "vcast@1",
+          "when": "testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList)"
         },
         {
           "command": "vectorcastTestExplorer.editTestScript",

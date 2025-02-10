@@ -108,7 +108,9 @@ export function getEnviroNodeIDFromID(nodeID: string): string {
 }
 
 export function getEnviroPathFromID(nodeID: string): string {
-  return testNodeCache.get(nodeID).enviroPath;
+  // Need to check first if the nodeID is in the cache, otherwise .get will throw an error
+  const node = testNodeCache.get(nodeID);
+  return node?.enviroPath;
 }
 
 export function getEnviroNameFromID(nodeID: string): string {
