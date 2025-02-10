@@ -252,7 +252,7 @@ class TestGenerator:
         requirements_text = "\n".join([f"{i+1}. {req_id}: {self.requirements_manager.get_description(req_id)}" for i, req_id in enumerate(requirement_ids)])
 
         # Build context similar to single test case generation
-        context = await self.context_builder.build_code_context(function_name)
+        context = await self.context_builder.build_code_context(function_name, include_unit_name=True)
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=3, basis_path=True)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
@@ -399,7 +399,7 @@ Return your answer in the following format:
             return None
 
         # Build code context using the environment
-        context = await self.context_builder.build_code_context(function_name)
+        context = await self.context_builder.build_code_context(function_name, include_unit_name=True)
         logging.debug("Generated code context: %s", context)
         
         # Determine number of example test cases based on context length

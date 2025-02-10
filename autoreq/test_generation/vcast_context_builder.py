@@ -10,7 +10,18 @@ class VcastContextBuilder:
         self.cache = {}
         self.locks = {}
 
-    async def build_code_context(self, function_name):
+    async def build_code_context(self, function_name, include_unit_name=False):
+        context = await self._build_raw_code_context(function_name)
+
+        if include_unit_name:
+            assert len(self.environment.units) == 1
+            unit_name = self.environment.units[0]
+
+            context = f"// Unit: {unit_name}\n\n{context}"
+
+        return context
+
+    async def _build_raw_code_context(self, function_name):
         if function_name in self.cache:
             return self.cache[function_name]
 
@@ -63,10 +74,10 @@ class VcastContextBuilder:
             
         reduced_context = []
 
-        reduced_context.append("Definitions of types, called functions and data structures:")
+        reduced_context.append("// Definitions of types, called functions and data structures:")
         for definition, _ in definition_groups.items():
             reduced_context.append(f"\n{definition}")
 
-        reduced_context.append(f"\nCode for {function_name}:\n{codebase.find_definitions_by_name(function_name)[0]}")
+        reduced_context.append(f"\n// Code for {function_name}:\n{codebase.find_definitions_by_name(function_name)[0]}")
 
         return "\n".join(reduced_context)
