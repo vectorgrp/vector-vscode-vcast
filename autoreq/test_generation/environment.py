@@ -84,6 +84,7 @@ class Environment:
             error_msg = f"Build command '{cmd}' failed with error:\n{result.stderr or result.stdout}"
             raise RuntimeError(error_msg)
 
+
     def run_tests(self, test_cases: List[str], execute: bool = True, show_run_script_output: bool = False) -> Optional[str]:
         self.build()  # Build the environment before running tests
         
@@ -131,37 +132,43 @@ class Environment:
         # Run the command to generate the test script template
         cmd = f'$VECTORCAST_DIR/clicast -e {env_name} test script template {tst_file_path}'
         env_vars = os.environ.copy()
+
+        failed = False
         try:
             result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
         except subprocess.TimeoutExpired:
             os.remove(tst_file_path)
             logging.error(f"Command '{cmd}' timed out after 30 seconds")
-            return None
+            failed = True
         
-        if result.returncode != 0:
-            os.remove(tst_file_path)
-            error_msg = f"Command '{cmd}' failed with error:\n{result.stderr or result.stdout}"
-            raise RuntimeError(error_msg)
+        if not failed:
+            if result.returncode != 0:
+                os.remove(tst_file_path)
+                error_msg = f"Command '{cmd}' failed with error:\n{result.stderr or result.stdout}"
+                raise RuntimeError(error_msg)
         
-        # Read the generated test script template
-        with open(tst_file_path, 'r') as f:
-            content = f.read()
-        os.remove(tst_file_path)  # Clean up the temporary file
+            # Read the generated test script template
+            with open(tst_file_path, 'r') as f:
+                content = f.read()
+            os.remove(tst_file_path)  # Clean up the temporary file
 
-        # Extract identifiers from SCRIPT.VALUE and SCRIPT.EXPECTED lines
-        identifiers = set()
-        lines = content.splitlines()
-        for line in lines:
-            if line.startswith('TEST.VALUE') or line.startswith('TEST.EXPECTED'):
-                identifier = line.split(':', 1)[1].rsplit(':', 1)[0]
-                identifiers.add(identifier)
+            # Extract identifiers from SCRIPT.VALUE and SCRIPT.EXPECTED lines
+            identifiers = set()
+            lines = content.splitlines()
+            for line in lines:
+                if line.startswith('TEST.VALUE') or line.startswith('TEST.EXPECTED'):
+                    identifier = line.split(':', 1)[1].rsplit(':', 1)[0]
+                    identifiers.add(identifier)
 
-        if len(identifiers) > 0:
-            return list(identifiers)
+            if len(identifiers) > 0:
+                return list(identifiers)
 
-        logging.warning("No identifiers found in the test script template")
-        logging.warning("Falling back to scraping from ATG")
+            logging.warning("No identifiers found in the test script template")
+            logging.warning("Falling back to scraping from ATG")
+        else:
+            logging.warning("Failed to generate test script template")
+            logging.warning("Falling back to scraping from ATG")
         
         used_identifiers = set()
         for test in self.atg_tests:
@@ -177,7 +184,11 @@ class Environment:
         relevant_identifiers = set()
         for identifier in all_identifiers:
             try:
-                unit, subprogram, entity = identifier.split('.')[:3]
+                try:
+                    unit, subprogram, entity = identifier.split('.')[:3]
+                except:
+                    logging.warning(f"Invalid identifier format: {identifier}")
+                    relevant_identifiers.add(identifier)
 
                 subprogram = subprogram.split('::')[-1]  # Remove namespace if present
                 entity = entity.split('[', 1)[0]  # Remove array index if present
@@ -240,15 +251,24 @@ class Environment:
     @cached_property
     def atg_tests(self) -> str:
         env_name = self.env_name
+        # First try with baselining
         cmd = f'$VECTORCAST_DIR/atg -e {env_name} --baselining'
         env_vars = os.environ.copy()
+
         
         try:
             result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
         except subprocess.TimeoutExpired:
-            logging.error(f"Command '{cmd}' timed out after 60 seconds")
-            return ""
+            logging.warning(f"ATG with baselining timed out, trying without baselining")
+            # Retry without baselining
+            cmd = f'$VECTORCAST_DIR/atg -e {env_name}'
+            try:
+                result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                logging.error(f"ATG command without baselining also timed out")
+                return ""
             
         if result.returncode != 0:
             logging.error(f"ATG command failed with error:\n{result.stderr}")
