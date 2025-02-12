@@ -85,7 +85,7 @@ class Environment:
             raise RuntimeError(error_msg)
 
 
-    def run_tests(self, test_cases: List[str], execute: bool = True, show_run_script_output: bool = False) -> Optional[str]:
+    def run_tests(self, test_cases: List[str], **kwargs) -> Optional[str]:
         self.build()  # Build the environment before running tests
         
         with tempfile.NamedTemporaryFile(delete=False, suffix='.tst', mode='w') as temp_tst_file:
@@ -107,18 +107,17 @@ class Environment:
 
             temp_tst_file.flush()
 
-            if execute:
-                output = self._execute_commands(tst_file_path, show_run_script_output)
-                os.remove(tst_file_path)  # Clean up the temporary file
-                return output
+            output = self.run_test_script(tst_file_path, **kwargs)
+            os.remove(tst_file_path)  # Clean up the temporary file
 
-        return None
+            return output
 
-    def run_test_script(self, tst_file_path: str, rebuild: bool = False, show_run_script_output: bool = False) -> Optional[str]:
+
+    def run_test_script(self, tst_file_path: str, rebuild: bool=True, with_coverage=False) -> Optional[str]:
         if rebuild:
             self.build()
 
-        output = self._execute_commands(tst_file_path, show_run_script_output)
+        output = self._run_test_execute_commands(tst_file_path, with_coverage=with_coverage)
         return output
 
     @cached_property
@@ -189,6 +188,7 @@ class Environment:
                 except:
                     logging.warning(f"Invalid identifier format: {identifier}")
                     relevant_identifiers.add(identifier)
+                    continue
 
                 subprogram = subprogram.split('::')[-1]  # Remove namespace if present
                 entity = entity.split('[', 1)[0]  # Remove array index if present
@@ -506,13 +506,19 @@ class Environment:
             test_cases.append(current_test)
         return test_cases
 
-    def _execute_commands(self, tst_file_path: str, show_run_script_output: bool) -> Optional[str]:
+    def _run_test_execute_commands(self, tst_file_path: str, with_coverage: bool = False) -> Optional[str]:
         env_name = self.env_name
         
         commands = [
             f'$VECTORCAST_DIR/clicast -lc -e {env_name} Test Script Run {tst_file_path}',
             f'$VECTORCAST_DIR/clicast -lc -e {env_name} Execute All'
         ]
+
+        temp_coverage_file = tempfile.NamedTemporaryFile(delete=False, suffix='.txt', mode='w')
+
+        if with_coverage:
+            commands.append(f'$VECTORCAST_DIR/clicast -lc -e {env_name} report custom coverage {temp_coverage_file.name}')
+
         output = ''
         env_vars = os.environ.copy()
         # Execute the commands using subprocess and capture the outputs
@@ -524,18 +530,23 @@ class Environment:
                 logging.error(f"Command '{cmd}' timed out after 30 seconds")
                 return None
 
+            logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
             logging.debug("Command: %s Return code: %s", cmd, result.returncode)
 
-            if show_run_script_output:
-                logging.info("Command '%s' output:\n%s", cmd, result.stdout)
-
             output += result.stdout
-            """
-            if result.returncode != 0:
-                # Handle errors if any command fails
-                error_msg = f"Command '{cmd}' failed with error:\n{result.stderr or result.stdout}"
-                raise RuntimeError(error_msg)
-            """
+
+        if with_coverage:
+            with open(temp_coverage_file.name, 'r') as f:
+                coverage_output = f.read()
+
+            coverage_data = {}
+            for coverage_type in ['line', 'branch']:
+                pass
+                # TODO: Finish this
+                
+            output += coverage_output
+            os.remove(temp_coverage_file.name)
+            
         return output
 
     def cleanup(self):

@@ -8,14 +8,13 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from tqdm import tqdm
+import traceback
 
 from .requirements_manager import RequirementsManager
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment
 from .test_verification.verification import TestVerifier
 from .summary import SummaryEngine
-
-logging.basicConfig(level=logging.INFO)
 
 @dataclass
 class EvaluationResult:
@@ -38,6 +37,7 @@ class EvaluationResult:
     individual_generation_reqs: List[str]
     individual_generation_rate: float
     verification_summary: str  # Add this new field
+    generation_error: Optional[str] = None  # Add this new field
 
 async def evaluate_environment(
     env_path: str,
@@ -52,28 +52,36 @@ async def evaluate_environment(
     allow_batch_partial: bool = False
 ) -> EvaluationResult:
     env = Environment(env_path)
+
+    env.build()
     
     if not requirement_ids:
         requirement_ids = rm.requirement_ids
 
     test_generator = TestGenerator(rm, env, use_extended_reasoning=extended_reasoning)
-    test_verifier = TestVerifier(rm, env)
+    test_verifier = TestVerifier(rm, env, allow_partial=allow_partial or allow_batch_partial)
     
     # Generate tests with progress bar
     test_cases = []
+    generation_error = None
     pbar = tqdm(total=len(requirement_ids), desc=f"Generating tests for {Path(env_path).stem}")
-    async for test_case in test_generator.generate_test_cases(
-        requirement_ids,
-        batched=batched,
-        allow_partial=allow_partial,
-        batch_size=batch_size,
-        max_retries=max_retries,
-        allow_batch_partial=allow_batch_partial
-    ):
-        if test_case:
-            test_cases.append(test_case)
-        pbar.update(1)
-    pbar.close()
+    try:
+        async for test_case in test_generator.generate_test_cases(
+            requirement_ids,
+            batched=batched,
+            allow_partial=allow_partial,
+            batch_size=batch_size,
+            max_retries=max_retries,
+            allow_batch_partial=allow_batch_partial
+        ):
+            if test_case:
+                test_cases.append(test_case)
+            pbar.update(1)
+    except Exception as e:
+        generation_error = f"Test generation failed: {str(e)}\n{''.join(traceback.format_exc())}"
+        logging.error(f"Test generation failed for {env_path}: {str(e)}")
+    finally:
+        pbar.close()
 
     non_null_tests = [tc for tc in test_cases if tc is not None]
 
@@ -197,7 +205,8 @@ async def evaluate_environment(
         partial_test_rate=partial_test_rate,
         individual_generation_reqs=individual_generation_reqs,
         individual_generation_rate=individual_generation_rate,
-        verification_summary=verification_summary
+        verification_summary=verification_summary,
+        generation_error=generation_error
     )
 
 def parse_env_req_pair(pair: str) -> tuple[str, str]:
@@ -209,6 +218,20 @@ def parse_env_req_pair(pair: str) -> tuple[str, str]:
         env_path = pair
         env_dir = str(Path(env_path).parent)
         return env_path, str(Path(env_dir) / "reqs.csv")
+
+def write_env_result(result: EvaluationResult, output_dir: Path) -> None:
+    """Write individual environment results to a JSON file."""
+    env_name = Path(result.environment_path).stem
+    result_path = output_dir / f"{env_name}_result.json"
+    with open(result_path, "w") as f:
+        json.dump(asdict(result), f, indent=2)
+
+def get_processed_environments(output_dir: Path) -> set:
+    """Get set of environment names that have already been processed."""
+    return {
+        p.stem.replace("_result", "") 
+        for p in output_dir.glob("*_result.json")
+    }
 
 async def main():
     parser = argparse.ArgumentParser(description='Evaluate test generation and verification for given environments.')
@@ -224,16 +247,37 @@ async def main():
     parser.add_argument('--retries', type=int, default=2, help='Number of retries for test generation.')
     parser.add_argument('--allow-batch-partial', action='store_true', 
                        help='Allow partial test generation during batch processing.')
+    parser.add_argument('--max-cost', type=float, 
+                       help='Maximum cost limit in dollar. Processing stops if exceeded.')
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    # Get already processed environments
+    processed_envs = get_processed_environments(output_dir)
+    
     all_results = []
+    total_cost = 0.0
     env_pbar = tqdm(args.env_req_pairs, desc="Processing environments")
     for pair in env_pbar:
+        if args.max_cost and total_cost >= args.max_cost:
+            print(f"\nStopping: Cost limit of ${args.max_cost:.2f} reached (current: ${total_cost:.2f})")
+            break
+
         env_path, req_path = parse_env_req_pair(pair)
         env_name = Path(env_path).stem
+        
+        # Skip if already processed
+        if env_name in processed_envs:
+            print(f"\nSkipping {env_name} - already processed")
+            # Load existing result
+            with open(output_dir / f"{env_name}_result.json") as f:
+                result_dict = json.load(f)
+                # Add cost from previous run
+                total_cost += result_dict.get('total_cost', 0)
+            continue
+
         env_pbar.set_description(f"Processing {env_name}")
         
         if not os.path.exists(req_path):
@@ -261,30 +305,18 @@ async def main():
             args.retries,
             args.allow_batch_partial
         )
+        
+        # Write result immediately after processing each environment
+        write_env_result(result, output_dir)
+        
         all_results.append(result)
+        total_cost += result.total_cost
+        print(f"Current cost: ${total_cost:.2f}")
         env.cleanup()
 
-    # Export summary
-    with open(output_dir / "evaluation_summary.json", "w") as f:
-        json.dump({
-            "environments": [asdict(r) for r in all_results],
-            "overall": {
-                "total_environments": len(all_results),
-                "total_cost": sum(r.total_cost for r in all_results),
-                "average_precision": sum(r.precision for r in all_results) / len(all_results),
-                "average_recall": sum(r.recall for r in all_results) / len(all_results),
-                "average_f1": sum(r.f1_score for r in all_results) / len(all_results),
-                "average_failed_generation_rate": sum(r.failed_generation_rate for r in all_results) / len(all_results),
-                "average_test_failure_feedback_rate": sum(r.test_failure_feedback_rate for r in all_results) / len(all_results),
-                "average_partial_test_rate": sum(r.partial_test_rate for r in all_results) / len(all_results),
-                "average_individual_generation_rate": sum(r.individual_generation_rate for r in all_results) / len(all_results),
-                "verification_summaries": {
-                    Path(r.environment_path).stem: r.verification_summary 
-                    for r in all_results
-                }
-            }
-        }, f, indent=2)
-
+    # Remove the export summary section that writes the combined file
+    # Instead just print the final summary
+    
     # Print summary (replacing logging.info calls)
     print("\nEvaluation Summary:")
     for result in all_results:

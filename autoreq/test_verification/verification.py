@@ -24,9 +24,10 @@ class VerificationOutput(BaseModel):
     confidence: float
 
 class TestVerifier:
-    def __init__(self, requirements_manager, environment):
+    def __init__(self, requirements_manager, environment, allow_partial=False):
         self.requirements_manager = requirements_manager
         self.environment = environment
+        self.allow_partial = allow_partial
         self.context_builder = VcastContextBuilder(self.environment)
         self.llm_client = LLMClient()
         self.info_logger = InfoLogger()
@@ -99,7 +100,7 @@ Please analyze:
 - Does the test case properly test the requirement?
 - Are all aspects of the requirement covered?
 - Are the test inputs appropriate for testing the requirement?
-- Are the expected outputs correctly validating the requirement?
+{"- Are the expected outputs correctly validating the requirement?" if not self.allow_partial else ""}
 
 Provide your analysis in JSON format:
 {{
@@ -111,6 +112,7 @@ Note:
 - You can assume that the test case has valid syntax and is correctly formatted. The test framework reference is a guideline but not 100% comprehensive.
 - This is especially true for stubbing related matters
 - Therefore: Focus on the test case's ability to test the requirement, not on the test case's syntax or formatting.
+{"- If a test case is marked as partial, do not mind that. Focus on the parts that are present (the input values). Mark something as wrong only if it is explicitly wrong." if self.allow_partial else ""}
 """
             }
         ]
