@@ -85,6 +85,11 @@
         "title": "Build All Unbuilt Environments"
       },
       {
+        "command": "vectorcastTestExplorer.addEnviroToProject",
+        "category": "VectorCAST Test Explorer",
+        "title": "Add Environment to Project"
+      },
+      {
         "command": "vectorcastTestExplorer.deleteEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Delete Environment"
@@ -342,6 +347,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.addEnviroToProject",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.deleteEnviro",
           "when": "never"
         },
@@ -558,6 +567,11 @@
         },
         {
           "command": "vectorcastTestExplorer.buildAllUnbuiltEnviroInProject",
+          "group": "vcast@1",
+          "when": "testId =~ /\\.vcm$/"
+        },
+        {
+          "command": "vectorcastTestExplorer.addEnviroToProject",
           "group": "vcast@1",
           "when": "testId =~ /\\.vcm$/"
         },

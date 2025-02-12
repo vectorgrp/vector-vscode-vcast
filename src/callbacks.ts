@@ -35,6 +35,29 @@ import { removeCoverageDataForEnviro } from "./vcastTestInterface";
 const fs = require("fs");
 const path = require("path");
 
+export async function addEnvToProjectCallback(
+  enviroPath: string,
+  code: number
+) {
+  // This function gets called after we add an environment to a project.
+  // We check the return code, update Project Tree, and cleanup on failure
+
+  if (code == 0) {
+    await updateProjectTree();
+  } else {
+    try {
+      // remove the environment directory, as well as the .vce file
+      vectorMessage("Environment adding failed, removing artifacts ...");
+      fs.rmSync(enviroPath, { recursive: true, force: true });
+      fs.unlinkSync(enviroPath + ".vce");
+      // Don't want to remove the .env, because leaving it allows the
+      // user to edit and then right click to try a re-build
+    } catch {
+      // ignore errors
+    }
+  }
+}
+
 export async function buildEnvironmentCallback(
   enviroPath: string,
   code: number
@@ -43,7 +66,9 @@ export async function buildEnvironmentCallback(
   // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
+    const enviroName = path.basename(enviroPath);
     await updateDataForEnvironment(enviroPath);
+    await updateProjectData(enviroPath, enviroName);
     await updateProjectTree();
   } else {
     try {

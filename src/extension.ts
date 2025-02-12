@@ -76,6 +76,7 @@ import {
   openVcastFromVCEfile,
   rebuildEnvironment,
   removeTestsuiteFromProject,
+  addEnvToTestsuite,
 } from "./vcastAdapter";
 
 import {
@@ -590,6 +591,146 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(rebuildEnviro);
+
+  // Command: vectorcastTestExplorer.addEnviroToProject  ////////////////////////////////////////////////////////
+
+  let addEnviroToProject = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addEnviroToProject",
+    async (projectNode) => {
+      const projectPath = projectNode.id;
+      const panel = vscode.window.createWebviewPanel(
+        "addEnviroToProject",
+        "Add Environment To Project",
+        vscode.ViewColumn.Active, // Keeps it central
+        { enableScripts: true, retainContextWhenHidden: true } // Makes it act more like a modal
+      );
+
+      panel.webview.html = getWebviewContent();
+
+      // Listen for messages from the Webview
+      panel.webview.onDidReceiveMessage(async (message) => {
+        if (message.command === "submit") {
+          const { compilerName, testsuiteName, enviroPath } = message;
+          if (!compilerName || !enviroPath || !testsuiteName) {
+            vscode.window.showErrorMessage("All fields are required.");
+            return;
+          }
+          const testsuite = path.join(compilerName, testsuiteName);
+          vectorMessage(
+            `Adding Environment ${enviroPath} to Testsuite ${testsuiteName} to Project ${projectPath}...`
+          );
+          await addEnvToTestsuite(projectPath, testsuite, enviroPath);
+          panel.dispose(); // Close the webview after submission
+        } else if (message.command === "cancel") {
+          panel.dispose(); // Close the webview if user cancels
+        }
+      }, undefined);
+    }
+  );
+
+  function getWebviewContent() {
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Add Environment</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          background-color: #1e1e1e;
+          color: #d4d4d4;
+          font-size: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          margin: 0;
+        }
+        .modal {
+          width: 500px;
+          background-color: #252526;
+          padding: 30px;
+          border-radius: 8px;
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+          text-align: center;
+        }
+        h2 {
+          color: #ffffff;
+          margin-bottom: 20px;
+        }
+        label {
+          font-size: 18px;
+          display: block;
+          margin-top: 10px;
+          text-align: left;
+        }
+        input {
+          width: calc(100% - 20px);
+          padding: 10px;
+          font-size: 16px;
+          margin-top: 5px;
+          background-color: #3c3c3c;
+          color: #d4d4d4;
+          border: 1px solid #555;
+          border-radius: 4px;
+          display: block;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        button {
+          margin-top: 15px;
+          padding: 10px 15px;
+          font-size: 16px;
+          background-color: #007acc;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        button:hover {
+          background-color: #005f99;
+        }
+        .button-container {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 20px;
+        }
+      </style>
+      <script>
+        const vscode = acquireVsCodeApi();
+        function sendMessage() {
+          const enviroPath = document.getElementById('enviroPath').value;
+          const testsuiteName = document.getElementById('testsuiteName').value;
+          const compilerName = document.getElementById('compilerName').value;
+          vscode.postMessage({ command: 'submit', compilerName, testsuiteName, enviroPath});
+        } 
+        function cancel() {
+          vscode.postMessage({ command: 'cancel' });
+        }
+      </script>
+    </head>
+    <body>
+      <div class="modal">
+        <h2>Add Environment To Project</h2>
+        <label>Environment Path:</label>
+        <input type="text" id="enviroPath" placeholder="Enter .env file path" /><br/><br/>
+        <label>Compiler Name:</label>
+        <input type="text" id="compilerName" placeholder="Enter Compiler Name" /><br/><br/>
+        <label>Testsuite Name:</label>
+        <input type="text" id="testsuiteName" placeholder="Enter Testsuite Name" /><br/><br/>
+        <div class="button-container">
+          <button onclick="cancel()">Cancel</button>
+          <button onclick="sendMessage()">OK</button>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  }
+
+  context.subscriptions.push(addEnviroToProject);
 
   // Command: vectorcastTestExplorer.buildAllUnbuiltEnviro  ////////////////////////////////////////////////////////
   let buildAllUnbuiltEnviroInProject = vscode.commands.registerCommand(

@@ -5,6 +5,7 @@ import * as vscode from "vscode";
 import { execSync, spawn } from "child_process";
 
 import {
+  addEnvToProjectCallback,
   buildEnvironmentCallback,
   deleteEnvironmentCallback,
 } from "./callbacks";
@@ -246,6 +247,37 @@ export async function removeTestsuiteFromProject(
     progressMessage,
     deleteEnvironmentCallback,
     enviroNodeID
+  );
+}
+
+/**
+ * Imports an already existing Environment to the Project if possible
+ * @param projectFilePath Path to the Project
+ * @param testsuite Testsuite string containing CompilerName/TestsuiteName
+ * @param enviroPath Path to Environment
+ */
+export async function addEnvToTestsuite(
+  projectFilePath: string,
+  testsuite: string,
+  enviroPath: string
+) {
+  const projectName = path.basename(projectFilePath);
+  const projectLocation = path.dirname(projectFilePath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--level=${testsuite}`,
+    `--import`,
+    `${enviroPath}`,
+    "--force",
+    "--migrate",
+  ];
+
+  executeWithRealTimeEcho(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    addEnvToProjectCallback,
+    enviroPath
   );
 }
 
