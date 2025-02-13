@@ -102,6 +102,7 @@ import {
 
 import fs = require("fs");
 const path = require("path");
+import { spawn } from "child_process";
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
@@ -343,6 +344,31 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(insertATGTestsFromEditorCommand);
+
+
+  let generateRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.generateRequirements",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        generateRequirements(enviroPath);
+      }
+    }
+  );
+  context.subscriptions.push(generateRequirementsCommand);
+
+  let generateRequirementsTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.generateTestsFromRequirements",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        await generateTestsFromRequirements(enviroPath);
+      }
+    }
+  );
+  context.subscriptions.push(generateRequirementsTestsCommand);
 
   // Command: vectorcastTestExplorer.createTestScriptFromEditor////////////////////////////////////////////////////////
   // This is the callback for right clicks of the source editor flask+ icon
@@ -770,4 +796,160 @@ export async function deactivate() {
   await deleteServerLog();
   console.log("The VectorCAST Test Explorer has been de-activated");
   return deactivateLanguageServerClient();
+}
+
+async function generateRequirements(enviroPath: string) {
+  const parentDir = path.dirname(enviroPath);
+  const lowestDirname = path.basename(enviroPath);
+  const envName = `${lowestDirname}.env`;
+  const envPath = path.join(parentDir, envName);
+
+  const csvPath = path.join(parentDir, 'reqs.csv');
+  const htmlPath = path.join(parentDir, 'reqs.html');
+  const repositoryDir = path.join(parentDir, 'requirement_repository');
+
+  const commandArgs = [
+    envPath,
+    "--export-csv",
+    csvPath,
+    "--export-html",
+    htmlPath,
+    "--export-repository",
+    repositoryDir,
+    "--json-events",
+  ];
+
+  await vscode.window.withProgress({
+    location: vscode.ProgressLocation.Notification,
+    title: "Generating Requirements",
+    cancellable: false
+  }, async (progress) => {
+    let lastProgress = 0;
+    return await new Promise<void>((resolve, reject) => {
+      const process = spawn("code2reqs", commandArgs);
+
+      process.stdout.on("data", (data) => {
+        const lines = data.toString().split("\n");
+        for (const line of lines) {
+          try {
+            const json = JSON.parse(line);
+            if (json.event === "progress" && json.value !== undefined) {
+              const increment = (json.value - lastProgress) * 100;
+              progress.report({ increment });
+              lastProgress = json.value;
+            } else if (json.event === "problem" && json.value !== undefined) {
+              vscode.window.showWarningMessage(json.value);
+            }
+            // Handle other events if needed
+          } catch (e) {
+            console.log(line); // Handle non-JSON output if necessary
+          }
+        }
+      });
+
+      process.stderr.on("data", (data) => {
+        console.error(`Stderr: ${data}`);
+      });
+
+      process.on("close", async (code) => {
+        if (code === 0) {
+          // Display the HTML report in a webview
+          const panel = vscode.window.createWebviewPanel(
+            'requirementsReport',
+            'Generated Requirements',
+            vscode.ViewColumn.One,
+            { enableScripts: true }
+          );
+
+          fs.readFile(htmlPath, 'utf8', (err, data) => {
+            if (err) {
+              vscode.window.showErrorMessage(`Error reading HTML report: ${err.message}`);
+              reject();
+              return;
+            }
+            panel.webview.html = data;
+          });
+
+          await refreshAllExtensionData();
+
+          vscode.window.showInformationMessage("Successfully generated requirements for the environment!");
+
+          resolve();
+        } else {
+          vscode.window.showErrorMessage(`Error: code2reqs exited with code ${code}`);
+          reject();
+        }
+      });
+    });
+  });
+}
+
+async function generateTestsFromRequirements(enviroPath: string) {
+  const currentDir = enviroPath;
+  const parentDir = path.dirname(currentDir);
+  const lowestDirname = path.basename(currentDir);
+  const envName = `${lowestDirname}.env`;
+  const envPath = path.join(parentDir, envName);
+
+  const csvPath = path.join(parentDir, 'reqs.csv');
+  const tstPath = path.join(parentDir, 'reqs2tests.tst');
+
+  const commandArgs = [
+    envPath,
+    csvPath,
+    "--export-tst",
+    tstPath,
+    "--retries",
+    "1",
+    "--export-env",
+    "--json-events",
+  ];
+
+  await vscode.window.withProgress({
+    location: vscode.ProgressLocation.Notification,
+    title: "Generating Tests from Requirements",
+    cancellable: false
+  }, async (progress) => {
+    let lastProgress = 0;
+    return new Promise<void>((resolve, reject) => {
+      const process = spawn("reqs2tests", commandArgs);
+
+      process.stdout.on("data", (data) => {
+        const lines = data.toString().split("\n");
+        for (const line of lines) {
+          try {
+            const json = JSON.parse(line);
+            if (json.event === "progress" && json.value !== undefined) {
+              const increment = (json.value - lastProgress) * 100;
+              progress.report({ increment });
+              lastProgress = json.value;
+            } else if (json.event === "problem" && json.value !== undefined) {
+              vscode.window.showWarningMessage(json.value);
+            }
+            // Handle other events if needed
+          } catch (e) {
+            console.log(line); // Handle non-JSON output if necessary
+          }
+        }
+      });
+
+      process.stderr.on("data", (data) => {
+        console.error(`Stderr: ${data}`);
+      });
+
+      process.on("close", async (code) => {
+        if (code === 0) {
+          await refreshAllExtensionData();
+
+          vscode.window.showInformationMessage(
+            "Successfully generated tests for the requirements!"
+          );
+          resolve();
+        } else {
+          vscode.window.showErrorMessage(`Error: reqs2tests exited with code ${code}`);
+          reject();
+        }
+      });
+    });
+  });
 }

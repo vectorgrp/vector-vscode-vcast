@@ -145,6 +145,11 @@
         "title": "Insert ATG Tests"
       },
       {
+        "command": "vectorcastTestExplorer.generateRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Requirements"
+      },
+      {
         "command": "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
         "category": "VectorCAST Test Explorer",
         "title": "Generate Basis Path Tests"
@@ -203,6 +208,11 @@
         "command": "vectorcastTestExplorer.displayServerLog",
         "category": "VectorCAST Test Explorer",
         "title": "Open Data Server log"
+      },
+      {
+        "command": "vectorcastTestExplorer.generateTestsFromRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Tests from Requirements"
       }
     ],
     "keybindings": [
@@ -372,6 +382,14 @@
         },
         {
           "command": "vectorcastTestExplorer.insertATGTests",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.generateRequirements",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.generateTestsFromRequirements",
           "when": "never"
         },
         {
@@ -570,13 +588,23 @@
           "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/)"
         },
         {
-          "command": "vectorcastTestExplorer.deleteTest",
+          "command": "vectorcastTestExplorer.generateRequirements",
           "group": "vcast@8",
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.generateTestsFromRequirements",
+          "group": "vcast@9",
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteTest",
+          "group": "vcast@10",
           "when": "testId =~ /^vcast:.*$/ && !(testId =~ /.*coded_tests_driver.*/)"
         },
         {
           "command": "vectorcastTestExplorer.viewResults",
-          "group": "vcast@9",
+          "group": "vcast@11",
           "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         }
       ]
