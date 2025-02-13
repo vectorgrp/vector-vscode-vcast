@@ -19,7 +19,6 @@ import {
   getTestHandle,
   findSubprogramMethod,
   updateTestID,
-  cleanup,
   checkForLogsInTestResults,
   checkElementExistsInHTML,
 } from "../test_utils/vcast_utils";
@@ -1307,10 +1306,5 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.close();
     await editorView.closeAllEditors();
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

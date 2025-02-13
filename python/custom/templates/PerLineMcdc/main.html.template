@@ -1,0 +1,111 @@
+{#- 6 spaces (3 levels) indent to match #}
+<!-- McdcTables -->
+{%- import "McdcTables/tables.html.template" as tables %}
+      <div class='report-block'>
+  {%- if has_some_mcdc_coverage %}
+    {%- for obj in objs %}
+    {%- if report.obj.has_table_of_contents %}
+          <div class="return-to-top"><span class="pull-right"><a href="#TableOfContents">Top</a></span></div>
+    {%- endif %}
+      {%- for function in obj.functions -%}
+        {% if function.mcdcs %}
+        {% endif %}
+        {%- for mcdc in function.mcdcs %}
+          {% if is_sfp -%}
+          <div class="mcdc-condition {{mcdc.data.covered | coverage_status_to_class}}" id="mcdc_index_{{mcdc.data.id|e}}">
+            <div class='test-action-header'>
+              <h4>{% trans %}Decision{% endtrans %} {{mcdc.data.decision_index}}</h4>
+          {%- else -%}
+          <div class="mcdc-condition {{mcdc.data.covered | coverage_status_to_class}}">
+            <div class='test-action-header'>
+          {%- endif %}
+            </div>
+            <table class='table mcdc-table'>
+              <tbody>
+                <tr>
+                  <th>{% trans %}File{% endtrans %}</th>
+                  <td>{{mcdc.unit_name|e}}</td>
+                </tr>
+                {% if is_sfp -%}
+                <tr style="cursor: pointer;" onclick="mcdcUpArrow('file{{obj.unit_index}}', {{mcdc.data.source_line}}, {{mcdc.data.decision_index}}, {{mcdc.func_start}})">
+                  <th><div class="up_arrow">↑</div>{% trans %}Source line{% endtrans %}</th>
+                {%- else -%}
+                <tr>
+                  <th>{% trans %}Source line{% endtrans %}</th>
+                {%- endif %}
+                  <td>{{ mcdc.data.start_line }}</td>
+                </tr>
+          {%- if mcdc.num_conditions == 0 %}
+                <tr class="warning">
+                  <th colspan="2">{% trans %}*** MAX CONDITIONS EXCEEDED ***{% endtrans %}</th>
+                </tr>
+          {%- endif %}
+                <tr>
+                  <th>{% trans %}Actual Expression is{% endtrans %}</th>
+                  <td>{{ mcdc.data.actual_expr|e }}</td>
+                </tr>
+                {{-tables.write_mcdc_conditions(mcdc.data)}}
+          {%- if mcdc.num_conditions > 0 %}
+                <tr>
+                  <th>{% trans %}Simplified Expression is{% endtrans %}</th>
+                  <td>{{  mcdc.data.simplified_expr|e }}</td>
+                </tr>
+          {%- endif %}
+          {%- if mcdc.max_sub_conditions_msg %}
+                <tr class="warning">
+                  <th colspan="2">
+                      {{ _("This expression exceeds the maximum number of
+subconditions (%(max)s) that can be instrumented for MC/DC.
+Therefore, no MC/DC Equivalence Matrix has been generated.")|format(max=obj.MAXIMUM_POSSIBLE_MCDC_SUBCONDITIONS)|indent(18) }}
+                  </th>
+                </tr>
+          {%- endif %}
+          {%- if mcdc.rows_not_calculated_display_msg %}
+                <tr class="warning">
+                  <th colspan="2">
+                    {{ _("The MC/DC Equivalence Matrix for this expression has not been
+calculated because the number of subconditions (%(num)s)
+exceeds the value specified by the Coverage option
+'Maximum subconditions for MC/DC table row display:'
+which is set to %(max)s. No matrix rows are displayed,
+but pair data is provided.")|format(num=mcdc.num_conditions, max=opt_VCAST_MAX_TABLE_SUBCONDITIONS)|indent(20) }}
+                  </th>
+                </tr>
+          {%- endif %}
+          {%- if mcdc.rows_not_calculated_pre_calc_msg %}
+                <tr class="warning">
+                  <th colspan="2">
+                  {% if is_sfp -%}
+                  {{ _("The MC/DC Equivalence Matrix rows for this expression
+have not been calculated because the number of subconditions (%(num)s)
+exceeds the value specified by the Coverage option
+'Maximum subconditions for MC/DC table pre-calculations:'
+which is set to %(max)s. As test results are added, rows that
+contribute to a satisfied pair are displayed.")|format(num=mcdc.num_conditions, max=opt_VCAST_MAX_MCDC_CONDITIONS)|indent(18) }}
+                  {%- else -%}
+                  {{ _("The MC/DC Equivalence Matrix rows for this expression
+have not been calculated because the number of subconditions (%(num)s)
+exceeds the value specified by the Coverage option
+'Maximum subconditions for MC/DC table pre-calculations:'
+which is set to %(max)s. As test results are added, rows that
+contribute to a satisfied pair are displayed.")|format(num=mcdc.num_conditions, max=opt_VCAST_MAX_MCDC_CONDITIONS)|indent(18) }}
+                  {%- endif %}
+                  </th>
+                </tr>
+          {%- endif %}
+              </tbody>
+            </table>
+          {%- if mcdc.show_table %}
+            {{-tables.write_mcdc_table(mcdc.table_data)}}
+          {%- endif %}
+          {%- if mcdc.show_pairs %}
+            {{-tables.write_pairs_satisfied(mcdc.pairs_satisfied)}}
+          {%- endif %}
+          </div>
+        {%- endfor %} {# end mcdc loop #}  
+      {%- endfor %} {# end functions loop #}
+    {%- endfor %}  {# end objs loop #}
+  {%- else %} {# end has_some_mcdc_coverage #}
+        <p>{% trans %}No MC/DC condition tables exist{% endtrans %}.</p>
+  {%- endif %} {# end !has_some_mcdc_coverage #}
+      </div>

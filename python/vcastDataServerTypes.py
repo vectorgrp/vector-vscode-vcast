@@ -34,15 +34,26 @@ class commandType(str, Enum):
     parseCBT = "parseCBT"
     choiceListTst = "choiceList-tst"
     choiceListCT = "choiceList-ct"
+    mcdcReport = "mcdcReport"
+    mcdcLines = "mcdcLines"
 
 
 class clientRequest:
-    def __init__(self, command, clicast="", path="", test="", options=""):
+    def __init__(
+        self,
+        command,
+        clicast="",
+        path="",
+        test="",
+        options="",
+        unit="",
+    ):
         self.command = command
         self.clicast = clicast
         self.path = path
         self.test = test
         self.options = options
+        self.unit = unit
 
     def toDict(self):
         data = {}
@@ -51,6 +62,7 @@ class clientRequest:
         data["path"] = self.path
         data["test"] = self.test
         data["options"] = self.options
+        data["unit"] = self.unit
         return data
 
     @classmethod
@@ -68,7 +80,35 @@ class clientRequest:
         options = ""
         if "options" in data:
             options = data["options"]
-        return cls(command, clicast, path, test, options)
+        unit = ""
+        if "unit" in data:
+            unit = data["unit"]
+        return cls(command, clicast, path, test, options, unit)
+
+
+class mcdcClientRequest:
+    def __init__(self, command, path="", unitName="", lineNumber=0):
+        self.command = command
+        self.path = path
+        self.unitName = unitName
+        self.lineNumber = lineNumber
+
+    def toDict(self):
+        data = {}
+        data["command"] = self.command
+        data["path"] = self.path
+        data["unitName"] = self.unitName
+        data["lineNumber"] = self.lineNumber
+        return data
+
+    @classmethod
+    def fromDict(cls, data):
+        # these fields are mandatory
+        command = data["command"]
+        path = data["path"]
+        unitName = data.get("unitName", "")
+        lineNumber = data.get("lineNumber", "")
+        return cls(command, path, unitName, lineNumber)
 
 
 class environmentData:

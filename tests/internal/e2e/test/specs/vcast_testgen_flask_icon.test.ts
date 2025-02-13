@@ -10,8 +10,6 @@ import {
   generateFlaskIconTestsFor,
   validateGeneratedTest,
   deleteGeneratedTest,
-  validateSingleTestDeletion,
-  cleanup,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -234,10 +232,5 @@ describe("vTypeCheck VS Code Extension", () => {
         1
       );
     }
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { errorLevel, vectorMessage } from "./messagePane";
-import { getResultFileForTest } from "./vcastTestInterface";
+import { getMCDCResultFile, getResultFileForTest } from "./vcastTestInterface";
 
 const fs = require("fs");
 
@@ -35,6 +35,29 @@ function viewResultsReportVC(htmlFilePath: string) {
 export async function viewResultsReport(testID: string) {
   // make sure that a test is selected
   const htmlFilePath = await getResultFileForTest(testID);
+  if (fs.existsSync(htmlFilePath)) {
+    vectorMessage(
+      "Viewing results, result report path: '" + htmlFilePath + "'"
+    );
+    viewResultsReportVC(htmlFilePath);
+  }
+}
+
+/**
+ * Displays the MCDC report for a specified line.
+ *
+ * @param {string} enviroPath - The path to the environment.
+ * @param {string} unit - The unit in which the line appears.
+ * @param {number} lineNumber - The line number we want to get the report from.
+ * @returns {Promise<void>} A promise that resolves when the report is viewed.
+ */
+export async function viewMCDCReport(
+  enviroPath: string,
+  unit: string,
+  lineNumber: number
+) {
+  // make sure that a test is selected
+  const htmlFilePath = await getMCDCResultFile(enviroPath, unit, lineNumber);
   if (fs.existsSync(htmlFilePath)) {
     vectorMessage(
       "Viewing results, result report path: '" + htmlFilePath + "'"
