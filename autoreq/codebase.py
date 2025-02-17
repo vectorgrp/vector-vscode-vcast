@@ -8,6 +8,8 @@ import tree_sitter_cpp as ts_cpp
 from tree_sitter import Parser, Language
 from copy import deepcopy
 
+BLACKLISTED_DIRS = ['.ccls-cache']
+
 class Codebase:
     # All LSP symbol kinds that we want to index
     INDEXABLE_KINDS = {
@@ -58,15 +60,24 @@ class Codebase:
         self._definition_index: Dict[str, List[Dict]] = {}
         self._build_definition_index()
 
+    def _is_blacklisted(self, filepath: str) -> bool:
+        """Check if the filepath contains any blacklisted directory"""
+        parts = Path(filepath).parts
+        return any(black_dir in parts for black_dir in BLACKLISTED_DIRS)
+
     def _build_definition_index(self):
         """Build an index mapping symbol names to their definitions"""
         with self.lsp.start_server():
             for source_dir in self.source_dirs:
                 path = Path(source_dir)
                 if path.is_file():
-                    files = [path]
+                    files = [path] if not self._is_blacklisted(str(path)) else []
                 else:
-                    files = list(path.rglob('*.cpp')) + list(path.rglob('*.c'))
+                    files = []
+                    for pattern in ['*.cpp', '*.c']:
+                        for file in path.rglob(pattern):
+                            if not self._is_blacklisted(str(file)):
+                                files.append(file)
                 
                 for file in files:
                     abs_file = self._make_absolute(str(file))
