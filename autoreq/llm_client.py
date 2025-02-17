@@ -11,6 +11,7 @@ load_dotenv()
 
 RATE_LIMIT = AsyncLimiter(30, 60)
 
+
 class LLMClient:
     def __init__(self):
         self.client = AsyncAzureOpenAI(

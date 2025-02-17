@@ -5,7 +5,7 @@ import os
 import pathlib
 import stat
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
 from monitors4codegen.multilspy.language_server import LanguageServer
@@ -31,6 +31,16 @@ class CclsServer(LanguageServer):
         )
         self.server_ready = asyncio.Event()
 
+    @staticmethod
+    def _find_executable(name: str) -> Optional[str]:
+        """Find an executable in the system PATH."""
+        path = os.getenv("PATH", "").split(os.pathsep)
+        for directory in path:
+            executable = os.path.join(directory, name)
+            if os.path.isfile(executable) and os.access(executable, os.X_OK):
+                return executable
+        return None
+
     def setup_runtime_dependencies(self, logger: MultilspyLogger, config: MultilspyConfig) -> str:
         platform_id = PlatformUtils.get_platform_id()
 
@@ -42,16 +52,11 @@ class CclsServer(LanguageServer):
             "linux-x64",
         ], "Only linux-x64 platform is supported for in multilspy at the moment"
 
-        runtime_dependencies = d["runtimeDependencies"]
-        runtime_dependencies = [
-            dependency for dependency in runtime_dependencies if dependency["platformId"] == platform_id.value
-        ]
-        assert len(runtime_dependencies) == 1
-        dependency = runtime_dependencies[0]
+        # TODO: Somehow install a version of ccls instead of assuming it is installed
 
-        ccls_dir = os.path.join(os.path.dirname(__file__), "ccls")
-        ccls_executable_path = "/usr/local/bin/ccls"
-        #os.chmod(ccls_executable_path, stat.S_IEXEC)
+        ccls_executable_path = self._find_executable("ccls")
+        if not ccls_executable_path:
+            raise RuntimeError("ccls executable not found in PATH. Please ensure ccls is installed and available in your PATH.")
 
         return ccls_executable_path
 

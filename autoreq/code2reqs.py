@@ -10,6 +10,7 @@ import tempfile
 import asyncio
 import logging
 
+from autoreq.util import ensure_env
 from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 
 from .codebase import Codebase
@@ -97,6 +98,16 @@ def execute_rgw_commands(env_path, csv_path, export_repository):
     for rgw_prep_command in rgw_prep_commands:
         execute_command(rgw_prep_command)
 
+def prompt_user_for_info(key):
+    if key == 'OPENAI_API_KEY':
+        return input("Please enter your OpenAI API key: ")
+    elif key == 'OPENAI_GENERATION_DEPLOYMENT':
+        return input("Please enter the OpenAI deployment for generation: ")
+    elif key == 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT':
+        return input("Please enter the OpenAI deployment for advanced generation: ")
+    elif key == 'OPENAI_API_BASE':
+        return input("Please enter the OpenAI API base URL: ")
+
 async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False):
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
@@ -168,8 +179,11 @@ def cli():
     parser.add_argument("--export-html", help="Optional path to the output HTML file for pretty-printed requirements.")
     parser.add_argument("--export-repository", help="Path to the VCAST_REPOSITORY for registering requirements.")
     parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
+    parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
 
     args = parser.parse_args()
+
+    ensure_env(['OPENAI_API_KEY', 'OPENAI_API_BASE', 'OPENAI_GENERATION_DEPLOYMENT', 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT'], fallback=prompt_user_for_info, force_fallback=args.overwrite_env)
 
     asyncio.run(main(
         args.env_path,

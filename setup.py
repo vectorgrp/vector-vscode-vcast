@@ -21,7 +21,11 @@ setup(
     'tree-sitter-cpp==0.23.4',
     'backoff==2.2.1',
     'aiostream==0.6.4',
-    'structured-logprobs==0.1.5'
+    'structured-logprobs==0.1.5',
+    'aiolimiter==1.2.1',
+    'requests==2.32.3',
+    'cryptography==44.0.1',
+    'appdirs==1.4.4'
   ],
   include_package_data=True
 )

@@ -9,6 +9,17 @@ from tqdm import tqdm
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
 from .requirements_manager import RequirementsManager  # Add this import
+from .util import ensure_env  # Add this import
+
+def prompt_user_for_info(key):
+    if key == 'OPENAI_API_KEY':
+        return input("Please enter your OpenAI API key: ")
+    elif key == 'OPENAI_GENERATION_DEPLOYMENT':
+        return input("Please enter the OpenAI deployment for generation: ")
+    elif key == 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT':
+        return input("Please enter the OpenAI deployment for advanced generation: ")
+    elif key == 'OPENAI_API_BASE':
+        return input("Please enter the OpenAI API base URL: ")
 
 async def main():
     parser = argparse.ArgumentParser(description='Generate and optionally execute test cases for given requirements.')
@@ -24,7 +35,12 @@ async def main():
     parser.add_argument('--batch-size', type=int, default=8, help='Maximum number of requirements to process in one batch.')
     parser.add_argument('--allow-partial', action='store_true', help='Allow partial test generation.')
     parser.add_argument('--allow-batch-partial', action='store_true', help='Allow partial test generation during batch processing.')
+    parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
     args = parser.parse_args()
+
+    ensure_env(['OPENAI_API_KEY', 'OPENAI_API_BASE', 'OPENAI_GENERATION_DEPLOYMENT', 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT'], 
+               fallback=prompt_user_for_info, 
+               force_fallback=args.overwrite_env)
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)

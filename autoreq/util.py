@@ -82,3 +82,103 @@ def replace_func_and_var(code: str):
     code = VAR_REGEX.sub(replace, code)
     
     return code
+
+    
+import os
+import json
+from typing import Callable, Dict, Optional
+from functools import lru_cache
+from pathlib import Path
+from autoreq.constants import APP_NAME
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import base64
+from appdirs import user_cache_dir
+
+_default_manager = None
+
+def ensure_env(
+    required_keys: list[str],
+    fallback: Optional[Callable[[str], str]] = None,
+    force_fallback: bool = False
+) -> dict[str, str]:
+    global _default_manager
+    
+    if _default_manager is None:
+        _default_manager = CachedEnvProvider()
+    
+    result = {}
+    for key in required_keys:
+        result[key] = _default_manager.get_env(
+            key,
+            (lambda k=key: fallback(k)) if fallback else None,
+            force_fallback
+        )
+
+    for key, value in result.items():
+        os.environ[key] = value
+    
+    return result
+
+class CachedEnvProvider:
+    def __init__(self):
+        self._cache_dir = Path(user_cache_dir(APP_NAME))
+        self._cache_file = self._cache_dir / "env_cache.enc"
+        self._cache: Dict[str, str] = {}
+        self._fernet = self._setup_encryption()
+        self._load_cache()
+
+    def _setup_encryption(self) -> Fernet:
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=b"secure_env_manager_salt",
+            iterations=100000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(APP_NAME.encode()))
+        return Fernet(key)
+
+    def _load_cache(self) -> None:
+        if self._cache_file.exists():
+            encrypted = self._cache_file.read_bytes()
+            try:
+                decrypted = self._fernet.decrypt(encrypted)
+                self._cache = json.loads(decrypted)
+            except:
+                self._cache = {}
+
+    def _save_cache(self) -> None:
+        self._cache_dir.mkdir(parents=True, exist_ok=True)
+        encrypted = self._fernet.encrypt(json.dumps(self._cache).encode())
+        self._cache_file.write_bytes(encrypted)
+
+    def get_env(
+        self, 
+        key: str, 
+        fallback: Optional[Callable[[], str]] = None,
+        force_fallback: bool = False
+    ) -> str:
+        if not force_fallback:
+            # Check actual environment first
+            value = os.environ.get(key)
+            if value is not None:
+                return value
+
+            # Check cache
+            if key in self._cache:
+                return self._cache[key]
+
+        # Use fallback if provided
+        if fallback is not None:
+            value = fallback()
+            self._cache[key] = value
+            self._save_cache()
+            return value
+
+        raise KeyError(f"Environment variable '{key}' not found")
+
+    def clear_cache(self) -> None:
+        self._cache = {}
+        if self._cache_file.exists():
+            self._cache_file.unlink()
