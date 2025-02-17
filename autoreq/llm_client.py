@@ -4,7 +4,6 @@ from aiolimiter import AsyncLimiter
 from openai import AsyncAzureOpenAI
 from typing import List, Dict, Any
 from dotenv import load_dotenv
-from structured_logprobs import add_logprobs
 import openai
 
 load_dotenv()
@@ -32,7 +31,7 @@ class LLMClient:
         }
 
     @backoff.on_exception(backoff.expo, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError), max_time=120)
-    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, return_logprobs=False, **kwargs):
+    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, **kwargs):
         with open("last_messages.txt", "w") as f:
             for message in messages:
                 f.write(f"{message['role']}: {message['content']}\n")
@@ -90,14 +89,9 @@ class LLMClient:
                 self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
 
             result = completion.choices[0].message.parsed
-            logprobs = add_logprobs(completion).log_probs[0]
 
-            if return_raw_completion and return_logprobs:
-                return result, completion, logprobs
-            elif return_raw_completion:
+            if return_raw_completion:
                 return result, completion
-            elif return_logprobs:
-                return result, logprobs
             else:
                 return result
 

@@ -39,7 +39,10 @@ class Codebase:
     
     def __init__(self, source_dirs: List[str]):
         # Initialize tree-sitter parser
-        self.ts_parser = Parser(Language(ts_cpp.language()))
+        self.ts_parser = Parser()
+        CPP_LANGUAGE = Language(ts_cpp.language(), 'cpp')
+        self.ts_parser.set_language(CPP_LANGUAGE)
+        
         
         # Convert all source directories to absolute paths
         self.source_dirs = [self._make_absolute(d) for d in source_dirs]

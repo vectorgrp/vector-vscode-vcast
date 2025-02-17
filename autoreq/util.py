@@ -99,10 +99,10 @@ from appdirs import user_cache_dir
 _default_manager = None
 
 def ensure_env(
-    required_keys: list[str],
-    fallback: Optional[Callable[[str], str]] = None,
-    force_fallback: bool = False
-) -> dict[str, str]:
+    required_keys,
+    fallback,
+    force_fallback = False
+):
     global _default_manager
     
     if _default_manager is None:
