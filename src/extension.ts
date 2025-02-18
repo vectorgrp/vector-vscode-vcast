@@ -1282,29 +1282,6 @@ async function setEnvironmentStoreValue(key: string, value: string): Promise<boo
     });
 }
 
-async function getEnvironmentStoreValue(key: string): Promise<string | null> {
-    return new Promise<string | null>((resolve) => {
-        const process = spawn(MANAGE_ENV_EXECUTABLE_PATH, ['get', key]);
-        let output = '';
-        
-        process.stdout.on('data', (data) => {
-            output += data.toString();
-        });
-
-        process.stderr.on('data', (data) => {
-            console.error(`manage_env stderr: ${data}`);
-        });
-
-        process.on('close', (code) => {
-            if (code === 0) {
-                resolve(output.trim());
-            } else {
-                resolve(null);
-            }
-        });
-    });
-}
-
 async function listEnvironmentStoreValues(): Promise<Record<string, string> | null> {
     return new Promise<Record<string, string> | null>((resolve) => {
         const process = spawn(MANAGE_ENV_EXECUTABLE_PATH, ['list']);
