@@ -223,6 +223,12 @@
         "command": "vectorcastTestExplorer.showRequirements",
         "category": "VectorCAST Test Explorer",
         "title": "Show Requirements"
+      },
+      {
+        "command": "vectorcastTestExplorer.configureAPISettings",
+        "category": "VectorCAST Test Explorer",
+        "title": "Configure Azure OpenAI Settings",
+        "detail": "Configure Azure OpenAI API settings required for requirements and requirement test generation"
       }
     ],
     "keybindings": [
