@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { Uri } from "vscode";
+import { Uri, workspace } from "vscode";
 
 import { rebuildEnvironmentCallback } from "./callbacks";
 
@@ -52,6 +52,7 @@ import {
   refreshAllExtensionData,
   updateCodedTestCases,
   updateDataForEnvironment,
+  getEnvironmentList,  // Add this import
 } from "./testPane";
 
 import {
@@ -113,6 +114,17 @@ let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
+
+
+// Setup the paths to the code2reqs and reqs2tests executables
+let CODE2REQS_EXECUTABLE_PATH: string;
+let REQS2TESTS_EXEUTABLE_PATH: string;
+
+function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
+    CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "code2reqs").fsPath;
+    REQS2TESTS_EXEUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2tests").fsPath;
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   // activation gets called when:
   //  -- VectorCAST environment exists in the workspace
@@ -194,6 +206,16 @@ async function activationLogic(context: vscode.ExtensionContext) {
 
   // start the language server
   activateLanguageServerClient(context);
+
+  // Initialize requirements availability for all environments
+  if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
+    const envPaths = await getEnvironmentList(workspace.workspaceFolders[0].uri.fsPath);
+    for (const envPath of envPaths) {
+      updateRequirementsAvailability(envPath);
+    }
+  }
+
+  setupAutoreqExecutablePaths(context);
 }
 
 function configureExtension(context: vscode.ExtensionContext) {
@@ -686,9 +708,48 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(getMCDCReportCommand);
 
+  let showRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.showRequirements",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        const parentDir = path.dirname(enviroPath);
+        const htmlPath = path.join(parentDir, 'reqs.html');
+
+        if (fs.existsSync(htmlPath)) {
+          const panel = vscode.window.createWebviewPanel(
+            'requirementsReport',
+            'Requirements Report',
+            vscode.ViewColumn.One,
+            { enableScripts: true }
+          );
+
+          fs.readFile(htmlPath, 'utf8', (err, data) => {
+            if (err) {
+              vscode.window.showErrorMessage(`Error reading HTML report: ${err.message}`);
+              return;
+            }
+            panel.webview.html = data;
+          });
+        } else {
+          vscode.window.showErrorMessage('Requirements report not found. Generate requirements first.');
+        }
+      }
+    }
+  );
+  context.subscriptions.push(showRequirementsCommand);
+
   vscode.workspace.onDidChangeWorkspaceFolders(
-    (e) => {
+    async (e) => {
       refreshAllExtensionData();
+      // Refresh requirements availability for all environments
+      if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
+        const envPaths = await getEnvironmentList(workspace.workspaceFolders[0].uri.fsPath);
+        for (const envPath of envPaths) {
+          updateRequirementsAvailability(envPath);
+        }
+      }
     },
     null,
     context.subscriptions
@@ -774,7 +835,9 @@ async function installPreActivationEventHandlers(
       ) {
         initializeServerState();
       } else if (
-        event.affectsConfiguration("vectorcastTestExplorer.build.coverageKind")
+        event.affectsConfiguration(
+          "vectorcastTestExplorer.build.coverageKind"
+        )
       ) {
         await updateCoverageAndRebuildEnv();
       } else if (
@@ -859,12 +922,21 @@ async function generateRequirements(enviroPath: string) {
 
   await vscode.window.withProgress({
     location: vscode.ProgressLocation.Notification,
-    title: "Generating Requirements",
+    title: `Generating Requirements for ${envName.split(".")[0]}`,
     cancellable: false
   }, async (progress) => {
     let lastProgress = 0;
+    let simulatedProgress = 0;
+    const simulatedProgressInterval = setInterval(() => {
+      if (simulatedProgress < 30) {
+        simulatedProgress += 1;
+        progress.report({ increment: 1 });
+      }
+    }, 1000); // Update every second for 30 seconds
+
     return await new Promise<void>((resolve, reject) => {
-      const process = spawn("code2reqs", commandArgs);
+      console.log(CODE2REQS_EXECUTABLE_PATH);
+      const process = spawn(CODE2REQS_EXECUTABLE_PATH, commandArgs);
 
       process.stdout.on("data", (data) => {
         const lines = data.toString().split("\n");
@@ -872,13 +944,16 @@ async function generateRequirements(enviroPath: string) {
           try {
             const json = JSON.parse(line);
             if (json.event === "progress" && json.value !== undefined) {
-              const increment = (json.value - lastProgress) * 100;
-              progress.report({ increment });
-              lastProgress = json.value;
+              // Scale the remaining 70% based on the actual progress
+              const scaledProgress = json.value * 0.7;
+              const increment = (scaledProgress - lastProgress) * 100;
+              if (increment > 0) {
+                progress.report({ increment });
+                lastProgress = scaledProgress;
+              }
             } else if (json.event === "problem" && json.value !== undefined) {
               vscode.window.showWarningMessage(json.value);
             }
-            // Handle other events if needed
           } catch (e) {
             console.log(line); // Handle non-JSON output if necessary
           }
@@ -890,6 +965,7 @@ async function generateRequirements(enviroPath: string) {
       });
 
       process.on("close", async (code) => {
+        clearInterval(simulatedProgressInterval);
         if (code === 0) {
           // Display the HTML report in a webview
           const panel = vscode.window.createWebviewPanel(
@@ -909,6 +985,7 @@ async function generateRequirements(enviroPath: string) {
           });
 
           await refreshAllExtensionData();
+          updateRequirementsAvailability(enviroPath);
 
           vscode.window.showInformationMessage("Successfully generated requirements for the environment!");
 
@@ -939,18 +1016,28 @@ async function generateTestsFromRequirements(enviroPath: string) {
     tstPath,
     "--retries",
     "1",
+    "--batched",
+    "--allow-partial",
     "--export-env",
     "--json-events",
   ];
 
   await vscode.window.withProgress({
     location: vscode.ProgressLocation.Notification,
-    title: "Generating Tests from Requirements",
+    title: `Generating Tests from Requirements for ${envName.split(".")[0]}`,
     cancellable: false
   }, async (progress) => {
     let lastProgress = 0;
+    let simulatedProgress = 0;
+    const simulatedProgressInterval = setInterval(() => {
+      if (simulatedProgress < 40) {
+        simulatedProgress += 1;
+        progress.report({ increment: 1 });
+      }
+    }, 1000); // Update every second for 30 seconds
+
     return new Promise<void>((resolve, reject) => {
-      const process = spawn("reqs2tests", commandArgs);
+      const process = spawn(REQS2TESTS_EXEUTABLE_PATH, commandArgs);
 
       process.stdout.on("data", (data) => {
         const lines = data.toString().split("\n");
@@ -958,15 +1045,18 @@ async function generateTestsFromRequirements(enviroPath: string) {
           try {
             const json = JSON.parse(line);
             if (json.event === "progress" && json.value !== undefined) {
-              const increment = (json.value - lastProgress) * 100;
-              progress.report({ increment });
-              lastProgress = json.value;
+              // Scale the remaining 70% based on the actual progress
+              const scaledProgress = json.value * 0.6;
+              const increment = (scaledProgress - lastProgress) * 100;
+              if (increment > 0) {
+                progress.report({ increment });
+                lastProgress = scaledProgress;
+              }
             } else if (json.event === "problem" && json.value !== undefined) {
               vscode.window.showWarningMessage(json.value);
             }
-            // Handle other events if needed
           } catch (e) {
-            console.log(line); // Handle non-JSON output if necessary
+            console.log(line);
           }
         }
       });
@@ -976,6 +1066,7 @@ async function generateTestsFromRequirements(enviroPath: string) {
       });
 
       process.on("close", async (code) => {
+        clearInterval(simulatedProgressInterval);
         if (code === 0) {
           await refreshAllExtensionData();
 
@@ -990,4 +1081,48 @@ async function generateTestsFromRequirements(enviroPath: string) {
       });
     });
   });
+}
+
+let existingEnvs: string[] = [];
+function updateRequirementsAvailability(enviroPath: string) {
+  let workspaceRoot: string = "";
+  if (vscode.workspace) {
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(
+      vscode.Uri.file(enviroPath)
+    );
+    if (workspaceFolder) workspaceRoot = workspaceFolder.uri.fsPath;
+  }
+
+  let enviroDisplayName: string = "";
+  if (workspaceRoot.length > 0) {
+    enviroDisplayName = path
+      .relative(workspaceRoot, enviroPath)
+      .replaceAll("\\", "/");
+  } else {
+    enviroDisplayName = enviroPath.replaceAll("\\", "/");
+  }
+  const enviroNodeID: string = "vcast:" + enviroDisplayName;
+
+    // the vcast: prefix to allow package.json nodes to control
+    // when the VectorCAST context menu should be shown
+  
+  // Check if this environment has requirements
+  const parentDir = path.dirname(enviroPath);
+  const csvPath = path.join(parentDir, 'reqs.csv');
+
+  console.log(enviroNodeID + " " + enviroPath + " " + csvPath + " " + fs.existsSync(csvPath))
+  
+  if (fs.existsSync(csvPath)) {
+    // Add this environment to the list if not already present
+    if (!existingEnvs.includes(enviroNodeID)) {
+      const updatedEnvs = [...existingEnvs, enviroNodeID];
+      vscode.commands.executeCommand('setContext', 'vectorcastTestExplorer.vcastRequirementsAvailable', updatedEnvs);
+      existingEnvs = updatedEnvs;
+    }
+  } else {
+    // Remove this environment from the list if present
+    const updatedEnvs = existingEnvs.filter(env => env !== enviroNodeID);
+    vscode.commands.executeCommand('setContext', 'vectorcastTestExplorer.vcastRequirementsAvailable', updatedEnvs);
+    existingEnvs = updatedEnvs;
+  }
 }

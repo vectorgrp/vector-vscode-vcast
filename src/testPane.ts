@@ -316,7 +316,7 @@ function getWorkspaceFolderList(): string[] {
 }
 
 const glob = require("glob");
-function getEnvironmentList(baseDirectory: string): string[] {
+export function getEnvironmentList(baseDirectory: string): string[] {
   // This function will find all of the VectorCAST and vTest
   // environments downstream of the current workspace
 

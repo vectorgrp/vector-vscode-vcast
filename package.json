@@ -218,6 +218,11 @@
         "command": "vectorcastTestExplorer.viewMCDCReport",
         "category": "VectorCAST Test Explorer",
         "title": "VectorCAST MC/DC Report"
+      },
+      {
+        "command": "vectorcastTestExplorer.showRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Show Requirements"
       }
     ],
     "keybindings": [
@@ -452,6 +457,10 @@
         {
           "command": "vectorcastTestExplorer.viewMCDCReport",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.showRequirements",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -614,18 +623,23 @@
           "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
         },
         {
-          "command": "vectorcastTestExplorer.generateTestsFromRequirements",
+          "command": "vectorcastTestExplorer.showRequirements",
           "group": "vcast@9",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.vcastRequirementsAvailable"
+        },
+        {
+          "command": "vectorcastTestExplorer.generateTestsFromRequirements",
+          "group": "vcast@10",
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.vcastRequirementsAvailable"
         },
         {
           "command": "vectorcastTestExplorer.deleteTest",
-          "group": "vcast@10",
+          "group": "vcast@11",
           "when": "testId =~ /^vcast:.*$/ && !(testId =~ /.*coded_tests_driver.*/)"
         },
         {
           "command": "vectorcastTestExplorer.viewResults",
-          "group": "vcast@11",
+          "group": "vcast@12",
           "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList"
         }
       ]
