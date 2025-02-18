@@ -49,6 +49,8 @@ async def main():
     # Initialize the environment directly
     environment = Environment(args.env_path)
 
+    environment.build()
+
     # Instantiate the requirements manager
     rm = RequirementsManager(args.requirements_csv)
 
