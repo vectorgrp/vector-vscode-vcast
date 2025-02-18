@@ -96,21 +96,16 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 from appdirs import user_cache_dir
 
-_default_manager = None
-
 def ensure_env(
     required_keys,
     fallback,
     force_fallback = False
 ):
-    global _default_manager
-    
-    if _default_manager is None:
-        _default_manager = CachedEnvProvider()
+    global ENV_STORE
     
     result = {}
     for key in required_keys:
-        result[key] = _default_manager.get_env(
+        result[key] = ENV_STORE.load(
             key,
             (lambda k=key: fallback(k)) if fallback else None,
             force_fallback
@@ -121,7 +116,7 @@ def ensure_env(
     
     return result
 
-class CachedEnvProvider:
+class EnvStore:
     def __init__(self):
         self._cache_dir = Path(user_cache_dir(APP_NAME))
         self._cache_file = self._cache_dir / "env_cache.enc"
@@ -153,16 +148,17 @@ class CachedEnvProvider:
         encrypted = self._fernet.encrypt(json.dumps(self._cache).encode())
         self._cache_file.write_bytes(encrypted)
 
-    def get_env(
+    def load(
         self, 
         key: str, 
+        allow_from_env: bool = True,
         fallback: Optional[Callable[[], str]] = None,
         force_fallback: bool = False
     ) -> str:
         if not force_fallback:
             # Check actual environment first
             value = os.environ.get(key)
-            if value is not None:
+            if value is not None and allow_from_env:
                 return value
 
             # Check cache
@@ -178,7 +174,13 @@ class CachedEnvProvider:
 
         raise KeyError(f"Environment variable '{key}' not found")
 
-    def clear_cache(self) -> None:
+    def store(self, key: str, value: str) -> None:
+        self._cache[key] = value
+        self._save_cache()
+
+    def clear(self) -> None:
         self._cache = {}
         if self._cache_file.exists():
             self._cache_file.unlink()
+
+ENV_STORE = EnvStore()
