@@ -196,8 +196,8 @@ async def main():
     logging.info(f"Total Cost: ${total_cost_info['total_cost']:.6f}")
 
     # Save info logger data to a JSON file
-    with open('info_logger.json', 'w') as info_file:
-        json.dump(info_data, info_file, indent=4)
+    #with open('info_logger.json', 'w') as info_file:
+    #    json.dump(info_data, info_file, indent=4)
 
 
 def cli():

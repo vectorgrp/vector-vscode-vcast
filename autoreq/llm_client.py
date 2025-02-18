@@ -32,9 +32,9 @@ class LLMClient:
 
     @backoff.on_exception(backoff.expo, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError), max_time=120)
     async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, **kwargs):
-        with open("last_messages.txt", "w") as f:
-            for message in messages:
-                f.write(f"{message['role']}: {message['content']}\n")
+        #with open("last_messages.txt", "w") as f:
+        #   for message in messages:
+        #       f.write(f"{message['role']}: {message['content']}\n")
             
         async with RATE_LIMIT:
             model = "gpt-4o" if extended_reasoning else "o1-mini"
@@ -55,8 +55,8 @@ class LLMClient:
                         **kwargs
                     )
                 except openai.LengthFinishReasonError as e:
-                    with open("length_error.txt", "w") as f:
-                        f.write(e.completion.model_dump_json(indent=2))
+                    #with open("length_error.txt", "w") as f:
+                    #    f.write(e.completion.model_dump_json(indent=2))
                     print("Length error")
 
                 # Update token usage for the generation model

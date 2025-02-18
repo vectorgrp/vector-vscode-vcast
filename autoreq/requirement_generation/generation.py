@@ -230,10 +230,6 @@ The success of this task is critical. If you do not generate exactly one test ca
             }
         ]
 
-        with open("req_messages.txt", "w") as f:
-            for message in messages:
-                f.write(f"{message['role']}: {message['content']}\n\n")
-
         if num_paths > 50:
             all_requirements = []
             for batch in _batch_paths(paths):
