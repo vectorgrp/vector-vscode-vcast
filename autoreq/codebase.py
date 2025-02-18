@@ -51,7 +51,7 @@ class Codebase:
         common_prefix = self._find_common_prefix(self.source_dirs)
         common_prefix_dir = common_prefix if os.path.isdir(common_prefix) else os.path.dirname(common_prefix)
         
-        self.config = MultilspyConfig.from_dict({'code_language': 'cpp'})
+        self.config = MultilspyConfig.from_dict({'code_language': 'c'}) # Uses clangd for C/C++. code_language cpp chooses ccls instead.
         self.logger = MultilspyLogger()
         self.lsp = SyncLanguageServer.create(
             self.config, 
