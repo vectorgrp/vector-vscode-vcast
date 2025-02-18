@@ -229,6 +229,11 @@
         "category": "VectorCAST Test Explorer",
         "title": "Configure Azure OpenAI Settings",
         "detail": "Configure Azure OpenAI API settings required for requirements and requirement test generation"
+      },
+      {
+        "command": "vectorcastTestExplorer.removeRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Remove Requirements"
       }
     ],
     "keybindings": [
@@ -467,6 +472,10 @@
         {
           "command": "vectorcastTestExplorer.showRequirements",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.removeRequirements",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -637,6 +646,11 @@
           "command": "vectorcastTestExplorer.generateTestsFromRequirements",
           "group": "vcast@10",
           "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.vcastRequirementsAvailable"
+        },
+        {
+          "command": "vectorcastTestExplorer.removeRequirements",
+          "group": "vcast@9",
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastRequirementsAvailable"
         },
         {
           "command": "vectorcastTestExplorer.deleteTest",

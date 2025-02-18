@@ -818,6 +818,54 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(configureAPISettingsCommand);
 
+  let removeRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.removeRequirements",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        
+        const message = "This will remove all generated requirements and related files. This action cannot be undone.";
+        const choice = await vscode.window.showWarningMessage(message, "Remove", "Cancel");
+        
+        if (choice === "Remove") {
+          const parentDir = path.dirname(enviroPath);
+          const filesToRemove = [
+            path.join(parentDir, 'reqs.csv'),
+            path.join(parentDir, 'reqs.html'),
+            path.join(parentDir, 'reqs2tests.tst')
+          ];
+          const repositoryDir = path.join(parentDir, 'requirement_repository');
+
+          // Remove files
+          for (const file of filesToRemove) {
+            if (fs.existsSync(file)) {
+              try {
+                fs.unlinkSync(file);
+              } catch (err) {
+                vscode.window.showErrorMessage(`Failed to remove ${file}: ${err}`);
+              }
+            }
+          }
+
+          // Remove repository directory if it exists
+          if (fs.existsSync(repositoryDir)) {
+            try {
+              fs.rmdirSync(repositoryDir, { recursive: true });
+            } catch (err) {
+              vscode.window.showErrorMessage(`Failed to remove repository directory: ${err}`);
+            }
+          }
+
+          await refreshAllExtensionData();
+          updateRequirementsAvailability(enviroPath);
+          vscode.window.showInformationMessage("Requirements removed successfully");
+        }
+      }
+    }
+  );
+  context.subscriptions.push(removeRequirementsCommand);
+
   vscode.workspace.onDidChangeWorkspaceFolders(
     async (e) => {
       refreshAllExtensionData();
