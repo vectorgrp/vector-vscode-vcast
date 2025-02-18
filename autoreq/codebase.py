@@ -112,6 +112,11 @@ class Codebase:
                                 'definition': definition_text
                             })
 
+        # Now reverse the order of the definitions to make sure that the most recent definition is used
+        # TODO: Implement a better way to deal with multiple definitions
+        for name, definitions in self._definition_index.items():
+            self._definition_index[name] = list(reversed(definitions))
+
     def _has_function_body(self, definition_text: str) -> bool:
         """Check if a function definition contains a body (implementation)"""
         # Remove any trailing semicolon and whitespace
