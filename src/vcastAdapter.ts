@@ -458,6 +458,32 @@ export async function updateProjectTree() {
 }
 
 /**
+ * Updates the project data of all currenrly opened projects in the workspace
+ * @param enviroPath Path to the environment
+ * @param enviroName Name of the environment
+ */
+export async function updateAllOpenedProjects() {
+  for (const projectPath of globalProjectDataCache.keys()) {
+    const projectLocation = path.dirname(projectPath);
+    const projectName = path.basename(projectPath);
+    const manageArgs: string[] = [
+      `-p${projectName}`,
+      "--apply-changes",
+      "--force",
+    ];
+
+    openMessagePane();
+    const progressMessage = "Updating project data ...";
+    await executeWithRealTimeEchoWithProgress(
+      manageCommandToUse,
+      manageArgs,
+      projectLocation,
+      progressMessage
+    );
+  }
+}
+
+/**
  * Updates the project data for the given environment
  * @param enviroPath Path to the environment
  * @param enviroName Name of the environment

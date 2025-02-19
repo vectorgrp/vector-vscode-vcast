@@ -78,6 +78,7 @@ import {
   rebuildEnvironment,
   removeTestsuiteFromProject,
   importEnvToTestsuite,
+  updateAllOpenedProjects,
 } from "./vcastAdapter";
 
 import {
@@ -1045,7 +1046,11 @@ function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
         box-shadow: 0 0 10px rgba(0,0,0,0.3);
         text-align: center;
       }
-      h2 { color: #ffffff; margin-bottom: 15px; font-size: 22px; }
+      h2 { 
+        color: #ffffff; 
+        margin-bottom: 15px; 
+        font-size: 22px; 
+      }
       label {
         font-size: 16px;
         display: block;
@@ -1061,7 +1066,15 @@ function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
         border: 1px solid #555;
         border-radius: 4px;
         width: 100%;
+        margin-bottom: 10px; /* extra space below */
       }
+      /* Additional styling for each select option */
+      select option {
+        padding: 10px;
+        border: 1px solid #555;
+        margin: 2px;
+      }
+      
       /* Layout for single-input rows (Project Path, Source Files) */
       .single-input-container {
         display: grid;
@@ -1078,7 +1091,10 @@ function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
         width: 100%;
         margin-bottom: 20px;
       }
-      .single-add-row button { grid-column: 1; justify-self: start; }
+      .single-add-row button { 
+        grid-column: 1; 
+        justify-self: start; 
+      }
       /* Layout for triple-input rows (Compiler, Testsuite, Group) */
       .triple-input-container {
         display: grid;
@@ -1095,7 +1111,10 @@ function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
         width: 100%;
         margin-bottom: 20px;
       }
-      .triple-add-row button { grid-column: 1; justify-self: start; }
+      .triple-add-row button { 
+        grid-column: 1; 
+        justify-self: start; 
+      }
       .remove-button {
         background-color: #cc4444;
         color: white;
@@ -1105,7 +1124,9 @@ function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
         cursor: pointer;
         transition: background-color 0.3s;
       }
-      .remove-button:hover { background-color: #992222; }
+      .remove-button:hover { 
+        background-color: #992222; 
+      }
       .add-button {
         background-color: #007acc;
         color: white;
@@ -1116,7 +1137,9 @@ function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
         cursor: pointer;
         transition: background-color 0.3s;
       }
-      .add-button:hover { background-color: #005f99; }
+      .add-button:hover { 
+        background-color: #005f99; 
+      }
       /* Labels for the triple row */
       .label-row {
         display: grid;
@@ -1147,7 +1170,9 @@ function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
         cursor: pointer;
         transition: background-color 0.3s;
       }
-      .primary-button:hover { background-color: #005f99; }
+      .primary-button:hover { 
+        background-color: #005f99; 
+      }
     </style>
   </head>
   <body>
@@ -1349,11 +1374,12 @@ function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
     </script>
   </body>
   </html>
-    `;
+  `;
 }
 
 // this method is called when your extension is deactivated
 export async function deactivate() {
+  await updateAllOpenedProjects();
   await serverProcessController(serverStateType.stopped);
   // delete the server log if it exists
   await deleteServerLog();

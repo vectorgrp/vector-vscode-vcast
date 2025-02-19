@@ -681,7 +681,6 @@ async function processFirstTestSuite(
 
   if (group) {
     await createGroupInProject(projectPath, group);
-    // await addGroupToTestsuite(projectPath, baseDisplayName, group);
   }
   await importEnvToTestsuite(projectPath, baseDisplayName, envFilePath, group);
 }
