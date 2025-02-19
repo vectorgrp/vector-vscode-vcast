@@ -65,8 +65,8 @@ class Codebase:
 
     def _is_blacklisted(self, filepath: str) -> bool:
         """Check if the filepath contains any blacklisted directory"""
-        parts = Path(filepath).parts
-        return any(black_dir in parts for black_dir in BLACKLISTED_DIRS)
+        path = Path(filepath)
+        return any(black_dir in path.parts for black_dir in BLACKLISTED_DIRS)
 
     def _build_definition_index(self):
         """Build an index mapping symbol names to their definitions"""
@@ -164,7 +164,7 @@ class Codebase:
         functions = [
             def_info for defs in self._definition_index.values()
             for def_info in defs
-            if def_info['kind'] in self.FUNCTION_KINDS and def_info['file'] == abs_path
+            if def_info['kind'] in self.FUNCTION_KINDS and Path(def_info['file']) == Path(abs_path)
         ]
         
         if only_with_body:
@@ -293,7 +293,8 @@ class Codebase:
                 target = definitions[0]
                 filepath = self._make_absolute(target['file'])
         else:
-            target = next((d for d in definitions if self._make_absolute(d['file']) == filepath), None)
+            abs_filepath = self._make_absolute(filepath)
+            target = next((d for d in definitions if Path(self._make_absolute(d['file'])) == Path(abs_filepath)), None)
                 
         if not target:
             return {} if return_dict else []

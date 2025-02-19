@@ -39,8 +39,8 @@ class ClangdServer(LanguageServer):
             del d["_description"]
 
         assert platform_id.value in [
-            "linux-x64",
-        ], "Only linux-x64 platform is supported for in multilspy at the moment"
+            "linux-x64", "win-x64"
+        ], "Only linux-x64 and win-x64 platforms are supported for in multilspy at the moment."
 
         runtime_dependencies = d["runtimeDependencies"]
         runtime_dependencies = [

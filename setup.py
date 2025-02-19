@@ -25,7 +25,8 @@ setup(
     'aiolimiter==1.2.1',
     'requests==2.32.3',
     'cryptography==44.0.1',
-    'appdirs==1.4.4'
+    'appdirs==1.4.4',
+    'truststore==0.10.1'
   ],
   include_package_data=True
 )

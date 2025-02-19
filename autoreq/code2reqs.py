@@ -66,37 +66,61 @@ def save_requirements_to_html(requirements, output_file):
     with open(output_file, 'w') as f:
         f.write(html_content)
 
-def execute_command(command):
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    if result.returncode != 0:
-        logging.error(f"Error executing command: {command}")
-        logging.error(result.stdout)
-    else:
-        logging.info(result.stdout)
+def execute_command(command_list):
+    try:
+        result = subprocess.run(
+            command_list,
+            capture_output=True,
+            text=True,
+            shell=False  # More secure
+        )
+        if result.returncode != 0:
+            logging.error(f"Error executing command: {' '.join(command_list)}")
+            logging.error(result.stderr)
+        else:
+            logging.info(result.stdout)
+        return result
+    except Exception as e:
+        logging.error(f"Failed to execute command: {e}")
+        raise
 
 def execute_rgw_commands(env_path, csv_path, export_repository):
-    Path(export_repository).mkdir(parents=True, exist_ok=True)
+    export_path = Path(export_repository)
+    export_path.mkdir(parents=True, exist_ok=True)
 
-    env_dir = os.path.dirname(env_path)
-    command_prefix = f"cd {env_dir} && $VECTORCAST_DIR/clicast -lc"
+    env_dir = Path(env_path).parent
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
+    clicast = str(Path(vectorcast_dir) / 'clicast')
+    if os.name == 'nt' and not clicast.endswith('.exe'):
+        clicast += '.exe'
+
+    # Convert paths to absolute and ensure proper formatting
+    abs_export_path = str(export_path.resolve())
+    abs_csv_path = str(Path(csv_path).resolve())
 
     rgw_prep_commands = [
-        f"{command_prefix} option VCAST_REPOSITORY {os.path.abspath(export_repository)}",
-        f"{command_prefix} RGw INitialize",
-        f"{command_prefix} Rgw Set Gateway CSV",
-        f"{command_prefix} RGw Configure Set CSV csv_path {os.path.abspath(csv_path)}",
-        f"{command_prefix} RGw Configure Set CSV use_attribute_filter 0",
-        f"{command_prefix} RGw Configure Set CSV filter_attribute",
-        f"{command_prefix} RGw Configure Set CSV filter_attribute_value",
-        f"{command_prefix} RGw Configure Set CSV id_attribute ID",
-        f"{command_prefix} RGw Configure Set CSV key_attribute Key",
-        f"{command_prefix} RGw Configure Set CSV title_attribute Title",
-        f"{command_prefix} RGw Configure Set CSV description_attribute Description",
-        f"{command_prefix} RGw Import",
+        [clicast, '-lc', 'option', 'VCAST_REPOSITORY', abs_export_path],
+        [clicast, '-lc', 'RGw', 'INitialize'],
+        [clicast, '-lc', 'Rgw', 'Set', 'Gateway', 'CSV'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'csv_path', abs_csv_path],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'use_attribute_filter', '0'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute_value'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'id_attribute', 'ID'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'key_attribute', 'Key'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'title_attribute', 'Title'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'description_attribute', 'Description'],
+        [clicast, '-lc', 'RGw', 'Import'],
     ]
 
-    for rgw_prep_command in rgw_prep_commands:
-        execute_command(rgw_prep_command)
+    # Change working directory before executing commands
+    original_dir = os.getcwd()
+    try:
+        os.chdir(str(env_dir))
+        for command in rgw_prep_commands:
+            execute_command(command)
+    finally:
+        os.chdir(original_dir)
 
 def prompt_user_for_info(key):
     if key == 'OPENAI_API_KEY':

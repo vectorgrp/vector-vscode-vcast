@@ -151,9 +151,9 @@ class EnvStore:
     def load(
         self, 
         key: str, 
-        allow_from_env: bool = True,
         fallback: Optional[Callable[[], str]] = None,
-        force_fallback: bool = False
+        force_fallback: bool = False,
+        allow_from_env: bool = True
     ) -> str:
         if not force_fallback:
             # Check actual environment first
