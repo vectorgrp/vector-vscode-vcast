@@ -580,6 +580,7 @@ def getProjectData(api):
     for enviroNode in api.Environment.all():
         if isManageEnviroOfInterest(enviroNode):
             enviroData = {}
+            testsuites = []
             # string_path is the compiler/test-suite/[group]/enviro string
             enviroName = enviroNode.string_path.rsplit("/", 1)[1]
             enviroData["displayName"] = enviroNode.string_path
@@ -588,6 +589,27 @@ def getProjectData(api):
             )
             enviroData["isBuilt"] = manageEnviroIsBuilt(enviroNode, enviroName)
             enviroData["rebuildNeeded"] = enviroNode.rebuild_needed
+            enviroData["methods"] = [
+                attr
+                for attr in dir(enviroNode.compiler)
+                if callable(getattr(enviroNode.compiler, attr))
+                and not attr.startswith("__")
+            ]
+            enviroData["properties"] = [
+                attr
+                for attr in dir(enviroNode.compiler)
+                if not callable(getattr(enviroNode.compiler, attr))
+                and not attr.startswith("__")
+            ]
+            enviroData["compiler"] = {
+                "name": enviroNode.compiler.name,
+                "testsuites": testsuites,
+            }
+
+            for testsuite in enviroNode.compiler.testsuites:
+                testsuite_name_full = testsuite.string_id
+                testsuites.append(testsuite_name_full.split("/")[1])
+
             enviroList.append(enviroData)
     return enviroList
 

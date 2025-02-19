@@ -59,6 +59,7 @@ import {
   updateCodedTestCases,
   updateDataForEnvironment,
   vcastUnbuiltEnviroList,
+  globalProjectWebviewComboboxItems,
 } from "./testPane";
 
 import {
@@ -76,7 +77,7 @@ import {
   openVcastFromVCEfile,
   rebuildEnvironment,
   removeTestsuiteFromProject,
-  addEnvToTestsuite,
+  importEnvToTestsuite,
 } from "./vcastAdapter";
 
 import {
@@ -103,6 +104,7 @@ import {
   newEnvironment,
   newTestScript,
   openCodedTest,
+  ProjectEnvParameters,
 } from "./vcastTestInterface";
 
 import {
@@ -619,7 +621,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           vectorMessage(
             `Adding Environment ${enviroPath} to Testsuite ${testsuiteName} to Project ${projectPath}...`
           );
-          await addEnvToTestsuite(projectPath, testsuite, enviroPath);
+          await importEnvToTestsuite(projectPath, testsuite, enviroPath);
           panel.dispose(); // Close the webview after submission
         } else if (message.command === "cancel") {
           panel.dispose(); // Close the webview if user cancels
@@ -963,6 +965,391 @@ async function installPreActivationEventHandlers(
     }
   );
   context.subscriptions.push(newEnviroVCASTCommand);
+
+  let newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.newEnviroInProjectVCAST",
+    async (args: vscode.Uri, argList: vscode.Uri[]) => {
+      const panel = vscode.window.createWebviewPanel(
+        "addEnviroToProject",
+        "Create Environment in Project",
+        vscode.ViewColumn.Active,
+        { enableScripts: true, retainContextWhenHidden: true }
+      );
+
+      panel.webview.html = getProjectWebviewContent(argList);
+
+      panel.webview.onDidReceiveMessage(async (message) => {
+        if (message.command === "submit") {
+          const { projectPath, sourceFiles, testsuiteArgs } = message;
+          if (!projectPath || !sourceFiles || !testsuiteArgs) {
+            vscode.window.showErrorMessage(
+              "Compiler Name and Testsuite Name are required."
+            );
+            return;
+          }
+          const projectEnvParameters: ProjectEnvParameters = {
+            path: projectPath,
+            sourceFiles: sourceFiles,
+            testsuiteArgs: testsuiteArgs,
+          };
+
+          // Example message output using the combined testsuiteArgs
+          vscode.window.showInformationMessage(
+            "Creating environment with Environment Paths: " +
+              testsuiteArgs.join(", ") +
+              ", Source Files: " +
+              sourceFiles.join(", ") +
+              " in Project " +
+              projectPath
+          );
+
+          newEnvironment(argList, projectEnvParameters);
+
+          panel.dispose();
+        } else if (message.command === "cancel") {
+          panel.dispose();
+        }
+      }, undefined);
+    }
+  );
+  context.subscriptions.push(newEnviroInProjectVCASTCommand);
+}
+
+// Webview HTML content.
+function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Create Environment</title>
+    <style>
+      /* Basic reset and styling */
+      * { box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .modal {
+        width: 700px;
+        background-color: #252526;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        text-align: center;
+      }
+      h2 { color: #ffffff; margin-bottom: 15px; font-size: 22px; }
+      label {
+        font-size: 16px;
+        display: block;
+        text-align: left;
+        margin-top: 12px;
+        margin-bottom: 6px;
+      }
+      input, select {
+        padding: 10px;
+        font-size: 14px;
+        background-color: #3c3c3c;
+        color: #d4d4d4;
+        border: 1px solid #555;
+        border-radius: 4px;
+        width: 100%;
+      }
+      /* Layout for single-input rows (Project Path, Source Files) */
+      .single-input-container {
+        display: grid;
+        grid-template-columns: 1fr 50px;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+        width: 100%;
+      }
+      .single-add-row {
+        display: grid;
+        grid-template-columns: 1fr 50px;
+        gap: 10px;
+        width: 100%;
+        margin-bottom: 20px;
+      }
+      .single-add-row button { grid-column: 1; justify-self: start; }
+      /* Layout for triple-input rows (Compiler, Testsuite, Group) */
+      .triple-input-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 50px;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+        width: 100%;
+      }
+      .triple-add-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 50px;
+        gap: 10px;
+        width: 100%;
+        margin-bottom: 20px;
+      }
+      .triple-add-row button { grid-column: 1; justify-self: start; }
+      .remove-button {
+        background-color: #cc4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 10px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      .remove-button:hover { background-color: #992222; }
+      .add-button {
+        background-color: #007acc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 10px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      .add-button:hover { background-color: #005f99; }
+      /* Labels for the triple row */
+      .label-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 50px;
+        gap: 10px;
+        margin-bottom: 10px;
+        width: 100%;
+        font-weight: bold;
+        text-align: center;
+      }
+      .label-row > div {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .button-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+      }
+      .primary-button {
+        background-color: #007acc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 15px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      .primary-button:hover { background-color: #005f99; }
+    </style>
+  </head>
+  <body>
+    <div class="modal">
+      <h2>Create Environment in Project</h2>
+      
+      <!-- Project Path Combobox -->
+      <label>Project Path:</label>
+      <div class="single-input-container">
+        <select id="projectPath"></select>
+      </div>
+      
+      <!-- Source Files -->
+      <label>Source Files:</label>
+      <div id="sourceFilesContainer">
+        <div class="single-input-container">
+          <input type="text" placeholder="Enter Source File" />
+          <button class="remove-button" onclick="this.parentElement.remove()">✖</button>
+        </div>
+      </div>
+      <div class="single-add-row">
+        <button class="add-button" onclick="addInputRow('sourceFilesContainer', 'Enter Source File')">➕</button>
+      </div>
+      
+      <!-- Compiler/Testsuite/Group Labels -->
+      <div class="label-row">
+        <div>Select Compiler</div>
+        <div>Select Testsuite</div>
+        <div>Group Name (Optional)</div>
+        <div></div>
+      </div>
+      
+      <!-- Compiler/Testsuite/Group Container -->
+      <div id="compilerContainer">
+        <!-- Initial row will be added dynamically -->
+      </div>
+      <div class="triple-add-row">
+        <button class="add-button" onclick="addCompilerRow()">➕</button>
+      </div>
+      
+      <!-- OK/Cancel Buttons -->
+      <div class="button-container">
+        <button class="primary-button" onclick="cancel()">Cancel</button>
+        <button class="primary-button" onclick="submitForm()">OK</button>
+      </div>
+    </div>
+    
+    <script>
+      const vscode = acquireVsCodeApi();
+  
+      // globalProjectWebviewComboboxItems is embedded into the webview.
+      // It is expected to be a Map<string, { compilers: string[]; testsuites: string[] }>
+      const projectData = ${JSON.stringify(Array.from(globalProjectWebviewComboboxItems.entries()))};
+      const projectMap = new Map(projectData);
+  
+      // Populate the Project Path combobox from the keys of the projectMap.
+      const projectPathSelect = document.getElementById('projectPath');
+      projectMap.forEach(function(value, key) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = key;
+        projectPathSelect.appendChild(option);
+      });
+  
+      // Helper function to generate <option> elements as HTML from an array.
+      function generateOptions(arr) {
+        let html = '';
+        arr.forEach(function(item) {
+          html += '<option value="' + item + '">' + item + '</option>';
+        });
+        return html;
+      }
+  
+      // Adds a new row for Compiler, Testsuite, and Group.
+      function addCompilerRow() {
+        const selectedProject = projectPathSelect.value;
+        const projectInfo = projectMap.get(selectedProject);
+        if (!projectInfo) {
+          vscode.postMessage({ command: 'error', message: 'No project data available for the selected project.' });
+          return;
+        }
+        const container = document.getElementById('compilerContainer');
+        const row = document.createElement('div');
+        row.classList.add('triple-input-container');
+  
+        const compilerSelect = document.createElement('select');
+        compilerSelect.required = true;
+        compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
+  
+        const testsuiteSelect = document.createElement('select');
+        testsuiteSelect.required = true;
+        testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
+  
+        const groupInput = document.createElement('input');
+        groupInput.type = 'text';
+        groupInput.placeholder = 'Group Name (Optional)';
+  
+        const removeButton = document.createElement('button');
+        removeButton.textContent = '✖';
+        removeButton.classList.add('remove-button');
+        removeButton.onclick = function() { row.remove(); };
+  
+        row.appendChild(compilerSelect);
+        row.appendChild(testsuiteSelect);
+        row.appendChild(groupInput);
+        row.appendChild(removeButton);
+        container.appendChild(row);
+      }
+  
+      // Update existing rows when the Project Path changes.
+      projectPathSelect.addEventListener('change', function() {
+        const selectedProject = projectPathSelect.value;
+        const projectInfo = projectMap.get(selectedProject);
+        if (!projectInfo) return;
+        const rows = document.querySelectorAll('#compilerContainer .triple-input-container');
+        rows.forEach(function(row) {
+          const compilerSelect = row.children[0];
+          const testsuiteSelect = row.children[1];
+          const currentCompiler = compilerSelect.value;
+          const currentTestsuite = testsuiteSelect.value;
+          compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
+          testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
+          compilerSelect.value = projectInfo.compilers.indexOf(currentCompiler) !== -1 ? currentCompiler : projectInfo.compilers[0];
+          testsuiteSelect.value = projectInfo.testsuites.indexOf(currentTestsuite) !== -1 ? currentTestsuite : projectInfo.testsuites[0];
+        });
+      });
+  
+      // Adds a new source file input row.
+      function addInputRow(containerId, placeholderText) {
+        const container = document.getElementById(containerId);
+        const row = document.createElement('div');
+        row.classList.add('single-input-container');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = placeholderText;
+        const removeButton = document.createElement('button');
+        removeButton.textContent = '✖';
+        removeButton.classList.add('remove-button');
+        removeButton.onclick = function() { row.remove(); };
+        row.appendChild(input);
+        row.appendChild(removeButton);
+        container.appendChild(row);
+      }
+  
+      // Submit the form. Combine each row's values into a single string.
+      function submitForm() {
+        const projectPath = projectPathSelect.value;
+        const sourceFiles = Array.from(document.querySelectorAll('#sourceFilesContainer .single-input-container input[type="text"]')).map(function(i) { return i.value; });
+        const testsuiteArgs = Array.from(document.querySelectorAll('#compilerContainer .triple-input-container')).map(function(row) {
+          const compiler = row.children[0].value;
+          const testsuite = row.children[1].value;
+          const group = row.children[2].value;
+          return group.trim() ? (compiler + "/" + testsuite + "/" + group) : (compiler + "/" + testsuite);
+        });
+        if (!projectPath || testsuiteArgs.some(function(arg) { return !arg; })) {
+          vscode.postMessage({ command: 'error', message: 'Project Path, Compiler, and Testsuite are required.' });
+          return;
+        }
+        vscode.postMessage({
+          command: 'submit',
+          projectPath: projectPath,
+          sourceFiles: sourceFiles,
+          testsuiteArgs: testsuiteArgs
+        });
+      }
+  
+      function cancel() {
+        vscode.postMessage({ command: 'cancel' });
+      }
+  
+      // Pre-fill source files if provided.
+      const initialSourceFiles = ${JSON.stringify(
+        argList.map(function (uri) {
+          return uri.fsPath;
+        })
+      )};
+      window.addEventListener('DOMContentLoaded', function() {
+        const sourceContainer = document.getElementById('sourceFilesContainer');
+        if (initialSourceFiles && initialSourceFiles.length > 0) {
+          sourceContainer.innerHTML = '';
+          initialSourceFiles.forEach(function(file) {
+            const row = document.createElement('div');
+            row.classList.add('single-input-container');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = file;
+            const removeButton = document.createElement('button');
+            removeButton.textContent = '✖';
+            removeButton.classList.add('remove-button');
+            removeButton.onclick = function() { row.remove(); };
+            row.appendChild(input);
+            row.appendChild(removeButton);
+            sourceContainer.appendChild(row);
+          });
+        }
+        // Add an initial compiler/testsuites row.
+        addCompilerRow();
+      });
+    </script>
+  </body>
+  </html>
+    `;
 }
 
 // this method is called when your extension is deactivated

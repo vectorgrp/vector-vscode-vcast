@@ -105,6 +105,11 @@
         "title": "Create VectorCAST Environment"
       },
       {
+        "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
+        "category": "VectorCAST Test Explorer",
+        "title": "Create VectorCAST Environment in Project"
+      },
+      {
         "command": "vectorcastTestExplorer.buildEnviroFromEnv",
         "category": "VectorCAST Test Explorer",
         "title": "Build VectorCAST Environment"
@@ -363,6 +368,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.buildEnviroFromEnv",
           "when": "never"
         },
@@ -474,6 +483,11 @@
       "explorer/context": [
         {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
+          "when": "resourceLangId == cpp || resourceLangId == c",
+          "group": "2_workspace"
+        },
+        {
+          "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
           "when": "resourceLangId == cpp || resourceLangId == c",
           "group": "2_workspace"
         },

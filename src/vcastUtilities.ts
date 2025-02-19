@@ -32,6 +32,7 @@ import {
 } from "./vcastInstallation";
 
 import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
+import { globalProjectDataCache } from "./testPane";
 
 const fs = require("fs");
 const os = require("os");
@@ -433,4 +434,39 @@ export function getRebuildOptionsString(): string {
   const jsonOptions: string = JSON.stringify(optionsDict);
 
   return jsonOptions;
+}
+
+/**
+ * Function to retrieve the Combobox items for the webview when creating an env in a project
+ * @param projectFile Path to Project File
+ * @returns 2 Lists containing the project compilers and testsuites
+ */
+export function getWebveiwComboboxItems(projectFile: string) {
+  let comboBoxList: { compilers: string[]; testsuites: string[] } = {
+    compilers: [],
+    testsuites: [],
+  };
+  let compilerList: string[] = [];
+  let testsuiteList: string[] = [];
+
+  const enviroData = globalProjectDataCache.get(projectFile);
+
+  if (enviroData) {
+    for (let [envPath, envData] of enviroData) {
+      if (!compilerList.includes(envData.compiler.name)) {
+        compilerList.push(envData.compiler.name);
+      }
+
+      for (let testsuiteName of envData.compiler.testsuites) {
+        if (!testsuiteList.includes(testsuiteName)) {
+          testsuiteList.push(testsuiteName);
+        }
+      }
+    }
+  }
+
+  comboBoxList.compilers = compilerList;
+  comboBoxList.testsuites = testsuiteList;
+
+  return comboBoxList;
 }

@@ -77,6 +77,7 @@ import {
   closeAnyOpenErrorFiles,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
+  getWebveiwComboboxItems,
   testStatus,
 } from "./vcastUtilities";
 
@@ -329,14 +330,19 @@ interface projectEnvironmentType {
   displayName: string;
   isBuilt: boolean;
   rebuildNeeded: boolean;
+  compiler: { name: string; testsuites: string[] };
 }
 
-type enviroListAsMapType = Map<string, projectEnvironmentType>;
+export type enviroListAsMapType = Map<string, projectEnvironmentType>;
 
 // This is built once each time we load a workspace.
 // The outer map key is the project filename,
 // the inner map key is the build directory
 export let globalProjectDataCache = new Map<string, enviroListAsMapType>();
+export let globalProjectWebviewComboboxItems = new Map<
+  string,
+  { compilers: string[]; testsuites: string[] }
+>();
 
 export async function convertProjectDataToMap(
   enviroList: any[]
@@ -351,6 +357,7 @@ export async function convertProjectDataToMap(
       displayName: rawData.displayName,
       isBuilt: rawData.isBuilt,
       rebuildNeeded: rawData.rebuildNeeded,
+      compiler: rawData.compiler,
     };
 
     const mapKey = forceLowerCaseDriveLetter(rawData.buildDirectory);
@@ -375,6 +382,9 @@ export async function buildProjectDataCache(baseDirectory: string) {
 
     // we turn this into a typescript object and then store in a map
     globalProjectDataCache.set(projectFile, enviroListAsMap);
+
+    const comboBoxList = getWebveiwComboboxItems(projectFile);
+    globalProjectWebviewComboboxItems.set(projectFile, comboBoxList);
   }
 }
 

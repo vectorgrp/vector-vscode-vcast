@@ -251,6 +251,167 @@ export async function removeTestsuiteFromProject(
 }
 
 /**
+ * Adds an Environment to a Group.
+ * Environment needs to be imported already and the group needs to exist.
+ * @param projectPath Path to Project file
+ * @param groupName Group name
+ * @param enviroName Environment name
+ */
+export async function addEnvToGroup(
+  projectPath: string,
+  groupName: string,
+  enviroName: string
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--group=${groupName}`,
+    `--add`,
+    `${enviroName}`,
+    "--force",
+  ];
+
+  const message = `Adding Environment ${enviroName} to Group ${groupName} ...`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message,
+    addEnvToProjectCallback,
+    enviroName
+  );
+}
+
+/**
+ * Imports an already existing Environment to the Project if possible
+ * @param projectFilePath Path to the Project
+ * @param testsuite Testsuite string containing CompilerName/TestsuiteName
+ * @param enviroPath Path to Environment
+ */
+export async function createGroupInProject(
+  projectFilePath: string,
+  group: string
+) {
+  const projectName = path.basename(projectFilePath);
+  const projectLocation = path.dirname(projectFilePath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--group=${group}`,
+    `--create`,
+    `--force`,
+  ];
+  const message = `Adding Group ${group} to Project ...`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message
+  );
+}
+
+/**
+ * Imports an already existing Environment to the Project if possible
+ * @param projectFilePath Path to the Project
+ * @param testsuite Testsuite string containing CompilerName/TestsuiteName
+ * @param enviroPath Path to Environment
+ */
+export async function importEnvToTestsuite(
+  projectFilePath: string,
+  testsuite: string,
+  enviroPath: string,
+  groupName: string | undefined = undefined
+) {
+  const projectName = path.basename(projectFilePath);
+  const projectLocation = path.dirname(projectFilePath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--level=${testsuite}`,
+    `--import`,
+    `${enviroPath}`,
+    "--force",
+    "--migrate",
+  ];
+
+  // In case we also want to add the environment to a group
+  if (groupName) {
+    manageArgs.push(`--group=${groupName}`);
+  }
+
+  const message = `Importing Environment ${enviroPath} to Testsuite ${testsuite}`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message,
+    addEnvToProjectCallback,
+    enviroPath
+  );
+}
+
+/**
+ * Adds a group to a Testsuite
+ * @param projectPath Path to the Project file
+ * @param baseDisplayName Testsuite string containing CompilerName/TestsuiteName
+ * @param testSuiteGroup Group name
+ */
+export async function addGroupToTestsuite(
+  projectPath: string,
+  baseDisplayName: string,
+  testSuiteGroup: string
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--level=${baseDisplayName}`,
+    `--add`,
+    `${testSuiteGroup}`,
+    "--force",
+  ];
+
+  const message = `Adding Group ${testSuiteGroup} to Testsuite ${baseDisplayName}`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message
+  );
+}
+
+/**
+ * Imports an already existing Environment to the Project if possible
+ * @param projectFilePath Path to the Project
+ * @param testsuite Testsuite string containing CompilerName/TestsuiteName
+ * @param enviroPath Path to Environment
+ */
+export async function createNewTestsuiteInProject(
+  projectFilePath: string,
+  testsuite: string
+) {
+  const projectName = path.basename(projectFilePath);
+  const projectLocation = path.dirname(projectFilePath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--create`,
+    `--level=${testsuite}`,
+    "--force",
+  ];
+  const message = `Creating Testsuite ${testsuite} in Project`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message
+  );
+}
+
+/**
  * Imports an already existing Environment to the Project if possible
  * @param projectFilePath Path to the Project
  * @param testsuite Testsuite string containing CompilerName/TestsuiteName
@@ -266,16 +427,18 @@ export async function addEnvToTestsuite(
   const manageArgs = [
     `-p${projectName}`,
     `--level=${testsuite}`,
-    `--import`,
+    `--add`,
     `${enviroPath}`,
     "--force",
-    "--migrate",
   ];
 
-  executeWithRealTimeEcho(
+  const message = `Adding Environment ${enviroPath} to Testsuite`;
+
+  await executeWithRealTimeEchoWithProgress(
     manageCommandToUse,
     manageArgs,
     projectLocation,
+    message,
     addEnvToProjectCallback,
     enviroPath
   );
