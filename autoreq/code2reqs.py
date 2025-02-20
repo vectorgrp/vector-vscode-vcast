@@ -132,7 +132,7 @@ def prompt_user_for_info(key):
     elif key == 'OPENAI_API_BASE':
         return input("Please enter the OpenAI API base URL: ")
 
-async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False):
+async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False, extended_reasoning=False):
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level)
@@ -142,7 +142,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     functions = environment.testable_functions
 
-    generator = RequirementsGenerator(environment)
+    generator = RequirementsGenerator(environment, extended_reasoning=extended_reasoning)
 
     context_builder = VcastContextBuilder(environment)
 
@@ -204,6 +204,7 @@ def cli():
     parser.add_argument("--export-repository", help="Path to the VCAST_REPOSITORY for registering requirements.")
     parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
     parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
+    parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning for test generation.')
 
     args = parser.parse_args()
 
@@ -214,7 +215,8 @@ def cli():
         args.export_csv,
         args.export_html,
         args.export_repository,
-        json_events=args.json_events
+        json_events=args.json_events,
+        extended_reasoning=args.extended_reasoning
     ))
 
 if __name__ == "__main__":
