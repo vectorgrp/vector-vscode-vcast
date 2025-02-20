@@ -66,10 +66,9 @@ export async function buildEnvironmentCallback(
   // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
-    const enviroName = path.basename(enviroPath);
     await refreshAllExtensionData();
     await updateDataForEnvironment(enviroPath);
-    await updateProjectData(enviroPath, enviroName);
+    await updateProjectData(enviroPath);
     await updateProjectTree();
   } else {
     try {
@@ -133,6 +132,7 @@ export async function deleteEnvironmentCallback(
         return;
       }
     }
+
     removeCoverageDataForEnviro(enviroPath);
     updateDisplayedCoverage();
     updateExploreDecorations();

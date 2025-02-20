@@ -1269,10 +1269,9 @@ export async function deleteTests(nodeList: any[]) {
     // remove any coded test files from the cache since
     // they will be re-added by the update
     const enviroPath = getEnviroPathFromID(enviroNodeID);
-    const enviroName = path.basename(enviroPath);
     removeCBTfilesCacheForEnviro(enviroNodeID);
     await updateDataForEnvironment(enviroPath);
-    await updateProjectData(enviroPath, enviroName);
+    await updateProjectData(enviroPath);
   }
 }
 

@@ -235,6 +235,7 @@ export async function removeTestsuiteFromProject(
           `--level=${testsuite}`,
           "--remove",
           `${envName}`,
+          `--force`,
         ];
         progressMessage = `Removing Testsuite ${levelString} from Project ${projectName}`;
         break;
@@ -489,10 +490,7 @@ export async function updateAllOpenedProjects() {
  * @param enviroPath Path to the environment
  * @param enviroName Name of the environment
  */
-export async function updateProjectData(
-  enviroPath: string,
-  enviroName: string
-) {
+export async function updateProjectData(enviroPath: string) {
   // Only update if the current env is also embedden in a Project
   if (envIsEmbeddedInProject(enviroPath)) {
     const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
@@ -501,7 +499,6 @@ export async function updateProjectData(
     const projectLocation: string = path.dirname(projectFilePath);
     const manageArgs: string[] = [
       `-p${projectName}`,
-      `-e${enviroName}`,
       "--apply-changes",
       "--force",
     ];
@@ -546,7 +543,7 @@ export async function loadTestScriptIntoEnvironment(
   if (commandStatus.errorCode == 0) {
     // update project data after the script is loaded successfully
     vectorMessage("Script loaded successfully");
-    await updateProjectData(enviroPath, enviroName);
+    await updateProjectData(enviroPath);
     // Maybe this will be annoying to users, but I think
     // it's good to know when the load is complete.
     vscode.window.showInformationMessage(`Test script loaded successfully`);

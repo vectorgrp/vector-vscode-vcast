@@ -52,6 +52,7 @@ import {
   createGroupInProject,
   addEnvToGroup,
   addGroupToTestsuite,
+  updateAllOpenedProjects,
 } from "./vcastAdapter";
 
 import {
@@ -1047,7 +1048,7 @@ async function commonCodedTestProcessing(
 
   if (commandStatus.errorCode == 0 && enviroName) {
     // update project data after the script is loaded
-    await updateProjectData(enviroPath, enviroName);
+    await updateProjectData(enviroPath);
     vscode.window.showInformationMessage(`Coded Tests added successfully`);
   } else {
     openTestFileAndErrors(testNode);
