@@ -11,7 +11,7 @@ export interface environmentNodeDataType {
 // This is a lookup table for all environment nodes
 // in the test case tree.  The key is the environmentPath
 // and the data is an environmentDataType
-let environmentDataCache = new Map();
+export let environmentDataCache = new Map();
 
 export function saveEnviroNodeData(
   enviroPath: string,

@@ -15,7 +15,7 @@ import {
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
-  globalController,
+  refreshAllExtensionData,
   removeCBTfilesCacheForEnviro,
   removeEnvironmentFromTestPane,
   updateDataForEnvironment,
@@ -67,6 +67,7 @@ export async function buildEnvironmentCallback(
 
   if (code == 0) {
     const enviroName = path.basename(enviroPath);
+    await refreshAllExtensionData();
     await updateDataForEnvironment(enviroPath);
     await updateProjectData(enviroPath, enviroName);
     await updateProjectTree();

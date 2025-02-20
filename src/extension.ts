@@ -60,6 +60,7 @@ import {
   updateDataForEnvironment,
   vcastUnbuiltEnviroList,
   globalProjectWebviewComboboxItems,
+  setGlobalProjectIsOpenedChecker,
 } from "./testPane";
 
 import {
@@ -834,6 +835,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   vscode.workspace.onDidChangeWorkspaceFolders(
     (e) => {
       refreshAllExtensionData();
+      setGlobalProjectIsOpenedChecker();
     },
     null,
     context.subscriptions

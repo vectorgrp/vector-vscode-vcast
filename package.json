@@ -488,7 +488,7 @@
         },
         {
           "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
-          "when": "resourceLangId == cpp || resourceLangId == c",
+          "when": "(resourceLangId == cpp || resourceLangId == c) && vectorcastTestExplorer.globalProjectIsOpenedChecker",
           "group": "2_workspace"
         },
         {
@@ -597,7 +597,7 @@
         {
           "command": "vectorcastTestExplorer.removeTestsuite",
           "group": "vcast@1",
-          "when": "testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList)"
+          "when": "testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList) && vectorcastTestExplorer.globalProjectIsOpenedChecker"
         },
         {
           "command": "vectorcastTestExplorer.editTestScript",

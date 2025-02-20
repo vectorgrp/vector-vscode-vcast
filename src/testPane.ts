@@ -74,6 +74,7 @@ import {
 
 import {
   adjustScriptContentsBeforeLoad,
+  checkIfAnyProjectsAreOpened,
   closeAnyOpenErrorFiles,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
@@ -339,10 +340,21 @@ export type enviroListAsMapType = Map<string, projectEnvironmentType>;
 // The outer map key is the project filename,
 // the inner map key is the build directory
 export let globalProjectDataCache = new Map<string, enviroListAsMapType>();
+
+export let globalProjectIsOpenedChecker: boolean = false;
 export let globalProjectWebviewComboboxItems = new Map<
   string,
   { compilers: string[]; testsuites: string[] }
 >();
+
+export function setGlobalProjectIsOpenedChecker() {
+  globalProjectIsOpenedChecker = checkIfAnyProjectsAreOpened();
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.globalProjectIsOpenedChecker",
+    globalProjectIsOpenedChecker
+  );
+}
 
 export async function convertProjectDataToMap(
   enviroList: any[]
@@ -647,6 +659,9 @@ async function loadAllVCTests(
   // once the data is loaded update the coverage and test icons for the active editor
   updateDisplayedCoverage();
   updateTestDecorator();
+
+  // Global varibale to see if we have a manage Project opened or just an Environment
+  setGlobalProjectIsOpenedChecker();
 }
 
 export let pathToEnviroBeingDebugged: string =
@@ -1319,8 +1334,10 @@ export async function refreshAllExtensionData() {
   //      - we fall back from server mode
   //
   resetCoverageData();
-  buildTestPaneContents();
+  await buildTestPaneContents();
   updateCOVdecorations();
+  // Global varibale to see if we have a manage Project opened or just an Environment
+  setGlobalProjectIsOpenedChecker();
 }
 
 // create the controller
@@ -1365,7 +1382,7 @@ function getParentNodeForEnvironment(
   }
 }
 
-export function activateTestPane(context: vscode.ExtensionContext) {
+export async function activateTestPane(context: vscode.ExtensionContext) {
   globalController = vscode.tests.createTestController(
     "vector-test-controller",
     "VectorCAST Tests"
@@ -1398,7 +1415,7 @@ export function activateTestPane(context: vscode.ExtensionContext) {
   // Custom handler for loading tests. The "test" argument here is undefined,
   // but if we supported lazy-loading child test then this could be called with
   // the test whose children VS Code wanted to load.
-  buildTestPaneContents();
+  await buildTestPaneContents();
 
   // We'll create the "run" type profile here, and give it the function to call.
   // The last `true` argument indicates that this should be the default
@@ -1417,7 +1434,7 @@ export function activateTestPane(context: vscode.ExtensionContext) {
   );
 }
 
-export function buildTestPaneContents() {
+export async function buildTestPaneContents() {
   vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,

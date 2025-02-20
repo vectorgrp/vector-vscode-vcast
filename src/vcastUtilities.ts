@@ -7,7 +7,7 @@ import { loadScriptCallBack } from "./callbacks";
 
 import { vectorMessage } from "./messagePane";
 
-import { getTestNode, testNodeType } from "./testData";
+import { environmentDataCache, getTestNode, testNodeType } from "./testData";
 
 import {
   jsoncModificationOptions,
@@ -469,4 +469,32 @@ export function getWebveiwComboboxItems(projectFile: string) {
   comboBoxList.testsuites = testsuiteList;
 
   return comboBoxList;
+}
+
+/**
+ * Checks if the current Environment is part of a Project or not
+ * @param enviroPath Path to Environment
+ * @returns True if the Environment is part of a Project, False otherwise
+ */
+export function envIsEmbeddedInProject(enviroPath: string) {
+  for (let envData of environmentDataCache.values()) {
+    if (envData.buildDirectory === enviroPath && envData.projectPath !== "") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks if the current Environment is part of a Project or not
+ * @param enviroPath Path to Environment
+ * @returns True if the Environment is part of a Project, False otherwise
+ */
+export function checkIfAnyProjectsAreOpened() {
+  for (let envData of environmentDataCache.values()) {
+    if (envData.projectPath !== "") {
+      return true;
+    }
+  }
+  return false;
 }
