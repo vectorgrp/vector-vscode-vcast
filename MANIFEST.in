@@ -1,3 +1,5 @@
 include autoreq/resources/test_framework_reference.md
 include monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json
 include monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json
+include monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json
+include monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json
