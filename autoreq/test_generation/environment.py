@@ -1,6 +1,7 @@
 from functools import cached_property
 from dataclasses import dataclass
 import os
+from pathlib import Path
 import re
 from typing import List, Optional
 import subprocess
@@ -8,6 +9,7 @@ import tempfile
 import sqlite3
 import logging
 import charset_normalizer
+import platform
 
 from ..codebase import Codebase
 
@@ -52,6 +54,16 @@ class TestCase:
             "requirement_id": self.requirement_id
         }
 
+def _get_vectorcast_cmd(executable: str, args: List[str] = None) -> List[str]:
+    """Generate a properly formatted VectorCAST command based on the OS."""
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
+    is_windows = platform.system() == 'Windows'
+    sep = '\\' if is_windows else '/'
+    exe_ext = '.exe' if is_windows else ''
+    
+    exe_path = f"{vectorcast_dir}{sep}{executable}{exe_ext}"
+    return [exe_path] + (args or [])
+
 class Environment:
     def __init__(self, env_file_path: str, use_sandbox: bool = True):
         env_file_path = os.path.abspath(env_file_path)
@@ -69,19 +81,22 @@ class Environment:
 
     def build(self):
         env_name = self.env_name
-        cmd = f'VCAST_FORCE_OVERWRITE_ENV_DIR=1 $VECTORCAST_DIR/enviroedg {env_name}.env'
+        cmd = _get_vectorcast_cmd('enviroedg', [f'{env_name}.env'])
+        
         env_vars = os.environ.copy()
+        env_vars['VCAST_FORCE_OVERWRITE_ENV_DIR'] = '1'
+        
         try:
-            result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
+            result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
         except subprocess.TimeoutExpired:
-            logging.error(f"Command '{cmd}' timed out after 30 seconds")
+            logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
             return None
         
-        logging.debug("Command: %s Return code: %s", cmd, result.returncode)
+        logging.debug("Command: %s Return code: %s", ' '.join(cmd), result.returncode)
         
         if result.returncode != 0:
-            error_msg = f"Build command '{cmd}' failed with error:\n{result.stderr or result.stdout}"
+            error_msg = f"Build command '{' '.join(cmd)}' failed with error:\n{result.stderr or result.stdout}"
             raise RuntimeError(error_msg)
 
 
@@ -109,7 +124,7 @@ class Environment:
 
             if execute:
                 output = self._execute_commands(tst_file_path, show_run_script_output)
-                os.remove(tst_file_path)  # Clean up the temporary file
+                #os.remove(tst_file_path)  # Clean up the temporary file
                 return output
 
         return None
@@ -124,28 +139,29 @@ class Environment:
     @cached_property
     def allowed_identifiers(self) -> List[str]:
         env_name = self.env_name
-        
+
         # Create a temporary file
         fd, tst_file_path = tempfile.mkstemp(suffix='.tst')
         os.close(fd)  # Close the file descriptor
 
         # Run the command to generate the test script template
-        cmd = f'$VECTORCAST_DIR/clicast -e {env_name} test script template {tst_file_path}'
         env_vars = os.environ.copy()
+
+        cmd = _get_vectorcast_cmd('clicast', ['-e', env_name, 'test', 'script', 'template', tst_file_path])
 
         failed = False
         try:
-            result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
+            result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
         except subprocess.TimeoutExpired:
             os.remove(tst_file_path)
-            logging.error(f"Command '{cmd}' timed out after 30 seconds")
+            logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
             failed = True
         
         if not failed:
             if result.returncode != 0:
                 os.remove(tst_file_path)
-                error_msg = f"Command '{cmd}' failed with error:\n{result.stderr or result.stdout}"
+                error_msg = f"Command '{' '.join(cmd)}' failed with error:\n{result.stderr or result.stdout}"
                 raise RuntimeError(error_msg)
         
             # Read the generated test script template
@@ -252,19 +268,19 @@ class Environment:
     def atg_tests(self) -> str:
         env_name = self.env_name
         # First try with baselining
-        cmd = f'$VECTORCAST_DIR/atg -e {env_name} --baselining'
+        cmd = _get_vectorcast_cmd('atg', ['-e', env_name, '--baselining'])
         env_vars = os.environ.copy()
 
         
         try:
-            result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
+            result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
         except subprocess.TimeoutExpired:
             logging.warning(f"ATG with baselining timed out, trying without baselining")
             # Retry without baselining
-            cmd = f'$VECTORCAST_DIR/atg -e {env_name}'
+            cmd = _get_vectorcast_cmd('atg', ['-e', env_name])
             try:
-                result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
+                result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
             except subprocess.TimeoutExpired:
                 logging.error(f"ATG command without baselining also timed out")
@@ -284,14 +300,14 @@ class Environment:
     @cached_property
     def basis_path_tests(self) -> str:
         env_name = self.env_name
-        cmd = f'$VECTORCAST_DIR/clicast -e {env_name} tool auto_test basis.tst'
+        cmd = _get_vectorcast_cmd('clicast', ['-e', env_name, 'tool', 'auto_test', 'basis.tst'])
         env_vars = os.environ.copy()
         
         try:
-            result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
+            result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
         except subprocess.TimeoutExpired:
-            logging.error(f"Command '{cmd}' timed out after 60 seconds")
+            logging.error(f"Command '{' '.join(cmd)}' timed out after 60 seconds")
             return ""
             
         if result.returncode != 0:
@@ -386,7 +402,7 @@ class Environment:
 
         tu_path_c = os.path.join(self.env_dir, self.env_name, f"{unit_name}.tu.c")
         tu_path_cpp = os.path.join(self.env_dir, self.env_name, f"{unit_name}.tu.cpp")
-        
+
         if os.path.exists(tu_path_c):
             tu_path = tu_path_c
         elif os.path.exists(tu_path_cpp):
@@ -411,7 +427,7 @@ class Environment:
             if match:
                 file_path_in_marker = os.path.abspath(match.group(1))
 
-                if file_path_in_marker == unit_path:
+                if Path(file_path_in_marker) == Path(unit_path):
                     in_relevant_context = True
                 elif match.group(1).startswith("vcast_preprocess") or reduction_level == 'high':
                     in_relevant_context = False
@@ -508,26 +524,25 @@ class Environment:
 
     def _execute_commands(self, tst_file_path: str, show_run_script_output: bool) -> Optional[str]:
         env_name = self.env_name
-        
         commands = [
-            f'$VECTORCAST_DIR/clicast -lc -e {env_name} Test Script Run {tst_file_path}',
-            f'$VECTORCAST_DIR/clicast -lc -e {env_name} Execute All'
+            _get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'Test', 'Script', 'Run', tst_file_path]),
+            _get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'Execute', 'All'])
         ]
         output = ''
         env_vars = os.environ.copy()
         # Execute the commands using subprocess and capture the outputs
-        for idx, cmd in enumerate(commands):
+        for cmd in commands:
             try:
-                result = subprocess.run(cmd, shell=True, cwd=self.env_dir, env=env_vars,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
+                result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
             except subprocess.TimeoutExpired:
-                logging.error(f"Command '{cmd}' timed out after 30 seconds")
+                logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
                 return None
 
-            logging.debug("Command: %s Return code: %s", cmd, result.returncode)
+            logging.debug("Command: %s Return code: %s", ' '.join(cmd), result.returncode)
 
             if show_run_script_output:
-                logging.info("Command '%s' output:\n%s", cmd, result.stdout)
+                logging.info("Command '%s' output:\n%s", ' '.join(cmd), result.stdout)
 
             output += result.stdout
             """

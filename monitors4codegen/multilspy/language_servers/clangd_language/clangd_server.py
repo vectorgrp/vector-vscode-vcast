@@ -5,7 +5,7 @@ import os
 import pathlib
 import stat
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator
 
 from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
 from monitors4codegen.multilspy.language_server import LanguageServer
@@ -16,30 +16,20 @@ from monitors4codegen.multilspy.multilspy_utils import FileUtils
 from monitors4codegen.multilspy.multilspy_utils import PlatformUtils
 
 
-class CclsServer(LanguageServer):
+class ClangdServer(LanguageServer):
     def __init__(self, config: MultilspyConfig, logger: MultilspyLogger, repository_root_path: str):
         """
-        Creates a CclsServer instance. This class is not meant to be instantiated directly. Use LanguageServer.create() instead.
+        Creates a ClangdServer instance. This class is not meant to be instantiated directly. Use LanguageServer.create() instead.
         """
-        ccls_executable_path = self.setup_runtime_dependencies(logger, config)
+        clangd_executable_path = self.setup_runtime_dependencies(logger, config)
         super().__init__(
             config,
             logger,
             repository_root_path,
-            ProcessLaunchInfo(cmd=ccls_executable_path, cwd=repository_root_path),
+            ProcessLaunchInfo(cmd=clangd_executable_path, cwd=repository_root_path),
             "c",
         )
         self.server_ready = asyncio.Event()
-
-    @staticmethod
-    def _find_executable(name: str) -> Optional[str]:
-        """Find an executable in the system PATH."""
-        path = os.getenv("PATH", "").split(os.pathsep)
-        for directory in path:
-            executable = os.path.join(directory, name)
-            if os.path.isfile(executable) and os.access(executable, os.X_OK):
-                return executable
-        return None
 
     def setup_runtime_dependencies(self, logger: MultilspyLogger, config: MultilspyConfig) -> str:
         platform_id = PlatformUtils.get_platform_id()
@@ -49,16 +39,28 @@ class CclsServer(LanguageServer):
             del d["_description"]
 
         assert platform_id.value in [
-            "linux-x64",
-        ], "Only linux-x64 platform is supported for in multilspy at the moment"
+            "linux-x64", "win-x64"
+        ], "Only linux-x64 and win-x64 platforms are supported for in multilspy at the moment."
 
-        # TODO: Somehow install a version of ccls instead of assuming it is installed
+        runtime_dependencies = d["runtimeDependencies"]
+        runtime_dependencies = [
+            dependency for dependency in runtime_dependencies if dependency["platformId"] == platform_id.value
+        ]
+        assert len(runtime_dependencies) == 1
+        dependency = runtime_dependencies[0]
 
-        ccls_executable_path = self._find_executable("ccls")
-        if not ccls_executable_path:
-            raise RuntimeError("ccls executable not found in PATH. Please ensure ccls is installed and available in your PATH.")
+        clangdls_dir = os.path.join(os.path.dirname(__file__), "clangd")
+        clangd_executable_path = os.path.join(clangdls_dir, "clangd_18.1.3", "bin", dependency["binaryName"])
+        if not os.path.exists(clangdls_dir):
+            os.makedirs(clangdls_dir)
+            if dependency["archiveType"] == "zip":
+                FileUtils.download_and_extract_archive(
+                    logger, dependency["url"], clangdls_dir, dependency["archiveType"]
+                )
+        assert os.path.exists(clangd_executable_path)
+        os.chmod(clangd_executable_path, stat.S_IEXEC)
 
-        return ccls_executable_path
+        return clangd_executable_path
 
     def _get_initialize_params(self, repository_absolute_path: str) -> InitializeParams:
         with open(os.path.join(os.path.dirname(__file__), "initialize_params.json"), "r") as f:
@@ -82,9 +84,9 @@ class CclsServer(LanguageServer):
         return d
 
     @asynccontextmanager
-    async def start_server(self) -> AsyncIterator["CclsServer"]:
+    async def start_server(self) -> AsyncIterator["ClangdServer"]:
         """
-        Starts the Ccls Language Server, waits for the server to be ready and yields the LanguageServer instance.
+        Starts the Clangd Language Server, waits for the server to be ready and yields the LanguageServer instance.
 
         Usage:
         ```
@@ -131,7 +133,7 @@ class CclsServer(LanguageServer):
         self.server.on_notification("experimental/serverStatus", check_experimental_status)
 
         async with super().start_server():
-            self.logger.log("Starting ccls-language-server server process", logging.INFO)
+            self.logger.log("Starting clangd-language-server server process", logging.INFO)
             await self.server.start()
             initialize_params = self._get_initialize_params(self.repository_root_path)
 

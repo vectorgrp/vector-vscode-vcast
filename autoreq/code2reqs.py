@@ -10,6 +10,7 @@ import tempfile
 import asyncio
 import logging
 
+from autoreq.util import ensure_env
 from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 
 from .codebase import Codebase
@@ -65,39 +66,73 @@ def save_requirements_to_html(requirements, output_file):
     with open(output_file, 'w') as f:
         f.write(html_content)
 
-def execute_command(command):
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    if result.returncode != 0:
-        logging.error(f"Error executing command: {command}")
-        logging.error(result.stdout)
-    else:
-        logging.info(result.stdout)
+def execute_command(command_list):
+    try:
+        result = subprocess.run(
+            command_list,
+            capture_output=True,
+            text=True,
+            shell=False  # More secure
+        )
+        if result.returncode != 0:
+            logging.error(f"Error executing command: {' '.join(command_list)}")
+            logging.error(result.stderr)
+        else:
+            logging.info(result.stdout)
+        return result
+    except Exception as e:
+        logging.error(f"Failed to execute command: {e}")
+        raise
 
 def execute_rgw_commands(env_path, csv_path, export_repository):
-    Path(export_repository).mkdir(parents=True, exist_ok=True)
+    export_path = Path(export_repository)
+    export_path.mkdir(parents=True, exist_ok=True)
 
-    env_dir = os.path.dirname(env_path)
-    command_prefix = f"cd {env_dir} && $VECTORCAST_DIR/clicast -lc"
+    env_dir = Path(env_path).parent
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
+    clicast = str(Path(vectorcast_dir) / 'clicast')
+    if os.name == 'nt' and not clicast.endswith('.exe'):
+        clicast += '.exe'
+
+    # Convert paths to absolute and ensure proper formatting
+    abs_export_path = str(export_path.resolve())
+    abs_csv_path = str(Path(csv_path).resolve())
 
     rgw_prep_commands = [
-        f"{command_prefix} option VCAST_REPOSITORY {os.path.abspath(export_repository)}",
-        f"{command_prefix} RGw INitialize",
-        f"{command_prefix} Rgw Set Gateway CSV",
-        f"{command_prefix} RGw Configure Set CSV csv_path {os.path.abspath(csv_path)}",
-        f"{command_prefix} RGw Configure Set CSV use_attribute_filter 0",
-        f"{command_prefix} RGw Configure Set CSV filter_attribute",
-        f"{command_prefix} RGw Configure Set CSV filter_attribute_value",
-        f"{command_prefix} RGw Configure Set CSV id_attribute ID",
-        f"{command_prefix} RGw Configure Set CSV key_attribute Key",
-        f"{command_prefix} RGw Configure Set CSV title_attribute Title",
-        f"{command_prefix} RGw Configure Set CSV description_attribute Description",
-        f"{command_prefix} RGw Import",
+        [clicast, '-lc', 'option', 'VCAST_REPOSITORY', abs_export_path],
+        [clicast, '-lc', 'RGw', 'INitialize'],
+        [clicast, '-lc', 'Rgw', 'Set', 'Gateway', 'CSV'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'csv_path', abs_csv_path],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'use_attribute_filter', '0'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute_value'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'id_attribute', 'ID'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'key_attribute', 'Key'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'title_attribute', 'Title'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'description_attribute', 'Description'],
+        [clicast, '-lc', 'RGw', 'Import'],
     ]
 
-    for rgw_prep_command in rgw_prep_commands:
-        execute_command(rgw_prep_command)
+    # Change working directory before executing commands
+    original_dir = os.getcwd()
+    try:
+        os.chdir(str(env_dir))
+        for command in rgw_prep_commands:
+            execute_command(command)
+    finally:
+        os.chdir(original_dir)
 
-async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False):
+def prompt_user_for_info(key):
+    if key == 'OPENAI_API_KEY':
+        return input("Please enter your OpenAI API key: ")
+    elif key == 'OPENAI_GENERATION_DEPLOYMENT':
+        return input("Please enter the OpenAI deployment for generation: ")
+    elif key == 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT':
+        return input("Please enter the OpenAI deployment for advanced generation: ")
+    elif key == 'OPENAI_API_BASE':
+        return input("Please enter the OpenAI API base URL: ")
+
+async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False, extended_reasoning=False):
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level)
@@ -107,7 +142,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     functions = environment.testable_functions
 
-    generator = RequirementsGenerator(environment)
+    generator = RequirementsGenerator(environment, extended_reasoning=extended_reasoning)
 
     context_builder = VcastContextBuilder(environment)
 
@@ -168,15 +203,20 @@ def cli():
     parser.add_argument("--export-html", help="Optional path to the output HTML file for pretty-printed requirements.")
     parser.add_argument("--export-repository", help="Path to the VCAST_REPOSITORY for registering requirements.")
     parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
+    parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
+    parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning for test generation.')
 
     args = parser.parse_args()
+
+    ensure_env(['OPENAI_API_KEY', 'OPENAI_API_BASE', 'OPENAI_GENERATION_DEPLOYMENT', 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT'], fallback=prompt_user_for_info, force_fallback=args.overwrite_env)
 
     asyncio.run(main(
         args.env_path,
         args.export_csv,
         args.export_html,
         args.export_repository,
-        json_events=args.json_events
+        json_events=args.json_events,
+        extended_reasoning=args.extended_reasoning
     ))
 
 if __name__ == "__main__":

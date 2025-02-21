@@ -505,9 +505,9 @@ Notes:
             }
         ]
 
-        with open("input_messages.txt", "w") as f:
-            for message in messages:
-                f.write(f"{message['role']}: {message['content']}\n\n")
+        #with open("input_messages.txt", "w") as f:
+        #    for message in messages:
+        #        f.write(f"{message['role']}: {message['content']}\n\n")
 
         # Use provided schema instead of creating a new one
         try:
@@ -580,9 +580,9 @@ Tip:
                     }
                 ]
 
-                with open(f"fix_messages_{requirement_id}.txt", "w") as f:
-                    for message in fix_messages:
-                        f.write(f"{message['role']}: {message['content']}\n\n")
+                #with open(f"fix_messages_{requirement_id}.txt", "w") as f:
+                #    for message in fix_messages:
+                #        f.write(f"{message['role']}: {message['content']}\n\n")
                 
                 # Call the model to get the fixed test case
                 test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)

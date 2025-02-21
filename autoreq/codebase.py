@@ -8,6 +8,8 @@ import tree_sitter_cpp as ts_cpp
 from tree_sitter import Parser, Language
 from copy import deepcopy
 
+BLACKLISTED_DIRS = ['.ccls-cache']
+
 class Codebase:
     # All LSP symbol kinds that we want to index
     INDEXABLE_KINDS = {
@@ -37,7 +39,10 @@ class Codebase:
     
     def __init__(self, source_dirs: List[str]):
         # Initialize tree-sitter parser
-        self.ts_parser = Parser(Language(ts_cpp.language()))
+        self.ts_parser = Parser()
+        CPP_LANGUAGE = Language(ts_cpp.language(), 'cpp')
+        self.ts_parser.set_language(CPP_LANGUAGE)
+        
         
         # Convert all source directories to absolute paths
         self.source_dirs = [self._make_absolute(d) for d in source_dirs]
@@ -46,7 +51,7 @@ class Codebase:
         common_prefix = self._find_common_prefix(self.source_dirs)
         common_prefix_dir = common_prefix if os.path.isdir(common_prefix) else os.path.dirname(common_prefix)
         
-        self.config = MultilspyConfig.from_dict({'code_language': 'cpp'})
+        self.config = MultilspyConfig.from_dict({'code_language': 'c'}) # Uses clangd for C/C++. code_language cpp chooses ccls instead.
         self.logger = MultilspyLogger()
         self.lsp = SyncLanguageServer.create(
             self.config, 
@@ -58,15 +63,24 @@ class Codebase:
         self._definition_index: Dict[str, List[Dict]] = {}
         self._build_definition_index()
 
+    def _is_blacklisted(self, filepath: str) -> bool:
+        """Check if the filepath contains any blacklisted directory"""
+        path = Path(filepath)
+        return any(black_dir in path.parts for black_dir in BLACKLISTED_DIRS)
+
     def _build_definition_index(self):
         """Build an index mapping symbol names to their definitions"""
         with self.lsp.start_server():
             for source_dir in self.source_dirs:
                 path = Path(source_dir)
                 if path.is_file():
-                    files = [path]
+                    files = [path] if not self._is_blacklisted(str(path)) else []
                 else:
-                    files = list(path.rglob('*.cpp')) + list(path.rglob('*.c'))
+                    files = []
+                    for pattern in ['*.cpp', '*.c']:
+                        for file in path.rglob(pattern):
+                            if not self._is_blacklisted(str(file)):
+                                files.append(file)
                 
                 for file in files:
                     abs_file = self._make_absolute(str(file))
@@ -97,6 +111,11 @@ class Codebase:
                                 'end_line': end_line,
                                 'definition': definition_text
                             })
+
+        # Now reverse the order of the definitions to make sure that the most recent definition is used
+        # TODO: Implement a better way to deal with multiple definitions
+        for name, definitions in self._definition_index.items():
+            self._definition_index[name] = list(reversed(definitions))
 
     def _has_function_body(self, definition_text: str) -> bool:
         """Check if a function definition contains a body (implementation)"""
@@ -145,7 +164,7 @@ class Codebase:
         functions = [
             def_info for defs in self._definition_index.values()
             for def_info in defs
-            if def_info['kind'] in self.FUNCTION_KINDS and def_info['file'] == abs_path
+            if def_info['kind'] in self.FUNCTION_KINDS and Path(def_info['file']) == Path(abs_path)
         ]
         
         if only_with_body:
@@ -274,7 +293,8 @@ class Codebase:
                 target = definitions[0]
                 filepath = self._make_absolute(target['file'])
         else:
-            target = next((d for d in definitions if self._make_absolute(d['file']) == filepath), None)
+            abs_filepath = self._make_absolute(filepath)
+            target = next((d for d in definitions if Path(self._make_absolute(d['file'])) == Path(abs_filepath)), None)
                 
         if not target:
             return {} if return_dict else []

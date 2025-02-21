@@ -4,12 +4,12 @@ from aiolimiter import AsyncLimiter
 from openai import AsyncAzureOpenAI
 from typing import List, Dict, Any
 from dotenv import load_dotenv
-from structured_logprobs import add_logprobs
 import openai
 
 load_dotenv()
 
 RATE_LIMIT = AsyncLimiter(30, 60)
+
 
 class LLMClient:
     def __init__(self):
@@ -21,7 +21,7 @@ class LLMClient:
         )
         self.reasoning_client = AsyncAzureOpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
-            api_version="2024-08-01-preview",
+            api_version="2024-12-01-preview",
             azure_endpoint=os.getenv("OPENAI_API_BASE"),
             azure_deployment=os.getenv("OPENAI_ADVANCED_GENERATION_DEPLOYMENT")
         )
@@ -31,72 +31,44 @@ class LLMClient:
         }
 
     @backoff.on_exception(backoff.expo, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError), max_time=120)
-    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, return_logprobs=False, **kwargs):
-        with open("last_messages.txt", "w") as f:
-            for message in messages:
-                f.write(f"{message['role']}: {message['content']}\n")
+    async def call_model(self, messages: List[Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, **kwargs):
+        #with open("last_messages.txt", "w") as f:
+        #   for message in messages:
+        #       f.write(f"{message['role']}: {message['content']}\n")
             
         async with RATE_LIMIT:
-            model = "gpt-4o" if extended_reasoning else "o1-mini"
-
-            if extended_reasoning:
-                messages = [m for m in messages if m["role"] != "system"]
+            model = "gpt-4o" if not extended_reasoning else "o3-mini"
 
             if not extended_reasoning:
-                try:
-                    completion = await self.client.beta.chat.completions.parse(
-                        model=model,
-                        messages=messages,
-                        response_format=schema,
-                        temperature=temperature,
-                        seed=seed,
-                        max_completion_tokens=max_tokens,
-                        logprobs=True,
-                        **kwargs
-                    )
-                except openai.LengthFinishReasonError as e:
-                    with open("length_error.txt", "w") as f:
-                        f.write(e.completion.model_dump_json(indent=2))
-                    print("Length error")
+                completion = await self.client.beta.chat.completions.parse(
+                    model=model,
+                    messages=messages,
+                    response_format=schema,
+                    temperature=temperature,
+                    seed=seed,
+                    max_completion_tokens=max_tokens,
+                    **kwargs
+                )
 
                 # Update token usage for the generation model
                 self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
                 self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
             else:
-                raw_completion = await self.reasoning_client.chat.completions.create(
+                completion = await self.reasoning_client.beta.chat.completions.parse(
                     model=model,
                     messages=messages,
-                    max_completion_tokens=max_tokens
-                )
-                # Update token usage for the reasoning model
-                self.token_usage['reasoning']['input_tokens'] += raw_completion.usage.prompt_tokens
-                self.token_usage['reasoning']['output_tokens'] += raw_completion.usage.completion_tokens
-
-                completion = await self.client.beta.chat.completions.parse(
-                    model="gpt-4o",
-                    messages=messages + [
-                        {"role": "assistant", "content": raw_completion.choices[0].message.content},
-                        {"role": "user", "content": "Please convert this into JSON."}
-                    ],
                     response_format=schema,
-                    temperature=temperature,
-                    max_completion_tokens=max_tokens,
-                    logprobs=True
+                    seed=seed,
+                    **kwargs
                 )
 
-                # Update token usage for parsing step (considered as generation model)
-                self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
-                self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
+                self.token_usage['reasoning']['input_tokens'] += completion.usage.prompt_tokens
+                self.token_usage['reasoning']['output_tokens'] += completion.usage.completion_tokens
 
             result = completion.choices[0].message.parsed
-            logprobs = add_logprobs(completion).log_probs[0]
 
-            if return_raw_completion and return_logprobs:
-                return result, completion, logprobs
-            elif return_raw_completion:
+            if return_raw_completion:
                 return result, completion
-            elif return_logprobs:
-                return result, logprobs
             else:
                 return result
 
@@ -113,8 +85,8 @@ class LLMClient:
         # Pricing in Dollar ($)
         generation_input_cost = (generation_input_tokens / 1000) * 0.00275
         generation_output_cost = (generation_output_tokens / 1000) * 0.011
-        reasoning_input_cost = (reasoning_input_tokens / 1000) * 0.003  # Assuming different pricing
-        reasoning_output_cost = (reasoning_output_tokens / 1000) * 0.012  # Adjust as per actual pricing
+        reasoning_input_cost = (reasoning_input_tokens / 1000) * 0.0011  # Assuming different pricing
+        reasoning_output_cost = (reasoning_output_tokens / 1000) * 0.0044  # Adjust as per actual pricing
 
         total_cost = generation_input_cost + generation_output_cost + reasoning_input_cost + reasoning_output_cost
         return {
