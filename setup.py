@@ -1,18 +1,7 @@
+import sys
 from setuptools import setup, find_packages
 
-setup( 
-  name ='autoreq', 
-  version='0.0.1',
-  packages = find_packages(), 
-  entry_points ={ 
-    'console_scripts': [ 
-      'code2reqs = autoreq.code2reqs:cli',
-      'reqs2tests = autoreq.reqs2tests:cli',
-      'reqs2tests_eval = autoreq.evaluate:cli',
-      'manage_env = autoreq.manage_env:cli'
-    ] 
-  }, 
-  install_requires = [
+base_requirements = [
     'openai>=1.54.0',
     'pydantic>=2.9.2',
     'python-dotenv==1.0.0',
@@ -26,7 +15,23 @@ setup(
     'requests==2.32.3',
     'cryptography==44.0.1',
     'appdirs==1.4.4',
-    'truststore==0.10.1'
-  ],
-  include_package_data=True
+]
+
+if sys.version_info >= (3, 10):
+    base_requirements.append('truststore==0.10.1')
+
+setup( 
+    name='autoreq', 
+    version='0.0.1',
+    packages=find_packages(), 
+    entry_points={ 
+        'console_scripts': [ 
+            'code2reqs = autoreq.code2reqs:cli',
+            'reqs2tests = autoreq.reqs2tests:cli',
+            'reqs2tests_eval = autoreq.evaluate:cli',
+            'manage_env = autoreq.manage_env:cli'
+        ] 
+    }, 
+    install_requires=base_requirements,
+    include_package_data=True
 )
