@@ -261,7 +261,7 @@
           "vectorcastTestExplorer.useDataServer": {
             "type": "boolean",
             "order": 2,
-            "default": false,
+            "default": true,
             "description": "Provides faster interaction with VectorCAST environments"
           },
           "vectorcastTestExplorer.unitTestLocation": {
