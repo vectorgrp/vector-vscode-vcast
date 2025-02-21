@@ -494,12 +494,14 @@ export async function updateProjectData(enviroPath: string) {
   // Only update if the current env is also embedden in a Project
   if (envIsEmbeddedInProject(enviroPath)) {
     const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+    const enviroName = path.basename(enviroPath);
     const projectFilePath: string = enviroData.projectPath;
     const projectName: string = path.basename(projectFilePath);
     const projectLocation: string = path.dirname(projectFilePath);
     const manageArgs: string[] = [
       `-p${projectName}`,
       "--apply-changes",
+      `-e${enviroName}`,
       "--force",
     ];
 
