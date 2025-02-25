@@ -61,6 +61,9 @@ import {
   vcastUnbuiltEnviroList,
   globalProjectWebviewComboboxItems,
   setGlobalProjectIsOpenedChecker,
+  setGlobalCompilerAndTestsuites,
+  vcastTestItem,
+  globalCompilersAndTestsuites,
 } from "./testPane";
 
 import {
@@ -596,6 +599,39 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(rebuildEnviro);
 
+  // Command: vectorcastTestExplorer.addGroupToTestsuite  ////////////////////////////////////////////////////////
+  let addGroupToTestsuite = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addGroupToTestsuite",
+    (node: any) => {
+      // this returns the full path to the environment directory
+      vectorMessage(`Adding ${node.id}`);
+    }
+  );
+  context.subscriptions.push(addGroupToTestsuite);
+
+  // let addTestsuiteToCompile = vscode.commands.registerCommand('vectorcastTestExplorer.addTestsuiteToCompiler', async (node: any) => {
+  //   // Assume getDynamicGroupList() returns a Promise<string[]>
+  //   setGlobalCompilerAndTestsuites
+  //   const testsuiteList = globalCompilersAndTestsuites.testsuites;
+  //   const selectedTestsuite = await vscode.window.showQuickPick(testsuiteList, {
+  //     placeHolder: "Select a testsuite to add"
+  //   });
+  //   if (selectedTestsuite) {
+  //     // Process the selected group for the given testsuite node.
+  //     // For example, add the group to the testsuite.
+  //   }
+  // });
+  // context.subscriptions.push(addTestsuiteToCompile);
+
+  // Command: vectorcastTestExplorer.addTestsuiteToCompiler  ////////////////////////////////////////////////////////
+  let addTestsuiteToCompiler = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addTestsuiteToCompiler",
+    (node: any) => {
+      vectorMessage(`Adding ${node.id}`);
+    }
+  );
+  context.subscriptions.push(addTestsuiteToCompiler);
+
   // Command: vectorcastTestExplorer.addEnviroToProject  ////////////////////////////////////////////////////////
 
   let addEnviroToProject = vscode.commands.registerCommand(
@@ -752,9 +788,9 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.buildProjectEnviro",
     (enviroNode: any) => {
       // displayName is the what will be passed as the --level arg value
-      const displayName = enviroNode.label;
       const enviroPath = enviroNode.id.split("vcast:")[1];
       const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      const displayName = enviroData.displayName;
       console.log("Building project environment: " + displayName);
 
       buildProjectEnvironment(enviroData.projectPath, displayName, enviroPath);
@@ -836,6 +872,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     (e) => {
       refreshAllExtensionData();
       setGlobalProjectIsOpenedChecker();
+      setGlobalCompilerAndTestsuites();
     },
     null,
     context.subscriptions

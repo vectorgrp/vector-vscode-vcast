@@ -13,6 +13,7 @@ import {
 import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 import {
+  environmentDataCache,
   environmentNodeDataType,
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
@@ -500,14 +501,14 @@ export async function updateProjectData(enviroPath: string) {
     const projectLocation: string = path.dirname(projectFilePath);
     const manageArgs: string[] = [
       `-p${projectName}`,
+      `--level=${enviroData.displayName}`,
       "--apply-changes",
-      `-e${enviroName}`,
       "--force",
     ];
 
     openMessagePane();
     const progressMessage = "Updating project data ...";
-    executeWithRealTimeEchoWithProgress(
+    await executeWithRealTimeEchoWithProgress(
       manageCommandToUse,
       manageArgs,
       projectLocation,
