@@ -302,40 +302,49 @@ export function executeWithRealTimeEchoWithProgressSequential(
   argLists: string[][],
   progressMessages: string[],
   CWD: string,
-  callback?: any,
+  callback?: (enviroPath: string, exitCode: number) => void,
   enviroPath?: string[]
 ) {
   return vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      cancellable: false,
+      cancellable: true,
+      title: "Executing command(s)...",
     },
-    async (progress) => {
+    async (progress, token) => {
       let enviroPathIndex = 0;
       // Track total progress used
       let totalProgress = 0;
 
-      // We spawn for each env an own process and wait for it to finish
-      // unit we continue with the next one
+      // Loop over each argument list
       for (const [index, argList] of argLists.entries()) {
-        // Reset per iteration
+        // If cancellation has been requested, break out of the loop.
+        if (token.isCancellationRequested) {
+          vectorMessage(
+            "Operation cancelled by user. Exiting remaining tasks."
+          );
+          break;
+        }
+
+        // Reset per iteration progress
         let progressValue = 0;
         enviroPathIndex = index;
         const message = `${progressMessages[index]} [ ${index + 1} / ${argLists.length} ] ...`;
 
-        // **Reset Progress**: Subtract total progress from 100
+        // Reset progress if needed.
         if (totalProgress > 0) {
           progress.report({ increment: -totalProgress, message });
           totalProgress = 0;
         }
 
         await new Promise<void>((resolve) => {
-          let processHandle = spawn(command, argList, { cwd: CWD });
+          // Spawn the process for the current argument list.
+          const processHandle = spawn(command, argList, { cwd: CWD });
           vectorMessage("-".repeat(100));
           vectorMessage(`Executing: ${command} ${argList.join(" ")}`);
           let messageFragment: string = "";
 
-          // Just increment the progress bar every 3 seconds. Gives the user a better feeling of progress.
+          // Increment the progress bar every 3 seconds.
           const progressInterval = setInterval(() => {
             if (progressValue < 80) {
               progressValue += 5;
@@ -344,9 +353,17 @@ export function executeWithRealTimeEchoWithProgressSequential(
             }
           }, 3000);
 
-          processHandle.stdout.on("data", function (data: any) {
+          // Listen for cancellation and kill the process if requested.
+          const cancellationSubscription = token.onCancellationRequested(() => {
+            vectorMessage(
+              "Cancellation requested. Killing the current process..."
+            );
+            processHandle.kill();
+          });
+
+          processHandle.stdout.on("data", (data: any) => {
             const rawString = data.toString();
-            const lineArray = rawString.split(/[\n\r?]/);
+            const lineArray = rawString.split(/[\n\r]+/);
 
             if (messageFragment.length > 0) {
               lineArray[0] = messageFragment + lineArray[0];
@@ -354,10 +371,9 @@ export function executeWithRealTimeEchoWithProgressSequential(
             }
 
             if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
-              messageFragment = lineArray.pop();
+              messageFragment = lineArray.pop() || "";
             }
 
-            // We basically print the output line by line
             for (const line of lineArray) {
               if (line.length > 0) {
                 vectorMessage(line.replace(/\n/g, ""));
@@ -365,20 +381,21 @@ export function executeWithRealTimeEchoWithProgressSequential(
             }
           });
 
-          processHandle.on("exit", function (code: any) {
+          processHandle.on("exit", (code: any) => {
             clearInterval(progressInterval);
+            cancellationSubscription.dispose();
+
             if (callback && enviroPath) {
               let currentEnviroPath = enviroPath[enviroPathIndex];
               callback(currentEnviroPath, code);
             }
 
-            // Ensure it reaches exactly 100% before finishing
-            let finalIncrement = 100 - progressValue;
+            // Ensure progress reaches 100% for this iteration.
+            const finalIncrement = 100 - progressValue;
             progress.report({
               increment: finalIncrement,
               message: `Finished: ${message}`,
             });
-            // Track total progress used
             totalProgress += finalIncrement;
 
             vectorMessage(`Process finished with exit code: ${code}`);
@@ -387,6 +404,7 @@ export function executeWithRealTimeEchoWithProgressSequential(
 
           processHandle.on("error", (error) => {
             clearInterval(progressInterval);
+            cancellationSubscription.dispose();
             vectorMessage(`Error occurred: ${error.message}`);
             resolve();
           });
