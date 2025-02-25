@@ -516,7 +516,7 @@ let vcastHasCodedTestsList: string[] = [];
  * It uses only the last part of the displayName as the label.
  */
 export async function updateTestsForEnvironment(
-  parentNode: vcastTestItem,
+  parentNode: vcastTestItem | null,
   enviroData: environmentNodeDataType
 ) {
   const jsonData = await getDataForEnvironment(enviroData.buildDirectory);
@@ -556,9 +556,15 @@ export async function updateTestsForEnvironment(
         vcastEnviroList
       );
     }
-    // Remove from root (if it exists) and add to its proper parent.
-    globalController.items.delete(enviroNode.id);
-    parentNode.children.add(enviroNode);
+
+    if (parentNode) {
+      // Remove from root (if it exists) and add to the parent’s children.
+      globalController.items.delete(enviroNode.id);
+      parentNode.children.add(enviroNode);
+    } else {
+      // For free environments, add as a top-level node.
+      globalController.items.add(enviroNode);
+    }
   } else {
     vectorMessage(`Ignoring environment: ${enviroData.displayName}\n`);
   }
@@ -573,20 +579,24 @@ function pushUnbuiltEnviroListToContextMenu() {
 }
 
 function addUnbuiltEnviroToTestPane(
-  parentNode: vcastTestItem,
+  parentNode: vcastTestItem | null,
   enviroData: environmentNodeDataType
 ) {
   const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
-
-  // Extract only the environment name (last segment) from the full displayName.
+  // Use only the last segment for the label.
   const envName = path.basename(enviroData.displayName);
-
   const enviroNode: vcastTestItem = globalController.createTestItem(
     enviroNodeID,
     envName
   );
   enviroNode.nodeKind = nodeKind.environment;
-  parentNode.children.add(enviroNode);
+
+  if (parentNode) {
+    parentNode.children.add(enviroNode);
+  } else {
+    // Add directly to the top-level items.
+    globalController.items.add(enviroNode);
+  }
 
   saveEnviroNodeData(enviroData.buildDirectory, enviroData);
 
@@ -1391,24 +1401,24 @@ let globalProjectMap: Map<string, vcastTestItem> = new Map();
  */
 function getParentNodeForEnvironment(
   enviroData: environmentNodeDataType
-): vcastTestItem {
+): vcastTestItem | null {
   const pathParts = enviroData.displayName.split("/");
 
   if (enviroData.projectPath && enviroData.projectPath.length > 0) {
-    // Get or create the project node.
+    // Managed project branch.
     let projectNode = globalProjectMap.get(enviroData.projectPath);
     if (!projectNode) {
       const projectDisplayName = path.basename(enviroData.projectPath);
       projectNode = globalController.createTestItem(
         enviroData.projectPath,
         projectDisplayName
-      ) as vcastTestItem; // type assertion to vcastTestItem
+      ) as vcastTestItem;
       projectNode.nodeKind = nodeKind.project;
       globalController.items.add(projectNode);
       globalProjectMap.set(enviroData.projectPath, projectNode);
     }
     let currentParent = projectNode;
-    // Iterate through all segments except the last (which is the environment name).
+    // Create the hierarchy: compiler -> testsuite (all segments except last).
     for (let i = 0; i < pathParts.length - 1; i++) {
       const part = pathParts[i];
       const childId = `${currentParent.id}/${part}`;
@@ -1418,7 +1428,6 @@ function getParentNodeForEnvironment(
           childId,
           part
         ) as vcastTestItem;
-        // Set the node kind based on the hierarchy level.
         if (i === 0) {
           childNode.nodeKind = nodeKind.compiler;
         } else if (i === 1) {
@@ -1432,15 +1441,8 @@ function getParentNodeForEnvironment(
     }
     return currentParent;
   } else {
-    // For environments that are not part of a managed project,
-    // create and return a top-level node.
-    const orphanNode = globalController.createTestItem(
-      enviroData.displayName,
-      enviroData.displayName
-    ) as vcastTestItem;
-    orphanNode.nodeKind = nodeKind.environment;
-    globalController.items.add(orphanNode);
-    return orphanNode;
+    // Free environment: do not create a wrapping node.
+    return null;
   }
 }
 
