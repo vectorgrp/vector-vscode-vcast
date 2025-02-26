@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 // needed for parsing json files with comments
 import * as jsonc from "jsonc-parser";
 
-import { loadScriptCallBack } from "./callbacks";
+import { deleteEnvironmentCallback, loadScriptCallBack } from "./callbacks";
 
 import { vectorMessage } from "./messagePane";
 
@@ -32,8 +32,17 @@ import {
   vUnitIncludeSuffix,
 } from "./vcastInstallation";
 
-import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
+import {
+  clientRequestType,
+  closeConnection,
+  globalEnviroDataServerActive,
+  vcastCommandType,
+} from "../src-common/vcastServer";
 import { globalProjectDataCache } from "./testPane";
+import {
+  executeWithRealTimeEcho,
+  executeWithRealTimeEchoWithProgress,
+} from "./vcastCommandRunner";
 
 const fs = require("fs");
 const os = require("os");
@@ -528,6 +537,67 @@ export async function openProjectFromEnviroPath(enviroPath: string) {
         const { rootPath, vcmName } = result;
         await openProjectInVcast(rootPath, vcmName);
       }
+    }
+  }
+}
+
+/**
+ * Checks if a Environment is build in mutle Testsuites
+ * @param enviroName Name of the Environment
+ * @returns True, if the Environment is build in multiple Testsuites, False otherwise
+ */
+export async function checkIfEnvironmentIsBuildMultipleTimes(
+  enviroName: string
+) {
+  let count = 0;
+  for (let envData of environmentDataCache.values()) {
+    const currentEnviroName = path.basename(envData.buildDirectory);
+    if (enviroName === currentEnviroName && envData.isBuilt === true) {
+      count++;
+    }
+  }
+  return count > 1;
+}
+
+/**
+ * Deletes all build folders for an environment within a project except for the one
+ * corresponding to the current Testsuite. When an environment is built in multiple
+ * Testsuites, synchronization issues can occur during project updates. This function
+ * removes the other build folders so that the project update can proceed with
+ * only the current environment build.
+ *
+ * @param enviroPath - The file system path of the environment that is being updated.
+ */
+export async function deleteOtherBuildFolders(enviroPath: string) {
+  const givenEnviroName = path.basename(enviroPath);
+  for (let envData of environmentDataCache.values()) {
+    const currentEnviroPath = envData.buildDirectory;
+    const currentEnviroName = path.basename(currentEnviroPath);
+    if (
+      givenEnviroName === currentEnviroName &&
+      currentEnviroPath !== enviroPath &&
+      envData.isBuilt === true
+    ) {
+      const enclosingDirectory = path.dirname(currentEnviroPath);
+      const enviroNodeID = path.join("vcast:", currentEnviroPath);
+
+      // if we are in server mode, close any existing connection to the environment
+      if (globalEnviroDataServerActive)
+        await closeConnection(currentEnviroPath);
+
+      // this returns the environment directory name without any nesting
+      let vcastArgs: string[] = ["-e" + currentEnviroName];
+      const progressString = `Deleting ${currentEnviroName}`;
+      vcastArgs.push("enviro");
+      vcastArgs.push("delete");
+      await executeWithRealTimeEchoWithProgress(
+        clicastCommandToUse,
+        vcastArgs,
+        enclosingDirectory,
+        progressString,
+        deleteEnvironmentCallback,
+        enviroNodeID
+      );
     }
   }
 }

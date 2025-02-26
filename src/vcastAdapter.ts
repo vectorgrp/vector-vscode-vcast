@@ -45,6 +45,8 @@ import {
 } from "./vcastInstallation";
 
 import {
+  checkIfEnvironmentIsBuildMultipleTimes,
+  deleteOtherBuildFolders,
   envIsEmbeddedInProject,
   getClientRequestObject,
   getRebuildOptionsString,
@@ -494,26 +496,66 @@ export async function updateAllOpenedProjects() {
 export async function updateProjectData(enviroPath: string) {
   // Only update if the current env is also embedden in a Project
   if (envIsEmbeddedInProject(enviroPath)) {
-    const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
     const enviroName = path.basename(enviroPath);
-    const projectFilePath: string = enviroData.projectPath;
-    const projectName: string = path.basename(projectFilePath);
-    const projectLocation: string = path.dirname(projectFilePath);
-    const manageArgs: string[] = [
-      `-p${projectName}`,
-      `--level=${enviroData.displayName}`,
-      "--apply-changes",
-      "--force",
-    ];
+    const blockUpdate =
+      await checkIfEnvironmentIsBuildMultipleTimes(enviroName);
+    if (blockUpdate) {
+      // Show an information message with two options.
+      const selection = await vscode.window.showInformationMessage(
+        `Updating the project data is currently blocked because ${enviroName} is built in multiple testsuites. You can delete the current build folders of the other builds now and the project will be updated.`,
+        "Cancel",
+        "Delete other Builds"
+      );
 
-    openMessagePane();
-    const progressMessage = "Updating project data ...";
-    await executeWithRealTimeEchoWithProgress(
-      manageCommandToUse,
-      manageArgs,
-      projectLocation,
-      progressMessage
-    );
+      if (selection === "Delete other Builds") {
+        // Delete the build folders of the other builds.
+        await deleteOtherBuildFolders(enviroPath);
+        // After deletion, update the project data.
+        const enviroData: environmentNodeDataType =
+          getEnviroNodeData(enviroPath);
+        const projectFilePath: string = enviroData.projectPath;
+        const projectName: string = path.basename(projectFilePath);
+        const projectLocation: string = path.dirname(projectFilePath);
+        const manageArgs: string[] = [
+          `-p${projectName}`,
+          `--level=${enviroData.displayName}`,
+          "--apply-changes",
+          "--force",
+        ];
+
+        openMessagePane();
+        const progressMessage = "Updating project data";
+        await executeWithRealTimeEchoWithProgress(
+          manageCommandToUse,
+          manageArgs,
+          projectLocation,
+          progressMessage
+        );
+      } else {
+        // User chose Cancel; do nothing.
+        return;
+      }
+    } else {
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      const projectFilePath: string = enviroData.projectPath;
+      const projectName: string = path.basename(projectFilePath);
+      const projectLocation: string = path.dirname(projectFilePath);
+      const manageArgs: string[] = [
+        `-p${projectName}`,
+        `--level=${enviroData.displayName}`,
+        "--apply-changes",
+        "--force",
+      ];
+
+      openMessagePane();
+      const progressMessage = "Updating project data ...";
+      await executeWithRealTimeEchoWithProgress(
+        manageCommandToUse,
+        manageArgs,
+        projectLocation,
+        progressMessage
+      );
+    }
   }
 }
 
