@@ -29,6 +29,7 @@ import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 import {
   enviroListAsMapType,
   globalProjectDataCache,
+  refreshAllExtensionData,
   updateTestPane,
 } from "./testPane";
 
@@ -53,6 +54,7 @@ import {
   addEnvToGroup,
   addGroupToTestsuite,
   updateAllOpenedProjects,
+  updateProjectTree,
 } from "./vcastAdapter";
 
 import {

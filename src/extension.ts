@@ -646,20 +646,6 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(openProjectInVectorCAST);
 
-  // let addTestsuiteToCompile = vscode.commands.registerCommand('vectorcastTestExplorer.addTestsuiteToCompiler', async (node: any) => {
-  //   // Assume getDynamicGroupList() returns a Promise<string[]>
-  //   setGlobalCompilerAndTestsuites
-  //   const testsuiteList = globalCompilersAndTestsuites.testsuites;
-  //   const selectedTestsuite = await vscode.window.showQuickPick(testsuiteList, {
-  //     placeHolder: "Select a testsuite to add"
-  //   });
-  //   if (selectedTestsuite) {
-  //     // Process the selected group for the given testsuite node.
-  //     // For example, add the group to the testsuite.
-  //   }
-  // });
-  // context.subscriptions.push(addTestsuiteToCompile);
-
   // Command: vectorcastTestExplorer.addTestsuiteToCompiler  ////////////////////////////////////////////////////////
   let addTestsuiteToCompiler = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addTestsuiteToCompiler",
@@ -906,8 +892,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(selectDefaultConfigFile);
 
   vscode.workspace.onDidChangeWorkspaceFolders(
-    (e) => {
-      refreshAllExtensionData();
+    async (e) => {
+      await refreshAllExtensionData();
       setGlobalProjectIsOpenedChecker();
       setGlobalCompilerAndTestsuites();
     },
@@ -1003,7 +989,7 @@ async function installPreActivationEventHandlers(
         // for clicast and vpython path etc.
         if (await checkIfInstallationIsOK()) {
           await initializeServerState();
-          refreshAllExtensionData();
+          await refreshAllExtensionData();
         } else {
           // this will remove the status bar icon and shutdown the server
           // it needs to be in both sides of the if because we want it to run

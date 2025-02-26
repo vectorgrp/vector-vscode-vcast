@@ -332,6 +332,7 @@ interface projectEnvironmentType {
   isBuilt: boolean;
   rebuildNeeded: boolean;
   compiler: { name: string; testsuites: string[] };
+  group: string | undefined;
 }
 
 export type enviroListAsMapType = Map<string, projectEnvironmentType>;
@@ -420,6 +421,7 @@ export async function convertProjectDataToMap(
       isBuilt: rawData.isBuilt,
       rebuildNeeded: rawData.rebuildNeeded,
       compiler: rawData.compiler,
+      group: rawData.group,
     };
 
     const mapKey = forceLowerCaseDriveLetter(rawData.buildDirectory);
@@ -557,12 +559,29 @@ export async function updateTestsForEnvironment(
       );
     }
 
+    // Managed environments: if a group is defined, add the environment under a group node.
+    // Otherwise, add directly under the parent (which represents the testsuite).
     if (parentNode) {
-      // Remove from root (if it exists) and add to the parent’s children.
-      globalController.items.delete(enviroNode.id);
-      parentNode.children.add(enviroNode);
+      if (enviroData.group) {
+        const groupLabel = enviroData.group;
+        const groupNodeId = `${parentNode.id}/group/${groupLabel}`;
+        let groupNode = parentNode.children.get(groupNodeId) as vcastTestItem;
+        if (!groupNode) {
+          groupNode = globalController.createTestItem(
+            groupNodeId,
+            groupLabel
+          ) as vcastTestItem;
+          groupNode.nodeKind = nodeKind.group; // Ensure nodeKind.group is defined in your enum.
+          parentNode.children.add(groupNode);
+        }
+        groupNode.children.add(enviroNode);
+      } else {
+        // No group defined: add directly under the testsuite node.
+        globalController.items.delete(enviroNode.id);
+        parentNode.children.add(enviroNode);
+      }
     } else {
-      // For free environments, add as a top-level node.
+      // Free environments: always add as a top-level node.
       globalController.items.add(enviroNode);
     }
   } else {
@@ -577,13 +596,12 @@ function pushUnbuiltEnviroListToContextMenu() {
     vcastUnbuiltEnviroList
   );
 }
-
 function addUnbuiltEnviroToTestPane(
   parentNode: vcastTestItem | null,
   enviroData: environmentNodeDataType
 ) {
   const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
-  // Use only the last segment for the label.
+  // Extract only the last segment for the environment label.
   const envName = path.basename(enviroData.displayName);
   const enviroNode: vcastTestItem = globalController.createTestItem(
     enviroNodeID,
@@ -591,10 +609,26 @@ function addUnbuiltEnviroToTestPane(
   );
   enviroNode.nodeKind = nodeKind.environment;
 
+  // For managed environments, if a group is defined, create or reuse a group node.
   if (parentNode) {
-    parentNode.children.add(enviroNode);
+    if (enviroData.group) {
+      const groupLabel = enviroData.group;
+      const groupNodeId = `${parentNode.id}/${groupLabel}`;
+      let groupNode = parentNode.children.get(groupNodeId) as vcastTestItem;
+      if (!groupNode) {
+        groupNode = globalController.createTestItem(
+          groupNodeId,
+          groupLabel
+        ) as vcastTestItem;
+        groupNode.nodeKind = nodeKind.group;
+        parentNode.children.add(groupNode);
+      }
+      groupNode.children.add(enviroNode);
+    } else {
+      parentNode.children.add(enviroNode);
+    }
   } else {
-    // Add directly to the top-level items.
+    // For free environments, add directly to top-level.
     globalController.items.add(enviroNode);
   }
 
@@ -655,6 +689,7 @@ async function loadAllVCTests(
             isBuilt: enviroData.isBuilt,
             displayName: enviroData.displayName, // e.g. "GNU/BlackBox/ENV"
             workspaceRoot: workspaceRoot,
+            group: enviroData.group, // Push the group property if available
           });
         }
       }
@@ -669,6 +704,7 @@ async function loadAllVCTests(
           isBuilt: true,
           displayName: displayName,
           workspaceRoot: workspaceRoot,
+          // Note: free environments don't have a group.
         });
       }
     } // end for workspace folders
@@ -703,10 +739,10 @@ async function loadAllVCTests(
   } // end if workspace folders
 
   // Update coverage and decorators.
-  updateDisplayedCoverage();
-  updateTestDecorator();
   setGlobalProjectIsOpenedChecker();
   setGlobalCompilerAndTestsuites();
+  updateDisplayedCoverage();
+  updateTestDecorator();
 }
 
 export let pathToEnviroBeingDebugged: string =
@@ -1458,7 +1494,7 @@ export async function activateTestPane(context: vscode.ExtensionContext) {
 
   // Setup the refresh handler.
   globalController.refreshHandler = async () => {
-    refreshAllExtensionData();
+    await refreshAllExtensionData();
   };
 
   // Custom handler for loading tests.
@@ -1645,6 +1681,7 @@ export enum nodeKind {
   test,
   compiler,
   testsuite,
+  group,
 }
 export interface vcastTestItem extends vscode.TestItem {
   // this is a simple wrapper that allows us to add additional

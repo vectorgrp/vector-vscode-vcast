@@ -605,6 +605,8 @@ def getProjectData(api):
                 "name": enviroNode.compiler.name,
                 "testsuites": testsuites,
             }
+            if enviroNode.group:
+                enviroData["group"] = enviroNode.group.name
 
             for testsuite in enviroNode.compiler.testsuites:
                 testsuite_name_full = testsuite.string_id
