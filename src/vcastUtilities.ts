@@ -18,6 +18,7 @@ import {
 
 import {
   dumpTestScriptFile,
+  openProjectInVcast,
   runATGCommands,
   runBasisPathCommands,
 } from "./vcastAdapter";
@@ -497,4 +498,36 @@ export function checkIfAnyProjectsAreOpened() {
     }
   }
   return false;
+}
+
+/**
+ * Returns the Project file name and the Root path of the Project based
+ * on the full path of the Project File
+ * @param fullPath Full Path to the Project File
+ */
+export function getVcmRoot(fullPath: string) {
+  // Match the path up to and including the .vcm directory
+  const match = fullPath.match(/(.*\/)([^\/]+\.vcm)(?:\/.*)?$/);
+  if (match) {
+    const rootPath = match[1].replace(/\/$/, "");
+    const vcmName = match[2];
+    return { rootPath, vcmName };
+  }
+  return null;
+}
+
+/**
+ * Opens the Project based on the Environment path if the Environment is part of a Project
+ * @param enviroPath Path to the Environment
+ */
+export async function openProjectFromEnviroPath(enviroPath: string) {
+  for (let envData of environmentDataCache.values()) {
+    if (envData.buildDirectory === enviroPath) {
+      const result = getVcmRoot(envData.projectPath);
+      if (result) {
+        const { rootPath, vcmName } = result;
+        await openProjectInVcast(rootPath, vcmName);
+      }
+    }
+  }
 }

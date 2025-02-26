@@ -40,6 +40,7 @@ import {
 import { viewResultsReport } from "./reporting";
 
 import {
+  environmentDataCache,
   environmentNodeDataType,
   getEnviroNodeData,
   getEnviroPathFromID,
@@ -83,6 +84,7 @@ import {
   removeTestsuiteFromProject,
   importEnvToTestsuite,
   updateAllOpenedProjects,
+  openProjectInVcast,
 } from "./vcastAdapter";
 
 import {
@@ -114,7 +116,10 @@ import {
 
 import {
   addIncludePath,
+  envIsEmbeddedInProject,
   getEnviroNameFromFile,
+  getVcmRoot,
+  openProjectFromEnviroPath,
   openTestScript,
 } from "./vcastUtilities";
 
@@ -540,9 +545,15 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.openVCAST  ////////////////////////////////////////////////////////
   let openVCAST = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCAST",
-    (enviroNode: any) => {
+    async (enviroNode: any) => {
       vectorMessage("Starting VectorCAST ...");
-      openVcastFromEnviroNode(enviroNode.id, updateDataForEnvironment);
+      // If the Env is embedded in a project, we want to open the whole project
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      if (envIsEmbeddedInProject(enviroPath)) {
+        await openProjectFromEnviroPath(enviroPath);
+      } else {
+        openVcastFromEnviroNode(enviroNode.id, updateDataForEnvironment);
+      }
     }
   );
   context.subscriptions.push(openVCAST);
@@ -550,9 +561,15 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.openVCASTFromVce  ////////////////////////////////////////////////////////
   let openVCASTFromVce = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCASTFromVce",
-    (arg: any) => {
+    async (arg: any) => {
       vectorMessage("Starting VectorCAST ...");
-      openVcastFromVCEfile(arg.fsPath, updateDataForEnvironment);
+      const dotIndex = arg.fsPath.lastIndexOf(".");
+      const enviroPath = arg.fsPath.slice(0, dotIndex);
+      if (envIsEmbeddedInProject(enviroPath)) {
+        await openProjectFromEnviroPath(enviroPath);
+      } else {
+        openVcastFromVCEfile(arg.fsPath, updateDataForEnvironment);
+      }
     }
   );
   context.subscriptions.push(openVCASTFromVce);
@@ -608,6 +625,26 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(addGroupToTestsuite);
+
+  let openProjectInVectorCAST = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.openProjectInVectorCAST",
+    async (node: any) => {
+      // this returns the full path to the environment directory
+      vectorMessage(`Opening ${node.id}`);
+      const result = getVcmRoot(node.id);
+
+      // Check if the result is valid
+      if (result) {
+        const { rootPath, vcmName } = result;
+        vectorMessage(`Root Path: ${rootPath}`);
+        vectorMessage(`VCM Name: ${vcmName}`);
+        await openProjectInVcast(rootPath, vcmName);
+      } else {
+        vectorMessage(`Unable to open project ${node.id}`);
+      }
+    }
+  );
+  context.subscriptions.push(openProjectInVectorCAST);
 
   // let addTestsuiteToCompile = vscode.commands.registerCommand('vectorcastTestExplorer.addTestsuiteToCompiler', async (node: any) => {
   //   // Assume getDynamicGroupList() returns a Promise<string[]>

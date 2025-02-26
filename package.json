@@ -100,6 +100,11 @@
         "title": "Add Environment to Project"
       },
       {
+        "command": "vectorcastTestExplorer.openProjectInVectorCAST",
+        "category": "VectorCAST Test Explorer",
+        "title": "Open Project in VectorCAST"
+      },
+      {
         "command": "vectorcastTestExplorer.deleteEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Delete Environment"
@@ -374,6 +379,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.openProjectInVectorCAST",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.deleteEnviro",
           "when": "never"
         },
@@ -606,6 +615,11 @@
           "command": "vectorcastTestExplorer.addEnviroToProject",
           "group": "vcast@1",
           "when": "testId =~ /\\.vcm$/"
+        },
+        {
+          "command": "vectorcastTestExplorer.openProjectInVectorCAST",
+          "group": "vcast@1",
+          "when": "testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites"
         },
         {
           "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
