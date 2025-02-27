@@ -951,8 +951,9 @@ export async function openProjectInVcast(
     shell: true,
     windowsHide: true,
   });
-  vcast.on("exit", function (code: any) {
-    updateAllOpenedProjects();
+  vcast.on("exit", async function (code: any) {
+    await updateAllOpenedProjects();
+    await refreshAllExtensionData();
   });
 }
 

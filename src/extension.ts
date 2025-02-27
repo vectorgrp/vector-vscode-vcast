@@ -63,8 +63,6 @@ import {
   globalProjectWebviewComboboxItems,
   setGlobalProjectIsOpenedChecker,
   setGlobalCompilerAndTestsuites,
-  vcastTestItem,
-  globalCompilersAndTestsuites,
 } from "./testPane";
 
 import {

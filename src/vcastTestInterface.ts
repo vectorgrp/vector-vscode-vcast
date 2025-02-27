@@ -28,6 +28,7 @@ import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
 import {
   enviroListAsMapType,
+  globalGroupListInProject,
   globalProjectDataCache,
   refreshAllExtensionData,
   updateTestPane,
@@ -683,7 +684,9 @@ async function processFirstTestSuite(
   const group = parts.length > 2 ? parts[2] : undefined;
 
   if (group) {
-    await createGroupInProject(projectPath, group);
+    if (globalGroupListInProject.indexOf(testSuite) === -1) {
+      await createGroupInProject(projectPath, group);
+    }
   }
   await importEnvToTestsuite(projectPath, baseDisplayName, envFilePath, group);
 }
@@ -725,12 +728,14 @@ async function processAdditionalTestSuite(
   }
 
   if (group) {
-    await createGroupInProject(projectPath, group);
-    await addGroupToTestsuite(projectPath, baseDisplayName, group);
+    if (globalGroupListInProject.indexOf(testSuite) === -1) {
+      await createGroupInProject(projectPath, group);
+      await addGroupToTestsuite(projectPath, baseDisplayName, group);
+    }
     await addEnvToGroup(projectPath, group, envName);
+  } else {
+    await addEnvToTestsuite(projectPath, baseDisplayName, envName);
   }
-
-  await addEnvToTestsuite(projectPath, baseDisplayName, envName);
 }
 
 async function configureWorkspaceAndBuildEnviro(

@@ -356,6 +356,8 @@ export let globalCompilersAndTestsuites: {
   testsuites: [],
 };
 
+export let globalGroupListInProject: string[] = [];
+
 export function updateGlobalCompilersAndTestsuites() {
   const compilers = new Set<string>();
   const testsuites = new Set<string>();
@@ -691,6 +693,17 @@ async function loadAllVCTests(
             workspaceRoot: workspaceRoot,
             group: enviroData.group, // Push the group property if available
           });
+
+          // Push the Group to the global variable
+          if (enviroData.group) {
+            let groupDisplayName = path.join(
+              path.dirname(enviroData.displayName),
+              enviroData.group
+            );
+            if (globalGroupListInProject.indexOf(groupDisplayName) === -1) {
+              globalGroupListInProject.push(groupDisplayName);
+            }
+          }
         }
       }
 
