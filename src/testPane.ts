@@ -76,6 +76,7 @@ import {
   adjustScriptContentsBeforeLoad,
   checkIfAnyProjectsAreOpened,
   closeAnyOpenErrorFiles,
+  ensureTestsuiteNodes,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
   getWebveiwComboboxItems,
@@ -332,7 +333,6 @@ interface projectEnvironmentType {
   isBuilt: boolean;
   rebuildNeeded: boolean;
   compiler: { name: string; testsuites: string[] };
-  group: string | undefined;
 }
 
 export type enviroListAsMapType = Map<string, projectEnvironmentType>;
@@ -356,7 +356,7 @@ export let globalCompilersAndTestsuites: {
   testsuites: [],
 };
 
-export let globalGroupListInProject: string[] = [];
+export let globalTestsuiteList: { displayName: string }[] = [];
 
 export function updateGlobalCompilersAndTestsuites() {
   const compilers = new Set<string>();
@@ -383,6 +383,13 @@ export function updateGlobalCompilersAndTestsuites() {
   globalCompilersAndTestsuites = {
     compiler: Array.from(compilers),
     testsuites: Array.from(testsuites),
+  };
+}
+
+export function clearGlobalCompilersAndTestsuites() {
+  globalCompilersAndTestsuites = {
+    compiler: [],
+    testsuites: [],
   };
 }
 
@@ -423,7 +430,6 @@ export async function convertProjectDataToMap(
       isBuilt: rawData.isBuilt,
       rebuildNeeded: rawData.rebuildNeeded,
       compiler: rawData.compiler,
-      group: rawData.group,
     };
 
     const mapKey = forceLowerCaseDriveLetter(rawData.buildDirectory);
@@ -441,7 +447,11 @@ export async function buildProjectDataCache(baseDirectory: string) {
     // enviroList is a list of json objects with fields:
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
     // See python function vTestInterface.py:getProjectData()
-    const enviroList = await getDataForProject(projectFile);
+    const projectData = await getDataForProject(projectFile);
+    const enviroList = projectData.projectEnvData;
+
+    // THis includes all testsuite (also empty ones)
+    globalTestsuiteList = projectData.projectTestsuiteData;
 
     // convert the raw json data into a map for the cache
     const enviroListAsMap = await convertProjectDataToMap(enviroList);
@@ -561,29 +571,11 @@ export async function updateTestsForEnvironment(
       );
     }
 
-    // Managed environments: if a group is defined, add the environment under a group node.
-    // Otherwise, add directly under the parent (which represents the testsuite).
+    // Instead of grouping, add the environment directly.
     if (parentNode) {
-      if (enviroData.group) {
-        const groupLabel = enviroData.group;
-        const groupNodeId = `${parentNode.id}/group/${groupLabel}`;
-        let groupNode = parentNode.children.get(groupNodeId) as vcastTestItem;
-        if (!groupNode) {
-          groupNode = globalController.createTestItem(
-            groupNodeId,
-            groupLabel
-          ) as vcastTestItem;
-          groupNode.nodeKind = nodeKind.group; // Ensure nodeKind.group is defined in your enum.
-          parentNode.children.add(groupNode);
-        }
-        groupNode.children.add(enviroNode);
-      } else {
-        // No group defined: add directly under the testsuite node.
-        globalController.items.delete(enviroNode.id);
-        parentNode.children.add(enviroNode);
-      }
+      globalController.items.delete(enviroNode.id);
+      parentNode.children.add(enviroNode);
     } else {
-      // Free environments: always add as a top-level node.
       globalController.items.add(enviroNode);
     }
   } else {
@@ -611,26 +603,9 @@ function addUnbuiltEnviroToTestPane(
   );
   enviroNode.nodeKind = nodeKind.environment;
 
-  // For managed environments, if a group is defined, create or reuse a group node.
   if (parentNode) {
-    if (enviroData.group) {
-      const groupLabel = enviroData.group;
-      const groupNodeId = `${parentNode.id}/${groupLabel}`;
-      let groupNode = parentNode.children.get(groupNodeId) as vcastTestItem;
-      if (!groupNode) {
-        groupNode = globalController.createTestItem(
-          groupNodeId,
-          groupLabel
-        ) as vcastTestItem;
-        groupNode.nodeKind = nodeKind.group;
-        parentNode.children.add(groupNode);
-      }
-      groupNode.children.add(enviroNode);
-    } else {
-      parentNode.children.add(enviroNode);
-    }
+    parentNode.children.add(enviroNode);
   } else {
-    // For free environments, add directly to top-level.
     globalController.items.add(enviroNode);
   }
 
@@ -671,6 +646,7 @@ async function loadAllVCTests(
   vcastUnbuiltEnviroList = [];
   clearEnviroDataCache();
   clearTestNodeCache();
+  clearGlobalCompilersAndTestsuites();
 
   let cancelled: boolean = false;
   let environmentList: environmentNodeDataType[] = [];
@@ -691,19 +667,7 @@ async function loadAllVCTests(
             isBuilt: enviroData.isBuilt,
             displayName: enviroData.displayName, // e.g. "GNU/BlackBox/ENV"
             workspaceRoot: workspaceRoot,
-            group: enviroData.group, // Push the group property if available
           });
-
-          // Push the Group to the global variable
-          if (enviroData.group) {
-            let groupDisplayName = path.join(
-              path.dirname(enviroData.displayName),
-              enviroData.group
-            );
-            if (globalGroupListInProject.indexOf(groupDisplayName) === -1) {
-              globalGroupListInProject.push(groupDisplayName);
-            }
-          }
         }
       }
 
@@ -751,6 +715,8 @@ async function loadAllVCTests(
     }
   } // end if workspace folders
 
+  // In case we have empty testsuites, we won't find them in the Env data so we have to add them manually here
+  ensureTestsuiteNodes();
   // Update coverage and decorators.
   setGlobalProjectIsOpenedChecker();
   setGlobalCompilerAndTestsuites();
@@ -1694,7 +1660,6 @@ export enum nodeKind {
   test,
   compiler,
   testsuite,
-  group,
 }
 export interface vcastTestItem extends vscode.TestItem {
   // this is a simple wrapper that allows us to add additional

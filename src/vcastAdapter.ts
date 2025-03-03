@@ -289,6 +289,33 @@ export async function addEnvToGroup(
   );
 }
 
+export async function createTestsuiteInCompiler(
+  projectPath: string,
+  compilerName: string,
+  testsuiteName: string
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--compiler=${compilerName}`,
+    `--testsuite=${testsuiteName}`,
+    `--create`,
+    "--force",
+  ];
+
+  const message = `Adding Testsuite ${testsuiteName} to Compiler ${compilerName} ...`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message
+  );
+
+  await updateProjectTree();
+}
+
 /**
  * Imports an already existing Environment to the Project if possible
  * @param projectFilePath Path to the Project
@@ -952,7 +979,6 @@ export async function openProjectInVcast(
     windowsHide: true,
   });
   vcast.on("exit", async function (code: any) {
-    await updateAllOpenedProjects();
     await refreshAllExtensionData();
   });
 }
@@ -1004,7 +1030,7 @@ export async function getDataForProject(projectFilePath: string): Promise<any> {
     jsonData = getProjectDataFromPython(projectDirectoryPath);
   }
 
-  return jsonData.projectData;
+  return jsonData;
 }
 
 // vPython Logic

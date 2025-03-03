@@ -85,6 +85,11 @@
         "title": "Build All Unbuilt Environments"
       },
       {
+        "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
+        "category": "VectorCAST Test Explorer",
+        "title": "Add Testsuite to Compiler"
+      },
+      {
         "command": "vectorcastTestExplorer.addEnviroToProject",
         "category": "VectorCAST Test Explorer",
         "title": "Add Environment to Project"
@@ -357,6 +362,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.addEnviroToProject",
           "when": "never"
         },
@@ -592,6 +601,11 @@
           "command": "vectorcastTestExplorer.buildAllUnbuiltEnviroInProject",
           "group": "vcast@1",
           "when": "testId =~ /\\.vcm$/"
+        },
+        {
+          "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
+          "group": "vcast@1",
+          "when": "testId in vectorcastTestExplorer.globalProjectCompilers"
         },
         {
           "command": "vectorcastTestExplorer.addEnviroToProject",

@@ -6,7 +6,6 @@ export interface environmentNodeDataType {
   isBuilt: boolean;
   displayName: string;
   workspaceRoot: string;
-  group?: string;
 }
 
 // This is a lookup table for all environment nodes

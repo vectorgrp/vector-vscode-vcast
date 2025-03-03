@@ -38,7 +38,13 @@ import {
   globalEnviroDataServerActive,
   vcastCommandType,
 } from "../src-common/vcastServer";
-import { globalProjectDataCache } from "./testPane";
+import {
+  globalController,
+  globalProjectDataCache,
+  globalTestsuiteList,
+  nodeKind,
+  vcastTestItem,
+} from "./testPane";
 import {
   executeWithRealTimeEcho,
   executeWithRealTimeEchoWithProgress,
@@ -600,4 +606,82 @@ export async function deleteOtherBuildFolders(enviroPath: string) {
       );
     }
   }
+}
+
+/**
+ * Checks if all Testsuites from the project are also present in the test pane
+ * If Testsuites are empty, they will be created here
+ */
+export function ensureTestsuiteNodes() {
+  globalTestsuiteList.forEach((item) => {
+    // Expecting a format like "GNU/Banana"
+    const parts = item.displayName.split("/");
+    if (parts.length !== 2) {
+      vectorMessage(`Invalid testsuite format: ${item.displayName}`);
+      return;
+    }
+    const compilerName = parts[0];
+    const testsuiteName = parts[1];
+
+    // Search for the compiler node across all top-level items.
+    let compilerNode: vcastTestItem | undefined;
+    globalController.items.forEach((topItem) => {
+      const node = findNodeByKindAndLabel(
+        topItem as vcastTestItem,
+        nodeKind.compiler,
+        compilerName
+      );
+      if (node) {
+        compilerNode = node;
+      }
+    });
+    if (!compilerNode) {
+      vectorMessage(`No compiler node found for "${compilerName}"`);
+      return;
+    }
+
+    // Compute the expected testsuite node id.
+    const testsuiteNodeId = `${compilerNode.id}/${testsuiteName}`;
+    let testsuiteNode = compilerNode.children.get(
+      testsuiteNodeId
+    ) as vcastTestItem;
+    if (!testsuiteNode) {
+      // Create the testsuite node under the found compiler.
+      testsuiteNode = globalController.createTestItem(
+        testsuiteNodeId,
+        testsuiteName
+      ) as vcastTestItem;
+      testsuiteNode.nodeKind = nodeKind.testsuite;
+      compilerNode.children.add(testsuiteNode);
+      vectorMessage(
+        `Created testsuite node "${testsuiteName}" under compiler "${compilerName}"`
+      );
+    }
+  });
+}
+
+/**
+ * Retruns the node with the given kind and label or undefined if not found
+ * @returns node if found, undefined otherwise
+ */
+function findNodeByKindAndLabel(
+  node: vcastTestItem,
+  kind: nodeKind,
+  label: string
+): vcastTestItem | undefined {
+  if (
+    node.nodeKind === kind &&
+    typeof node.label === "string" &&
+    node.label === label
+  ) {
+    return node;
+  }
+  let found: vcastTestItem | undefined;
+  node.children.forEach((child) => {
+    const result = findNodeByKindAndLabel(child as vcastTestItem, kind, label);
+    if (result) {
+      found = result;
+    }
+  });
+  return found;
 }

@@ -605,8 +605,6 @@ def getProjectData(api):
                 "name": enviroNode.compiler.name,
                 "testsuites": testsuites,
             }
-            if enviroNode.group:
-                enviroData["group"] = enviroNode.group.name
 
             for testsuite in enviroNode.compiler.testsuites:
                 testsuite_name_full = testsuite.string_id
@@ -614,6 +612,15 @@ def getProjectData(api):
 
             enviroList.append(enviroData)
     return enviroList
+
+
+def getProjectTestsuiteData(api):
+    testsuiteList = []
+    for testsuite in api.TestSuite.all():
+        testsuiteData = {}
+        testsuiteData["displayName"] = testsuite.string_id
+        testsuiteList.append(testsuiteData)
+    return testsuiteList
 
 
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
@@ -641,7 +648,8 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         except Exception as err:
             raise UsageError(err)
 
-        topLevel["projectData"] = getProjectData(api)
+        topLevel["projectEnvData"] = getProjectData(api)
+        topLevel["projectTestsuiteData"] = getProjectTestsuiteData(api)
 
         api.close()
         returnObject = topLevel

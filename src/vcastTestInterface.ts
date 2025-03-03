@@ -28,9 +28,7 @@ import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
 import {
   enviroListAsMapType,
-  globalGroupListInProject,
   globalProjectDataCache,
-  refreshAllExtensionData,
   updateTestPane,
 } from "./testPane";
 
@@ -54,8 +52,6 @@ import {
   createGroupInProject,
   addEnvToGroup,
   addGroupToTestsuite,
-  updateAllOpenedProjects,
-  updateProjectTree,
 } from "./vcastAdapter";
 
 import {
@@ -681,14 +677,7 @@ async function processFirstTestSuite(
   // Need to extract the group from the testsuite string
   const parts = testSuite.split("/");
   const baseDisplayName = parts.slice(0, 2).join("/");
-  const group = parts.length > 2 ? parts[2] : undefined;
-
-  if (group) {
-    if (globalGroupListInProject.indexOf(testSuite) === -1) {
-      await createGroupInProject(projectPath, group);
-    }
-  }
-  await importEnvToTestsuite(projectPath, baseDisplayName, envFilePath, group);
+  await importEnvToTestsuite(projectPath, baseDisplayName, envFilePath);
 }
 
 /**
@@ -726,16 +715,7 @@ async function processAdditionalTestSuite(
   if (!existsInProject) {
     await createNewTestsuiteInProject(projectPath, baseDisplayName);
   }
-
-  if (group) {
-    if (globalGroupListInProject.indexOf(testSuite) === -1) {
-      await createGroupInProject(projectPath, group);
-      await addGroupToTestsuite(projectPath, baseDisplayName, group);
-    }
-    await addEnvToGroup(projectPath, group, envName);
-  } else {
-    await addEnvToTestsuite(projectPath, baseDisplayName, envName);
-  }
+  await addEnvToTestsuite(projectPath, baseDisplayName, envName);
 }
 
 async function configureWorkspaceAndBuildEnviro(
