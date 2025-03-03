@@ -156,8 +156,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
         nonlocal processed_functions
         func_name = func['name']
         func_file = func['file']
-        func_code = environment.tu_codebase.find_definitions_by_name(func_name)[0]
-        result = await generator.generate(func_code, func_name)
+        result = await generator.generate(func_name)
         processed_functions += 1
         progress = processed_functions / total_functions
 
