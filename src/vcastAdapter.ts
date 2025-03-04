@@ -353,8 +353,7 @@ export async function createGroupInProject(
 export async function importEnvToTestsuite(
   projectFilePath: string,
   testsuite: string,
-  enviroPath: string,
-  groupName: string | undefined = undefined
+  enviroPath: string
 ) {
   const projectName = path.basename(projectFilePath);
   const projectLocation = path.dirname(projectFilePath);
@@ -366,11 +365,6 @@ export async function importEnvToTestsuite(
     "--force",
     "--migrate",
   ];
-
-  // In case we also want to add the environment to a group
-  if (groupName) {
-    manageArgs.push(`--group=${groupName}`);
-  }
 
   const message = `Importing Environment ${enviroPath} to Testsuite ${testsuite}`;
 

@@ -707,7 +707,7 @@ export function ensureCompilerNodes() {
     // If the compiler node doesn't exist, create and add it.
     if (!compilerNode) {
       // Construct an ID for the compiler node. For example, use the projectFile and compilerName.
-      const compilerNodeId = `vcast:${projectFile}/${compilerName}`;
+      const compilerNodeId = `${projectFile}/${compilerName}`;
       compilerNode = globalController.createTestItem(
         compilerNodeId,
         compilerName

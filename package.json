@@ -95,6 +95,11 @@
         "title": "Add Environment to Project"
       },
       {
+        "command": "vectorcastTestExplorer.importEnviroToProject",
+        "category": "VectorCAST Test Explorer",
+        "title": "Import Environment to Project"
+      },
+      {
         "command": "vectorcastTestExplorer.addCompilerToProject",
         "category": "VectorCAST Test Explorer",
         "title": "Create Compiler from CFG"
@@ -375,6 +380,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.importEnviroToProject",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.addCompilerToProject",
           "when": "never"
         },
@@ -537,6 +546,11 @@
           "command": "vectorcastTestExplorer.buildEnviroFromEnv",
           "when": "vectorcastTestExplorer.configured && resourceExtname==.env",
           "group": "2_workspace"
+        },
+        {
+          "command": "vectorcastTestExplorer.importEnviroToProject",
+          "group": "2_workspace",
+          "when": "vectorcastTestExplorer.configured && resourceExtname==.env && vectorcastTestExplorer.globalProjectIsOpenedChecker"
         },
         {
           "command": "vectorcastTestExplorer.openVCASTFromVce",

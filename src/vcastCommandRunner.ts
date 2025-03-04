@@ -270,7 +270,7 @@ export function executeWithRealTimeEchoWithProgress(
           }
         });
 
-        processHandle.on("exit", function (code: any) {
+        processHandle.on("exit", async function (code: any) {
           clearInterval(progressInterval);
           // Progress bar should be at 100% when the process is done
           progress.report({ increment: 100 });
@@ -280,7 +280,7 @@ export function executeWithRealTimeEchoWithProgress(
           );
           vectorMessage("-".repeat(100));
           if (callback) {
-            callback(enviroPath, code);
+            await callback(enviroPath, code);
           }
           resolve();
         });
