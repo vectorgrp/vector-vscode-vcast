@@ -61,7 +61,7 @@ class VcastContextBuilder:
 
     def _reduce_context_ast(self, function_name):
         codebase = self.environment.tu_codebase
-        relevant_definitions = codebase.get_definitions_for_symbol(function_name, collapse_function_body=True, return_dict=True, depth=3)
+        relevant_definitions = codebase.get_definitions_for_symbol(function_name, collapse_function_body=False, return_dict=True, depth=3)
 
         if not relevant_definitions:
             return None

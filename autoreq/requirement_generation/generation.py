@@ -76,10 +76,12 @@ class RequirementsGenerator:
         executable_groups = self._get_executable_statement_groups(function_bytes)
         
         # Print control flow information
+        """
         print("\n======== CONTROL FLOW INFORMATION ========")
         print(f"\nExecutable statement groups:")
         for i, group in enumerate(executable_groups):
             print(f"  Group {i+1}: {sorted(group)}")
+        """
         
         # Create a set of all lines in executable groups for easy lookup
         executable_lines = set()
@@ -131,6 +133,9 @@ class RequirementsGenerator:
         
         # Function to collect statements by execution path
         def collect_statements(node):
+            if node.type in ('comment', 'preprocessor_directive', 'string_literal'):
+                return None
+
             # Check if this is a statement that should be collected
             if node.type in ('expression_statement', 'declaration', 'return_statement',
                            'break_statement', 'continue_statement', 'assignment_expression'):
@@ -197,7 +202,9 @@ class RequirementsGenerator:
             groups = []
             last_was_list = False
             for item in nested_groups:
-                if isinstance(item, list):
+                if item is None:
+                    continue
+                elif isinstance(item, list):
                     groups.extend(to_flat_groups(item))
                     last_was_list = True
                 else:
@@ -211,6 +218,27 @@ class RequirementsGenerator:
 
         # Return the groups, filtering out empty ones
         return to_flat_groups(executable_groups)
+
+    async def extract_semantic_parts_only_ast(self, function_name: str) -> List[Dict[str, Any]]:
+        function_body = self.environment.tu_codebase.find_definitions_by_name(function_name)[0]
+        function_bytes = function_body.encode('utf-8')
+
+        code_lines = function_body.split('\n')
+        
+        # Get executable statement groups from AST
+        executable_groups = self._get_executable_statement_groups(function_bytes)
+
+        # Convert line numbers back to actual code lines
+        semantic_parts = []
+        for part in executable_groups:
+            # Subtract 1 from line numbers since we displayed them 1-based but need 0-based indexing
+            part_lines = [code_lines[i-1] for i in part if 0 < i <= len(code_lines)]
+            semantic_parts.append({
+                "line_numbers": part,
+                "lines": part_lines
+            })
+
+        return semantic_parts
 
     async def extract_semantic_parts(self, function_name: str) -> List[Dict[str, Any]]:
         """Extract semantic parts from function code."""
@@ -252,6 +280,7 @@ Here is the numbered code:
             "content": prompt
         }], SemanticPartsResponse)
 
+        
         # Convert line numbers back to actual code lines
         semantic_parts = []
         for part in response.semantic_parts:
@@ -263,6 +292,7 @@ Here is the numbered code:
             })
         
         # Print semantic parts before post-processing
+        """
         print("\n======== SEMANTIC PARTS BEFORE POST-PROCESSING ========")
         for i, part in enumerate(semantic_parts):
             print(f"\nPart {i+1}:")
@@ -270,11 +300,13 @@ Here is the numbered code:
             print(f"  Code:")
             for line in part['lines']:
                 print(f"    {line}")
+        """
         
         # Post-process semantic parts using AST analysis
         processed_parts = self._post_process_semantic_parts(function_name, semantic_parts)
         
         # Print semantic parts after post-processing
+        """
         print("\n======== SEMANTIC PARTS AFTER POST-PROCESSING ========")
         for i, part in enumerate(processed_parts):
             print(f"\nPart {i+1}:")
@@ -282,6 +314,7 @@ Here is the numbered code:
             print(f"  Code:")
             for line in part['lines']:
                 print(f"    {line}")
+        """
         
         return processed_parts
 
