@@ -129,6 +129,8 @@ class Environment:
 
 
     def run_test_script(self, tst_file_path: str, rebuild: bool=True, with_coverage=False) -> Optional[str]:
+        tst_file_path = os.path.abspath(tst_file_path)
+
         if rebuild:
             self.build()
 

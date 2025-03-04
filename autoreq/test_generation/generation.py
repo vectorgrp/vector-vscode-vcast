@@ -362,7 +362,7 @@ Return your answer in the following format:
             else:
                 logging.warning(f"Requirement {test_case.requirement_id} was generated multiple times or was not requested.")
 
-            output = self.environment.run_tests([test_case.to_vectorcast()], execute=True)
+            output = self.environment.run_tests([test_case.to_vectorcast()])
             errors, test_failures = self._parse_error_output(output)
 
             if errors or (not allow_partial and test_failures):
@@ -534,7 +534,7 @@ Notes:
         while iteration < max_iterations:
             iteration += 1
 
-            output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()], execute=True)
+            output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()])
             errors, test_failures = self._parse_error_output(output)
 
             if not errors and not test_failures:

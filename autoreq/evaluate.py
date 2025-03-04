@@ -36,8 +36,11 @@ class EvaluationResult:
     partial_test_rate: float
     individual_generation_reqs: List[str]
     individual_generation_rate: float
-    verification_summary: str  # Add this new field
-    generation_error: Optional[str] = None  # Add this new field
+    verification_summary: str
+    atg_coverage: Dict[str, Any]     
+    coverage: Dict[str, Any] 
+    requirements_data: Dict[str, Any]
+    generation_error: Optional[str] = None
 
 async def evaluate_environment(
     env_path: str,
@@ -60,6 +63,12 @@ async def evaluate_environment(
 
     test_generator = TestGenerator(rm, env, use_extended_reasoning=extended_reasoning)
     test_verifier = TestVerifier(rm, env, allow_partial=allow_partial or allow_batch_partial)
+    
+    # Collect requirements data
+    requirements_data = {req_id: rm.get_requirement(req_id) for req_id in requirement_ids}
+    
+    # Get ATG coverage before running our tests
+    atg_coverage = env.atg_coverage
     
     # Generate tests with progress bar
     test_cases = []
@@ -163,6 +172,7 @@ async def evaluate_environment(
     env_output_dir.mkdir(parents=True, exist_ok=True)
 
     # Export test cases
+    generated_tests_coverage = {}
     if test_cases:
         with open(env_output_dir / "test_cases.json", "w") as f:
             json.dump([tc.model_dump() for tc in test_cases if tc], f, indent=2)
@@ -171,6 +181,15 @@ async def evaluate_environment(
             for tc in test_cases:
                 if tc:
                     f.write(tc.to_vectorcast() + "\n")
+
+        # Run tests to get coverage
+        tst_file_path = env_output_dir / "test_cases.tst"
+        try:
+            output, coverage = env.run_test_script(str(tst_file_path), with_coverage=True)
+            generated_tests_coverage = coverage
+        except Exception as e:
+            logging.error(f"Error getting coverage for generated tests: {str(e)}")
+            generated_tests_coverage = {"error": str(e)}
 
     # Export verification results
     with open(env_output_dir / "verification_results.json", "w") as f:
@@ -206,6 +225,9 @@ async def evaluate_environment(
         individual_generation_reqs=individual_generation_reqs,
         individual_generation_rate=individual_generation_rate,
         verification_summary=verification_summary,
+        atg_coverage=atg_coverage,
+        coverage=generated_tests_coverage,
+        requirements_data=requirements_data,
         generation_error=generation_error
     )
 
@@ -328,8 +350,33 @@ async def main():
         print(f"Recall: {result.recall:.2f}")
         print(f"F1 Score: {result.f1_score:.2f}")
         print(f"Total Cost: ${result.total_cost:.4f}")
+        
+        # Print coverage information
+        print("\nCoverage Information:")
+        print("ATG Coverage:")
+        if result.atg_coverage and isinstance(result.atg_coverage, dict):
+            if 'statements' in result.atg_coverage:
+                stmts = result.atg_coverage['statements']
+                print(f"  Statements: {stmts['covered']}/{stmts['total']} ({stmts['percentage']:.2%})")
+            if 'branches' in result.atg_coverage:
+                branches = result.atg_coverage['branches']
+                print(f"  Branches:   {branches['covered']}/{branches['total']} ({branches['percentage']:.2%})")
+        else:
+            print("  No ATG coverage data available")
+            
+        print("Generated Tests Coverage:")
+        if result.coverage and isinstance(result.coverage, dict):
+            if 'statements' in result.coverage:
+                stmts = result.coverage['statements']
+                print(f"  Statements: {stmts['covered']}/{stmts['total']} ({stmts['percentage']:.2%})")
+            if 'branches' in result.coverage:
+                branches = result.coverage['branches']
+                print(f"  Branches:   {branches['covered']}/{branches['total']} ({branches['percentage']:.2%})")
+        else:
+            print("  No coverage data available for generated tests")
+        
         if result.unverified_requirements:
-            print(f"Unverified Requirements (test does not properly test requirement): {', '.join(result.unverified_requirements)}")
+            print(f"\nUnverified Requirements (test does not properly test requirement): {', '.join(result.unverified_requirements)}")
         print("\nVerification Summary:")
         print(result.verification_summary)
         print("\nGeneration Statistics:")
