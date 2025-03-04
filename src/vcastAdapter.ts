@@ -416,6 +416,31 @@ export async function addGroupToTestsuite(
 }
 
 /**
+ * Imports an existing Compiler configuration into the Project.
+ * @param projectFilePath Path to the Project file (e.g. from args.id)
+ * @param pathToCFG Path to the selected .CFG file
+ */
+export async function addCompilerToProject(
+  projectFilePath: string,
+  pathToCFG: string
+) {
+  const projectName = path.basename(projectFilePath);
+  const projectLocation = path.dirname(projectFilePath);
+  const manageArgs = [`-p${projectName}`, `--cfg-to-compiler=${pathToCFG}`];
+  const message = `Importing Compiler configuration from ${pathToCFG} into project ${projectName}`;
+
+  // Call your function that runs the process with a progress UI.
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message
+  );
+
+  await updateProjectTree();
+}
+
+/**
  * Imports an already existing Environment to the Project if possible
  * @param projectFilePath Path to the Project
  * @param testsuite Testsuite string containing CompilerName/TestsuiteName

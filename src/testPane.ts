@@ -76,6 +76,7 @@ import {
   adjustScriptContentsBeforeLoad,
   checkIfAnyProjectsAreOpened,
   closeAnyOpenErrorFiles,
+  ensureCompilerNodes,
   ensureTestsuiteNodes,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
@@ -356,7 +357,11 @@ export let globalCompilersAndTestsuites: {
   testsuites: [],
 };
 
-export let globalTestsuiteList: { displayName: string }[] = [];
+export let globalUnusedTestsuiteList: { displayName: string }[] = [];
+export let globalUnusedCompilerList: {
+  projectFile: string;
+  displayName: string;
+}[] = [];
 
 export function updateGlobalCompilersAndTestsuites() {
   const compilers = new Set<string>();
@@ -451,7 +456,8 @@ export async function buildProjectDataCache(baseDirectory: string) {
     const enviroList = projectData.projectEnvData;
 
     // THis includes all testsuite (also empty ones)
-    globalTestsuiteList = projectData.projectTestsuiteData;
+    globalUnusedTestsuiteList = projectData.projectTestsuiteData;
+    globalUnusedCompilerList = projectData.projectCompilerData;
 
     // convert the raw json data into a map for the cache
     const enviroListAsMap = await convertProjectDataToMap(enviroList);
@@ -715,7 +721,9 @@ async function loadAllVCTests(
     }
   } // end if workspace folders
 
-  // In case we have empty testsuites, we won't find them in the Env data so we have to add them manually here
+  // In case we have empty testsuites or compilers in the project,
+  // we won't find them in the Env data so we have to add them manually here
+  ensureCompilerNodes();
   ensureTestsuiteNodes();
   // Update coverage and decorators.
   setGlobalProjectIsOpenedChecker();
@@ -1406,7 +1414,7 @@ export let globalController: vscode.TestController;
 // We nest each project under the globalProjectsNode, so
 // this is needed to allow us to save and later lookup
 // the parent node for any environment that is part of a project
-let globalProjectMap: Map<string, vcastTestItem> = new Map();
+export let globalProjectMap: Map<string, vcastTestItem> = new Map();
 /**
  * Given an environment’s data, this function builds (if needed) and returns
  * the parent node for the environment. It uses the environment’s displayName,

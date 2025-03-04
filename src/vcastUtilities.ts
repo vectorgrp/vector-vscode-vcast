@@ -41,14 +41,13 @@ import {
 import {
   globalController,
   globalProjectDataCache,
-  globalTestsuiteList,
+  globalProjectMap,
+  globalUnusedCompilerList,
+  globalUnusedTestsuiteList,
   nodeKind,
   vcastTestItem,
 } from "./testPane";
-import {
-  executeWithRealTimeEcho,
-  executeWithRealTimeEchoWithProgress,
-} from "./vcastCommandRunner";
+import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";
 
 const fs = require("fs");
 const os = require("os");
@@ -613,7 +612,7 @@ export async function deleteOtherBuildFolders(enviroPath: string) {
  * If Testsuites are empty, they will be created here
  */
 export function ensureTestsuiteNodes() {
-  globalTestsuiteList.forEach((item) => {
+  globalUnusedTestsuiteList.forEach((item) => {
     // Expecting a format like "GNU/Banana"
     const parts = item.displayName.split("/");
     if (parts.length !== 2) {
@@ -655,6 +654,68 @@ export function ensureTestsuiteNodes() {
       compilerNode.children.add(testsuiteNode);
       vectorMessage(
         `Created testsuite node "${testsuiteName}" under compiler "${compilerName}"`
+      );
+    }
+  });
+}
+
+/**
+ * Ensures that all compiler nodes from the globalUnusedCompilerList are present
+ * in the test pane. Each item in globalUnusedCompilerList is expected to have a
+ * displayName property (e.g. "GNU") and the name of the projectFile.
+ * If a compiler node is not found, it is created.
+ */
+export function ensureCompilerNodes() {
+  globalUnusedCompilerList.forEach((item) => {
+    const compilerName = item.displayName; // e.g. "GNU"
+    const projectFile = item.projectFile; // e.g. "/path/to/project.vcm"
+
+    // Attempt to find the project node.
+    // If you have a globalProjectMap keyed by project file, use it:
+    let projectNode: vcastTestItem | undefined =
+      globalProjectMap.get(projectFile);
+    if (!projectNode) {
+      // Alternatively, you can search among top-level nodes if needed.
+      globalController.items.forEach((topItem) => {
+        if ((topItem as vcastTestItem).id === projectFile) {
+          projectNode = topItem as vcastTestItem;
+        }
+      });
+    }
+
+    // If no project node exists, do nothing.
+    if (!projectNode) {
+      vectorMessage(
+        `Project node for "${projectFile}" not found. Skipping compiler "${compilerName}".`
+      );
+      return;
+    }
+
+    // Check if a compiler node with the given displayName already exists under the project node.
+    let compilerNode: vcastTestItem | undefined;
+    projectNode.children.forEach((child) => {
+      const testItem = child as vcastTestItem;
+      if (
+        testItem.nodeKind === nodeKind.compiler &&
+        typeof testItem.label === "string" &&
+        testItem.label === compilerName
+      ) {
+        compilerNode = testItem;
+      }
+    });
+
+    // If the compiler node doesn't exist, create and add it.
+    if (!compilerNode) {
+      // Construct an ID for the compiler node. For example, use the projectFile and compilerName.
+      const compilerNodeId = `vcast:${projectFile}/${compilerName}`;
+      compilerNode = globalController.createTestItem(
+        compilerNodeId,
+        compilerName
+      ) as vcastTestItem;
+      compilerNode.nodeKind = nodeKind.compiler;
+      projectNode.children.add(compilerNode);
+      vectorMessage(
+        `Created compiler node "${compilerName}" under project "${projectFile}".`
       );
     }
   });

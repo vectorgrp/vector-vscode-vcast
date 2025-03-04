@@ -95,6 +95,11 @@
         "title": "Add Environment to Project"
       },
       {
+        "command": "vectorcastTestExplorer.addCompilerToProject",
+        "category": "VectorCAST Test Explorer",
+        "title": "Create Compiler from CFG"
+      },
+      {
         "command": "vectorcastTestExplorer.openProjectInVectorCAST",
         "category": "VectorCAST Test Explorer",
         "title": "Open Project in VectorCAST"
@@ -370,6 +375,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.addCompilerToProject",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.openProjectInVectorCAST",
           "when": "never"
         },
@@ -609,6 +618,11 @@
         },
         {
           "command": "vectorcastTestExplorer.addEnviroToProject",
+          "group": "vcast@1",
+          "when": "testId =~ /\\.vcm$/"
+        },
+        {
+          "command": "vectorcastTestExplorer.addCompilerToProject",
           "group": "vcast@1",
           "when": "testId =~ /\\.vcm$/"
         },

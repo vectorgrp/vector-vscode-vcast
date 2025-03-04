@@ -623,6 +623,16 @@ def getProjectTestsuiteData(api):
     return testsuiteList
 
 
+def getProjectCompilerData(api):
+    compilerList = []
+    for compiler in api.Compiler.all():
+        compilerData = {}
+        compilerData["displayName"] = compiler.name
+        compilerData["projectFile"] = compiler.project.path
+        compilerList.append(compilerData)
+    return compilerList
+
+
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     """
     This function does the actual work of processing a vTestInterface command,
@@ -650,6 +660,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
         topLevel["projectEnvData"] = getProjectData(api)
         topLevel["projectTestsuiteData"] = getProjectTestsuiteData(api)
+        topLevel["projectCompilerData"] = getProjectCompilerData(api)
 
         api.close()
         returnObject = topLevel

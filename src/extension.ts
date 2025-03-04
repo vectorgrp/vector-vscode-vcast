@@ -84,6 +84,7 @@ import {
   updateAllOpenedProjects,
   openProjectInVcast,
   createTestsuiteInCompiler,
+  addCompilerToProject,
 } from "./vcastAdapter";
 
 import {
@@ -619,14 +620,12 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.openProjectInVectorCAST",
     async (node: any) => {
       // this returns the full path to the environment directory
-      vectorMessage(`Opening ${node.id}`);
       const result = getVcmRoot(node.id);
 
       // Check if the result is valid
       if (result) {
         const { rootPath, vcmName } = result;
-        vectorMessage(`Root Path: ${rootPath}`);
-        vectorMessage(`VCM Name: ${vcmName}`);
+        vectorMessage(`Opening ${vcmName} in VectorCAST...`);
         await openProjectInVcast(rootPath, vcmName);
       } else {
         vectorMessage(`Unable to open project ${node.id}`);
@@ -634,6 +633,40 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(openProjectInVectorCAST);
+
+  let addCompilerToProjectCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addCompilerToProject",
+    async (args: any) => {
+      // Verify that the command was invoked from a node with an 'id' property.
+      if (!args || !args.id) {
+        vscode.window.showErrorMessage("No project node provided.");
+        return;
+      }
+      //project file path
+      const projectFilePath = args.id;
+
+      // Open a file dialog so the user can select a .CFG file.
+      const cfgFiles = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        openLabel: "Select VectorCAST Configuration (.CFG) file",
+        filters: {
+          "CFG Files": ["cfg"],
+          "All Files": ["*"],
+        },
+      });
+
+      if (!cfgFiles || cfgFiles.length === 0) {
+        vscode.window.showInformationMessage("No CFG file selected.");
+        return;
+      }
+
+      // Get the first selected file's path.
+      const pathToCFG = cfgFiles[0].fsPath;
+
+      await addCompilerToProject(projectFilePath, pathToCFG);
+    }
+  );
+  context.subscriptions.push(addCompilerToProjectCommand);
 
   let addTestsuiteToCompiler = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addTestsuiteToCompiler",
