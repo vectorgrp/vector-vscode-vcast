@@ -7,6 +7,7 @@ from typing import List
 from pydantic import BaseModel, create_model
 from dotenv import load_dotenv
 import logging
+from collections import defaultdict
 
 from .vcast_context_builder import VcastContextBuilder
 from .atg_context_builder import ATGContextBuilder  # Add this import
@@ -159,7 +160,7 @@ def _derive_test_case_schema(allowed_identifiers=None):
 
     return TestCase
 
-def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None):
+def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None, return_size_fallback=False):
     if allowed_identifiers:
         logging.info(f"Creating schema with {len(allowed_identifiers)} allowed identifiers")
 
@@ -186,7 +187,13 @@ def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None
 
     if len(schema_json) > 15000:
         logging.warning(f"Schema size is too large ({len(schema_json)} chars). Ignoring allowed identifiers.")
+        if return_size_fallback:
+            return _derive_completion_schema(batched, allowed_identifiers=None, batch_size=batch_size), True
+
         return _derive_completion_schema(batched, allowed_identifiers=None, batch_size=batch_size)
+
+    if return_size_fallback:
+        return schema, False
 
     return schema
 
@@ -223,6 +230,8 @@ class TestGenerator:
         """Helper method to get allowed identifiers for a function with logging."""
         allowed_identifiers = self.environment.get_allowed_identifiers_for_function(function_name)
         logging.debug(f"Retrieved {len(allowed_identifiers)} allowed identifiers for function {function_name}")
+        
+        # When this is called for a specific requirement, we'll update the info logger afterward
         return allowed_identifiers
 
     async def generate_test_cases(self, requirement_ids, batched=True, allow_partial=False, allow_batch_partial=False, batch_size=8, **kwargs):
@@ -263,6 +272,10 @@ class TestGenerator:
 
         function_name = functions.pop()
         allowed_identifiers = self._get_allowed_identifiers_for_function(function_name)
+        
+        for req_id in requirement_ids:
+            self.info_logger.set_found_allowed_identifiers(req_id, len(allowed_identifiers) > 0)
+        
         requirements_text = "\n".join([f"{i+1}. {req_id}: {self.requirements_manager.get_description(req_id)}" for i, req_id in enumerate(requirement_ids)])
 
 
@@ -278,6 +291,8 @@ class TestGenerator:
             basis_path = True
 
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
+        for req_id in requirement_ids:
+            self.info_logger.set_found_atg_examples(req_id, len(atg_examples) > 0)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
@@ -337,7 +352,10 @@ Return your answer in the following format:
             }
         ]
 
-        schema = _derive_completion_schema(True, allowed_identifiers=allowed_identifiers, batch_size=len(requirement_ids))
+        schema, used_fallback = _derive_completion_schema(True, allowed_identifiers=allowed_identifiers, batch_size=len(requirement_ids), return_size_fallback=True)
+
+        for req_id in requirement_ids:
+            self.info_logger.set_schema_exceeded_size(req_id, used_fallback)
 
         try:
             test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=4096)
@@ -393,10 +411,15 @@ Return your answer in the following format:
         try:
             if not already_started:
                 self.info_logger.start_requirement(requirement_id)
+
             self.info_logger.set_individual_test_generation_needed(requirement_id)
 
             function_name = self.requirements_manager.get_function(requirement_id)
             allowed_identifiers = self._get_allowed_identifiers_for_function(function_name)
+            self.info_logger.set_found_allowed_identifiers(requirement_id, len(allowed_identifiers) > 0)
+
+            schema, used_fallback = _derive_completion_schema(False, allowed_identifiers=allowed_identifiers, return_size_fallback=True)
+            self.info_logger.set_schema_exceeded_size(requirement_id, used_fallback)
             
             first_try = True
             for _ in range(max_retries):
@@ -408,7 +431,7 @@ Return your answer in the following format:
                     temperature=temperature, 
                     extended_reasoning=extended_reasoning, 
                     allow_partial=allow_partial,
-                    schema=_derive_completion_schema(False, allowed_identifiers=allowed_identifiers)
+                    schema=schema
                 )
                 if result:
                     self.info_logger.set_test_generated(requirement_id)
@@ -450,6 +473,8 @@ Return your answer in the following format:
         logging.info(f"Fetching {num_examples} ATG example test cases")
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
         logging.debug("Retrieved ATG examples: %s", atg_examples)
+
+        self.info_logger.set_found_atg_examples(requirement_id, len(atg_examples) > 0)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()

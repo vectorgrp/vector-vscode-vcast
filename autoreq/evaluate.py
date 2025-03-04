@@ -18,28 +18,64 @@ from .summary import SummaryEngine
 
 @dataclass
 class EvaluationResult:
+    # Basic information
     environment_path: str
+    
+    # Core metrics
     total_requirements: int
     generated_tests: int
     verified_tests: int
+    
+    # Performance metrics
     precision: float
     recall: float
     f1_score: float
-    total_cost: float
-    token_usage: Dict[str, Dict[str, int]]
+    
+    # Coverage information
+    atg_coverage: Dict[str, Any]
+    coverage: Dict[str, Any]
+    
+    # Verification information
+    verification_summary: str
     unverified_requirements: List[str]
+    
+    # Generation statistics - success/failure
     failed_generation_reqs: List[str]
     failed_generation_rate: float
+    
+    # Generation statistics - feedback and correction
     test_failure_feedback_reqs: List[str]
     test_failure_feedback_rate: float
+    error_correction_needed_reqs: List[str]
+    error_correction_needed_rate: float
+    
+    # Generation statistics - partial and individual
     partial_test_reqs: List[str]
     partial_test_rate: float
     individual_generation_reqs: List[str]
     individual_generation_rate: float
-    verification_summary: str
-    atg_coverage: Dict[str, Any]     
-    coverage: Dict[str, Any] 
+    
+    # Generation statistics - schema and identifiers
+    found_allowed_identifiers_reqs: List[str]
+    found_allowed_identifiers_rate: float
+    schema_exceeded_size_reqs: List[str]
+    schema_exceeded_size_rate: float
+    found_atg_examples_reqs: List[str]
+    found_atg_examples_rate: float
+    
+    # Fallback information
+    used_atg_identifier_fallback: bool
+    used_atg_testable_functions_fallback: bool
+    
+    # Cost information
+    total_cost: float
+    token_usage: Dict[str, Dict[str, int]]
+    
+    # Raw data
     requirements_data: Dict[str, Any]
+    info_logger_data: Dict[str, Any]
+    
+    # Error information
     generation_error: Optional[str] = None
 
 async def evaluate_environment(
@@ -145,11 +181,27 @@ async def evaluate_environment(
     individual_generation_reqs = [req_id for req_id, data in info_data.items()
                                 if data['individual_test_generation_needed']]
     
+    error_correction_needed_reqs = [req_id for req_id, data in info_data.items()
+                                  if data['error_correction_needed']]
+                                  
+    found_allowed_identifiers_reqs = [req_id for req_id, data in info_data.items()
+                                    if data['found_allowed_identifiers']]
+                                    
+    schema_exceeded_size_reqs = [req_id for req_id, data in info_data.items()
+                               if data['schema_exceeded_size']]
+                               
+    found_atg_examples_reqs = [req_id for req_id, data in info_data.items()
+                             if data['found_atg_examples']]
+    
     # Calculate rates
     failed_generation_rate = len(failed_generation_reqs) / total_reqs if total_reqs > 0 else 0
     test_failure_feedback_rate = len(test_failure_feedback_reqs) / total_reqs if total_reqs > 0 else 0
     partial_test_rate = len(partial_test_reqs) / total_reqs if total_reqs > 0 else 0
     individual_generation_rate = len(individual_generation_reqs) / total_reqs if total_reqs > 0 else 0
+    error_correction_needed_rate = len(error_correction_needed_reqs) / total_reqs if total_reqs > 0 else 0
+    found_allowed_identifiers_rate = len(found_allowed_identifiers_reqs) / total_reqs if total_reqs > 0 else 0
+    schema_exceeded_size_rate = len(schema_exceeded_size_reqs) / total_reqs if total_reqs > 0 else 0
+    found_atg_examples_rate = len(found_atg_examples_reqs) / total_reqs if total_reqs > 0 else 0
 
     # After verification results are collected, generate a summary
     verification_context = "\n\n".join([
@@ -206,28 +258,64 @@ async def evaluate_environment(
     env.cleanup()
 
     return EvaluationResult(
+        # Basic information
         environment_path=env_path,
+        
+        # Core metrics
         total_requirements=total_reqs,
         generated_tests=generated_tests,
         verified_tests=verified_tests,
+        
+        # Performance metrics
         precision=precision,
         recall=recall,
         f1_score=f1_score,
-        total_cost=total_cost,
-        token_usage=token_usage,
+        
+        # Coverage information
+        atg_coverage=atg_coverage,
+        coverage=generated_tests_coverage,
+        
+        # Verification information
+        verification_summary=verification_summary,
         unverified_requirements=problem_reqs,
+        
+        # Generation statistics - success/failure
         failed_generation_reqs=failed_generation_reqs,
         failed_generation_rate=failed_generation_rate,
+        
+        # Generation statistics - feedback and correction
         test_failure_feedback_reqs=test_failure_feedback_reqs,
         test_failure_feedback_rate=test_failure_feedback_rate,
+        error_correction_needed_reqs=error_correction_needed_reqs,
+        error_correction_needed_rate=error_correction_needed_rate,
+        
+        # Generation statistics - partial and individual
         partial_test_reqs=partial_test_reqs,
         partial_test_rate=partial_test_rate,
         individual_generation_reqs=individual_generation_reqs,
         individual_generation_rate=individual_generation_rate,
-        verification_summary=verification_summary,
-        atg_coverage=atg_coverage,
-        coverage=generated_tests_coverage,
+        
+        # Generation statistics - schema and identifiers
+        found_allowed_identifiers_reqs=found_allowed_identifiers_reqs,
+        found_allowed_identifiers_rate=found_allowed_identifiers_rate,
+        schema_exceeded_size_reqs=schema_exceeded_size_reqs,
+        schema_exceeded_size_rate=schema_exceeded_size_rate,
+        found_atg_examples_reqs=found_atg_examples_reqs,
+        found_atg_examples_rate=found_atg_examples_rate,
+        
+        # Fallback information
+        used_atg_identifier_fallback=getattr(env, '_used_atg_identifier_fallback', False),
+        used_atg_testable_functions_fallback=getattr(env, '_used_atg_testable_functions_fallback', False),
+        
+        # Cost information
+        total_cost=total_cost,
+        token_usage=token_usage,
+        
+        # Raw data
         requirements_data=requirements_data,
+        info_logger_data=dict(info_data),
+        
+        # Error information
         generation_error=generation_error
     )
 
@@ -342,16 +430,23 @@ async def main():
     # Print summary (replacing logging.info calls)
     print("\nEvaluation Summary:")
     for result in all_results:
-        print(f"\nEnvironment: {result.environment_path}")
+        print(f"\n{'=' * 50}")
+        print(f"Environment: {result.environment_path}")
+        print(f"{'=' * 50}")
+        
+        # Core metrics
+        print(f"\nCore Metrics:")
         print(f"Total Requirements: {result.total_requirements}")
         print(f"Generated Tests: {result.generated_tests}")
         print(f"Verified Tests: {result.verified_tests}")
+        
+        # Performance metrics
+        print(f"\nPerformance Metrics:")
         print(f"Precision: {result.precision:.2f}")
         print(f"Recall: {result.recall:.2f}")
         print(f"F1 Score: {result.f1_score:.2f}")
-        print(f"Total Cost: ${result.total_cost:.4f}")
         
-        # Print coverage information
+        # Coverage information
         print("\nCoverage Information:")
         print("ATG Coverage:")
         if result.atg_coverage and isinstance(result.atg_coverage, dict):
@@ -375,26 +470,69 @@ async def main():
         else:
             print("  No coverage data available for generated tests")
         
+        # Verification information
+        print("\nVerification Information:")
         if result.unverified_requirements:
-            print(f"\nUnverified Requirements (test does not properly test requirement): {', '.join(result.unverified_requirements)}")
+            print(f"Unverified Requirements: {', '.join(result.unverified_requirements)}")
         print("\nVerification Summary:")
         print(result.verification_summary)
+        
+        # Generation statistics
         print("\nGeneration Statistics:")
-        print(f"Failed Generation Rate: {result.failed_generation_rate:.2%}")
+        
+        # Success/failure
+        print(f"\n  Success/Failure:")
+        print(f"  Failed Generation Rate: {result.failed_generation_rate:.2%}")
         if result.failed_generation_reqs:
-            print(f"Failed Generation Requirements: {', '.join(result.failed_generation_reqs)}")
+            print(f"  Failed Requirements: {', '.join(result.failed_generation_reqs)}")
         
-        print(f"Test Failure Feedback Rate: {result.test_failure_feedback_rate:.2%}")
+        # Feedback and correction
+        print(f"\n  Feedback and Correction:")
+        print(f"  Test Failure Feedback Rate: {result.test_failure_feedback_rate:.2%}")
         if result.test_failure_feedback_reqs:
-            print(f"Test Failure Feedback Requirements: {', '.join(result.test_failure_feedback_reqs)}")
+            print(f"  Test Failure Requirements: {', '.join(result.test_failure_feedback_reqs)}")
         
-        print(f"Partial Test Rate: {result.partial_test_rate:.2%}")
+        print(f"  Error Correction Needed Rate: {result.error_correction_needed_rate:.2%}")
+        if result.error_correction_needed_reqs:
+            print(f"  Error Correction Requirements: {', '.join(result.error_correction_needed_reqs)}")
+        
+        # Partial and individual
+        print(f"\n  Partial and Individual:")
+        print(f"  Partial Test Rate: {result.partial_test_rate:.2%}")
         if result.partial_test_reqs:
-            print(f"Partial Test Requirements: {', '.join(result.partial_test_reqs)}")
+            print(f"  Partial Test Requirements: {', '.join(result.partial_test_reqs)}")
         
-        print(f"Individual Generation Rate: {result.individual_generation_rate:.2%}")
+        print(f"  Individual Generation Rate: {result.individual_generation_rate:.2%}")
         if result.individual_generation_reqs:
-            print(f"Individual Generation Requirements: {', '.join(result.individual_generation_reqs)}")
+            print(f"  Individual Generation Requirements: {', '.join(result.individual_generation_reqs)}")
+        
+        # Schema and identifiers
+        print(f"\n  Schema and Identifiers:")
+        print(f"  Found Allowed Identifiers Rate: {result.found_allowed_identifiers_rate:.2%}")
+        if result.found_allowed_identifiers_reqs:
+            print(f"  Found Allowed Identifiers Requirements: {', '.join(result.found_allowed_identifiers_reqs)}")
+        
+        print(f"  Schema Exceeded Size Rate: {result.schema_exceeded_size_rate:.2%}")
+        if result.schema_exceeded_size_reqs:
+            print(f"  Schema Exceeded Size Requirements: {', '.join(result.schema_exceeded_size_reqs)}")
+        
+        print(f"  Found ATG Examples Rate: {result.found_atg_examples_rate:.2%}")
+        if result.found_atg_examples_reqs:
+            print(f"  Found ATG Examples Requirements: {', '.join(result.found_atg_examples_reqs)}")
+        
+        # Fallback information
+        print("\nFallback Information:")
+        print(f"Used ATG Identifier Fallback: {result.used_atg_identifier_fallback}")
+        print(f"Used ATG Testable Functions Fallback: {result.used_atg_testable_functions_fallback}")
+        
+        # Cost information
+        print("\nCost Information:")
+        print(f"Total Cost: ${result.total_cost:.4f}")
+        
+        # Error information
+        if result.generation_error:
+            print("\nGeneration Error:")
+            print(result.generation_error[:500] + "..." if len(result.generation_error) > 500 else result.generation_error)
 
 def cli():
     asyncio.run(main())

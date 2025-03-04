@@ -78,6 +78,8 @@ class Environment:
         else:
             self.env_dir = env_dir
         self._tu_codebase_path = None
+        self._used_atg_identifier_fallback = False
+        self._used_atg_testable_functions_fallback = False
 
     def build(self):
         env_name = self.env_name
@@ -181,11 +183,9 @@ class Environment:
             if len(identifiers) > 0:
                 return list(identifiers)
 
-            logging.warning("No identifiers found in the test script template")
-            logging.warning("Falling back to scraping from ATG")
-        else:
-            logging.warning("Failed to generate test script template")
-            logging.warning("Falling back to scraping from ATG")
+        logging.warning("Failed to generate test script template")
+        logging.warning("Falling back to scraping from ATG")
+        self._used_atg_identifier_fallback = True
         
         used_identifiers = set()
         for test in self.atg_tests:
@@ -194,7 +194,7 @@ class Environment:
                 
         return list(used_identifiers)
 
-    def get_allowed_identifiers_for_function(self, function_name):
+    def get_allowed_identifiers_for_function(self, function_name, return_used_atg_fallback=False):
         all_identifiers = self.allowed_identifiers
         relevant_definitions = self.tu_codebase.find_definitions_by_name(function_name)
 
@@ -231,6 +231,10 @@ class Environment:
                 continue
 
         logging.debug(f"Found {len(relevant_identifiers)} relevant identifiers for function {function_name}")
+        
+        if return_used_atg_fallback:
+            return list(relevant_identifiers), self._used_atg_identifier_fallback
+        
         return list(relevant_identifiers)
 
     @cached_property
@@ -378,6 +382,7 @@ class Environment:
 
         logging.warning("No testable functions found in the translation unit")
         logging.warning("Falling back to scraping from ATG")
+        self._used_atg_testable_functions_fallback = True
 
         assert len(self.source_files) == 1
 
