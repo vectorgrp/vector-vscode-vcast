@@ -7,13 +7,12 @@ from typing import List
 from pydantic import BaseModel, create_model
 from dotenv import load_dotenv
 import logging
-from collections import defaultdict
 
 from .vcast_context_builder import VcastContextBuilder
-from .atg_context_builder import ATGContextBuilder  # Add this import
-from .info_logger import InfoLogger  # Add this import
+from .atg_context_builder import ATGContextBuilder 
+from .info_logger import InfoLogger
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
-from ..llm_client import LLMClient  # Import the new LLMClient
+from ..llm_client import LLMClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -280,7 +279,9 @@ class TestGenerator:
 
 
         # Build context similar to single test case generation
-        context = await self.context_builder.build_code_context(function_name, include_unit_name=True)
+        context, used_fallback = await self.context_builder.build_code_context(function_name, include_unit_name=True, return_used_fallback=True)
+        for req_id in requirement_ids:
+            self.info_logger.set_used_code_context_fallback(req_id, used_fallback)
 
         context_lines = len(context.strip().split('\n'))
         if context_lines < 200:
@@ -458,7 +459,8 @@ Return your answer in the following format:
             return None
 
         # Build code context using the environment
-        context = await self.context_builder.build_code_context(function_name, include_unit_name=True)
+        context, used_fallback = await self.context_builder.build_code_context(function_name, include_unit_name=True, return_used_fallback=True)
+        self.info_logger.set_used_code_context_fallback(requirement_id, used_fallback)
         logging.debug("Generated code context: %s", context)
         
         # Determine number of example test cases based on context length

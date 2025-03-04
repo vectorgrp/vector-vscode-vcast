@@ -11,7 +11,8 @@ class InfoLogger:
             'partial_test_generated': False,
             'found_allowed_identifiers': False,
             'schema_exceeded_size': False,
-            'found_atg_examples': False
+            'found_atg_examples': False,
+            'used_code_context_fallback': False
         })
 
     def start_requirement(self, requirement_id):
@@ -44,3 +45,6 @@ class InfoLogger:
 
     def set_found_atg_examples(self, requirement_id, found=True):
         self.data[requirement_id]['found_atg_examples'] = found
+
+    def set_used_code_context_fallback(self, requirement_id, used=True):
+        self.data[requirement_id]['used_code_context_fallback'] = used

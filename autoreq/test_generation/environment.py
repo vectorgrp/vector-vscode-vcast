@@ -577,19 +577,21 @@ class Environment:
             coverage_data = {}
             match = re.search(r'GRAND TOTALS.* (\d+) \/ (\d+) .* (\d+) \/ (\d+) ', coverage_output)
 
-            assert match, "Coverage data not found in the output"
-            
-            covered_statements, total_statements, covered_branches, total_branches = match.groups()
-            coverage_data['statements'] = {
-                'covered': int(covered_statements),
-                'total': int(total_statements),
-                'percentage': int(covered_statements) / int(total_statements)
-            }
-            coverage_data['branches'] = {
-                'covered': int(covered_branches),
-                'total': int(total_branches),
-                'percentage': int(covered_branches) / int(total_branches)
-            }
+            if match:
+                covered_statements, total_statements, covered_branches, total_branches = match.groups()
+                coverage_data['statements'] = {
+                    'covered': int(covered_statements),
+                    'total': int(total_statements),
+                    'percentage': int(covered_statements) / int(total_statements)
+                }
+                coverage_data['branches'] = {
+                    'covered': int(covered_branches),
+                    'total': int(total_branches),
+                    'percentage': int(covered_branches) / int(total_branches)
+                }
+            else:
+                logging.warning("Coverage data not found in the output.")
+                coverage_data = None
                 
             output = (output, coverage_data)
             os.remove(temp_coverage_file.name)
