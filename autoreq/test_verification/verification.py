@@ -118,12 +118,11 @@ Note:
         ]
 
         try:
-            result, log_probs = await self.llm_client.call_model(
+            result = await self.llm_client.call_model(
                 messages,
-                TestVerificationResult,
-                return_logprobs=True
+                TestVerificationResult
             )
-            confidence = math.exp(log_probs['tests_requirement'])
+            confidence = 1.0
             return VerificationOutput(
                 analysis=result.analysis,
                 tests_requirement=result.tests_requirement == VerificationResult.YES,

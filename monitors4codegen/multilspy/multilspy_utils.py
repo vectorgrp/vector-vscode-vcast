@@ -6,9 +6,11 @@ import gzip
 import logging
 import os
 from typing import Tuple
-import requests
+import httpx
 import shutil
 import uuid
+import ssl
+import certifi
 
 import platform
 import subprocess
@@ -122,12 +124,29 @@ class FileUtils:
         Downloads the file from the given URL to the given {target_path}
         """
         try:
-            response = requests.get(url, stream=True, timeout=60)
-            if response.status_code != 200:
-                logger.log(f"Error downloading file '{url}': {response.status_code} {response.text}", logging.ERROR)
-                raise MultilspyException("Error downoading file.")
-            with open(target_path, "wb") as f:
-                shutil.copyfileobj(response.raw, f)
+            import ssl
+            import httpx
+
+            try:
+                import truststore
+                ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+                with httpx.Client(verify=ssl_context) as client:
+                    response = client.get(url, follow_redirects=True, timeout=60)
+                    if response.status_code != 200:
+                        logger.log(f"Error downloading file '{url}': {response.status_code} {response.text}", logging.ERROR)
+                        raise MultilspyException("Error downoading file.")
+                    with open(target_path, "wb") as f:
+                        for chunk in response.iter_bytes():
+                            f.write(chunk)
+            except:
+                import requests
+                response = requests.get(url, stream=True, timeout=60)
+                if response.status_code != 200:
+                    logger.log(f"Error downloading file '{url}': {response.status_code} {response.text}", logging.ERROR)
+                    raise MultilspyException("Error downoading file.")
+                with open(target_path, "wb") as f:
+                    shutil.copyfileobj(response.raw, f)
         except Exception as exc:
             logger.log(f"Error downloading file '{url}': {exc}", logging.ERROR)
             raise MultilspyException("Error downoading file.") from None

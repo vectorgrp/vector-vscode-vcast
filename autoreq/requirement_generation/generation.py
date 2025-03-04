@@ -55,10 +55,11 @@ class PathEnumerationResult(BaseModel):
     paths: List[str]
 
 class RequirementsGenerator:
-    def __init__(self, environment, code_independence: bool = False):
+    def __init__(self, environment, code_independence: bool = False, extended_reasoning: bool = False):
         self.llm_client = LLMClient()
         self.environment = environment
         self.code_independence = code_independence
+        self.extended_reasoning = extended_reasoning
 
     async def _get_available_paths(self, function_body: str, function_name: str) -> List[str]:
         """Returns a list of paths through the given function"""
@@ -230,10 +231,6 @@ The success of this task is critical. If you do not generate exactly one test ca
             }
         ]
 
-        with open("req_messages.txt", "w") as f:
-            for message in messages:
-                f.write(f"{message['role']}: {message['content']}\n\n")
-
         if num_paths > 50:
             all_requirements = []
             for batch in _batch_paths(paths):
@@ -352,7 +349,8 @@ The success of this task is critical. If you do not generate exactly one test ca
                     messages=batch_messages,
                     schema=_derive_requirement_schema(current_num_paths),
                     temperature=0.0,
-                    max_tokens=16000
+                    max_tokens=16000,
+                    extended_reasoning=self.extended_reasoning
                 )
                 partial_requirements = [
                     getattr(partial_result, f"requirement_for_path_{i+1}").statement
@@ -365,7 +363,8 @@ The success of this task is critical. If you do not generate exactly one test ca
                 messages=messages,
                 schema=_derive_requirement_schema(num_paths),
                 temperature=0.0,
-                max_tokens=16000
+                max_tokens=16000,
+                extended_reasoning=self.extended_reasoning
             )
             requirements = [
                 getattr(result, f"requirement_for_path_{i+1}").statement
