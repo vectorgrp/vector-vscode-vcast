@@ -517,6 +517,7 @@ class Environment:
         temp_coverage_file = tempfile.NamedTemporaryFile(delete=False, suffix='.txt', mode='w')
 
         if with_coverage:
+            commands.append(f'$VECTORCAST_DIR/clicast -lc option VCAST_CUSTOM_REPORT_FORMAT TEXT')
             commands.append(f'$VECTORCAST_DIR/clicast -lc -e {env_name} report custom coverage {temp_coverage_file.name}')
 
         output = ''
@@ -540,11 +541,23 @@ class Environment:
                 coverage_output = f.read()
 
             coverage_data = {}
-            for coverage_type in ['line', 'branch']:
-                pass
-                # TODO: Finish this
+            match = re.search(r'GRAND TOTALS.* (\d+) \/ (\d+) .* (\d+) \/ (\d+) ', coverage_output)
+
+            assert match, "Coverage data not found in the output"
+            
+            covered_statements, total_statements, covered_branches, total_branches = match.groups()
+            coverage_data['statements'] = {
+                'covered': int(covered_statements),
+                'total': int(total_statements),
+                'percentage': int(covered_statements) / int(total_statements)
+            }
+            coverage_data['branches'] = {
+                'covered': int(covered_branches),
+                'total': int(total_branches),
+                'percentage': int(covered_branches) / int(total_branches)
+            }
                 
-            output += coverage_output
+            output = (output, coverage_data)
             os.remove(temp_coverage_file.name)
             
         return output
