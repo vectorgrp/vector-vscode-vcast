@@ -487,3 +487,9 @@ The success of this task is critical. If you do not generate exactly one test ca
             ]
 
         return requirements
+
+# TODO: Properly deal with removing for statements
+# TODO: Switch to ast-only and include a "splitting step" where multisemantic requirements are split
+# TODO: Similarly, filter out "trivial" requirements, e.g., describing only breaks
+# TODO: Potentially  do not split groups at lists
+# TODO: Add ... between non-adjacent lines
