@@ -296,6 +296,18 @@ class Environment:
             return ""
             
         return self._parse_test_script(atg_file)
+
+    @cached_property
+    def atg_coverage(self):
+        # Generate atg file if not already generated
+        self.atg_tests # TODO: Fix this horrible code -> outsource atg file generation
+        atg_file = os.path.join(self.env_dir, 'atg.tst')
+        
+        # Get the coverage
+        output, coverage = self.run_test_script(atg_file, with_coverage=True)
+
+        return coverage
+        
         
     @cached_property
     def basis_path_tests(self) -> str:
