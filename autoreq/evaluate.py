@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import logging
 import csv
+import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, computed_field
@@ -40,6 +41,10 @@ class EvaluationResult(BaseModel):
     # Fallback information
     used_atg_identifier_fallback: bool
     used_atg_testable_functions_fallback: bool
+    
+    # Execution information
+    execution_time: float
+    timed_out: bool = False
     
     @computed_field
     def total_requirements(self) -> int:
@@ -149,6 +154,105 @@ class EvaluationResult(BaseModel):
         populate_by_name = True
 
 
+async def evaluate_environment_with_timeout(
+    env_path: str,
+    rm: RequirementsManager,
+    output_dir: Path,
+    requirement_ids: List[str] = None,
+    extended_reasoning: bool = False,
+    allow_partial: bool = False,
+    batched: bool = True,
+    batch_size: int = 8,
+    max_retries: int = 2,
+    allow_batch_partial: bool = False,
+    timeout_minutes: float = 30.0
+) -> EvaluationResult:
+    """Wrapper for evaluate_environment that enforces a timeout"""
+    start_time = time.perf_counter()
+    
+    try:
+        # Convert minutes to seconds for the timeout
+        timeout_seconds = timeout_minutes * 60
+        
+        # Run the evaluation with a timeout
+        result = await asyncio.wait_for(
+            evaluate_environment(
+                env_path=env_path,
+                rm=rm,
+                output_dir=output_dir,
+                requirement_ids=requirement_ids,
+                extended_reasoning=extended_reasoning,
+                allow_partial=allow_partial,
+                batched=batched,
+                batch_size=batch_size,
+                max_retries=max_retries,
+                allow_batch_partial=allow_batch_partial
+            ),
+            timeout=timeout_seconds
+        )
+    except asyncio.TimeoutError:
+        # Create a basic result with timeout information
+        env = Environment(env_path)
+        
+        if not requirement_ids:
+            requirement_ids = rm.requirement_ids
+            
+        requirements_data = {req_id: rm.get_requirement(req_id) for req_id in requirement_ids}
+        
+        # Get ATG coverage data
+        try:
+            env.build()
+            atg_coverage = env.atg_coverage
+        except Exception as e:
+            atg_coverage = {"error": str(e)}
+            
+        result = EvaluationResult(
+            environment_path=env_path,
+            requirements_data=requirements_data,
+            info_logger_data={},
+            verification_summary="Evaluation timed out",
+            atg_coverage=atg_coverage,
+            coverage={},
+            token_usage={},
+            total_cost=0.0,
+            verified_tests=0,
+            unverified_requirements=[],
+            used_atg_identifier_fallback=False,
+            used_atg_testable_functions_fallback=False,
+            timed_out=True,
+            execution_time=timeout_minutes * 60,
+            generation_error=f"Evaluation timed out after {timeout_minutes} minutes"
+        )
+        env.cleanup()
+    except Exception as e:
+        # Handle any other exceptions
+        execution_time = time.perf_counter() - start_time
+        error_msg = f"Evaluation failed: {str(e)}\n{''.join(traceback.format_exc())}"
+        
+        # Create a basic result with error information
+        result = EvaluationResult(
+            environment_path=env_path,
+            requirements_data={req_id: rm.get_requirement(req_id) for req_id in (requirement_ids or rm.requirement_ids)},
+            info_logger_data={},
+            verification_summary="Evaluation failed with an error",
+            atg_coverage={},
+            coverage={},
+            token_usage={},
+            total_cost=0.0,
+            verified_tests=0,
+            unverified_requirements=[],
+            used_atg_identifier_fallback=False,
+            used_atg_testable_functions_fallback=False,
+            execution_time=execution_time,
+            generation_error=error_msg
+        )
+    else:
+        # Calculate execution time and add it to the result
+        execution_time = time.perf_counter() - start_time
+        result.execution_time = execution_time
+        
+    return result
+
 async def evaluate_environment(
     env_path: str,
     rm: RequirementsManager,
@@ -161,6 +265,7 @@ async def evaluate_environment(
     max_retries: int = 2,
     allow_batch_partial: bool = False
 ) -> EvaluationResult:
+    start_time = time.perf_counter()
     env = Environment(env_path)
 
     env.build()
@@ -284,6 +389,8 @@ async def evaluate_environment(
         "Structure your summary with bullet points for key findings."
         "Provide examples (and provide the requirement ID) to illustrate your points."
     )
+    
+    execution_time = time.perf_counter() - start_time
 
     env.cleanup()
 
@@ -307,6 +414,9 @@ async def evaluate_environment(
         # Fallback information
         used_atg_identifier_fallback=getattr(env, '_used_atg_identifier_fallback', False),
         used_atg_testable_functions_fallback=getattr(env, '_used_atg_testable_functions_fallback', False),
+        
+        # Execution information
+        execution_time=execution_time,
         
         # Error information
         generation_error=generation_error
@@ -352,6 +462,8 @@ async def main():
                        help='Allow partial test generation during batch processing.')
     parser.add_argument('--max-cost', type=float, 
                        help='Maximum cost limit in dollar. Processing stops if exceeded.')
+    parser.add_argument('--timeout', type=float, default=30.0,
+                        help='Maximum time in minutes to wait for environment evaluation (default: 30)')
     parser.add_argument('--no-skip-existing', action='store_true', 
                        help='Re-process environments even if they have already been evaluated.')
     args = parser.parse_args()
@@ -398,7 +510,7 @@ async def main():
             env.cleanup()
             continue
             
-        result = await evaluate_environment(
+        result = await evaluate_environment_with_timeout(
             env_path,
             rm,
             output_dir,
@@ -408,7 +520,8 @@ async def main():
             args.batched,
             args.batch_size,
             args.retries,
-            args.allow_batch_partial
+            args.allow_batch_partial,
+            args.timeout
         )
         
         # Write result immediately after processing each environment
@@ -417,6 +530,9 @@ async def main():
         all_results.append(result)
         total_cost += result.total_cost
         print(f"Current cost: ${total_cost:.2f}")
+        print(f"Execution time: {format_time(result.execution_time)}")
+        if result.timed_out:
+            print(f"WARNING: Evaluation timed out after {args.timeout} minutes")
         env.cleanup()
 
     # Remove the export summary section that writes the combined file
@@ -428,6 +544,12 @@ async def main():
         print(f"\n{'=' * 50}")
         print(f"Environment: {result.environment_path}")
         print(f"{'=' * 50}")
+        
+        # Execution Information
+        print(f"\nExecution Information:")
+        print(f"Execution Time: {format_time(result.execution_time)}")
+        if result.timed_out:
+            print(f"STATUS: TIMED OUT after {result.execution_time / 60:.2f} minutes")
         
         # Core metrics
         print(f"\nCore Metrics:")
@@ -532,6 +654,17 @@ async def main():
         if result.generation_error:
             print("\nGeneration Error:")
             print(result.generation_error[:500] + "..." if len(result.generation_error) > 500 else result.generation_error)
+
+def format_time(seconds):
+    """Format seconds into human-readable time format"""
+    if seconds < 60:
+        return f"{seconds:.2f} seconds"
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return f"{minutes:.2f} minutes"
+    else:
+        hours = seconds / 3600
+        return f"{hours:.2f} hours"
 
 def cli():
     asyncio.run(main())
