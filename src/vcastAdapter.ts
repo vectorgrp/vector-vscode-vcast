@@ -65,7 +65,7 @@ import {
   buildProjectDataCache,
   globalProjectDataCache,
   refreshAllExtensionData,
-  removeEnvironmentFromTestPane,
+  removeNodeFromTestPane,
 } from "./testPane";
 
 const path = require("path");
@@ -312,7 +312,7 @@ export async function deleteLevel(projectPath: string, level: string) {
   const nodeId = path.join(projectPath, level);
 
   await updateProjectTree();
-  removeEnvironmentFromTestPane(nodeId);
+  removeNodeFromTestPane(nodeId);
 }
 
 export async function createTestsuiteInCompiler(

@@ -17,7 +17,7 @@ import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 import {
   refreshAllExtensionData,
   removeCBTfilesCacheForEnviro,
-  removeEnvironmentFromTestPane,
+  removeNodeFromTestPane,
   updateDataForEnvironment,
   updateTestPane,
   vcastUnbuiltEnviroList,
@@ -115,7 +115,7 @@ export async function deleteEnvironmentCallback(
 
   // if the delete succeeded then we need to remove the environment from the test pane
   if (code == 0) {
-    removeEnvironmentFromTestPane(enviroNodeID);
+    removeNodeFromTestPane(enviroNodeID);
     removeCBTfilesCacheForEnviro(enviroNodeID);
 
     let enviroPath = getEnviroPathFromID(enviroNodeID);

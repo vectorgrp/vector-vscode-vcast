@@ -626,21 +626,21 @@ function addUnbuiltEnviroToTestPane(
   }
 }
 
-export function removeEnvironmentFromTestPane(enviroID: string) {
+export function removeNodeFromTestPane(nodeID: string) {
   // Start searching from top-level items
   globalController.items.forEach((item) => {
-    deleteItemByID(item, enviroID);
+    deleteItemByID(item, nodeID);
   });
 }
 
 // Deletes the item with the matching enviroID
-function deleteItemByID(item: vscode.TestItem, enviroID: string) {
+function deleteItemByID(item: vscode.TestItem, nodeID: string) {
   item.children.forEach((child) => {
-    if (child.id === enviroID) {
+    if (child.id === nodeID) {
       item.children.delete(child.id);
     } else {
       // Continue searching recursively
-      deleteItemByID(child, enviroID);
+      deleteItemByID(child, nodeID);
     }
   });
 }
