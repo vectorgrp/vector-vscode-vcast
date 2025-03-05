@@ -396,6 +396,8 @@ export function clearGlobalCompilersAndTestsuites() {
     compiler: [],
     testsuites: [],
   };
+  globalUnusedCompilerList = [];
+  globalUnusedTestsuiteList = [];
 }
 
 export function setGlobalCompilerAndTestsuites() {
@@ -455,7 +457,8 @@ export async function buildProjectDataCache(baseDirectory: string) {
     const projectData = await getDataForProject(projectFile);
     const enviroList = projectData.projectEnvData;
 
-    // THis includes all testsuite (also empty ones)
+    // This includes all unused and empty testsuites and compilers because
+    // they are not in the enviroList as they do not include any envs
     globalUnusedTestsuiteList = projectData.projectTestsuiteData;
     globalUnusedCompilerList = projectData.projectCompilerData;
 
@@ -652,6 +655,8 @@ async function loadAllVCTests(
   vcastUnbuiltEnviroList = [];
   clearEnviroDataCache();
   clearTestNodeCache();
+
+  // Resets the "used" and empty/unused compilers / testsuites
   clearGlobalCompilersAndTestsuites();
 
   let cancelled: boolean = false;

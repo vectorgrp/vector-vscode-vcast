@@ -110,6 +110,16 @@
         "title": "Open Project in VectorCAST"
       },
       {
+        "command": "vectorcastTestExplorer.deleteTestsuite",
+        "category": "VectorCAST Test Explorer",
+        "title": "Delete Testsuite"
+      },
+      {
+        "command": "vectorcastTestExplorer.deleteCompiler",
+        "category": "VectorCAST Test Explorer",
+        "title": "Delete Compiler"
+      },
+      {
         "command": "vectorcastTestExplorer.deleteEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Delete Environment"
@@ -392,6 +402,14 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.deleteTestsuite",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteCompiler",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.deleteEnviro",
           "when": "never"
         },
@@ -644,6 +662,16 @@
           "command": "vectorcastTestExplorer.openProjectInVectorCAST",
           "group": "vcast@1",
           "when": "testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteTestsuite",
+          "group": "vcast@1",
+          "when": "testId in vectorcastTestExplorer.globalProjectTestsuites"
+        },
+        {
+          "command": "vectorcastTestExplorer.deleteCompiler",
+          "group": "vcast@1",
+          "when": "testId in vectorcastTestExplorer.globalProjectCompilers"
         },
         {
           "command": "vectorcastTestExplorer.deleteEnviro",

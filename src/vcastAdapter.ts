@@ -65,6 +65,7 @@ import {
   buildProjectDataCache,
   globalProjectDataCache,
   refreshAllExtensionData,
+  removeEnvironmentFromTestPane,
 } from "./testPane";
 
 const path = require("path");
@@ -287,6 +288,31 @@ export async function addEnvToGroup(
     addEnvToProjectCallback,
     enviroName
   );
+}
+
+export async function deleteLevel(projectPath: string, level: string) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--level=${level}`,
+    `--delete`,
+    `--force`,
+  ];
+
+  const message = `Deleting ${level} from Project ${projectName} ...`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message
+  );
+
+  const nodeId = path.join(projectPath, level);
+
+  await updateProjectTree();
+  removeEnvironmentFromTestPane(nodeId);
 }
 
 export async function createTestsuiteInCompiler(

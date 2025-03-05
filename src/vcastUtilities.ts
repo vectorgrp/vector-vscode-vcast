@@ -480,6 +480,21 @@ export function getWebveiwComboboxItems(projectFile: string) {
     }
   }
 
+  // Include empty / unused compilers
+  for (let compiler of globalUnusedCompilerList) {
+    if (!compilerList.includes(compiler.displayName)) {
+      compilerList.push(compiler.displayName);
+    }
+  }
+
+  // Include empty / unused testSuites
+  for (let testsuite of globalUnusedTestsuiteList) {
+    const testsuiteName = path.basename(testsuite.displayName);
+    if (!testsuiteList.includes(testsuiteName)) {
+      testsuiteList.push(testsuiteName);
+    }
+  }
+
   comboBoxList.compilers = compilerList;
   comboBoxList.testsuites = testsuiteList;
 

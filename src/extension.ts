@@ -84,6 +84,7 @@ import {
   openProjectInVcast,
   createTestsuiteInCompiler,
   addCompilerToProject,
+  deleteLevel,
 } from "./vcastAdapter";
 
 import {
@@ -948,6 +949,36 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(buildProjectEnviro);
+
+  // Command: vectorcastTestExplorer.deleteTestsuite  ////////////////////////////////////////////////////////
+  let deleteTestsuiteCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.deleteTestsuite",
+    (node: any) => {
+      const nodeParts = node.id.split("/");
+      // compiler/testsuite
+      const testsuiteLevel = path.join(
+        nodeParts[nodeParts.length - 2],
+        nodeParts[nodeParts.length - 1]
+      );
+      // We need the extra "/" because we cut it out otherwise, which would lead to an ENOENT error when trying to spawn the process
+      const projectPath =
+        "/" + path.join(...nodeParts.slice(0, nodeParts.length - 2));
+      deleteLevel(projectPath, testsuiteLevel);
+    }
+  );
+  context.subscriptions.push(deleteTestsuiteCommand);
+
+  // Command: vectorcastTestExplorer.deleteCompiler ////////////////////////////////////////////////////////
+  let deleteCompilerCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.deleteCompiler",
+    (node: any) => {
+      const compiler = node.id;
+      const projectPath = path.dirname(compiler);
+      const compilerLevel = path.basename(compiler);
+      deleteLevel(projectPath, compilerLevel);
+    }
+  );
+  context.subscriptions.push(deleteCompilerCommand);
 
   // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
   let removeTestsuite = vscode.commands.registerCommand(
