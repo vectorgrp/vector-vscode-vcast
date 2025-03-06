@@ -667,9 +667,6 @@ export function ensureTestsuiteNodes() {
       ) as vcastTestItem;
       testsuiteNode.nodeKind = nodeKind.testsuite;
       compilerNode.children.add(testsuiteNode);
-      vectorMessage(
-        `Created testsuite node "${testsuiteName}" under compiler "${compilerName}"`
-      );
     }
   });
 }
@@ -729,9 +726,6 @@ export function ensureCompilerNodes() {
       ) as vcastTestItem;
       compilerNode.nodeKind = nodeKind.compiler;
       projectNode.children.add(compilerNode);
-      vectorMessage(
-        `Created compiler node "${compilerName}" under project "${projectFile}".`
-      );
     }
   });
 }

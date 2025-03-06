@@ -784,146 +784,6 @@ function configureExtension(context: vscode.ExtensionContext) {
   `;
   }
 
-  // Command: vectorcastTestExplorer.addEnviroToProject  ////////////////////////////////////////////////////////
-
-  let addEnviroToProject = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.addEnviroToProject",
-    async (projectNode) => {
-      const projectPath = projectNode.id;
-      const panel = vscode.window.createWebviewPanel(
-        "addEnviroToProject",
-        "Add Environment To Project",
-        vscode.ViewColumn.Active, // Keeps it central
-        { enableScripts: true, retainContextWhenHidden: true } // Makes it act more like a modal
-      );
-
-      panel.webview.html = getWebviewContent();
-
-      // Listen for messages from the Webview
-      panel.webview.onDidReceiveMessage(async (message) => {
-        if (message.command === "submit") {
-          const { compilerName, testsuiteName, enviroPath } = message;
-          if (!compilerName || !enviroPath || !testsuiteName) {
-            vscode.window.showErrorMessage("All fields are required.");
-            return;
-          }
-          const testsuite = path.join(compilerName, testsuiteName);
-          vectorMessage(
-            `Adding Environment ${enviroPath} to Testsuite ${testsuiteName} to Project ${projectPath}...`
-          );
-          await importEnvToTestsuite(projectPath, testsuite, enviroPath);
-          panel.dispose(); // Close the webview after submission
-        } else if (message.command === "cancel") {
-          panel.dispose(); // Close the webview if user cancels
-        }
-      }, undefined);
-    }
-  );
-
-  function getWebviewContent() {
-    return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Add Environment</title>
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-          background-color: #1e1e1e;
-          color: #d4d4d4;
-          font-size: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          margin: 0;
-        }
-        .modal {
-          width: 500px;
-          background-color: #252526;
-          padding: 30px;
-          border-radius: 8px;
-          box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-          text-align: center;
-        }
-        h2 {
-          color: #ffffff;
-          margin-bottom: 20px;
-        }
-        label {
-          font-size: 18px;
-          display: block;
-          margin-top: 10px;
-          text-align: left;
-        }
-        input {
-          width: calc(100% - 20px);
-          padding: 10px;
-          font-size: 16px;
-          margin-top: 5px;
-          background-color: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
-          border-radius: 4px;
-          display: block;
-          margin-left: auto;
-          margin-right: auto;
-        }
-        button {
-          margin-top: 15px;
-          padding: 10px 15px;
-          font-size: 16px;
-          background-color: #007acc;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        button:hover {
-          background-color: #005f99;
-        }
-        .button-container {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 20px;
-        }
-      </style>
-      <script>
-        const vscode = acquireVsCodeApi();
-        function sendMessage() {
-          const enviroPath = document.getElementById('enviroPath').value;
-          const testsuiteName = document.getElementById('testsuiteName').value;
-          const compilerName = document.getElementById('compilerName').value;
-          vscode.postMessage({ command: 'submit', compilerName, testsuiteName, enviroPath});
-        } 
-        function cancel() {
-          vscode.postMessage({ command: 'cancel' });
-        }
-      </script>
-    </head>
-    <body>
-      <div class="modal">
-        <h2>Add Environment To Project</h2>
-        <label>Environment Path:</label>
-        <input type="text" id="enviroPath" placeholder="Enter .env file path" /><br/><br/>
-        <label>Compiler Name:</label>
-        <input type="text" id="compilerName" placeholder="Enter Compiler Name" /><br/><br/>
-        <label>Testsuite Name:</label>
-        <input type="text" id="testsuiteName" placeholder="Enter Testsuite Name" /><br/><br/>
-        <div class="button-container">
-          <button onclick="cancel()">Cancel</button>
-          <button onclick="sendMessage()">OK</button>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-  }
-
-  context.subscriptions.push(addEnviroToProject);
-
   // Command: vectorcastTestExplorer.buildAllUnbuiltEnviro  ////////////////////////////////////////////////////////
   let buildAllUnbuiltEnviroInProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.buildAllUnbuiltEnviroInProject",
@@ -1204,7 +1064,22 @@ async function installPreActivationEventHandlers(
 
       panel.webview.onDidReceiveMessage(
         async (message) => {
-          if (message.command === "submit") {
+          if (message.command === "importEnvFile") {
+            const files = await vscode.window.showOpenDialog({
+              canSelectMany: false,
+              openLabel: "Select Env File",
+              filters: {
+                "Env Files": ["env"],
+              },
+            });
+            if (files && files.length > 0) {
+              const envFile = files[0].fsPath;
+              panel.webview.postMessage({
+                command: "envFileSelected",
+                envFile,
+              });
+            }
+          } else if (message.command === "submit") {
             const { projectPath, envFiles, testsuiteArgs } = message;
             if (!projectPath || !envFiles || !testsuiteArgs) {
               vscode.window.showErrorMessage(
@@ -1234,6 +1109,62 @@ async function installPreActivationEventHandlers(
   );
   context.subscriptions.push(importEnviroToProjectCommand);
 
+  // Command: vectorcastTestExplorer.addEnviroToProject  ////////////////////////////////////////////////////////
+
+  let addEnviroToProject = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addEnviroToProject",
+    async (projectNode) => {
+      const projectPath = projectNode.id;
+      const panel = vscode.window.createWebviewPanel(
+        "addEnviroToProject",
+        "Add Environment To Project",
+        vscode.ViewColumn.Active, // Keeps it central
+        { enableScripts: true, retainContextWhenHidden: true } // Makes it act more like a modal
+      );
+
+      // Pass an empty array since no env file is provided
+      panel.webview.html = getImportEnvProjectWebviewContent([]);
+
+      // Listen for messages from the Webview
+      panel.webview.onDidReceiveMessage(async (message) => {
+        if (message.command === "submit") {
+          const { projectPath, envFiles, testsuiteArgs } = message;
+          if (!projectPath || !envFiles || !testsuiteArgs) {
+            vscode.window.showErrorMessage(
+              "Project Path, Env Files, and Testsuite are required."
+            );
+            return;
+          }
+
+          // Iterate through each Env File and log it.
+          envFiles.forEach(async (file: string) => {
+            vectorMessage(`Env File: ${file}`);
+            await importEnvToTestsuite(projectPath, testsuiteArgs, file);
+          });
+          panel.dispose(); // Close the webview after submission
+        } else if (message.command === "importEnvFile") {
+          // Open file picker for .env files
+          const uri = await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            filters: { "Environment Files": ["env"] },
+            openLabel: "Select Environment File",
+          });
+
+          if (uri && uri.length > 0) {
+            // Send selected file path back to webview
+            panel.webview.postMessage({
+              command: "envFileSelected",
+              envFile: uri[0].fsPath,
+            });
+          }
+        } else if (message.command === "cancel") {
+          panel.dispose(); // Close the webview if user cancels
+        }
+      }, undefined);
+    }
+  );
+  context.subscriptions.push(addEnviroToProject);
+
   /**
    * Returns the HTML content for the webview.
    * It builds a form that allows the user to select:
@@ -1246,365 +1177,354 @@ async function installPreActivationEventHandlers(
   function getImportEnvProjectWebviewContent(
     argList: vscode.Uri[] | { fsPath: any }[]
   ): string {
-    // Convert it to an array so it can be embedded into the webview.
+    // Convert your globalProjectWebviewComboboxItems to an array for embedding.
     const projectData = JSON.stringify(
       Array.from(globalProjectWebviewComboboxItems.entries())
     );
-    // Pre-fill Env Files from argList (each element's fsPath).
-    // If more than one file is provided, only take the first one.
+
+    // Only use the first file if multiple env files are provided
     const initialEnvFilesArray = argList.map((uri) => uri.fsPath);
     const initialEnvFile =
       initialEnvFilesArray.length > 0 ? initialEnvFilesArray[0] : "";
-    const initialEnvFiles = JSON.stringify([initialEnvFile]);
+    const initialEnvFileJson = JSON.stringify(initialEnvFile);
 
-    return `<!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Create Environment</title>
-    <style>
-      /* Basic reset and styling */
-      * { box-sizing: border-box; }
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        background-color: #1e1e1e;
-        color: #d4d4d4;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        margin: 0;
-      }
-      .modal {
-        width: 700px;
-        background-color: #252526;
-        padding: 25px;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.3);
-        text-align: center;
-      }
-      h2 { 
-        color: #ffffff; 
-        margin-bottom: 15px; 
-        font-size: 22px; 
-      }
-      label {
-        font-size: 16px;
-        display: block;
-        text-align: left;
-        margin-top: 12px;
-        margin-bottom: 6px;
-      }
-      input, select {
-        padding: 10px;
-        font-size: 14px;
-        background-color: #3c3c3c;
-        color: #d4d4d4;
-        border: 1px solid #555;
-        border-radius: 4px;
-        width: 100%;
-        margin-bottom: 10px;
-      }
-      select option {
-        padding: 10px;
-        border: 1px solid #555;
-        margin: 2px;
-      }
-      
-      /* Layout for single-input rows (Project Path, Env Files) */
-      .single-input-container {
-        display: grid;
-        grid-template-columns: 1fr 50px;
-        gap: 10px;
-        align-items: center;
-        margin-bottom: 10px;
-        width: 100%;
-      }
-      .single-add-row {
-        display: grid;
-        grid-template-columns: 1fr 50px;
-        gap: 10px;
-        width: 100%;
-        margin-bottom: 20px;
-      }
-      .single-add-row button { 
-        grid-column: 1; 
-        justify-self: start; 
-      }
-      /* Layout for double-input rows (Compiler, Testsuite) */
-      .double-input-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr 50px;
-        gap: 10px;
-        align-items: center;
-        margin-bottom: 10px;
-        width: 100%;
-      }
-      .double-add-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr 50px;
-        gap: 10px;
-        width: 100%;
-        margin-bottom: 20px;
-      }
-      .double-add-row button { 
-        grid-column: 1; 
-        justify-self: start; 
-      }
-      .remove-button {
-        background-color: #cc4444;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 10px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-      }
-      .remove-button:hover { 
-        background-color: #992222; 
-      }
-      .add-button {
-        background-color: #007acc;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 6px 10px;
-        font-size: 14px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-      }
-      .add-button:hover { 
-        background-color: #005f99; 
-      }
-      /* Labels for the double row */
-      .label-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr 50px;
-        gap: 10px;
-        margin-bottom: 10px;
-        width: 100%;
-        font-weight: bold;
-        text-align: center;
-      }
-      .label-row > div {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      .button-container {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 20px;
-      }
-      .primary-button {
-        background-color: #007acc;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 10px 15px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-      }
-      .primary-button:hover { 
-        background-color: #005f99; 
-      }
-    </style>
-  </head>
-  <body>
-    <div class="modal">
-      <h2>Create Environment in Project</h2>
-      
-      <!-- Project Path Combobox -->
-      <label>Project Path:</label>
-      <div class="single-input-container">
-        <select id="projectPath"></select>
-      </div>
-      
-      <!-- Env Files -->
-      <label>Env Files:</label>
-      <div id="envFilesContainer">
-        <div class="single-input-container">
-          <input type="text" placeholder="Enter Env File" />
-          <button class="remove-button" onclick="this.parentElement.remove()">✖</button>
-        </div>
-      </div>
-      <div class="single-add-row">
-        <button class="add-button" onclick="addInputRow('envFilesContainer', 'Enter Env File')">➕</button>
-      </div>
-      
-      <!-- Compiler/Testsuite Labels -->
-      <div class="label-row">
-        <div>Select Compiler</div>
-        <div>Select Testsuite</div>
-        <div></div>
-      </div>
-      
-      <!-- Compiler/Testsuite Container -->
-      <div id="compilerContainer">
-        <!-- Initial row will be added dynamically -->
-      </div>
-      <div class="double-add-row">
-        <button class="add-button" onclick="addCompilerRow()">➕</button>
-      </div>
-      
-      <!-- OK/Cancel Buttons -->
-      <div class="button-container">
-        <button class="primary-button" onclick="cancel()">Cancel</button>
-        <button class="primary-button" onclick="submitForm()">OK</button>
-      </div>
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Create Environment</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .modal {
+      width: 700px;
+      background-color: #252526;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    h2 {
+      color: #ffffff;
+      margin-bottom: 15px;
+      font-size: 22px;
+    }
+    label {
+      font-size: 16px;
+      display: block;
+      text-align: left;
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+    /* Inputs & selects */
+    input, select {
+      padding: 10px;
+      font-size: 14px;
+      background-color: #3c3c3c;
+      color: #d4d4d4;
+      border: 1px solid #555;
+      border-radius: 4px;
+      width: 100%;
+    }
+    select option {
+      padding: 10px;
+      border: 1px solid #555;
+      margin: 2px;
+    }
+
+    /* Row with input + button: grid with 2 columns: 1fr for input, 60px (or 70px) for button. */
+    .single-input-container {
+      display: grid;
+      grid-template-columns: 1fr 70px; /* enough width for the text "Select" */
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    /* Row with double input + remove button. 50px for the remove button. */
+    .double-input-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr 50px;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+      width: 100%;
+    }
+    /* The row that has the plus (➕) button. */
+    .double-add-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 50px;
+      gap: 10px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    .double-add-row button { 
+      grid-column: 1; 
+      justify-self: start; 
+    }
+
+    /* The label row for compiler/testsuite, also with 3 columns. */
+    .label-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 50px;
+      gap: 10px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      width: 100%;
+      font-weight: bold;
+      text-align: center;
+    }
+    .label-row > div {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Buttons */
+    button {
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .remove-button {
+      background-color: #cc4444;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .remove-button:hover { 
+      background-color: #992222; 
+    }
+    .select-button {
+      background-color: #007acc;
+      color: white;
+      /* Center text horizontally & vertically */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 36px; /* match input height */
+      width: 100%;  /* fill the 70px column */
+    }
+    .add-button {
+      background-color: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .add-button:hover { 
+      background-color: #005f99; 
+    }
+    /* Labels for the double row */
+    .label-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 50px;
+      gap: 10px;
+      margin-bottom: 10px;
+      width: 100%;
+      font-weight: bold;
+      text-align: center;
+    }
+    .label-row > div {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .button-container {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+    .primary-button {
+      background-color: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .primary-button:hover { 
+      background-color: #005f99; 
+    }
+  </style>
+</head>
+<body>
+  <div class="modal">
+    <h2>Create Environment in Project</h2>
+
+    <!-- Project Path -->
+    <label>Project Path:</label>
+    <div class="single-input-container">
+      <select id="projectPath"></select>
     </div>
-    
-    <script>
-      const vscode = acquireVsCodeApi();
-      
-      // projectWebviewComboboxItems is expected to be a Map<string, { compilers: string[]; testsuites: string[] }> embedded into the webview.
-      const projectData = ${projectData};
-      const projectMap = new Map(projectData);
-      
-      // Populate the Project Path combobox from the keys of the projectMap.
-      const projectPathSelect = document.getElementById('projectPath');
-      projectMap.forEach((value, key) => {
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = key;
-        projectPathSelect.appendChild(option);
-      });
-      
-      // Helper function to generate <option> elements from an array.
-      function generateOptions(arr) {
-        let html = '';
-        arr.forEach(item => {
-          html += '<option value="' + item + '">' + item + '</option>';
-        });
-        return html;
+
+    <!-- Env File with a Select button. 
+         The button is 70px wide (from the grid) and uses display:flex 
+         so the text "Select" is truly centered. -->
+    <label>Env File:</label>
+    <div class="single-input-container">
+      <input type="text" id="envFileInput" placeholder="Select Env File" readonly />
+      <button class="select-button" onclick="importEnvFile()">Select</button>
+    </div>
+
+    <!-- Compiler/Testsuite Labels -->
+    <div class="label-row">
+      <div>Select Compiler</div>
+      <div>Select Testsuite</div>
+      <div></div>
+    </div>
+
+    <!-- Compiler/Testsuite Rows -->
+    <div id="compilerContainer"></div>
+    <div class="double-add-row">
+      <button class="add-button" onclick="addCompilerRow()">➕</button>
+    </div>
+
+    <!-- OK/Cancel Buttons -->
+    <div class="button-container">
+      <button class="primary-button" onclick="cancel()">Cancel</button>
+      <button class="primary-button" onclick="submitForm()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    const vscode = acquireVsCodeApi();
+    const projectData = ${projectData};
+    const projectMap = new Map(projectData);
+
+    // Fill Project Path combobox
+    const projectPathSelect = document.getElementById('projectPath');
+    projectMap.forEach((value, key) => {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = key;
+      projectPathSelect.appendChild(opt);
+    });
+
+    // Import .env file
+    function importEnvFile() {
+      vscode.postMessage({ command: 'importEnvFile' });
+    }
+
+    // Listen for envFileSelected
+    window.addEventListener('message', event => {
+      const msg = event.data;
+      if (msg.command === 'envFileSelected') {
+        document.getElementById('envFileInput').value = msg.envFile;
       }
-      
-      // Adds a new row for Compiler and Testsuite.
-      function addCompilerRow() {
-        const selectedProject = projectPathSelect.value;
-        const projectInfo = projectMap.get(selectedProject);
-        if (!projectInfo) {
-          vscode.postMessage({ command: 'error', message: 'No project data available for the selected project.' });
-          return;
-        }
-        const container = document.getElementById('compilerContainer');
-        const row = document.createElement('div');
-        row.classList.add('double-input-container');
-        
-        const compilerSelect = document.createElement('select');
-        compilerSelect.required = true;
+    });
+
+    function generateOptions(arr) {
+      return arr.map(item => '<option value="' + item + '">' + item + '</option>').join('');
+    }
+
+    function addCompilerRow() {
+      const selectedProject = projectPathSelect.value;
+      const projectInfo = projectMap.get(selectedProject);
+      if (!projectInfo) {
+        vscode.postMessage({ command: 'error', message: 'No project data available.' });
+        return;
+      }
+      const container = document.getElementById('compilerContainer');
+      const row = document.createElement('div');
+      row.classList.add('double-input-container');
+
+      const compilerSelect = document.createElement('select');
+      compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
+
+      const testsuiteSelect = document.createElement('select');
+      testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
+
+      // Delete button
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '✖';
+      removeBtn.classList.add('remove-button');
+      removeBtn.onclick = () => row.remove();
+
+      row.appendChild(compilerSelect);
+      row.appendChild(testsuiteSelect);
+      row.appendChild(removeBtn);
+      container.appendChild(row);
+    }
+
+    // If project changes, update existing rows
+    projectPathSelect.addEventListener('change', () => {
+      const selectedProject = projectPathSelect.value;
+      const projectInfo = projectMap.get(selectedProject);
+      if (!projectInfo) return;
+
+      document.querySelectorAll('#compilerContainer .double-input-container').forEach(row => {
+        const [compilerSelect, testsuiteSelect] = row.children;
+        const currentCompiler = compilerSelect.value;
+        const currentTestsuite = testsuiteSelect.value;
         compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
-        
-        const testsuiteSelect = document.createElement('select');
-        testsuiteSelect.required = true;
         testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
-        
-        const removeButton = document.createElement('button');
-        removeButton.textContent = '✖';
-        removeButton.classList.add('remove-button');
-        removeButton.onclick = () => { row.remove(); };
-        
-        row.appendChild(compilerSelect);
-        row.appendChild(testsuiteSelect);
-        row.appendChild(removeButton);
-        container.appendChild(row);
-      }
-      
-      // Update existing Compiler/Testsuite rows when the Project Path changes.
-      projectPathSelect.addEventListener('change', () => {
-        const selectedProject = projectPathSelect.value;
-        const projectInfo = projectMap.get(selectedProject);
-        if (!projectInfo) return;
-        const rows = document.querySelectorAll('#compilerContainer .double-input-container');
-        rows.forEach(row => {
-          const compilerSelect = row.children[0];
-          const testsuiteSelect = row.children[1];
-          const currentCompiler = compilerSelect.value;
-          const currentTestsuite = testsuiteSelect.value;
-          compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
-          testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
-          compilerSelect.value = projectInfo.compilers.includes(currentCompiler) ? currentCompiler : projectInfo.compilers[0];
-          testsuiteSelect.value = projectInfo.testsuites.includes(currentTestsuite) ? currentTestsuite : projectInfo.testsuites[0];
-        });
+        compilerSelect.value = projectInfo.compilers.includes(currentCompiler) ? currentCompiler : projectInfo.compilers[0];
+        testsuiteSelect.value = projectInfo.testsuites.includes(currentTestsuite) ? currentTestsuite : projectInfo.testsuites[0];
       });
-      
-      // Adds a new Env file input row.
-      function addInputRow(containerId, placeholderText) {
-        const container = document.getElementById(containerId);
-        // Prevent adding more than one row.
-        if (container.children.length > 0) return;
-        const row = document.createElement('div');
-        row.classList.add('single-input-container');
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = placeholderText;
-        const removeButton = document.createElement('button');
-        removeButton.textContent = '✖';
-        removeButton.classList.add('remove-button');
-        removeButton.onclick = () => { row.remove(); };
-        row.appendChild(input);
-        row.appendChild(removeButton);
-        container.appendChild(row);
-      }
-      
-      // Submit the form: gather values from Project Path, Env Files, and Compiler/Testsuite rows.
-      function submitForm() {
-        const projectPath = projectPathSelect.value;
-        const envFiles = Array.from(document.querySelectorAll('#envFilesContainer .single-input-container input[type="text"]'))
-                          .map(i => i.value)
-                          .filter(val => val); // Only non-empty values.
-        // Ensure only one env file is used.
-        const selectedEnvFile = envFiles.length > 0 ? envFiles[0] : "";
-        const testsuiteArgs = Array.from(document.querySelectorAll('#compilerContainer .double-input-container')).map(row => {
-          const compiler = row.children[0].value;
-          const testsuite = row.children[1].value;
-          return compiler + "/" + testsuite;
-        });
-        if (!projectPath || testsuiteArgs.some(arg => !arg)) {
-          vscode.postMessage({ command: 'error', message: 'Project Path, Compiler, and Testsuite are required.' });
-          return;
-        }
-        vscode.postMessage({
-          command: 'submit',
-          projectPath: projectPath,
-          envFiles: [selectedEnvFile],
-          testsuiteArgs: testsuiteArgs
-        });
-      }
-      
-      function cancel() {
-        vscode.postMessage({ command: 'cancel' });
-      }
-      
-      // Pre-fill Env Files if provided from argList.
-      const initialEnvFiles = ${initialEnvFiles};
-      window.addEventListener('DOMContentLoaded', () => {
-        const envContainer = document.getElementById('envFilesContainer');
-        envContainer.innerHTML = '';
-        if (initialEnvFiles && initialEnvFiles.length > 0) {
-          // Only use the first file.
-          const file = initialEnvFiles[0];
-          const row = document.createElement('div');
-          row.classList.add('single-input-container');
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.value = file;
-          const removeButton = document.createElement('button');
-          removeButton.textContent = '✖';
-          removeButton.classList.add('remove-button');
-          removeButton.onclick = () => { row.remove(); };
-          row.appendChild(input);
-          row.appendChild(removeButton);
-          envContainer.appendChild(row);
-        }
-        // Add an initial Compiler/Testsuite row.
-        addCompilerRow();
+    });
+
+    function submitForm() {
+      const projectPath = projectPathSelect.value;
+      const envFile = document.getElementById('envFileInput').value;
+      const rows = document.querySelectorAll('#compilerContainer .double-input-container');
+      const testsuiteArgs = Array.from(rows).map(row => {
+        const [compilerSelect, testsuiteSelect] = row.children;
+        return compilerSelect.value + '/' + testsuiteSelect.value;
       });
-    </script>
-  </body>
-  </html>`;
+      if (!projectPath || !envFile || testsuiteArgs.some(arg => !arg)) {
+        vscode.postMessage({ command: 'error', message: 'Project Path, Env File, and Compiler/Testsuite are required.' });
+        return;
+      }
+      vscode.postMessage({
+        command: 'submit',
+        projectPath,
+        envFiles: [envFile],
+        testsuiteArgs
+      });
+    }
+
+    function cancel() {
+      vscode.postMessage({ command: 'cancel' });
+    }
+
+    // Pre-fill env file
+    const initialEnvFile = ${initialEnvFileJson};
+    window.addEventListener('DOMContentLoaded', () => {
+      if (initialEnvFile) {
+        document.getElementById('envFileInput').value = initialEnvFile;
+      }
+      // add initial compiler row
+      addCompilerRow();
+    });
+  </script>
+</body>
+</html>
+  `;
   }
 
   let newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
