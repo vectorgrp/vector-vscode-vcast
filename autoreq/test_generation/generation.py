@@ -9,10 +9,10 @@ from dotenv import load_dotenv
 import logging
 
 from .vcast_context_builder import VcastContextBuilder
-from .atg_context_builder import ATGContextBuilder  # Add this import
-from .info_logger import InfoLogger  # Add this import
+from .atg_context_builder import ATGContextBuilder 
+from .info_logger import InfoLogger
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
-from ..llm_client import LLMClient  # Import the new LLMClient
+from ..llm_client import LLMClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -159,7 +159,7 @@ def _derive_test_case_schema(allowed_identifiers=None):
 
     return TestCase
 
-def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None):
+def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None, return_size_fallback=False):
     if allowed_identifiers:
         logging.info(f"Creating schema with {len(allowed_identifiers)} allowed identifiers")
 
@@ -186,7 +186,13 @@ def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None
 
     if len(schema_json) > 15000:
         logging.warning(f"Schema size is too large ({len(schema_json)} chars). Ignoring allowed identifiers.")
+        if return_size_fallback:
+            return _derive_completion_schema(batched, allowed_identifiers=None, batch_size=batch_size), True
+
         return _derive_completion_schema(batched, allowed_identifiers=None, batch_size=batch_size)
+
+    if return_size_fallback:
+        return schema, False
 
     return schema
 
@@ -221,9 +227,11 @@ class TestGenerator:
 
     def _get_allowed_identifiers_for_function(self, function_name):
         """Helper method to get allowed identifiers for a function with logging."""
-        allowed_identifiers = self.environment.get_allowed_identifiers_for_function(function_name)
+        allowed_identifiers, used_fallback = self.environment.get_allowed_identifiers_for_function(function_name, return_used_atg_fallback=True)
         logging.debug(f"Retrieved {len(allowed_identifiers)} allowed identifiers for function {function_name}")
-        return allowed_identifiers
+        
+        # When this is called for a specific requirement, we'll update the info logger afterward
+        return allowed_identifiers, used_fallback
 
     async def generate_test_cases(self, requirement_ids, batched=True, allow_partial=False, allow_batch_partial=False, batch_size=8, **kwargs):
         if not requirement_ids:
@@ -262,12 +270,18 @@ class TestGenerator:
             return
 
         function_name = functions.pop()
-        allowed_identifiers = self._get_allowed_identifiers_for_function(function_name)
+        allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(function_name)
+        for req_id in requirement_ids:
+            self.info_logger.set_found_no_allowed_identifiers(req_id, len(allowed_identifiers) == 0)
+            self.info_logger.set_used_atg_identifier_fallback(req_id, used_fallback)
+        
         requirements_text = "\n".join([f"{i+1}. {req_id}: {self.requirements_manager.get_description(req_id)}" for i, req_id in enumerate(requirement_ids)])
 
 
         # Build context similar to single test case generation
-        context = await self.context_builder.build_code_context(function_name, include_unit_name=True)
+        context, used_fallback = await self.context_builder.build_code_context(function_name, include_unit_name=True, return_used_fallback=True)
+        for req_id in requirement_ids:
+            self.info_logger.set_used_code_context_fallback(req_id, used_fallback)
 
         context_lines = len(context.strip().split('\n'))
         if context_lines < 200:
@@ -278,6 +292,8 @@ class TestGenerator:
             basis_path = True
 
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
+        for req_id in requirement_ids:
+            self.info_logger.set_no_atg_examples(req_id, len(atg_examples) == 0)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
@@ -337,12 +353,21 @@ Return your answer in the following format:
             }
         ]
 
-        schema = _derive_completion_schema(True, allowed_identifiers=allowed_identifiers, batch_size=len(requirement_ids))
+        schema, used_fallback = _derive_completion_schema(True, allowed_identifiers=allowed_identifiers, batch_size=len(requirement_ids), return_size_fallback=True)
+
+        for req_id in requirement_ids:
+            self.info_logger.set_schema_exceeded_size(req_id, used_fallback)
 
         try:
             test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=4096)
         except Exception as e:
+            import traceback
+            logging.exception(f"Call to model failed for batched requirements: {e}")
             logging.exception("Failed to generate batched test cases because model call failed. Falling back to individual generation.")
+
+            for req_id in requirement_ids:
+                self.info_logger.add_exception(req_id, traceback.format_exc())
+            
             async for test_case in self.generate_test_cases(requirement_ids, batched=False, allow_partial=individual_partial, **kwargs):
                 yield test_case
             return
@@ -362,7 +387,7 @@ Return your answer in the following format:
             else:
                 logging.warning(f"Requirement {test_case.requirement_id} was generated multiple times or was not requested.")
 
-            output = self.environment.run_tests([test_case.to_vectorcast()], execute=True)
+            output = self.environment.run_tests([test_case.to_vectorcast()])
             errors, test_failures = self._parse_error_output(output)
 
             if errors or (not allow_partial and test_failures):
@@ -393,11 +418,17 @@ Return your answer in the following format:
         try:
             if not already_started:
                 self.info_logger.start_requirement(requirement_id)
+
             self.info_logger.set_individual_test_generation_needed(requirement_id)
 
             function_name = self.requirements_manager.get_function(requirement_id)
-            allowed_identifiers = self._get_allowed_identifiers_for_function(function_name)
-            
+            allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(function_name)
+            self.info_logger.set_found_no_allowed_identifiers(requirement_id, len(allowed_identifiers) == 0)
+            self.info_logger.set_used_atg_identifier_fallback(requirement_id, used_fallback)
+
+            schema, used_fallback = _derive_completion_schema(False, allowed_identifiers=allowed_identifiers, return_size_fallback=True)
+            self.info_logger.set_schema_exceeded_size(requirement_id, used_fallback)
+
             first_try = True
             for _ in range(max_retries):
                 self.info_logger.increment_retries_used(requirement_id)
@@ -408,7 +439,7 @@ Return your answer in the following format:
                     temperature=temperature, 
                     extended_reasoning=extended_reasoning, 
                     allow_partial=allow_partial,
-                    schema=_derive_completion_schema(False, allowed_identifiers=allowed_identifiers)
+                    schema=schema
                 )
                 if result:
                     self.info_logger.set_test_generated(requirement_id)
@@ -417,6 +448,7 @@ Return your answer in the following format:
                     first_try = False
         except Exception as e:
             import traceback
+            self.info_logger.add_exception(requirement_id, traceback.format_exc())
             logging.exception(f"Failed to generate test case for requirement {requirement_id}: {traceback.format_exc()}")
 
         return None
@@ -435,7 +467,8 @@ Return your answer in the following format:
             return None
 
         # Build code context using the environment
-        context = await self.context_builder.build_code_context(function_name, include_unit_name=True)
+        context, used_fallback = await self.context_builder.build_code_context(function_name, include_unit_name=True, return_used_fallback=True)
+        self.info_logger.set_used_code_context_fallback(requirement_id, used_fallback)
         logging.debug("Generated code context: %s", context)
         
         # Determine number of example test cases based on context length
@@ -450,6 +483,8 @@ Return your answer in the following format:
         logging.info(f"Fetching {num_examples} ATG example test cases")
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
         logging.debug("Retrieved ATG examples: %s", atg_examples)
+
+        self.info_logger.set_no_atg_examples(requirement_id, len(atg_examples) == 0)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
@@ -512,9 +547,10 @@ Notes:
         # Use provided schema instead of creating a new one
         try:
             test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)
-            # Removed for_requirement parameter
         except Exception as e:
-            logging.exception("Failed to generate test case.")
+            import traceback
+            self.info_logger.add_exception(requirement_id, traceback.format_exc())
+            logging.exception(f"Call to model failed for requirement {requirement_id}: {e}")
             return None
 
         test_generation_result = await self._iterative_error_correction(
@@ -534,7 +570,7 @@ Notes:
         while iteration < max_iterations:
             iteration += 1
 
-            output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()], execute=True)
+            output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()])
             errors, test_failures = self._parse_error_output(output)
 
             if not errors and not test_failures:
@@ -585,7 +621,13 @@ Tip:
                 #        f.write(f"{message['role']}: {message['content']}\n\n")
                 
                 # Call the model to get the fixed test case
-                test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)
+                try:
+                    test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)
+                except Exception as e:
+                    import traceback
+                    self.info_logger.add_exception(requirement_id, traceback.format_exc())
+                    logging.exception(f"Call to model failed for requirement {requirement_id} (during error correction): {e}")
+                    return None
 
         if errors:
             logging.warning(f"Failed to fix errors after {iteration} iterations")

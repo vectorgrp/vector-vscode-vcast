@@ -1,16 +1,25 @@
+from collections import defaultdict
+
 class InfoLogger:
     def __init__(self):
-        self.data = {}
-
-    def start_requirement(self, requirement_id):
-        self.data[requirement_id] = {
+        self.data = defaultdict(lambda: {
             'individual_test_generation_needed': False,
             'error_correction_needed': False,
             'retries_used': 0,
             'test_run_failure_feedback': False,
             'test_generated': False,
-            'partial_test_generated': False  # Add new field
-        }
+            'partial_test_generated': False,
+            'found_no_allowed_identifiers': False,
+            'schema_exceeded_size': False,
+            'no_atg_examples': False,
+            'used_code_context_fallback': False,
+            'used_atg_identifier_fallback': False,
+            'exceptions': []
+        })
+
+    def start_requirement(self, requirement_id):
+        # Reset retries when starting/restarting a requirement
+        self.data[requirement_id]['retries_used'] = 0
 
     def increment_retries_used(self, requirement_id):
         self.data[requirement_id]['retries_used'] += 1
@@ -29,3 +38,21 @@ class InfoLogger:
 
     def set_partial_test_generated(self, requirement_id):
         self.data[requirement_id]['partial_test_generated'] = True
+        
+    def set_found_no_allowed_identifiers(self, requirement_id, not_found=True):
+        self.data[requirement_id]['found_no_allowed_identifiers'] = not_found
+        
+    def set_schema_exceeded_size(self, requirement_id, exceeded=True):
+        self.data[requirement_id]['schema_exceeded_size'] = exceeded
+
+    def set_no_atg_examples(self, requirement_id, no_examples=True):
+        self.data[requirement_id]['no_atg_examples'] = no_examples
+
+    def set_used_code_context_fallback(self, requirement_id, used=True):
+        self.data[requirement_id]['used_code_context_fallback'] = used
+    
+    def set_used_atg_identifier_fallback(self, requirement_id, used=True):
+        self.data[requirement_id]['used_atg_identifier_fallback'] = used
+
+    def add_exception(self, requirement_id, exception):
+        self.data[requirement_id]['exceptions'].append(exception)

@@ -195,6 +195,8 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
     if export_repository:
         execute_rgw_commands(env_path, csv_path, export_repository)
 
+    return generator.llm_client.total_cost['total_cost']
+
 def cli():
     parser = argparse.ArgumentParser(description="Decompose design of functions into requirements.")
     parser.add_argument("env_path", help="Path to the VectorCAST environment directory.")

@@ -1,4 +1,3 @@
-
 import csv
 import os
 
@@ -46,3 +45,11 @@ class RequirementsManager:
                 grouped[func] = []
             grouped[func].append(rid)
         return grouped
+
+    def requirements_to_dict(self):
+        """Return a dictionary representation of all requirements."""
+        return self._requirements
+
+    def get_requirement(self, requirement_id):
+        """Get a specific requirement by ID."""
+        return self._requirements_by_id.get(requirement_id)
