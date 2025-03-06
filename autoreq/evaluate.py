@@ -298,65 +298,6 @@ class EvaluationResult(BaseModel):
         populate_by_name = True
 
 
-def create_failed_evaluation_result(env_path: str, error: str, execution_time: str = None, requirements_data: dict = None) -> EvaluationResult:
-    """Create a basic evaluation result with an error message"""
-    return EvaluationResult(
-        environment_path=env_path,
-        requirements_data=requirements_data or {},
-        info_logger_data={},
-        atg_coverage={},
-        coverage={},
-        token_usage={},
-        total_generation_cost=0.0,
-        total_verification_cost=0.0,
-        verified_tests=0,
-        unverified_requirements=[],
-        execution_time=execution_time,
-        generation_error=error
-    )
-
-async def evaluate_environment_with_timeout(
-    env_path: str,
-    rm: RequirementsManager,
-    output_dir: Path,
-    requirement_ids: List[str] = None,
-    extended_reasoning: bool = False,
-    allow_partial: bool = False,
-    batched: bool = True,
-    batch_size: int = 8,
-    max_retries: int = 2,
-    allow_batch_partial: bool = False,
-    timeout_minutes: float = 30.0
-) -> EvaluationResult:
-    """Wrapper for evaluate_environment that enforces a timeout"""
-    start_time = time.perf_counter()
-    
-    try:
-        timeout_seconds = timeout_minutes * 60
-        
-        result = await asyncio.wait_for(
-            evaluate_environment(
-                env_path=env_path,
-                rm=rm,
-                output_dir=output_dir,
-                requirement_ids=requirement_ids,
-                extended_reasoning=extended_reasoning,
-                allow_partial=allow_partial,
-                batched=batched,
-                batch_size=batch_size,
-                max_retries=max_retries,
-                allow_batch_partial=allow_batch_partial
-            ),
-            timeout=timeout_seconds
-        )
-    except asyncio.TimeoutError:
-        result = create_failed_evaluation_result(env_path, f"Evaluation timed out after {timeout_minutes} minutes", execution_time=timeout_minutes * 60)
-    except Exception as e:
-        execution_time = time.perf_counter() - start_time
-        result = create_failed_evaluation_result(env_path, f"Evaluation failed: {str(e)}\n{''.join(traceback.format_exc())}", execution_time=execution_time)
-        
-    return result
-
 async def evaluate_environment(
     env_path: str,
     rm: RequirementsManager,
@@ -367,7 +308,8 @@ async def evaluate_environment(
     batched: bool = True,
     batch_size: int = 8,
     max_retries: int = 2,
-    allow_batch_partial: bool = False
+    allow_batch_partial: bool = False,
+    max_generation_time: float = None
 ) -> EvaluationResult:
     start_time = time.perf_counter()
     env = Environment(env_path)
@@ -390,7 +332,9 @@ async def evaluate_environment(
     test_cases = []
     generation_error = None
     pbar = tqdm(total=len(requirement_ids), desc=f"Generating tests for {Path(env_path).stem}")
-    try:
+
+    async def perform_test_generation():
+        nonlocal test_cases, generation_error
         async for test_case in test_generator.generate_test_cases(
             requirement_ids,
             batched=batched,
@@ -402,6 +346,12 @@ async def evaluate_environment(
             if test_case:
                 test_cases.append(test_case)
             pbar.update(1)
+
+    try:
+        await asyncio.wait_for(perform_test_generation(), timeout=max_generation_time)
+    except asyncio.TimeoutError:
+        generation_error = f"Test generation timed out after {max_generation_time} seconds"
+        logging.error(f"Test generation timed out for {env_path} after {max_generation_time} seconds")
     except Exception as e:
         generation_error = f"Test generation failed: {str(e)}\n{''.join(traceback.format_exc())}"
         logging.error(f"Test generation failed for {env_path}: {str(e)}")
@@ -761,10 +711,8 @@ async def main():
             with open(output_dir / f"{env_name}_result.json") as f:
                 result_dict = json.load(f)
                 # Add cost from previous run - account for older format that might not have verification cost
-                gen_cost = result_dict.get('total_generation_cost', result_dict.get('total_cost', 0))
-                ver_cost = result_dict.get('total_verification_cost', 0)
-                total_generation_cost += gen_cost
-                total_cost += (gen_cost + ver_cost)
+                total_generation_cost += result_dict.get('total_generation_cost', 0)
+                total_cost += result_dict.get('total_cost')
             continue
 
         env_pbar.set_description(f"Processing {env_name}")
@@ -782,7 +730,7 @@ async def main():
             env.cleanup()
             continue
             
-        result = await evaluate_environment_with_timeout(
+        result = await evaluate_environment(
             env_path,
             rm,
             output_dir,
@@ -793,7 +741,7 @@ async def main():
             args.batch_size,
             args.retries,
             args.allow_batch_partial,
-            args.timeout
+            args.timeout * 60 # Convert from minutes to seconds
         )
         
         write_env_result(result, output_dir)

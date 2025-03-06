@@ -359,7 +359,7 @@ Return your answer in the following format:
             self.info_logger.set_schema_exceeded_size(req_id, used_fallback)
 
         try:
-            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=4096)
+            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=8192)
         except Exception as e:
             import traceback
             logging.exception(f"Call to model failed for batched requirements: {e}")

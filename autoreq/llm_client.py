@@ -51,10 +51,6 @@ class LLMClient:
                         **kwargs
                     )
 
-                    import random
-                    if random.random() < 0.5:
-                        raise openai.LengthFinishReasonError(completion=completion)
-
                     # Update token usage for the generation model
                     self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
                     self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens

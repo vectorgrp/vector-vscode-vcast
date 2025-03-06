@@ -120,7 +120,8 @@ Note:
         try:
             result = await self.llm_client.call_model(
                 messages,
-                TestVerificationResult
+                TestVerificationResult,
+                max_tokens=10000,
             )
             confidence = 1.0
             return VerificationOutput(
