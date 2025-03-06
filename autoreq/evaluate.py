@@ -6,10 +6,11 @@ import logging
 import csv
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field, computed_field
 from tqdm import tqdm
 import traceback
+from datetime import datetime
 
 from .requirements_manager import RequirementsManager
 from .test_generation.generation import TestGenerator
@@ -25,11 +26,11 @@ class EvaluationResult(BaseModel):
     # Raw data needed for calculations
     requirements_data: Dict[str, Any]
     info_logger_data: Dict[str, Any]
-    verification_summary: str
     atg_coverage: Dict[str, Any]
     coverage: Dict[str, Any]
     token_usage: Dict[str, Dict[str, int]]
-    total_cost: float
+    total_generation_cost: float  # Renamed from total_cost
+    total_verification_cost: float = 0.0
     
     # Verification data
     verified_tests: int
@@ -37,10 +38,6 @@ class EvaluationResult(BaseModel):
     
     # Optional error information
     generation_error: Optional[str] = None
-    
-    # Fallback information
-    used_atg_identifier_fallback: bool
-    used_atg_testable_functions_fallback: bool
     
     # Execution information
     execution_time: float
@@ -115,13 +112,13 @@ class EvaluationResult(BaseModel):
         return len(self.individual_generation_reqs) / self.total_requirements if self.total_requirements > 0 else 0
     
     @computed_field
-    def found_allowed_identifiers_reqs(self) -> List[str]:
+    def found_no_allowed_identifiers_reqs(self) -> List[str]:
         return [req_id for req_id, data in self.info_logger_data.items()
-                if data['found_allowed_identifiers']]
+                if data['found_no_allowed_identifiers']]
     
     @computed_field
-    def found_allowed_identifiers_rate(self) -> float:
-        return len(self.found_allowed_identifiers_reqs) / self.total_requirements if self.total_requirements > 0 else 0
+    def found_no_allowed_identifiers_rate(self) -> float:
+        return len(self.found_no_allowed_identifiers_reqs) / self.total_requirements if self.total_requirements > 0 else 0
     
     @computed_field
     def schema_exceeded_size_reqs(self) -> List[str]:
@@ -133,13 +130,13 @@ class EvaluationResult(BaseModel):
         return len(self.schema_exceeded_size_reqs) / self.total_requirements if self.total_requirements > 0 else 0
     
     @computed_field
-    def found_atg_examples_reqs(self) -> List[str]:
+    def no_atg_examples_reqs(self) -> List[str]:
         return [req_id for req_id, data in self.info_logger_data.items()
-                if data['found_atg_examples']]
+                if data['no_atg_examples']]
     
     @computed_field
-    def found_atg_examples_rate(self) -> float:
-        return len(self.found_atg_examples_reqs) / self.total_requirements if self.total_requirements > 0 else 0
+    def no_atg_examples_rate(self) -> float:
+        return len(self.no_atg_examples_reqs) / self.total_requirements if self.total_requirements > 0 else 0
 
     @computed_field
     def used_code_context_fallback_reqs(self) -> List[str]:
@@ -150,9 +147,173 @@ class EvaluationResult(BaseModel):
     def used_code_context_fallback_rate(self) -> float:
         return len(self.used_code_context_fallback_reqs) / self.total_requirements if self.total_requirements > 0 else 0
     
+    @computed_field
+    def used_atg_identifier_fallback_reqs(self) -> List[str]:
+        return [req_id for req_id, data in self.info_logger_data.items()
+                if data['used_atg_identifier_fallback']]
+        
+    @computed_field
+    def used_atg_identifier_fallback_rate(self) -> float:
+        return len(self.used_atg_identifier_fallback_reqs) / self.total_requirements if self.total_requirements > 0 else 0
+    
+    @computed_field
+    def reqs_with_exceptions(self) -> List[str]:
+        """List requirement IDs that had exceptions during processing."""
+        return [req_id for req_id, data in self.info_logger_data.items()
+                if data['exceptions'] and len(data['exceptions']) > 0]
+    
+    @computed_field
+    def exception_rate(self) -> float:
+        """Calculate the percentage of requirements that had exceptions."""
+        return len(self.reqs_with_exceptions) / self.total_requirements if self.total_requirements > 0 else 0
+
+    @computed_field
+    def total_cost(self) -> float:
+        """Combined cost of both generation and verification"""
+        return self.total_generation_cost + self.total_verification_cost
+        
+    def __str__(self) -> str:
+        """Format the evaluation result as a human-readable string"""
+        lines = []
+        
+        # Header for the environment
+        lines.append(f"\n{'=' * 50}")
+        lines.append(f"Environment: {self.environment_path}")
+        lines.append(f"{'=' * 50}")
+        
+        # Execution Information
+        lines.append(f"\nExecution Information:")
+        lines.append(f"Execution Time: {format_time(self.execution_time)}")
+        if self.timed_out:
+            lines.append(f"STATUS: TIMED OUT after {self.execution_time / 60:.2f} minutes")
+        
+        # Core metrics
+        lines.append(f"\nCore Metrics:")
+        lines.append(f"Total Requirements: {self.total_requirements}")
+        lines.append(f"Generated Tests: {self.generated_tests}")
+        lines.append(f"Verified Tests: {self.verified_tests}")
+        
+        # Performance metrics
+        lines.append(f"\nPerformance Metrics:")
+        lines.append(f"Precision: {self.precision:.2f}")
+        lines.append(f"Recall: {self.recall:.2f}")
+        lines.append(f"F1 Score: {self.f1_score:.2f}")
+        
+        # Coverage information
+        lines.append("\nCoverage Information:")
+        lines.append("ATG Coverage:")
+        if self.atg_coverage and isinstance(self.atg_coverage, dict):
+            if 'statements' in self.atg_coverage:
+                stmts = self.atg_coverage['statements']
+                lines.append(f"  Statements: {stmts['covered']}/{stmts['total']} ({stmts['percentage']:.2%})")
+            if 'branches' in self.atg_coverage:
+                branches = self.atg_coverage['branches']
+                lines.append(f"  Branches:   {branches['covered']}/{branches['total']} ({branches['percentage']:.2%})")
+        else:
+            lines.append("  No ATG coverage data available")
+            
+        lines.append("Generated Tests Coverage:")
+        if self.coverage and isinstance(self.coverage, dict):
+            if 'statements' in self.coverage:
+                stmts = self.coverage['statements']
+                lines.append(f"  Statements: {stmts['covered']}/{stmts['total']} ({stmts['percentage']:.2%})")
+            if 'branches' in self.coverage:
+                branches = self.coverage['branches']
+                lines.append(f"  Branches:   {branches['covered']}/{branches['total']} ({branches['percentage']:.2%})")
+        else:
+            lines.append("  No coverage data available for generated tests")
+        
+        # Verification information
+        lines.append("\nVerification Information:")
+        if self.unverified_requirements:
+            lines.append(f"Unverified Requirements: {', '.join(self.unverified_requirements)}")
+        
+        # Generation statistics
+        lines.append("\nGeneration Statistics:")
+        
+        # Success/failure
+        lines.append(f"\n  Success/Failure:")
+        lines.append(f"  Failed Generation Rate: {self.failed_generation_rate:.2%}")
+        if self.failed_generation_reqs:
+            lines.append(f"  Failed Requirements: {', '.join(self.failed_generation_reqs)}")
+        
+        # Feedback and correction
+        lines.append(f"\n  Fallback rates:")
+        lines.append(f"  Test Failure Feedback Rate: {self.test_failure_feedback_rate:.2%}")
+        if self.test_failure_feedback_reqs:
+            lines.append(f"  Test Failure Requirements: {', '.join(self.test_failure_feedback_reqs)}")
+        
+        lines.append(f"  Error Correction Needed Rate: {self.error_correction_needed_rate:.2%}")
+        if self.error_correction_needed_reqs:
+            lines.append(f"  Error Correction Requirements: {', '.join(self.error_correction_needed_reqs)}")
+        
+        lines.append(f"  Partial Test Rate: {self.partial_test_rate:.2%}")
+        if self.partial_test_reqs:
+            lines.append(f"  Partial Test Requirements: {', '.join(self.partial_test_reqs)}")
+        
+        lines.append(f"  Individual Generation Rate: {self.individual_generation_rate:.2%}")
+        if self.individual_generation_reqs:
+            lines.append(f"  Individual Generation Requirements: {', '.join(self.individual_generation_reqs)}")
+        
+        lines.append(f"  Found No Allowed Identifiers Rate: {self.found_no_allowed_identifiers_rate:.2%}")
+        if self.found_no_allowed_identifiers_reqs:
+            lines.append(f"  Found No Allowed Identifiers Requirements: {', '.join(self.found_no_allowed_identifiers_reqs)}")
+        
+        lines.append(f"  Schema Exceeded Size Rate: {self.schema_exceeded_size_rate:.2%}")
+        if self.schema_exceeded_size_reqs:
+            lines.append(f"  Schema Exceeded Size Requirements: {', '.join(self.schema_exceeded_size_reqs)}")
+        
+        lines.append(f"  No ATG Examples Rate: {self.no_atg_examples_rate:.2%}")
+        if self.no_atg_examples_reqs:
+            lines.append(f"  No ATG Examples Requirements: {', '.join(self.no_atg_examples_reqs)}")
+
+        lines.append(f"  Used Code Context Fallback Rate: {self.used_code_context_fallback_rate:.2%}")
+        if self.used_code_context_fallback_reqs:
+            lines.append(f"  Used Code Context Fallback Requirements: {', '.join(self.used_code_context_fallback_reqs)}")
+            
+        lines.append(f"  Used ATG Identifier Fallback Rate: {self.used_atg_identifier_fallback_rate:.2%}")
+        if self.used_atg_identifier_fallback_reqs:
+            lines.append(f"  Used ATG Identifier Fallback Requirements: {', '.join(self.used_atg_identifier_fallback_reqs)}")
+        
+        # Exception information
+        lines.append(f"\n  Exception Information:")
+        lines.append(f"  Requirements with Exceptions Rate: {self.exception_rate:.2%}")
+        if self.reqs_with_exceptions:
+            lines.append(f"  Requirements with Exceptions: {', '.join(self.reqs_with_exceptions)}")
+        
+        # Cost information
+        lines.append("\nCost Information:")
+        lines.append(f"Generation Cost: ${self.total_generation_cost:.4f}")
+        lines.append(f"Verification Cost: ${self.total_verification_cost:.4f}")
+        lines.append(f"Total Cost: ${self.total_cost:.4f}")
+        
+        # Error information
+        if self.generation_error:
+            lines.append("\nGeneration Error:")
+            lines.append(self.generation_error)
+        
+        return "\n".join(lines)
+
     class Config:
         populate_by_name = True
 
+
+def create_failed_evaluation_result(env_path: str, error: str, execution_time: str = None, requirements_data: dict = None) -> EvaluationResult:
+    """Create a basic evaluation result with an error message"""
+    return EvaluationResult(
+        environment_path=env_path,
+        requirements_data=requirements_data or {},
+        info_logger_data={},
+        atg_coverage={},
+        coverage={},
+        token_usage={},
+        total_generation_cost=0.0,
+        total_verification_cost=0.0,
+        verified_tests=0,
+        unverified_requirements=[],
+        execution_time=execution_time,
+        generation_error=error
+    )
 
 async def evaluate_environment_with_timeout(
     env_path: str,
@@ -171,10 +332,8 @@ async def evaluate_environment_with_timeout(
     start_time = time.perf_counter()
     
     try:
-        # Convert minutes to seconds for the timeout
         timeout_seconds = timeout_minutes * 60
         
-        # Run the evaluation with a timeout
         result = await asyncio.wait_for(
             evaluate_environment(
                 env_path=env_path,
@@ -191,65 +350,10 @@ async def evaluate_environment_with_timeout(
             timeout=timeout_seconds
         )
     except asyncio.TimeoutError:
-        # Create a basic result with timeout information
-        env = Environment(env_path)
-        
-        if not requirement_ids:
-            requirement_ids = rm.requirement_ids
-            
-        requirements_data = {req_id: rm.get_requirement(req_id) for req_id in requirement_ids}
-        
-        # Get ATG coverage data
-        try:
-            env.build()
-            atg_coverage = env.atg_coverage
-        except Exception as e:
-            atg_coverage = {"error": str(e)}
-            
-        result = EvaluationResult(
-            environment_path=env_path,
-            requirements_data=requirements_data,
-            info_logger_data={},
-            verification_summary="Evaluation timed out",
-            atg_coverage=atg_coverage,
-            coverage={},
-            token_usage={},
-            total_cost=0.0,
-            verified_tests=0,
-            unverified_requirements=[],
-            used_atg_identifier_fallback=False,
-            used_atg_testable_functions_fallback=False,
-            timed_out=True,
-            execution_time=timeout_minutes * 60,
-            generation_error=f"Evaluation timed out after {timeout_minutes} minutes"
-        )
-        env.cleanup()
+        result = create_failed_evaluation_result(env_path, f"Evaluation timed out after {timeout_minutes} minutes", execution_time=timeout_minutes * 60)
     except Exception as e:
-        # Handle any other exceptions
         execution_time = time.perf_counter() - start_time
-        error_msg = f"Evaluation failed: {str(e)}\n{''.join(traceback.format_exc())}"
-        
-        # Create a basic result with error information
-        result = EvaluationResult(
-            environment_path=env_path,
-            requirements_data={req_id: rm.get_requirement(req_id) for req_id in (requirement_ids or rm.requirement_ids)},
-            info_logger_data={},
-            verification_summary="Evaluation failed with an error",
-            atg_coverage={},
-            coverage={},
-            token_usage={},
-            total_cost=0.0,
-            verified_tests=0,
-            unverified_requirements=[],
-            used_atg_identifier_fallback=False,
-            used_atg_testable_functions_fallback=False,
-            execution_time=execution_time,
-            generation_error=error_msg
-        )
-    else:
-        # Calculate execution time and add it to the result
-        execution_time = time.perf_counter() - start_time
-        result.execution_time = execution_time
+        result = create_failed_evaluation_result(env_path, f"Evaluation failed: {str(e)}\n{''.join(traceback.format_exc())}", execution_time=execution_time)
         
     return result
 
@@ -304,6 +408,10 @@ async def evaluate_environment(
     finally:
         pbar.close()
 
+    # Capture generation costs before verification
+    generation_token_usage = test_generator.llm_client.get_token_usage()
+    generation_total_cost = test_generator.llm_client.total_cost['total_cost']
+
     non_null_tests = [tc for tc in test_cases if tc is not None]
 
     # Verify tests in parallel while preserving order
@@ -312,6 +420,7 @@ async def evaluate_environment(
     
     # Create a list of coroutines for verification
     verification_tasks = [test_verifier.verify_test_case(test_case) for test_case in non_null_tests]
+
     
     async def verify_with_progress(coro):
         result = await coro
@@ -323,6 +432,9 @@ async def evaluate_environment(
     
     # Wait for all verifications to complete while preserving order
     verification_results = await asyncio.gather(*wrapped_tasks)
+
+    # Capture verification cost
+    verification_total_cost = test_verifier.llm_client.total_cost['total_cost']
     
     pbar.close()
 
@@ -371,25 +483,9 @@ async def evaluate_environment(
             "analysis": vr.analysis
         } for tc, vr in zip(non_null_tests, verification_results)], f, indent=2)
 
-    token_usage = test_generator.llm_client.get_token_usage()
-    total_cost = test_generator.llm_client.total_cost['total_cost']
+    token_usage = generation_token_usage
+    total_cost = generation_total_cost
 
-    # After verification results are collected, generate a summary
-    verification_context = "\n\n".join([
-        f"Requirement {tc.requirement_id if tc else 'unknown'}:\n"
-        f"Analysis: {vr.analysis}\n"
-        f"Tests Requirement: {vr.tests_requirement}"
-        for tc, vr in zip(test_cases, verification_results)
-    ])
-
-    summary_engine = SummaryEngine(verification_context)
-    verification_summary = await summary_engine.summarize(
-        "Summarize the main verification problems and patterns found across all test cases. "
-        "Focus on common issues, types of failures, and any notable patterns in the verification results. "
-        "Structure your summary with bullet points for key findings."
-        "Provide examples (and provide the requirement ID) to illustrate your points."
-    )
-    
     execution_time = time.perf_counter() - start_time
 
     env.cleanup()
@@ -401,19 +497,15 @@ async def evaluate_environment(
         # Raw data needed for calculations
         requirements_data=requirements_data,
         info_logger_data=dict(info_data),
-        verification_summary=verification_summary,
         atg_coverage=atg_coverage,
         coverage=generated_tests_coverage,
         token_usage=token_usage,
-        total_cost=total_cost,
+        total_generation_cost=total_cost,  # Note: This is still using generation cost
+        total_verification_cost=verification_total_cost,
         
         # Verification data
         verified_tests=verified_tests,
         unverified_requirements=problem_reqs,
-        
-        # Fallback information
-        used_atg_identifier_fallback=getattr(env, '_used_atg_identifier_fallback', False),
-        used_atg_testable_functions_fallback=getattr(env, '_used_atg_testable_functions_fallback', False),
         
         # Execution information
         execution_time=execution_time,
@@ -432,6 +524,34 @@ def parse_env_req_pair(pair: str) -> tuple[str, str]:
         env_dir = str(Path(env_path).parent)
         return env_path, str(Path(env_dir) / "reqs.csv")
 
+def read_environments_from_file(filepath: str) -> List[str]:
+    """Read environment paths from a file, one per line."""
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Environment list file not found: {filepath}")
+    
+    with open(filepath, 'r') as f:
+        # Read all lines and strip whitespace, skipping empty lines and comments
+        return [line.strip() for line in f.readlines()
+                if line.strip() and not line.strip().startswith('#')]
+
+def expand_environment_args(env_args: List[str]) -> List[str]:
+    """
+    Expand environment arguments, replacing @filepath references with the contents
+    of those files.
+    """
+    expanded_args = []
+    for arg in env_args:
+        if arg.startswith('@'):
+            filepath = arg[1:]  # Remove the @ prefix
+            try:
+                file_envs = read_environments_from_file(filepath)
+                expanded_args.extend(file_envs)
+            except Exception as e:
+                print(f"Error reading environments from file {filepath}: {e}")
+        else:
+            expanded_args.append(arg)
+    return expanded_args
+
 def write_env_result(result: EvaluationResult, output_dir: Path) -> None:
     """Write individual environment results to a JSON file."""
     env_name = Path(result.environment_path).stem
@@ -446,11 +566,135 @@ def get_processed_environments(output_dir: Path) -> set:
         for p in output_dir.glob("*_result.json")
     }
 
+def setup_mlflow(mlflow_arg: Tuple[str, str]) -> Optional[Any]:
+    """
+    Set up MLflow tracking for the evaluation.
+    
+    Args:
+        mlflow_arg: A tuple of (experiment_name, run_name)
+        
+    Returns:
+        The MLflow module if successful, None otherwise
+    """
+    try:
+        import mlflow
+    except ImportError:
+        print("Warning: mlflow is not installed. MLflow tracking is disabled.")
+        return None
+
+    # Set longer timeout for artifact uploads
+    os.environ["MLFLOW_ARTIFACT_UPLOAD_DOWNLOAD_TIMEOUT"] = "1800"
+    
+
+    mlflow_server = os.environ.get("AUTOREQ_MLFLOW_SERVER")
+    # Use server from config if available
+    if mlflow_server:
+        mlflow.set_tracking_uri(mlflow_server)
+    
+    experiment_name, run_name = mlflow_arg
+    run_name += f" {datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}"
+    
+    # Get or create the experiment
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if not experiment:
+        experiment_id = mlflow.create_experiment(experiment_name)
+    else:
+        experiment_id = experiment.experiment_id
+    
+    mlflow.set_experiment(experiment_name)
+    mlflow.start_run(run_name=run_name)
+    mlflow.set_tag("mlflow.runName", run_name)
+    
+    return mlflow
+
+def log_result_to_mlflow(mlflow, result: EvaluationResult, env_name: str) -> None:
+    """Log environment evaluation results to MLflow."""
+    if not mlflow:
+        return
+    
+    # Create a metrics dictionary with all available computed metrics
+    metrics = {
+        # Core metrics
+        f"{env_name}/precision": result.precision,
+        f"{env_name}/recall": result.recall,
+        f"{env_name}/f1_score": result.f1_score,
+        f"{env_name}/total_requirements": result.total_requirements,
+        f"{env_name}/generated_tests": result.generated_tests,
+        f"{env_name}/verified_tests": result.verified_tests,
+        
+        # Generation metrics
+        f"{env_name}/failed_generation_rate": result.failed_generation_rate,
+        f"{env_name}/test_failure_feedback_rate": result.test_failure_feedback_rate,
+        f"{env_name}/error_correction_needed_rate": result.error_correction_needed_rate,
+        f"{env_name}/partial_test_rate": result.partial_test_rate,
+        f"{env_name}/individual_generation_rate": result.individual_generation_rate,
+        f"{env_name}/found_no_allowed_identifiers_rate": result.found_no_allowed_identifiers_rate,
+        f"{env_name}/schema_exceeded_size_rate": result.schema_exceeded_size_rate,
+        f"{env_name}/no_atg_examples_rate": result.no_atg_examples_rate,
+        f"{env_name}/used_code_context_fallback_rate": result.used_code_context_fallback_rate,
+        f"{env_name}/used_atg_identifier_fallback_rate": result.used_atg_identifier_fallback_rate,
+        
+        # Exception metrics
+        f"{env_name}/exception_rate": result.exception_rate,
+        
+        # Cost and performance metrics
+        f"{env_name}/generation_cost": result.total_generation_cost,
+        f"{env_name}/verification_cost": result.total_verification_cost,
+        f"{env_name}/total_cost": result.total_cost,
+        f"{env_name}/execution_time": result.execution_time,
+        f"{env_name}/timed_out": int(result.timed_out),  # Convert boolean to int for logging
+    }
+    
+    # Add coverage metrics if available
+    if result.atg_coverage and isinstance(result.atg_coverage, dict):
+        if 'statements' in result.atg_coverage:
+            stmts = result.atg_coverage['statements']
+            metrics[f"{env_name}/atg_statement_coverage"] = stmts.get('percentage', 0)
+            metrics[f"{env_name}/atg_statements_covered"] = stmts.get('covered', 0)
+            metrics[f"{env_name}/atg_statements_total"] = stmts.get('total', 0)
+            
+        if 'branches' in result.atg_coverage:
+            branches = result.atg_coverage['branches']
+            metrics[f"{env_name}/atg_branch_coverage"] = branches.get('percentage', 0)
+            metrics[f"{env_name}/atg_branches_covered"] = branches.get('covered', 0)
+            metrics[f"{env_name}/atg_branches_total"] = branches.get('total', 0)
+    
+    if result.coverage and isinstance(result.coverage, dict):
+        if 'statements' in result.coverage:
+            stmts = result.coverage['statements']
+            metrics[f"{env_name}/statement_coverage"] = stmts.get('percentage', 0)
+            metrics[f"{env_name}/statements_covered"] = stmts.get('covered', 0)
+            metrics[f"{env_name}/statements_total"] = stmts.get('total', 0)
+            
+        if 'branches' in result.coverage:
+            branches = result.coverage['branches']
+            metrics[f"{env_name}/branch_coverage"] = branches.get('percentage', 0)
+            metrics[f"{env_name}/branches_covered"] = branches.get('covered', 0)
+            metrics[f"{env_name}/branches_total"] = branches.get('total', 0)
+    
+    # Log token usage metrics
+    if result.token_usage:
+        for model_name, usage in result.token_usage.items():
+            for metric_name, value in usage.items():
+                metrics[f"{env_name}/tokens_{model_name}_{metric_name}"] = value
+
+    
+    # Log all metrics
+    mlflow.log_metrics(metrics)
+    
+    # Create environment directory structure for artifacts
+    env_artifact_dir = f"environments/{env_name}"
+
+    # Log the full result as a JSON artifact
+    mlflow.log_dict(result.model_dump(by_alias=True), f"{env_artifact_dir}/result.json")
+
+
 async def main():
     parser = argparse.ArgumentParser(description='Evaluate test generation and verification for given environments.')
     parser.add_argument('env_req_pairs', nargs='+', 
                        help='Paths to VectorCAST environment files, optionally followed by :path/to/reqs.csv. '
-                            'If no requirements path is specified, looks for reqs.csv in the environment directory.')
+                            'If no requirements path is specified, looks for reqs.csv in the environment directory. '
+                            'You can also use @filepath to include environments listed in a file, one per line.')
     parser.add_argument('output_dir', help='Directory to store evaluation results.')
     parser.add_argument('--requirement-ids', nargs='*', help='Specific requirement IDs to evaluate.')
     parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning.')
@@ -466,17 +710,42 @@ async def main():
                         help='Maximum time in minutes to wait for environment evaluation (default: 30)')
     parser.add_argument('--no-skip-existing', action='store_true', 
                        help='Re-process environments even if they have already been evaluated.')
+    parser.add_argument('--mlflow', nargs=2, metavar=('EXPERIMENT_NAME', 'RUN_NAME'),
+                       help='Enable MLflow tracking with specified experiment and run name')
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    # Expand environment arguments
+    expanded_env_req_pairs = expand_environment_args(args.env_req_pairs)
+    
+    # Set up MLflow if requested
+    mlflow = None
+    if args.mlflow:
+        mlflow = setup_mlflow(args.mlflow)
+        if mlflow:
+            # Log parameters - expanded to include all CLI args
+            params = {k: v for k, v in vars(args).items() if k != 'mlflow'}
+            # Convert lists and other non-string types to strings for MLflow
+            for k, v in params.items():
+                if isinstance(v, list):
+                    params[k] = ','.join(map(str, v))
+                elif not isinstance(v, (str, int, float, bool)):
+                    params[k] = str(v)
+            mlflow.log_params(params)
+            
+            # Log information about the environments being processed
+            mlflow.log_param("environments", ','.join([Path(pair.split(':')[0]).stem for pair in expanded_env_req_pairs]))
+            mlflow.log_param("num_environments", len(expanded_env_req_pairs))
+
     # Get already processed environments
     processed_envs = get_processed_environments(output_dir)
     
     all_results = []
+    total_generation_cost = 0.0
     total_cost = 0.0
-    env_pbar = tqdm(args.env_req_pairs, desc="Processing environments")
+    env_pbar = tqdm(expanded_env_req_pairs, desc="Processing environments")
     for pair in env_pbar:
         if args.max_cost and total_cost >= args.max_cost:
             print(f"\nStopping: Cost limit of ${args.max_cost:.2f} reached (current: ${total_cost:.2f})")
@@ -491,8 +760,11 @@ async def main():
             # Load existing result
             with open(output_dir / f"{env_name}_result.json") as f:
                 result_dict = json.load(f)
-                # Add cost from previous run
-                total_cost += result_dict.get('total_cost', 0)
+                # Add cost from previous run - account for older format that might not have verification cost
+                gen_cost = result_dict.get('total_generation_cost', result_dict.get('total_cost', 0))
+                ver_cost = result_dict.get('total_verification_cost', 0)
+                total_generation_cost += gen_cost
+                total_cost += (gen_cost + ver_cost)
             continue
 
         env_pbar.set_description(f"Processing {env_name}")
@@ -524,136 +796,33 @@ async def main():
             args.timeout
         )
         
-        # Write result immediately after processing each environment
         write_env_result(result, output_dir)
         
+        # Log results to MLflow if enabled
+        if mlflow:
+            log_result_to_mlflow(mlflow, result, env_name)
+        
         all_results.append(result)
+        total_generation_cost += result.total_generation_cost
         total_cost += result.total_cost
-        print(f"Current cost: ${total_cost:.2f}")
+        print(f"Current generation cost: ${total_generation_cost:.2f}")
+        print(f"Current total cost: ${total_cost:.2f}")
         print(f"Execution time: {format_time(result.execution_time)}")
         if result.timed_out:
             print(f"WARNING: Evaluation timed out after {args.timeout} minutes")
         env.cleanup()
 
-    # Remove the export summary section that writes the combined file
-    # Instead just print the final summary
-    
-    # Print summary (replacing logging.info calls)
-    print("\nEvaluation Summary:")
-    for result in all_results:
-        print(f"\n{'=' * 50}")
-        print(f"Environment: {result.environment_path}")
-        print(f"{'=' * 50}")
-        
-        # Execution Information
-        print(f"\nExecution Information:")
-        print(f"Execution Time: {format_time(result.execution_time)}")
-        if result.timed_out:
-            print(f"STATUS: TIMED OUT after {result.execution_time / 60:.2f} minutes")
-        
-        # Core metrics
-        print(f"\nCore Metrics:")
-        print(f"Total Requirements: {result.total_requirements}")
-        print(f"Generated Tests: {result.generated_tests}")
-        print(f"Verified Tests: {result.verified_tests}")
-        
-        # Performance metrics
-        print(f"\nPerformance Metrics:")
-        print(f"Precision: {result.precision:.2f}")
-        print(f"Recall: {result.recall:.2f}")
-        print(f"F1 Score: {result.f1_score:.2f}")
-        
-        # Coverage information
-        print("\nCoverage Information:")
-        print("ATG Coverage:")
-        if result.atg_coverage and isinstance(result.atg_coverage, dict):
-            if 'statements' in result.atg_coverage:
-                stmts = result.atg_coverage['statements']
-                print(f"  Statements: {stmts['covered']}/{stmts['total']} ({stmts['percentage']:.2%})")
-            if 'branches' in result.atg_coverage:
-                branches = result.atg_coverage['branches']
-                print(f"  Branches:   {branches['covered']}/{branches['total']} ({branches['percentage']:.2%})")
-        else:
-            print("  No ATG coverage data available")
-            
-        print("Generated Tests Coverage:")
-        if result.coverage and isinstance(result.coverage, dict):
-            if 'statements' in result.coverage:
-                stmts = result.coverage['statements']
-                print(f"  Statements: {stmts['covered']}/{stmts['total']} ({stmts['percentage']:.2%})")
-            if 'branches' in result.coverage:
-                branches = result.coverage['branches']
-                print(f"  Branches:   {branches['covered']}/{branches['total']} ({branches['percentage']:.2%})")
-        else:
-            print("  No coverage data available for generated tests")
-        
-        # Verification information
-        print("\nVerification Information:")
-        if result.unverified_requirements:
-            print(f"Unverified Requirements: {', '.join(result.unverified_requirements)}")
-        print("\nVerification Summary:")
-        print(result.verification_summary)
-        
-        # Generation statistics
-        print("\nGeneration Statistics:")
-        
-        # Success/failure
-        print(f"\n  Success/Failure:")
-        print(f"  Failed Generation Rate: {result.failed_generation_rate:.2%}")
-        if result.failed_generation_reqs:
-            print(f"  Failed Requirements: {', '.join(result.failed_generation_reqs)}")
-        
-        # Feedback and correction
-        print(f"\n  Feedback and Correction:")
-        print(f"  Test Failure Feedback Rate: {result.test_failure_feedback_rate:.2%}")
-        if result.test_failure_feedback_reqs:
-            print(f"  Test Failure Requirements: {', '.join(result.test_failure_feedback_reqs)}")
-        
-        print(f"  Error Correction Needed Rate: {result.error_correction_needed_rate:.2%}")
-        if result.error_correction_needed_reqs:
-            print(f"  Error Correction Requirements: {', '.join(result.error_correction_needed_reqs)}")
-        
-        # Partial and individual
-        print(f"\n  Partial and Individual:")
-        print(f"  Partial Test Rate: {result.partial_test_rate:.2%}")
-        if result.partial_test_reqs:
-            print(f"  Partial Test Requirements: {', '.join(result.partial_test_reqs)}")
-        
-        print(f"  Individual Generation Rate: {result.individual_generation_rate:.2%}")
-        if result.individual_generation_reqs:
-            print(f"  Individual Generation Requirements: {', '.join(result.individual_generation_reqs)}")
-        
-        # Schema and identifiers
-        print(f"\n  Schema and Identifiers:")
-        print(f"  Found Allowed Identifiers Rate: {result.found_allowed_identifiers_rate:.2%}")
-        if result.found_allowed_identifiers_reqs:
-            print(f"  Found Allowed Identifiers Requirements: {', '.join(result.found_allowed_identifiers_reqs)}")
-        
-        print(f"  Schema Exceeded Size Rate: {result.schema_exceeded_size_rate:.2%}")
-        if result.schema_exceeded_size_reqs:
-            print(f"  Schema Exceeded Size Requirements: {', '.join(result.schema_exceeded_size_reqs)}")
-        
-        print(f"  Found ATG Examples Rate: {result.found_atg_examples_rate:.2%}")
-        if result.found_atg_examples_reqs:
-            print(f"  Found ATG Examples Requirements: {', '.join(result.found_atg_examples_reqs)}")
+    # Log summary metrics to MLflow if enabled
+    if mlflow:
+        mlflow.log_metric("total_generation_cost", total_generation_cost)
+        mlflow.log_metric("total_cost", total_cost)
+        mlflow.end_run()
 
-        print(f"  Used Code Context Fallback Rate: {result.used_code_context_fallback_rate:.2%}")
-        if result.used_code_context_fallback_reqs:
-            print(f"  Used Code Context Fallback Requirements: {', '.join(result.used_code_context_fallback_reqs)}")
-        
-        # Fallback information
-        print("\nEnvironment-level Fallback Information:")
-        print(f"Used ATG Identifier Fallback: {result.used_atg_identifier_fallback}")
-        print(f"Used ATG Testable Functions Fallback: {result.used_atg_testable_functions_fallback}")
-        
-        # Cost information
-        print("\nCost Information:")
-        print(f"Total Cost: ${result.total_cost:.4f}")
-        
-        # Error information
-        if result.generation_error:
-            print("\nGeneration Error:")
-            print(result.generation_error[:500] + "..." if len(result.generation_error) > 500 else result.generation_error)
+    print("\nEvaluation Summary:")
+    print(f"Total generation cost: ${total_generation_cost:.2f}")
+    print(f"Total cost: ${total_cost:.2f}")
+    for result in all_results:
+        print(result)
 
 def format_time(seconds):
     """Format seconds into human-readable time format"""
