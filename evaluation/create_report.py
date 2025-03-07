@@ -398,36 +398,34 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
             </div>
 
             <div class="metric-section">
-                <h3 class="metric-heading">Macro-Average Metrics (average across environments)</h3>
                 <div class="summary-cards">
                     <div class="summary-card">
-                        <h3>Precision</h3>
+                        <h3>Precision (Macro Avg.)</h3>
                         <div class="value">{format_percentage(metrics["avg_precision"])}</div>
                     </div>
                     <div class="summary-card">
-                        <h3>Recall</h3>
+                        <h3>Recall (Macro Avg.)</h3>
                         <div class="value">{format_percentage(metrics["avg_recall"])}</div>
                     </div>
                     <div class="summary-card">
-                        <h3>F1 Score</h3>
+                        <h3>F1 Score (Macro Avg.)</h3>
                         <div class="value">{format_percentage(metrics["avg_f1_score"])}</div>
                     </div>
                 </div>
             </div>
             
             <div class="metric-section">
-                <h3 class="metric-heading">Micro-Average Metrics (calculated from totals)</h3>
                 <div class="summary-cards">
                     <div class="summary-card">
-                        <h3>Precision</h3>
+                        <h3>Precision (Micro Avg.)</h3>
                         <div class="value">{format_percentage(metrics["micro_precision"])}</div>
                     </div>
                     <div class="summary-card">
-                        <h3>Recall</h3>
+                        <h3>Recall (Micro Avg.)</h3>
                         <div class="value">{format_percentage(metrics["micro_recall"])}</div>
                     </div>
                     <div class="summary-card">
-                        <h3>F1 Score</h3>
+                        <h3>F1 Score (Micro Avg.)</h3>
                         <div class="value">{format_percentage(metrics["micro_f1_score"])}</div>
                     </div>
                 </div>
