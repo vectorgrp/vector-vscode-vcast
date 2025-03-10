@@ -19,9 +19,9 @@ class TestVerificationResult(BaseModel):
     tests_requirement: VerificationResult
 
 class VerificationOutput(BaseModel):
+    requirement_id: str
     analysis: str
     tests_requirement: bool
-    confidence: float
 
 class TestVerifier:
     def __init__(self, requirements_manager, environment, allow_partial=False):
@@ -33,37 +33,38 @@ class TestVerifier:
         self.info_logger = InfoLogger()
 
     async def verify_test_case(self, test_case, requirement_id: Optional[str] = None) -> VerificationOutput:
+        req_id = requirement_id or (test_case.requirement_id if test_case else None)
+        
         if test_case is None:
             return VerificationOutput(
+                requirement_id=req_id or "unknown",
                 tests_requirement=False,
-                analysis="No test case provided",
-                confidence=1.0  # We are certain that None doesn't test requirements
+                analysis="No test case provided"
             )
 
-        req_id = requirement_id or test_case.requirement_id
         if not req_id:
             return VerificationOutput(
+                requirement_id="unknown",
                 tests_requirement=False,
-                analysis="No requirement ID provided or found in test case",
-                confidence=0.0
+                analysis="No requirement ID provided or found in test case"
             )
 
         requirement_text = self.requirements_manager.get_description(req_id)
         if not requirement_text:
             logging.warning(f"Requirement {req_id} not found.")
             return VerificationOutput(
+                requirement_id=req_id,
                 tests_requirement=False,
-                analysis="Requirement not found in database",
-                confidence=0.0
+                analysis="Requirement not found in database"
             )
 
         function_name = self.requirements_manager.get_function(req_id)
         if not function_name:
             logging.warning(f"Function not found for requirement {req_id}.")
             return VerificationOutput(
+                requirement_id=req_id,
                 tests_requirement=False,
-                analysis="Function not found for requirement",
-                confidence=0.0
+                analysis="Function not found for requirement"
             )
 
         # Build code context
@@ -123,18 +124,17 @@ Note:
                 TestVerificationResult,
                 max_tokens=10000,
             )
-            confidence = 1.0
             return VerificationOutput(
+                requirement_id=req_id,
                 analysis=result.analysis,
-                tests_requirement=result.tests_requirement == VerificationResult.YES,
-                confidence=confidence
+                tests_requirement=result.tests_requirement == VerificationResult.YES
             )
         except Exception as e:
             logging.exception("Failed to verify test case")
             return VerificationOutput(
+                requirement_id=req_id,
                 analysis=f"Verification failed due to error: {str(e)}",
-                tests_requirement=False,
-                confidence=0.0
+                tests_requirement=False
             )
 
     async def verify_test_cases(

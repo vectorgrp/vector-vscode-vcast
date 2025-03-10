@@ -26,8 +26,13 @@ class EvaluationResult(BaseModel):
     # Raw data needed for calculations
     requirements_data: Dict[str, Any]
     info_logger_data: Dict[str, Any]
+    verification_results: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # Coverage data
     atg_coverage: Dict[str, Any]
     coverage: Dict[str, Any]
+
+    # Token usage data
     token_usage: Dict[str, Dict[str, int]]
     total_generation_cost: float  # Renamed from total_cost
     total_verification_cost: float = 0.0
@@ -225,6 +230,7 @@ class EvaluationResult(BaseModel):
         
         # Verification information
         lines.append("\nVerification Information:")
+        lines.append(f"Verified Tests: {self.verified_tests}/{self.generated_tests}")
         if self.unverified_requirements:
             lines.append(f"Unverified Requirements: {', '.join(self.unverified_requirements)}")
         
@@ -393,9 +399,9 @@ async def evaluate_environment(
 
     # Get unverified requirements
     problem_reqs = []
-    for tc, vr in zip(non_null_tests, verification_results):
+    for vr in verification_results:
         if not vr.tests_requirement:
-            problem_reqs.append(tc.requirement_id)
+            problem_reqs.append(vr.requirement_id)
 
     # Get info logger data
     info_data = test_generator.info_logger.data
@@ -425,16 +431,19 @@ async def evaluate_environment(
             generated_tests_coverage = {"error": str(e)}
 
     # Export verification results
-    with open(env_output_dir / "verification_results.json", "w") as f:
-        json.dump([{
-            "requirement_id": tc.requirement_id if tc else "unknown",
+    verification_results_data = [
+        {
+            "requirement_id": vr.requirement_id,
             "tests_requirement": vr.tests_requirement,
-            "confidence": vr.confidence,
             "analysis": vr.analysis
-        } for tc, vr in zip(non_null_tests, verification_results)], f, indent=2)
+        } 
+        for vr in verification_results
+    ]
+    
+    with open(env_output_dir / "verification_results.json", "w") as f:
+        json.dump(verification_results_data, f, indent=2)
 
     token_usage = generation_token_usage
-    total_cost = generation_total_cost
 
     execution_time = time.perf_counter() - start_time
 
@@ -447,10 +456,15 @@ async def evaluate_environment(
         # Raw data needed for calculations
         requirements_data=requirements_data,
         info_logger_data=dict(info_data),
+        verification_results=verification_results_data,
+
+        # Coverage data
         atg_coverage=atg_coverage,
         coverage=generated_tests_coverage,
+
+        # Token usage data
         token_usage=token_usage,
-        total_generation_cost=total_cost,  # Note: This is still using generation cost
+        total_generation_cost=generation_total_cost,
         total_verification_cost=verification_total_cost,
         
         # Verification data
