@@ -10,14 +10,17 @@ class VcastContextBuilder:
         self.cache = {}
         self.locks = {}
 
-    async def build_code_context(self, function_name, include_unit_name=False):
-        context = await self._build_raw_code_context(function_name)
+    async def build_code_context(self, function_name, include_unit_name=False, return_used_fallback=False):
+        context, used_fallback = await self._build_raw_code_context(function_name)
 
         if include_unit_name:
             assert len(self.environment.units) == 1
             unit_name = self.environment.units[0]
 
             context = f"// Unit: {unit_name}\n\n{context}"
+
+        if return_used_fallback:
+            return context, used_fallback
 
         return context
 
@@ -34,15 +37,15 @@ class VcastContextBuilder:
 
             ast_context = self._reduce_context_ast(function_name)
             if ast_context:
-                self.cache[function_name] = ast_context
-                return ast_context
+                self.cache[function_name] = (ast_context, False)
+                return ast_context, False
 
             llm_context = await self._reduce_context_llm(function_name)
             if llm_context:
-                self.cache[function_name] = llm_context
-                return llm_context
+                self.cache[function_name] = (llm_context, True)
+                return llm_context, True
 
-            return self.environment.get_tu_content(reduction_level='high')
+            return self.environment.get_tu_content(reduction_level='high'), True
 
     async def _reduce_context_llm(self, function_name):
         context = self.environment.get_tu_content(reduction_level='medium') 

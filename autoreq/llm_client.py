@@ -40,30 +40,40 @@ class LLMClient:
             model = "gpt-4o" if not extended_reasoning else "o3-mini"
 
             if not extended_reasoning:
-                completion = await self.client.beta.chat.completions.parse(
-                    model=model,
-                    messages=messages,
-                    response_format=schema,
-                    temperature=temperature,
-                    seed=seed,
-                    max_completion_tokens=max_tokens,
-                    **kwargs
-                )
+                try:
+                    completion = await self.client.beta.chat.completions.parse(
+                        model=model,
+                        messages=messages,
+                        response_format=schema,
+                        temperature=temperature,
+                        seed=seed,
+                        max_completion_tokens=max_tokens,
+                        **kwargs
+                    )
 
-                # Update token usage for the generation model
-                self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
-                self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
+                    # Update token usage for the generation model
+                    self.token_usage['generation']['input_tokens'] += completion.usage.prompt_tokens
+                    self.token_usage['generation']['output_tokens'] += completion.usage.completion_tokens
+                except openai.LengthFinishReasonError as e:
+                    self.token_usage['generation']['input_tokens'] += e.completion.usage.prompt_tokens
+                    self.token_usage['generation']['output_tokens'] += e.completion.usage.completion_tokens
+                    raise e
             else:
-                completion = await self.reasoning_client.beta.chat.completions.parse(
-                    model=model,
-                    messages=messages,
-                    response_format=schema,
-                    seed=seed,
-                    **kwargs
-                )
+                try:
+                    completion = await self.reasoning_client.beta.chat.completions.parse(
+                        model=model,
+                        messages=messages,
+                        response_format=schema,
+                        seed=seed,
+                        **kwargs
+                    )
 
-                self.token_usage['reasoning']['input_tokens'] += completion.usage.prompt_tokens
-                self.token_usage['reasoning']['output_tokens'] += completion.usage.completion_tokens
+                    self.token_usage['reasoning']['input_tokens'] += completion.usage.prompt_tokens
+                    self.token_usage['reasoning']['output_tokens'] += completion.usage.completion_tokens
+                except openai.LengthFinishReasonError as e:
+                    self.token_usage['reasoning']['input_tokens'] += e.completion.usage.prompt_tokens
+                    self.token_usage['reasoning']['output_tokens'] += e.completion.usage.completion_tokens
+                    raise e
 
             result = completion.choices[0].message.parsed
 

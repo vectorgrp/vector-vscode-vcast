@@ -78,6 +78,8 @@ class Environment:
         else:
             self.env_dir = env_dir
         self._tu_codebase_path = None
+        self._used_atg_identifier_fallback = False
+        self._used_atg_testable_functions_fallback = False
 
     def build(self):
         env_name = self.env_name
@@ -100,7 +102,7 @@ class Environment:
             raise RuntimeError(error_msg)
 
 
-    def run_tests(self, test_cases: List[str], execute: bool = True, show_run_script_output: bool = False) -> Optional[str]:
+    def run_tests(self, test_cases: List[str], **kwargs) -> Optional[str]:
         self.build()  # Build the environment before running tests
         
         with tempfile.NamedTemporaryFile(delete=False, suffix='.tst', mode='w') as temp_tst_file:
@@ -122,18 +124,19 @@ class Environment:
 
             temp_tst_file.flush()
 
-            if execute:
-                output = self._execute_commands(tst_file_path, show_run_script_output)
-                #os.remove(tst_file_path)  # Clean up the temporary file
-                return output
+            output = self.run_test_script(tst_file_path, **kwargs)
+            #os.remove(tst_file_path)  # Clean up the temporary file
 
-        return None
+            return output
 
-    def run_test_script(self, tst_file_path: str, rebuild: bool = False, show_run_script_output: bool = False) -> Optional[str]:
+
+    def run_test_script(self, tst_file_path: str, rebuild: bool=True, with_coverage=False) -> Optional[str]:
+        tst_file_path = os.path.abspath(tst_file_path)
+
         if rebuild:
             self.build()
 
-        output = self._execute_commands(tst_file_path, show_run_script_output)
+        output = self._run_test_execute_commands(tst_file_path, with_coverage=with_coverage)
         return output
 
     @cached_property
@@ -180,11 +183,9 @@ class Environment:
             if len(identifiers) > 0:
                 return list(identifiers)
 
-            logging.warning("No identifiers found in the test script template")
-            logging.warning("Falling back to scraping from ATG")
-        else:
-            logging.warning("Failed to generate test script template")
-            logging.warning("Falling back to scraping from ATG")
+        logging.warning("Failed to generate test script template")
+        logging.warning("Falling back to scraping from ATG")
+        self._used_atg_identifier_fallback = True
         
         used_identifiers = set()
         for test in self.atg_tests:
@@ -193,7 +194,7 @@ class Environment:
                 
         return list(used_identifiers)
 
-    def get_allowed_identifiers_for_function(self, function_name):
+    def get_allowed_identifiers_for_function(self, function_name, return_used_atg_fallback=False):
         all_identifiers = self.allowed_identifiers
         relevant_definitions = self.tu_codebase.find_definitions_by_name(function_name)
 
@@ -205,6 +206,7 @@ class Environment:
                 except:
                     logging.warning(f"Invalid identifier format: {identifier}")
                     relevant_identifiers.add(identifier)
+                    continue
 
                 subprogram = subprogram.split('::')[-1]  # Remove namespace if present
                 entity = entity.split('[', 1)[0]  # Remove array index if present
@@ -229,6 +231,10 @@ class Environment:
                 continue
 
         logging.debug(f"Found {len(relevant_identifiers)} relevant identifiers for function {function_name}")
+        
+        if return_used_atg_fallback:
+            return list(relevant_identifiers), self._used_atg_identifier_fallback
+        
         return list(relevant_identifiers)
 
     @cached_property
@@ -271,7 +277,6 @@ class Environment:
         cmd = _get_vectorcast_cmd('atg', ['-e', env_name, '--baselining'])
         env_vars = os.environ.copy()
 
-        
         try:
             result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
@@ -296,6 +301,29 @@ class Environment:
             return ""
             
         return self._parse_test_script(atg_file)
+
+    @cached_property
+    def atg_coverage(self):
+        # Generate atg file if not already generated
+        atg_file = os.path.join(self.env_dir, 'atg_for_coverage.tst')
+
+        cmd = _get_vectorcast_cmd('atg', ['-e', self.env_name, atg_file])
+        try:
+            result = subprocess.run(cmd, cwd=self.env_dir, env=os.environ.copy(),
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            logging.error(f"ATG coverage command timed out after 30 seconds")
+            return None
+
+        if result.returncode != 0:
+            logging.error(f"ATG coverage command failed with error:\n{result.stderr}")
+            return None
+        
+        # Get the coverage
+        output, coverage = self.run_test_script(atg_file, with_coverage=True)
+
+        return coverage
+        
         
     @cached_property
     def basis_path_tests(self) -> str:
@@ -364,6 +392,7 @@ class Environment:
 
         logging.warning("No testable functions found in the translation unit")
         logging.warning("Falling back to scraping from ATG")
+        self._used_atg_testable_functions_fallback = True
 
         assert len(self.source_files) == 1
 
@@ -522,12 +551,19 @@ class Environment:
             test_cases.append(current_test)
         return test_cases
 
-    def _execute_commands(self, tst_file_path: str, show_run_script_output: bool) -> Optional[str]:
+    def _run_test_execute_commands(self, tst_file_path: str, with_coverage: bool = False) -> Optional[str]:
         env_name = self.env_name
         commands = [
             _get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'Test', 'Script', 'Run', tst_file_path]),
             _get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'Execute', 'All'])
         ]
+
+        temp_coverage_file = tempfile.NamedTemporaryFile(delete=False, suffix='.txt', mode='w')
+
+        if with_coverage:
+            commands.append(_get_vectorcast_cmd('clicast', ['-lc', 'option', 'VCAST_CUSTOM_REPORT_FORMAT', 'TEXT']))
+            commands.append(_get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'report', 'custom', 'coverage', temp_coverage_file.name]))
+
         output = ''
         env_vars = os.environ.copy()
         # Execute the commands using subprocess and capture the outputs
@@ -539,18 +575,37 @@ class Environment:
                 logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
                 return None
 
-            logging.debug("Command: %s Return code: %s", ' '.join(cmd), result.returncode)
-
-            if show_run_script_output:
-                logging.info("Command '%s' output:\n%s", ' '.join(cmd), result.stdout)
+            logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
+            logging.debug("Command: %s Return code: %s", cmd, result.returncode)
 
             output += result.stdout
-            """
-            if result.returncode != 0:
-                # Handle errors if any command fails
-                error_msg = f"Command '{cmd}' failed with error:\n{result.stderr or result.stdout}"
-                raise RuntimeError(error_msg)
-            """
+
+        if with_coverage:
+            with open(temp_coverage_file.name, 'r') as f:
+                coverage_output = f.read()
+
+            coverage_data = {}
+            match = re.search(r'GRAND TOTALS.* (\d+) \/ (\d+) .* (\d+) \/ (\d+) ', coverage_output)
+
+            if match:
+                covered_statements, total_statements, covered_branches, total_branches = match.groups()
+                coverage_data['statements'] = {
+                    'covered': int(covered_statements),
+                    'total': int(total_statements),
+                    'percentage': int(covered_statements) / int(total_statements)
+                }
+                coverage_data['branches'] = {
+                    'covered': int(covered_branches),
+                    'total': int(total_branches),
+                    'percentage': int(covered_branches) / int(total_branches)
+                }
+            else:
+                logging.warning("Coverage data not found in the output.")
+                coverage_data = None
+                
+            output = (output, coverage_data)
+            os.remove(temp_coverage_file.name)
+            
         return output
 
     def cleanup(self):
