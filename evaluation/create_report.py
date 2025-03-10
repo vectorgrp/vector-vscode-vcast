@@ -9,9 +9,11 @@ from autoreq.evaluate import EvaluationResult
 from pathlib import Path
 import numpy as np
 from typing import List, Dict, Any, Tuple
+import argparse
 
-RESULT_FOLDER = "results/piinnovo"
-REPORT_PATH = "results/piinnovo/report.html"
+# Default paths when running as main script
+DEFAULT_RESULT_FOLDER = "results/piinnovo"
+DEFAULT_REPORT_PATH = "results/piinnovo/report.html"
 
 def load_results(folder_path: str) -> List[EvaluationResult]:
     """Load all evaluation results from the specified folder"""
@@ -915,17 +917,18 @@ def format_time(seconds):
         hours = seconds / 3600
         return f"{hours:.2f} hours"
 
-def main():
+def create_report(result_folder: str, report_path: str):
+    """Generate a report from results in the specified folder and save it to the report path"""
     # Create output directory if it doesn't exist
-    Path(RESULT_FOLDER).mkdir(parents=True, exist_ok=True)
+    Path(report_path).parent.mkdir(parents=True, exist_ok=True)
     
     # Load results
-    results = load_results(RESULT_FOLDER)
+    results = load_results(result_folder)
     if not results:
-        print(f"No result files found in {RESULT_FOLDER}")
+        print(f"No result files found in {result_folder}")
         return
     
-    print(f"Loaded {len(results)} evaluation results")
+    print(f"Loaded {len(results)} evaluation results for {report_path}")
     
     # Calculate aggregated metrics
     metrics = calculate_aggregated_metrics(results)
@@ -934,10 +937,22 @@ def main():
     html_report = create_html_report(results, metrics)
     
     # Write report to file
-    with open(REPORT_PATH, 'w') as f:
+    with open(report_path, 'w') as f:
         f.write(html_report)
     
-    print(f"Report generated at {REPORT_PATH}")
+    print(f"Report generated at {report_path}")
+
+def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Generate HTML report from evaluation results')
+    parser.add_argument('--input', type=str, default=DEFAULT_RESULT_FOLDER,
+                        help=f'Folder containing evaluation result files (default: {DEFAULT_RESULT_FOLDER})')
+    parser.add_argument('--output', type=str, default=DEFAULT_REPORT_PATH,
+                        help=f'Path where the HTML report will be saved (default: {DEFAULT_REPORT_PATH})')
+    args = parser.parse_args()
+    
+    # Generate report
+    create_report(args.input, args.output)
 
 if __name__ == "__main__":
     main()
