@@ -277,7 +277,6 @@ class Environment:
         cmd = _get_vectorcast_cmd('atg', ['-e', env_name, '--baselining'])
         env_vars = os.environ.copy()
 
-        
         try:
             result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
@@ -306,8 +305,19 @@ class Environment:
     @cached_property
     def atg_coverage(self):
         # Generate atg file if not already generated
-        self.atg_tests # TODO: Fix this horrible code -> outsource atg file generation
-        atg_file = os.path.join(self.env_dir, 'atg.tst')
+        atg_file = os.path.join(self.env_dir, 'atg_for_coverage.tst')
+
+        cmd = _get_vectorcast_cmd('atg', ['-e', self.env_name, atg_file])
+        try:
+            result = subprocess.run(cmd, cwd=self.env_dir, env=os.environ.copy(),
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            logging.error(f"ATG coverage command timed out after 30 seconds")
+            return None
+
+        if result.returncode != 0:
+            logging.error(f"ATG coverage command failed with error:\n{result.stderr}")
+            return None
         
         # Get the coverage
         output, coverage = self.run_test_script(atg_file, with_coverage=True)
