@@ -66,7 +66,6 @@ export async function buildEnvironmentCallback(
   // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
-    await refreshAllExtensionData();
     await updateDataForEnvironment(enviroPath);
     await updateProjectData(enviroPath);
     await updateProjectTree();

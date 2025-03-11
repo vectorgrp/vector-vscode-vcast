@@ -92,7 +92,7 @@
       {
         "command": "vectorcastTestExplorer.addEnviroToProject",
         "category": "VectorCAST Test Explorer",
-        "title": "Add Environment to Project"
+        "title": "Add existing Environment to Project"
       },
       {
         "command": "vectorcastTestExplorer.importEnviroToProject",
