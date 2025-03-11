@@ -53,5 +53,5 @@ good_envs = [env for env, score in scores.items() if score >= 0.8]
 
 good_envs_with_real_req_paths = [env_path + ":" + os.path.join(os.path.dirname(env_path), "real_reqs.csv") for env_path in good_envs]
 
-with open("evaluation/piinnovo/good_req_envs.txt", "w") as f:
+with open("evaluation/piinnovo/real_req_envs.txt", "w") as f:
     f.write("\n".join(good_envs_with_real_req_paths))
