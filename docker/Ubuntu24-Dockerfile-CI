@@ -1,0 +1,36 @@
+FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+
+ARG USERNAME=vcast_user
+WORKDIR /home/${USERNAME}
+
+# python
+ARG PY_VERSION=3.10.12
+ARG PY_VERSION_SHORT=3.10
+
+RUN sudo apt-get update && sudo apt-get install libsqlite3-dev -y
+RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tgz && \
+    tar xvf Python-${PY_VERSION}.tgz && cd Python-${PY_VERSION} && sed -i 's/PKG_CONFIG openssl /PKG_CONFIG openssl /g' configure && \
+    ./configure --enable-loadable-sqlite-extensions --enable-optimizations && sudo make && sudo make altinstall && \
+    cd .. && sudo rm -rf Python-${PY_VERSION}* && \
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python${PY_VERSION_SHORT} 1 && \
+    rm -rf .venv && python${PY_VERSION_SHORT} -m venv .venv && source .venv/bin/activate && pip install --upgrade pip && \
+    pip install --upgrade setuptools wheel && deactivate
+
+RUN mkdir -p /home/${USERNAME}/.scripts
+RUN mkdir -p /home/${USERNAME}/.envs
+COPY build_env.sh /home/${USERNAME}/.scripts/build_env.sh
+
+
+
+
+# remove this
+COPY 2024sp5 /vcast
+COPY vector-license.lic.2026 /vector-license.lic.2026
+ENV VECTOR_LICENSE_FILE=/vector-license.lic.2026
+ENV VECTORCAST_DIR=/vcast
+ENV PATH=$PATH:/vcast
+
+
+
+
+SHELL ["/bin/bash", "--login", "-c"]
