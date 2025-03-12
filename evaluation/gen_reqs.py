@@ -25,7 +25,12 @@ async def gen_requirements(env_path, allow_existing=False):
     reqs_csv_path = env_file_folder_path / "reqs.csv"
     reqs_html_path = env_file_folder_path / "reqs.html"
     
-    total_cost = await gen_reqs(env_path, export_csv=reqs_csv_path, export_html=reqs_html_path)
+    try:
+        total_cost = await gen_reqs(env_path, export_csv=reqs_csv_path, export_html=reqs_html_path)
+    except:
+        import traceback
+        traceback.print_exc()
+        return False
 
     return total_cost
 
@@ -45,6 +50,10 @@ async def process_environments(env_files, max_n, max_cost, output_file, allow_ex
         cost = await gen_requirements(env_file, allow_existing=allow_existing)
         if cost is True:  # Skip if requirements already exist
             selected_envs.append(env_file)
+            continue
+
+        if cost is False:
+            print(f"Failed to generate requirements for {env_file}")
             continue
             
         total_cost += cost

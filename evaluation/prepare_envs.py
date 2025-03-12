@@ -38,14 +38,26 @@ def get_atg_coverage(env_path):
     finally:
         env.cleanup()
 
-def find_usable_environments(env_pattern, output_dir, get_coverage=False, percentile=90):
+def read_envs_from_file(file_path):
+    """Read environment file paths from a text file."""
+    with open(file_path, 'r') as f:
+        # Strip whitespace and filter out empty lines
+        return [line.strip() for line in f if line.strip()]
+
+def find_usable_environments(env_pattern=None, env_file=None, output_dir=None, get_coverage=False, percentile=90):
     """Find and analyze usable environment files."""
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
     # Find environment files
-    env_files = sorted(glob.glob(env_pattern, recursive=True))
-    print(f"Found {len(env_files)} environment files")
+    if env_pattern:
+        env_files = sorted(glob.glob(env_pattern, recursive=True))
+        print(f"Found {len(env_files)} environment files using pattern")
+    elif env_file:
+        env_files = read_envs_from_file(env_file)
+        print(f"Read {len(env_files)} environment files from {env_file}")
+    else:
+        raise ValueError("Either env_pattern or env_file must be provided")
     
     # Filter to usable environments
     print("Checking for usable environments...")
@@ -88,7 +100,9 @@ def find_usable_environments(env_pattern, output_dir, get_coverage=False, percen
 
 def main():
     parser = argparse.ArgumentParser(description='Prepare and analyze environment files for testing')
-    parser.add_argument('--env-pattern', required=True, help='Glob pattern to find environment files')
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument('--env-pattern', help='Glob pattern to find environment files')
+    input_group.add_argument('--env-file', help='File containing environment file paths (one per line)')
     parser.add_argument('--output-dir', required=True, help='Output directory for analysis results')
     parser.add_argument('--with-coverage', action='store_true', help='Perform coverage analysis')
     parser.add_argument('--percentile', type=float, default=90, help='Percentile for large environments')
@@ -96,8 +110,9 @@ def main():
     args = parser.parse_args()
     
     find_usable_environments(
-        args.env_pattern,
-        args.output_dir,
+        env_pattern=args.env_pattern,
+        env_file=args.env_file,
+        output_dir=args.output_dir,
         get_coverage=args.with_coverage,
         percentile=args.percentile
     )
