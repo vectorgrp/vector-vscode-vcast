@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 files=(*.vcm);
 PROJECT=$(basename "${files[0]}" .vcm)
