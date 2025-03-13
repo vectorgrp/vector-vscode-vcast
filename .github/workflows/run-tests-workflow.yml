@@ -35,64 +35,76 @@ jobs:
       options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     steps:
-      - name: test
-        run: tar -cf test.tar -T /dev/null
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
+
+      - name: Setup Python virtual environment
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        run: |
+          python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pip install --no-cache --upgrade pip
+          pip install --no-cache --editable .
+          deactivate
         shell: bash
 
-      - name: Upload results artifact
-        uses: actions/upload-artifact@v4
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
         with:
-          name: test
-          path: test.tar
-#
-#      - name: Check out repository
-#        id: checkout
-#        uses: actions/checkout@v4
-#        continue-on-error: true
-#
-#      - name: Wait before retry
-#        id: should-retry-checkout
-#        if: failure()
-#        continue-on-error: true
-#        run: |
-#          sleep 10
-#          exit 1
-#
-#      - name: Check out repository (retry)
-#        if: failure()
-#        uses: actions/checkout@v4
-#
-#      - name: Virtual environment restore from cache
-#        uses: actions/cache/restore@v4
-#        id: cache-venv-restore
-#        with:
-#          path: ${{ env.VCAST_USER_HOME }}/.venv/
-#          key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
-#
-#      - name: Setup Python virtual environment
-#        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
-#        run: |
-#          python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
-#          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
-#          pip install --no-cache --upgrade pip
-#          pip install --no-cache --editable .
-#          deactivate
-#        shell: bash
-#
-#      - name: Virtual environment save cache
-#        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
-#        uses: actions/cache/save@v4
-#        with:
-#          path: ${{ env.VCAST_USER_HOME }}/.venv/
-#          key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
-#
-#      - name: Reqs2tests evaluation
-#        run: |
-#          ./ci/reqs2tests_eval.sh
-#        shell: bash
-#
-#      - name: Upload results artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: evaluation-results
-#          path: ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
+
+      - name: Reqs2tests evaluation
+        run: |
+          ./ci/reqs2tests_eval.sh
+        shell: bash
+
+      - name: Generate reports
+        run: |
+          source $VCAST_USER_HOME/.venv/bin/activate
+          python evaluation/create_report.py --input ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --output results.html
+          markdownify results.html > results.md
+          deactivate
+        shell: bash
+
+      - name: Upload reports
+        if: always()
+        run: |
+          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/${{ env.COMMIT_DATE }}-${{ github.sha }}"
+          REPORT_URL=$BASE_ARTIFACTORY_URL/report.html
+          RESULTS_URL=$BASE_ARTIFACTORY_URL/r2t_eval_results.tar.gz
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $REPORT_URL -T report.html
+          tar -czvf r2t_eval_results.tar.gz ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_URL -T r2t_eval_results.tar.gz
+          
+          echo '## HTML Report' >> $GITHUB_STEP_SUMMARY
+          echo "[See report]($REPORT_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "## Results folder" >> $GITHUB_STEP_SUMMARY
+          echo "[Results folder]($RESULTS_URL)" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Markdown results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat results.md >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
