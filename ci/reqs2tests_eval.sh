@@ -11,10 +11,13 @@ HALLA_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/
 ENVS=("sanity" "piinnovo" "atg-customer")
 if [[ "$ENV_SET_NAME" == "sanity" ]]; then
   ENV_SET_URL=$SANITY_ENVS
+  BENCH_ENVS_DIR="sanity"
 elif [[ "$ENV_SET_NAME" == "piinnovo" ]]; then
   ENV_SET_URL=$PIINNOVO_ENVS
+  BENCH_ENVS_DIR="piinnovo-real-reqs"
 elif [[ "$ENV_SET_NAME" == "atg-customer" ]]; then
   ENV_SET_URL=$HALLA_ENVS
+  BENCH_ENVS_DIR="export/atg-customer"
 fi
 
 if [[ -z "$ENV_SET_URL" ]]; then
@@ -61,10 +64,9 @@ setup() {
 main () {
   setup
 
-  cd $VCAST_USER_HOME/.envs
-  find . -iname '*.env' > bench_envs.txt
+  cd $VCAST_USER_HOME/.envs/$BENCH_ENVS_DIR
   source $VCAST_USER_HOME/.venv/bin/activate
-  reqs2tests_eval @bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR r2t_eval_results
+  reqs2tests_eval @bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR $VCAST_USER_HOME/.envs/r2t_eval_results
   deactivate
   rm -rf $VCAST_USER_HOME/.envs $VCAST_USER_HOME/.src
 }
