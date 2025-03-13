@@ -6,7 +6,7 @@ export PATH=$VECTORCAST_DIR:$PATH
 
 SANITY_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity.tar.gz"
 PIINNOVO_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-real-reqs.tar.gz"
-HALLA_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/atg-customer.tar.gz"
+HALLA_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/atg-customer-fixed.tar.gz"
 
 ENVS=("sanity" "piinnovo" "atg-customer")
 if [[ "$ENV_SET_NAME" == "sanity" ]]; then
@@ -17,7 +17,7 @@ elif [[ "$ENV_SET_NAME" == "piinnovo" ]]; then
   BENCH_ENVS_DIR="piinnovo-real-reqs"
 elif [[ "$ENV_SET_NAME" == "atg-customer" ]]; then
   ENV_SET_URL=$HALLA_ENVS
-  BENCH_ENVS_DIR="export/atg-customer"
+  BENCH_ENVS_DIR="atg-customer"
 fi
 
 if [[ -z "$ENV_SET_URL" ]]; then
@@ -64,11 +64,10 @@ setup() {
 main () {
   setup
 
-  cd $VCAST_USER_HOME/.envs/$BENCH_ENVS_DIR
+  cd $VCAST_USER_HOME/.envs
   source $VCAST_USER_HOME/.venv/bin/activate
-  reqs2tests_eval @bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR $VCAST_USER_HOME/.envs/r2t_eval_results
+  reqs2tests_eval @$BENCH_ENVS_DIR/bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR $VCAST_USER_HOME/r2t_eval_results
   deactivate
-  rm -rf $VCAST_USER_HOME/.envs $VCAST_USER_HOME/.src
 }
 
 main
