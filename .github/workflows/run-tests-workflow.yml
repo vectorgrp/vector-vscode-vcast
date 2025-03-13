@@ -78,11 +78,13 @@ jobs:
           key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
 
       - name: Reqs2tests evaluation
-        run: /home/vcast_user/.scripts/reqs2tests_eval.sh
+        run: |
+          export HOME=${{ env.HOME }}
+          $HOME/.scripts/reqs2tests_eval.sh
         shell: bash
 
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
         with:
           name: evaluation-results
-          path: /.envs/r2t_eval_results
+          path: ${{ env.HOME }}/.envs/r2t_eval_results
