@@ -16,7 +16,7 @@ jobs:
     permissions: write-all
     runs-on: [self-hosted, reqs2tests]
     env:
-      VECTORCAST_DIR: /vcast
+      VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION }}
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
       ENV_SET_NAME: ${{ github.event.inputs.env-set }}
       MAX_COST: ${{ github.event.inputs.max-cost }}
@@ -32,7 +32,7 @@ jobs:
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
-      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }}/${{ vars.VCAST_VERSION }},target=/vcast
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     steps:
       - name: Check out repository
