@@ -1,0 +1,93 @@
+name: Reqs2tests
+run-name: ${{ github.ref_name }} is being tested
+on:
+  workflow_dispatch:
+    inputs:
+      env-set:
+        description: 'Select the environment set to run the tests (`sanity`, `piinnovo`, `atg-customer`)'
+        required: false
+        default: 'sanity'
+jobs:
+  reqs2tests_eval:
+    strategy:
+      matrix:
+        include:
+          - name: sanity
+            url: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity.tar.gz"
+          - name: piinnovo
+            url: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-real-reqs.tar.gz"
+          - name: atg-customer
+            url: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/atg-customer.tar.gz"
+
+    permissions: write-all
+    runs-on: [self-hosted, reqs2tests]
+    env:
+      VECTORCAST_DIR: /vcast
+      LM_LICENSE_FILE: /vcast/vector-license.lic
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      ENV_SET_NAME: ${{ matrix.name }}
+      ENV_SET_URL: ${{ matrix.url }}
+      PIINNOVO_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-source.tar.gz"
+      HALLA_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/halla-modmgr4a-source.tar.gz"
+      OPENAI_API_BASE: ${{ vars.OPENAI_API_BASE }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_GENERATION_DEPLOYMENT: ${{ vars.OPENAI_GENERATION_DEPLOYMENT }}
+      OPENAI_ADVANCED_GENERATION_DEPLOYMENT: ${{ vars.OPENAI_ADVANCED_GENERATION_DEPLOYMENT }}
+      OPENAI_EMBEDDING_DEPLOYMENT: ${{ vars.OPENAI_EMBEDDING_DEPLOYMENT }}
+      AUTOREQ_MLFLOW_SERVER: ${{ vars.AUTOREQ_MLFLOW_SERVER }}
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }}/${{ vars.VCAST_VERSION }},target=/vcast
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: /.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
+
+      - name: Setup Python virtual environment
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        run: |
+          python3.10 -m venv /.venv
+          source /.venv/bin/activate
+          pip install --no-cache --upgrade pip
+          pip install --no-cache --editable .
+          deactivate
+        shell: bash
+
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
+
+      - name: Reqs2tests evaluation
+        run: /home/vcast_user/.scripts/reqs2tests_eval.sh
+        shell: bash
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-results
+          path: /.envs/r2t_eval_results
