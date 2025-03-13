@@ -82,7 +82,7 @@ jobs:
         shell: bash
 
       - name: Upload results artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3-node20
         with:
           name: evaluation-results
           path: ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
