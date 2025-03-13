@@ -74,7 +74,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.VCAST_USER_HOME }}/.venv/
-          key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
 
       - name: Reqs2tests evaluation
         run: |
