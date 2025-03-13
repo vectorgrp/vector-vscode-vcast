@@ -84,8 +84,8 @@ jobs:
       - name: Generate reports
         run: |
           source $VCAST_USER_HOME/.venv/bin/activate
-          python evaluation/create_report.py --input ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --output ${{ env.VCAST_USER_HOME }}/.envs/results.html
-          markdownify ${{ env.VCAST_USER_HOME }}/.envs/results.html > ${{ env.VCAST_USER_HOME }}/.envs/results.md
+          python evaluation/create_report.py --input ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --output ${{ env.VCAST_USER_HOME }}/.envs/report.html
+          markdownify ${{ env.VCAST_USER_HOME }}/.envs/report.html > ${{ env.VCAST_USER_HOME }}/.envs/results.md
           deactivate
         shell: bash
 
