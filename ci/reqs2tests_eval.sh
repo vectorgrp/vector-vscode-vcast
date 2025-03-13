@@ -66,8 +66,14 @@ main () {
 
   cd $VCAST_USER_HOME/.envs
   source $VCAST_USER_HOME/.venv/bin/activate
-  reqs2tests_eval @$BENCH_ENVS_DIR/bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR $VCAST_USER_HOME/r2t_eval_results
+  reqs2tests_eval @$BENCH_ENVS_DIR/bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR r2t_eval_results
   deactivate
+  if [[ -d "r2t_eval_results" ]]; then
+    echo "Results folder exists at: $(realpath r2t_eval_results)"
+  else
+    echo "Error: Results folder 'r2t_eval_results' was not generated"
+    exit 1
+  fi
 }
 
 main
