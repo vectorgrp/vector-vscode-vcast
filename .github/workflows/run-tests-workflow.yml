@@ -7,26 +7,20 @@ on:
         description: 'Select the environment set to run the tests (`sanity`, `piinnovo`, `atg-customer`)'
         required: false
         default: 'sanity'
+      max-cost:
+        description: 'Maximum cost of the tests (positive float, 0 for unlimited)'
+        required: false
+        default: '0'
 jobs:
   reqs2tests_eval:
-    strategy:
-      matrix:
-        include:
-          - name: sanity
-            url: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity.tar.gz"
-          - name: piinnovo
-            url: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-real-reqs.tar.gz"
-          - name: atg-customer
-            url: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/atg-customer.tar.gz"
-
     permissions: write-all
     runs-on: [self-hosted, reqs2tests]
     env:
       VECTORCAST_DIR: /vcast
       LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
-      ENV_SET_NAME: ${{ matrix.name }}
-      ENV_SET_URL: ${{ matrix.url }}
+      ENV_SET_NAME: ${{ github.event.inputs.env-set }}
+      MAX_COST: ${{ github.event.inputs.max-cost }}
       PIINNOVO_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-source.tar.gz"
       HALLA_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/halla-modmgr4a-source.tar.gz"
       OPENAI_API_BASE: ${{ vars.OPENAI_API_BASE }}
