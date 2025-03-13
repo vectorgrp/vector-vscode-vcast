@@ -56,14 +56,14 @@ jobs:
         uses: actions/cache/restore@v4
         id: cache-venv-restore
         with:
-          path: /.venv/
+          path: ${{ env.HOME }}/.venv/
           key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
 
       - name: Setup Python virtual environment
         if: steps.cache-venv-restore.outputs.cache-hit != 'true'
         run: |
-          python3.10 -m venv /.venv
-          source /.venv/bin/activate
+          python3.10 -m venv $HOME/.venv
+          source $HOME/.venv/bin/activate
           pip install --no-cache --upgrade pip
           pip install --no-cache --editable .
           deactivate
@@ -73,7 +73,7 @@ jobs:
         if: steps.cache-venv-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: /.venv/
+          path: ${{ env.HOME }}/.venv/
           key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
 
       - name: Reqs2tests evaluation

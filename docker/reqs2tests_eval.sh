@@ -41,12 +41,12 @@ process_url() {
 }
 
 setup() {
-  mkdir /.envs
-  mkdir /.src
+  mkdir "$HOME"/.envs
+  mkdir "$HOME"/.src
 
   if [ "$ENV_SET_NAME" == "piinovo" ] || [ "$ENV_SET_NAME" == "atg-customer" ]; then
     # shellcheck disable=SC2164
-    cd /.src
+    cd "$HOME"/.src
     process_url "$PIINNOVO_SRC"
     export PI_INNOVO_SRC_PATH=$PWD/piinnovo-source
     if [ "$ENV_SET_NAME" == "atg-customer" ]; then
@@ -56,7 +56,7 @@ setup() {
   fi
 
   # shellcheck disable=SC2164
-  cd /.envs
+  cd "$HOME"/.envs
   process_url "$ENV_SET_URL"
 }
 
@@ -64,10 +64,10 @@ main () {
   setup
 
   find . -iname '*.env' > bench_envs.txt
-  source /.venv/bin/activate
+  source "$HOME"/.venv/bin/activate
   reqs2tests_eval @bench_envs.txt --batched --allow-partial --timeout 30 "$MAX_COST_STR" r2t_eval_results
   deactivate
-  rm -rf /.envs /.src
+  rm -rf "$HOME"/.envs "$HOME"/.src
 }
 
 main
