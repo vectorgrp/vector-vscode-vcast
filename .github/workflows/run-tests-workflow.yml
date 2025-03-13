@@ -84,8 +84,8 @@ jobs:
       - name: Generate reports
         run: |
           source $VCAST_USER_HOME/.venv/bin/activate
-          python evaluation/create_report.py --input ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --output results.html
-          markdownify results.html > results.md
+          python evaluation/create_report.py --input ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --output ${{ env.VCAST_USER_HOME }}/.envs/results.html
+          markdownify ${{ env.VCAST_USER_HOME }}/.envs/results.html > ${{ env.VCAST_USER_HOME }}/.envs/results.md
           deactivate
         shell: bash
 
@@ -95,9 +95,9 @@ jobs:
           BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/${{ env.COMMIT_DATE }}-${{ github.sha }}"
           REPORT_URL=$BASE_ARTIFACTORY_URL/report.html
           RESULTS_URL=$BASE_ARTIFACTORY_URL/r2t_eval_results.tar.gz
-          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $REPORT_URL -T report.html
-          tar -czvf r2t_eval_results.tar.gz ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
-          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_URL -T r2t_eval_results.tar.gz
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $REPORT_URL -T ${{ env.VCAST_USER_HOME }}/.envs/report.html
+          tar -czvf ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results.tar.gz ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_URL -T ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results.tar.gz
           
           echo '## HTML Report' >> $GITHUB_STEP_SUMMARY
           echo "[See report]($REPORT_URL)" >> $GITHUB_STEP_SUMMARY
@@ -106,5 +106,5 @@ jobs:
           
           echo "## Markdown results" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat results.md >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.VCAST_USER_HOME }}/.envs/results.md >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
