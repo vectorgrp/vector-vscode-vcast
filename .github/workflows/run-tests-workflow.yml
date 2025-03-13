@@ -29,7 +29,7 @@ jobs:
       OPENAI_ADVANCED_GENERATION_DEPLOYMENT: ${{ vars.OPENAI_ADVANCED_GENERATION_DEPLOYMENT }}
       OPENAI_EMBEDDING_DEPLOYMENT: ${{ vars.OPENAI_EMBEDDING_DEPLOYMENT }}
       AUTOREQ_MLFLOW_SERVER: ${{ vars.AUTOREQ_MLFLOW_SERVER }}
-      HOME: /home/vcast_user
+      VCAST_USER_HOME: /home/vcast_user
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
@@ -57,14 +57,14 @@ jobs:
         uses: actions/cache/restore@v4
         id: cache-venv-restore
         with:
-          path: ${{ env.HOME }}/.venv/
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
           key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
 
       - name: Setup Python virtual environment
         if: steps.cache-venv-restore.outputs.cache-hit != 'true'
         run: |
-          python3.10 -m venv $HOME/.venv
-          source $HOME/.venv/bin/activate
+          python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
           pip install --no-cache --upgrade pip
           pip install --no-cache --editable .
           deactivate
@@ -74,16 +74,16 @@ jobs:
         if: steps.cache-venv-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ${{ env.HOME }}/.venv/
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
           key: ${{ runner.os }}-venv-${{ hashFiles('./requirements.txt') }}
 
       - name: Reqs2tests evaluation
         run: |
-          $HOME/.scripts/reqs2tests_eval.sh
+          ${{ env.VCAST_USER_HOME }}/.scripts/reqs2tests_eval.sh
         shell: bash
 
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
         with:
           name: evaluation-results
-          path: ${{ env.HOME }}/.envs/r2t_eval_results
+          path: ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results

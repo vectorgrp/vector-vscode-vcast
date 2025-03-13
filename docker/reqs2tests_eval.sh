@@ -3,7 +3,6 @@
 set -e
 
 export PATH=$VECTORCAST_DIR:$PATH
-export HOME=/home/vcast_user
 
 SANITY_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity.tar.gz"
 PIINNOVO_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-real-reqs.tar.gz"
@@ -46,12 +45,12 @@ process_url() {
 }
 
 setup() {
-  mkdir "$HOME"/.envs
-  mkdir "$HOME"/.src
+  mkdir "$VCAST_USER_HOME"/.envs
+  mkdir "$VCAST_USER_HOME"/.src
 
   if [ "$ENV_SET_NAME" == "piinovo" ] || [ "$ENV_SET_NAME" == "atg-customer" ]; then
     # shellcheck disable=SC2164
-    cd "$HOME"/.src
+    cd "$VCAST_USER_HOME"/.src
     process_url "$PIINNOVO_SRC"
     export PI_INNOVO_SRC_PATH=$PWD/piinnovo-source
     if [ "$ENV_SET_NAME" == "atg-customer" ]; then
@@ -61,18 +60,19 @@ setup() {
   fi
 
   # shellcheck disable=SC2164
-  cd "$HOME"/.envs
+  cd "$VCAST_USER_HOME"/.envs
   process_url "$ENV_SET_URL"
 }
 
 main () {
   setup
 
+  cd "$VCAST_USER_HOME"/.envs
   find . -iname '*.env' > bench_envs.txt
-  source "$HOME"/.venv/bin/activate
+  source "$VCAST_USER_HOME"/.venv/bin/activate
   reqs2tests_eval @bench_envs.txt --batched --allow-partial --timeout 30 "$MAX_COST_STR" r2t_eval_results
   deactivate
-  rm -rf "$HOME"/.envs "$HOME"/.src
+  rm -rf "$VCAST_USER_HOME"/.envs "$VCAST_USER_HOME"/.src
 }
 
 main
