@@ -79,7 +79,6 @@ jobs:
 
       - name: Reqs2tests evaluation
         run: |
-          export HOME=${{ env.HOME }}
           $HOME/.scripts/reqs2tests_eval.sh
         shell: bash
 

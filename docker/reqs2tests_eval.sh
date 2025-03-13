@@ -3,6 +3,7 @@
 set -e
 
 export PATH=$VECTORCAST_DIR:$PATH
+export HOME=/home/vcast_user
 
 SANITY_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity.tar.gz"
 PIINNOVO_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-real-reqs.tar.gz"
