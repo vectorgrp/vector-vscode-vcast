@@ -79,7 +79,7 @@ jobs:
 
       - name: Reqs2tests evaluation
         run: |
-          ${{ env.VCAST_USER_HOME }}/.scripts/reqs2tests_eval.sh
+          ./ci/reqs2tests_eval.sh
         shell: bash
 
       - name: Upload results artifact

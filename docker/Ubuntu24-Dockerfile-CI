@@ -15,7 +15,4 @@ RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tg
     sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python${PY_VERSION_SHORT} 1 && \
     rm -rf .venv
 
-RUN mkdir -p /home/${USERNAME}/.scripts
-COPY *.sh /home/${USERNAME}/.scripts/
-
 SHELL ["/bin/bash", "--login", "-c"]
