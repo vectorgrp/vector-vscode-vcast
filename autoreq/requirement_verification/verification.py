@@ -70,13 +70,13 @@ Requirements:
                 {
                     "role": "user",
                     "content": f"""
-Compare the following two sets of requirements and determine if there are behaviors described in one set that are not present in the other. Return a grade between 0 and 10 indicating the similarity, where 10 means they are identical and 0 means they are completely different.
+Compare the following two sets of requirements and determine if all behaviors described in Set 1 are present in Set 2. Return a grade between 0 and 10 indicating the degree to which Set 1 is a subset of Set 2, where 10 means Set 1 is completely a subset of Set 2 and 0 means there is no overlap.
 
 Set 1:
-{requirements_text}
+{ground_truth_text}
 
 Set 2:
-{ground_truth_text}
+{requirements_text}
 """
                 }
             ]
