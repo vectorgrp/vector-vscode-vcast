@@ -17,7 +17,6 @@ jobs:
     runs-on: [self-hosted, reqs2tests]
     env:
       VECTORCAST_DIR: /vcast
-      LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
       ENV_SET_NAME: ${{ github.event.inputs.env-set }}
       MAX_COST: ${{ github.event.inputs.max-cost }}
