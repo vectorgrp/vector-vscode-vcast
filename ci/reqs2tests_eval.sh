@@ -23,7 +23,7 @@ if [[ -z "$ENV_SET_URL" ]]; then
 fi
 echo "Running evaluation for $ENV_SET_NAME"
 
-MAX_COST_CHECK=$(echo "$MAX_COST" | python3.10 -c "import sys;exec('try:obj=float(str(sys.stdin.read().strip()))\nexcept:obj=-1');print(obj > 0)")
+MAX_COST_CHECK=$(echo $MAX_COST | python3.10 -c "import sys;exec('try:obj=float(str(sys.stdin.read().strip()))\nexcept:obj=-1');print(obj > 0)")
 if [[ "$MAX_COST_CHECK" == "False" ]]; then
   MAX_COST_STR=""
   echo "No max-cost set"
@@ -45,34 +45,34 @@ process_url() {
 }
 
 setup() {
-  mkdir "$VCAST_USER_HOME"/.envs
-  mkdir "$VCAST_USER_HOME"/.src
+  mkdir $VCAST_USER_HOME/.envs
+  mkdir $VCAST_USER_HOME/.src
 
   if [ "$ENV_SET_NAME" == "piinovo" ] || [ "$ENV_SET_NAME" == "atg-customer" ]; then
     # shellcheck disable=SC2164
-    cd "$VCAST_USER_HOME"/.src
-    process_url "$PIINNOVO_SRC"
+    cd $VCAST_USER_HOME/.src
+    process_url $PIINNOVO_SRC
     export PI_INNOVO_SRC_PATH=$PWD/piinnovo-source
     if [ "$ENV_SET_NAME" == "atg-customer" ]; then
-      process_url "$HALLA_SRC"
+      process_url $HALLA_SRC
       export HALLA_MODMGR4A_SRC_PATH=$PWD/halla-modmgr4a-source
     fi
   fi
 
   # shellcheck disable=SC2164
-  cd "$VCAST_USER_HOME"/.envs
-  process_url "$ENV_SET_URL"
+  cd $VCAST_USER_HOME/.envs
+  process_url $ENV_SET_URL
 }
 
 main () {
   setup
 
-  cd "$VCAST_USER_HOME"/.envs
+  cd $VCAST_USER_HOME/.envs
   find . -iname '*.env' > bench_envs.txt
-  source "$VCAST_USER_HOME"/.venv/bin/activate
-  reqs2tests_eval @bench_envs.txt --batched --allow-partial --timeout 30 "$MAX_COST_STR" r2t_eval_results
+  source $VCAST_USER_HOME/.venv/bin/activate
+  reqs2tests_eval @bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR r2t_eval_results
   deactivate
-  rm -rf "$VCAST_USER_HOME"/.envs "$VCAST_USER_HOME"/.src
+  rm -rf $VCAST_USER_HOME/.envs $VCAST_USER_HOME/.src
 }
 
 main
