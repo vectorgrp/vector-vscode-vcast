@@ -63,6 +63,7 @@ import {
 } from "../src-common/vcastServer";
 import {
   buildProjectDataCache,
+  buildTestPaneContents,
   globalProjectDataCache,
   refreshAllExtensionData,
   removeNodeFromTestPane,
@@ -311,7 +312,7 @@ export async function deleteLevel(projectPath: string, level: string) {
 
   const nodeId = path.join(projectPath, level);
 
-  await updateProjectTree();
+  await refreshAllExtensionData();
   removeNodeFromTestPane(nodeId);
 }
 
@@ -339,7 +340,7 @@ export async function createTestsuiteInCompiler(
     message
   );
 
-  await updateProjectTree();
+  await refreshAllExtensionData();
 }
 
 /**
@@ -457,7 +458,7 @@ export async function addCompilerToProject(
     message
   );
 
-  await updateProjectTree();
+  await refreshAllExtensionData();
 }
 
 /**
@@ -522,19 +523,6 @@ export async function addEnvToTestsuite(
 }
 
 /**
- * Updates the Project data cache and refreshes the extension data
- */
-export async function updateProjectTree() {
-  if (vscode.workspace.workspaceFolders) {
-    for (const workspace of vscode.workspace.workspaceFolders) {
-      const workspaceRoot = workspace.uri.fsPath;
-      await buildProjectDataCache(workspaceRoot);
-      await refreshAllExtensionData();
-    }
-  }
-}
-
-/**
  * Updates the project data of all currenrly opened projects in the workspace
  * @param enviroPath Path to the environment
  * @param enviroName Name of the environment
@@ -565,9 +553,23 @@ export async function updateAllOpenedProjects() {
  * @param enviroPath Path to the environment
  * @param enviroName Name of the environment
  */
-export async function updateProjectData(enviroPath: string) {
-  // Only update if the current env is also embedden in a Project
-  if (envIsEmbeddedInProject(enviroPath)) {
+export async function updateProjectData(
+  enviroPath: string,
+  forceUpdate = false
+) {
+  // Only update if the current env is embedded in a project and the setting is enabled
+  // or we force the update by actively clicking on the Update Project Button
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const autoUpdateEnabled = config.get<boolean>(
+    "automaticallyUpdateManageProject",
+    true
+  );
+  const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+
+  if (
+    envIsEmbeddedInProject(enviroPath) &&
+    (autoUpdateEnabled || forceUpdate)
+  ) {
     const enviroName = path.basename(enviroPath);
     const blockUpdate =
       await checkIfEnvironmentIsBuildMultipleTimes(enviroName);
@@ -583,8 +585,6 @@ export async function updateProjectData(enviroPath: string) {
         // Delete the build folders of the other builds.
         await deleteOtherBuildFolders(enviroPath);
         // After deletion, update the project data.
-        const enviroData: environmentNodeDataType =
-          getEnviroNodeData(enviroPath);
         const projectFilePath: string = enviroData.projectPath;
         const projectName: string = path.basename(projectFilePath);
         const projectLocation: string = path.dirname(projectFilePath);

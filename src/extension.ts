@@ -85,6 +85,7 @@ import {
   createTestsuiteInCompiler,
   addCompilerToProject,
   deleteLevel,
+  updateProjectData,
 } from "./vcastAdapter";
 
 import {
@@ -118,6 +119,7 @@ import {
   addIncludePath,
   envIsEmbeddedInProject,
   getEnviroNameFromFile,
+  getLevelFromNodeId,
   getVcmRoot,
   openProjectFromEnviroPath,
   openTestScript,
@@ -615,6 +617,20 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(rebuildEnviro);
+
+  let updateProjectLevelCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.updateProjectEnvironment",
+    async (enviroNode: any) => {
+      const enviroPath = getEnviroPathFromID(enviroNode.id);
+      // Check if the result is valid
+      if (enviroPath) {
+        await updateProjectData(enviroPath, true);
+      } else {
+        vectorMessage(`Unable to find Environment ${enviroNode.id}`);
+      }
+    }
+  );
+  context.subscriptions.push(updateProjectLevelCommand);
 
   let openProjectInVectorCAST = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openProjectInVectorCAST",

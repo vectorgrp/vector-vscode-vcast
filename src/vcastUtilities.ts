@@ -21,6 +21,8 @@ import {
   openProjectInVcast,
   runATGCommands,
   runBasisPathCommands,
+  updateAllOpenedProjects,
+  updateProjectData,
 } from "./vcastAdapter";
 
 import {
@@ -754,4 +756,32 @@ function findNodeByKindAndLabel(
     }
   });
   return found;
+}
+
+export function getLevelFromNodeId(path: string) {
+  const marker = ".vcm";
+  const markerIndex = path.lastIndexOf(marker);
+
+  if (markerIndex === -1) {
+    // Marker not found; handle as needed.
+    return { projectName: "", level: "" };
+  }
+
+  // Determine the project name by finding the preceding slash (if any)
+  const slashBefore = path.lastIndexOf("/", markerIndex);
+  let projectName;
+  if (slashBefore === -1) {
+    projectName = path.substring(0, markerIndex + marker.length);
+  } else {
+    projectName = path.substring(slashBefore + 1, markerIndex + marker.length);
+  }
+
+  // Start right after the marker; skip a slash if present
+  let remainderStart = markerIndex + marker.length;
+  if (path[remainderStart] === "/" || path[remainderStart] === "\\") {
+    remainderStart++;
+  }
+  const level = path.substring(remainderStart);
+
+  return { projectName, level };
 }

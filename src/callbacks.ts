@@ -27,7 +27,6 @@ import { removeFilePattern } from "./utilities";
 import {
   loadTestScriptIntoEnvironment,
   updateProjectData,
-  updateProjectTree,
 } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
@@ -43,7 +42,7 @@ export async function addEnvToProjectCallback(
   // We check the return code, update Project Tree, and cleanup on failure
 
   if (code == 0) {
-    await updateProjectTree();
+    await refreshAllExtensionData();
   } else {
     try {
       // remove the environment directory, as well as the .vce file
@@ -68,7 +67,7 @@ export async function buildEnvironmentCallback(
   if (code == 0) {
     await updateDataForEnvironment(enviroPath);
     await updateProjectData(enviroPath);
-    await updateProjectTree();
+    await refreshAllExtensionData();
   } else {
     try {
       // remove the environment directory, as well as the .vce file
@@ -140,7 +139,7 @@ export async function deleteEnvironmentCallback(
     removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
-    await updateProjectTree();
+    await refreshAllExtensionData();
     removeFilePattern(enviroPath, ".*");
   }
 }

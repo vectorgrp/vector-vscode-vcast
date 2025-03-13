@@ -95,6 +95,11 @@
         "title": "Add existing Environment to Project"
       },
       {
+        "command": "vectorcastTestExplorer.updateProjectEnvironment",
+        "category": "VectorCAST Test Explorer",
+        "title": "Update Project Environment"
+      },
+      {
         "command": "vectorcastTestExplorer.importEnviroToProject",
         "category": "VectorCAST Test Explorer",
         "title": "Import Environment to Project"
@@ -288,6 +293,12 @@
             "default": true,
             "description": "Provides faster interaction with VectorCAST environments"
           },
+          "vectorcastTestExplorer.automaticallyUpdateManageProject": {
+            "type": "boolean",
+            "order": 2,
+            "default": true,
+            "description": "Automatically update the VectorCAST project when changes are made. If disabled, the user must manually update the project by right-clicking on a node in the Testing pane and selecting 'Update Project Level'"
+          },
           "vectorcastTestExplorer.unitTestLocation": {
             "type": "string",
             "order": 3,
@@ -391,6 +402,10 @@
         },
         {
           "command": "vectorcastTestExplorer.importEnviroToProject",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.updateProjectEnvironment",
           "when": "never"
         },
         {
@@ -652,6 +667,11 @@
           "command": "vectorcastTestExplorer.addEnviroToProject",
           "group": "vcast@1",
           "when": "testId =~ /\\.vcm$/"
+        },
+        {
+          "command": "vectorcastTestExplorer.updateProjectEnvironment",
+          "group": "vcast@1",
+          "when": "(testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList) && vectorcastTestExplorer.globalProjectIsOpenedChecker) && !config.vectorcastTestExplorer.automaticallyUpdateManageProject"
         },
         {
           "command": "vectorcastTestExplorer.addCompilerToProject",
