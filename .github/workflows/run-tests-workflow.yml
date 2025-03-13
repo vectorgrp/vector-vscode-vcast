@@ -29,6 +29,7 @@ jobs:
       OPENAI_ADVANCED_GENERATION_DEPLOYMENT: ${{ vars.OPENAI_ADVANCED_GENERATION_DEPLOYMENT }}
       OPENAI_EMBEDDING_DEPLOYMENT: ${{ vars.OPENAI_EMBEDDING_DEPLOYMENT }}
       AUTOREQ_MLFLOW_SERVER: ${{ vars.AUTOREQ_MLFLOW_SERVER }}
+      HOME: /home/vcast_user
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest

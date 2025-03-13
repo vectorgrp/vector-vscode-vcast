@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 export PATH=$VECTORCAST_DIR:$PATH
 
 SANITY_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity.tar.gz"
@@ -35,9 +37,11 @@ process_url() {
   local downloaded_file
   downloaded_file=$(basename "$url")
 
-  wget "$url" -O "$downloaded_file"
-  tar -xvf "$downloaded_file"
+  echo "Downloading $downloaded_file"
+  wget "$url" -O "$downloaded_file" > /dev/null 2>&1
+  tar -xvf "$downloaded_file" > /dev/null 2>&1
   rm "$downloaded_file"
+  echo "Downloaded $downloaded_file"
 }
 
 setup() {
