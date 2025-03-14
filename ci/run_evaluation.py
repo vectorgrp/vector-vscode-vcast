@@ -18,7 +18,7 @@ assertions = {
                     'min': 0.75,
                 }
             },
-            'LEAKY_BUCKET': {
+            'COMMON__PUT_LEAKY_BUCKET_F32_FN': {
                 'coverage.branches.percentage': {
                     'min': 1.0
                 },
@@ -63,45 +63,57 @@ def _extract_result(key: str, results: dict):
 
 
 def check_results(run_results_path):
+    errors = []
+
     global assertions
     run_results_path = Path(run_results_path)
     env_set_name = os.getenv("ENV_SET_NAME")
 
     if not run_results_path.is_dir():
-        raise FileNotFoundError(f"Directory {run_results_path} not found.")
+        errors.append(f"Directory {run_results_path} not found.")
+        return errors
 
     if env_set_name not in assertions:
-        raise ValueError(f"Environment set {env_set_name} not found.")
+        errors.append(f"Environment set {env_set_name} not found.")
+        return errors
 
     this_env_set_assertions = assertions[env_set_name]
     for env_name, metrics in this_env_set_assertions['envs'].items():
         json_file = run_results_path / f"{env_name}_result.json"
         if not json_file.is_file():
-            raise FileNotFoundError(f"JSON file {json_file} not found.")
+            errors.append(f"{env_name} - JSON file {json_file} not found.")
+            continue
         with open(json_file, 'r') as f:
             results = json.load(f)
 
         for metric, requirement in metrics.items():
+            actual = _extract_result(metric, results)
+            if actual is None:
+                errors.append(f"{env_name} - Metric {metric} not found in results.")
+                continue
             if 'min' in requirement:
                 expected = requirement['min']
-                actual = _extract_result(metric, results)
-                if actual is None:
-                    raise KeyError(f"Metric {metric} not found in results.")
-                assert actual >= expected, f"Metric {metric} for environment {env_name} is below the minimum requirement of {expected}."
+                if actual >= expected:
+                    errors.append(f"{env_name} - Metric {metric} is below the minimum requirement of {expected}.")
             elif 'max' in requirement:
                 expected = requirement['max']
-                actual = _extract_result(metric, results)
-                if actual is None:
-                    raise KeyError(f"Metric {metric} not found in results.")
-                assert actual <= expected, f"Metric {metric} for environment {env_name} is above the maximum requirement of {expected}."
+                if actual <= expected:
+                    errors.append(f"{env_name} - Metric {metric} is above the maximum requirement of {expected}.")
             else:
                 raise ValueError("Requirement must have either 'min' or 'max' key.")
+
+    return errors
 
 
 def main(run_results_path):
     try:
-        check_results(run_results_path)
-        print("All requirements met.")
+        errors = check_results(run_results_path)
+        if not errors:
+            print("All requirements met.")
+        else:
+            with open("requirements_check_errors.txt", 'w') as f:
+                for error in errors:
+                    f.write(error + '\n')
     except Exception as e:
         print(f"Requirement check failed: {e}")
         exit(1)

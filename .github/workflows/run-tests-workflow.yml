@@ -115,5 +115,14 @@ jobs:
         if: always()
         run: |
           python3.10 ./ci/run_evaluation.py ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
-          exit $?
+          echo '## Run checks' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [[ -f requirements_check_errors.txt ]] ; then
+            echo "Errors found in requirements_check_errors.txt"
+            cat requirements_check_errors.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo 'No errors found' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
         shell: bash
