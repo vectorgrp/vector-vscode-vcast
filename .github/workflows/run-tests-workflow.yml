@@ -93,7 +93,7 @@ jobs:
         if: always()
         run: |
           COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}"
+          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/${{ env.ENV_SET_NAME }}"
           REPORT_URL=$BASE_ARTIFACTORY_URL/report.html
           RESULTS_URL=$BASE_ARTIFACTORY_URL/r2t_eval_results/
           curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $REPORT_URL -T ${{ env.VCAST_USER_HOME }}/.envs/report.html
@@ -109,3 +109,11 @@ jobs:
           
           echo "## Markdown results" >> $GITHUB_STEP_SUMMARY
           cat ${{ env.VCAST_USER_HOME }}/.envs/results.md >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
+      - name: Run evaluation
+        if: always()
+        run: |
+          python3.10 ./ci/run_evaluation.py ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
+          exit $?
+        shell: bash
