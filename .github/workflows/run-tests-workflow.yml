@@ -92,12 +92,15 @@ jobs:
       - name: Upload reports
         if: always()
         run: |
-          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/${{ env.COMMIT_DATE }}-${{ github.sha }}"
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}"
           REPORT_URL=$BASE_ARTIFACTORY_URL/report.html
-          RESULTS_URL=$BASE_ARTIFACTORY_URL/r2t_eval_results.tar.gz
+          RESULTS_URL=$BASE_ARTIFACTORY_URL/r2t_eval_results
           curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $REPORT_URL -T ${{ env.VCAST_USER_HOME }}/.envs/report.html
-          tar -czvf ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results.tar.gz ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
-          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_URL -T ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results.tar.gz
+          cd ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
+          tar -cvzf ../to_upload.tar.gz . > /dev/null
+          cd ..
+          curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_URL -T to_upload.tar.gz
           
           echo '## HTML Report' >> $GITHUB_STEP_SUMMARY
           echo "[See report]($REPORT_URL)" >> $GITHUB_STEP_SUMMARY
@@ -105,6 +108,4 @@ jobs:
           echo "[Results folder]($RESULTS_URL)" >> $GITHUB_STEP_SUMMARY
           
           echo "## Markdown results" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
           cat ${{ env.VCAST_USER_HOME }}/.envs/results.md >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
