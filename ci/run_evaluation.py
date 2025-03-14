@@ -94,11 +94,11 @@ def check_results(run_results_path):
             if 'min' in requirement:
                 expected = requirement['min']
                 if actual >= expected:
-                    errors.append(f"{env_name} - Metric {metric} is below the minimum requirement of {expected}.")
+                    errors.append(f"{env_name} - Metric {metric} is below the minimum requirement of {expected} ({actual}).")
             elif 'max' in requirement:
                 expected = requirement['max']
                 if actual <= expected:
-                    errors.append(f"{env_name} - Metric {metric} is above the maximum requirement of {expected}.")
+                    errors.append(f"{env_name} - Metric {metric} is above the maximum requirement of {expected} ({actual}).")
             else:
                 raise ValueError("Requirement must have either 'min' or 'max' key.")
 
