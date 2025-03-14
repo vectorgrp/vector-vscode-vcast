@@ -298,6 +298,8 @@ class TestGenerator:
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
 
+        
+
         messages = [
             {
                 "role": "system",
@@ -340,6 +342,8 @@ Notes:
 - This is a highly critical task, please ensure that the test cases are correct and complete and do not contain any logical or syntactical errors.
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
 - Generate exactly one test case per requirement.
+- For each test case, make sure to set an input value for all arguments, global variables and stubs used in the function.
+- For each test case, make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
 
 Return your answer in the following format:
 ```json
@@ -359,7 +363,7 @@ Return your answer in the following format:
             self.info_logger.set_schema_exceeded_size(req_id, used_fallback)
 
         try:
-            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=4096)
+            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=8192)
         except Exception as e:
             import traceback
             logging.exception(f"Call to model failed for batched requirements: {e}")
@@ -536,6 +540,8 @@ Notes:
 - You are NOT allowed to invent any units or functions that are not present in the provided code.
 - This is a highly critical task, please ensure that the test case is correct and complete and does not contain any logical or syntactical errors.
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
+- Make sure to set an input value for all arguments, global variables and stubs used in the function.
+- Make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
 """
             }
         ]
