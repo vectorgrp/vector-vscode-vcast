@@ -1,3 +1,4 @@
+import re
 from typing import List, Dict, Any, Set, Tuple
 from pydantic import BaseModel, create_model
 
@@ -29,11 +30,8 @@ class DesignDecompositionResultWithTestcases(BaseModel):
             requirements=self.requirements
         )
 
-class SemanticPart(BaseModel):
-    line_numbers: List[int]
-
-class SemanticPartsResponse(BaseModel):
-    semantic_parts: List[SemanticPart]
+class ReworkedRequirementsResult(BaseModel):
+    reworked_requirements: List[str]
 
 def _derive_requirement_schema(num_parts):
     """Creates a dynamic schema that forces exactly one requirement per semantic part."""
@@ -121,82 +119,134 @@ class RequirementsGenerator:
         
         return processed_parts
 
-    def _get_executable_statement_groups(self, code_bytes: bytes) -> List[List[int]]:
+    def _get_executable_statement_groups(self, code: str) -> List[List[int]]:
         """
         Extract executable statement groups from code using tree-sitter.
         Returns a list of lists, where each inner list contains line numbers of statements
         that belong to the same execution path.
         """
         ts_parser = self.environment.tu_codebase.ts_parser
-        tree = ts_parser.parse(code_bytes)
+        tree = ts_parser.parse(code.encode('utf-8'))
         root_node = tree.root_node
+
+        #print(root_node.sexp())
+
+        COLLECTED_NODE_TYPES = [
+            'expression_statement', 'return_statement', 'throw_statement', 'break_statement', 'continue_statement', 'comment'
+        ]
+
+        PATH_NODE_CHILD_PATH_LABELS = {
+            'if_statement': {
+                'consequence': 'IF {} ==> TRUE',
+                'alternative': 'IF {} ==> FALSE'
+            },
+            'while_statement': {
+                'body': 'WHILE {} ==> TRUE'
+            },
+            'for_statement': {
+                'body': 'FOR ({}) ==> TRUE'
+            },
+            'do_statement': {
+                'body': 'DO-WHILE {} ==> TRUE'
+            },
+            'switch_statement': {
+                'body': 'SWITCH {} ==> ENTERED'
+            },
+            'case_statement': {
+                '*': 'CASE {} ==> ENTERED'
+            },
+            #'try_statement': {
+            #    'body': 'ENTERED'
+            #},
+            #'catch_clause': {
+            #    'body': 'ENTERED'
+            #},
+            # TODO: Deal with condition stuff for try and catch
+        }
         
+        PATH_NODE_CHILD_PATH_CONDITION = {
+            'if_statement': 'condition',
+            'while_statement': 'condition',
+            'for_statement': 'condition',
+            'do_statement': 'condition',
+            'switch_statement': 'condition',
+            'case_statement': 'value'
+        }
+
+        class CollectedNode(BaseModel):
+            line_number: int
+            path: List[str]
+
+        class StatementGroup(BaseModel):
+            line_numbers: List[int]
+            path: List[str]
+            
+            @property
+            def lines(self):
+                lines = code.split('\n')
+                return [lines[i] for i in self.line_numbers]
+
+            def __str__(self):
+                # First, construct the path
+                path_str = '\n -> '.join(self.path)
+
+                # Then, construct the lines. For non-adajcent lines, add ...
+                lines_str = ''
+                for i, line in enumerate(self.lines):
+                    if i > 0 and self.line_numbers[i] != self.line_numbers[i-1] + 1:
+                        lines_str += '...\n'
+                    lines_str += f"{line}\n"
+
+                return f"Path: {path_str}\nLines:\n{lines_str}"
+
+            @staticmethod
+            def from_collected_nodes(collected_nodes):
+                return StatementGroup(
+                    line_numbers=[node.line_number for node in collected_nodes],
+                    path=collected_nodes[0].path
+                )
+
         # Function to collect statements by execution path
-        def collect_statements(node):
+        def collect_statements(node, curr_path):
+            curr_path = curr_path.copy()
+            """
             if node.type in ('comment', 'preprocessor_directive', 'string_literal'):
                 return None
+            """
 
             # Check if this is a statement that should be collected
-            if node.type in ('expression_statement', 'declaration', 'return_statement',
-                           'break_statement', 'continue_statement', 'assignment_expression'):
+            if node.type in COLLECTED_NODE_TYPES:
                 # Add the line number to the current group
-                line_number = node.start_point[0] + 1  # Convert to 1-based indexing
-                return line_number
-                
-            # Check if this is a control flow node that creates new execution paths
-            if node.type in ('if_statement', 'for_statement', 'while_statement', 'switch_statement',
-                           'do_statement', 'case_statement'):
-                
-                # Find the condition part to skip it
-                condition = None
-                if node.type in ('if_statement', 'for_statement', 'while_statement', 'switch_statement'):
-                    condition = next((child for child in node.children 
-                                    if child.type in ('condition', 'for_condition')), None)
-                
-                groups = []
-                # Process each branch/body as a separate execution path
-                for child in node.children:
-                    # Skip conditions
-                    if child == condition:
-                        continue
-                        
-                    # Handle compound statements (blocks)
-                    if child.type in ('compound_statement', 'statement_block', 'else_clause'):
-                        # Process contents of the block
-                        for block_child in child.children:
-                            if block_child.type != '{' and block_child.type != '}':
-                                groups.append(collect_statements(block_child))
-                    # Handle individual statements (non-block branches)
-                    elif child.type not in ('(', ')', '{', '}', 'condition', 'for_condition'):
-                        # Create a new group for single statement branches
-                        groups.append(collect_statements(child))
+                line_number = node.start_point[0]
+                return CollectedNode(line_number=line_number, path=curr_path)
 
-                return groups
-            
-            # For case statements in switch
-            if node.type == 'case_statement':
-                # Create a separate group for each case
-                case_group = []
-                
-                # Process the case body (skip the case label)
-                for i, child in enumerate(node.children):
-                    # Skip the case label/condition
-                    if i == 0:
-                        continue
-                    case_group.append(collect_statements(child, case_group))
-
-                return case_group
+            if node.type in PATH_NODE_CHILD_PATH_LABELS:
+                condition = node.child_by_field_name(PATH_NODE_CHILD_PATH_CONDITION[node.type])
+                if not condition and node.type == 'case_statement':
+                    path_labels = {field: re.sub(r'\s{2,}', ' ', 'DEFAULT ==> ENTERED') for field in PATH_NODE_CHILD_PATH_LABELS[node.type]}
+                else:
+                    path_labels = {field: re.sub(r'\s{2,}', ' ', PATH_NODE_CHILD_PATH_LABELS[node.type][field].format(condition.text.decode('utf-8').replace('\n', ''))) for field in PATH_NODE_CHILD_PATH_LABELS[node.type]}
+            else:
+                path_labels = {}
                 
             groups = []
             # Recursively process other nodes
             for child in node.children:
                 # Check if this child is a condition part
-                groups.append(collect_statements(child))
+                field_name = next((field for field in PATH_NODE_CHILD_PATH_LABELS.get(node.type, {}) if node.child_by_field_name(field) == child), None)
+                path_label = path_labels.get(field_name, None) or path_labels.get('*', None)
+                
+                if path_label:
+                    new_path = [*curr_path, path_label]
+                else:
+                    new_path = curr_path
+
+                groups.append(collect_statements(child, new_path))
 
             return groups
 
         # Start processing from the root
-        executable_groups = collect_statements(root_node)
+        executable_groups = collect_statements(root_node, [])
 
         def to_flat_groups(nested_groups):
             groups = []
@@ -216,130 +266,78 @@ class RequirementsGenerator:
 
             return groups
 
-        # Return the groups, filtering out empty ones
-        return to_flat_groups(executable_groups)
+        flat_groups = to_flat_groups(executable_groups)
+        executable_groups = [StatementGroup.from_collected_nodes(group) for group in flat_groups]
 
-    async def extract_semantic_parts_only_ast(self, function_name: str) -> List[Dict[str, Any]]:
+        return executable_groups
+
+    def extract_semantic_parts(self, function_name: str) -> List[Dict[str, Any]]:
         function_body = self.environment.tu_codebase.find_definitions_by_name(function_name)[0]
-        function_bytes = function_body.encode('utf-8')
 
-        code_lines = function_body.split('\n')
-        
-        # Get executable statement groups from AST
-        executable_groups = self._get_executable_statement_groups(function_bytes)
+        return self._get_executable_statement_groups(function_body)
 
-        # Convert line numbers back to actual code lines
-        semantic_parts = []
-        for part in executable_groups:
-            # Subtract 1 from line numbers since we displayed them 1-based but need 0-based indexing
-            part_lines = [code_lines[i-1] for i in part if 0 < i <= len(code_lines)]
-            semantic_parts.append({
-                "line_numbers": part,
-                "lines": part_lines
-            })
 
-        return semantic_parts
-
-    async def extract_semantic_parts(self, function_name: str) -> List[Dict[str, Any]]:
-        """Extract semantic parts from function code."""
-        # Get just the function definition, not the full context
+    async def _postprocess_requirements(self, function_name: str, requirements: List[str], allow_merge=True) -> List[Dict[str, Any]]:
         function_body = self.environment.tu_codebase.find_definitions_by_name(function_name)[0]
-        
-        # Add line numbers to code
-        code_lines = function_body.split('\n')
-        numbered_code = '\n'.join(f"{i+1}: {line}" for i, line in enumerate(code_lines))
-        
+        requirements_text = '\n'.join("- " + r for r in requirements)
+
+        if allow_merge:
+            merge_instructions = "You are not just allowed to split the requirements into smaller parts, but also to merge them if you think that the original requirements are too granular."
+        else:
+            merge_instructions = ""
+
         prompt = f"""
-Split the contents of the following function body into semantic parts that belong together in terms of functionality.
+You will be given a set of requirements for a function. Your task is to produce a new set of requirements derived from the given ones. 
+{merge_instructions}
+
+Here is the original function:
+{function_body}
+
+Here are the numbered requirements:
+```c
+{requirements_text}
 
 Return your answer in the following format:
 ```json
 {{
-    "semantic_parts": [
-        {{ "line_numbers": [1, 2, 3] }},
-        {{ "line_numbers": [4] }},
+    "reworked_requirements": [
+        "<reworked requirement 1>",
+        "<reworked requirement 2>",
         ...
     ]
 }}
+
+Notes:
+- Ensure that the semantics of the original requirements are preserved in the reworked requirements.
 ```
 
-Follow the following additional rules:
-- Reference lines by their line numbers only
-- Ignore trivial lines, e.g, just comments, brackets, whitespace or similar
-- Ensure that each part is a cohesive set of related behaviors
-- All non-trivial lines should be covered
-
-Here is the numbered code:
-```c
-{numbered_code}
 ```
 """
 
         response = await self.llm_client.call_model([{
             "role": "user",
             "content": prompt
-        }], SemanticPartsResponse)
+        }], ReworkedRequirementsResult)
 
-        
-        # Convert line numbers back to actual code lines
-        semantic_parts = []
-        for part in response.semantic_parts:
-            # Subtract 1 from line numbers since we displayed them 1-based but need 0-based indexing
-            part_lines = [code_lines[i-1] for i in part.line_numbers if 0 < i <= len(code_lines)]
-            semantic_parts.append({
-                "line_numbers": part.line_numbers,
-                "lines": part_lines
-            })
-        
-        # Print semantic parts before post-processing
-        """
-        print("\n======== SEMANTIC PARTS BEFORE POST-PROCESSING ========")
-        for i, part in enumerate(semantic_parts):
-            print(f"\nPart {i+1}:")
-            print(f"  Line numbers: {part['line_numbers']}")
-            print(f"  Code:")
-            for line in part['lines']:
-                print(f"    {line}")
-        """
-        
-        # Post-process semantic parts using AST analysis
-        processed_parts = self._post_process_semantic_parts(function_name, semantic_parts)
-        
-        # Print semantic parts after post-processing
-        """
-        print("\n======== SEMANTIC PARTS AFTER POST-PROCESSING ========")
-        for i, part in enumerate(processed_parts):
-            print(f"\nPart {i+1}:")
-            print(f"  Line numbers: {part['line_numbers']}")
-            print(f"  Code:")
-            for line in part['lines']:
-                print(f"    {line}")
-        """
-        
-        return processed_parts
+        return response.reworked_requirements
 
     async def generate(self, function_name: str):
         """Generate requirements based on function name."""
-        # Get the function body
-        function_body = self.environment.tu_codebase.find_definitions_by_name(function_name)[0]
-        
+
         # Get the full context using context builder
         function_context = await self.context_builder.build_code_context(function_name)
         
         # Extract semantic parts using just the function body
-        semantic_parts = await self.extract_semantic_parts(function_name)
+        semantic_parts = self.extract_semantic_parts(function_name)
         
         # Format semantic parts for prompt
         prettified_parts = []
         for i, part in enumerate(semantic_parts):
             index_prefix = f"{i+1}. "
-            part_lines = "\n".join(part["lines"])
-            part_lines_formatted = part_lines.split("\n")
-            indented_part = part_lines_formatted[0] + "".join("\n" + " " * len(index_prefix) + line for line in part_lines_formatted[1:])
-            prettified_parts.append(index_prefix + indented_part)
+            prettified_parts.append(index_prefix + str(part))
 
-        available_parts = "\n".join(prettified_parts) if prettified_parts else "Only one semantic part was identified in the code."
-        num_parts = len(semantic_parts) if semantic_parts else 1
+        available_parts = "\n".join(prettified_parts)
+        num_parts = len(semantic_parts)
 
         messages = [
             {
@@ -451,10 +449,7 @@ The success of this task is critical. If you do not generate exactly one test ca
                 partial_prettified_parts = []
                 for i2, part in enumerate(batch):
                     index_prefix = f"{i2+1}. "
-                    part_lines = "\n".join(part["lines"])
-                    part_lines_formatted = part_lines.split("\n")
-                    indented_part = part_lines_formatted[0] + "".join("\n" + " " * len(index_prefix) + line for line in part_lines_formatted[1:])
-                    partial_prettified_parts.append(index_prefix + indented_part)
+                    partial_prettified_parts.append(index_prefix + str(part))
                 partial_available_parts = "\n".join(partial_prettified_parts)
 
                 batch_messages = [msg.copy() for msg in messages]
@@ -486,10 +481,10 @@ The success of this task is critical. If you do not generate exactly one test ca
                 for i in range(num_parts)
             ]
 
-        return requirements
+        return await self._postprocess_requirements(function_name, requirements)
 
-# TODO: Properly deal with removing for statements
 # TODO: Switch to ast-only and include a "splitting step" where multisemantic requirements are split
 # TODO: Similarly, filter out "trivial" requirements, e.g., describing only breaks
 # TODO: Potentially  do not split groups at lists
 # TODO: Add ... between non-adjacent lines
+# TODO: Deal with things we'd like to cover that explicitly do not correspond to a line (e.g., there is an if with no else in the code and we want to cover the else branch). Maybe not necessary

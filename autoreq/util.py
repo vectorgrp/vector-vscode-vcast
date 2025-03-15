@@ -184,3 +184,17 @@ class EnvStore:
             self._cache_file.unlink()
 
 ENV_STORE = EnvStore()
+
+
+def parse_code(code):
+    from tree_sitter import Language, Parser
+    import tree_sitter_cpp as ts_cpp
+
+    parser = Parser()
+    CPP_LANGUAGE = Language(ts_cpp.language(), 'cpp')
+    parser.set_language(CPP_LANGUAGE)
+
+    tree = parser.parse(bytes(code, 'utf-8'))
+    root_node = tree.root_node
+    
+    return root_node
