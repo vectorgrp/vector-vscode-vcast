@@ -111,10 +111,9 @@ def main(run_results_path):
         if not errors:
             print("All requirements met.")
         else:
-            print('\n'.join(errors))
-            # with open("requirements_check_errors.txt", 'w') as f:
-            #     for error in errors:
-            #         f.write(error + '\n')
+            with open("requirements_check_errors.txt", 'w') as f:
+                for error in errors:
+                    f.write(error + '\n')
     except Exception as e:
         print(f"Requirement check failed: {e}")
         exit(1)
