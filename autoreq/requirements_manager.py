@@ -46,6 +46,9 @@ class RequirementsManager:
             grouped[func].append(rid)
         return grouped
 
+    def get_requirements_for_function(self, function_name):
+        return self.group_by_function().get(function_name, [])
+
     def requirements_to_dict(self):
         """Return a dictionary representation of all requirements."""
         return self._requirements

@@ -132,7 +132,7 @@ def prompt_user_for_info(key):
     elif key == 'OPENAI_API_BASE':
         return input("Please enter the OpenAI API base URL: ")
 
-async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False, extended_reasoning=False):
+async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False, combine_related_requirements=False, extended_reasoning=False):
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level)
@@ -142,7 +142,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     functions = environment.testable_functions
 
-    generator = RequirementsGenerator(environment, extended_reasoning=extended_reasoning)
+    generator = RequirementsGenerator(environment, combine_related_requirements=combine_related_requirements, extended_reasoning=extended_reasoning)
 
     context_builder = VcastContextBuilder(environment)
 
@@ -156,8 +156,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
         nonlocal processed_functions
         func_name = func['name']
         func_file = func['file']
-        func_code = await context_builder.build_code_context(func_name)
-        result = await generator.generate(func_code, func_name)
+        result = await generator.generate(func_name)
         processed_functions += 1
         progress = processed_functions / total_functions
 
@@ -206,6 +205,7 @@ def cli():
     parser.add_argument("--export-repository", help="Path to the VCAST_REPOSITORY for registering requirements.")
     parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
     parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
+    parser.add_argument('--combine-related-requirements', action='store_true', help='Combine related requirements into a single requirement after initial generation.')
     parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning for test generation.')
 
     args = parser.parse_args()

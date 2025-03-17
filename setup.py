@@ -30,7 +30,8 @@ setup(
         'console_scripts': [ 
             'code2reqs = autoreq.code2reqs:cli',
             'reqs2tests = autoreq.reqs2tests:cli',
-            'reqs2tests_eval = autoreq.evaluate:cli',
+            'reqs2tests_eval = autoreq.evaluate_reqs2tests:cli',
+            'code2reqs_eval = autoreq.evaluate_code2reqs:cli',
             'manage_env = autoreq.manage_env:cli'
         ] 
     }, 

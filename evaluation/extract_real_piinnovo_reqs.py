@@ -5,12 +5,12 @@ import glob
 import csv
 import os
 
-codebase = Codebase(["data/pi--innovo/src"])
+codebase = Codebase(["data/pi--innovo-large-scale/src"])
 
 functions = codebase.get_all_functions()
 
 requirements = []
-with open('data/pi--innovo/vcast/rgw/low_level_requirements.csv', 'r') as csvfile:
+with open('data/pi--innovo-large-scale/vcast/rgw/low_level_requirements.csv', 'r') as csvfile:
     reader = csv.DictReader(csvfile)
     requirements = list(reader)
 print(f"Loaded {len(requirements)} requirements")
@@ -27,7 +27,7 @@ def get_unit_for_env(env_file_path):
 
 
 unit_to_env = {}
-for env_file in glob.glob("data/pi--innovo/vcast/**/build/*/*.env", recursive=True):
+for env_file in glob.glob("data/pi--innovo-large-scale/vcast/**/build/*/*.env", recursive=True):
     unit_name = get_unit_for_env(env_file)
     if unit_name:
         unit_to_env[unit_name] = env_file
