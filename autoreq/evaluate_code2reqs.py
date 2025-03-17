@@ -95,6 +95,7 @@ async def evaluate_environment(
     ground_truth_rm: RequirementsManager,
     output_dir: Path,
     extended_reasoning: bool = False,
+    combined_related_requirements: bool = False,
     max_generation_time: float = None
 ) -> EvaluationResult:
     start_time = time.perf_counter()
@@ -102,7 +103,7 @@ async def evaluate_environment(
 
     env.build()
     
-    requirement_generator = RequirementsGenerator(env, extended_reasoning=extended_reasoning)
+    requirement_generator = RequirementsGenerator(env, extended_reasoning=extended_reasoning, combine_related_requirements=combined_related_requirements)
     requirement_verifier = RequirementsVerifier(env)
     
     # Generate requirements with progress bar
@@ -110,17 +111,13 @@ async def evaluate_environment(
     generation_error = None
     pbar = tqdm(total=len(env.testable_functions), desc=f"Generating requirements for {Path(env_path).stem}")
 
-    context_builder = VcastContextBuilder(env)
-
     async def generate_requirements(func_name):
         nonlocal requirement_sets
 
-        func_code = await context_builder.build_code_context(func_name)
-        result = await requirement_generator.generate(func_code, func_name)
+        result = await requirement_generator.generate(func_name)
         requirement_sets[func_name] = result
         pbar.update(1)
 
-    # TODO: Finish the script from here
     async def perform_requirement_generation():
         nonlocal requirement_sets, generation_error
 
@@ -146,6 +143,9 @@ async def evaluate_environment(
     # Capture generation costs before verification
     generation_token_usage = requirement_generator.llm_client.get_token_usage()
     generation_total_cost = requirement_generator.llm_client.total_cost['total_cost']
+
+    print([[ground_truth_rm.get_description(req_id) for req_id in ground_truth_rm.get_requirements_for_function(func_name)] for func_name in requirement_sets.keys()])
+    print(requirement_sets)
 
     # Create a list of coroutines for verification
     verification_tasks = [
@@ -331,6 +331,8 @@ async def main():
                             'You can also use @filepath to include environments listed in a file, one per line.')
     parser.add_argument('output_dir', help='Directory to store evaluation results.')
     parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning.')
+    parser.add_argument('--combine-related-requirements', action='store_true',
+                        help='Combine related requirements into a single requirement after initial generation.')
     parser.add_argument('--max-cost', type=float, 
                        help='Maximum cost limit in dollar. Processing stops if exceeded.')
     parser.add_argument('--timeout', type=float, default=30.0,
