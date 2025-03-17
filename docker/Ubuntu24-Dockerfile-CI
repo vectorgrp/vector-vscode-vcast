@@ -10,9 +10,10 @@ ARG PY_VERSION_SHORT=3.10
 RUN sudo apt-get update && sudo apt-get install libsqlite3-dev -y
 RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tgz && \
     tar xvf Python-${PY_VERSION}.tgz && cd Python-${PY_VERSION} && sed -i 's/PKG_CONFIG openssl /PKG_CONFIG openssl /g' configure && \
-    ./configure --enable-loadable-sqlite-extensions --enable-optimizations && sudo make && sudo make altinstall && \
+    ./configure --enable-loadable-sqlite-extensions --enable-optimizations --enable-shared && sudo make && sudo make altinstall && \
     cd .. && sudo rm -rf Python-${PY_VERSION}* && \
     sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python${PY_VERSION_SHORT} 1 && \
     rm -rf .venv
+ENV LD_LIBRARY_PATH=/usr/local/lib
 
 SHELL ["/bin/bash", "--login", "-c"]
