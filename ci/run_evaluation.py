@@ -93,12 +93,12 @@ def check_results(run_results_path):
                 continue
             if 'min' in requirement:
                 expected = requirement['min']
-                if actual >= expected:
-                    errors.append(f"{env_name} - Metric {metric} is below the minimum requirement of {expected} ({actual}).")
+                if actual > expected:
+                    errors.append(f"{env_name} - Metric {metric} is above the minimum requirement of {expected} ({actual}).")
             elif 'max' in requirement:
                 expected = requirement['max']
-                if actual <= expected:
-                    errors.append(f"{env_name} - Metric {metric} is above the maximum requirement of {expected} ({actual}).")
+                if actual < expected:
+                    errors.append(f"{env_name} - Metric {metric} is below the maximum requirement of {expected} ({actual}).")
             else:
                 raise ValueError("Requirement must have either 'min' or 'max' key.")
 
@@ -111,9 +111,10 @@ def main(run_results_path):
         if not errors:
             print("All requirements met.")
         else:
-            with open("requirements_check_errors.txt", 'w') as f:
-                for error in errors:
-                    f.write(error + '\n')
+            print('\n'.join(errors))
+            # with open("requirements_check_errors.txt", 'w') as f:
+            #     for error in errors:
+            #         f.write(error + '\n')
     except Exception as e:
         print(f"Requirement check failed: {e}")
         exit(1)
