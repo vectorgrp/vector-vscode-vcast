@@ -5,7 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
-from autoreq.evaluate import EvaluationResult
+from autoreq.evaluate_reqs2tests import EvaluationResult
 from pathlib import Path
 import numpy as np
 from typing import List, Dict, Any, Tuple
