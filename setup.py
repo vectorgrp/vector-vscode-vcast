@@ -15,6 +15,8 @@ base_requirements = [
     'requests==2.32.3',
     'cryptography==44.0.1',
     'appdirs==1.4.4',
+    'seaborn==0.13.2',
+    'markdownify==1.1.0',
 ]
 
 if sys.version_info >= (3, 10):
