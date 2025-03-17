@@ -57,10 +57,11 @@ def _batch_items(items, batch_size=50):
         yield items[i:i+batch_size]
 
 class RequirementsGenerator:
-    def __init__(self, environment, code_independence: bool = False, extended_reasoning: bool = False):
+    def __init__(self, environment, code_independence: bool = False, combine_related_requirements: bool = False, extended_reasoning: bool = False):
         self.llm_client = LLMClient()
         self.environment = environment
         self.code_independence = code_independence
+        self.combine_related_requirements = combine_related_requirements
         self.extended_reasoning = extended_reasoning
         self.context_builder = VcastContextBuilder(environment)
 
@@ -481,10 +482,7 @@ The success of this task is critical. If you do not generate exactly one test ca
                 for i in range(num_parts)
             ]
 
-        return await self._postprocess_requirements(function_name, requirements)
+        return await self._postprocess_requirements(function_name, requirements, allow_merge=self.combine_related_requirements)
 
-# TODO: Switch to ast-only and include a "splitting step" where multisemantic requirements are split
-# TODO: Similarly, filter out "trivial" requirements, e.g., describing only breaks
-# TODO: Potentially  do not split groups at lists
-# TODO: Add ... between non-adjacent lines
+# TODO: Potentially do not split groups at lists
 # TODO: Deal with things we'd like to cover that explicitly do not correspond to a line (e.g., there is an if with no else in the code and we want to cover the else branch). Maybe not necessary
