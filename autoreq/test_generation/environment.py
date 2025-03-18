@@ -272,9 +272,11 @@ class Environment:
 
     @cached_property
     def atg_tests(self) -> str:
+        self.build()
         env_name = self.env_name
         # First try with baselining
-        cmd = _get_vectorcast_cmd('atg', ['-e', env_name, '--baselining'])
+        atg_file = os.path.join(self.env_dir, 'atg_for_regular_use.tst')
+        cmd = _get_vectorcast_cmd('atg', ['-e', env_name, '--baselining', atg_file])
         env_vars = os.environ.copy()
 
         try:
@@ -283,7 +285,7 @@ class Environment:
         except subprocess.TimeoutExpired:
             logging.warning(f"ATG with baselining timed out, trying without baselining")
             # Retry without baselining
-            cmd = _get_vectorcast_cmd('atg', ['-e', env_name])
+            cmd = _get_vectorcast_cmd('atg', ['-e', env_name, atg_file])
             try:
                 result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
@@ -295,7 +297,6 @@ class Environment:
             logging.error(f"ATG command failed with error:\n{result.stderr}")
             return ""
             
-        atg_file = os.path.join(self.env_dir, 'atg.tst')
         if not os.path.exists(atg_file):
             logging.error("ATG file not generated")
             return ""

@@ -123,6 +123,7 @@ Note:
                 messages,
                 TestVerificationResult,
                 max_tokens=10000,
+                extended_reasoning=True
             )
             return VerificationOutput(
                 requirement_id=req_id,

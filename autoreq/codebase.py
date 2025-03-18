@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import List, Dict, Optional, Set, Tuple, Union
 from monitors4codegen.multilspy import SyncLanguageServer
 from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
@@ -13,15 +14,16 @@ BLACKLISTED_DIRS = ['.ccls-cache']
 class Codebase:
     # All LSP symbol kinds that we want to index
     INDEXABLE_KINDS = {
-        12,  # Function
+        12,  # Function#
         6,   # Method
-        13,  # Variable
         5,   # Class
-        23,  # Namespace
-        22,  # Struct
+        9,   # Constructor
+        13,  # Variable
+        14,  # Constant
+        23,  # Struct
         10,  # Enum
         11,   # Interface,
-        252  # Type defs
+        26  # Type parameter
     }
     
     FUNCTION_KINDS = {12, 6}  # Both functions and methods
@@ -253,6 +255,9 @@ class Codebase:
             code_bytes = f.read()
             
         definitions = self._get_definitions_for_window(code_bytes, start_line, end_line, collapse_function_body, depth)
+        
+        # Sort them by line number
+        definitions = {k: v for k, v in sorted(definitions.items(), key=lambda item: item[1]['start_line'])}
 
         if return_dict:
             return {k: v['definition'] for k, v in definitions.items()}
@@ -282,7 +287,7 @@ class Codebase:
 
         return definitions
 
-
+    @lru_cache(maxsize=128)
     def get_definitions_for_symbol(self, symbol_name: str, filepath=None, depth=1, collapse_function_body: bool = False, return_dict: bool = False) -> Union[List[str], Dict[str, List[str]]]:
         """Get definitions for all symbols referenced in the definition of a symbol"""
         definitions = self.find_definitions_by_name(symbol_name, collapse_function_body, return_raw=True)

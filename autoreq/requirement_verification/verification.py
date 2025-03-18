@@ -88,6 +88,7 @@ Set 2:
             EvaluationResult,
             temperature=0.0,
             max_tokens=1000,
+            extended_reasoning=True
         )
 
         from pprint import pprint
