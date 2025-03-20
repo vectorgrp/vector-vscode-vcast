@@ -91,9 +91,6 @@ Set 2:
             extended_reasoning=True
         )
 
-        from pprint import pprint
-        pprint(messages)
-        
         score = result.grade
         score = max(0, min(score, 10))  # Ensure score is between 0 and 10
         normalized_score = score / 10
