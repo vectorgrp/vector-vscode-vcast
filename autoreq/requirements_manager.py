@@ -56,3 +56,7 @@ class RequirementsManager:
     def get_requirement(self, requirement_id):
         """Get a specific requirement by ID."""
         return self._requirements_by_id.get(requirement_id)
+
+    def filter(self, filter_callback) -> 'RequirementsManager':
+        """Filter requirements based on a callback function."""
+        return RequirementsManager([self._requirements_by_id[req_id] for req_id in filter(filter_callback, self.requirement_ids)])

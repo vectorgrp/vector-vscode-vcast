@@ -676,6 +676,7 @@ async def main():
                        help='Re-process environments even if they have already been evaluated.')
     parser.add_argument('--mlflow', nargs=2, metavar=('EXPERIMENT_NAME', 'RUN_NAME'),
                        help='Enable MLflow tracking with specified experiment and run name')
+    parser.add_argument('--filter', nargs='*', help='Filter requirements by tags.')
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -739,7 +740,12 @@ async def main():
         env = Environment(env_path)
         try:
             rm = RequirementsManager(req_path)
+
+            if args.filter:
+                rm = rm.filter(lambda r: rm.get_function(r) in args.filter)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"Error loading requirements for {env_path}: {e}")
             env.cleanup()
             continue
