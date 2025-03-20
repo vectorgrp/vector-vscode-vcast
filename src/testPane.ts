@@ -645,11 +645,28 @@ function deleteItemByID(item: vscode.TestItem, nodeID: string) {
   });
 }
 
+export function deleteAllItems(item: vscode.TestItem) {
+  item.children.forEach((child) => {
+    // Recursively delete children of the current child.
+    deleteAllItems(child);
+    // Remove the child from the parent's collection.
+    item.children.delete(child.id);
+  });
+}
+
 export let vcastEnvironmentsFound: boolean = false;
 async function loadAllVCTests(
   progress: vscode.Progress<{ message?: string; increment?: number }>,
   token: vscode.CancellationToken
 ) {
+  // Iterate over all top-level items and clear their children.
+  // We basically delete the entire tree and afterwards build it again.
+  // It's simpler, because in case we have less nodes than before we need to find
+  // the sepecif node(s) to delete, where we also have to iterate thorugh the whole tree and involves way more logic.
+  globalController.items.forEach((item) => {
+    deleteAllItems(item);
+  });
+
   // Reset caches and environment lists.
   vcastEnviroList = [];
   vcastUnbuiltEnviroList = [];
@@ -661,6 +678,7 @@ async function loadAllVCTests(
 
   let cancelled: boolean = false;
   let environmentList: environmentNodeDataType[] = [];
+  let projectPathDirList: string[] = [];
 
   if (vscode.workspace.workspaceFolders) {
     for (const workspace of vscode.workspace.workspaceFolders) {
@@ -671,6 +689,7 @@ async function loadAllVCTests(
       // Add environments that are part of a managed project.
       for (const [projectPath, projectData] of globalProjectDataCache) {
         vectorMessage(`Processing project: ${projectPath} ...`);
+        projectPathDirList.push(projectPath.split(".vcm")[0]);
         for (const [buildDirectory, enviroData] of projectData) {
           environmentList.push({
             projectPath: projectPath,
@@ -684,16 +703,26 @@ async function loadAllVCTests(
 
       // Add free (non-managed) environments.
       for (const environment of getEnvironmentList(workspaceRoot)) {
+        let enviroIsNotManaged = true;
         const normalizedPath = normalizePath(environment);
-        const displayName = path.relative(workspaceRoot, normalizedPath);
-        environmentList.push({
-          projectPath: "",
-          buildDirectory: normalizedPath,
-          isBuilt: true,
-          displayName: displayName,
-          workspaceRoot: workspaceRoot,
-          // Note: free environments don't have a group.
-        });
+        // An Environment can be also in the environmentList when the Compiler or the Testsuite is disabled.
+        // Without this check, the env would be recognized as "Free Environment" and would appear as a seperate node
+        // We check here if the build path includes the project path and if so, we ignore the env.
+        for (let path of projectPathDirList) {
+          if (normalizedPath.includes(path)) {
+            enviroIsNotManaged = false;
+          }
+        }
+        if (enviroIsNotManaged) {
+          const displayName = path.relative(workspaceRoot, normalizedPath);
+          environmentList.push({
+            projectPath: "",
+            buildDirectory: normalizedPath,
+            isBuilt: true,
+            displayName: displayName,
+            workspaceRoot: workspaceRoot,
+          });
+        }
       }
     } // end for workspace folders
 

@@ -601,14 +601,17 @@ def getProjectData(api):
                 if not callable(getattr(enviroNode.compiler, attr))
                 and not attr.startswith("__")
             ]
-            enviroData["compiler"] = {
-                "name": enviroNode.compiler.name,
-                "testsuites": testsuites,
-            }
+
+            if enviroNode.compiler.is_enabled:
+                enviroData["compiler"] = {
+                    "name": enviroNode.compiler.name,
+                    "testsuites": testsuites,
+                }
 
             for testsuite in enviroNode.compiler.testsuites:
-                testsuite_name_full = testsuite.string_id
-                testsuites.append(testsuite_name_full.split("/")[1])
+                if testsuite.is_enabled:
+                    testsuite_name_full = testsuite.string_id
+                    testsuites.append(testsuite_name_full.split("/")[1])
 
             enviroList.append(enviroData)
     return enviroList
@@ -617,19 +620,21 @@ def getProjectData(api):
 def getProjectTestsuiteData(api):
     testsuiteList = []
     for testsuite in api.TestSuite.all():
-        testsuiteData = {}
-        testsuiteData["displayName"] = testsuite.string_id
-        testsuiteList.append(testsuiteData)
+        if testsuite.is_enabled:
+            testsuiteData = {}
+            testsuiteData["displayName"] = testsuite.string_id
+            testsuiteList.append(testsuiteData)
     return testsuiteList
 
 
 def getProjectCompilerData(api):
     compilerList = []
     for compiler in api.Compiler.all():
-        compilerData = {}
-        compilerData["displayName"] = compiler.name
-        compilerData["projectFile"] = compiler.project.path
-        compilerList.append(compilerData)
+        if compiler.is_enabled:
+            compilerData = {}
+            compilerData["displayName"] = compiler.name
+            compilerData["projectFile"] = compiler.project.path
+            compilerList.append(compilerData)
     return compilerList
 
 
