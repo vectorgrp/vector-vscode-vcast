@@ -8,13 +8,15 @@ on:
     branches:
       - master
   workflow_dispatch:
+env:
+  NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+  REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+  VCAST_USER_HOME: /home/vcast_user
 jobs:
   reqs2tests_distribution_linux:
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, reqs2tests]
-    env:
-      VCAST_USER_HOME: /home/vcast_user
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
