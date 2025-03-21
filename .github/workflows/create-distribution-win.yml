@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          set-safe-directory: false
 
       - name: Start container
         id: run_container
