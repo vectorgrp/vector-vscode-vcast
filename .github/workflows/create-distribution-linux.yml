@@ -1,4 +1,4 @@
-name: Reqs2tests distribution
+name: Reqs2tests distribution - Linux
 run-name: ${{ github.ref_name }} is generating distribution for Linux
 on:
   push:
@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 jobs:
   reqs2tests_distribution_linux:
+    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, reqs2tests]
     env:

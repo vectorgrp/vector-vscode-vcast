@@ -1,0 +1,85 @@
+name: Reqs2tests distribution - Windows
+run-name: ${{ github.ref_name }} is generating distribution for Windows
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+env:
+  DOCKER_CONFIG: "C:\\ProgramData\\docker\\config\\config.json"
+jobs:
+  reqs2tests_distribution_windows:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [self-hosted, reqs2tests, Windows]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start container
+        id: run_container
+        run: |
+          docker pull rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest
+          $CONTAINER_ID=$(docker run -d -v “${{ github.workspace }}:c:\r2t” rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest)
+          echo ::set-output name=container_id=$CONTAINER_ID
+        shell: powershell
+
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: ${{ github.workspace }}/venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
+
+      - name: Setup Python virtual environment
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        run: docker exec ${{ steps.run_container.outputs.container_id }} cmd /c "C:\r2t\ci\create_virtual_environment.bat"
+        shell: cmd
+
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
+
+      - name: Reqs2tests distribution
+        run: docker exec ${{ steps.run_container.outputs.container_id }} cmd /c "C:\r2t\ci\build_distribution_win.bat"
+        shell: cmd
+
+      - name: Stop and remove Docker container
+        if: always()
+        run: |
+          docker rm -f ${{ steps.run_container.outputs.container_id }}
+        shell: cmd
+
+      - name: Upload distribution
+        if: always()
+        run: |
+          set BASE_ARTIFACTORY_URL=https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/%COMMIT_DATE%-${{ github.sha }}\
+          echo ## Distribution >> %GITHUB_STEP_SUMMARY%
+          if exist "${{ github.workspace }}\\dcheck-windows.tar.gz" (
+              set DISTRIBUTION_URL=%BASE_ARTIFACTORY_URL%dcheck-windows.tar.gz
+              curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT %DISTRIBUTION_URL% -T "${{ github.workspace }}\\dcheck-windows.tar.gz"
+              echo [Download distribution](%DISTRIBUTION_URL%) >> %GITHUB_STEP_SUMMARY%
+          ) else (
+              echo Unable to build distribution >> %GITHUB_STEP_SUMMARY%
+          )
+        shell: cmd
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if (Test-Path ${{ github.workspace }}\\venv){
+            rm -r ${{ github.workspace }}\\venv -force
+          }
+          if (Test-Path ${{ github.workspace }}\\dcheck-windows.tar.gz) {
+            rm ${{ github.workspace }}\\dcheck-windows.tar.gz
+            rm -r ${{ github.workspace }}\\build -force
+            rm -r ${{ github.workspace }}\\dist -force
+          }
+        shell: powershell
