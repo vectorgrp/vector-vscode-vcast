@@ -28,7 +28,7 @@ jobs:
         run: |
           docker pull rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest
           $CONTAINER_ID=$(docker run -d -v ${{ github.workspace }}:c:\r2t rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest)
-          echo ::set-output name=container_id=$CONTAINER_ID
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $env:GITHUB_ENV
         shell: powershell
 
       - name: Virtual environment restore from cache
@@ -40,7 +40,7 @@ jobs:
 
       - name: Setup Python virtual environment
         if: steps.cache-venv-restore.outputs.cache-hit != 'true'
-        run: docker exec ${{ steps.run_container.outputs.container_id }} cmd /c "C:\r2t\ci\create_virtual_environment.bat"
+        run: docker exec {{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\create_virtual_environment.bat"
         shell: cmd
 
       - name: Virtual environment save cache
@@ -51,13 +51,13 @@ jobs:
           key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
 
       - name: Reqs2tests distribution
-        run: docker exec ${{ steps.run_container.outputs.container_id }} cmd /c "C:\r2t\ci\build_distribution_win.bat"
+        run: docker exec {{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\build_distribution_win.bat"
         shell: cmd
 
       - name: Stop and remove Docker container
         if: always()
         run: |
-          docker rm -f ${{ steps.run_container.outputs.container_id }}
+          docker rm -f {{ env.CONTAINER_ID }}
         shell: cmd
 
       - name: Upload distribution
