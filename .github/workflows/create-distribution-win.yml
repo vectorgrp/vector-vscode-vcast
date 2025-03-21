@@ -40,7 +40,7 @@ jobs:
 
       - name: Setup Python virtual environment
         if: steps.cache-venv-restore.outputs.cache-hit != 'true'
-        run: docker exec {{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\create_virtual_environment.bat"
+        run: docker exec ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\create_virtual_environment.bat"
         shell: cmd
 
       - name: Virtual environment save cache
@@ -51,13 +51,13 @@ jobs:
           key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
 
       - name: Reqs2tests distribution
-        run: docker exec {{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\build_distribution_win.bat"
+        run: docker exec ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\build_distribution_win.bat"
         shell: cmd
 
       - name: Stop and remove Docker container
         if: always()
         run: |
-          docker rm -f {{ env.CONTAINER_ID }}
+          docker rm -f ${{ env.CONTAINER_ID }}
         shell: cmd
 
       - name: Upload distribution
