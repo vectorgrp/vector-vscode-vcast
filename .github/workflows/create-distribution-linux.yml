@@ -8,13 +8,15 @@ on:
     branches:
       - master
   workflow_dispatch:
+env:
+  NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+  REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+  VCAST_USER_HOME: /home/vcast_user
 jobs:
   reqs2tests_distribution_linux:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, reqs2tests]
-    env:
-      VCAST_USER_HOME: /home/vcast_user
+    runs-on: [self-hosted, reqs2tests, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
@@ -70,6 +72,7 @@ jobs:
       - name: Upload distribution
         if: always()
         run: |
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
           BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/"
           echo "## Distribution" >> $GITHUB_STEP_SUMMARY
           if [[ -f ${{ env.VCAST_USER_HOME }}/autoreq-linux.tar.gz ]] ; then

@@ -9,7 +9,9 @@ on:
       - master
   workflow_dispatch:
 env:
-  DOCKER_CONFIG: "C:\\ProgramData\\docker\\config\\config.json"
+  NODE_EXTRA_CA_CERTS: C:\\ca_bundle.crt
+  REQUESTS_CA_BUNDLE: C:\\ca_bundle.crt
+  DOCKER_CONFIG: C:\\.docker_config.json
 jobs:
   reqs2tests_distribution_windows:
     if: github.event.pull_request.draft == false
@@ -19,13 +21,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          set-safe-directory: false
 
       - name: Start container
         id: run_container
         run: |
           docker pull rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest
-          $CONTAINER_ID=$(docker run -d -v “${{ github.workspace }}:c:\r2t” rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest)
-          echo ::set-output name=container_id=$CONTAINER_ID
+          $CONTAINER_ID=$(docker run -d -v ${{ github.workspace }}:c:\r2t rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest)
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $env:GITHUB_ENV
         shell: powershell
 
       - name: Virtual environment restore from cache
@@ -37,7 +41,7 @@ jobs:
 
       - name: Setup Python virtual environment
         if: steps.cache-venv-restore.outputs.cache-hit != 'true'
-        run: docker exec ${{ steps.run_container.outputs.container_id }} cmd /c "C:\r2t\ci\create_virtual_environment.bat"
+        run: docker exec ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\create_virtual_environment.bat"
         shell: cmd
 
       - name: Virtual environment save cache
@@ -48,28 +52,30 @@ jobs:
           key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
 
       - name: Reqs2tests distribution
-        run: docker exec ${{ steps.run_container.outputs.container_id }} cmd /c "C:\r2t\ci\build_distribution_win.bat"
+        run: docker exec ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\build_distribution_win.bat"
         shell: cmd
 
       - name: Stop and remove Docker container
         if: always()
         run: |
-          docker rm -f ${{ steps.run_container.outputs.container_id }}
+          docker rm -f ${{ env.CONTAINER_ID }}
         shell: cmd
 
       - name: Upload distribution
         if: always()
         run: |
-          set BASE_ARTIFACTORY_URL=https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/%COMMIT_DATE%-${{ github.sha }}\
-          echo ## Distribution >> %GITHUB_STEP_SUMMARY%
-          if exist "${{ github.workspace }}\\dcheck-windows.tar.gz" (
-              set DISTRIBUTION_URL=%BASE_ARTIFACTORY_URL%dcheck-windows.tar.gz
-              curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT %DISTRIBUTION_URL% -T "${{ github.workspace }}\\dcheck-windows.tar.gz"
-              echo [Download distribution](%DISTRIBUTION_URL%) >> %GITHUB_STEP_SUMMARY%
-          ) else (
-              echo Unable to build distribution >> %GITHUB_STEP_SUMMARY%
-          )
-        shell: cmd
+          $COMMIT_DATE = (git log -1 --format="%cd" --date=format:"%Y-%m-%dT%H:%M:%S").Trim()
+          $BASE_ARTIFACTORY_URL = "https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Distribution"
+          $distributionFile = Join-Path ${{ github.workspace }} "dcheck-windows.tar.gz"
+          if (Test-Path $distributionFile) {
+              $DISTRIBUTION_URL = $BASE_ARTIFACTORY_URL + "dcheck-windows.tar.gz"
+              Invoke-RestMethod -Uri $DISTRIBUTION_URL -Method Put -Headers @{ "X-JFrog-Art-Api" = "${{ secrets.ARTIFACTORY_TOKEN }}" } -InFile $distributionFile
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "[Download distribution]($DISTRIBUTION_URL)"
+          } else {
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Unable to build distribution"
+          }
+        shell: powershell
 
       - name: Cleanup
         if: always()

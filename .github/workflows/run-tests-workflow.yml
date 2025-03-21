@@ -11,10 +11,14 @@ on:
         description: 'Maximum cost of the tests (positive float, 0 for unlimited)'
         required: false
         default: '0'
+env:
+  NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+  REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+  VCAST_USER_HOME: /home/vcast_user
 jobs:
   reqs2tests_eval:
     permissions: write-all
-    runs-on: [self-hosted, reqs2tests]
+    runs-on: [self-hosted, reqs2tests, Linux]
     env:
       VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION }}
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
@@ -28,7 +32,6 @@ jobs:
       OPENAI_ADVANCED_GENERATION_DEPLOYMENT: ${{ vars.OPENAI_ADVANCED_GENERATION_DEPLOYMENT }}
       OPENAI_EMBEDDING_DEPLOYMENT: ${{ vars.OPENAI_EMBEDDING_DEPLOYMENT }}
       AUTOREQ_MLFLOW_SERVER: ${{ vars.AUTOREQ_MLFLOW_SERVER }}
-      VCAST_USER_HOME: /home/vcast_user
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
