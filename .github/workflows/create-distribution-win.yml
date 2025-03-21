@@ -53,7 +53,8 @@ jobs:
 
       - name: Stop and remove Docker container
         if: always()
-        run: docker rm -f ${{ steps.run_container.outputs.container_id }}
+        run: |
+          docker rm -f ${{ steps.run_container.outputs.container_id }}
         shell: cmd
 
       - name: Upload distribution
@@ -69,3 +70,16 @@ jobs:
               echo Unable to build distribution >> %GITHUB_STEP_SUMMARY%
           )
         shell: cmd
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if (Test-Path ${{ github.workspace }}/venv){
+            rm -r ${{ github.workspace }}/venv -force
+          }
+          if (Test-Path ${{ github.workspace }}\dcheck-windows.tar.gz) {
+            rm ${{ github.workspace }}\dcheck-windows.tar.gz
+            rm -r ${{ github.workspace }}/build -force
+            rm -r ${{ github.workspace }}/dist -force
+          }
+        shell: powershell
