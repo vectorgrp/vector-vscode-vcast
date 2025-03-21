@@ -8,8 +8,6 @@ on:
     branches:
       - master
   workflow_dispatch:
-env:
-  DOCKER_CONFIG: "C:\ProgramData\docker\config\config.json"
 jobs:
   reqs2tests_distribution_windows:
     if: github.event.pull_request.draft == false
