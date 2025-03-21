@@ -8,6 +8,8 @@ on:
     branches:
       - master
   workflow_dispatch:
+env:
+  DOCKER_CONFIG: "C:\\ProgramData\\docker\\config\\config.json"
 jobs:
   reqs2tests_distribution_windows:
     if: github.event.pull_request.draft == false
@@ -60,9 +62,9 @@ jobs:
         run: |
           set BASE_ARTIFACTORY_URL=https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/%COMMIT_DATE%-${{ github.sha }}\
           echo ## Distribution >> %GITHUB_STEP_SUMMARY%
-          if exist "${{ github.workspace }}\dcheck-windows.tar.gz" (
+          if exist "${{ github.workspace }}\\dcheck-windows.tar.gz" (
               set DISTRIBUTION_URL=%BASE_ARTIFACTORY_URL%dcheck-windows.tar.gz
-              curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT %DISTRIBUTION_URL% -T "${{ github.workspace }}\dcheck-windows.tar.gz"
+              curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT %DISTRIBUTION_URL% -T "${{ github.workspace }}\\dcheck-windows.tar.gz"
               echo [Download distribution](%DISTRIBUTION_URL%) >> %GITHUB_STEP_SUMMARY%
           ) else (
               echo Unable to build distribution >> %GITHUB_STEP_SUMMARY%
@@ -72,12 +74,12 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          if (Test-Path ${{ github.workspace }}/venv){
-            rm -r ${{ github.workspace }}/venv -force
+          if (Test-Path ${{ github.workspace }}\\venv){
+            rm -r ${{ github.workspace }}\\venv -force
           }
-          if (Test-Path ${{ github.workspace }}\dcheck-windows.tar.gz) {
-            rm ${{ github.workspace }}\dcheck-windows.tar.gz
-            rm -r ${{ github.workspace }}/build -force
-            rm -r ${{ github.workspace }}/dist -force
+          if (Test-Path ${{ github.workspace }}\\dcheck-windows.tar.gz) {
+            rm ${{ github.workspace }}\\dcheck-windows.tar.gz
+            rm -r ${{ github.workspace }}\\build -force
+            rm -r ${{ github.workspace }}\\dist -force
           }
         shell: powershell
