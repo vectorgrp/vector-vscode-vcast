@@ -16,7 +16,7 @@ jobs:
   reqs2tests_distribution_linux:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, reqs2tests]
+    runs-on: [self-hosted, reqs2tests, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest

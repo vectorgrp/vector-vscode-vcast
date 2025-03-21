@@ -18,7 +18,7 @@ env:
 jobs:
   reqs2tests_eval:
     permissions: write-all
-    runs-on: [self-hosted, reqs2tests]
+    runs-on: [self-hosted, reqs2tests, Linux]
     env:
       VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION }}
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
