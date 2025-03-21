@@ -70,6 +70,7 @@ jobs:
       - name: Upload distribution
         if: always()
         run: |
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
           BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/"
           echo "## Distribution" >> $GITHUB_STEP_SUMMARY
           if [[ -f ${{ env.VCAST_USER_HOME }}/autoreq-linux.tar.gz ]] ; then

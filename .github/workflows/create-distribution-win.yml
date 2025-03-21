@@ -63,16 +63,18 @@ jobs:
       - name: Upload distribution
         if: always()
         run: |
-          set BASE_ARTIFACTORY_URL=https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/%COMMIT_DATE%-${{ github.sha }}\
-          echo ## Distribution >> %GITHUB_STEP_SUMMARY%
-          if exist "${{ github.workspace }}\\dcheck-windows.tar.gz" (
-              set DISTRIBUTION_URL=%BASE_ARTIFACTORY_URL%dcheck-windows.tar.gz
-              curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT %DISTRIBUTION_URL% -T "${{ github.workspace }}\\dcheck-windows.tar.gz"
-              echo [Download distribution](%DISTRIBUTION_URL%) >> %GITHUB_STEP_SUMMARY%
-          ) else (
-              echo Unable to build distribution >> %GITHUB_STEP_SUMMARY%
-          )
-        shell: cmd
+          $COMMIT_DATE = (git log -1 --format="%cd" --date=format:"%Y-%m-%dT%H:%M:%S").Trim()
+          $BASE_ARTIFACTORY_URL = "https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Distribution"
+          $distributionFile = Join-Path ${{ github.workspace }} "dcheck-windows.tar.gz"
+          if (Test-Path $distributionFile) {
+              $DISTRIBUTION_URL = $BASE_ARTIFACTORY_URL + "dcheck-windows.tar.gz"
+              Invoke-RestMethod -Uri $DISTRIBUTION_URL -Method Put -Headers @{ "X-JFrog-Art-Api" = ${{ secrets.ARTIFACTORY_TOKEN }} } -InFile $distributionFile
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "[Download distribution]($DISTRIBUTION_URL)"
+          } else {
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Unable to build distribution"
+          }
+        shell: powershell
 
       - name: Cleanup
         if: always()
