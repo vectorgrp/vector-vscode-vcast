@@ -27,7 +27,7 @@ jobs:
         id: run_container
         run: |
           docker pull rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest
-          $CONTAINER_ID=$(docker run -d -v “${{ github.workspace }}:c:\r2t” rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest)
+          $CONTAINER_ID=$(docker run -d -v ${{ github.workspace }}:c:\r2t rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest)
           echo ::set-output name=container_id=$CONTAINER_ID
         shell: powershell
 
