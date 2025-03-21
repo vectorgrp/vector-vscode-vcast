@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 env:
   NODE_EXTRA_CA_CERTS: C:\\ca_bundle.crt
+  REQUESTS_CA_BUNDLE: C:\\ca_bundle.crt
   DOCKER_CONFIG: C:\\.docker_config.json
 jobs:
   reqs2tests_distribution_windows:
@@ -20,8 +21,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          set-safe-directory: false
 
       - name: Start container
         id: run_container
