@@ -7,6 +7,7 @@ import { execSync, spawn } from "child_process";
 import {
   addEnvToProjectCallback,
   buildEnvironmentCallback,
+  buildEnvironmentIncrementalCallback,
   deleteEnvironmentCallback,
 } from "./callbacks";
 
@@ -100,6 +101,32 @@ export function buildProjectEnvironment(
     progressMessage,
     buildEnvironmentCallback,
     enviroPath
+  );
+}
+
+export async function buildIncremental(
+  projectPath: string,
+  level: string,
+  enviroPathList: string[]
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [`-p${projectName}`, "--build-execute", "--incremental"];
+
+  if (level != "") {
+    manageArgs.push(`--level=${level}`);
+  }
+
+  const progressMessage = `Building and Executing Level: ${level} ...`;
+
+  openMessagePane();
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    progressMessage,
+    buildEnvironmentIncrementalCallback,
+    enviroPathList
   );
 }
 

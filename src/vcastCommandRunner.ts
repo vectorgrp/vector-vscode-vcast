@@ -222,7 +222,7 @@ export function executeWithRealTimeEchoWithProgress(
   CWD: string,
   vscodeMessage: string,
   callback?: any,
-  enviroPath?: string
+  enviroPath?: string | string[]
 ) {
   return vscode.window.withProgress(
     {
