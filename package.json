@@ -85,11 +85,6 @@
         "title": "Build Project Environment"
       },
       {
-        "command": "vectorcastTestExplorer.buildAllUnbuiltEnviroInProject",
-        "category": "VectorCAST Test Explorer",
-        "title": "Build All Unbuilt Environments"
-      },
-      {
         "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
         "category": "VectorCAST Test Explorer",
         "title": "Add Testsuite to Compiler"
@@ -398,10 +393,6 @@
           "when": "never"
         },
         {
-          "command": "vectorcastTestExplorer.buildAllUnbuiltEnviroInProject",
-          "when": "never"
-        },
-        {
           "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
           "when": "never"
         },
@@ -659,18 +650,13 @@
         },
         {
           "command": "vectorcastTestExplorer.buildIncremental",
-          "group": "vcast@2",
+          "group": "vcast@1",
           "when": "vectorcastTestExplorer.globalProjectIsOpenedChecker && ( testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites || (testId =~ /^vcast:.*$/ && ( testId in vectorcastTestExplorer.vcastEnviroList || testId in vectorcastTestExplorer.vcastUnbuiltEnviroList)))"
         },
         {
           "command": "vectorcastTestExplorer.buildProjectEnviro",
           "group": "vcast@1",
           "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastUnbuiltEnviroList"
-        },
-        {
-          "command": "vectorcastTestExplorer.buildAllUnbuiltEnviroInProject",
-          "group": "vcast@1",
-          "when": "testId =~ /\\.vcm$/"
         },
         {
           "command": "vectorcastTestExplorer.addTestsuiteToCompiler",

@@ -130,56 +130,6 @@ export async function buildIncremental(
   );
 }
 
-/**
- * Gets executed when clicking on the project file --> Build all unbuild Environments
- * Iterates through all environments in the project and builds them if they are not built
- * @param projectFilePath The path to the project file
- */
-export async function buildAllUnbuiltEnvironmentInProject(
-  projectFilePath: string
-) {
-  // A List of argLists so that they are executed sequentially
-  let multipleManageArgs = [];
-
-  // Each index in these list corresponds to the index in multipleManageArgs
-  let multipleProgressMessages: string[] = [];
-  let enviroPathList: string[] = [];
-
-  // Get the project data from the cache
-  const projectLocation = path.dirname(projectFilePath);
-  for (const [projectPath, projectData] of globalProjectDataCache) {
-    // We are only interested in the project we clicked on
-    if (projectFilePath === projectPath) {
-      for (const [enviroPath, enviroData] of projectData) {
-        // Check if the environment is not built
-        if (enviroData.isBuilt === false) {
-          const projectName = path.basename(projectFilePath);
-          const levelString = enviroData.displayName;
-
-          const manageArgs = [
-            `-p${projectName}`,
-            `--level=${enviroData.displayName}`,
-            "--build",
-          ];
-          const progressMessage = `Building Environment: ${levelString}`;
-          enviroPathList.push(enviroPath);
-
-          multipleManageArgs.push(manageArgs);
-          multipleProgressMessages.push(progressMessage);
-        }
-      }
-    }
-  }
-  executeWithRealTimeEchoWithProgressSequential(
-    manageCommandToUse,
-    multipleManageArgs,
-    multipleProgressMessages,
-    projectLocation,
-    buildEnvironmentCallback,
-    enviroPathList
-  );
-}
-
 // ------------------------------------------------------------------------------------
 // Direct clicast Calls
 // ------------------------------------------------------------------------------------
