@@ -1,5 +1,5 @@
 name: Reqs2tests
-run-name: ${{ github.ref_name }} is being tested
+run-name: ${{ github.ref_name }} is testing reqs2tests
 on:
   workflow_dispatch:
     inputs:

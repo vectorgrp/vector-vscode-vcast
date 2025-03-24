@@ -12,6 +12,9 @@ env:
   NODE_EXTRA_CA_CERTS: C:\\ca_bundle.crt
   REQUESTS_CA_BUNDLE: C:\\ca_bundle.crt
   DOCKER_CONFIG: C:\\.docker_config.json
+  HTTP_PROXY: http://gateway.zscloud.net:9480
+  HTTPS_PROXY: http://gateway.zscloud.net:9480
+  NO_PROXY: "*.docker.internal,localhost,127.0.0.1,github1.vg.vector.int,.vi.vector.int,.dmz.vector.int,.vector.int,.vector.com,.azure.vector.com,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.vectors.com"
 jobs:
   reqs2tests_distribution_windows:
     if: github.event.pull_request.draft == false
