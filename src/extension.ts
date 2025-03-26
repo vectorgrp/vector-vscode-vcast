@@ -1055,27 +1055,33 @@ async function generateRequirements(enviroPath: string) {
   await vscode.window.withProgress({
     location: vscode.ProgressLocation.Notification,
     title: `Generating Requirements for ${envName.split(".")[0]}`,
-    cancellable: false
-  }, async (progress) => {
+    cancellable: true
+  }, async (progress, cancellationToken) => {
     let lastProgress = 0;
     let simulatedProgress = 0;
     const simulatedProgressInterval = setInterval(() => {
-      if (simulatedProgress < 30) {
+      if (simulatedProgress < 30 && !cancellationToken.isCancellationRequested) {
         simulatedProgress += 1;
         progress.report({ increment: 1 });
       }
-    }, 1000); // Update every second for 30 seconds
+    }, 1000);
 
     return await new Promise<void>((resolve, reject) => {
       const process = spawn(CODE2REQS_EXECUTABLE_PATH, commandArgs);
 
+      cancellationToken.onCancellationRequested(() => {
+        process.kill();
+        clearInterval(simulatedProgressInterval);
+        resolve();
+      });
+
       process.stdout.on("data", (data) => {
+        if (cancellationToken.isCancellationRequested) return;
         const lines = data.toString().split("\n");
         for (const line of lines) {
           try {
             const json = JSON.parse(line);
             if (json.event === "progress" && json.value !== undefined) {
-              // Scale the remaining 70% based on the actual progress
               const scaledProgress = json.value * 0.7;
               const increment = (scaledProgress - lastProgress) * 100;
               if (increment > 0) {
@@ -1086,7 +1092,7 @@ async function generateRequirements(enviroPath: string) {
               vscode.window.showWarningMessage(json.value);
             }
           } catch (e) {
-            console.log(line); // Handle non-JSON output if necessary
+            console.log(line);
           }
         }
       });
@@ -1097,8 +1103,9 @@ async function generateRequirements(enviroPath: string) {
 
       process.on("close", async (code) => {
         clearInterval(simulatedProgressInterval);
+        if (cancellationToken.isCancellationRequested) return;
+        
         if (code === 0) {
-          // Display the HTML report in a webview
           const panel = vscode.window.createWebviewPanel(
             'requirementsReport',
             'Generated Requirements',
@@ -1119,7 +1126,6 @@ async function generateRequirements(enviroPath: string) {
           updateRequirementsAvailability(enviroPath);
 
           vscode.window.showInformationMessage("Successfully generated requirements for the environment!");
-
           resolve();
         } else {
           vscode.window.showErrorMessage(`Error: code2reqs exited with code ${code}`);
@@ -1131,15 +1137,13 @@ async function generateRequirements(enviroPath: string) {
 }
 
 async function generateTestsFromRequirements(enviroPath: string) {
-  // Check for required environment variables first
   if (!await promptForMissingEnvVars()) {
     vscode.window.showErrorMessage('Required API settings are missing. Please configure them first.');
     return;
   }
 
-  const currentDir = enviroPath;
-  const parentDir = path.dirname(currentDir);
-  const lowestDirname = path.basename(currentDir);
+  const parentDir = path.dirname(enviroPath);
+  const lowestDirname = path.basename(enviroPath);
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
@@ -1155,34 +1159,39 @@ async function generateTestsFromRequirements(enviroPath: string) {
     "1",
     "--batched",
     "--allow-partial",
-    "--export-env",
     "--json-events",
   ];
 
   await vscode.window.withProgress({
     location: vscode.ProgressLocation.Notification,
     title: `Generating Tests from Requirements for ${envName.split(".")[0]}`,
-    cancellable: false
-  }, async (progress) => {
+    cancellable: true
+  }, async (progress, cancellationToken) => {
     let lastProgress = 0;
     let simulatedProgress = 0;
     const simulatedProgressInterval = setInterval(() => {
-      if (simulatedProgress < 40) {
+      if (simulatedProgress < 40 && !cancellationToken.isCancellationRequested) {
         simulatedProgress += 1;
         progress.report({ increment: 1 });
       }
-    }, 1000); // Update every second for 30 seconds
+    }, 1000);
 
     return new Promise<void>((resolve, reject) => {
       const process = spawn(REQS2TESTS_EXECUTABLE_PATH, commandArgs);
 
+      cancellationToken.onCancellationRequested(() => {
+        process.kill();
+        clearInterval(simulatedProgressInterval);
+        resolve();
+      });
+
       process.stdout.on("data", (data) => {
+        if (cancellationToken.isCancellationRequested) return;
         const lines = data.toString().split("\n");
         for (const line of lines) {
           try {
             const json = JSON.parse(line);
             if (json.event === "progress" && json.value !== undefined) {
-              // Scale the remaining 70% based on the actual progress
               const scaledProgress = json.value * 0.6;
               const increment = (scaledProgress - lastProgress) * 100;
               if (increment > 0) {
@@ -1204,7 +1213,10 @@ async function generateTestsFromRequirements(enviroPath: string) {
 
       process.on("close", async (code) => {
         clearInterval(simulatedProgressInterval);
+        if (cancellationToken.isCancellationRequested) return;
+
         if (code === 0) {
+          await loadTestScriptIntoEnvironment(envName.split('.')[0], tstPath);
           await refreshAllExtensionData();
 
           vscode.window.showInformationMessage(
