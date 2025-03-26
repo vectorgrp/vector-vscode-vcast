@@ -130,13 +130,29 @@ class Environment:
             return output
 
 
-    def run_test_script(self, tst_file_path: str, rebuild: bool=True, with_coverage=False) -> Optional[str]:
+    def run_test_script(self, tst_file_path: str, restore_tests: bool=True, with_coverage=False) -> Optional[str]:
         tst_file_path = os.path.abspath(tst_file_path)
 
-        if rebuild:
-            self.build()
+        if restore_tests:
+            existing_test_store_path = 'EXISTING_TESTS_TO_RESTORE.tst'
+            restore_tests_command = [
+                _get_vectorcast_cmd('clicast', ['-e', self.env_name, 'test', 'script', 'create', existing_test_store_path]),
+                _get_vectorcast_cmd('clicast', ['-e', self.env_name, 'test', 'delete', 'ALL'])
+            ]
+
+            for restore_command in restore_tests_command:
+                try:
+                    subprocess.run(restore_command, cwd=self.env_dir, env=os.environ.copy(),
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
+                except subprocess.TimeoutExpired:
+                    logging.error(f"Command '{' '.join(restore_command)}' timed out after 30 seconds")
+                    return None
 
         output = self._run_test_execute_commands(tst_file_path, with_coverage=with_coverage)
+
+        if restore_tests:
+            self._run_test_execute_commands(existing_test_store_path)
+
         return output
 
     @cached_property
@@ -376,6 +392,10 @@ class Environment:
                     chunk_files.append(temp_file.name)
             self._tu_codebase_path = chunk_files
             return Codebase(chunk_files)
+
+    @cached_property
+    def source_codebase(self):
+        return Codebase(self.source_files)   
 
     @cached_property
     def testable_functions(self):
