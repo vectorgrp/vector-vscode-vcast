@@ -1160,7 +1160,6 @@ async function installPreActivationEventHandlers(
   let addEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addEnviroToProject",
     async (projectNode) => {
-      const projectPath = projectNode.id;
       const panel = vscode.window.createWebviewPanel(
         "addEnviroToProject",
         "Add Environment To Project",

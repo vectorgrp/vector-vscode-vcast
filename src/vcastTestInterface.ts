@@ -2,10 +2,7 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import {
-  cleanVectorcastOutput,
-  getEnviroNameFromScript,
-} from "../src-common/commonUtilities";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 import {
   configFilename,
@@ -49,9 +46,6 @@ import {
   updateProjectData,
   addEnvToTestsuite,
   createNewTestsuiteInProject,
-  createGroupInProject,
-  addEnvToGroup,
-  addGroupToTestsuite,
 } from "./vcastAdapter";
 
 import {
@@ -696,7 +690,6 @@ async function processAdditionalTestSuite(
   // Need to extract the group from the testsuite string
   const parts = testSuite.split("/");
   const baseDisplayName = parts.slice(0, 2).join("/");
-  const group = parts.length > 2 ? parts[2] : undefined;
 
   // Check if the testsuite already exists in the project data
   let existsInProject = false;

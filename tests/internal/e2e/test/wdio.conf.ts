@@ -334,6 +334,7 @@ export const config: Options.Testrunner = {
         "IMPORT_CODED_TEST_IN_TST",
         async () => await buildEnvsWithSpecificReleases(initialWorkdir),
       ],
+      ["MANAGE_TEST", async () => await testManage(initialWorkdir)],
     ]);
 
     // Determine the environment key
@@ -390,6 +391,28 @@ export const config: Options.Testrunner = {
      *                           INDIVIDUAL ENVIRONMENT SETUPS
      * ================================================================================================
      */
+
+    async function testManage(initialWorkdir: string) {
+      const testInputManage = path.join(initialWorkdir, "test", "manage");
+      const build_demo = `cd ${testInputManage} && ./demo_build.sh`;
+      await executeCommand(build_demo);
+      await checkVPython();
+      clicastExecutablePath = await checkClicast();
+      process.env.CLICAST_PATH = clicastExecutablePath;
+
+      await prepareConfig(initialWorkdir, clicastExecutablePath);
+      await executeRGWCommands(testInputManage);
+      const destFolder = path.join(initialWorkdir, "test", "vcastTutorial");
+      if (process.platform === "win32") {
+        await executeCommand(
+          `xcopy /s /i /y ${testInputManage} ${destFolder} > NUL 2> NUL`
+        );
+      } else {
+        await executeCommand(
+          `cp -r ${path.join(testInputManage, "*")} ${destFolder}`
+        );
+      }
+    }
 
     /**
      * Builds one env based on VECTORCAST_DIR.

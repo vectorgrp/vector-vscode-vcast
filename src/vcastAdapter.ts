@@ -35,7 +35,6 @@ import {
   executeWithRealTimeEcho,
   getJsonDataFromTestInterface,
   executeWithRealTimeEchoWithProgress,
-  executeWithRealTimeEchoWithProgressSequential,
 } from "./vcastCommandRunner";
 
 import {
@@ -63,8 +62,6 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import {
-  buildProjectDataCache,
-  buildTestPaneContents,
   globalProjectDataCache,
   refreshAllExtensionData,
   removeNodeFromTestPane,

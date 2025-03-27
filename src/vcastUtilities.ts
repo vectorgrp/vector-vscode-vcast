@@ -21,8 +21,6 @@ import {
   openProjectInVcast,
   runATGCommands,
   runBasisPathCommands,
-  updateAllOpenedProjects,
-  updateProjectData,
 } from "./vcastAdapter";
 
 import {
@@ -469,7 +467,7 @@ export function getWebveiwComboboxItems(projectFile: string) {
   const enviroData = globalProjectDataCache.get(projectFile);
 
   if (enviroData) {
-    for (let [envPath, envData] of enviroData) {
+    for (let envData of enviroData.values()) {
       if (!compilerList.includes(envData.compiler.name)) {
         compilerList.push(envData.compiler.name);
       }
