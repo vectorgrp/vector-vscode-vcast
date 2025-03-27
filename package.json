@@ -635,7 +635,7 @@
         {
           "command": "vectorcastTestExplorer.generateRequirements",
           "group": "vcast@8",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastRequirementsAvailable"
         },
         {
           "command": "vectorcastTestExplorer.showRequirements",
@@ -645,12 +645,12 @@
         {
           "command": "vectorcastTestExplorer.generateTestsFromRequirements",
           "group": "vcast@10",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.vcastRequirementsAvailable"
+          "when": "testId =~ /^vcast:.*$/"
         },
         {
           "command": "vectorcastTestExplorer.removeRequirements",
           "group": "vcast@9",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastRequirementsAvailable"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastRequirementsAvailable && testId in vectorcastTestExplorer.vcastEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.deleteTest",

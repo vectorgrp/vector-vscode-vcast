@@ -67,6 +67,7 @@ import {
 import {
   buildEnvironmentFromScript,
   deleteEnvironment,
+  loadTestScriptIntoEnvironment,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
   rebuildEnvironment,
@@ -458,7 +459,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
-        await generateTestsFromRequirements(enviroPath);
+        await generateTestsFromRequirements(enviroPath, testNode.functionName || null);
       }
     }
   );
@@ -1150,9 +1151,16 @@ async function generateTestsFromRequirements(enviroPath: string) {
   const csvPath = path.join(parentDir, 'reqs.csv');
   const tstPath = path.join(parentDir, 'reqs2tests.tst');
 
+  // If the csv path does not exist, tell the user about it and abort
+  if (!fs.existsSync(csvPath)) {
+    vscode.window.showErrorMessage('No requirements file found. Please generate requirements first.');
+    return;
+  }
+
   const commandArgs = [
     envPath,
     csvPath,
+    ...(functionName ? [functionName] : []),
     "--export-tst",
     tstPath,
     "--retries",
