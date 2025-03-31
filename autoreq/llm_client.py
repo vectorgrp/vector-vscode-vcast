@@ -20,7 +20,7 @@ logging.info(f'Loading config files from {_config_files_dir}')
 
 
 class Config:
-    _supported_providers = tuple([f.stem for f in _config_files_dir.glob('*.yml')])
+    supported_providers = tuple([f.stem for f in _config_files_dir.glob('*.yml')])
 
     def __init__(self, provider: str, **kwargs):
         assert provider in self.supported_providers, f'Provider {provider} is not supported'
@@ -38,15 +38,11 @@ class Config:
     def __str__(self):
         return f"Config(provider={self.provider}, n_attributes={len(self.__dict__)})"
 
-    @property
-    def supported_providers(self):
-        return self._supported_providers
-
 
 def init_config(provider: str):
     config_path = _config_files_dir / f'{provider}.yml'
     if not config_path.exists():
-        raise FileNotFoundError(f'Config file for provider {provider} not found. Supported providers: {Config._supported_providers}')
+        raise FileNotFoundError(f'Config file for provider {provider} not found. Supported providers: {Config.supported_providers}')
 
     with open(config_path) as f:
         return Config(provider, **yaml.safe_load(f))
