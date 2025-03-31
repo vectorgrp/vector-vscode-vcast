@@ -17,6 +17,7 @@ base_requirements = [
     'appdirs==1.4.4',
     'seaborn==0.13.2',
     'markdownify==1.1.0',
+    'PyYAML==6.0.2',
 ]
 
 if sys.version_info >= (3, 10):
