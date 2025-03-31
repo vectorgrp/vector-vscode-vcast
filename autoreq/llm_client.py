@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 RATE_LIMIT = AsyncLimiter(30, 60)
+OPENAI_COMPATIBLE_PROVIDERS = ('ollama', 'openai')
+
 _config_files_dir = Path(__file__).resolve().parent / '.config'
 logging.info(f'Loading config files from {_config_files_dir}')
 
@@ -77,7 +79,7 @@ class LLMClient:
         }
 
     def is_openai_compatible(self):
-        return self.provider in ('ollama',)
+        return self.provider in OPENAI_COMPATIBLE_PROVIDERS
 
     exceptions = (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError)
     @backoff.on_exception(backoff.expo, exceptions, max_time=120)
