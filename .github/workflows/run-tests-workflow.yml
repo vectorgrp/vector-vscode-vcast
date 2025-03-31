@@ -1,4 +1,4 @@
-name: Reqs2tests
+name: Reqs2tests evaluation
 run-name: ${{ github.ref_name }} is testing reqs2tests
 on:
   workflow_dispatch:
