@@ -92,7 +92,7 @@ jobs:
           CODE=$?
           deactivate
           
-          echo '## Run checks' >> $GITHUB_STEP_SUMMARY
+          echo '## Failures' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           if [[ -f requirements_check_errors.txt ]] ; then
             echo "Errors found in requirements_check_errors.txt"
