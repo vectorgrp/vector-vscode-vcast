@@ -44,7 +44,7 @@ class Config:
 def init_config(provider: str):
     config_path = _config_files_dir / f'{provider}.yml'
     if not config_path.exists():
-        raise FileNotFoundError(f'Config file for provider {provider} not found')
+        raise FileNotFoundError(f'Config file for provider {provider} not found. Supported providers: {Config._supported_providers}')
 
     with open(config_path) as f:
         return Config(provider, **yaml.safe_load(f))
