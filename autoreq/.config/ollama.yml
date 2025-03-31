@@ -1,0 +1,3 @@
+API_KEY: "none"
+BASE_URL: "http://localhost:11434/v1/"
+MODEL_NAME: "mistral"

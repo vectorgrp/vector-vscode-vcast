@@ -1,0 +1,5 @@
+API_KEY: ""
+API_VERSION: "2024-08-01-preview"
+BASE_URL: "https://rg-rds-play-openai-pes-ppt.openai.azure.com"
+DEPLOYMENT: "gpt4-omni"
+MODEL_NAME: "gpt-4o"
