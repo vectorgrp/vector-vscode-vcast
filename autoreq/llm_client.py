@@ -63,18 +63,24 @@ class LLMClient:
                 azure_endpoint=self.config.BASE_URL,
                 azure_deployment=self.config.DEPLOYMENT
             )
-        elif self.provider == 'ollama':
+        elif self.is_openai_compatible():
             self.client = AsyncOpenAI(
                 api_key=self.config.API_KEY if (hasattr(self.config, 'API_KEY') and self.config.API_KEY) else 'none',
                 base_url=self.config.BASE_URL,
             )
+        else:
+            raise NotImplementedError(f'Provider {provider} is not supported')
 
         self.token_usage = {
             'generation': {'input_tokens': 0, 'output_tokens': 0},
             'reasoning': {'input_tokens': 0, 'output_tokens': 0}
         }
 
-    @backoff.on_exception(backoff.expo, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError), max_time=120)
+    def is_openai_compatible(self):
+        return self.provider in ('ollama',)
+
+    exceptions = (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError)
+    @backoff.on_exception(backoff.expo, exceptions, max_time=120)
     async def call_model(self, messages: t.List[t.Dict[str, str]], schema, temperature=0.0, max_tokens=5000, seed=42, extended_reasoning=False, return_raw_completion=False, **kwargs):
         async with RATE_LIMIT:
             try:

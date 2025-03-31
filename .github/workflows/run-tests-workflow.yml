@@ -26,11 +26,8 @@ jobs:
       MAX_COST: ${{ github.event.inputs.max-cost }}
       PIINNOVO_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-source.tar.gz"
       HALLA_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/halla-modmgr4a-source.tar.gz"
-      OPENAI_API_BASE: ${{ vars.OPENAI_API_BASE }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      OPENAI_GENERATION_DEPLOYMENT: ${{ vars.OPENAI_GENERATION_DEPLOYMENT }}
-      OPENAI_ADVANCED_GENERATION_DEPLOYMENT: ${{ vars.OPENAI_ADVANCED_GENERATION_DEPLOYMENT }}
-      OPENAI_EMBEDDING_DEPLOYMENT: ${{ vars.OPENAI_EMBEDDING_DEPLOYMENT }}
+      LLM_PROVIDER: 'azure_openai'
+      API_KEY: ${{ secrets.OPENAI_API_KEY }}
       AUTOREQ_MLFLOW_SERVER: ${{ vars.AUTOREQ_MLFLOW_SERVER }}
 
     container:
