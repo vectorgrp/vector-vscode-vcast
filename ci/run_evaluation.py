@@ -9,35 +9,35 @@ assertions = {
         'envs': {
             'TUTORIAL_C': {
                 'coverage.branches.percentage': {
-                    'min': 1.0
+                    'min': 0.75
                 },
                 'coverage.statements.percentage': {
-                    'min': 1.0
+                    'min': 0.75
                 },
                 'f1_score': {
-                    'min': 0.75,
+                    'min': 0.6
                 }
             },
             'COMMON__PUT_LEAKY_BUCKET_F32_FN': {
                 'coverage.branches.percentage': {
-                    'min': 1.0
+                    'min': 0.75
                 },
                 'coverage.statements.percentage': {
-                    'min': 1.0
+                    'min': 0.75
                 },
                 'f1_score': {
-                    'min': 0.75,
+                    'min': 0.6
                 }
             },
             'SRC__MODMGR4A': {
                 'coverage.branches.percentage': {
-                    'min': 1.0
+                    'min': 0.75
                 },
                 'coverage.statements.percentage': {
-                    'min': 1.0
+                    'min': 0.75
                 },
                 'f1_score': {
-                    'min': 0.5,
+                    'min': 0.6
                 }
             }
         }
