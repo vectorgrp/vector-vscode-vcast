@@ -8,14 +8,32 @@ To install the required dependencies, run the following command:
 pip install --editable .
 ```
 
-Further the following environment variables need to be set:
-- OPENAI_API_BASE (Azure API base)
-- OPENAI_API_KEY
-- OPENAI_GENERATION_DEPLOYMENT (deployment for the main generation model)
-- OPENAI_ADVANCED_GENERATION_DEPLOYMENT (deployment for an advanced reasoning model)
 
 ## Usage
 
+### LLM provider configuration
+
+Make sure that `REQ2TEST_CONFIG` points to a folder with one or more YAML files containing LLM configurations.
+This is an example for AzureOpenAI:
+```yaml 
+# azure_openai.yml
+API_KEY: "key"
+API_VERSION: "2024-08-01-preview"
+BASE_URL: "https://rg-example.openai.azure.com"
+DEPLOYMENT: "gpt-4o-example"
+MODEL_NAME: "gpt-4o"
+```
+This is an example for ollama:
+```yaml 
+#ollama.yml
+API_KEY: "key"
+BASE_URL: "http://localhost:11434/v1/"
+MODEL_NAME: "mistral"
+```
+
+Set `LLM_PROVIDER` to be the same as the filename of the configuration you would like to use. Per default, `LLM_PROVIDER` is set to `azure_openai`.
+
+If you do not set `REQ2TEST_CONFIG`, a configuration folder `.req2test-data/.config` will be automatically created in your HOME directory (under `/home/username` on Linux and under `C:\Users\username` on Windows) and populated with the template files above.
 ### `code2reqs`
 
 This script generates requirements for the functions in a given VectorCAST environment.
