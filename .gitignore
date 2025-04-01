@@ -15,3 +15,11 @@ playground.py
 DrvI2c/
 graveyard/
 data/
+dist/
+build/
+test_envs/
+venv/
+*.egg-info/
+monitors4codegen/multilspy/language_servers/clangd_language/clangd
+*.csv
+*.html
