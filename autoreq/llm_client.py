@@ -44,7 +44,7 @@ EXAMPLE_CONFIGS = {
 
 class Config:
     def __init__(self, config_name: str):
-        self._model_files_dir = os.getenv("REQ2TESTS_MODELS_PATH", Path.home() / ".req2tests-data" / "models")
+        self._model_files_dir = Path(os.getenv("REQ2TESTS_MODELS_PATH", Path.home() / ".req2tests-data" / "models"))
 
         if not self._model_files_dir.exists():
             logging.info(f"Creating config directory {self._model_files_dir}")
@@ -67,7 +67,7 @@ class Config:
             f.stem for f in self._model_files_dir.glob("*.yml")
         ]
 
-        self._model_file = Path(self._model_files_dir) / f"{config_name}.yml"
+        self._model_file = self._model_files_dir / f"{config_name}.yml"
 
         if not self._model_file.exists():
             logging.error(
