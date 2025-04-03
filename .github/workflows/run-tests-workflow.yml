@@ -26,13 +26,14 @@ jobs:
       MAX_COST: ${{ github.event.inputs.max-cost }}
       PIINNOVO_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-source.tar.gz"
       HALLA_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/halla-modmgr4a-source.tar.gz"
-      LLM_PROVIDER: 'azure_openai'
-      API_KEY: ${{ secrets.OPENAI_API_KEY }}
       AUTOREQ_MLFLOW_SERVER: ${{ vars.AUTOREQ_MLFLOW_SERVER }}
+      REQ2TESTS_MODEL: "gpt-4o-azure"
+      REQ2TESTS_REASONING_MODEL: "gpt-o3mini-azure"
+      REQ2TESTS_MODELS_PATH: /llm_configs
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
-      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast --mount type=bind,source=${{ vars.LLM_CONFIGS_PATH }},target=/llm_configs
 
     steps:
       - name: Check out repository
