@@ -51,8 +51,8 @@ class Config:
             os.makedirs(self._model_files_dir, exist_ok=True)
             logging.info("Generating config file templates")
 
-            for config_name, config_info in EXAMPLE_CONFIGS.items():
-                config_path = self._model_files_dir / f"{config_name}.yml"
+            for _config_name, config_info in EXAMPLE_CONFIGS.items():
+                config_path = self._model_files_dir / f"{_config_name}.yml"
                 with open(config_path, "w") as f:
                     yaml.dump(config_info, f, default_flow_style=False)
 
