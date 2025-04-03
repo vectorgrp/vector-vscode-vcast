@@ -1,3 +1,4 @@
+from functools import cached_property
 import os
 import logging
 import typing as t
@@ -9,71 +10,86 @@ from aiolimiter import AsyncLimiter
 import openai
 from openai import AsyncOpenAI, AsyncAzureOpenAI
 from dotenv import load_dotenv
-
+from sys import exit
 
 load_dotenv()
+
+# TODO: Ensure we have json schemas for how providers need to be configured, perhaps using pydantic
+
 RATE_LIMIT = AsyncLimiter(30, 60)
+SUPPORTED_PROVIDERS = ("azure_openai", "ollama")
 OPENAI_COMPATIBLE_PROVIDERS = ("ollama", "openai")
+
+INCOMPATIBLE_ARGS = {
+    "o3-mini": ["temperature", "max_completion_tokens"],
+}
+
+EXAMPLE_CONFIGS = {
+    "mistral": {
+        "PROVIDER": "ollama",
+        "API_KEY": "none",
+        "BASE_URL": "http://localhost:11434/v1/",
+        "MODEL_NAME": "mistral",
+    },
+    "gpt-4o-azure": {
+        "PROVIDER": "azure_openai",
+        "API_KEY": "none",
+        "API_VERSION": "2024-12-01-preview",
+        "BASE_URL": "https://rg-example.openai.azure.com",
+        "DEPLOYMENT": "gpt-4o-example",
+        "MODEL_NAME": "gpt-4o",
+    },
+}
 
 
 class Config:
-    def __init__(self, provider: str):
-        # default location
-        self._config_files_dir = Path.home() / ".req2test-data" / ".config"
-        REQ2TEST_CONFIG = os.getenv("REQ2TEST_CONFIG")
+    def __init__(self, config_name: str):
+        self._model_files_dir = os.getenv("REQ2TESTS_MODELS_PATH", Path.home() / ".req2tests-data" / "models")
 
-        if not self._config_files_dir.exists():
-            logging.info(f"Creating config directory {self._config_files_dir}")
-            os.makedirs(self._config_files_dir, exist_ok=True)
+        if not self._model_files_dir.exists():
+            logging.info(f"Creating config directory {self._model_files_dir}")
+            os.makedirs(self._model_files_dir, exist_ok=True)
             logging.info("Generating config file templates")
 
-            example_configs = {
-                "ollama": {
-                    "API_KEY": "none",
-                    "BASE_URL": "http://localhost:11434/v1/",
-                    "MODEL_NAME": "mistral",
-                },
-                "azure_openai": {
-                    "API_KEY": "none",
-                    "API_VERSION": "2024-08-01-preview",
-                    "BASE_URL": "https://rg-example.openai.azure.com",
-                    "DEPLOYMENT": "gpt-4o-example",
-                    "MODEL_NAME": "gpt-4o",
-                },
-            }
-            for config_name, config_info in example_configs.items():
-                config_path = self._config_files_dir / f"{config_name}.yml"
+            for config_name, config_info in EXAMPLE_CONFIGS.items():
+                config_path = self._model_files_dir / f"{config_name}.yml"
                 with open(config_path, "w") as f:
                     yaml.dump(config_info, f, default_flow_style=False)
 
-            if not REQ2TEST_CONFIG:
-                logging.error(f""""Created a new config directory in {self._config_files_dir}. Add your 
-                              configuration.yml files there or set REQ2TEST_CONFIG to point to an existing
-                              folder with your configuration files.""")
+            logging.error(f"""Created a new model directory in {self._model_files_dir}. Add your 
+                            model.yml files there or set REQ2TEST_MODELS_PATH to point to an existing
+                            folder with your model files.""")
+            exit(1)
 
-        if REQ2TEST_CONFIG:
-            self._config_files_dir = Path(REQ2TEST_CONFIG)
+        logging.info(f"Loading config files from {self._model_files_dir}")
 
-        logging.info(f"Loading config files from {self._config_files_dir}")
+        available_models = [
+            f.stem for f in self._model_files_dir.glob("*.yml")
+        ]
 
-        if not self._config_files_dir.exists():
-            raise FileNotFoundError(
-                f"Config file {self._config_files_dir} for provider {provider} not found."
+        self._model_file = Path(self._model_files_dir) / f"{config_name}.yml"
+
+        if not self._model_file.exists():
+            logging.error(
+                f"Config file {self._model_file} for model {config_name} not found. Available models: {available_models}"
             )
 
-        self._supported_providers = tuple(
-            [f.stem for f in self._config_files_dir.glob("*.yml")]
-        )
-        assert provider in self._supported_providers, (
-            f"Provider {provider} is not supported. List of supported providers: {self._supported_providers}"
-        )
-        self.provider = provider
+            exit(1)
 
-        config_path = self._config_files_dir / f"{provider}.yml"
-        with open(config_path, "r") as infile:
-            cfg = yaml.safe_load(infile)
-            for k, v in cfg.items():
-                setattr(self, k, os.getenv(k) or v or None)
+        model_config = yaml.safe_load(self._model_file.read_text())
+
+        assert 'PROVIDER' in model_config, (
+            f"Config file {self._model_file} for model {config_name} does not contain a PROVIDER key."
+        )
+
+        # Now set the attributes
+        for k, v in model_config.items():
+            #setattr(self, k, os.getenv(k) or v or None)
+            setattr(self, k, os.getenv(config_name.upper() + "_" + k) or v or None)
+
+        assert self.PROVIDER in SUPPORTED_PROVIDERS, (
+            f"Provider {self.provider} is not supported. List of supported providers: {SUPPORTED_PROVIDERS}"
+        )
 
     def __getitem__(self, item):
         try:
@@ -85,39 +101,57 @@ class Config:
             raise e
 
     def __str__(self):
-        return f"Config(provider={self.provider}, n_attributes={len(self.__dict__)})"
+        return f"Config(provider={self.PROVIDER}, n_attributes={len(self.__dict__)})"
 
 
 class LLMClient:
-    def __init__(self, provider: str = os.getenv("LLM_PROVIDER", "azure_openai")):
-        self.config = Config(provider)
+    def __init__(self, model_name: str = os.getenv("REQ2TESTS_MODEL", "gpt-4o-azure"), reasoning_model_name: str = os.getenv("REQ2TESTS_REASONING_MODEL", "gpt-o3mini-azure")):
+        self.config = Config(model_name)
+        self.reasoning_config = Config(reasoning_model_name)
         logging.info(f"Using config: {self.config}")
-        self.provider = provider
-
-        if self.provider == "azure_openai":
-            self.client = AsyncAzureOpenAI(
-                api_key=self.config.API_KEY,
-                api_version=self.config.API_VERSION,
-                azure_endpoint=self.config.BASE_URL,
-                azure_deployment=self.config.DEPLOYMENT,
-            )
-        elif self.is_openai_compatible():
-            self.client = AsyncOpenAI(
-                api_key=self.config.API_KEY
-                if (hasattr(self.config, "API_KEY") and self.config.API_KEY)
-                else "none",
-                base_url=self.config.BASE_URL,
-            )
-        else:
-            raise NotImplementedError(f"Provider {provider} is not supported")
+        logging.info(f"Using reasoning config: {self.reasoning_config}")
 
         self.token_usage = {
             "generation": {"input_tokens": 0, "output_tokens": 0},
             "reasoning": {"input_tokens": 0, "output_tokens": 0},
         }
 
-    def is_openai_compatible(self):
-        return self.provider in OPENAI_COMPATIBLE_PROVIDERS
+    @property
+    def provider(self):
+        return self.config.PROVIDER
+
+    @property
+    def reasoning_provider(self):
+        return self.reasoning_config.PROVIDER
+
+    @cached_property
+    def client(self):
+        return self._provider_to_client(self.provider, self.config)
+
+    @cached_property
+    def reasoning_client(self):
+        return self._provider_to_client(self.reasoning_provider, self.reasoning_config)
+    
+    def _provider_to_client(self, provider, config):
+        if provider == "azure_openai":
+            return AsyncAzureOpenAI(
+                api_key=config.API_KEY,
+                api_version=config.API_VERSION,
+                azure_endpoint=config.BASE_URL,
+                azure_deployment=config.DEPLOYMENT,
+            )
+        elif self._is_openai_compatible(provider):
+            return AsyncOpenAI(
+                api_key=config.API_KEY
+                if (hasattr(config, "API_KEY") and config.API_KEY)
+                else "none",
+                base_url=config.BASE_URL,
+            )
+        else:
+            raise NotImplementedError(f"Provider {provider} is not supported")
+
+    def _is_openai_compatible(self, provider):
+        return provider in OPENAI_COMPATIBLE_PROVIDERS
 
     exceptions = (
         openai.RateLimitError,
@@ -139,9 +173,15 @@ class LLMClient:
     ):
         async with RATE_LIMIT:
             try:
+                call_config = self.config if not extended_reasoning else self.reasoning_config
+                call_client = self.client if not extended_reasoning else self.reasoning_client
+                call_type = "generation" if not extended_reasoning else "reasoning"
+
+                #print(f"Calling {call_config.MODEL_NAME} with {call_type} model")
+
                 kwargs.update(
                     {
-                        "model": self.config.MODEL_NAME,
+                        "model": call_config.MODEL_NAME,
                         "messages": messages,
                         "response_format": schema,
                         "temperature": temperature,
@@ -149,21 +189,26 @@ class LLMClient:
                         "max_completion_tokens": max_tokens,
                     }
                 )
-                completion = await self.client.beta.chat.completions.parse(**kwargs)
+
+                if call_config.MODEL_NAME in INCOMPATIBLE_ARGS:
+                    for arg in INCOMPATIBLE_ARGS[call_config.MODEL_NAME]:
+                        kwargs.pop(arg, None)
+                
+                completion = await call_client.beta.chat.completions.parse(**kwargs)
 
                 # Update token usage for the generation model
-                self.token_usage["generation"]["input_tokens"] += (
+                self.token_usage[call_type]["input_tokens"] += (
                     completion.usage.prompt_tokens
                 )
-                self.token_usage["generation"]["output_tokens"] += (
+                self.token_usage[call_type]["output_tokens"] += (
                     completion.usage.completion_tokens
                 )
             except Exception as e:
                 if isinstance(e, openai.LengthFinishReasonError):
-                    self.token_usage["generation"]["input_tokens"] += (
+                    self.token_usage[call_type]["input_tokens"] += (
                         e.completion.usage.prompt_tokens
                     )
-                    self.token_usage["generation"]["output_tokens"] += (
+                    self.token_usage[call_type]["output_tokens"] += (
                         e.completion.usage.completion_tokens
                     )
                 raise e
