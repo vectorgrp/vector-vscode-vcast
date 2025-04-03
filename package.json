@@ -70,6 +70,11 @@
         "title": "Build Incremental"
       },
       {
+        "command": "vectorcastTestExplorer.buildExecuteIncremental",
+        "category": "VectorCAST Test Explorer",
+        "title": "Build/Execute Incremental"
+      },
+      {
         "command": "vectorcastTestExplorer.openVCASTFromVce",
         "category": "VectorCAST Test Explorer",
         "title": "Open VectorCAST Environment"
@@ -128,6 +133,11 @@
         "command": "vectorcastTestExplorer.deleteEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Delete Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.cleanEnviro",
+        "category": "VectorCAST Test Explorer",
+        "title": "Clean Environment"
       },
       {
         "command": "vectorcastTestExplorer.removeTestsuite",
@@ -389,6 +399,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.buildExecuteIncremental",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.buildProjectEnviro",
           "when": "never"
         },
@@ -426,6 +440,10 @@
         },
         {
           "command": "vectorcastTestExplorer.deleteEnviro",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.cleanEnviro",
           "when": "never"
         },
         {
@@ -640,23 +658,23 @@
       "vectorcastTestExplorer.vcastsubmenu": [
         {
           "command": "vectorcastTestExplorer.openVCAST",
-          "group": "vcast@1",
+          "group": "vcastOpen@1",
           "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.buildProjectEnviro",
+          "group": "vcastBuild@1",
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastUnbuiltEnviroList"
+        },
+        {
+          "command": "vectorcastTestExplorer.buildExecuteIncremental",
+          "group": "vcastBuild@3",
+          "when": "vectorcastTestExplorer.globalProjectIsOpenedChecker && ( testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites || (testId =~ /^vcast:.*$/ && ( testId in vectorcastTestExplorer.vcastEnviroList || testId in vectorcastTestExplorer.vcastUnbuiltEnviroList)))"
         },
         {
           "command": "vectorcastTestExplorer.rebuildEnviro",
           "group": "vcast@2",
           "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
-        },
-        {
-          "command": "vectorcastTestExplorer.buildIncremental",
-          "group": "vcast@1",
-          "when": "vectorcastTestExplorer.globalProjectIsOpenedChecker && ( testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites || (testId =~ /^vcast:.*$/ && ( testId in vectorcastTestExplorer.vcastEnviroList || testId in vectorcastTestExplorer.vcastUnbuiltEnviroList)))"
-        },
-        {
-          "command": "vectorcastTestExplorer.buildProjectEnviro",
-          "group": "vcast@1",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastUnbuiltEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
@@ -696,7 +714,12 @@
         {
           "command": "vectorcastTestExplorer.deleteEnviro",
           "group": "vcast@3",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && !vectorcastTestExplorer.globalProjectIsOpenedChecker"
+        },
+        {
+          "command": "vectorcastTestExplorer.cleanEnviro",
+          "group": "vcast@3",
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.globalProjectIsOpenedChecker"
         },
         {
           "command": "vectorcastTestExplorer.removeTestsuite",

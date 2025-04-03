@@ -47,6 +47,7 @@ import {
 
 import {
   checkIfEnvironmentIsBuildMultipleTimes,
+  closeAnyOpenErrorFiles,
   deleteOtherBuildFolders,
   envIsEmbeddedInProject,
   getClientRequestObject,
@@ -65,9 +66,11 @@ import {
 import {
   buildProjectDataCache,
   buildTestPaneContents,
+  globalController,
   globalProjectDataCache,
   refreshAllExtensionData,
   removeNodeFromTestPane,
+  runTests,
 } from "./testPane";
 
 const path = require("path");
@@ -104,10 +107,11 @@ export function buildProjectEnvironment(
   );
 }
 
-export async function buildIncremental(
+export async function buildExecuteIncremental(
   projectPath: string,
   level: string,
-  enviroPathList: string[]
+  enviroPathList: string[],
+  nodeId: string
 ) {
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
@@ -128,6 +132,47 @@ export async function buildIncremental(
     buildEnvironmentIncrementalCallback,
     enviroPathList
   );
+
+  await closeAnyOpenErrorFiles();
+
+  // The build-execute command only provides an HTML report indicating whether the build was necessary.
+  // However, it does not include test results, which we need to refresh on the extension side.
+  // To ensure test results are updated, we rerun the tests here.
+  // It's crucial to call runTests so that results are logged and test icons in the testing pane are refreshed.
+  const testItem = findTestItemInController(nodeId);
+  if (testItem) {
+    const request = new vscode.TestRunRequest([testItem]);
+    await runTests(request, new vscode.CancellationTokenSource().token);
+  } else {
+    vectorMessage(`TestItem for ${nodeId} not found`);
+  }
+}
+
+export async function buildIncremental(
+  projectPath: string,
+  level: string,
+  enviroPathList: string[]
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [`-p${projectName}`, "--build", "--incremental"];
+
+  if (level != "") {
+    manageArgs.push(`--level=${level}`);
+  }
+
+  const progressMessage = `Building Level: ${level} ...`;
+
+  openMessagePane();
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    progressMessage,
+    buildEnvironmentIncrementalCallback,
+    enviroPathList
+  );
+  await refreshAllExtensionData();
 }
 
 // ------------------------------------------------------------------------------------
@@ -1359,4 +1404,34 @@ export async function rebuildEnvironmentUsingServer(
 
   // call the callback to update the test explorer pane
   rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
+}
+
+// Recursive helper that searches a test item and its children for a given id.
+function findTestItemRecursively(
+  item: vscode.TestItem,
+  targetId: string
+): vscode.TestItem | undefined {
+  if (item.id === targetId) {
+    return item;
+  }
+  let found: vscode.TestItem | undefined;
+  item.children.forEach((child) => {
+    if (!found) {
+      found = findTestItemRecursively(child, targetId);
+    }
+  });
+  return found;
+}
+
+// Searches the entire globalController for a test item with the specified id.
+function findTestItemInController(
+  targetId: string
+): vscode.TestItem | undefined {
+  let found: vscode.TestItem | undefined;
+  globalController.items.forEach((item) => {
+    if (!found) {
+      found = findTestItemRecursively(item, targetId);
+    }
+  });
+  return found;
 }

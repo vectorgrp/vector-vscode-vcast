@@ -30,6 +30,10 @@ import {
 } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../src-common/vcastServer";
 
 const fs = require("fs");
 const path = require("path");
@@ -85,7 +89,6 @@ export async function buildEnvironmentIncrementalCallback(
       }
     }
   }
-  await refreshAllExtensionData();
 }
 
 export async function buildEnvironmentCallback(
@@ -190,8 +193,10 @@ export async function loadScriptCallBack(
     await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
     updateTestPane(enviroPath);
+    if (globalEnviroDataServerActive) await closeConnection(enviroPath);
     fs.unlinkSync(scriptPath);
   } else {
     vscode.window.showInformationMessage(

@@ -89,6 +89,10 @@ import {
   getEnviroNameFromScript,
   getVcastOptionValues,
 } from "../src-common/commonUtilities";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../src-common/vcastServer";
 
 const fs = require("fs");
 const path = require("path");
@@ -1254,7 +1258,7 @@ function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {
 // this does the actual work of running the tests
 const { performance } = require("perf_hooks");
 
-async function runTests(
+export async function runTests(
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken
 ) {
@@ -1374,6 +1378,7 @@ export async function deleteTests(nodeList: any[]) {
     removeCBTfilesCacheForEnviro(enviroNodeID);
     await updateDataForEnvironment(enviroPath);
     await updateProjectData(enviroPath);
+    if (globalEnviroDataServerActive) await closeConnection(enviroPath);
   }
 }
 
@@ -1418,6 +1423,8 @@ export async function loadTestScript() {
       // update the test pane for this environment after the script is loaded
       // we are reading the data back from the environment with this call
       updateTestPane(enviroPath);
+      if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+      fs.unlinkSync(scriptPath);
     } else {
       vscode.window.showErrorMessage(
         `Could not determine environment name, required "-- Environment: <enviro-name> comment line is missing.`
@@ -1682,6 +1689,7 @@ export async function updateCodedTestCases(editor: any) {
         } else {
           vectorMessage("Error refreshing coded tests\n");
         }
+        if (globalEnviroDataServerActive) await closeConnection(enviroPath);
       }
       // update the test names and checksum in all cases, rather than checking for diffs again
       codedTestFileData.testNames = newTestNames;
