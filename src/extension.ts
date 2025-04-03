@@ -111,11 +111,27 @@ import { spawn } from "child_process";
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
+// Add a new output channel for CLI operations
+let cliOutputChannel: vscode.OutputChannel = vscode.window.createOutputChannel(
+  "VectorCAST Requirement Test Generation Operations"
+);
 
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
 
+function logCliOperation(message: string): void {
+  const timestamp = new Date().toLocaleTimeString();
+  cliOutputChannel.appendLine(`[${timestamp}] ${message}`);
+}
+
+function logCliError(message: string): void {
+  const timestamp = new Date().toLocaleTimeString();
+  cliOutputChannel.appendLine(`[${timestamp}] ERROR: ${message}`);
+  cliOutputChannel.show();
+}
+
+const GENERATE_REQUIREMENTS_ENABLED: boolean = false;
 
 // Setup the paths to the code2reqs and reqs2tests executables
 let CODE2REQS_EXECUTABLE_PATH: string;
@@ -273,6 +289,9 @@ async function activationLogic(context: vscode.ExtensionContext) {
 
   // start the language server
   activateLanguageServerClient(context);
+
+  // Enable/disable the requirement generation component of the extension
+  vscode.commands.executeCommand('setContext', 'vectorcastTestExplorer.generateRequirementsEnabled', GENERATE_REQUIREMENTS_ENABLED);
 
   // Initialize requirements availability for all environments
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
@@ -1052,6 +1071,10 @@ async function generateRequirements(enviroPath: string) {
     repositoryDir,
     "--json-events",
   ];
+  
+  // Log the command being executed
+  const commandString = `${CODE2REQS_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
+  logCliOperation(`Executing command: ${commandString}`);
 
   await vscode.window.withProgress({
     location: vscode.ProgressLocation.Notification,
@@ -1073,12 +1096,16 @@ async function generateRequirements(enviroPath: string) {
       cancellationToken.onCancellationRequested(() => {
         process.kill();
         clearInterval(simulatedProgressInterval);
+        logCliOperation("Operation cancelled by user");
         resolve();
       });
 
       process.stdout.on("data", (data) => {
         if (cancellationToken.isCancellationRequested) return;
-        const lines = data.toString().split("\n");
+        const output = data.toString();
+        logCliOperation(`code2reqs stdout: ${output}`);
+        
+        const lines = output.split("\n");
         for (const line of lines) {
           try {
             const json = JSON.parse(line);
@@ -1091,15 +1118,18 @@ async function generateRequirements(enviroPath: string) {
               }
             } else if (json.event === "problem" && json.value !== undefined) {
               vscode.window.showWarningMessage(json.value);
+              logCliOperation(`Warning: ${json.value}`);
             }
           } catch (e) {
-            console.log(line);
+            // Not JSON or parsing error, just log the line
           }
         }
       });
 
       process.stderr.on("data", (data) => {
-        console.error(`Stderr: ${data}`);
+        const errorOutput = data.toString();
+        logCliError(`code2reqs stderr: ${errorOutput}`);
+        console.error(`Stderr: ${errorOutput}`);
       });
 
       process.on("close", async (code) => {
@@ -1107,6 +1137,7 @@ async function generateRequirements(enviroPath: string) {
         if (cancellationToken.isCancellationRequested) return;
         
         if (code === 0) {
+          logCliOperation(`code2reqs completed successfully with code ${code}`);
           const panel = vscode.window.createWebviewPanel(
             'requirementsReport',
             'Generated Requirements',
@@ -1116,7 +1147,9 @@ async function generateRequirements(enviroPath: string) {
 
           fs.readFile(htmlPath, 'utf8', (err, data) => {
             if (err) {
-              vscode.window.showErrorMessage(`Error reading HTML report: ${err.message}`);
+              const errorMessage = `Error reading HTML report: ${err.message}`;
+              vscode.window.showErrorMessage(errorMessage);
+              logCliError(errorMessage);
               reject();
               return;
             }
@@ -1129,7 +1162,9 @@ async function generateRequirements(enviroPath: string) {
           vscode.window.showInformationMessage("Successfully generated requirements for the environment!");
           resolve();
         } else {
-          vscode.window.showErrorMessage(`Error: code2reqs exited with code ${code}`);
+          const errorMessage = `Error: code2reqs exited with code ${code}`;
+          vscode.window.showErrorMessage(errorMessage);
+          logCliError(errorMessage);
           reject();
         }
       });
@@ -1137,7 +1172,8 @@ async function generateRequirements(enviroPath: string) {
   });
 }
 
-async function generateTestsFromRequirements(enviroPath: string) {
+async function generateTestsFromRequirements(enviroPath: string, functionName: string | null) {
+  console.log(process.cwd());
   if (!await promptForMissingEnvVars()) {
     vscode.window.showErrorMessage('Required API settings are missing. Please configure them first.');
     return;
@@ -1157,6 +1193,10 @@ async function generateTestsFromRequirements(enviroPath: string) {
     return;
   }
 
+  // Get the decompose setting from configuration
+  const config = vscode.workspace.getConfiguration('vectorcastTestExplorer');
+  const decomposeRequirements = config.get<boolean>('decomposeRequirements', true);
+
   const commandArgs = [
     envPath,
     csvPath,
@@ -1166,9 +1206,15 @@ async function generateTestsFromRequirements(enviroPath: string) {
     "--retries",
     "1",
     "--batched",
+    ...(decomposeRequirements ? ["--decompose"] : []),
     "--allow-partial",
     "--json-events",
+    //"--extended-reasoning"
   ];
+  
+  // Log the command being executed
+  const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
+  logCliOperation(`Executing command: ${commandString}`);
 
   await vscode.window.withProgress({
     location: vscode.ProgressLocation.Notification,
@@ -1182,20 +1228,25 @@ async function generateTestsFromRequirements(enviroPath: string) {
         simulatedProgress += 1;
         progress.report({ increment: 1 });
       }
-    }, 1000);
+    }, 2000);
 
     return new Promise<void>((resolve, reject) => {
       const process = spawn(REQS2TESTS_EXECUTABLE_PATH, commandArgs);
+      console.log(`reqs2tests ${commandArgs.join(' ')}`);
 
       cancellationToken.onCancellationRequested(() => {
         process.kill();
         clearInterval(simulatedProgressInterval);
+        logCliOperation("Operation cancelled by user");
         resolve();
       });
 
       process.stdout.on("data", (data) => {
         if (cancellationToken.isCancellationRequested) return;
-        const lines = data.toString().split("\n");
+        const output = data.toString();
+        logCliOperation(`reqs2tests stdout: ${output}`);
+        
+        const lines = output.split("\n");
         for (const line of lines) {
           try {
             const json = JSON.parse(line);
@@ -1208,15 +1259,18 @@ async function generateTestsFromRequirements(enviroPath: string) {
               }
             } else if (json.event === "problem" && json.value !== undefined) {
               vscode.window.showWarningMessage(json.value);
+              logCliOperation(`Warning: ${json.value}`);
             }
           } catch (e) {
-            console.log(line);
+            // Not JSON or parsing error, just log the line
           }
         }
       });
 
       process.stderr.on("data", (data) => {
-        console.error(`Stderr: ${data}`);
+        const errorOutput = data.toString();
+        logCliError(`reqs2tests stderr: ${errorOutput}`);
+        console.error(`Stderr: ${errorOutput}`);
       });
 
       process.on("close", async (code) => {
@@ -1224,6 +1278,7 @@ async function generateTestsFromRequirements(enviroPath: string) {
         if (cancellationToken.isCancellationRequested) return;
 
         if (code === 0) {
+          logCliOperation(`reqs2tests completed successfully with code ${code}`);
           await loadTestScriptIntoEnvironment(envName.split('.')[0], tstPath);
           await refreshAllExtensionData();
 
@@ -1232,7 +1287,9 @@ async function generateTestsFromRequirements(enviroPath: string) {
           );
           resolve();
         } else {
-          vscode.window.showErrorMessage(`Error: reqs2tests exited with code ${code}`);
+          const errorMessage = `Error: reqs2tests exited with code ${code}`;
+          vscode.window.showErrorMessage(errorMessage);
+          logCliError(errorMessage);
           reject();
         }
       });
