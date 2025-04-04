@@ -196,8 +196,7 @@ export async function loadScriptCallBack(
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
-    updateTestPane(enviroPath);
-    updateProjectData(enviroPath);
+    await refreshAllExtensionData();
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
     fs.unlinkSync(scriptPath);
   } else {

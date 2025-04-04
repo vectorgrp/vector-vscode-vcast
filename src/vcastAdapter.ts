@@ -70,6 +70,7 @@ import {
   runTests,
 } from "./testPane";
 import { normalizePath } from "./utilities";
+import { viewResultsReportVC } from "./reporting";
 
 const path = require("path");
 
@@ -144,6 +145,12 @@ export async function buildExecuteIncremental(
   } else {
     vectorMessage(`TestItem for ${nodeId} not found`);
   }
+
+  // Show the HTML Report
+  const htmlFileName =
+    projectName.split(".")[0] + "_manage_incremental_rebuild_report.html";
+  const htmlFilePath = normalizePath(path.join(projectLocation, htmlFileName));
+  viewResultsReportVC(htmlFilePath);
 }
 
 export async function buildIncremental(

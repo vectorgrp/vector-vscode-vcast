@@ -45,6 +45,7 @@ import {
   globalUnusedCompilerList,
   globalUnusedTestsuiteList,
   nodeKind,
+  refreshAllExtensionData,
   vcastTestItem,
 } from "./testPane";
 import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";
@@ -234,7 +235,7 @@ export async function adjustScriptContentsBeforeLoad(scriptPath: string) {
   fs.writeFileSync(scriptPath, newLines.join("\n"), "utf8");
 }
 
-export function generateAndLoadBasisPathTests(testNode: testNodeType) {
+export async function generateAndLoadBasisPathTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
   // In all cases, we need to do the following:
   //  - Call clicast <-e -u -s options> tool auto_test temp.tst  [creates tests]
@@ -257,7 +258,7 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   runBasisPathCommands(testNode, tempScriptPath, loadScriptCallBack);
 }
 
-export function generateAndLoadATGTests(testNode: testNodeType) {
+export async function generateAndLoadATGTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
   // In all cases, we need to do the following:
   //  - Call atg <-e -u -s options> temp.tst  [creates tests]
