@@ -52,7 +52,7 @@ import {
   refreshAllExtensionData,
   updateCodedTestCases,
   updateDataForEnvironment,
-  getEnvironmentList,  // Add this import
+  getEnvironmentList,
 } from "./testPane";
 
 import {
@@ -108,6 +108,8 @@ import {
 import fs = require("fs");
 const path = require("path");
 import { spawn } from "child_process";
+import { parse as csvParse } from 'csv-parse/sync';
+
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
@@ -125,13 +127,16 @@ function logCliOperation(message: string): void {
   cliOutputChannel.appendLine(`[${timestamp}] ${message}`);
 }
 
-function logCliError(message: string): void {
+function logCliError(message: string, show: boolean | null = null): void {
   const timestamp = new Date().toLocaleTimeString();
   cliOutputChannel.appendLine(`[${timestamp}] ERROR: ${message}`);
+
+  if (show) {
   cliOutputChannel.show();
+  }
 }
 
-const GENERATE_REQUIREMENTS_ENABLED: boolean = false;
+const GENERATE_REQUIREMENTS_ENABLED: boolean = true;
 
 // Setup the paths to the code2reqs and reqs2tests executables
 let CODE2REQS_EXECUTABLE_PATH: string;
@@ -799,14 +804,16 @@ function configureExtension(context: vscode.ExtensionContext) {
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",
-    (args: any) => {
+    async (args: any) => {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
         const parentDir = path.dirname(enviroPath);
-        const htmlPath = path.join(parentDir, 'reqs.html');
+        const csvPath = path.join(parentDir, 'reqs.csv');
 
-        if (fs.existsSync(htmlPath)) {
+        if (fs.existsSync(csvPath)) {
+          try {
+            // Create webview panel first to show loading state
           const panel = vscode.window.createWebviewPanel(
             'requirementsReport',
             'Requirements Report',
@@ -814,15 +821,20 @@ function configureExtension(context: vscode.ExtensionContext) {
             { enableScripts: true }
           );
 
-          fs.readFile(htmlPath, 'utf8', (err, data) => {
-            if (err) {
-              vscode.window.showErrorMessage(`Error reading HTML report: ${err.message}`);
-              return;
-            }
-            panel.webview.html = data;
-          });
+            // Show loading message
+            panel.webview.html = '<html><body><h1>Loading requirements...</h1></body></html>';
+            
+            // Parse CSV and generate HTML
+            const requirements = await parseRequirementsFromCsv(csvPath);
+            const htmlContent = generateRequirementsHtml(requirements);
+            
+            // Update webview with generated HTML
+            panel.webview.html = htmlContent;
+          } catch (err) {
+            vscode.window.showErrorMessage(`Error generating requirements report: ${err}`);
+          }
         } else {
-          vscode.window.showErrorMessage('Requirements report not found. Generate requirements first.');
+          vscode.window.showErrorMessage('Requirements file not found. Generate requirements first.');
         }
       }
     }
@@ -1058,18 +1070,18 @@ async function generateRequirements(enviroPath: string) {
   const envPath = path.join(parentDir, envName);
 
   const csvPath = path.join(parentDir, 'reqs.csv');
-  const htmlPath = path.join(parentDir, 'reqs.html');
   const repositoryDir = path.join(parentDir, 'requirement_repository');
 
   const commandArgs = [
     envPath,
     "--export-csv",
     csvPath,
-    "--export-html",
-    htmlPath,
+    // Removed --export-html since we're generating HTML dynamically
     "--export-repository",
     repositoryDir,
     "--json-events",
+    "--combine-related-requirements",
+    "--extended-reasoning"
   ];
   
   // Log the command being executed
@@ -1103,7 +1115,6 @@ async function generateRequirements(enviroPath: string) {
       process.stdout.on("data", (data) => {
         if (cancellationToken.isCancellationRequested) return;
         const output = data.toString();
-        logCliOperation(`code2reqs stdout: ${output}`);
         
         const lines = output.split("\n");
         for (const line of lines) {
@@ -1121,7 +1132,7 @@ async function generateRequirements(enviroPath: string) {
               logCliOperation(`Warning: ${json.value}`);
             }
           } catch (e) {
-            // Not JSON or parsing error, just log the line
+            logCliOperation(`code2reqs stdout: ${output}`);
           }
         }
       });
@@ -1138,33 +1149,18 @@ async function generateRequirements(enviroPath: string) {
         
         if (code === 0) {
           logCliOperation(`code2reqs completed successfully with code ${code}`);
-          const panel = vscode.window.createWebviewPanel(
-            'requirementsReport',
-            'Generated Requirements',
-            vscode.ViewColumn.One,
-            { enableScripts: true }
-          );
-
-          fs.readFile(htmlPath, 'utf8', (err, data) => {
-            if (err) {
-              const errorMessage = `Error reading HTML report: ${err.message}`;
-              vscode.window.showErrorMessage(errorMessage);
-              logCliError(errorMessage);
-              reject();
-              return;
-            }
-            panel.webview.html = data;
-          });
-
           await refreshAllExtensionData();
           updateRequirementsAvailability(enviroPath);
+
+          // Run the showRequirements command to display the generated CSV
+          vscode.commands.executeCommand('vectorcastTestExplorer.showRequirements', { id: enviroPath });
 
           vscode.window.showInformationMessage("Successfully generated requirements for the environment!");
           resolve();
         } else {
           const errorMessage = `Error: code2reqs exited with code ${code}`;
           vscode.window.showErrorMessage(errorMessage);
-          logCliError(errorMessage);
+          logCliError(errorMessage, true);
           reject();
         }
       });
@@ -1209,6 +1205,7 @@ async function generateTestsFromRequirements(enviroPath: string, functionName: s
     ...(decomposeRequirements ? ["--decompose"] : []),
     "--allow-partial",
     "--json-events",
+    "--no-automatic-build"
     //"--extended-reasoning"
   ];
   
@@ -1244,7 +1241,6 @@ async function generateTestsFromRequirements(enviroPath: string, functionName: s
       process.stdout.on("data", (data) => {
         if (cancellationToken.isCancellationRequested) return;
         const output = data.toString();
-        logCliOperation(`reqs2tests stdout: ${output}`);
         
         const lines = output.split("\n");
         for (const line of lines) {
@@ -1258,11 +1254,14 @@ async function generateTestsFromRequirements(enviroPath: string, functionName: s
                 lastProgress = scaledProgress;
               }
             } else if (json.event === "problem" && json.value !== undefined) {
+              if (json.value.includes("Individual")) {
+                return;
+              }
               vscode.window.showWarningMessage(json.value);
               logCliOperation(`Warning: ${json.value}`);
             }
           } catch (e) {
-            // Not JSON or parsing error, just log the line
+            logCliOperation(`reqs2tests stdout: ${output}`);
           }
         }
       });
@@ -1289,7 +1288,7 @@ async function generateTestsFromRequirements(enviroPath: string, functionName: s
         } else {
           const errorMessage = `Error: reqs2tests exited with code ${code}`;
           vscode.window.showErrorMessage(errorMessage);
-          logCliError(errorMessage);
+          logCliError(errorMessage, true);
           reject();
         }
       });
@@ -1386,5 +1385,80 @@ async function listEnvironmentStoreValues(): Promise<Record<string, string> | nu
             }
         });
     });
+}
+
+/**
+ * Parse requirements from CSV file
+ */
+async function parseRequirementsFromCsv(csvFilePath: string): Promise<any[]> {
+  try {
+    // Read the CSV file content
+    const fileContent = await fs.promises.readFile(csvFilePath, 'utf8');
+    
+    // Parse the CSV content to get requirements
+    // Settings to match Python's csv.DictReader with:
+    // - skipinitialspace=True (trim option)
+    // - quoting=csv.QUOTE_MINIMAL (skip_quotes_but_not_escape)
+    const requirements = csvParse(fileContent, {
+      columns: true,            // Similar to DictReader behavior
+      skip_empty_lines: true,   // Skip blank lines
+      trim: true,               // Similar to skipinitialspace=True
+      ltrim: true,              // Trim left whitespace more aggressively
+      quote: '"'                // Use double quotes like Python default
+    });
+    
+    return requirements;
+  } catch (error) {
+    logCliError(`Failed to parse requirements CSV: ${error}`, true);
+    throw error;
+  }
+}
+
+/**
+ * Generate HTML from requirements data
+ */
+function generateRequirementsHtml(requirements: any[]): string {
+  let htmlContent = `
+    <html>
+    <head>
+        <title>Requirements</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; background-color: #ffffff; color: #000000; }
+            h1 { color: #2c3e50; }
+            h2 { color: #34495e; margin-top: 30px; }
+            .requirement { background-color: #f7f7f7; padding: 15px; margin: 10px 0; border-radius: 5px; }
+            .req-key { font-weight: bold; color: #2980b9; }
+            .req-description { margin-top: 10px; color: #333333; }
+        </style>
+    </head>
+    <body>
+        <h1>Requirements</h1>
+  `;
+  
+  // Group requirements by function
+  const requirementsByFunction: Record<string, any[]> = {};
+  for (const req of requirements) {
+    const funcName = req.Function || 'Unknown Function';
+    if (!requirementsByFunction[funcName]) {
+      requirementsByFunction[funcName] = [];
+    }
+    requirementsByFunction[funcName].push(req);
+  }
+  
+  // Generate HTML content for each function
+  for (const [funcName, reqs] of Object.entries(requirementsByFunction)) {
+    htmlContent += `<h2>${funcName}</h2>`;
+    for (const req of reqs) {
+      htmlContent += `
+        <div class="requirement">
+            <div class="req-key">${req.Key || 'No Key'}</div>
+            <div class="req-description">${req.Description || 'No Description'}</div>
+        </div>
+      `;
+    }
+  }
+  
+  htmlContent += '</body></html>';
+  return htmlContent;
 }
 
