@@ -464,6 +464,12 @@ export async function buildProjectDataCache(baseDirectory: string) {
     // This includes all unused and empty testsuites and compilers because
     // they are not in the enviroList as they do not include any envs
     globalUnusedTestsuiteList = projectData.projectTestsuiteData;
+
+    projectData.projectCompilerData.forEach(
+      (item: { projectFile: string | undefined }) => {
+        item.projectFile = forceLowerCaseDriveLetter(item.projectFile);
+      }
+    );
     globalUnusedCompilerList = projectData.projectCompilerData;
 
     // convert the raw json data into a map for the cache
@@ -696,11 +702,11 @@ async function loadAllVCTests(
         projectPathDirList.push(projectPath.split(".vcm")[0]);
         for (const [buildDirectory, enviroData] of projectData) {
           environmentList.push({
-            projectPath: projectPath,
+            projectPath: normalizePath(projectPath),
             buildDirectory: normalizePath(buildDirectory),
             isBuilt: enviroData.isBuilt,
             displayName: enviroData.displayName, // e.g. "GNU/BlackBox/ENV"
-            workspaceRoot: workspaceRoot,
+            workspaceRoot: normalizePath(workspaceRoot),
           });
         }
       }
@@ -1301,6 +1307,9 @@ export async function runTests(
 
   for (let enviroPath of enviroPathList) {
     await updateDataForEnvironment(enviroPath);
+    if (globalEnviroDataServerActive) {
+      await closeConnection(enviroPath);
+    }
   }
   updateDisplayedCoverage();
   run.end();

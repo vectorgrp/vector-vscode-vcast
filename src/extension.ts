@@ -86,7 +86,6 @@ import {
   addCompilerToProject,
   deleteLevel,
   updateProjectData,
-  buildIncremental,
   buildExecuteIncremental,
 } from "./vcastAdapter";
 
@@ -714,6 +713,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         enviroPathList,
         enviroNode.id
       );
+      await refreshAllExtensionData();
     }
   );
 
@@ -902,19 +902,19 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(buildProjectEnviro);
 
-  // Command: vectorcastTestExplorer.deleteTestsuite  ////////////////////////////////////////////////////////
   let deleteTestsuiteCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteTestsuite",
     (node: any) => {
       const nodeParts = node.id.split("/");
       // compiler/testsuite
-      const testsuiteLevel = path.join(
-        nodeParts[nodeParts.length - 2],
-        nodeParts[nodeParts.length - 1]
-      );
-      // We need the extra "/" because we cut it out otherwise, which would lead to an ENOENT error when trying to spawn the process
+      // Can't do path.join because on windows the level would be with the wrong "\"
+      const testsuiteLevel =
+        nodeParts[nodeParts.length - 2] + "/" + nodeParts[nodeParts.length - 1];
+      // Join the path without the testsuite level
+      const joinedPath = path.join(...nodeParts.slice(0, nodeParts.length - 2));
+      // Add a leading slash for non-Windows platforms
       const projectPath =
-        "/" + path.join(...nodeParts.slice(0, nodeParts.length - 2));
+        process.platform === "win32" ? joinedPath : "/" + joinedPath;
       deleteLevel(projectPath, testsuiteLevel);
     }
   );
@@ -944,7 +944,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         // If so, we take the id and split it after "vcast:" to get the path
         // In case that is not possible, we throw an error message
         if (vcastUnbuiltEnviroList.includes(enviroNode.id)) {
-          enviroPath = enviroNode.id.split(":")[1];
+          const parts = enviroNode.id.split(":");
+          enviroPath = parts.slice(1).join(":");
         } else {
           vscode.window.showErrorMessage(
             `Unable to determine environment path from node: ${enviroNode.id}`
@@ -1230,7 +1231,6 @@ async function installPreActivationEventHandlers(
   let addEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addEnviroToProject",
     async (projectNode) => {
-      const projectPath = projectNode.id;
       const panel = vscode.window.createWebviewPanel(
         "addEnviroToProject",
         "Add Environment To Project",

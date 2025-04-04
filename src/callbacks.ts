@@ -156,7 +156,8 @@ export async function deleteEnvironmentCallback(
       // If so, we take the id and split it after "vcast:" to get the path
       // In case that is not possible, we throw an error message
       if (vcastUnbuiltEnviroList.includes(enviroNodeID)) {
-        enviroPath = enviroNodeID.split(":")[1];
+        const parts = enviroNodeID.split(":");
+        enviroPath = parts.slice(1).join(":");
       } else {
         vscode.window.showErrorMessage(
           `Unable to determine environment path from node: ${enviroNodeID}`
@@ -196,6 +197,7 @@ export async function loadScriptCallBack(
 
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
     updateTestPane(enviroPath);
+    updateProjectData(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
     fs.unlinkSync(scriptPath);
   } else {

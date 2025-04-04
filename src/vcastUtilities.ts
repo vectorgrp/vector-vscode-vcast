@@ -21,8 +21,6 @@ import {
   openProjectInVcast,
   runATGCommands,
   runBasisPathCommands,
-  updateAllOpenedProjects,
-  updateProjectData,
 } from "./vcastAdapter";
 
 import {
@@ -469,7 +467,7 @@ export function getWebveiwComboboxItems(projectFile: string) {
   const enviroData = globalProjectDataCache.get(projectFile);
 
   if (enviroData) {
-    for (let [envPath, envData] of enviroData) {
+    for (let [, envData] of enviroData) {
       if (!compilerList.includes(envData.compiler.name)) {
         compilerList.push(envData.compiler.name);
       }
@@ -601,17 +599,21 @@ export async function deleteOtherBuildFolders(enviroPath: string) {
       envData.isBuilt === true
     ) {
       const enclosingDirectory = path.dirname(currentEnviroPath);
-      const enviroNodeID = path.join("vcast:", currentEnviroPath);
 
-      // if we are in server mode, close any existing connection to the environment
+      // Normalize path to use forward slashes for a consistent enviroNodeID
+      const normalizedCurrentEnviroPath = currentEnviroPath.replace(/\\/g, "/");
+      const enviroNodeID = "vcast:" + normalizedCurrentEnviroPath;
+
+      // If we are in server mode, close any existing connection to the environment
       if (globalEnviroDataServerActive)
         await closeConnection(currentEnviroPath);
 
-      // this returns the environment directory name without any nesting
+      // This returns the environment directory name without any nesting
       let vcastArgs: string[] = ["-e" + currentEnviroName];
       const progressString = `Deleting ${currentEnviroName}`;
       vcastArgs.push("enviro");
       vcastArgs.push("delete");
+
       await executeWithRealTimeEchoWithProgress(
         clicastCommandToUse,
         vcastArgs,

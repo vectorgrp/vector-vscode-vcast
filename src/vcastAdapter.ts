@@ -35,7 +35,6 @@ import {
   executeWithRealTimeEcho,
   getJsonDataFromTestInterface,
   executeWithRealTimeEchoWithProgress,
-  executeWithRealTimeEchoWithProgressSequential,
 } from "./vcastCommandRunner";
 
 import {
@@ -64,14 +63,13 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import {
-  buildProjectDataCache,
-  buildTestPaneContents,
   globalController,
   globalProjectDataCache,
   refreshAllExtensionData,
   removeNodeFromTestPane,
   runTests,
 } from "./testPane";
+import { normalizePath } from "./utilities";
 
 const path = require("path");
 
@@ -581,18 +579,18 @@ export async function updateProjectData(
 ) {
   // Only update if the current env is embedded in a project and the setting is enabled
   // or we force the update by actively clicking on the Update Project Button
+  const normalizedEnviroPath = normalizePath(enviroPath);
   const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   const autoUpdateEnabled = config.get<boolean>(
     "automaticallyUpdateManageProject",
     true
   );
-  const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+  const enviroData: environmentNodeDataType =
+    getEnviroNodeData(normalizedEnviroPath);
+  const envIsInProject: boolean = envIsEmbeddedInProject(normalizedEnviroPath);
 
-  if (
-    envIsEmbeddedInProject(enviroPath) &&
-    (autoUpdateEnabled || forceUpdate)
-  ) {
-    const enviroName = path.basename(enviroPath);
+  if (envIsInProject && (autoUpdateEnabled || forceUpdate)) {
+    const enviroName = path.basename(normalizedEnviroPath);
     const blockUpdate =
       await checkIfEnvironmentIsBuildMultipleTimes(enviroName);
     if (blockUpdate) {
@@ -605,7 +603,7 @@ export async function updateProjectData(
 
       if (selection === "Delete other Builds") {
         // Delete the build folders of the other builds.
-        await deleteOtherBuildFolders(enviroPath);
+        await deleteOtherBuildFolders(normalizedEnviroPath);
         // After deletion, update the project data.
         const projectFilePath: string = enviroData.projectPath;
         const projectName: string = path.basename(projectFilePath);
@@ -630,7 +628,8 @@ export async function updateProjectData(
         return;
       }
     } else {
-      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      const enviroData: environmentNodeDataType =
+        getEnviroNodeData(normalizedEnviroPath);
       const projectFilePath: string = enviroData.projectPath;
       const projectName: string = path.basename(projectFilePath);
       const projectLocation: string = path.dirname(projectFilePath);
