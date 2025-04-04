@@ -32,7 +32,7 @@ jobs:
       REQ2TESTS_MODELS_PATH: /llm_configs
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:test
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
       options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast --mount type=bind,source=${{ vars.LLM_CONFIGS_PATH }},target=/llm_configs
 
     steps:

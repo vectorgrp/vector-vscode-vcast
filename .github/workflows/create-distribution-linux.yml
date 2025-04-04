@@ -19,7 +19,7 @@ jobs:
     runs-on: [self-hosted, reqs2tests, Linux]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:test
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:20-latest
       options: --user vcast_user
 
     steps:
