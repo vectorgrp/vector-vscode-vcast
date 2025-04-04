@@ -12,7 +12,7 @@ reqs2tests_a = Analysis(
         ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
     ],
     hiddenimports=[],
-    hookspath=['autoreq/hooks'],
+    hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
@@ -32,7 +32,7 @@ code2reqs_a = Analysis(
         ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
     ],
     hiddenimports=[],
-    hookspath=['autoreq/hooks'],
+    hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
@@ -46,7 +46,7 @@ manage_env_a = Analysis(
     binaries=[],
     datas=[],
     hiddenimports=[],
-    hookspath=['autoreq/hooks'],
+    hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
