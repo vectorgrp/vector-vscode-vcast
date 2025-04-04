@@ -141,15 +141,21 @@ const GENERATE_REQUIREMENTS_ENABLED: boolean = true;
 // Setup the paths to the code2reqs and reqs2tests executables
 let CODE2REQS_EXECUTABLE_PATH: string;
 let REQS2TESTS_EXECUTABLE_PATH: string;
-let MANAGE_ENV_EXECUTABLE_PATH: string;
 
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "code2reqs").fsPath;
     REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2tests").fsPath;
-    MANAGE_ENV_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "manage_env").fsPath;
-    //CODE2REQS_EXECUTABLE_PATH = "code2reqs";
-    //REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
-    //MANAGE_ENV_EXECUTABLE_PATH = "manage_env";
+    /*
+    CODE2REQS_EXECUTABLE_PATH = "code2reqs";
+    REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
+    MANAGE_ENV_EXECUTABLE_PATH = "manage_env";
+    */
+}
+
+function setHardcodedEnvVars() {
+  for (const [key, value] of Object.entries(HARDCODED_ENV_VARS)) {
+    process.env[key] = value;
+  }
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -216,65 +222,7 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
   }
 }
 
-const REQUIRED_ENV_VARS = {
-    'OPENAI_API_KEY': 'Azure OpenAI API Key',
-    'OPENAI_GENERATION_DEPLOYMENT': 'Azure OpenAI Model Deployment Name for Generation',
-    'OPENAI_ADVANCED_GENERATION_DEPLOYMENT': 'Azure OpenAI Model Deployment Name for Advanced Generation',
-    'OPENAI_API_BASE': 'Azure OpenAI API Endpoint URL'
-} as const;
-
-async function promptForMissingEnvVars(showSuccessMessage: boolean = false, forcePromptAll: boolean = false): Promise<boolean> {
-    let allSet = true;
-    const values = await listEnvironmentStoreValues();
-    
-    for (const [key, description] of Object.entries(REQUIRED_ENV_VARS)) {
-        // Only prompt if value is missing or if we're forcing a prompt for all values
-        if (!values || !values[key] || forcePromptAll) {
-            const value = await vscode.window.showInputBox({
-                prompt: `Please enter your ${description}`,
-                placeHolder: key === 'OPENAI_API_BASE' ? 'https://your-resource.openai.azure.com/' : undefined,
-                value: values?.[key] || '',  // Pre-fill with existing value if available
-                password: key === 'OPENAI_API_KEY',
-                ignoreFocusOut: true
-            });
-            
-            if (!value) {  // User cancelled
-                allSet = false;
-                break;
-            }
-            
-            const success = await setEnvironmentStoreValue(key, value);
-            if (!success) {
-                vscode.window.showErrorMessage(`Failed to store ${description}`);
-                allSet = false;
-                break;
-            }
-        }
-    }
-    
-    if (allSet && showSuccessMessage) {
-        vscode.window.showInformationMessage('Azure OpenAI settings configured successfully');
-    }
-    
-    return allSet;
-}
-
-async function checkApiSettings(): Promise<void> {
-    const values = await listEnvironmentStoreValues();
-    const missingVars = Object.entries(REQUIRED_ENV_VARS)
-        .filter(([key]) => !values || !values[key])
-        .map(([_, desc]) => desc);
-    
-    if (missingVars.length > 0) {
-        const message = 'Some required Azure OpenAI settings are missing. These are needed for requirements generation.';
-        const configure = 'Configure Now';
-        const later = 'Later';
-        
-        const choice = await vscode.window.showWarningMessage(message, configure, later);
-        if (choice === configure) {
-            await promptForMissingEnvVars(true);
-        }
-    }
+const HARDCODED_ENV_VARS: Record<string, string> = {
 }
 
 async function activationLogic(context: vscode.ExtensionContext) {
@@ -307,9 +255,7 @@ async function activationLogic(context: vscode.ExtensionContext) {
   }
 
   setupAutoreqExecutablePaths(context);
-  
-  // Add this line at the end of activationLogic
-  await checkApiSettings();
+  setHardcodedEnvVars();
 }
 
 function configureExtension(context: vscode.ExtensionContext) {
@@ -841,15 +787,6 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(showRequirementsCommand);
 
-  // Update the command registration
-  let configureAPISettingsCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.configureAPISettings",
-    async () => {
-        await promptForMissingEnvVars(true, true);  // Added true for forcePromptAll
-    }
-  );
-  context.subscriptions.push(configureAPISettingsCommand);
-
   let removeRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.removeRequirements",
     async (args: any) => {
@@ -1058,12 +995,6 @@ export async function deactivate() {
 }
 
 async function generateRequirements(enviroPath: string) {
-  // Check for required environment variables first
-  if (!await promptForMissingEnvVars()) {
-    vscode.window.showErrorMessage('Required API settings are missing. Please configure them first.');
-    return;
-  }
-
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
   const envName = `${lowestDirname}.env`;
@@ -1170,10 +1101,6 @@ async function generateRequirements(enviroPath: string) {
 
 async function generateTestsFromRequirements(enviroPath: string, functionName: string | null) {
   console.log(process.cwd());
-  if (!await promptForMissingEnvVars()) {
-    vscode.window.showErrorMessage('Required API settings are missing. Please configure them first.');
-    return;
-  }
 
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
@@ -1338,53 +1265,6 @@ function updateRequirementsAvailability(enviroPath: string) {
     vscode.commands.executeCommand('setContext', 'vectorcastTestExplorer.vcastRequirementsAvailable', updatedEnvs);
     existingEnvs = updatedEnvs;
   }
-}
-
-async function setEnvironmentStoreValue(key: string, value: string): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
-        const process = spawn(MANAGE_ENV_EXECUTABLE_PATH, ['set', key, value]);
-        
-        process.stdout.on('data', (data) => {
-            console.log(`manage_env stdout: ${data}`);
-        });
-
-        process.stderr.on('data', (data) => {
-            console.error(`manage_env stderr: ${data}`);
-        });
-
-        process.on('close', (code) => {
-            resolve(code === 0);
-        });
-    });
-}
-
-async function listEnvironmentStoreValues(): Promise<Record<string, string> | null> {
-    return new Promise<Record<string, string> | null>((resolve) => {
-        const process = spawn(MANAGE_ENV_EXECUTABLE_PATH, ['list']);
-        let output = '';
-        
-        process.stdout.on('data', (data) => {
-            output += data.toString();
-        });
-
-        process.stderr.on('data', (data) => {
-            console.error(`manage_env stderr: ${data}`);
-        });
-
-        process.on('close', (code) => {
-            if (code === 0) {
-                try {
-                    const result = JSON.parse(output.trim());
-                    resolve(result);
-                } catch (e) {
-                    console.error('Failed to parse JSON output:', e);
-                    resolve(null);
-                }
-            } else {
-                resolve(null);
-            }
-        });
-    });
 }
 
 /**
