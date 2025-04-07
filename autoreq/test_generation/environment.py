@@ -70,6 +70,10 @@ class Environment:
         self.env_file_path = env_file_path
         self.env_name = os.path.basename(env_file_path).replace('.env', '')
         env_dir = os.path.dirname(env_file_path)
+        
+        # Create a separate temporary directory for temporary files
+        self.temp_files_dir = tempfile.mkdtemp(prefix=f"vcast_{self.env_name}_")
+        
         if use_sandbox:
             import shutil
             self.temp_dir = tempfile.TemporaryDirectory()
@@ -80,6 +84,15 @@ class Environment:
         self._tu_codebase_path = None
         self._used_atg_identifier_fallback = False
         self._used_atg_testable_functions_fallback = False
+
+    def _get_temporary_file_path(self, filename: str) -> str:
+        """Generate a path for a temporary file in the temporary files directory."""
+        return os.path.join(self.temp_files_dir, filename)
+
+    @property
+    def is_built(self) -> bool:
+        db_path = os.path.join(self.env_dir, self.env_name, 'master.db')
+        return os.path.exists(db_path)
 
     def build(self):
         env_name = self.env_name
@@ -103,10 +116,8 @@ class Environment:
 
 
     def run_tests(self, test_cases: List[str], **kwargs) -> Optional[str]:
-        self.build()  # Build the environment before running tests
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.tst', mode='w') as temp_tst_file:
-            tst_file_path = temp_tst_file.name
+        tst_file_path = self._get_temporary_file_path(f'temp_tests_{self.env_name}.tst')
+        with open(tst_file_path, 'w', encoding='utf-8') as temp_tst_file:
             temp_tst_file.write('-- VectorCAST 6.4s (05/01/17)\n')
             temp_tst_file.write('-- Test Case Script\n')
             temp_tst_file.write(f'-- Environment    : {self.env_name}\n')
@@ -125,33 +136,38 @@ class Environment:
             temp_tst_file.flush()
 
             output = self.run_test_script(tst_file_path, **kwargs)
-            #os.remove(tst_file_path)  # Clean up the temporary file
+            # No need to delete here, will be cleaned up by cleanup() method
 
             return output
 
 
-    def run_test_script(self, tst_file_path: str, restore_tests: bool=True, with_coverage=False) -> Optional[str]:
+    def run_test_script(self, tst_file_path: str, filter_existing_tests: bool=True, with_coverage=False) -> Optional[str]:
+        # TODO: Deal with ENABLE_FUNCTION_CALL_COVERAGE parsing issues
         tst_file_path = os.path.abspath(tst_file_path)
 
-        if restore_tests:
-            existing_test_store_path = 'EXISTING_TESTS_TO_RESTORE.tst'
+        if filter_existing_tests:
+            existing_test_store_path = self._get_temporary_file_path('EXISTING_TESTS_TO_RESTORE.tst')
+
+            if os.path.exists(existing_test_store_path):
+                os.remove(existing_test_store_path)
+
             restore_tests_command = [
                 _get_vectorcast_cmd('clicast', ['-e', self.env_name, 'test', 'script', 'create', existing_test_store_path]),
                 _get_vectorcast_cmd('clicast', ['-e', self.env_name, 'test', 'delete', 'ALL'])
             ]
 
             for restore_command in restore_tests_command:
-                try:
-                    subprocess.run(restore_command, cwd=self.env_dir, env=os.environ.copy(),
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
-                except subprocess.TimeoutExpired:
-                    logging.error(f"Command '{' '.join(restore_command)}' timed out after 30 seconds")
+                success = self._run_command(restore_command)
+                if not success:
+                    logging.error(f"Command '{' '.join(restore_command)}' failed")
                     return None
 
         output = self._run_test_execute_commands(tst_file_path, with_coverage=with_coverage)
 
-        if restore_tests:
+        if filter_existing_tests:
+            self._run_command(_get_vectorcast_cmd('clicast', ['-e', self.env_name, 'test', 'delete', 'ALL']))
             self._run_test_execute_commands(existing_test_store_path)
+
 
         return output
 
@@ -160,8 +176,7 @@ class Environment:
         env_name = self.env_name
 
         # Create a temporary file
-        fd, tst_file_path = tempfile.mkstemp(suffix='.tst')
-        os.close(fd)  # Close the file descriptor
+        tst_file_path = self._get_temporary_file_path(f'identifiers_template_{env_name}.tst')
 
         # Run the command to generate the test script template
         env_vars = os.environ.copy()
@@ -173,20 +188,18 @@ class Environment:
             result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
         except subprocess.TimeoutExpired:
-            os.remove(tst_file_path)
             logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
             failed = True
         
         if not failed:
             if result.returncode != 0:
-                os.remove(tst_file_path)
                 error_msg = f"Command '{' '.join(cmd)}' failed with error:\n{result.stderr or result.stdout}"
                 raise RuntimeError(error_msg)
         
             # Read the generated test script template
             with open(tst_file_path, 'r') as f:
                 content = f.read()
-            os.remove(tst_file_path)  # Clean up the temporary file
+            # No need to delete here, will be cleaned up by cleanup() method
 
             # Extract identifiers from SCRIPT.VALUE and SCRIPT.EXPECTED lines
             identifiers = set()
@@ -288,10 +301,9 @@ class Environment:
 
     @cached_property
     def atg_tests(self) -> str:
-        self.build()
         env_name = self.env_name
         # First try with baselining
-        atg_file = os.path.join(self.env_dir, 'atg_for_regular_use.tst')
+        atg_file = self._get_temporary_file_path('atg_for_regular_use.tst')
         cmd = _get_vectorcast_cmd('atg', ['-e', env_name, '--baselining', atg_file])
         env_vars = os.environ.copy()
 
@@ -322,7 +334,7 @@ class Environment:
     @cached_property
     def atg_coverage(self):
         # Generate atg file if not already generated
-        atg_file = os.path.join(self.env_dir, 'atg_for_coverage.tst')
+        atg_file = self._get_temporary_file_path('atg_for_coverage.tst')
 
         cmd = _get_vectorcast_cmd('atg', ['-e', self.env_name, atg_file])
         try:
@@ -345,7 +357,8 @@ class Environment:
     @cached_property
     def basis_path_tests(self) -> str:
         env_name = self.env_name
-        cmd = _get_vectorcast_cmd('clicast', ['-e', env_name, 'tool', 'auto_test', 'basis.tst'])
+        basis_test_file = self._get_temporary_file_path('basis.tst')
+        cmd = _get_vectorcast_cmd('clicast', ['-e', env_name, 'tool', 'auto_test', basis_test_file])
         env_vars = os.environ.copy()
         
         try:
@@ -359,7 +372,6 @@ class Environment:
             logging.error(f"Basis path command failed with error:\n{result.stderr}")
             return ""
             
-        basis_test_file = os.path.join(self.env_dir, 'basis.tst')
         if not os.path.exists(basis_test_file):
             logging.error("Basis path file not generated")
             return ""
@@ -368,28 +380,31 @@ class Environment:
 
     @cached_property
     def tu_codebase(self):
-        content = self.get_tu_content(reduction_level='medium')
+        content, encoding = self.get_tu_content(reduction_level='medium', return_encoding=True)
         lines = content.splitlines()
 
         # CCLS cannot process files with more than 65535 lines, so split the file into chunks if necessary
         # This is a bit hacky but mostly fine for our needs. A more prinicpled approach would be a forked version of CCLS.
         # See: https://github.com/MaskRay/ccls/issues/366
-        
-        if len(lines) <= 65535:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as temp_file:
+
+        # Right now we use clangd, so this should be fine
+        if True:
+            temp_file_path = self._get_temporary_file_path(f'tu_code_{self.env_name}.cpp')
+            with open(temp_file_path, 'w', encoding=encoding) as temp_file:
                 temp_file.write(content)
                 temp_file.flush()
-                self._tu_codebase_path = temp_file.name
-                return Codebase([temp_file.name])
+                self._tu_codebase_path = temp_file_path
+                return Codebase([temp_file_path])
         else:
             chunk_size = 65535
             chunk_files = []
             for i in range(0, len(lines), chunk_size):
                 chunk_content = "\n".join(lines[i:i+chunk_size])
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as temp_file:
+                chunk_file_path = self._get_temporary_file_path(f'tu_code_chunk_{i}_{self.env_name}.cpp')
+                with open(chunk_file_path, 'w', encoding='utf-8') as temp_file:
                     temp_file.write(chunk_content)
                     temp_file.flush()
-                    chunk_files.append(temp_file.name)
+                    chunk_files.append(chunk_file_path)
             self._tu_codebase_path = chunk_files
             return Codebase(chunk_files)
 
@@ -433,7 +448,7 @@ class Environment:
         return self.units[0]
 
 
-    def get_tu_content(self, reduction_level='medium'):
+    def get_tu_content(self, reduction_level='medium', return_encoding=False):
         """Get the content of the translation unit file.
 
         Args:
@@ -442,6 +457,7 @@ class Environment:
                 - low: The entire translation unit content is returned.
                 - medium: Build-in definitions and declarations are removed.
                 - high: Only the processed code from the actual source file is returned.
+            return_encoding (bool, optional): If True, the encoding of the content is returned.
 
         Raises:
             FileNotFoundError: If the translation unit file is not found.
@@ -465,9 +481,12 @@ class Environment:
         else:
             raise FileNotFoundError(f"Translation unit file not found for {unit_name}")
 
+        encoding = charset_normalizer.from_path(tu_path).best().encoding
         content = str(charset_normalizer.from_path(tu_path).best())
 
         if reduction_level == 'low':
+            if return_encoding:
+                return content, encoding
             return content
 
         lines = content.splitlines()
@@ -482,7 +501,10 @@ class Environment:
             if match:
                 file_path_in_marker = os.path.abspath(match.group(1))
 
-                if Path(file_path_in_marker) == Path(unit_path):
+                # This is a bit less robust if there are files with the same name in different directories
+                # (compared to checking the entire path)
+                # However it gets around issues of moving environments around without forcing the user to rebuild
+                if Path(file_path_in_marker).stem == Path(unit_path).stem:
                     in_relevant_context = True
                 elif match.group(1).startswith("vcast_preprocess") or reduction_level == 'high':
                     in_relevant_context = False
@@ -491,12 +513,16 @@ class Environment:
 
         relevant_content = "\n".join(relevant_lines)
 
+        if return_encoding:
+            return relevant_content, encoding
+
         return relevant_content
 
 
     def _parse_test_script(self, tst_file_path: str) -> str:
-        with open(tst_file_path, 'r') as f:
-            content = f.readlines()
+        #with open(tst_file_path, 'r') as f:
+        #    content = f.readlines()
+        content = str(charset_normalizer.from_path(tst_file_path).best()).splitlines()
 
         test_cases = []
         current_test = None
@@ -584,11 +610,11 @@ class Environment:
             _get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'Execute', 'All'])
         ]
 
-        temp_coverage_file = tempfile.NamedTemporaryFile(delete=False, suffix='.txt', mode='w')
-
+        temp_coverage_file_path = None
         if with_coverage:
+            temp_coverage_file_path = self._get_temporary_file_path(f'coverage_{env_name}.txt')
             commands.append(_get_vectorcast_cmd('clicast', ['-lc', 'option', 'VCAST_CUSTOM_REPORT_FORMAT', 'TEXT']))
-            commands.append(_get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'report', 'custom', 'coverage', temp_coverage_file.name]))
+            commands.append(_get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'report', 'custom', 'coverage', temp_coverage_file_path]))
 
         output = ''
         env_vars = os.environ.copy()
@@ -606,9 +632,8 @@ class Environment:
 
             output += result.stdout
 
-        if with_coverage:
-            with open(temp_coverage_file.name, 'r') as f:
-                coverage_output = f.read()
+        if with_coverage and temp_coverage_file_path and os.path.exists(temp_coverage_file_path):
+            coverage_output = str(charset_normalizer.from_path(temp_coverage_file_path).best())
 
             coverage_data = {}
             match = re.search(r'GRAND TOTALS.* (\d+) \/ (\d+) .* (\d+) \/ (\d+) ', coverage_output)
@@ -630,11 +655,21 @@ class Environment:
                 coverage_data = None
                 
             output = (output, coverage_data)
-            os.remove(temp_coverage_file.name)
             
         return output
 
+    def _run_command(self, command: str, timeout=30) -> str:
+        try:
+            subprocess.run(command, cwd=self.env_dir, env=os.environ.copy(),
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout)
+            return True
+        except subprocess.TimeoutExpired:
+            logging.error(f"Command '{' '.join(command)}' timed out after 30 seconds")
+            return False
+
     def cleanup(self):
+        """Clean up all temporary files and directories."""
+        # Clean up translation unit files
         if self._tu_codebase_path:
             if isinstance(self._tu_codebase_path, list):
                 for path in self._tu_codebase_path:
@@ -642,5 +677,12 @@ class Environment:
                         os.remove(path)
             elif os.path.exists(self._tu_codebase_path):
                 os.remove(self._tu_codebase_path)
+        
+        # Clean up the temporary files directory
+        if os.path.exists(self.temp_files_dir):
+            import shutil
+            shutil.rmtree(self.temp_files_dir)
+        
+        # Clean up the environment sandbox if it exists
         if hasattr(self, 'temp_dir'):
             self.temp_dir.cleanup()

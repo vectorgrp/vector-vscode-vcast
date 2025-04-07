@@ -67,16 +67,6 @@ The following sections describe the syntax for specifying the `identifier` and `
   - Example:
     { "identifier": "unit.subprogram.RETURN", "value": 23.0 }
 
-#### Local Function variables
-- It is not possible to set the value of variables locally defined in the function (only its inputs and return value)
-- However, it is possible that it is sometimes necessary:
-  - If a local variable is supposed to be modified by a function called inside the tested subprogram (by reference), this does not work if the function is stubbed (for instance as is the case for an externally defined subprogram outside the current unit)
-  - In this case you should set the value of the stub input variable to implicitly update the local variable along with it
-  - Just setting a value directly will not work, instead we need to use a special variable construct only for this purpose called VECTORCAST_INT1
-  - For example assume we have a local variable x that is modified by a stubbed called to foo(&x). Then you can change the value of x tp 10 like so:
-    { "identifier": "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_INT1", "value": 10 }
-    { "identifier": "uut_prototype_stubs.foo.x", "value": "VECTORCAST_INT1" }
-
 #### Global Objects
 - Use the syntax `UNIT.<<GLOBAL>>.OBJECT` to set values for global objects.
   - Example:
@@ -134,6 +124,20 @@ The following sections describe the syntax for specifying the `identifier` and `
   - Example:
     { "identifier": "uut_prototype_stubs.name_of_external_subprogram.parameter", "value": 42 }
 
+#### Emulating stubbed pointer manipulating functions
+- Normally it is easy to emulate a stubbed function returning some value (by setting the return value of the stubbed function)
+- This is not possible if the stubbed function works with pointers as only values can be specified (so only ever the contents of a pointer), e.g., functions like memcpy
+- Therefore, in these cases you can emulate the stubbed function setting the contents of the pointer using <<pointer value_to_set>>
+  - For example assume we have a pointer input variable *float x that is modified by a stubbed called to foo(*float pointer_to_modify), i.e., foo(x). Then you can change the value, i.e., *x to 10 like so:
+    { "identifier": "uut_prototype_stubs.foo.pointer_to_modify", "value": "<<pointer 10>>" }
+  - The other input values of the function of course do not need to be specified explicitly (unless you also want to see the values of those input pointers)
+- You can only set one variable like this per test case due to technical reasons so choose wisely (if you use this feature)
+
+#### Emulating multiple function calls
+- Use the multiple value syntax, one value will be read everytime the stubbed function is called
+  - Example (foo is called twice, and should return 2 the first time and 3 the second):
+    { "identifier": "uut_prototype_stubs.foo.return", "value": "2,3" }
+
 ## Test Case Execution
 1. The test framework will call the specified subprogram/function
 2. When a value of a variable would be read, if it is specified as a test value, it is set to that value instead
@@ -146,3 +150,4 @@ The following sections describe the syntax for specifying the `identifier` and `
 - If the RETURN value of a called function is set as an input, the function will be stubbed during execution and not implement any behaviour.
 - In particular, to access methods of a class and set values it is imperative to first instantiate the class using a constructor. For all classes a default object is ready to be initialized if needed using the respective constructor.
 - Do not set an identifier multiple times, it just results in overriding of the previous value
+- It is currently hard/impossible to test values written to pointers. If you encounter them, fall back to testing simpler partial things like return values (or just specifying no expected values)

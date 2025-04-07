@@ -12,7 +12,9 @@ from tqdm import tqdm
 import traceback
 from datetime import datetime
 
-from .requirements_manager import RequirementsManager
+from autoreq.test_generation.requirement_decomposition import decompose_requirements
+
+from .requirements_manager import DecomposingRequirementsManager, RequirementsManager
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment
 from .test_verification.verification import TestVerifier
@@ -677,6 +679,7 @@ async def main():
     parser.add_argument('--mlflow', nargs=2, metavar=('EXPERIMENT_NAME', 'RUN_NAME'),
                        help='Enable MLflow tracking with specified experiment and run name')
     parser.add_argument('--filter', nargs='*', help='Filter requirements by tags.')
+    parser.add_argument('--decompose', action='store_true', help='Decompose requirements into atomic parts.')
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -739,7 +742,31 @@ async def main():
         # Load environment-specific requirements
         env = Environment(env_path)
         try:
-            rm = RequirementsManager(req_path)
+            if args.decompose:
+                rm = RequirementsManager(req_path)
+                x = {req_id: rm.get_description(req_id) for req_id in rm.requirement_ids}
+                
+                decomposed = await decompose_requirements(list(x.values()))
+                decomposed_req_map = {req_id: reqs for req_id, reqs in zip(rm.requirement_ids, decomposed)}
+                async def decomposer(req):
+                    req_template = req.copy()
+                    #decomposed_req_descriptions = await decompose_requirement(req['Description'])
+                    decomposed_req_descriptions = decomposed_req_map[req['ID']]
+                    decomposed_reqs = []
+                    for i, decomposed_req_description in enumerate(decomposed_req_descriptions):
+                        decomposed_req = req_template.copy()
+                        decomposed_req['ID'] = f"{req['ID']}.{i+1}"
+                        decomposed_req['Description'] = decomposed_req_description
+                        decomposed_reqs.append(decomposed_req)
+                    print("Original:", req['Description'])
+                    print("Decomposed:", [r['Description'] for r in decomposed_reqs])
+                    return decomposed_reqs
+
+                rm = await DecomposingRequirementsManager.from_csv(req_path, decomposer=decomposer)
+            else:
+                rm = RequirementsManager(req_path)
+
+            # TODO: Add some information about original requirements in evaluation result in case we decompose requirements here
 
             if args.filter:
                 rm = rm.filter(lambda r: rm.get_function(r) in args.filter)

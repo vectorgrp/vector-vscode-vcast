@@ -5,20 +5,12 @@ import logging
 import os
 import tempfile  # Add this import if not already present
 from tqdm import tqdm
+
+from autoreq.test_generation.requirement_decomposition import decompose_requirements
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
-from .requirements_manager import RequirementsManager  # Add this import
+from .requirements_manager import RequirementsManager, DecomposingRequirementsManager
 from .util import ensure_env  # Add this import
-
-def prompt_user_for_info(key):
-    if key == 'OPENAI_API_KEY':
-        return input("Please enter your OpenAI API key: ")
-    elif key == 'OPENAI_GENERATION_DEPLOYMENT':
-        return input("Please enter the OpenAI deployment for generation: ")
-    elif key == 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT':
-        return input("Please enter the OpenAI deployment for advanced generation: ")
-    elif key == 'OPENAI_API_BASE':
-        return input("Please enter the OpenAI API base URL: ")
 
 async def main():
     parser = argparse.ArgumentParser(description='Generate and optionally execute test cases for given requirements.')
@@ -35,23 +27,56 @@ async def main():
     parser.add_argument('--allow-partial', action='store_true', help='Allow partial test generation.')
     parser.add_argument('--allow-batch-partial', action='store_true', help='Allow partial test generation during batch processing.')
     parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
+    parser.add_argument('--no-decomposition', action='store_true', help='Do not decompose requirements before generating tests.')
+    parser.add_argument('--no-automatic-build', action='store_true', help='If the environment is not built, do not build it automatically.')
     args = parser.parse_args()
-
-    ensure_env(['OPENAI_API_KEY', 'OPENAI_API_BASE', 'OPENAI_GENERATION_DEPLOYMENT', 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT'], 
-               fallback=prompt_user_for_info, 
-               force_fallback=args.overwrite_env)
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level)
 
     # Initialize the environment directly
-    environment = Environment(args.env_path)
+    environment = Environment(args.env_path, use_sandbox=False)
 
-    environment.build()
+    if not environment.is_built:
+        if args.no_automatic_build:
+            logging.error("Environment is not built and --no-automatic-build is set. Exiting.")
+            return
+        else:
+            logging.info("Environment is not built. Building it now...")
+            environment.build()
+
+    # Check if the environment has more than one unit, this is not supported for now
+    if len(environment.units) > 1:
+        logging.error("Multiple units in the environment are not supported.")
+        return
+
 
     # Instantiate the requirements manager
-    rm = RequirementsManager(args.requirements_file)
+    if not args.no_decomposition:
+        rm = RequirementsManager(args.requirements_file)
+        x = {req_id: rm.get_description(req_id) for req_id in rm.requirement_ids}
+        
+        decomposed = await decompose_requirements(list(x.values()))
+        decomposed_req_map = {req_id: reqs for req_id, reqs in zip(rm.requirement_ids, decomposed)}
+        
+        async def decomposer(req):
+            req_template = req.copy()
+            #decomposed_req_descriptions = await decompose_requirement(req['Description'])
+            decomposed_req_descriptions = decomposed_req_map[req['ID']]
+            decomposed_reqs = []
+            for i, decomposed_req_description in enumerate(decomposed_req_descriptions):
+                decomposed_req = req_template.copy()
+                decomposed_req['ID'] = f"{req['ID']}.{i+1}"
+                decomposed_req['Description'] = decomposed_req_description
+                decomposed_reqs.append(decomposed_req)
+            logging.info("Original Requirement:", req['Description'])
+            logging.info("Decomposed Requirement:", [r['Description'] for r in decomposed_reqs])
+            return decomposed_reqs
+
+        rm = await DecomposingRequirementsManager.from_file(args.requirements_file, decomposer=decomposer)
+    else:
+        rm = RequirementsManager(args.requirements_file)
 
     # Retrieve requirement IDs from the manager
     if len(args.requirement_ids) == 0:
@@ -63,7 +88,7 @@ async def main():
             # Instead of building a local dict, track requirement IDs
             matched_ids.extend([
                 req_id for req_id in rm.requirement_ids
-                if req_id == rid or req_id.startswith(rid)
+                if req_id == rid or req_id.startswith(rid) or rm.get_function(req_id) == rid
             ])
         requirement_ids = matched_ids
 
@@ -87,6 +112,12 @@ async def main():
         ):
             if test_case:
                 logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
+
+                # Map back to original requirement ID
+                if not args.no_decomposition:
+                    original_req_id = rm.get_original_requirement_id(test_case.requirement_id)
+                    test_case.requirement_id = original_req_id
+                
                 vectorcast_test_cases.append(test_case.to_vectorcast())
             
             pbar.update(1)

@@ -8,7 +8,7 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
-from .code2reqs import execute_rgw_commands
+from .code2reqs import execute_rgw_commands, save_requirements_to_excel
 from .test_generation.environment import Environment
 from .trace_reqs2code import Reqs2CodeMapper
 import asyncio
@@ -30,16 +30,6 @@ def load_requirements_from_gateway(rgw_path: Path) -> t.List[t.Dict]:
     return ret
 
 
-def fix_worksheet_cols_width(ws):
-    dims = {}
-    for row in ws.rows:
-        for cell in row:
-            if cell.value:
-                dims[cell.column] = max(
-                    (dims.get(cell.column, 0), len(str(cell.value)))
-                )
-    for col, value in dims.items():
-        ws.column_dimensions[get_column_letter(col)].width = value
 
 
 def requirements_to_xlsx(
@@ -52,15 +42,9 @@ def requirements_to_xlsx(
     if not isinstance(envs, list):
         envs = [envs]
 
-    funcs = {}
     env_path_to_env = {}
     for env in envs:
         env_path_to_env[env.env_file_path] = env
-        for f in env.testable_functions:
-            # TODO right now only one module per environment is supported
-            key = f"{env.env_name}.{env.module.title()}"
-            funcs.setdefault(key, [])
-            funcs[key].append(f["name"])
 
     logging.info("Automatic matching of requirements to functions in progress...")
     reqs2code_mapper = Reqs2CodeMapper()
@@ -126,64 +110,13 @@ def requirements_to_xlsx(
                 environment,
             )
 
-    workbook = Workbook()
-    main_ws = workbook.active
-    main_ws.title = "Requirements"
-    lists_ws = workbook.create_sheet("Options")
-    lists_ws.sheet_state = "hidden"
+        save_requirements_to_excel(
+            formatted_requirements,
+            envs,
+            output_file,
+        )
 
-    header_font = Font(bold=True)
-    header_fill = PatternFill(fill_type="solid", start_color="C6EFCE")
-    headers = list(formatted_requirements[0].keys())
-    for col, header in enumerate(headers, start=1):
-        cell = main_ws.cell(row=1, column=col, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
 
-    for row_idx, req in enumerate(formatted_requirements, start=2):
-        for col_idx, header in enumerate(headers, start=1):
-            main_ws.cell(row=row_idx, column=col_idx, value=req[header])
-
-    # In column A, list all modules.
-    modules = list(funcs.keys())
-    for row, module in enumerate(modules, start=1):
-        lists_ws.cell(row=row, column=1, value=module)
-
-    # For each module, write its functions in its own column (starting at column B)
-    # and create a named range using create_named_range().
-    for i, module in enumerate(modules):
-        functions = funcs[module]
-        col = i + 2
-        for row, func in enumerate(functions, start=1):
-            lists_ws.cell(row=row, column=col, value=func)
-        col_letter = get_column_letter(col)
-        end_row = len(functions)
-        range_ref = f"${col_letter}$1:${col_letter}${end_row}"
-        range_name = module.replace(" ", "_").replace("-", "_")
-        workbook.create_named_range(range_name, lists_ws, range_ref)
-
-    num_data_rows = len(formatted_requirements)
-    module_col_index = headers.index("Module") + 1
-    function_col_index = headers.index("Function") + 1
-    module_col_letter = get_column_letter(module_col_index)
-    dv_module = DataValidation(
-        type="list", formula1=f"=Options!$A$1:$A${len(modules)}", allow_blank=True
-    )
-    main_ws.add_data_validation(dv_module)
-    dv_module_range = f"{get_column_letter(module_col_index)}2:{get_column_letter(module_col_index)}{num_data_rows + 1}"
-    dv_module.add(dv_module_range)
-
-    # Use INDIRECT with SUBSTITUTE to reference the named range based on the Module cell.
-    for row in range(2, num_data_rows + 2):
-        module_cell = f"{module_col_letter}{row}"
-        formula = f'=INDIRECT(SUBSTITUTE({module_cell}," ","_"))'
-        dv_func = DataValidation(type="list", formula1=formula, allow_blank=True)
-        main_ws.add_data_validation(dv_func)
-        function_cell = f"{get_column_letter(function_col_index)}{row}"
-        dv_func.add(function_cell)
-
-    fix_worksheet_cols_width(main_ws)
-    workbook.save(output_file)
 
 
 def format_env_requirements(

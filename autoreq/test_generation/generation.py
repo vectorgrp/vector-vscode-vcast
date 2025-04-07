@@ -1,4 +1,5 @@
 import asyncio
+from functools import cached_property
 from aiostream.stream import merge
 from enum import Enum
 import json
@@ -31,12 +32,29 @@ def _derive_test_case_schema(allowed_identifiers=None):
         identifier: Identifier # type: ignore
         value: str
 
-        def to_vectorcast(self, is_expected=False) -> str:
+        def to_vectorcast(self, is_expected=False, no_pointer=False, return_was_pointer=False) -> str:
             patched_identifier = re.sub(r'(\w+)->', r'*\1.', self.identifier)
             patched_identifier = re.sub(r'\*(\w+)\.', r'*\1[0].', patched_identifier)
-            if is_expected:
-                return f"TEST.EXPECTED:{patched_identifier}:{self.value}\n"
-            return f"TEST.VALUE:{patched_identifier}:{self.value}\n"
+
+            prefix = "TEST.EXPECTED" if is_expected else "TEST.VALUE"
+
+            pointer_match = re.match(r'<<pointer (.+?)>>', self.value)
+            if pointer_match:
+                patched_value = pointer_match.group(1)
+
+                if not no_pointer:
+                    if return_was_pointer:
+                        return f"TEST.VALUE:USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1:{patched_value}\n{prefix}:{patched_identifier}:VECTORCAST_STR1\n", True
+
+                    return f"TEST.VALUE:USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1:{patched_value}\n{prefix}:{patched_identifier}:VECTORCAST_STR1\n"
+                else:
+                    if return_was_pointer:
+                        return f"{prefix}:{patched_identifier}:VECTORCAST_STR1\n", False
+                    return f"{prefix}:{patched_identifier}:VECTORCAST_STR1\n"
+
+            if return_was_pointer:
+                return f"{prefix}:{patched_identifier}:{self.value}\n", False
+            return f"{prefix}:{patched_identifier}:{self.value}\n"
 
         @property
         def needed_stub_as_input(self):
@@ -78,18 +96,20 @@ def _derive_test_case_schema(allowed_identifiers=None):
                 unit_name=self.unit_name,
                 subprogram_name=self.subprogram_name,
                 input_values=self.input_values,
-                expected_values=[]
+                #expected_values=[]
+                expected_values=self.expected_values
             )
 
         def to_vectorcast(self, is_compound=False) -> str:
             test_case_str = f"TEST.UNIT:{self.unit_name}\n"
             test_case_str += f"TEST.SUBPROGRAM:{self.subprogram_name}\n"
             test_case_str += "TEST.NEW\n"
-            test_case_str += f"TEST.NAME:{('compound' if is_compound else '') + self.test_name}\n"
+            test_case_str += f"TEST.NAME:{('compound' if is_compound else '') + self.test_name + '-REVIEW-NEEDED'}\n"
 
             test_case_str += f"TEST.REQUIREMENT_KEY:{self.requirement_id}\n"
 
             test_case_str += "TEST.NOTES:\n"
+            test_case_str += "WARNING: This is an automatically generated test case. Please review it carefully.\n\n"
             for line in self.test_description.split('\n'):
                 test_case_str += f"{line}\n"
             test_case_str += "TEST.END_NOTES:\n"
@@ -99,8 +119,10 @@ def _derive_test_case_schema(allowed_identifiers=None):
 
             # Sometimes the LLM duplicates assignments. Deduplicating them is a free win
             seen_inputs = set()
+            seen_pointer = False
             for input_value in self.input_values:
-                vectorcast_input = input_value.to_vectorcast()
+                vectorcast_input, was_pointer = input_value.to_vectorcast(no_pointer=seen_pointer, return_was_pointer=True)
+                seen_pointer = was_pointer or seen_pointer
 
                 if vectorcast_input in seen_inputs:
                     continue
@@ -344,6 +366,7 @@ Notes:
 - Generate exactly one test case per requirement.
 - For each test case, make sure to set an input value for all arguments, global variables and stubs used in the function.
 - For each test case, make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
+- In case the requirement and the code differ, the requirement is what you should test, i.e., it is the source of truth.
 
 Return your answer in the following format:
 ```json
@@ -396,8 +419,9 @@ Return your answer in the following format:
 
             if errors or (not allow_partial and test_failures):
                 self.info_logger.set_individual_test_generation_needed(test_case.requirement_id)
-                if test_failures:
-                    self.info_logger.set_test_run_failure_feedback(test_case.requirement_id)
+                # TODO: Think about if we want to set this or not
+                #if test_failures:
+                #    self.info_logger.set_test_run_failure_feedback(test_case.requirement_id)
 
                 return await self.generate_test_case(test_case.requirement_id, already_started=True, allow_partial=individual_partial, **kwargs)
             else:
@@ -434,16 +458,20 @@ Return your answer in the following format:
             self.info_logger.set_schema_exceeded_size(requirement_id, used_fallback)
 
             first_try = True
-            for _ in range(max_retries):
+            for i in range(max_retries):
                 self.info_logger.increment_retries_used(requirement_id)
-                temperature = 0.0 if first_try else 1.0
-                extended_reasoning = self.use_extended_reasoning and not first_try
+                #temperature = 0.0 if first_try else 1.0
+                temperature = 0.0
+                #extended_reasoning = self.use_extended_reasoning and not first_try
+                extended_reasoning = self.use_extended_reasoning
                 result = await self._generate_test_case_no_retries(
                     requirement_id, 
                     temperature=temperature, 
                     extended_reasoning=extended_reasoning, 
                     allow_partial=allow_partial,
-                    schema=schema
+                    schema=schema,
+                    reword_requirement=not first_try
+                    
                 )
                 if result:
                     self.info_logger.set_test_generated(requirement_id)
@@ -458,12 +486,30 @@ Return your answer in the following format:
         return None
 
     async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False, 
-                                           allow_partial=False, schema=None):
+                                           allow_partial=False, schema=None, reword_requirement=False):
         # Remove allowed_identifiers parameter since schema is passed directly
         requirement_text = self.requirements_manager.get_description(requirement_id)
         if not requirement_text:
             logging.warning(f"Requirement {requirement_id} not found.")
             return None
+        
+        if reword_requirement:
+            logging.info(f"Original requirement ({requirement_id}): {requirement_text}")
+            requirement_text = await self.llm_client.call_model(
+                messages=[
+                    {"role": "system", "content": "You are an AI assistant that rewords requirements."},
+                    {
+                        "role": "user",
+                        "content": f"Reword the following requirement: {requirement_text}",
+                    },
+                ],
+                schema=create_model('RewordedRequirement', reworded_requirement=(str, ...)),
+                extended_reasoning=extended_reasoning,
+                temperature=temperature,
+            )
+            requirement_text = requirement_text.reworded_requirement
+            logging.info(f"Reworded requirement ({requirement_id}): {requirement_text}")
+
 
         function_name = self.requirements_manager.get_function(requirement_id)
         if not function_name:
@@ -542,6 +588,8 @@ Notes:
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
 - Make sure to set an input value for all arguments, global variables and stubs used in the function.
 - Make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
+- In case the requirement and the code differ, the requirement is what you should test, i.e., it is the source of truth.
+- Watch out for off-by-one errors
 """
             }
         ]
@@ -560,7 +608,8 @@ Notes:
             return None
 
         test_generation_result = await self._iterative_error_correction(
-            requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial, allow_early_partial=True)
+            requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial, allow_early_partial=False, max_iterations=3, allow_test_feedback=False
+        )
 
         if test_generation_result is None:
             return None
@@ -569,7 +618,7 @@ Notes:
 
     async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, 
                                         temperature=0.0, extended_reasoning=False, max_iterations=3, 
-                                        allow_partial=False, allow_early_partial=False):
+                                        allow_partial=False, allow_early_partial=False, allow_test_feedback=False):
         # Schema is now passed directly, no need to modify this method
         iteration = 0
         fix_messages = messages
@@ -578,6 +627,9 @@ Notes:
 
             output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()])
             errors, test_failures = self._parse_error_output(output)
+
+            if not allow_test_feedback:
+                test_failures = None
 
             if not errors and not test_failures:
                 break
@@ -618,6 +670,9 @@ Remember:
 Tip:
 - If you see something like this in the errors: error: expected expression before '<<' token, then that likely means you are setting a macro in a reference which is not allowed.
 - If you see something like this in the errors: [  FAIL  ], then that means the test case failed to pass. Likely because you misunderstood the requirement, the code or the testing framework.
+- If you get different expected outputs than what you expect, carefully analyze:
+    - If this is due to a discrepancy in the requirement and the code, the requirement is the source of truth, so you can leave the test case as is.
+    - If it appears that the test framework is working differently than you expected, try to find an indirect way to test the requirement partially, i.e., just a correct return value instead of complex pointer logic
 """
                     }
                 ]
@@ -634,6 +689,9 @@ Tip:
                     self.info_logger.add_exception(requirement_id, traceback.format_exc())
                     logging.exception(f"Call to model failed for requirement {requirement_id} (during error correction): {e}")
                     return None
+
+        output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()])
+        errors, test_failures = self._parse_error_output(output)
 
         if errors:
             logging.warning(f"Failed to fix errors after {iteration} iterations")
