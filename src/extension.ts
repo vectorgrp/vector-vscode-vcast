@@ -1065,6 +1065,15 @@ function configureExtension(context: vscode.ExtensionContext) {
       // changing the file will invalidate the
       // coverage and editor annotations
       if (editor) {
+        // Check if file ends with .tst and has "build" in its path
+        // We want to load the test script automatically when the user saves
+        const filePath = editor.uri.fsPath;
+        if (
+          filePath.endsWith(".tst") &&
+          filePath.includes(`${path.sep}build${path.sep}`)
+        ) {
+          loadTestScript();
+        }
         await updateCodedTestCases(editor);
         updateCOVdecorations();
         updateTestDecorator();
