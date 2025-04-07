@@ -1,5 +1,4 @@
 import json
-import csv
 import argparse
 import asyncio
 import logging
@@ -24,7 +23,7 @@ def prompt_user_for_info(key):
 async def main():
     parser = argparse.ArgumentParser(description='Generate and optionally execute test cases for given requirements.')
     parser.add_argument('env_path', help='Path to the VectorCAST environment file.')
-    parser.add_argument('requirements_csv', help='Path to the CSV file containing requirements.')
+    parser.add_argument('requirements_file', help='Path to the CSV or Excel file containing requirements.')
     parser.add_argument('requirement_ids', nargs='*', help='ID of the requirement to generate test cases for.')
     parser.add_argument('--export-tst', help='Path to a file to write the VectorCAST test cases.')
     parser.add_argument('--retries', type=int, default=2, help='Number of retries for test generation.')
@@ -52,7 +51,7 @@ async def main():
     environment.build()
 
     # Instantiate the requirements manager
-    rm = RequirementsManager(args.requirements_csv)
+    rm = RequirementsManager(args.requirements_file)
 
     # Retrieve requirement IDs from the manager
     if len(args.requirement_ids) == 0:

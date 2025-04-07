@@ -1,6 +1,5 @@
 import argparse
 import json
-import shutil
 from tqdm.asyncio import tqdm_asyncio
 from pathlib import Path
 import csv
@@ -13,25 +12,26 @@ import logging
 from autoreq.util import ensure_env
 from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 
-from .codebase import Codebase
 from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
-from .util import TempCopy, replace_func_and_var
+
 
 def save_requirements_to_json(requirements, output_file):
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         json.dump(requirements, f, indent=4)
 
+
 def save_requirements_to_csv(requirements, output_file):
-    fieldnames = ['Key', 'ID', 'Module', 'Title', 'Description', 'Function']
-    with open(output_file, 'w', newline='') as f:
+    fieldnames = ["Key", "ID", "Module", "Title", "Description", "Function"]
+    with open(output_file, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for req in requirements:
             writer.writerow(req)
 
+
 def save_requirements_to_html(requirements, output_file):
-    html_content = '''
+    html_content = """
     <html>
     <head>
         <title>Requirements</title>
@@ -46,25 +46,26 @@ def save_requirements_to_html(requirements, output_file):
     </head>
     <body>
         <h1>Requirements</h1>
-    '''
+    """
     # Group requirements by function
     requirements_by_function = {}
     for req in requirements:
-        func_name = req['Function']
+        func_name = req["Function"]
         requirements_by_function.setdefault(func_name, []).append(req)
     # Generate HTML content
     for func_name, reqs in requirements_by_function.items():
-        html_content += f'<h2>{func_name}</h2>'
+        html_content += f"<h2>{func_name}</h2>"
         for req in reqs:
-            html_content += f'''
+            html_content += f"""
             <div class="requirement">
-                <div class="req-key">{req['Key']}</div>
-                <div class="req-description">{req['Description']}</div>
+                <div class="req-key">{req["Key"]}</div>
+                <div class="req-description">{req["Description"]}</div>
             </div>
-            '''
-    html_content += '</body></html>'
-    with open(output_file, 'w') as f:
+            """
+    html_content += "</body></html>"
+    with open(output_file, "w") as f:
         f.write(html_content)
+
 
 def execute_command(command_list):
     try:
@@ -72,7 +73,7 @@ def execute_command(command_list):
             command_list,
             capture_output=True,
             text=True,
-            shell=False  # More secure
+            shell=False,  # More secure
         )
         if result.returncode != 0:
             logging.error(f"Error executing command: {' '.join(command_list)}")
@@ -84,33 +85,43 @@ def execute_command(command_list):
         logging.error(f"Failed to execute command: {e}")
         raise
 
+
 def execute_rgw_commands(env_path, csv_path, export_repository):
     export_path = Path(export_repository)
     export_path.mkdir(parents=True, exist_ok=True)
 
     env_dir = Path(env_path).parent
-    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
-    clicast = str(Path(vectorcast_dir) / 'clicast')
-    if os.name == 'nt' and not clicast.endswith('.exe'):
-        clicast += '.exe'
+    vectorcast_dir = os.environ.get("VECTORCAST_DIR", "")
+    clicast = str(Path(vectorcast_dir) / "clicast")
+    if os.name == "nt" and not clicast.endswith(".exe"):
+        clicast += ".exe"
 
     # Convert paths to absolute and ensure proper formatting
     abs_export_path = str(export_path.resolve())
     abs_csv_path = str(Path(csv_path).resolve())
 
     rgw_prep_commands = [
-        [clicast, '-lc', 'option', 'VCAST_REPOSITORY', abs_export_path],
-        [clicast, '-lc', 'RGw', 'INitialize'],
-        [clicast, '-lc', 'Rgw', 'Set', 'Gateway', 'CSV'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'csv_path', abs_csv_path],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'use_attribute_filter', '0'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute_value'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'id_attribute', 'ID'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'key_attribute', 'Key'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'title_attribute', 'Title'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'description_attribute', 'Description'],
-        [clicast, '-lc', 'RGw', 'Import'],
+        [clicast, "-lc", "option", "VCAST_REPOSITORY", abs_export_path],
+        [clicast, "-lc", "RGw", "INitialize"],
+        [clicast, "-lc", "Rgw", "Set", "Gateway", "CSV"],
+        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "csv_path", abs_csv_path],
+        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "use_attribute_filter", "0"],
+        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "filter_attribute"],
+        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "filter_attribute_value"],
+        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "id_attribute", "ID"],
+        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "key_attribute", "Key"],
+        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "title_attribute", "Title"],
+        [
+            clicast,
+            "-lc",
+            "RGw",
+            "Configure",
+            "Set",
+            "CSV",
+            "description_attribute",
+            "Description",
+        ],
+        [clicast, "-lc", "RGw", "Import"],
     ]
 
     # Change working directory before executing commands
@@ -122,18 +133,28 @@ def execute_rgw_commands(env_path, csv_path, export_repository):
     finally:
         os.chdir(original_dir)
 
+
 def prompt_user_for_info(key):
-    if key == 'OPENAI_API_KEY':
+    if key == "OPENAI_API_KEY":
         return input("Please enter your OpenAI API key: ")
-    elif key == 'OPENAI_GENERATION_DEPLOYMENT':
+    elif key == "OPENAI_GENERATION_DEPLOYMENT":
         return input("Please enter the OpenAI deployment for generation: ")
-    elif key == 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT':
+    elif key == "OPENAI_ADVANCED_GENERATION_DEPLOYMENT":
         return input("Please enter the OpenAI deployment for advanced generation: ")
-    elif key == 'OPENAI_API_BASE':
+    elif key == "OPENAI_API_BASE":
         return input("Please enter the OpenAI API base URL: ")
 
-async def main(env_path, export_csv=None, export_html=None, export_repository=None, json_events=False, combine_related_requirements=False, extended_reasoning=False):
-    log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
+
+async def main(
+    env_path,
+    export_csv=None,
+    export_html=None,
+    export_repository=None,
+    json_events=False,
+    combine_related_requirements=False,
+    extended_reasoning=False,
+):
+    log_level = os.environ.get("LOG_LEVEL", "WARNING").upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level)
 
@@ -142,7 +163,11 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     functions = environment.testable_functions
 
-    generator = RequirementsGenerator(environment, combine_related_requirements=combine_related_requirements, extended_reasoning=extended_reasoning)
+    generator = RequirementsGenerator(
+        environment,
+        combine_related_requirements=combine_related_requirements,
+        extended_reasoning=extended_reasoning,
+    )
 
     context_builder = VcastContextBuilder(environment)
 
@@ -154,26 +179,31 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     async def generate_requirements(func):
         nonlocal processed_functions
-        func_name = func['name']
-        func_file = func['file']
+        func_name = func["name"]
+        func_file = func["file"]
         result = await generator.generate(func_name)
         processed_functions += 1
         progress = processed_functions / total_functions
 
         if json_events:
-            print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
+            print(json.dumps({"event": "progress", "value": progress}), flush=True)
 
         if result:
-            module = os.path.basename(func_file).replace('.cpp', '').replace('.c', '').title()
+            module = (
+                os.path.basename(func_file)
+                .replace(".cpp", "")
+                .replace(".c", "")
+                .title()
+            )
             for i, req in enumerate(result):
-                req_id = f"{func_name}.{i+1}"
+                req_id = f"{func_name}.{i + 1}"
                 requirement = {
-                    'Key': req_id,
-                    'ID': req_id,
-                    'Module': module,
-                    'Title': req,
-                    'Description': req,
-                    'Function': func_name
+                    "Key": req_id,
+                    "ID": req_id,
+                    "Module": module,
+                    "Title": req,
+                    "Description": req,
+                    "Function": func_name,
                 }
                 requirements.append(requirement)
 
@@ -195,31 +225,70 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
     if export_repository:
         execute_rgw_commands(env_path, csv_path, export_repository)
 
-    return generator.llm_client.total_cost['total_cost']
+    return generator.llm_client.total_cost["total_cost"], requirements
+
 
 def cli():
-    parser = argparse.ArgumentParser(description="Decompose design of functions into requirements.")
-    parser.add_argument("env_path", help="Path to the VectorCAST environment directory.")
-    parser.add_argument("--export-csv", help="Path to the output CSV file for requirements.")
-    parser.add_argument("--export-html", help="Optional path to the output HTML file for pretty-printed requirements.")
-    parser.add_argument("--export-repository", help="Path to the VCAST_REPOSITORY for registering requirements.")
-    parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
-    parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
-    parser.add_argument('--combine-related-requirements', action='store_true', help='Combine related requirements into a single requirement after initial generation.')
-    parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning for test generation.')
+    parser = argparse.ArgumentParser(
+        description="Decompose design of functions into requirements."
+    )
+    parser.add_argument(
+        "env_path", help="Path to the VectorCAST environment directory."
+    )
+    parser.add_argument(
+        "--export-csv", help="Path to the output CSV file for requirements."
+    )
+    parser.add_argument(
+        "--export-html",
+        help="Optional path to the output HTML file for pretty-printed requirements.",
+    )
+    parser.add_argument(
+        "--export-repository",
+        help="Path to the VCAST_REPOSITORY for registering requirements.",
+    )
+    parser.add_argument(
+        "--json-events", action="store_true", help="Output events in JSON format."
+    )
+    parser.add_argument(
+        "--overwrite-env",
+        action="store_true",
+        help="Prompt user for environment variables even if they are already set.",
+    )
+    parser.add_argument(
+        "--combine-related-requirements",
+        action="store_true",
+        help="Combine related requirements into a single requirement after initial generation.",
+    )
+    parser.add_argument(
+        "--extended-reasoning",
+        action="store_true",
+        help="Use extended reasoning for test generation.",
+    )
 
     args = parser.parse_args()
 
-    ensure_env(['OPENAI_API_KEY', 'OPENAI_API_BASE', 'OPENAI_GENERATION_DEPLOYMENT', 'OPENAI_ADVANCED_GENERATION_DEPLOYMENT'], fallback=prompt_user_for_info, force_fallback=args.overwrite_env)
+    ensure_env(
+        [
+            "OPENAI_API_KEY",
+            "OPENAI_API_BASE",
+            "OPENAI_GENERATION_DEPLOYMENT",
+            "OPENAI_ADVANCED_GENERATION_DEPLOYMENT",
+        ],
+        fallback=prompt_user_for_info,
+        force_fallback=args.overwrite_env,
+    )
 
-    asyncio.run(main(
-        args.env_path,
-        args.export_csv,
-        args.export_html,
-        args.export_repository,
-        json_events=args.json_events,
-        extended_reasoning=args.extended_reasoning
-    ))
+    asyncio.run(
+        main(
+            args.env_path,
+            args.export_csv,
+            args.export_html,
+            args.export_repository,
+            json_events=args.json_events,
+            extended_reasoning=args.extended_reasoning,
+        )
+    )
+
 
 if __name__ == "__main__":
     cli()

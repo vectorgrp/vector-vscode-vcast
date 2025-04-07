@@ -18,6 +18,7 @@ base_requirements = [
     'seaborn==0.13.2',
     'markdownify==1.1.0',
     'PyYAML==6.0.2',
+    'openpyxl==3.1.5',
 ]
 
 if sys.version_info >= (3, 10):
@@ -33,9 +34,10 @@ setup(
             'reqs2tests = autoreq.reqs2tests:cli',
             'reqs2tests_eval = autoreq.evaluate_reqs2tests:cli',
             'code2reqs_eval = autoreq.evaluate_code2reqs:cli',
-            'manage_env = autoreq.manage_env:cli'
-        ] 
-    }, 
+            'manage_env = autoreq.manage_env:cli',
+            'reqs2excel = autoreq.reqs2excel:cli',
+        ]
+    },
     install_requires=base_requirements,
     include_package_data=True
 )

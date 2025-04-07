@@ -427,6 +427,11 @@ class Environment:
             for subprogram in tested_subprograms
         ]
 
+    @property
+    def module(self) -> str:
+        # TODO this needs to be adapted to support multiple units and return multiple modules
+        return self.units[0]
+
 
     def get_tu_content(self, reduction_level='medium'):
         """Get the content of the translation unit file.

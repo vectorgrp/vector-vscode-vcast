@@ -1,0 +1,347 @@
+import os.path
+import typing as t
+from pathlib import Path
+import json
+
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
+from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.utils import get_column_letter
+
+from .code2reqs import execute_rgw_commands
+from .test_generation.environment import Environment
+from .trace_reqs2code import Reqs2CodeMapper
+import asyncio
+import logging
+
+
+def load_requirements_from_gateway(rgw_path: Path) -> t.List[t.Dict]:
+    requirements_json_path = rgw_path / "requirements.json"
+    assert requirements_json_path.is_file(), (
+        "The requirements gateway does not contain a requirements.json file."
+    )
+    with open(requirements_json_path, "r") as f:
+        data = json.load(f)
+
+    ret = []
+    for group_id, reqs_info in data.items():
+        for req_id, req in reqs_info.items():
+            ret.append(req)
+    return ret
+
+
+def fix_worksheet_cols_width(ws):
+    dims = {}
+    for row in ws.rows:
+        for cell in row:
+            if cell.value:
+                dims[cell.column] = max(
+                    (dims.get(cell.column, 0), len(str(cell.value)))
+                )
+    for col, value in dims.items():
+        ws.column_dimensions[get_column_letter(col)].width = value
+
+
+def requirements_to_xlsx(
+    envs: t.Union[Environment, t.List[Environment]],
+    requirements_info,
+    output_file: t.Union[str, Path],
+    from_rgw: bool = False,
+) -> None:
+    # For now, we assume one requirements gateway/csv file per environment.
+    if not isinstance(envs, list):
+        envs = [envs]
+
+    funcs = {}
+    env_path_to_env = {}
+    for env in envs:
+        env_path_to_env[env.env_file_path] = env
+        for f in env.testable_functions:
+            # TODO right now only one module per environment is supported
+            key = f"{env.env_name}.{env.module.title()}"
+            funcs.setdefault(key, [])
+            funcs[key].append(f["name"])
+
+    logging.info("Automatic matching of requirements to functions in progress...")
+    reqs2code_mapper = Reqs2CodeMapper()
+    reqs2code_mapping = {}
+    real_requirements = {}
+    formatted_requirements = []
+
+    if from_rgw:
+        real_requirements = [req["description"] for req in requirements_info]
+        try:
+            reqs2code_mapping = asyncio.run(
+                reqs2code_mapper.map_reqs_to_code_for_env(
+                    envs[0].env_file_path, real_requirements
+                )
+            )
+            logging.info(
+                "Automatic matching of requirements to functions finished, generating Excel file to be reviewed..."
+            )
+        except Exception as e:
+            logging.error(
+                "Error occurred during automatic matching requirements to functions: %s",
+                str(e),
+            )
+            logging.info(
+                "Generating Excel file with requirements and functions for manual matching and review..."
+            )
+            pass
+
+        format_env_requirements(
+            requirements_info, reqs2code_mapping, formatted_requirements, envs[0]
+        )
+
+    else:
+        real_requirements_per_env = {
+            env_path: [req["description"] for req in reqs_info]
+            for env_path, reqs_info in requirements_info.items()
+        }
+        try:
+            reqs2code_mapping = asyncio.run(
+                reqs2code_mapper.map_reqs_to_code_for_env_list(
+                    real_requirements_per_env
+                )
+            )
+            logging.info(
+                "Automatic matching of requirements to functions finished, generating Excel file to be reviewed..."
+            )
+        except Exception as e:
+            logging.error(
+                "Error occurred during automatic matching requirements to functions: %s",
+                str(e),
+            )
+            logging.info(
+                "Generating Excel file with requirements and functions for manual matching and review..."
+            )
+            pass
+
+        for env_file_path, requirements_info in requirements_info.items():
+            environment: Environment = env_path_to_env[env_file_path]
+            format_env_requirements(
+                requirements_info,
+                reqs2code_mapping[env_file_path],
+                formatted_requirements,
+                environment,
+            )
+
+    workbook = Workbook()
+    main_ws = workbook.active
+    main_ws.title = "Requirements"
+    lists_ws = workbook.create_sheet("Options")
+    lists_ws.sheet_state = "hidden"
+
+    header_font = Font(bold=True)
+    header_fill = PatternFill(fill_type="solid", start_color="C6EFCE")
+    headers = list(formatted_requirements[0].keys())
+    for col, header in enumerate(headers, start=1):
+        cell = main_ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+
+    for row_idx, req in enumerate(formatted_requirements, start=2):
+        for col_idx, header in enumerate(headers, start=1):
+            main_ws.cell(row=row_idx, column=col_idx, value=req[header])
+
+    # In column A, list all modules.
+    modules = list(funcs.keys())
+    for row, module in enumerate(modules, start=1):
+        lists_ws.cell(row=row, column=1, value=module)
+
+    # For each module, write its functions in its own column (starting at column B)
+    # and create a named range using create_named_range().
+    for i, module in enumerate(modules):
+        functions = funcs[module]
+        col = i + 2
+        for row, func in enumerate(functions, start=1):
+            lists_ws.cell(row=row, column=col, value=func)
+        col_letter = get_column_letter(col)
+        end_row = len(functions)
+        range_ref = f"${col_letter}$1:${col_letter}${end_row}"
+        range_name = module.replace(" ", "_").replace("-", "_")
+        workbook.create_named_range(range_name, lists_ws, range_ref)
+
+    num_data_rows = len(formatted_requirements)
+    module_col_index = headers.index("Module") + 1
+    function_col_index = headers.index("Function") + 1
+    module_col_letter = get_column_letter(module_col_index)
+    dv_module = DataValidation(
+        type="list", formula1=f"=Options!$A$1:$A${len(modules)}", allow_blank=True
+    )
+    main_ws.add_data_validation(dv_module)
+    dv_module_range = f"{get_column_letter(module_col_index)}2:{get_column_letter(module_col_index)}{num_data_rows + 1}"
+    dv_module.add(dv_module_range)
+
+    # Use INDIRECT with SUBSTITUTE to reference the named range based on the Module cell.
+    for row in range(2, num_data_rows + 2):
+        module_cell = f"{module_col_letter}{row}"
+        formula = f'=INDIRECT(SUBSTITUTE({module_cell}," ","_"))'
+        dv_func = DataValidation(type="list", formula1=formula, allow_blank=True)
+        main_ws.add_data_validation(dv_func)
+        function_cell = f"{get_column_letter(function_col_index)}{row}"
+        dv_func.add(function_cell)
+
+    fix_worksheet_cols_width(main_ws)
+    workbook.save(output_file)
+
+
+def format_env_requirements(
+    requirements_info,
+    reqs2code_mapping,
+    formatted_requirements: t.List[t.Dict],
+    environment: Environment,
+):
+    # only one module per environment is supported for now
+    related_module_name = f"{environment.env_name}.{environment.module.title()}"
+    for req in requirements_info:
+        req_id = req["id"]
+        related_function_name = ""
+        if reqs2code_mapping:
+            related_function_name = reqs2code_mapping[req["description"]]
+
+        if not related_function_name or (
+            related_function_name
+            not in [func["name"] for func in environment.testable_functions]
+        ):
+            logging.info(
+                "No function found for requirement %s, assigning default function",
+                req["description"],
+            )
+            related_function_name = environment.testable_functions[0]["name"]
+
+        requirement = {
+            "Key": req_id,
+            "ID": req_id,
+            "Title": req["title"],
+            "Description": req["description"],
+            "Module": related_module_name,
+            "Function": related_function_name,
+        }
+        formatted_requirements.append(requirement)
+
+
+def _expand_env_paths(env_dirs) -> t.List[str]:
+    def extract_from_file(file_path: str) -> t.List[Path]:
+        with open(os.path.expandvars(file_path), "r") as f:
+            return [
+                Path(os.path.expandvars(line.strip()))
+                for line in f.readlines()
+                if line.strip()
+            ]
+
+    if isinstance(env_dirs, list):
+        if env_dirs[0].startswith("@"):
+            envs = extract_from_file(env_dirs[0][1:])
+        else:
+            envs = [Path(os.path.expandvars(env_dir)) for env_dir in env_dirs]
+    elif isinstance(env_dirs, str):
+        if env_dirs.startswith("@"):
+            envs = extract_from_file(env_dirs[1:])
+        else:
+            envs = [Path(os.path.expandvars(env_dirs))]
+    elif isinstance(env_dirs, Path):
+        envs = [Path(os.path.expandvars(str(env_dirs)))]
+    else:
+        raise ValueError("Invalid input for environment directories.")
+
+    assert all(env.is_file() and env.suffix == ".env" for env in envs), (
+        "One or more environment paths are not valid .env files."
+    )
+    return [str(env) for env in envs]
+
+
+def main(
+    env_paths,
+    output_file: t.Union[str, Path],
+    requirements_gateway_path: t.Union[str, Path] = None,
+    init_requirements: bool = False,
+    csv_template_path: t.Union[str, Path] = None,
+) -> None:
+    envs = [Environment(env, use_sandbox=False) for env in _expand_env_paths(env_paths)]
+    for env in envs:
+        env.build()
+
+    from_rgw = False
+    if init_requirements:
+        assert csv_template_path, (
+            "The CSV template path is required when initializing requirements."
+        )
+        csv_template_path = Path(os.path.expandvars(csv_template_path))
+        assert csv_template_path.is_file(), "The CSV template file does not exist."
+        requirements = {}
+        for env in envs:
+            rgw_path = Path(env.env_dir) / "requirements_gateway"
+            requirements_json_path = rgw_path / "requirements.json"
+            if not (rgw_path.is_dir() and requirements_json_path.is_file()):
+                execute_rgw_commands(
+                    env.env_file_path, csv_template_path, str(env.env_dir)
+                )
+            requirements[env.env_file_path] = load_requirements_from_gateway(rgw_path)
+    else:
+        assert requirements_gateway_path, (
+            "The requirements gateway path is required when not initializing requirements."
+        )
+        requirements_gateway_path = Path(os.path.expandvars(requirements_gateway_path))
+        assert requirements_gateway_path.is_dir(), (
+            "The requirements gateway directory does not exist."
+        )
+        assert len(envs) == 1, (
+            "Only one environment per requirements gateway is supported for now."
+        )
+        requirements = load_requirements_from_gateway(requirements_gateway_path)
+        from_rgw = True
+
+    requirements_to_xlsx(envs, requirements, output_file, from_rgw)
+    for env in envs:
+        env.cleanup()
+
+
+def cli():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Import requirements and export them to Excel for reviewing requirement<->function links"
+    )
+    parser.add_argument(
+        "envs",
+        nargs="+",
+        help='Paths to VectorCAST environments or path to a file containing environment paths, if preceded by "@".',
+    )
+    parser.add_argument(
+        "--requirements-gateway-path",
+        help="Path to the requirements gateway folder",
+        required=False,
+    )
+    parser.add_argument(
+        "--csv-template",
+        help="Path to the CSV template for requirements.",
+        required=False,
+    )
+    parser.add_argument(
+        "--output-file",
+        help="Path to the output Excel file.",
+        required=False,
+        default="requirements.xlsx",
+    )
+    parser.add_argument(
+        "--init-requirements",
+        action="store_true",
+        help="Initialize requirements from CSV files in the environments.",
+        default=False,
+        required=False,
+    )
+
+    args = parser.parse_args()
+
+    main(
+        args.envs,
+        args.output_file,
+        args.requirements_gateway_path,
+        init_requirements=args.init_requirements,
+        csv_template_path=args.csv_template,
+    )
+
+
+if __name__ == "__main__":
+    cli()
