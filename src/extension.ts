@@ -86,7 +86,7 @@ import {
   addCompilerToProject,
   deleteLevel,
   updateProjectData,
-  buildIncremental,
+  buildExecuteIncremental,
 } from "./vcastAdapter";
 
 import {
@@ -633,9 +633,49 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(updateProjectLevelCommand);
 
+  // // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
+  // let buildIncrementalCommand = vscode.commands.registerCommand(
+  //   "vectorcastTestExplorer.buildIncremental",
+  //   async (enviroNode: any) => {
+  //     const enviroPathList: string[] = [];
+  //     let projectPath = "";
+  //     let displayName = "";
+
+  //     // In case the Node id starts with vcast:, it is an environment node and the id is the build path
+  //     if (enviroNode.id.includes("vcast:")) {
+  //       const enviroPath = enviroNode.id.split("vcast:")[1];
+  //       enviroPathList.push(enviroPath);
+  //       const enviroData = getEnviroNodeData(enviroPath);
+  //       ({ displayName, projectPath } = enviroData);
+  //     } else {
+  //       // Otherwise it's either a project, compiler or testsuite node
+  //       projectPath = enviroNode.id.split(".vcm")[0] + ".vcm";
+  //       const projectData = getLevelFromNodeId(enviroNode.id);
+  //       displayName = projectData.level;
+
+  //       // Collect all relevant environment paths
+  //       for (const [envPath, envValue] of environmentDataCache) {
+  //         // If projectPath == enviroNode.id -> Project Node, otherwise we have to check
+  //         // if the current displayName is part of the envValue.displayName (compiler, testsuite)
+  //         if (
+  //           envValue.projectPath === projectPath &&
+  //           (projectPath === enviroNode.id ||
+  //             envValue.displayName.includes(displayName))
+  //         ) {
+  //           enviroPathList.push(envPath);
+  //         }
+  //       }
+  //     }
+
+  //     await buildIncremental(projectPath, displayName, enviroPathList);
+  //   }
+  // );
+
+  // context.subscriptions.push(buildIncrementalCommand);
+
   // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
-  let buildIncrementalCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.buildIncremental",
+  let buildExecuteIncrementalCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.buildExecuteIncremental",
     async (enviroNode: any) => {
       const enviroPathList: string[] = [];
       let projectPath = "";
@@ -667,11 +707,17 @@ function configureExtension(context: vscode.ExtensionContext) {
         }
       }
 
-      await buildIncremental(projectPath, displayName, enviroPathList);
+      await buildExecuteIncremental(
+        projectPath,
+        displayName,
+        enviroPathList,
+        enviroNode.id
+      );
+      await refreshAllExtensionData();
     }
   );
 
-  context.subscriptions.push(buildIncrementalCommand);
+  context.subscriptions.push(buildExecuteIncrementalCommand);
 
   let openProjectInVectorCAST = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openProjectInVectorCAST",
@@ -856,19 +902,19 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(buildProjectEnviro);
 
-  // Command: vectorcastTestExplorer.deleteTestsuite  ////////////////////////////////////////////////////////
   let deleteTestsuiteCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteTestsuite",
     (node: any) => {
       const nodeParts = node.id.split("/");
       // compiler/testsuite
-      const testsuiteLevel = path.join(
-        nodeParts[nodeParts.length - 2],
-        nodeParts[nodeParts.length - 1]
-      );
-      // We need the extra "/" because we cut it out otherwise, which would lead to an ENOENT error when trying to spawn the process
+      // Can't do path.join because on windows the level would be with the wrong "\"
+      const testsuiteLevel =
+        nodeParts[nodeParts.length - 2] + "/" + nodeParts[nodeParts.length - 1];
+      // Join the path without the testsuite level
+      const joinedPath = path.join(...nodeParts.slice(0, nodeParts.length - 2));
+      // Add a leading slash for non-Windows platforms
       const projectPath =
-        "/" + path.join(...nodeParts.slice(0, nodeParts.length - 2));
+        process.platform === "win32" ? joinedPath : "/" + joinedPath;
       deleteLevel(projectPath, testsuiteLevel);
     }
   );
@@ -886,7 +932,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(deleteCompilerCommand);
 
-  // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
+  // Command: vectorcastTestExplorer.removeTestsuite  ////////////////////////////////////////////////////////
   let removeTestsuite = vscode.commands.registerCommand(
     "vectorcastTestExplorer.removeTestsuite",
     (enviroNode: any) => {
@@ -898,7 +944,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         // If so, we take the id and split it after "vcast:" to get the path
         // In case that is not possible, we throw an error message
         if (vcastUnbuiltEnviroList.includes(enviroNode.id)) {
-          enviroPath = enviroNode.id.split(":")[1];
+          const parts = enviroNode.id.split(":");
+          enviroPath = parts.slice(1).join(":");
         } else {
           vscode.window.showErrorMessage(
             `Unable to determine environment path from node: ${enviroNode.id}`
@@ -934,6 +981,30 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(deleteEnviro);
+
+  // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
+  let cleanEnviro = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.cleanEnviro",
+    (enviroNode: any) => {
+      // this returns the full path to the environment directory
+      const enviroPath = getEnviroPathFromID(enviroNode.id);
+
+      // always ask for confirmation before deleting an environment
+      const message =
+        "Environment: " +
+        enviroPath +
+        " will be deleted, and this action cannot be undone.";
+      vscode.window
+        .showInformationMessage(message, "Delete", "Cancel")
+        .then((answer) => {
+          if (answer === "Delete") {
+            // execute a clicast call to delete the test
+            deleteEnvironment(enviroPath, enviroNode.id);
+          }
+        });
+    }
+  );
+  context.subscriptions.push(cleanEnviro);
 
   // Command: vectorcastTestExplorer.setDefaultConfigFile////////////////////////////////////////////////////////
   let selectDefaultConfigFile = vscode.commands.registerCommand(
@@ -994,6 +1065,12 @@ function configureExtension(context: vscode.ExtensionContext) {
       // changing the file will invalidate the
       // coverage and editor annotations
       if (editor) {
+        // Check if file ends with .tst and has "build" in its path
+        // We want to load the test script automatically when the user saves
+        const filePath = editor.uri.fsPath;
+        if (filePath.endsWith(".tst") && alreadyConfigured) {
+          loadTestScript();
+        }
         await updateCodedTestCases(editor);
         updateCOVdecorations();
         updateTestDecorator();

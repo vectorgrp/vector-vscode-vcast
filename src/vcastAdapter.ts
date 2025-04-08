@@ -46,6 +46,7 @@ import {
 
 import {
   checkIfEnvironmentIsBuildMultipleTimes,
+  closeAnyOpenErrorFiles,
   deleteOtherBuildFolders,
   envIsEmbeddedInProject,
   getClientRequestObject,
@@ -62,10 +63,14 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import {
+  globalController,
   globalProjectDataCache,
   refreshAllExtensionData,
   removeNodeFromTestPane,
+  runTests,
 } from "./testPane";
+import { normalizePath } from "./utilities";
+import { viewResultsReportVC } from "./reporting";
 
 const path = require("path");
 
@@ -101,10 +106,11 @@ export function buildProjectEnvironment(
   );
 }
 
-export async function buildIncremental(
+export async function buildExecuteIncremental(
   projectPath: string,
   level: string,
-  enviroPathList: string[]
+  enviroPathList: string[],
+  nodeId: string
 ) {
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
@@ -125,6 +131,53 @@ export async function buildIncremental(
     buildEnvironmentIncrementalCallback,
     enviroPathList
   );
+
+  await closeAnyOpenErrorFiles();
+
+  // The build-execute command only provides an HTML report indicating whether the build was necessary.
+  // However, it does not include test results, which we need to refresh on the extension side.
+  // To ensure test results are updated, we rerun the tests here.
+  // It's crucial to call runTests so that results are logged and test icons in the testing pane are refreshed.
+  const testItem = findTestItemInController(nodeId);
+  if (testItem) {
+    const request = new vscode.TestRunRequest([testItem]);
+    await runTests(request, new vscode.CancellationTokenSource().token);
+  } else {
+    vectorMessage(`TestItem for ${nodeId} not found`);
+  }
+
+  // Show the HTML Report
+  const htmlFileName =
+    projectName.split(".")[0] + "_manage_incremental_rebuild_report.html";
+  const htmlFilePath = normalizePath(path.join(projectLocation, htmlFileName));
+  viewResultsReportVC(htmlFilePath);
+}
+
+export async function buildIncremental(
+  projectPath: string,
+  level: string,
+  enviroPathList: string[]
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [`-p${projectName}`, "--build", "--incremental"];
+
+  if (level != "") {
+    manageArgs.push(`--level=${level}`);
+  }
+
+  const progressMessage = `Building Level: ${level} ...`;
+
+  openMessagePane();
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    progressMessage,
+    buildEnvironmentIncrementalCallback,
+    enviroPathList
+  );
+  await refreshAllExtensionData();
 }
 
 // ------------------------------------------------------------------------------------
@@ -533,18 +586,18 @@ export async function updateProjectData(
 ) {
   // Only update if the current env is embedded in a project and the setting is enabled
   // or we force the update by actively clicking on the Update Project Button
+  const normalizedEnviroPath = normalizePath(enviroPath);
   const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   const autoUpdateEnabled = config.get<boolean>(
     "automaticallyUpdateManageProject",
     true
   );
-  const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+  const enviroData: environmentNodeDataType =
+    getEnviroNodeData(normalizedEnviroPath);
+  const envIsInProject: boolean = envIsEmbeddedInProject(normalizedEnviroPath);
 
-  if (
-    envIsEmbeddedInProject(enviroPath) &&
-    (autoUpdateEnabled || forceUpdate)
-  ) {
-    const enviroName = path.basename(enviroPath);
+  if (envIsInProject && (autoUpdateEnabled || forceUpdate)) {
+    const enviroName = path.basename(normalizedEnviroPath);
     const blockUpdate =
       await checkIfEnvironmentIsBuildMultipleTimes(enviroName);
     if (blockUpdate) {
@@ -557,7 +610,7 @@ export async function updateProjectData(
 
       if (selection === "Delete other Builds") {
         // Delete the build folders of the other builds.
-        await deleteOtherBuildFolders(enviroPath);
+        await deleteOtherBuildFolders(normalizedEnviroPath);
         // After deletion, update the project data.
         const projectFilePath: string = enviroData.projectPath;
         const projectName: string = path.basename(projectFilePath);
@@ -582,7 +635,8 @@ export async function updateProjectData(
         return;
       }
     } else {
-      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      const enviroData: environmentNodeDataType =
+        getEnviroNodeData(normalizedEnviroPath);
       const projectFilePath: string = enviroData.projectPath;
       const projectName: string = path.basename(projectFilePath);
       const projectLocation: string = path.dirname(projectFilePath);
@@ -1356,4 +1410,34 @@ export async function rebuildEnvironmentUsingServer(
 
   // call the callback to update the test explorer pane
   rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
+}
+
+// Recursive helper that searches a test item and its children for a given id.
+function findTestItemRecursively(
+  item: vscode.TestItem,
+  targetId: string
+): vscode.TestItem | undefined {
+  if (item.id === targetId) {
+    return item;
+  }
+  let found: vscode.TestItem | undefined;
+  item.children.forEach((child) => {
+    if (!found) {
+      found = findTestItemRecursively(child, targetId);
+    }
+  });
+  return found;
+}
+
+// Searches the entire globalController for a test item with the specified id.
+function findTestItemInController(
+  targetId: string
+): vscode.TestItem | undefined {
+  let found: vscode.TestItem | undefined;
+  globalController.items.forEach((item) => {
+    if (!found) {
+      found = findTestItemRecursively(item, targetId);
+    }
+  });
+  return found;
 }

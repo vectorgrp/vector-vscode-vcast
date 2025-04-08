@@ -237,6 +237,19 @@ export function forceLowerCaseDriveLetter(path?: string): string {
   } else return "";
 }
 
+export function forceUpperCaseDriveLetter(path?: string): string {
+  if (path) {
+    const platform = os.platform();
+    if (platform === "win32") {
+      if (path.charAt(1) === ":") {
+        const driveLetter = path.charAt(0).toUpperCase();
+        return driveLetter + path.slice(1);
+      }
+    }
+    return path;
+  } else return "";
+}
+
 export function normalizePath(path: string): string {
   // This function is used to fix the drive letter AS WELL AS
   // replace any backslashes with forward slashes

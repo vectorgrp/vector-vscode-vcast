@@ -30,6 +30,10 @@ import {
 } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../src-common/vcastServer";
 
 const fs = require("fs");
 const path = require("path");
@@ -85,7 +89,6 @@ export async function buildEnvironmentIncrementalCallback(
       }
     }
   }
-  await refreshAllExtensionData();
 }
 
 export async function buildEnvironmentCallback(
@@ -153,7 +156,8 @@ export async function deleteEnvironmentCallback(
       // If so, we take the id and split it after "vcast:" to get the path
       // In case that is not possible, we throw an error message
       if (vcastUnbuiltEnviroList.includes(enviroNodeID)) {
-        enviroPath = enviroNodeID.split(":")[1];
+        const parts = enviroNodeID.split(":");
+        enviroPath = parts.slice(1).join(":");
       } else {
         vscode.window.showErrorMessage(
           `Unable to determine environment path from node: ${enviroNodeID}`
@@ -190,8 +194,10 @@ export async function loadScriptCallBack(
     await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
-    updateTestPane(enviroPath);
+    await refreshAllExtensionData();
+    if (globalEnviroDataServerActive) await closeConnection(enviroPath);
     fs.unlinkSync(scriptPath);
   } else {
     vscode.window.showInformationMessage(

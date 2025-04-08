@@ -45,7 +45,7 @@ export interface testNodeType {
 }
 // this is a lookup table for the nodes in the test tree
 // the key is the nodeID, the data is an testNodeType
-let testNodeCache = new Map();
+export let testNodeCache = new Map();
 
 // This function is used to create the top-level environment
 // node in the cache, all the other nodes will inherit from
