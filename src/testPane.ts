@@ -1433,7 +1433,9 @@ export async function loadTestScript() {
 
     if (enviroName && !isTheEnvTestScript) {
       adjustScriptContentsBeforeLoad(scriptPath);
-      const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+      const enviroPath = normalizePath(
+        path.join(path.dirname(scriptPath), enviroName)
+      );
 
       if (!(await checkIfTestExists(enviroPath, scriptPath))) {
         return;
