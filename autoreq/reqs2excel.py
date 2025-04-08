@@ -110,11 +110,11 @@ def requirements_to_xlsx(
                 environment,
             )
 
-        save_requirements_to_excel(
-            formatted_requirements,
-            envs,
-            output_file,
-        )
+    save_requirements_to_excel(
+        formatted_requirements,
+        envs,
+        output_file,
+    )
 
 
 
