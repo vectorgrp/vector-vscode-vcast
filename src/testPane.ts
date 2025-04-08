@@ -1426,7 +1426,12 @@ export async function loadTestScript() {
     // we use the test script contents to determine the environment name
     const enviroName = getEnviroNameFromScript(scriptPath);
 
-    if (enviroName) {
+    // We need to check if it's the env test script in case we clicked on
+    // "Edit Test script". We don't want to load it then.
+    const possibleEnviroTstName = enviroName + ".tst";
+    const isTheEnvTestScript = scriptPath.endsWith(possibleEnviroTstName);
+
+    if (enviroName && !isTheEnvTestScript) {
       adjustScriptContentsBeforeLoad(scriptPath);
       const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
@@ -1442,7 +1447,8 @@ export async function loadTestScript() {
       updateTestPane(enviroPath);
       if (globalEnviroDataServerActive) await closeConnection(enviroPath);
       fs.unlinkSync(scriptPath);
-    } else {
+    } else if (!isTheEnvTestScript) {
+      // Only show the messagt when it's NOT the whole ENV.tst
       vscode.window.showErrorMessage(
         `Could not determine environment name, required "-- Environment: <enviro-name> comment line is missing.`
       );
