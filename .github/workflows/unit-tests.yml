@@ -1,0 +1,80 @@
+name: Reqs2tests unit tests
+run-name: ${{ github.ref_name }} is unit-testing reqs2tests
+on:
+  workflow_dispatch:
+env:
+  NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+  REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+  VCAST_USER_HOME: /home/vcast_user
+jobs:
+  reqs2tests_unit_tests:
+    permissions: write-all
+    runs-on: [self-hosted, reqs2tests, Linux]
+    env:
+      VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION }}
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      REQ2TESTS_MODEL: "gpt-4o-azure"
+      REQ2TESTS_REASONING_MODEL: "gpt-o3mini-azure"
+      REQ2TESTS_MODELS_PATH: /llm_configs
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast --mount type=bind,source=${{ vars.LLM_CONFIGS_PATH }},target=/llm_configs
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-pytest
+
+      - name: Setup Python virtual environment
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        run: |
+          python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pip install --no-cache --upgrade pip
+          pip install --no-cache -e .[dev]
+          deactivate
+        shell: bash
+
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-pytest
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pytest --junitxml=./test-results.xml
+          deactivate
+
+      - name: Results summary
+        if: always()
+        uses: pmeier/pytest-results-action@main
+        with:
+          path: test-results.xml
+          summary: true
+          fail-on-empty: true
+          title: Unit test results

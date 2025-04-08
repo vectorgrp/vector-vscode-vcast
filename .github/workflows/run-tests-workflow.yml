@@ -66,7 +66,7 @@ jobs:
           python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
           source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
           pip install --no-cache --upgrade pip
-          pip install --no-cache --editable .
+          pip install --no-cache -e .[dev]
           deactivate
         shell: bash
 
