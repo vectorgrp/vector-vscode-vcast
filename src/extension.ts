@@ -1068,10 +1068,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         // Check if file ends with .tst and has "build" in its path
         // We want to load the test script automatically when the user saves
         const filePath = editor.uri.fsPath;
-        if (
-          filePath.endsWith(".tst") &&
-          filePath.includes(`${path.sep}build${path.sep}`)
-        ) {
+        if (filePath.endsWith(".tst") && alreadyConfigured) {
           loadTestScript();
         }
         await updateCodedTestCases(editor);

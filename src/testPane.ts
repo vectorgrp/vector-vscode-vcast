@@ -40,6 +40,7 @@ import {
   getUnitNameFromID,
   saveEnviroNodeData,
   testNodeType,
+  testNodeCache,
 } from "./testData";
 
 import {
@@ -1373,6 +1374,9 @@ export async function deleteTests(nodeList: any[]) {
 
     if (commandStatus.errorCode == 0) {
       changedEnvironmentIDList.add(getEnviroNodeIDFromID(node.id));
+      // Delete the test node from cache, because otherwise the tests are deleted and
+      // if trying to load the same test name again, it will say "it already exists".
+      testNodeCache.delete(node.id);
     } else {
       vectorMessage("Error deleting test\n");
       openMessagePane();
@@ -1426,6 +1430,10 @@ export async function loadTestScript() {
       adjustScriptContentsBeforeLoad(scriptPath);
       const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
+      if (!(await checkIfTestExists(enviroPath, scriptPath))) {
+        return;
+      }
+
       // call clicast to load the test script
       await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
@@ -1440,6 +1448,43 @@ export async function loadTestScript() {
       );
     }
   }
+}
+
+async function checkIfTestExists(
+  enviroPath: string,
+  scriptPath: string
+): Promise<boolean> {
+  const scriptContent = fs.readFileSync(scriptPath, "utf8");
+
+  const testNameMatch = scriptContent.match(/^TEST\.NAME:(.*)$/m);
+  const unitNameMatch = scriptContent.match(/^TEST\.UNIT:(.*)$/m);
+  const subprogramNameMatch = scriptContent.match(/^TEST\.SUBPROGRAM:(.*)$/m);
+
+  if (!testNameMatch || !unitNameMatch || !subprogramNameMatch) {
+    vscode.window.showErrorMessage(
+      "Failed to find TEST.NAME, TEST.UNIT, or TEST.SUBPROGRAM in script."
+    );
+    return false;
+  }
+
+  const testName = testNameMatch[1].trim();
+  const unitName = unitNameMatch[1].trim();
+  const subprogramName = subprogramNameMatch[1].trim();
+
+  const fullTestName = `vcast:${enviroPath}|${unitName}.${subprogramName}.${testName}`;
+
+  for (const key of testNodeCache.keys()) {
+    if (key === fullTestName) {
+      const answer = await vscode.window.showInformationMessage(
+        `Test "${testName}" already exists. Loading will create a duplicate with an incremental number. Do you want to proceed?`,
+        "Yes",
+        "No"
+      );
+      return answer === "Yes";
+    }
+  }
+
+  return true; // Test doesn't exist, safe to proceed
 }
 
 export async function refreshAllExtensionData() {
