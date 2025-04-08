@@ -1817,7 +1817,7 @@ async function installPreActivationEventHandlers(
         <!-- OK/Cancel Buttons -->
         <div class="button-container">
           <button class="primary-button" onclick="cancel()">Cancel</button>
-          <button class="primary-button" onclick="submitForm()">OK</button>
+          <button aria-label="importOk" class="primary-button" onclick="submitForm()">OK</button>
         </div>
       </div>
       

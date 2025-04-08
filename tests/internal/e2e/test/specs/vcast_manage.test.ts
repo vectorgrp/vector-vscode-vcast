@@ -14,9 +14,11 @@ import {
   getViewContent,
   executeContextMenuAction,
   insertStringToInput,
+  clickButtonBasedOnAriaLabel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
+import path from "node:path";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
@@ -232,6 +234,15 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing adding an existing env on the project node", async () => {
     await updateTestID();
+    const initialWorkdir = process.env.INIT_CWD;
+    const testInputManage = path.join(
+      initialWorkdir,
+      "test",
+      "manage",
+      "free_environments",
+      "FREE-BAR.env"
+    );
+
     await executeContextMenuAction(
       0,
       "Test.vcm",
@@ -239,9 +250,23 @@ describe("vTypeCheck VS Code Extension", () => {
       "Add existing Environment to Project"
     );
     await insertStringToInput(
-      "path/to/ligma",
+      testInputManage,
       "envFileInput",
       "Add Environment To Project"
+    );
+
+    const button = await $(`aria/OK`);
+    await button.click();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(
+            "manage: '-pTest.vcm --level=GNU_Native_Automatic_C++/BlackBox --import"
+          ),
+      { timeout: TIMEOUT }
     );
   });
 });
