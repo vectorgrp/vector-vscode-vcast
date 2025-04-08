@@ -70,6 +70,17 @@ jobs:
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
+      - name: Pull latest reqs2tests release
+        shell: bash
+        run: |
+          python3 ./ci/get_most_recent_reqs2tests_distribution.py
+          if [ ! -f "autoreq-linux.tar.gz" ]; then
+            echo "Error: autoreq-linux.tar.gz not found."
+            exit 1
+          fi
+          tar -xf autoreq-linux.tar.gz
+          mv distribution ./resources/distribution
+
       - name: Package with VSCE
         run: npm run package
 
