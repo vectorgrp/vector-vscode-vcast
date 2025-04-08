@@ -11,6 +11,7 @@ import {
   ContentAssist,
   ContentAssistItem,
   BottomBarPanel,
+  WebView,
 } from "wdio-vscode-service";
 // import * as vscode from "vscode";
 import * as fs from "fs";
@@ -1390,4 +1391,145 @@ export async function checkElementExistsInHTML(searchString: string) {
       `Element with ARIA label "${searchString}" does not exist or timed out.`
     );
   }
+}
+
+/**
+ * Executes a context menu action on a tree node.
+ *
+ * @param level - The level of the node (e.g. 0 for project, 1 for compiler, etc.).
+ * @param nodeName - The text label of the node to target.
+ * @param vectorCASTSubMenu - If true, opens the "VectorCAST" submenu before selecting the item.
+ * @param contextMenuItemName - The name of the context menu item to click.
+ */
+export async function executeContextMenuAction(
+  level: number,
+  nodeName: string,
+  vectorCASTSubMenu: boolean,
+  contextMenuItemName: string
+): Promise<void> {
+  // Find the target tree node.
+  const targetNode = await findTreeNodeAtLevel(level, nodeName);
+  if (!targetNode) {
+    throw new Error(`Node "${nodeName}" not found at level ${level}`);
+  }
+
+  // Right-click on the target node by opening its context menu.
+  const contextMenu = await targetNode.openContextMenu();
+
+  if (vectorCASTSubMenu) {
+    // First, select the "VectorCAST" submenu.
+    await contextMenu.select("VectorCAST");
+  }
+  const menuElement = await $(`aria/${contextMenuItemName}`);
+  await menuElement.click();
+}
+
+/**
+ * Recursively finds a tree node at the given level with the provided text label.
+ *
+ * @param level - The depth level (0 = first level under "Test Explorer").
+ * @param nodeName - The text label to match.
+ * @param nodes - (Optional) The nodes to search; if not provided, search starts from the "Test Explorer" section.
+ * @returns The matching tree node, or undefined if not found.
+ */
+async function findTreeNodeAtLevel(
+  level: number,
+  nodeName: string,
+  nodes?: any[]
+): Promise<any | undefined> {
+  // If no nodes are provided, start at the "Test Explorer" section.
+  if (!nodes) {
+    const viewContent = await getViewContent("Testing");
+    const sections = await viewContent.getSections();
+    // Assume the top-level section is "Test Explorer"
+    const testExplorerSection = sections.find(
+      async (section) => (await section.getTitle()).trim() === "Test Explorer"
+    );
+    if (!testExplorerSection) {
+      throw new Error("Test Explorer section not found");
+    }
+    // For ViewSection, use getVisibleItems() to obtain its children.
+    nodes = await testExplorerSection.getVisibleItems();
+  }
+
+  // If level is zero, check among these nodes.
+  if (level === 0) {
+    for (const node of nodes) {
+      const text = (await node.elem.getText()).trim();
+      if (text === nodeName) {
+        return node;
+      }
+    }
+    return undefined;
+  }
+
+  // Otherwise, iterate through nodes: expand each, then search its children.
+  for (const node of nodes) {
+    if (!(await node.isExpanded())) {
+      await node.expand();
+    }
+    const children = await node.getChildren();
+    const found = await findTreeNodeAtLevel(level - 1, nodeName, children);
+    if (found) {
+      return found;
+    }
+  }
+  return undefined;
+}
+
+export async function insertStringToInput(
+  stringToInsert: string,
+  divName: string,
+  webviewTitle: string
+) {
+  // Get the workbench and open the webview
+  const workbench = await browser.getWorkbench();
+  const editorView = workbench.getEditorView();
+
+  // Retrieve all webviews and check the number of webviews open
+  const webviews = await workbench.getAllWebviews();
+  expect(webviews).toHaveLength(1); // Assumes only one webview is open
+  const webview = webviews[0];
+
+  // Open the webview
+  await webview.open();
+
+  // Wait for the input element to be available by its ARIA label
+  const inputElement = await $(`aria/${divName}`);
+
+  // Check if the element exists before proceeding
+  if (!inputElement) {
+    console.error(`Input element with ARIA label '${divName}' not found.`);
+    return;
+  }
+
+  // Insert the string into the input element
+  await inputElement.setValue(stringToInsert);
+  console.log(
+    `Inserted "${stringToInsert}" into input with ARIA label "${divName}".`
+  );
+}
+
+export async function clickButtonBasedOnAriaLabel(ariaLabel: string) {
+  // Get the workbench and open the webview
+  const workbench = await browser.getWorkbench();
+
+  // Retrieve all webviews and check the number of webviews open
+  const webviews = await workbench.getAllWebviews();
+  expect(webviews).toHaveLength(1); // Assumes only one webview is open
+  const webview = webviews[0];
+
+  // Open the webview
+  await webview.open();
+
+  // Wait for the input element to be available by its ARIA label
+  const button = await $(`aria/${ariaLabel}`);
+
+  // Check if the element exists before proceeding
+  if (!button) {
+    console.error(`Input element with ARIA label '${ariaLabel}' not found.`);
+    return;
+  }
+
+  await button.click();
 }
