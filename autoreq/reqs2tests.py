@@ -29,6 +29,7 @@ async def main():
     parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
     parser.add_argument('--no-decomposition', action='store_true', help='Do not decompose requirements before generating tests.')
     parser.add_argument('--no-automatic-build', action='store_true', help='If the environment is not built, do not build it automatically.')
+    parser.add_argument('--no-requirement-keys', action='store_true', help='Do not use requirement keys for test generation. Store a reference to the requirement in the notes instead')
     args = parser.parse_args()
 
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
@@ -111,14 +112,14 @@ async def main():
             batch_size=args.batch_size
         ):
             if test_case:
-                logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast())
+                logging.info("VectorCAST Test Case:\n%s", test_case.to_vectorcast(use_requirement_key=not args.no_requirement_keys))
 
                 # Map back to original requirement ID
                 if not args.no_decomposition:
                     original_req_id = rm.get_original_requirement_id(test_case.requirement_id)
                     test_case.requirement_id = original_req_id
                 
-                vectorcast_test_cases.append(test_case.to_vectorcast())
+                vectorcast_test_cases.append(test_case.to_vectorcast(use_requirement_key=not args.no_requirement_keys))
             
             pbar.update(1)
             if args.json_events:

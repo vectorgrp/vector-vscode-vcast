@@ -100,16 +100,22 @@ def _derive_test_case_schema(allowed_identifiers=None):
                 expected_values=self.expected_values
             )
 
-        def to_vectorcast(self, is_compound=False) -> str:
+        def to_vectorcast(self, use_requirement_key=True) -> str:
             test_case_str = f"TEST.UNIT:{self.unit_name}\n"
             test_case_str += f"TEST.SUBPROGRAM:{self.subprogram_name}\n"
             test_case_str += "TEST.NEW\n"
-            test_case_str += f"TEST.NAME:{('compound' if is_compound else '') + self.test_name + '-REVIEW-NEEDED'}\n"
 
-            test_case_str += f"TEST.REQUIREMENT_KEY:{self.requirement_id}\n"
+            test_case_str += f"TEST.NAME:{self.test_name}-REVIEW-NEEDED\n"
+
+            if use_requirement_key:
+                test_case_str += f"TEST.REQUIREMENT_KEY:{self.requirement_id}\n"
 
             test_case_str += "TEST.NOTES:\n"
             test_case_str += "WARNING: This is an automatically generated test case. Please review it carefully.\n\n"
+
+            if not use_requirement_key:
+                test_case_str += f"Tested Requirement ID: {self.requirement_id}\n\n"
+                
             for line in self.test_description.split('\n'):
                 test_case_str += f"{line}\n"
             test_case_str += "TEST.END_NOTES:\n"
