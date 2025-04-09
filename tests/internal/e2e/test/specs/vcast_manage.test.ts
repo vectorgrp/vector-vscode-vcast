@@ -1,5 +1,6 @@
 // Test/specs/vcast.test.ts
 import {
+  EditorView,
   TreeItem,
   type BottomBarPanel,
   type Workbench,
@@ -15,6 +16,10 @@ import {
   executeContextMenuAction,
   insertStringToInput,
   clickButtonBasedOnAriaLabel,
+  checkElementExistsInHTML,
+  getNodeText,
+  getTexts,
+  findTreeNodeAtLevel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -23,11 +28,13 @@ import path from "node:path";
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
+  let editorView: EditorView;
   let useDataServer: boolean = true;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
+    editorView = workbench.getEditorView();
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
     let releaseIsSuitableForServer = await checkForServerRunnability();
@@ -73,11 +80,11 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
-    await browser.waitUntil(async () =>
-      (await outputView.getChannelNames())
-        .toString()
-        .includes("VectorCAST Test Explorer")
-    );
+    // await browser.waitUntil(async () =>
+    //   (await outputView.getChannelNames())
+    //     .toString()
+    //     .includes("VectorCAST Test Explorer")
+    // );
     await outputView.selectChannel("VectorCAST Test Explorer");
     console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
@@ -159,30 +166,6 @@ describe("vTypeCheck VS Code Extension", () => {
       await testVcmNode.expand();
     }
 
-    // Helper: retrieve node text (from CustomTreeItem or ViewSection).
-    async function getNodeText(node: any): Promise<string> {
-      if (
-        "elem" in node &&
-        node.elem &&
-        typeof node.elem.getText === "function"
-      ) {
-        return (await node.elem.getText()).trim();
-      }
-      if (typeof node.getTitle === "function") {
-        return (await node.getTitle()).trim();
-      }
-      throw new Error("Unknown node type");
-    }
-
-    // Helper: retrieve texts from an array of nodes.
-    async function getTexts(nodes: any[]): Promise<string[]> {
-      const texts: string[] = [];
-      for (const node of nodes) {
-        texts.push(await getNodeText(node));
-      }
-      return texts;
-    }
-
     // Level 0: Under Test.vcm, we expect one node: "GNU_Native_Automatic_C++"
     const level0Nodes = await testVcmNode.getChildren();
     const level0Texts = (await getTexts(level0Nodes)).filter(
@@ -234,6 +217,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing adding an existing env on the project node", async () => {
     await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
     const initialWorkdir = process.env.INIT_CWD;
     const testInputManage = path.join(
       initialWorkdir,
@@ -242,23 +228,20 @@ describe("vTypeCheck VS Code Extension", () => {
       "free_environments",
       "FREE-BAR.env"
     );
-
+    console.log("Trying to execute: Add existing Environment to Project ");
     await executeContextMenuAction(
       0,
       "Test.vcm",
       true,
       "Add existing Environment to Project"
     );
-    await insertStringToInput(
-      testInputManage,
-      "envFileInput",
-      "Add Environment To Project"
-    );
+    console.log("Insert the path to the env file");
+    await insertStringToInput(testInputManage, "envFileInput");
 
     const button = await $(`aria/OK`);
     await button.click();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
+
+    console.log("Checking for Output logs");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
@@ -268,5 +251,367 @@ describe("vTypeCheck VS Code Extension", () => {
           ),
       { timeout: TIMEOUT }
     );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes("Processing project:"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if node is in Tree");
+    const envNode = findTreeNodeAtLevel(3, "FREE-BAR");
+    expect(envNode).toBeDefined();
+  });
+
+  it("testing creating compiler from CFG file", async () => {
+    // Toggle the bottom bar and open the output view.
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    // Define the test file path.
+    const initialWorkdir = process.env.INIT_CWD;
+    const testInputConfig = path.join(
+      initialWorkdir!,
+      "test",
+      "manage",
+      "free_environments",
+      "CCAST_.CFG"
+    );
+
+    await updateTestID();
+
+    // Execute the context menu action which triggers the command.
+    await executeContextMenuAction(
+      0,
+      "Test.vcm",
+      true,
+      "Create Compiler from CFG"
+    );
+
+    const button3 = await $(`aria/CCAST_.CFG`);
+    await button3.click();
+
+    // Wait until the output view reflects that the command returned exit code 0.
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("returned exit code: 0"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node is in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(
+      1,
+      "Compiler_Template_Not_Used"
+    );
+    expect(testsuiteNode).toBeDefined();
+  });
+
+  it("testing deleting compiler from project", async () => {
+    // Toggle the bottom bar and open the output view.
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    await updateTestID();
+
+    // Execute the context menu action which triggers the command.
+    await executeContextMenuAction(
+      1,
+      "Compiler_Template_Not_Used",
+      true,
+      "Delete Compiler"
+    );
+
+    // Wait until the output view reflects that the command returned exit code 0.
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("returned exit code: 0"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes("Processing project:"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node is in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(
+      1,
+      "Compiler_Template_Not_Used"
+    );
+    expect(testsuiteNode).toBeUndefined();
+  });
+
+  it("testing Build/Execute Incremental", async () => {
+    await updateTestID();
+    const initialWorkdir = process.env.INIT_CWD;
+    await executeContextMenuAction(
+      0,
+      "Test.vcm",
+      true,
+      "Build/Execute Incremental"
+    );
+    console.log("Checking for Output logs");
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Creating Environment "BAR"`),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Creating Environment "FOO"`),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Creating Environment "QUACK"`),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT }
+    );
+    console.log("Checking for Report");
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    const webview = webviews[0];
+
+    await webview.open();
+
+    await expect(
+      await checkElementExistsInHTML("Manage Incremental Rebuild Report")
+    ).toBe(true);
+    await webview.close();
+    await editorView.closeEditor("VectorCAST Report", 1);
+  });
+
+  it("testing creating a Testsuite", async () => {
+    await updateTestID();
+    const initialWorkdir = process.env.INIT_CWD;
+    await executeContextMenuAction(
+      0,
+      "GNU_Native_Automatic_C++",
+      true,
+      "Add Testsuite to Compiler"
+    );
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await insertStringToInput("GreyBox", "testSuiteInput");
+
+    const button = await $(`aria/OK`);
+    await button.click();
+
+    console.log("Checking for Output logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--testsuite=GreyBox --create --force"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes("Processing project:"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Testsuite node is in tree");
+    const testsuiteNode = findTreeNodeAtLevel(2, "GreyBox");
+    expect(testsuiteNode).toBeDefined();
+    // Check for VSCODE info message?
+  });
+
+  it("testing deleting a Testsuite", async () => {
+    await updateTestID();
+    await executeContextMenuAction(1, "GreyBox", true, "Delete Testsuite");
+    console.log("Checking for Output logs");
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("DELETE TESTSUITE GreyBox"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes("Processing project:"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Testsuite node is not in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
+    expect(testsuiteNode).toBeUndefined();
+    // Check for VSCODE info message?
+  });
+
+  it("testing deleting a project Environment", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    await executeContextMenuAction(2, "BAR", true, "Clean Environment");
+
+    const notifications = await $("aria/Notifications");
+    await notifications.click();
+
+    const vcastNotificationSourceElement = await $(
+      "aria/VectorCAST Test Explorer (Extension)"
+    );
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
+    await (await vcastNotification.$("aria/Delete")).click();
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("clicast: '-eBAR enviro delete' returned exit code: 0"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node is in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
+    expect(testsuiteNode).toBeDefined();
+    // Check for VSCODE info message?
+  });
+
+  it("testing building a single project environment", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    await executeContextMenuAction(2, "BAR", true, "Build Project Environment");
+
+    console.log("Checking for Output logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Creating Environment "BAR"`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes(`Processing project:`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node is in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
+    expect(testsuiteNode).toBeDefined();
+    // Check for VSCODE info message?
+  });
+
+  it("testing remove environment from testsuite", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    await executeContextMenuAction(
+      2,
+      "FREE-BAR",
+      true,
+      "Remove Environment from Testsuite"
+    );
+
+    console.log("Checking for Output logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(
+            `manage: '-pTest.vcm --level=GNU_Native_Automatic_C++/BlackBox --remove FREE-BAR --force' returned exit code: 0`
+          ),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node is not in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "FREE-ENV");
+    expect(testsuiteNode).toBeUndefined();
+    // Check for VSCODE info message?
+  });
+
+  it("testing creating an Env from Source Files", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+    const cppFolder = workspaceFolderSection.findItem("tutorial");
+    await (await cppFolder).select();
+
+    console.log("Selecting database.cpp & manager.cpp");
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
+    await executeCtrlClickOn(databaseCpp);
+    await executeCtrlClickOn(managerCpp);
+    await releaseCtrl();
+
+    console.log("Executing: Create VectorCAST Environment in Project");
+    await databaseCpp.openContextMenu();
+    await (await $("aria/Create VectorCAST Environment in Project")).click();
+
+    // Retrieve all webviews and check the number of webviews open
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1); // Assumes only one webview is open
+    const webview = webviews[0];
+
+    // Open the webview
+    await webview.open();
+
+    const button = await $(`aria/importOk`);
+    await button.click();
+
+    console.log("Checking for Output logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Creating environment 'DATABASE-MANAGER for 2 file(s) ...`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes(`Processing project:`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node is not in Tree");
+    const TestingView = await activityBar.getViewControl("Testing");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+    expect(testsuiteNode).toBeDefined();
   });
 });

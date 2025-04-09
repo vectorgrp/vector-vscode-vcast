@@ -699,6 +699,43 @@ ENVIRO.END
      * @returns {Promise<void>} - A promise that resolves when all directory operations are complete.
      */
     async function setupTestEnvironment(initialWorkdir: string): Promise<void> {
+      const logDir = path.join(initialWorkdir, "test", "log");
+      const testInputManage = path.join(initialWorkdir, "test", "manage");
+      // In case the tests failed onWorkerEnd is not called and we need to delete the Manage folders and files here
+      if (process.env.MANAGE_TEST) {
+        if (process.platform == "win32") {
+          // Delete folders Test and input
+          await promisifiedExec(
+            `rmdir /s /q "${path.join(testInputManage, "Test")}"`
+          );
+          await promisifiedExec(
+            `rmdir /s /q "${path.join(testInputManage, "input")}"`
+          );
+          // Delete files Test.vcm and CCAST_.CFG
+          await promisifiedExec(
+            `del /q "${path.join(testInputManage, "Test.vcm")}"`
+          );
+          await promisifiedExec(
+            `del /q "${path.join(testInputManage, "CCAST_.CFG")}"`
+          );
+          await promisifiedExec("taskkill -f -im code* > NUL 2> NUL");
+        } else {
+          // Delete folders Test and input
+          await promisifiedExec(
+            `rm -rf "${path.join(testInputManage, "Test")}"`
+          );
+          await promisifiedExec(
+            `rm -rf "${path.join(testInputManage, "input")}"`
+          );
+          // Delete files Test.vcm and CCAST_.CFG
+          await promisifiedExec(
+            `rm -f "${path.join(testInputManage, "Test.vcm")}"`
+          );
+          await promisifiedExec(
+            `rm -f "${path.join(testInputManage, "CCAST_.CFG")}"`
+          );
+        }
+      }
       const vcastTutorialPath = path.join(
         initialWorkdir,
         "test",

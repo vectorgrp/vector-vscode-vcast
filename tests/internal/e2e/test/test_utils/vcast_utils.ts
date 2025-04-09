@@ -1432,7 +1432,7 @@ export async function executeContextMenuAction(
  * @param nodes - (Optional) The nodes to search; if not provided, search starts from the "Test Explorer" section.
  * @returns The matching tree node, or undefined if not found.
  */
-async function findTreeNodeAtLevel(
+export async function findTreeNodeAtLevel(
   level: number,
   nodeName: string,
   nodes?: any[]
@@ -1479,8 +1479,7 @@ async function findTreeNodeAtLevel(
 
 export async function insertStringToInput(
   stringToInsert: string,
-  divName: string,
-  webviewTitle: string
+  divName: string
 ) {
   // Get the workbench and open the webview
   const workbench = await browser.getWorkbench();
@@ -1532,4 +1531,24 @@ export async function clickButtonBasedOnAriaLabel(ariaLabel: string) {
   }
 
   await button.click();
+}
+
+// Helper: retrieve node text (from CustomTreeItem or ViewSection).
+export async function getNodeText(node: any): Promise<string> {
+  if ("elem" in node && node.elem && typeof node.elem.getText === "function") {
+    return (await node.elem.getText()).trim();
+  }
+  if (typeof node.getTitle === "function") {
+    return (await node.getTitle()).trim();
+  }
+  throw new Error("Unknown node type");
+}
+
+// Helper: retrieve texts from an array of nodes.
+export async function getTexts(nodes: any[]): Promise<string[]> {
+  const texts: string[] = [];
+  for (const node of nodes) {
+    texts.push(await getNodeText(node));
+  }
+  return texts;
 }
