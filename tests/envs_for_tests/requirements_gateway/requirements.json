@@ -1,0 +1,296 @@
+{
+    "0": {
+        "FR11": {
+            "title": "Number of tables",
+            "description": "The system will support 6 tables.",
+            "id": "FR11",
+            "last_modified": "tbd"
+        },
+        "FR12": {
+            "title": "Number of seats per table",
+            "description": "The system will support 4 seats per table.",
+            "id": "FR12",
+            "last_modified": "tbd"
+        },
+        "FR13": {
+            "title": "List of entrees",
+            "description": "The system will support the following entrees:\n\nsteak\nchicken\nlobster\npasta\nnone",
+            "id": "FR13",
+            "last_modified": "tbd"
+        },
+        "FR14": {
+            "title": "Placing an order updates occupied status",
+            "description": "Placing an order updates the table's occupied status to true within the table database.",
+            "id": "FR14",
+            "last_modified": "tbd"
+        },
+        "FR15": {
+            "title": "Placing an order updates number in party",
+            "description": "Placing an order updates the table's number in party within the table database.",
+            "id": "FR15",
+            "last_modified": "tbd"
+        },
+        "FR16": {
+            "title": "Placing an order updates a seat's order",
+            "description": "Placing an order updates the seat's order within the table database.",
+            "id": "FR16",
+            "last_modified": "tbd"
+        },
+        "FR17": {
+            "title": "Placing an order updates check total",
+            "description": "Placing an order increases the table's check total within the table database, by an amount depending on the entree ordered, according to the following schedule:\n\nEntree: Amount\n\nsteak: 14.0\nchicken: 10.0\nlobster: 18.0\npasta: 12.0\nnone: 0.0",
+            "id": "FR17",
+            "last_modified": "tbd"
+        },
+        "FR18": {
+            "title": "Clearing a table resets occupied status",
+            "description": "Clearing a table updates the table's occupied status to false within the table database.",
+            "id": "FR18",
+            "last_modified": "tbd"
+        },
+        "FR19": {
+            "title": "Clearing a table resets number in party",
+            "description": "Clearing a table updates the table's number in party to 0 within the table database.",
+            "id": "FR19",
+            "last_modified": "tbd"
+        },
+        "FR20": {
+            "title": "Clearing a table resets orders for all seats",
+            "description": "Clearing a table clears the orders for all seats of the table within the table database.",
+            "id": "FR20",
+            "last_modified": "tbd"
+        },
+        "FR21": {
+            "title": "Clearing a table resets check total",
+            "description": "Clearing a table updates the table's check total to 0.0 within the table database.",
+            "id": "FR21",
+            "last_modified": "tbd"
+        },
+        "FR22": {
+            "title": "Obtaining check total",
+            "description": "The system will provide a way to obtain the check total for a given table.",
+            "id": "FR22",
+            "last_modified": "tbd"
+        },
+        "FR23": {
+            "title": "Size of waiting list",
+            "description": "The system will support a waiting list of up to 10 parties.",
+            "id": "FR23",
+            "last_modified": "tbd"
+        },
+        "FR24": {
+            "title": "Adding a party to waiting list",
+            "description": "The system will provide a means of adding a party to the waiting list, with the party specified by name.",
+            "id": "FR24",
+            "last_modified": "tbd"
+        },
+        "FR25": {
+            "title": "Getting the head of the waiting list",
+            "description": "The system will provide a means of obtaining the name of the party at the head of the waiting list.",
+            "id": "FR25",
+            "last_modified": "tbd"
+        },
+        "FR27": {
+            "title": "Adding free dessert",
+            "description": "Placing certain orders will qualify the seat for free dessert, according to the following schedule:\n\nSteak with caesar salad and a mixed drink qualifies a seat for pie.\nLobster with green salad and wine qualifies a seat for cake.",
+            "id": "FR27",
+            "last_modified": "tbd"
+        }
+    },
+    "1": {
+        "FR11": {
+            "title": "Number of tables",
+            "description": "The system will support 6 tables.",
+            "id": "FR11",
+            "last_modified": "tbd"
+        },
+        "FR12": {
+            "title": "Number of seats per table",
+            "description": "The system will support 4 seats per table.",
+            "id": "FR12",
+            "last_modified": "tbd"
+        },
+        "FR13": {
+            "title": "List of entrees",
+            "description": "The system will support the following entrees:\n\nsteak\nchicken\nlobster\npasta\nnone",
+            "id": "FR13",
+            "last_modified": "tbd"
+        },
+        "FR14": {
+            "title": "Placing an order updates occupied status",
+            "description": "Placing an order updates the table's occupied status to true within the table database.",
+            "id": "FR14",
+            "last_modified": "tbd"
+        },
+        "FR15": {
+            "title": "Placing an order updates number in party",
+            "description": "Placing an order updates the table's number in party within the table database.",
+            "id": "FR15",
+            "last_modified": "tbd"
+        },
+        "FR16": {
+            "title": "Placing an order updates a seat's order",
+            "description": "Placing an order updates the seat's order within the table database.",
+            "id": "FR16",
+            "last_modified": "tbd"
+        },
+        "FR17": {
+            "title": "Placing an order updates check total",
+            "description": "Placing an order increases the table's check total within the table database, by an amount depending on the entree ordered, according to the following schedule:\n\nEntree: Amount\n\nsteak: 14.0\nchicken: 10.0\nlobster: 18.0\npasta: 12.0\nnone: 0.0",
+            "id": "FR17",
+            "last_modified": "tbd"
+        },
+        "FR18": {
+            "title": "Clearing a table resets occupied status",
+            "description": "Clearing a table updates the table's occupied status to false within the table database.",
+            "id": "FR18",
+            "last_modified": "tbd"
+        },
+        "FR19": {
+            "title": "Clearing a table resets number in party",
+            "description": "Clearing a table updates the table's number in party to 0 within the table database.",
+            "id": "FR19",
+            "last_modified": "tbd"
+        },
+        "FR20": {
+            "title": "Clearing a table resets orders for all seats",
+            "description": "Clearing a table clears the orders for all seats of the table within the table database.",
+            "id": "FR20",
+            "last_modified": "tbd"
+        },
+        "FR21": {
+            "title": "Clearing a table resets check total",
+            "description": "Clearing a table updates the table's check total to 0.0 within the table database.",
+            "id": "FR21",
+            "last_modified": "tbd"
+        },
+        "FR22": {
+            "title": "Obtaining check total",
+            "description": "The system will provide a way to obtain the check total for a given table.",
+            "id": "FR22",
+            "last_modified": "tbd"
+        },
+        "FR23": {
+            "title": "Size of waiting list",
+            "description": "The system will support a waiting list of up to 10 parties.",
+            "id": "FR23",
+            "last_modified": "tbd"
+        },
+        "FR24": {
+            "title": "Adding a party to waiting list",
+            "description": "The system will provide a means of adding a party to the waiting list, with the party specified by name.",
+            "id": "FR24",
+            "last_modified": "tbd"
+        },
+        "FR25": {
+            "title": "Getting the head of the waiting list",
+            "description": "The system will provide a means of obtaining the name of the party at the head of the waiting list.",
+            "id": "FR25",
+            "last_modified": "tbd"
+        },
+        "FR27": {
+            "title": "Adding free dessert",
+            "description": "Placing certain orders will qualify the seat for free dessert, according to the following schedule:\n\nSteak with caesar salad and a mixed drink qualifies a seat for pie.\nLobster with green salad and wine qualifies a seat for cake.",
+            "id": "FR27",
+            "last_modified": "tbd"
+        }
+    },
+    "2": {
+        "FR11": {
+            "title": "Number of tables",
+            "description": "The system will support 6 tables.",
+            "id": "FR11",
+            "last_modified": "tbd"
+        },
+        "FR12": {
+            "title": "Number of seats per table",
+            "description": "The system will support 4 seats per table.",
+            "id": "FR12",
+            "last_modified": "tbd"
+        },
+        "FR13": {
+            "title": "List of entrees",
+            "description": "The system will support the following entrees:\n\nsteak\nchicken\nlobster\npasta\nnone",
+            "id": "FR13",
+            "last_modified": "tbd"
+        },
+        "FR14": {
+            "title": "Placing an order updates occupied status",
+            "description": "Placing an order updates the table's occupied status to true within the table database.",
+            "id": "FR14",
+            "last_modified": "tbd"
+        },
+        "FR15": {
+            "title": "Placing an order updates number in party",
+            "description": "Placing an order updates the table's number in party within the table database.",
+            "id": "FR15",
+            "last_modified": "tbd"
+        },
+        "FR16": {
+            "title": "Placing an order updates a seat's order",
+            "description": "Placing an order updates the seat's order within the table database.",
+            "id": "FR16",
+            "last_modified": "tbd"
+        },
+        "FR17": {
+            "title": "Placing an order updates check total",
+            "description": "Placing an order increases the table's check total within the table database, by an amount depending on the entree ordered, according to the following schedule:\n\nEntree: Amount\n\nsteak: 14.0\nchicken: 10.0\nlobster: 18.0\npasta: 12.0\nnone: 0.0",
+            "id": "FR17",
+            "last_modified": "tbd"
+        },
+        "FR18": {
+            "title": "Clearing a table resets occupied status",
+            "description": "Clearing a table updates the table's occupied status to false within the table database.",
+            "id": "FR18",
+            "last_modified": "tbd"
+        },
+        "FR19": {
+            "title": "Clearing a table resets number in party",
+            "description": "Clearing a table updates the table's number in party to 0 within the table database.",
+            "id": "FR19",
+            "last_modified": "tbd"
+        },
+        "FR20": {
+            "title": "Clearing a table resets orders for all seats",
+            "description": "Clearing a table clears the orders for all seats of the table within the table database.",
+            "id": "FR20",
+            "last_modified": "tbd"
+        },
+        "FR21": {
+            "title": "Clearing a table resets check total",
+            "description": "Clearing a table updates the table's check total to 0.0 within the table database.",
+            "id": "FR21",
+            "last_modified": "tbd"
+        },
+        "FR22": {
+            "title": "Obtaining check total",
+            "description": "The system will provide a way to obtain the check total for a given table.",
+            "id": "FR22",
+            "last_modified": "tbd"
+        },
+        "FR23": {
+            "title": "Size of waiting list",
+            "description": "The system will support a waiting list of up to 10 parties.",
+            "id": "FR23",
+            "last_modified": "tbd"
+        },
+        "FR24": {
+            "title": "Adding a party to waiting list",
+            "description": "The system will provide a means of adding a party to the waiting list, with the party specified by name.",
+            "id": "FR24",
+            "last_modified": "tbd"
+        },
+        "FR25": {
+            "title": "Getting the head of the waiting list",
+            "description": "The system will provide a means of obtaining the name of the party at the head of the waiting list.",
+            "id": "FR25",
+            "last_modified": "tbd"
+        },
+        "FR27": {
+            "title": "Adding free dessert",
+            "description": "Placing certain orders will qualify the seat for free dessert, according to the following schedule:\n\nSteak with caesar salad and a mixed drink qualifies a seat for pie.\nLobster with green salad and wine qualifies a seat for cake.",
+            "id": "FR27",
+            "last_modified": "tbd"
+        }
+    }
+}

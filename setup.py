@@ -21,6 +21,13 @@ base_requirements = [
     'openpyxl==3.1.5',
 ]
 
+dev_requirements = [
+    'pytest==8.3.5',
+    'pytest-mock==3.14.0',
+    'pyinstaller==6.12.0'
+]
+
+
 if sys.version_info >= (3, 10):
     base_requirements.append('truststore==0.10.1')
 
@@ -39,5 +46,8 @@ setup(
         ]
     },
     install_requires=base_requirements,
+    extras_require={
+        'dev': dev_requirements,
+    },
     include_package_data=True
 )

@@ -1,26 +1,25 @@
-name: Reqs2tests distribution - Linux
-run-name: ${{ github.ref_name }} is generating distribution for Linux
+name: Reqs2tests unit tests
+run-name: ${{ github.ref_name }} is unit-testing reqs2tests
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
   workflow_dispatch:
 env:
   NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
   REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
   VCAST_USER_HOME: /home/vcast_user
 jobs:
-  reqs2tests_distribution_linux:
-    if: github.event.pull_request.draft == false
+  reqs2tests_unit_tests:
     permissions: write-all
     runs-on: [self-hosted, reqs2tests, Linux]
+    env:
+      VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION }}
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      REQ2TESTS_MODEL: "gpt-4o-azure"
+      REQ2TESTS_REASONING_MODEL: "gpt-o3mini-azure"
+      REQ2TESTS_MODELS_PATH: /llm_configs
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:20-latest
-      options: --user vcast_user
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast --mount type=bind,source=${{ vars.LLM_CONFIGS_PATH }},target=/llm_configs
 
     steps:
       - name: Check out repository
@@ -64,22 +63,18 @@ jobs:
           path: ${{ env.VCAST_USER_HOME }}/.venv/
           key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
 
-      - name: Reqs2tests distribution
-        run: |
-          ./ci/build_distribution_linux.sh
+      - name: Run unit tests
         shell: bash
+        run: |
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pytest --junitxml=./test-results.xml
+          deactivate
 
-      - name: Upload distribution
+      - name: Results summary
         if: always()
-        run: |
-          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/distributions/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/"
-          echo "## Distribution" >> $GITHUB_STEP_SUMMARY
-          if [[ -f ${{ env.VCAST_USER_HOME }}/autoreq-linux.tar.gz ]] ; then
-            DISTRIBUTION_URL=$BASE_ARTIFACTORY_URL/autoreq-linux.tar.gz
-            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $DISTRIBUTION_URL -T ${{ env.VCAST_USER_HOME }}/autoreq-linux.tar.gz
-            echo "[Download distribution]($DISTRIBUTION_URL)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "Unable to build distribution" >> $GITHUB_STEP_SUMMARY
-          fi
-        shell: bash
+        uses: pmeier/pytest-results-action@main
+        with:
+          path: test-results.xml
+          summary: true
+          fail-on-empty: true
+          title: Unit test results
