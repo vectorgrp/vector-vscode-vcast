@@ -1,3 +1,4 @@
+import random
 import asyncio
 from functools import cached_property
 from aiostream.stream import merge
@@ -100,12 +101,14 @@ def _derive_test_case_schema(allowed_identifiers=None):
                 expected_values=self.expected_values
             )
 
-        def to_vectorcast(self, use_requirement_key=True) -> str:
+        def to_vectorcast(self, use_requirement_key=True, add_uuid=False) -> str:
             test_case_str = f"TEST.UNIT:{self.unit_name}\n"
             test_case_str += f"TEST.SUBPROGRAM:{self.subprogram_name}\n"
             test_case_str += "TEST.NEW\n"
 
-            test_case_str += f"TEST.NAME:{self.test_name}-REVIEW-NEEDED\n"
+            name = self.test_name if not add_uuid else f"{self.test_name}-{random.randint(0, 100000)}"
+
+            test_case_str += f"TEST.NAME:{name}-REVIEW-NEEDED\n"
 
             if use_requirement_key:
                 test_case_str += f"TEST.REQUIREMENT_KEY:{self.requirement_id}\n"
@@ -420,7 +423,7 @@ Return your answer in the following format:
             else:
                 logging.warning(f"Requirement {test_case.requirement_id} was generated multiple times or was not requested.")
 
-            output = self.environment.run_tests([test_case.to_vectorcast()])
+            output = self.environment.run_tests([test_case.to_vectorcast(add_uuid=True)])
             errors, test_failures = self._parse_error_output(output)
 
             if errors or (not allow_partial and test_failures):
@@ -631,7 +634,7 @@ Notes:
         while iteration < max_iterations:
             iteration += 1
 
-            output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()])
+            output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast(add_uuid=True)])
             errors, test_failures = self._parse_error_output(output)
 
             if not allow_test_feedback:
@@ -696,7 +699,7 @@ Tip:
                     logging.exception(f"Call to model failed for requirement {requirement_id} (during error correction): {e}")
                     return None
 
-        output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast()])
+        output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast(add_uuid=True)])
         errors, test_failures = self._parse_error_output(output)
 
         if errors:

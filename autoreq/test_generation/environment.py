@@ -140,36 +140,82 @@ class Environment:
 
             return output
 
-
-    def run_test_script(self, tst_file_path: str, filter_existing_tests: bool=True, with_coverage=False) -> Optional[str]:
+    def run_test_script(self, tst_file_path: str, with_coverage=False) -> Optional[str]:
         # TODO: Deal with ENABLE_FUNCTION_CALL_COVERAGE parsing issues
         tst_file_path = os.path.abspath(tst_file_path)
 
-        if filter_existing_tests:
-            existing_test_store_path = self._get_temporary_file_path('EXISTING_TESTS_TO_RESTORE.tst')
+        tests = self._parse_test_script(tst_file_path)
 
-            if os.path.exists(existing_test_store_path):
-                os.remove(existing_test_store_path)
+        commands = [
+            _get_vectorcast_cmd('clicast', ['-lc', '-e', self.env_name, 'Test', 'Script', 'Run', tst_file_path]),
+            *[_get_vectorcast_cmd('clicast', ['-lc', '-e', self.env_name, '-u', test.unit_name, '-s', test.subprogram_name, '-t', test.test_name, 'Execute', 'Run']) for test in tests]
+        ]
 
-            restore_tests_command = [
-                _get_vectorcast_cmd('clicast', ['-e', self.env_name, 'test', 'script', 'create', existing_test_store_path]),
-                _get_vectorcast_cmd('clicast', ['-e', self.env_name, 'test', 'delete', 'ALL'])
-            ]
+        removal_commands = [
+            _get_vectorcast_cmd('clicast', ['-lc', '-e', self.env_name, '-u', test.unit_name, '-s', test.subprogram_name, '-t', test.test_name, 'Test', 'Delete']) for test in tests
+        ]
 
-            for restore_command in restore_tests_command:
-                success = self._run_command(restore_command)
-                if not success:
-                    logging.error(f"Command '{' '.join(restore_command)}' failed")
-                    return None
+        temp_coverage_file_path = None
+        if with_coverage:
+            raise RuntimeError("Coverage not supported yet with new test execution model")
+            temp_coverage_file_path = self._get_temporary_file_path(f'coverage_{self.env_name}.txt')
+            commands.append(_get_vectorcast_cmd('clicast', ['-lc', 'option', 'VCAST_CUSTOM_REPORT_FORMAT', 'TEXT']))
+            commands.append(_get_vectorcast_cmd('clicast', ['-lc', '-e', self.env_name, 'report', 'custom', 'coverage', temp_coverage_file_path]))
 
-        output = self._run_test_execute_commands(tst_file_path, with_coverage=with_coverage)
+        output = ''
+        env_vars = os.environ.copy()
+        # Execute the commands using subprocess and capture the outputs
+        for cmd in commands:
+            try:
+                result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
+                return None
 
-        if filter_existing_tests:
-            self._run_command(_get_vectorcast_cmd('clicast', ['-e', self.env_name, 'test', 'delete', 'ALL']))
-            self._run_test_execute_commands(existing_test_store_path)
+            logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
+            logging.debug("Command: %s Return code: %s", cmd, result.returncode)
 
+            output += result.stdout
 
+        if with_coverage and temp_coverage_file_path and os.path.exists(temp_coverage_file_path):
+            coverage_output = str(charset_normalizer.from_path(temp_coverage_file_path).best())
+
+            coverage_data = {}
+            match = re.search(r'GRAND TOTALS.* (\d+) \/ (\d+) .* (\d+) \/ (\d+) ', coverage_output)
+
+            if match:
+                covered_statements, total_statements, covered_branches, total_branches = match.groups()
+                coverage_data['statements'] = {
+                    'covered': int(covered_statements),
+                    'total': int(total_statements),
+                    'percentage': int(covered_statements) / int(total_statements)
+                }
+                coverage_data['branches'] = {
+                    'covered': int(covered_branches),
+                    'total': int(total_branches),
+                    'percentage': int(covered_branches) / int(total_branches)
+                }
+            else:
+                logging.warning("Coverage data not found in the output.")
+                coverage_data = None
+                
+            output = (output, coverage_data)
+
+        # Remove the test cases
+        for cmd in removal_commands:
+            try:
+                result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
+                return None
+
+            logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
+            logging.debug("Command: %s Return code: %s", cmd, result.returncode)
+            
         return output
+
 
     @cached_property
     def allowed_identifiers(self) -> List[str]:
@@ -603,60 +649,6 @@ class Environment:
             test_cases.append(current_test)
         return test_cases
 
-    def _run_test_execute_commands(self, tst_file_path: str, with_coverage: bool = False) -> Optional[str]:
-        env_name = self.env_name
-        commands = [
-            _get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'Test', 'Script', 'Run', tst_file_path]),
-            _get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'Execute', 'All'])
-        ]
-
-        temp_coverage_file_path = None
-        if with_coverage:
-            temp_coverage_file_path = self._get_temporary_file_path(f'coverage_{env_name}.txt')
-            commands.append(_get_vectorcast_cmd('clicast', ['-lc', 'option', 'VCAST_CUSTOM_REPORT_FORMAT', 'TEXT']))
-            commands.append(_get_vectorcast_cmd('clicast', ['-lc', '-e', env_name, 'report', 'custom', 'coverage', temp_coverage_file_path]))
-
-        output = ''
-        env_vars = os.environ.copy()
-        # Execute the commands using subprocess and capture the outputs
-        for cmd in commands:
-            try:
-                result = subprocess.run(cmd, cwd=self.env_dir, env=env_vars,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
-            except subprocess.TimeoutExpired:
-                logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
-                return None
-
-            logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
-            logging.debug("Command: %s Return code: %s", cmd, result.returncode)
-
-            output += result.stdout
-
-        if with_coverage and temp_coverage_file_path and os.path.exists(temp_coverage_file_path):
-            coverage_output = str(charset_normalizer.from_path(temp_coverage_file_path).best())
-
-            coverage_data = {}
-            match = re.search(r'GRAND TOTALS.* (\d+) \/ (\d+) .* (\d+) \/ (\d+) ', coverage_output)
-
-            if match:
-                covered_statements, total_statements, covered_branches, total_branches = match.groups()
-                coverage_data['statements'] = {
-                    'covered': int(covered_statements),
-                    'total': int(total_statements),
-                    'percentage': int(covered_statements) / int(total_statements)
-                }
-                coverage_data['branches'] = {
-                    'covered': int(covered_branches),
-                    'total': int(total_branches),
-                    'percentage': int(covered_branches) / int(total_branches)
-                }
-            else:
-                logging.warning("Coverage data not found in the output.")
-                coverage_data = None
-                
-            output = (output, coverage_data)
-            
-        return output
 
     def _run_command(self, command: str, timeout=30) -> str:
         try:
