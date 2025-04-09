@@ -9,6 +9,7 @@ from autoreq.llm_client import LLMClient
 
 class DecomposedRequirement(BaseModel):
     original_requirement: str
+    original_requirement_index: int
     atomic_requirements: List[str]
 
 class RequirementDescription(BaseModel):
@@ -16,7 +17,7 @@ class RequirementDescription(BaseModel):
 
 async def decompose_requirements(requirements, llm_client=LLMClient()):
     try:
-        requirements_text = "\n".join("- " + r for r in requirements)
+        requirements_text = "\n".join(f"{i+1}. " + r for i, r in enumerate(requirements))
 
         result = await llm_client.call_model(
             messages=[
@@ -35,6 +36,7 @@ Your final answer must strictly adhere to the following model. Return your outpu
     "nonatomic_requirements": [
         {{
             "original_requirement": "<original requirement>",
+            "original_requirement_index": "<index of the original requirement>",
             "atomic_requirements": [
                 "<atomic requirement 1>",
                 "<atomic requirement 2>",
@@ -58,14 +60,14 @@ In such cases, the requirement should be considered atomic and therefore not add
         logging.error(f"Bad request error: {e}")
         return requirements
 
-    req_mapping = {req.original_requirement: req.atomic_requirements for req in result.nonatomic_requirements}
+    req_mapping = {req.original_requirement_index: req.atomic_requirements for req in result.nonatomic_requirements}
 
     decomposed_requirements = []
-    for unprocessed_requirement in requirements:
+    for i, unprocessed_requirement in enumerate(requirements):
         decomposed_requirements.append(
-            req_mapping.get(unprocessed_requirement, [unprocessed_requirement])
+            req_mapping.get(i+1, [unprocessed_requirement])
         )
-    
+
 
     return decomposed_requirements
 
