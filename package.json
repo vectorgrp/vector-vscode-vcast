@@ -234,6 +234,11 @@
         "command": "vectorcastTestExplorer.removeRequirements",
         "category": "VectorCAST Test Explorer",
         "title": "Remove Requirements"
+      },
+      {
+        "command": "vectorcastTestExplorer.importRequirementsFromGateway",
+        "category": "VectorCAST Test Explorer",
+        "title": "Import Requirements from Gateway"
       }
     ],
     "keybindings": [
@@ -293,7 +298,19 @@
             "order": 7,
             "default": false,
             "description": "Log internal extension details"
-          }         
+          },
+          "vectorcastTestExplorer.decomposeRequirements": {
+            "type": "boolean",
+            "order": 8,
+            "default": true,
+            "description": "Decompose requirements when generating tests"
+          },
+          "vectorcastTestExplorer.enableRequirementKeys": {
+            "type": "boolean",
+            "order": 9,
+            "default": false,
+            "description": "Put references to the tested requirements into the requirement key field instead of the test notes (use this if you use the requirements gateway)."
+          }
         }
       },
       {
@@ -476,6 +493,10 @@
         {
           "command": "vectorcastTestExplorer.removeRequirements",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.importRequirementsFromGateway",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -633,14 +654,19 @@
           "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/)"
         },
         {
+          "command": "vectorcastTestExplorer.importRequirementsFromGateway",
+          "group": "vcast@8",
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+        },
+        {
           "command": "vectorcastTestExplorer.generateRequirements",
           "group": "vcast@8",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastRequirementsAvailable"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
         },
         {
           "command": "vectorcastTestExplorer.showRequirements",
           "group": "vcast@9",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.vcastRequirementsAvailable"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
         },
         {
           "command": "vectorcastTestExplorer.generateTestsFromRequirements",
@@ -650,7 +676,7 @@
         {
           "command": "vectorcastTestExplorer.removeRequirements",
           "group": "vcast@9",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastRequirementsAvailable && testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
         },
         {
           "command": "vectorcastTestExplorer.deleteTest",
@@ -747,7 +773,9 @@
   "dependencies": {
     "@vscode/vsce": "^2.32.0",
     "axios": "^1.7.7",
+    "convert-excel-to-json": "^1.7.0",
     "crc-32": "^1.2.0",
+    "csv-parse": "^5.6.0",
     "glob": "^7.1.7",
     "hasbin": "^1.2.3",
     "jsonc-parser": "^3.2.1",
@@ -757,6 +785,7 @@
     "tslib": "^1.9.3",
     "vscode-languageclient": "^5.2.1",
     "vscode-languageserver": "^5.2.1",
+    "xlsx": "^0.18.5",
     "xo": "^0.58.0"
   },
   "extensionDependencies": [],
