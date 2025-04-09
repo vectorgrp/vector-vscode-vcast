@@ -72,7 +72,7 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Distribution"
           $distributionFile = Join-Path ${{ github.workspace }} "dcheck-windows.tar.gz"
           if (Test-Path $distributionFile) {
-              $DISTRIBUTION_URL = $BASE_ARTIFACTORY_URL + "dcheck-windows.tar.gz"
+              $DISTRIBUTION_URL = $BASE_ARTIFACTORY_URL + "autoreq-win.tar.gz"
               Invoke-RestMethod -Uri $DISTRIBUTION_URL -Method Put -Headers @{ "X-JFrog-Art-Api" = "${{ secrets.ARTIFACTORY_TOKEN }}" } -InFile $distributionFile
               Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "[Download distribution]($DISTRIBUTION_URL)"
           } else {
