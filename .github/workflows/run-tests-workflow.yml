@@ -143,18 +143,35 @@ jobs:
           echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
 
       - name: Upload vectorcasttestexplorer artifact
-        uses: actions/upload-artifact@v4
         if: ${{ always() && strategy.job-index == '0' }}
-        with:
-          name: vectorcasttestexplorer
-          path: ${{ env.VSIX_FILE }}
+        shell: bash
+        run: |
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"          
+          echo "## Vsix" >> $GITHUB_STEP_SUMMARY
+          if [[ -f ${{ env.VSIX_FILE }} ]] ; then
+            URL="$ARTIFACTORY_URL/$(basename ${{ env.VSIX_FILE }})"
+            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ${{ env.VSIX_FILE }}
+            echo "[Download Vsix]($URL)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Unable to build vsix file" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
         if: ${{ always() && strategy.job-index == '0' }}
-        with:
-          name: coverage
-          path: ./coverage
+        shell: bash
+        run: |
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"          
+          echo "## Coverage" >> $GITHUB_STEP_SUMMARY
+          if [[ -d ./coverage ]] ; then
+             cd coverage && tar -cvzf ../coverage.tar.gz * > /dev/null && cd ..
+             URL="$ARTIFACTORY_URL/coverage/"
+             curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T coverage.tar.gz
+             echo "[Download coverage artifacts]($URL)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No coverage artifacts found" >> $GITHUB_STEP_SUMMARY
+          fi
 
       # Upload release asset
       - name: Upload release asset
@@ -328,7 +345,7 @@ jobs:
           echo "${content}" >> $GITHUB_STEP_SUMMARY
           
           COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}"
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/tests-results"
           count=`ls -1 tests/internal/e2e/*.png 2>/dev/null | wc -l`
           if [ $count != 0 ] ; then
             cd tests/internal/e2e
