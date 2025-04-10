@@ -681,7 +681,7 @@
         {
           "command": "vectorcastTestExplorer.openVCAST",
           "group": "vcastOpen@1",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.buildProjectEnviro",
@@ -696,7 +696,7 @@
         {
           "command": "vectorcastTestExplorer.rebuildEnviro",
           "group": "vcast@2",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
@@ -741,7 +741,7 @@
         {
           "command": "vectorcastTestExplorer.cleanEnviro",
           "group": "vcast@3",
-          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.globalProjectIsOpenedChecker"
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.globalProjectIsOpenedChecker && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
         },
         {
           "command": "vectorcastTestExplorer.removeTestsuite",
