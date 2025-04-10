@@ -23,6 +23,13 @@ export enum vcastCommandType {
   parseCBT = "parseCBT",
   choiceListTst = "choiceList-tst",
   choiceListCT = "choiceList-ct",
+  mcdcReport = "mcdcReport",
+  mcdcLines = "mcdcLines",
+}
+
+export interface mcdcClientRequestType extends clientRequestType {
+  unitName?: string;
+  lineNumber?: number;
 }
 
 export interface clientRequestType {
@@ -30,6 +37,7 @@ export interface clientRequestType {
   path: string;
   test?: string;
   options?: string;
+  unit?: string;
 }
 
 // This is set when the VectorCAST Data Server process is started
@@ -184,7 +192,7 @@ export async function sendShutdownToServer() {
 
 // This does the actual fetch from the server
 export async function transmitCommand(
-  requestObject: clientRequestType,
+  requestObject: clientRequestType | mcdcClientRequestType,
   route: string = "runcommand"
 ) {
   // request is a class, so we convert it to a dictionary, then a string

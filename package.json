@@ -274,6 +274,11 @@
         "command": "vectorcastTestExplorer.displayServerLog",
         "category": "VectorCAST Test Explorer",
         "title": "Open Data Server log"
+      },
+      {
+        "command": "vectorcastTestExplorer.viewMCDCReport",
+        "category": "VectorCAST Test Explorer",
+        "title": "VectorCAST MC/DC Report"
       }
     ],
     "keybindings": [
@@ -339,7 +344,7 @@
             "order": 7,
             "default": false,
             "description": "Log internal extension details"
-          }
+          }         
         }
       },
       {
@@ -352,13 +357,17 @@
             "enum": [
               "None",
               "Statement",
+              "Branch",
               "Statement+Branch",
+              "MCDC",
               "Statement+MCDC"
             ],
             "enumDescriptions": [
               "Coverage disabled",
               "Statement coverage",
+              "Branch coverage",
               "Statement and branch coverage",
+              "MC/DC coverage",
               "Statement and MC/DC coverage"
             ],
             "order": 1,
@@ -554,6 +563,10 @@
         {
           "command": "vectorcastTestExplorer.displayServerLog",
           "when": "vectorcastTestExplorer.serverLogAvailable"
+        },
+        {
+          "command": "vectorcastTestExplorer.viewMCDCReport",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -634,6 +647,14 @@
           "submenu": "vectorcastTestExplorer.editorSubMenu",
           "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.testableLineList",
           "group": "vcast"
+        },
+        {
+          "command": "vectorcastTestExplorer.viewMCDCReport",
+          "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
+          "args": [
+            "${lineNumber}"
+          ],
+          "group": "navigation"
         }
       ],
       "testing/item/context": [

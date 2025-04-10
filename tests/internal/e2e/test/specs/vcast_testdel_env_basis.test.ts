@@ -5,12 +5,7 @@ import {
   type Workbench,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
-import {
-  updateTestID,
-  deleteAllTestsForEnv,
-  validateTestDeletionForFunction,
-  cleanup,
-} from "../test_utils/vcast_utils";
+import { updateTestID, deleteAllTestsForEnv } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -86,10 +81,5 @@ describe("vTypeCheck VS Code Extension", () => {
     const envName = "cpp/unitTests/DATABASE-MANAGER";
     console.log(`Deleting all BASIS PATH tests for the environment ${envName}`);
     await deleteAllTestsForEnv(envName);
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

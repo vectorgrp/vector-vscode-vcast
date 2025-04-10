@@ -45,6 +45,7 @@ import {
 
 import {
   addLaunchConfiguration,
+  cleanTestResultsPaneMessage,
   forceLowerCaseDriveLetter,
   loadLaunchFile,
   normalizePath,
@@ -105,7 +106,6 @@ const crypto = require("crypto");
 // Note that if you pass in a fileURI, then the test tree node will have
 // a "go to test" icon, and clicking on it will open the file at the test location
 // and double click on the test will open the test file.
-//
 function addTestNodes(
   testList: any[],
   parentNode: vcastTestItem,
@@ -1153,7 +1153,11 @@ export async function runNode(
     const status = executionResult.status;
 
     // We show stdout from execution in the "Test Results" pane
-    run.appendOutput(executionResult.details.stdOut);
+    // We need to clean the string first because the logs in the Test Results pane are handled differently
+    let cleanedOutput = cleanTestResultsPaneMessage(
+      executionResult.details.stdOut
+    );
+    run.appendOutput(cleanedOutput);
 
     if (status == testStatus.didNotRun) {
       run.skipped(node);

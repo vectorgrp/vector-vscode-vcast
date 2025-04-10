@@ -12,7 +12,6 @@ import {
   ContentAssistItem,
   BottomBarPanel,
 } from "wdio-vscode-service";
-// import * as vscode from "vscode";
 import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
@@ -348,10 +347,10 @@ export async function getTestHandle(
   }
 
   for (const testHandle of await customSubprogramMethod.getChildren()) {
-    if (
-      (await (await (testHandle as CustomTreeItem).elem).getText()) ===
-      expectedTestName
-    ) {
+    const testName = await (
+      await (testHandle as CustomTreeItem).elem
+    ).getText();
+    if (testName.includes(expectedTestName)) {
       return testHandle;
     }
   }
@@ -375,6 +374,84 @@ export async function openTestScriptFor(subprogramMethod: CustomTreeItem) {
       (await (await editorView.getActiveTab()).getTitle()) ===
       "vcast-template.tst"
   );
+}
+
+/**
+ * Generates Basis Path tests for a given subprogram method.
+ * @param subprogramMethod Subprogram method for which to generate ATG tests.
+ */
+export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  const contextMenu = await subprogramMethod.openContextMenu();
+  await contextMenu.select("VectorCAST");
+
+  const menuElement = await $("aria/Insert Basis Path Tests");
+  await menuElement.click();
+
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+
+  // Run the tests and wait for them to finish
+  await (
+    await (
+      await subprogramMethod.getActionButton("Run Test")
+    ).elem
+  ).click();
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Starting execution of test: BASIS-PATH-004"),
+    { timeout: TIMEOUT }
+  );
+}
+
+export async function generateBasisPathTestForSubprogram(
+  unit: string,
+  subprogramName: string
+) {
+  const vcastTestingViewContent = await getViewContent("Testing");
+  let subprogram: TreeItem;
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    if (!(await vcastTestingViewSection.isExpanded()))
+      await vcastTestingViewSection.expand();
+
+    for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+      console.log(await vcastTestingViewContentSection.getTitle());
+      await vcastTestingViewContentSection.expand();
+      subprogram = await findSubprogram(unit, vcastTestingViewContentSection);
+      if (subprogram) {
+        if (!(await subprogram.isExpanded())) await subprogram.expand();
+        break;
+      }
+    }
+  }
+
+  if (!subprogram) {
+    throw new Error("Subprogram 'manager' not found");
+  }
+
+  const subprogramMethod = await findSubprogramMethod(
+    subprogram,
+    subprogramName
+  );
+  if (!subprogramMethod) {
+    throw new Error(
+      "Subprogram method 'Manager::AddIncludedDessert' not found"
+    );
+  }
+
+  if (!subprogramMethod.isExpanded()) {
+    await subprogramMethod.select();
+  }
+
+  await insertBasisPathTestFor(subprogramMethod);
 }
 
 export async function deleteTest(testHandle: CustomTreeItem) {
@@ -619,6 +696,7 @@ export async function generateAndValidateAllTestsFor(
         let subprogram: TreeItem;
         let testHandle: TreeItem;
         for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+          await vcastTestingViewSection.expand();
           subprogram = await findSubprogram(unitName, vcastTestingViewSection);
           if (subprogram) {
             await subprogram.expand();
@@ -1389,5 +1467,98 @@ export async function checkElementExistsInHTML(searchString: string) {
     throw new Error(
       `Element with ARIA label "${searchString}" does not exist or timed out.`
     );
+  }
+}
+
+/**
+ * Checks for a specific gutter icon on a specific line in a file and generates a report if specified.
+ * @param line Line where to look at.
+ * @param unitFileName File / Unit where to look at.
+ * @param icon Icon that should be in the gutter.
+ * @param moveCursor In case the line is not visible (>40), move the cursor to the line.
+ * @param generateReport Flag if we want to generate the MCDC report or only check for the gutter icon.
+ */
+export async function checkForGutterAndGenerateReport(
+  line: number,
+  unitFileName: string,
+  icon: string,
+  moveCursor: boolean,
+  generateReport: boolean
+) {
+  const workbench = await browser.getWorkbench();
+  const activityBar = workbench.getActivityBar();
+  const explorerView = await activityBar.getViewControl("Explorer");
+  await explorerView?.openView();
+
+  const workspaceFolderSection =
+    await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+  // Need to check if cpp was already selected
+  // --> otherwise we close it again and we can not find manager.cpp
+  let managerCpp = await workspaceFolderSection.findItem(unitFileName);
+  if (!managerCpp) {
+    const cppFolder = workspaceFolderSection.findItem("cpp");
+    await (await cppFolder).select();
+    managerCpp = await workspaceFolderSection.findItem(unitFileName);
+  }
+  // Check if the file is already open in the editor
+  const editorView = workbench.getEditorView();
+  // List of open editor titles
+  const openEditors = await editorView.getOpenEditorTitles();
+  const isFileOpen = openEditors.includes(unitFileName);
+
+  if (!isFileOpen) {
+    // Select file from the explorer if not already open
+    await managerCpp.select();
+  }
+
+  const tab = (await editorView.openEditor(unitFileName)) as TextEditor;
+
+  // If the line is not visible in the first place (>40) we need to scroll down
+  if (moveCursor) {
+    await tab.moveCursor(line, 1);
+  }
+
+  const lineNumberElement = await $(`.line-numbers=${line}`);
+  const flaskElement = await (
+    await lineNumberElement.parentElement()
+  ).$(".cgmr.codicon");
+  const backgroundImageCSS =
+    await flaskElement.getCSSProperty("background-image");
+  const backgroundImageURL = backgroundImageCSS.value;
+  const BEAKER = `/${icon}`;
+  expect(backgroundImageURL.includes(BEAKER)).toBe(true);
+
+  // Only if we want to generate the report and not only check the gutter icon
+  if (generateReport) {
+    await flaskElement.click({ button: 2 });
+    await (await $("aria/VectorCAST MC/DC Report")).click();
+  }
+}
+
+/**
+ * Rebuilds env directly from the Testing pane.
+ * @param envName Name of environment.
+ */
+export async function rebuildEnvironmentFromTestingPane(envName: string) {
+  const vcastTestingViewContent = await getViewContent("Testing");
+  const env = `cpp/unitTests/${envName}`;
+
+  console.log("Re-Building Environment from Test Explorer");
+  // Flask --> Right-click on env --> Re-Build environment
+  for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
+    for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
+      await visibleItem.select();
+
+      const subprogramGroup = visibleItem as CustomTreeItem;
+      if ((await subprogramGroup.getTooltip()).includes(env)) {
+        await subprogramGroup.expand();
+        const menuItemLabel = "Re-Build Environment";
+        const contextMenu = await subprogramGroup.openContextMenu();
+        await contextMenu.select("VectorCAST");
+        await (await $(`aria/${menuItemLabel}`)).click();
+        break;
+      }
+    }
   }
 }
