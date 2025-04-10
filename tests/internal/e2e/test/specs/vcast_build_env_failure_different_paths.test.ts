@@ -110,7 +110,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should confirm the presence of ENV_23_01 and ENV_23_03", async () => {
     await updateTestID();
-
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
 
@@ -181,12 +180,13 @@ async function expectEnvResults(release: string) {
         { env: "ENV_24_04", state: "undefined" },
       ],
     ],
+    // Envs are there as nodes but not build
     [
       "2024sp4",
       [
-        { env: "ENV_23_01", state: "undefined" },
+        { env: "ENV_23_01", state: "defined" },
         { env: "ENV_24_02", state: "defined" },
-        { env: "ENV_23_03", state: "undefined" },
+        { env: "ENV_23_03", state: "defined" },
         { env: "ENV_24_04", state: "defined" },
       ],
     ],

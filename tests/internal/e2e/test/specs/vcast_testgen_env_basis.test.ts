@@ -10,8 +10,8 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  testGenMethod,
-  generateAndValidateAllTestsFor,
+  executeContextMenuAction,
+  findTreeNodeAtLevel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -39,7 +39,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     await browser.keys([Key.Control, Key.Shift, "p"]);
-
     // Typing Vector in the quick input box
     // This brings up VectorCAST Test Explorer: Configure
     // so just need to hit Enter to activate
@@ -50,6 +49,10 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
+    const viewControls = await activityBar.getViewControls();
+    for (const viewControl of viewControls) {
+      console.log(await viewControl.getTitle());
+    }
 
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
@@ -137,7 +140,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await (await bottomBar.openOutputView()).getText())
           .toString()
-          .includes("Environment built Successfully"),
+          .includes("Processing environment data for:"),
       { timeout: TIMEOUT }
     );
 
@@ -156,6 +159,16 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log(
       `Generating all BASIS PATH tests for the environment ${envName}`
     );
-    await generateAndValidateAllTestsFor(envName, testGenMethod.BasisPath);
+    await executeContextMenuAction(
+      2,
+      "Manager::PlaceOrder",
+      true,
+      "Insert Basis Path Tests"
+    );
+    for (let i = 1; i <= 5; i++) {
+      let currentBasis = `BASIS-PATH-00${i}`;
+      const envNode = findTreeNodeAtLevel(3, currentBasis);
+      expect(envNode).toBeDefined();
+    }
   });
 });

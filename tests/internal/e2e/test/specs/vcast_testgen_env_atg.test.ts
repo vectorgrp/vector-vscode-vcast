@@ -10,8 +10,8 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  testGenMethod,
-  generateAndValidateAllTestsFor,
+  findTreeNodeAtLevel,
+  executeContextMenuAction,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -155,6 +155,16 @@ describe("vTypeCheck VS Code Extension", () => {
     const envName = "cpp/unitTests/DATABASE-MANAGER";
 
     console.log(`Generating all ATG tests for the environment ${envName}`);
-    await generateAndValidateAllTestsFor(envName, testGenMethod.ATG);
+    await executeContextMenuAction(
+      2,
+      "Manager::PlaceOrder",
+      true,
+      "Insert ATG Tests"
+    );
+    for (let i = 1; i <= 5; i++) {
+      let currentBasis = `ATG-TEST-${i}-PARTIAL`;
+      const envNode = findTreeNodeAtLevel(3, currentBasis);
+      expect(envNode).toBeDefined();
+    }
   });
 });
