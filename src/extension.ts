@@ -823,7 +823,6 @@ function configureExtension(context: vscode.ExtensionContext) {
             path.join(parentDir, 'reqs.html'),
             path.join(parentDir, 'reqs2tests.tst')
           ];
-          const repositoryDir = path.join(parentDir, 'generated_requirement_repository');
 
           // Remove files
           for (const file of filesToRemove) {
@@ -836,14 +835,17 @@ function configureExtension(context: vscode.ExtensionContext) {
             }
           }
 
+          const generatedRepositoryPath = path.join(parentDir, 'generated_requirement_repository');
+          const actualRepositoryPath = findRelevantRequirementGateway(enviroPath);
+
           // Separately prompt for repository directory removal
-          if (fs.existsSync(repositoryDir)) {
+          if (fs.existsSync(generatedRepositoryPath) && path.relative(generatedRepositoryPath, actualRepositoryPath) === '') {
             const repoMessage = "Would you also like to remove the auto-generated requirements gateway too?";
             const repoChoice = await vscode.window.showWarningMessage(repoMessage, "Yes", "No");
             
             if (repoChoice === "Yes") {
               try {
-                fs.rmdirSync(repositoryDir, { recursive: true });
+                fs.rmdirSync(generatedRepositoryPath, { recursive: true });
               } catch (err) {
                 vscode.window.showErrorMessage(`Failed to remove repository directory: ${err}`);
               }
@@ -1019,80 +1021,30 @@ export async function deactivate() {
 }
 
 /**
- * Find all potential requirement gateway directories
- * A requirement gateway is identified as a folder that contains a subfolder named "requirements_gateway"
- * which in turn contains a file called "requirements.json"
- * @param startDir Directory to start searching from
- * @param maxDepth Maximum depth to search (prevent excessive recursion)
- * @returns Array of found gateway directory paths
- */
-function findRequirementGatewaysInDir(startDir: string, maxDepth: number = 3): string[] {
-  if (!fs.existsSync(startDir) || maxDepth <= 0) {
-    return [];
-  }
-  
-  const gatewayDirs: string[] = [];
-  
-  try {
-    const entries = fs.readdirSync(startDir, { withFileTypes: true });
-    
-    // First check if this directory has a requirements_gateway subfolder with requirements.json
-    const reqGatewayDir = entries.find(entry => 
-      entry.isDirectory() && entry.name === "requirements_gateway"
-    );
-    
-    if (reqGatewayDir) {
-      const reqJsonPath = path.join(startDir, "requirements_gateway", "requirements.json");
-      if (fs.existsSync(reqJsonPath)) {
-        gatewayDirs.push(startDir);
-      }
-    }
-    
-    // Then recursively check subdirectories
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const subDirPath = path.join(startDir, entry.name);
-        const subDirGateways = findRequirementGatewaysInDir(subDirPath, maxDepth - 1);
-        gatewayDirs.push(...subDirGateways);
-      }
-    }
-  } catch (err) {
-    logCliError(`Error searching for requirement gateways in ${startDir}: ${err}`);
-  }
-  
-  return gatewayDirs;
-}
-
-/**
  * Find the most relevant requirement gateway for a given environment path
  * @param enviroPath The environment path
  * @returns The most relevant gateway path, or null if none found
  */
 function findRelevantRequirementGateway(enviroPath: string): string | null {
   const parentDir = path.dirname(enviroPath);
+  const configPath = path.join(parentDir, 'CCAST_.CFG');
   
-  // Find all gateways in the parent dir
-  const gateways = findRequirementGatewaysInDir(parentDir);
+  const configContent = fs.readFileSync(configPath, 'utf-8');
   
-  if (gateways.length === 0) {
+  // Check if the config file contains a requirements gateway
+  const gatewayMatch = configContent.match(/VCAST_REPOSITORY:\s*(.+)\s*/)
+
+  if (gatewayMatch == null) {
     return null;
   }
   
-  // First priority: traditional path under requirement_repository
-  const traditionalPath = path.join(parentDir, 'generated_requirement_repository');
-  if (gateways.includes(traditionalPath)) {
-    return traditionalPath;
-  }
-  
-  // Second priority: any gateway in the immediate parent directory
-  for (const gateway of gateways) {
-    if (path.dirname(gateway) === parentDir) {
-      return gateway;
+  const gatewayPath = gatewayMatch[1].trim();
+
+  if (!fs.existsSync(gatewayPath)) {
+    return null;
     }
-  }
-  
-  // Third priority: just return the first one found
-  return gateways[0];
+
+  return gatewayPath;
 }
 
 async function generateRequirements(enviroPath: string) {
@@ -1296,6 +1248,7 @@ async function generateTestsFromRequirements(enviroPath: string, functionName: s
   const config = vscode.workspace.getConfiguration('vectorcastTestExplorer');
   const decomposeRequirements = config.get<boolean>('decomposeRequirements', true);
   const enableRequirementKeys = config.get<boolean>('enableRequirementKeys', false);
+  console.log(decomposeRequirements, enableRequirementKeys);
 
   const commandArgs = [
     envPath,
@@ -1408,6 +1361,16 @@ async function importRequirementsFromGateway(enviroPath: string) {
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
+  // Look for potential requirement gateways
+  const repositoryPath = findRelevantRequirementGateway(enviroPath);
+
+  if (!repositoryPath) {
+    vscode.window.showErrorMessage("Requirements Gateway either is not specified or does not exist. Aborting.");
+    return;
+  }
+
+  const gatewayPath = path.join(repositoryPath, 'requirements_gateway');
+
   const csvPath = path.join(parentDir, 'reqs.csv');
   const xlsxPath = path.join(parentDir, 'reqs.xlsx');
   
@@ -1429,7 +1392,6 @@ async function importRequirementsFromGateway(enviroPath: string) {
     
     const choice = await vscode.window.showWarningMessage(
       warningMessage,
-      { modal: true },
       "Continue",
       "Cancel"
     );
@@ -1438,29 +1400,6 @@ async function importRequirementsFromGateway(enviroPath: string) {
       return;
     }
   }
-
-  // Look for potential requirement gateways
-  const relevantGateway = findRelevantRequirementGateway(enviroPath);
-  const defaultDir = path.join(relevantGateway, 'requirements_gateway') || parentDir;
-
-  // Use file dialog to prompt the user for the requirements gateway path
-  const fileDialogOptions: vscode.OpenDialogOptions = {
-    canSelectFiles: false,
-    canSelectFolders: true,
-    canSelectMany: false,
-    openLabel: 'Select Requirements Gateway',
-    title: 'Select Requirements Gateway Directory',
-    defaultUri: vscode.Uri.file(defaultDir)
-  };
-
-  const selectedFolders = await vscode.window.showOpenDialog(fileDialogOptions);
-  
-  if (!selectedFolders || selectedFolders.length === 0) {
-    // User cancelled the operation
-    return;
-  }
-
-  const gatewayPath = selectedFolders[0].fsPath;
   
   const choice = await vscode.window.showInformationMessage("Would you like our system to automatically try to add traceability to the requirements?", "Yes", "No");
 
@@ -1566,7 +1505,6 @@ function updateRequirementsAvailability(enviroPath: string) {
   const xlsxPath = path.join(parentDir, 'reqs.xlsx');
 
   const hasRequirementsFiles = fs.existsSync(csvPath) || fs.existsSync(xlsxPath);
-  //const relevantGateway = findRelevantRequirementGateway(enviroPath);
   
   if (hasRequirementsFiles) {
     // Add this environment to the list if not already present
