@@ -1462,15 +1462,14 @@ async function importRequirementsFromGateway(enviroPath: string) {
 
   const gatewayPath = selectedFolders[0].fsPath;
   
-  // Validate the selected path
-  if (!fs.existsSync(gatewayPath)) {
-    vscode.window.showErrorMessage('The selected requirements gateway path does not exist.');
-    return;
-  }
+  const choice = await vscode.window.showInformationMessage("Would you like our system to automatically try to add traceability to the requirements?", "Yes", "No");
+
+  const addTraceability = choice === "Yes";
 
   const commandArgs = [
     '--requirements-gateway-path', gatewayPath,
     '--output-file', xlsxPath,
+    ...(addTraceability ? ['--automatic-traceability'] : []),
     envPath
   ];
   
