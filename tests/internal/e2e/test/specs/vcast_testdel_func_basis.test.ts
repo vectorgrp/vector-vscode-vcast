@@ -6,7 +6,6 @@ import {
   testGenMethod,
   deleteAllTestsForFunction,
   assertTestsDeleted,
-  cleanup,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -112,10 +111,5 @@ describe("vTypeCheck VS Code Extension", () => {
     await assertTestsDeleted("DATABASE-MANAGER");
     await browser.takeScreenshot();
     await browser.saveScreenshot("info_deleted_func_basis_tests.png");
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

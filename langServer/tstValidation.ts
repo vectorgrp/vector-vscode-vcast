@@ -6,6 +6,7 @@ import {
 } from "vscode-languageserver";
 
 import { testCommandList, scriptFeatureList } from "./serverUtilities";
+import { checkForKeywordInLine } from "./tstCompletion";
 
 export function getDiagnosticObject(
   line: number,
@@ -37,6 +38,7 @@ export function validateTextDocument(textDocument: TextDocument) {
 
   let diagnosticList: Diagnostic[] = [];
 
+  let lineIndex = 0;
   let text = textDocument.getText();
   let lineList = text.split(/\r?\n/g);
 
@@ -48,12 +50,17 @@ export function validateTextDocument(textDocument: TextDocument) {
   let withinValueUserCode: boolean = false;
   let withinExpectedUserCode: boolean = false;
   let withinImportFailures = false;
+  const codedTestsDriverInSubprogram = checkForKeywordInLine(
+    text,
+    "TEST.SUBPROGRAM",
+    "coded_tests_driver"
+  );
 
-  for (let lineIndex = 0; lineIndex < lineList.length; lineIndex++) {
+  for (lineIndex = 0; lineIndex < lineList.length; lineIndex++) {
     let thisLine: string = lineList[lineIndex];
 
     if (thisLine.startsWith("TEST")) {
-      const pieces = thisLine.split(/(?<!:)[:.](?!:)/);
+      const pieces = thisLine.split(/(?<!:)[:\.](?!:)/);
       let command = "";
       if (pieces.length > 1) command = pieces[1].trim();
 
@@ -116,17 +123,41 @@ export function validateTextDocument(textDocument: TextDocument) {
                 'Commands cannot be nested in a "IMPORT_FAILURES" block'
               )
             );
-        } else if (
-          command == "VALUE" ||
-          command == "EXPECTED" ||
+          // If TEST.SUBPROGRAM is coded_tests_driver, check for disallowed TEST.VALUE and TEST.EXPECTED
+        } else if (command == "VALUE" || command == "EXPECTED") {
+          if (codedTestsDriverInSubprogram) {
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "TEST.VALUE and TEST.EXPECTED are not valid when TEST.SUBPROGRAM is set to coded_tests_driver"
+              )
+            );
+          } else {
+            // Handle general VALUE or EXPECTED validation
+          }
+        }
+        // Other commands (TBD: validate in Python)
+        else if (
           command == "STUB" ||
           command == "SLOT" ||
           command == "REQUIREMENT_KEY"
         ) {
+          // When TEST.SUBPROGRAM is set to coded_tests_driver, TEST.CODED_TEST_FILE should throw an error
+        } else if (command == "CODED_TEST_FILE") {
+          if (!codedTestsDriverInSubprogram) {
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "TEST.CODED_TEST_FILE is not valid when TEST.SUBPROGRAM is not set to coded_tests_driver"
+              )
+            );
+          }
           // TBD: we should validate in python
         } else if (command == "NAME") {
-          // nothing to be done for TEST.NAME
-          // including this for completeness
         } else if (command == "NOTES") {
           withinNotes = true;
         } else if (command == "FLOW") {
@@ -142,76 +173,82 @@ export function validateTextDocument(textDocument: TextDocument) {
         }
       }
       //file-level commands
-      else if (testCommandList.indexOf(command) < 0) {
-        diagnosticList.push(
-          getDiagnosticObject(
-            lineIndex,
-            0,
-            1000,
-            "Invalid command, type TEST. to see all command values"
+      else {
+        if (testCommandList.indexOf(command) < 0) {
+          diagnosticList.push(
+            getDiagnosticObject(
+              lineIndex,
+              0,
+              1000,
+              "Invalid command, type TEST. to see all command values"
+            )
+          );
+        } else if (command == "UNIT") {
+          currentUnit = pieces[2];
+        } else if (command == "SUBPROGRAM") {
+          currentFunction = pieces[2];
+          if (
+            currentUnit == "" &&
+            !specialSubprogramNames.includes(currentFunction)
           )
-        );
-      } else if (command == "UNIT") {
-        currentUnit = pieces[2];
-      } else if (command == "SUBPROGRAM") {
-        currentFunction = pieces[2];
-        if (
-          currentUnit == "" &&
-          !specialSubprogramNames.includes(currentFunction)
-        )
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "TEST.UNIT is required but missing"
+              )
+            );
+        } else if (
+          command == "NEW" ||
+          command == "REPLACE" ||
+          command == "ADD"
+        ) {
+          if (currentFunction == "") {
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "TEST.SUBPRORGRAM is required but missing"
+              )
+            );
+          }
+          withinTest = true;
+        } else if (command == "END") {
+          if (!withinTest) {
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "TEST.NEW | REPLACE is required but missing"
+              )
+            );
+          }
+        } else if (command == "SCRIPT_FEATURE" && pieces.length > 2) {
+          const featureName = pieces[2].trim();
+          if (scriptFeatureList.indexOf(featureName) < 0) {
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "Invalid feature flag, type TEST.SCRIPT_FEATURE: to see a all flags"
+              )
+            );
+          }
+        } else {
+          // this is a valid TEST command, but it does not belong in the file scope
           diagnosticList.push(
             getDiagnosticObject(
               lineIndex,
               0,
               1000,
-              "TEST.UNIT is required but missing"
-            )
-          );
-      } else if (command == "NEW" || command == "REPLACE" || command == "ADD") {
-        if (currentFunction == "") {
-          diagnosticList.push(
-            getDiagnosticObject(
-              lineIndex,
-              0,
-              1000,
-              "TEST.SUBPRORGRAM is required but missing"
+              "Command is only valid within a TEST.NEW | REPLACE -> TEST.END block "
             )
           );
         }
-        withinTest = true;
-      } else if (command == "END") {
-        if (!withinTest) {
-          diagnosticList.push(
-            getDiagnosticObject(
-              lineIndex,
-              0,
-              1000,
-              "TEST.NEW | REPLACE is required but missing"
-            )
-          );
-        }
-      } else if (command == "SCRIPT_FEATURE" && pieces.length > 2) {
-        const featureName = pieces[2].trim();
-        if (scriptFeatureList.indexOf(featureName) < 0) {
-          diagnosticList.push(
-            getDiagnosticObject(
-              lineIndex,
-              0,
-              1000,
-              "Invalid feature flag, type TEST.SCRIPT_FEATURE: to see a all flags"
-            )
-          );
-        }
-      } else {
-        // this is a valid TEST command, but it does not belong in the file scope
-        diagnosticList.push(
-          getDiagnosticObject(
-            lineIndex,
-            0,
-            1000,
-            "Command is only valid within a TEST.NEW | REPLACE -> TEST.END block "
-          )
-        );
       }
     } // end if this is a TEST command
     else if (

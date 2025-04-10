@@ -12,6 +12,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast.build_env.test.ts",
         "./**/**/vcast.create_script_1.test.ts",
         "./**/**/vcast.create_script_2_and_run.test.ts",
+        "./**/**/vcast_mcdc_report.test.ts",
         "./**/**/vcast.create_second_test_1.test.ts",
         "./**/**/vcast.create_second_test_2_and_run.test.ts",
         "./**/**/vcast.third_test.test.ts",
@@ -77,6 +78,14 @@ export function getSpecGroups(useVcast24: boolean) {
       env: { VCAST_USE_PYTHON: "True" },
       params: {},
     },
+    coverage: {
+      specs: [
+        "./**/**/vcast.build_env.test.ts",
+        "./**/**/vcast_coverage_rebuild_bug.test.ts",
+      ],
+      env: { VCAST_USE_PYTHON: "True" },
+      params: {},
+    },
     env_basis: {
       specs: [
         "./**/**/vcast_testgen_env_basis.test.ts",
@@ -122,7 +131,11 @@ export function getSpecGroups(useVcast24: boolean) {
     };
 
     specGroups["coded_tests"] = {
-      specs: ["./**/**/vcast_coded_tests.test.ts"],
+      specs: [
+        "./**/**/vcast_coded_tests.test.ts",
+        "./**/**/vcast.create_script_1.test.ts",
+        "./**/**/vcast_coded_tests_tst_autocompletion.test.ts",
+      ],
       env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
@@ -153,6 +166,14 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
       },
+      params: {},
+    };
+    specGroups["coverage_server"] = {
+      specs: [
+        "./**/**/vcast.build_env.test.ts",
+        "./**/**/vcast_coverage_rebuild_bug.test.ts",
+      ],
+      env: {},
       params: {},
     };
     specGroups["build_env_failure_server"] = {
@@ -242,7 +263,11 @@ export function getSpecGroups(useVcast24: boolean) {
     };
 
     specGroups["coded_tests_server"] = {
-      specs: ["./**/**/vcast_coded_tests.test.ts"],
+      specs: [
+        "./**/**/vcast_coded_tests.test.ts",
+        "./**/**/vcast.create_script_1.test.ts",
+        "./**/**/vcast_coded_tests_tst_autocompletion.test.ts",
+      ],
       env: {},
       params: {},
     };

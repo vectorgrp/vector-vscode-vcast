@@ -18,9 +18,11 @@ This script must be run under vpython
 ///////////////////////////////////////////////////////////////////////////////////////////
 """
 
+import coverageGutter
 import clicastInterface
 import pythonUtilities
 import tstUtilities
+import mcdcReport
 
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
@@ -53,6 +55,8 @@ modeChoices = [
     "getEnviroData",
     "executeTest",
     "report",
+    "mcdcReport",
+    "mcdcLines",
     "parseCBT",
     "rebuild",
 ]
@@ -277,13 +281,16 @@ def getUnitData(api):
     for sourceObject in sourceObjects:
         sourcePath = sourceObject.display_path
         if sourceObject.is_instrumented:
-            covered, uncovered, checksum = getCoverageData(sourceObject)
+            covered, uncovered, partiallyCovered, checksum = getCoverageData(
+                sourceObject
+            )
             unitInfo = dict()
             unitInfo["path"] = sourcePath
             unitInfo["functionList"] = getFunctionData(sourceObject)
             unitInfo["cmcChecksum"] = checksum
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
+            unitInfo["partiallyCovered"] = partiallyCovered
             unitList.append(unitInfo)
 
         elif len(sourcePath) > 0:
@@ -296,6 +303,7 @@ def getUnitData(api):
             unitInfo["cmcChecksum"] = "0"
             unitInfo["covered"] = ""
             unitInfo["uncovered"] = ""
+            unitInfo["partiallyCovered"] = ""
             unitList.append(unitInfo)
 
     return unitList
@@ -323,17 +331,25 @@ class CoverageKind:
     other = 0
     statement = 1
     branch = 2
-    mcdc = 3
-    ignore = 4
+    statementBranch = 3
+    statementMcdc = 4
+    mcdc = 5
+    ignore = 6
 
 
 statementCoverList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT,
-    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH,
-    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
     COVERAGE_TYPE_TYPE_T.STATEMENT_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
+]
+
+mcdcCoverageList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC,
     COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC_FUNCTION_CALL,
+]
+
+branchCoverageList = [
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH,
     COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
 ]
 
@@ -351,10 +367,14 @@ def getCoverageKind(sourceObject):
     # older version of vcast, we do the interpretation of the enum manually here
     if sourceObject.coverage_type in statementCoverList:
         return CoverageKind.statement
-    elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.BRANCH:
-        return CoverageKind.branch
+    elif sourceObject.coverage_type in branchCoverageList:
+        return CoverageKind.statementBranch
+    elif sourceObject.coverage_type in mcdcCoverageList:
+        return CoverageKind.statementMcdc
     elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.MCDC:
         return CoverageKind.mcdc
+    elif sourceObject.coverage_type == COVERAGE_TYPE_TYPE_T.BRANCH:
+        return CoverageKind.branch
     else:
         return CoverageKind.ignore
 
@@ -366,41 +386,92 @@ def getCoverageData(sourceObject):
     """
     coveredString = ""
     uncoveredString = ""
+    partiallyCoveredString = ""
     checksum = 0
     if sourceObject and sourceObject.is_instrumented:
+
+        # Unit name with deleted extension.
+        # Normally i would do it with sourceObject.unit_name but release 21 does not have this method.
+        unitFile = sourceObject.cover_data.name
+        unit = unitFile.rsplit(".", 1)[0]
+
+        # We need to get the lines where the function starts to filter them out, because otherwise they are also recognized as "Branches"
+        functionLineList = []
+        for function in sourceObject.cover_data.functions:
+            functionLineList.append(function.start_line)
+
         checksum = sourceObject.checksum
         coverageKind = getCoverageKind(sourceObject)
+        mcdc_line_dic = coverageGutter.getMCDCLineDic(sourceObject)
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
-                metrics = line.metrics
+
+                # STATEMENT
                 if coverageKind == CoverageKind.statement:
-                    if (
-                        metrics.max_covered_statements > 0
-                        or metrics.max_annotations_statements > 0
-                    ):
-                        coveredString += str(line.line_number) + ","
-                    elif metrics.statements > 0:
-                        uncoveredString += str(line.line_number) + ","
-                elif coverageKind in [CoverageKind.branch, CoverageKind.mcdc]:
-                    # for mcdc we only report on the top level branch
-                    # not the sub-conditions, so for if (a && b)  we report
-                    # covered if the if statement has been true and false
-                    if (
-                        metrics.branches > 0
-                        and metrics.max_covered_branches
-                        + metrics.max_annotations_branches
-                        == metrics.branches
-                    ):
-                        coveredString += str(line.line_number) + ","
-                    elif metrics.max_uncovered_branches > 0:
-                        uncoveredString += str(line.line_number) + ","
+                    coveredString, uncoveredString = (
+                        coverageGutter.handleStatementCoverage(
+                            line,
+                            coveredString,
+                            uncoveredString,
+                        )
+                    )
+
+                # MCDC
+                elif coverageKind == CoverageKind.mcdc:
+                    coveredString, partiallyCoveredString, uncoveredString = (
+                        coverageGutter.handleMcdcCoverage(
+                            unit,
+                            mcdc_line_dic,
+                            line,
+                            coveredString,
+                            partiallyCoveredString,
+                            uncoveredString,
+                        )
+                    )
+
+                # STATEMENT + MCDC
+                elif coverageKind == CoverageKind.statementMcdc:
+                    coveredString, partiallyCoveredString, uncoveredString = (
+                        coverageGutter.handleStatementMcdcCoverage(
+                            unit,
+                            mcdc_line_dic,
+                            line,
+                            coveredString,
+                            partiallyCoveredString,
+                            uncoveredString,
+                        )
+                    )
+
+                # STATEMENT + BRANCH
+                elif coverageKind == CoverageKind.statementBranch:
+                    coveredString, partiallyCoveredString, uncoveredString = (
+                        coverageGutter.handleStatementBranchCoverage(
+                            line,
+                            coveredString,
+                            partiallyCoveredString,
+                            uncoveredString,
+                        )
+                    )
+
+                # BRANCH
+                elif coverageKind == CoverageKind.branch:
+                    coveredString, partiallyCoveredString, uncoveredString = (
+                        coverageGutter.handleBranchCoverage(
+                            line,
+                            functionLineList,
+                            coveredString,
+                            partiallyCoveredString,
+                            uncoveredString,
+                        )
+                    )
 
             # print, but drop the last colon
             coveredString = coveredString[:-1]
             uncoveredString = uncoveredString[:-1]
+            partiallyCoveredString = partiallyCoveredString[:-1]
 
-    return coveredString, uncoveredString, checksum
+    return coveredString, uncoveredString, partiallyCoveredString, checksum
 
 
 def executeVCtest(enviroPath, testIDObject):
@@ -708,6 +779,19 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             raise UsageError("--test argument is invalid")
         returnObject = {"text": getResults(pathToUse, testIDObject).split("\n")}
 
+    elif mode == "mcdcReport":
+        try:
+            jsonOptions = processOptions(options)
+            # Access individual fields
+            unitName = jsonOptions.get("unitName")
+            lineNumber = jsonOptions.get("lineNumber")
+        except:
+            print("Invalid options, provide a valid --options argument")
+            raise UsageError("--options argument is invalid")
+        returnObject = {
+            "text": getMCDCResults(pathToUse, unitName, lineNumber).split("\n")
+        }
+
     elif mode == "parseCBT":
         # This is a special mode used by the unit test driver to parse the CBT
         # file and generate the test list.
@@ -761,6 +845,104 @@ def processCommand(mode, clicast, pathToUse, testString="", options=""):
         returnObject = {"text": traceBackText}
 
     return returnCode, returnObject
+
+
+def processMCDCLogic(mode, clicast, pathToUse, unitName, lineNumber):
+    returnCode = 0
+    returnObject = None
+
+    # no need to pass this all around
+    # will raise usageError if path is invalid
+    validateClicastCommand(clicast, mode)
+    pythonUtilities.globalClicastCommand = clicast
+
+    # will raise usageError if path is invalid
+    validatePath(pathToUse)
+
+    if mode == "mcdcReport":
+        returnObject = {
+            "text": getMCDCResults(pathToUse, unitName, lineNumber).split("\n")
+        }
+    elif mode == "mcdcLines":
+        returnObject = {"text": getMCDCLines(pathToUse).split("\n")}
+    else:
+        modeListAsString = ",".join(modeChoices)
+        raise UsageError(
+            f"--mode: {mode} is invalid, must be one of: {modeListAsString}"
+        )
+    return returnCode, returnObject
+
+
+def processMCDCCommand(mode, clicast, pathToUse, unitName="", lineNumber=-1):
+    """
+    This is a wrapper for process mcdc command logic, so that we can process
+    the exceptions in a single place for stand-alone (via main) and server usage
+    """
+    try:
+        returnCode, returnObject = processMCDCLogic(
+            mode, clicast, pathToUse, unitName, lineNumber
+        )
+
+    # because vpython and clicast use a large range of positive return codes
+    # we use values > 990 for internal tool errors
+    except InvalidEnviro as error:
+        returnCode = errorCodes.testInterfaceError
+        whatToReturn = ["Miss-match between Environment and VectorCAST versions"]
+        whatToReturn.extend(str(error).split("\n"))
+        returnObject = {"text": whatToReturn}
+    except UsageError as error:
+        # for usage error we print the issue where we see it
+        returnCode = errorCodes.testInterfaceError
+        returnObject = {"text": [str(error)]}
+    except Exception:
+        returnCode = errorCodes.testInterfaceError
+        traceBackText = traceback.format_exc().split("\n")
+        returnObject = {"text": traceBackText}
+
+    return returnCode, returnObject
+
+
+def getMCDCResults(enviroPath, unitName, lineNumber):
+    """
+    Returns the MCDC Report for a specific line in a specific unit.
+    """
+    with cd(os.path.dirname(enviroPath)):
+        commands = list()
+        commands.append("mcdcReport")
+        try:
+            # Create a hash for the report name based on the params
+            temp = ".".join([unitName, str(lineNumber)])
+            hashString = hashlib.md5(temp.encode("utf-8")).hexdigest()
+            reportName = os.path.join(enviroPath, hashString) + ".html"
+
+            # Attempt to generate the report
+            mcdcReport.generate_mcdc_report(
+                enviroPath, unitName, lineNumber, reportName
+            )
+
+            # If mcdc report generation does not fail, we return the name of the file
+            returnText = f"REPORT:{reportName}\n"
+        except Exception as e:
+            returnText = f"Error: {str(e)}\n"
+
+        return returnText
+
+
+def getMCDCLines(enviroPath):
+    """
+    Returns all MCDC lines for all units within an environment.
+    """
+    with cd(os.path.dirname(enviroPath)):
+        commands = list()
+        commands.append("mcdcLines")
+        try:
+            # Attempt to retrieve the lines
+            mcdcLines = mcdcReport.get_mcdc_lines(enviroPath)
+            returnText = f"{mcdcLines}\n"
+        except Exception as e:
+            returnText = f"Error: {str(e)}\n"
+
+        return returnText
 
 
 def main():
