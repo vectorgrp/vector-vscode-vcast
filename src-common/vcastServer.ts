@@ -78,7 +78,7 @@ export function serverURL() {
 export let globalEnviroDataServerActive: boolean = false;
 
 export function setGLobalServerState(newState: boolean) {
-  globalEnviroDataServerActive = newState;
+  globalEnviroDataServerActive = false;
 }
 
 export function getGLobalServerState(): boolean {
