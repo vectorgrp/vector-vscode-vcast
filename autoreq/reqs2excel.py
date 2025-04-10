@@ -37,6 +37,7 @@ def requirements_to_xlsx(
     requirements_info,
     output_file: t.Union[str, Path],
     from_rgw: bool = False,
+    automatic_traceability: bool = False,
 ) -> None:
     # For now, we assume one requirements gateway/csv file per environment.
     if not isinstance(envs, list):
@@ -55,14 +56,17 @@ def requirements_to_xlsx(
     if from_rgw:
         real_requirements = [req["description"] for req in requirements_info]
         try:
-            reqs2code_mapping = asyncio.run(
-                reqs2code_mapper.map_reqs_to_code_for_env(
-                    envs[0].env_file_path, real_requirements
+            if automatic_traceability:
+                reqs2code_mapping = asyncio.run(
+                    reqs2code_mapper.map_reqs_to_code_for_env(
+                        envs[0].env_file_path, real_requirements
+                    )
                 )
-            )
-            logging.info(
-                "Automatic matching of requirements to functions finished, generating Excel file to be reviewed..."
-            )
+                logging.info(
+                    "Automatic matching of requirements to functions finished, generating Excel file to be reviewed..."
+                )
+            else:
+                reqs2code_mapping = {}
         except Exception as e:
             logging.error(
                 "Error occurred during automatic matching requirements to functions: %s",
@@ -83,14 +87,17 @@ def requirements_to_xlsx(
             for env_path, reqs_info in requirements_info.items()
         }
         try:
-            reqs2code_mapping = asyncio.run(
-                reqs2code_mapper.map_reqs_to_code_for_env_list(
-                    real_requirements_per_env
+            if automatic_traceability:
+                reqs2code_mapping = asyncio.run(
+                    reqs2code_mapper.map_reqs_to_code_for_env_list(
+                        real_requirements_per_env
+                    )
                 )
-            )
-            logging.info(
-                "Automatic matching of requirements to functions finished, generating Excel file to be reviewed..."
-            )
+                logging.info(
+                    "Automatic matching of requirements to functions finished, generating Excel file to be reviewed..."
+                )
+            else:
+                reqs2code_mapping = {}
         except Exception as e:
             logging.error(
                 "Error occurred during automatic matching requirements to functions: %s",
@@ -138,10 +145,10 @@ def format_env_requirements(
             not in [func["name"] for func in environment.testable_functions]
         ):
             logging.info(
-                "No function found for requirement %s, assigning default function",
+                "No function found for requirement %s, assigning None",
                 req["description"],
             )
-            related_function_name = environment.testable_functions[0]["name"]
+            related_function_name = 'None'
 
         requirement = {
             "Key": req_id,
@@ -190,6 +197,7 @@ def main(
     requirements_gateway_path: t.Union[str, Path] = None,
     init_requirements: bool = False,
     csv_template_path: t.Union[str, Path] = None,
+    automatic_traceability: bool = False,
 ) -> None:
     envs = [Environment(env, use_sandbox=False) for env in _expand_env_paths(env_paths)]
     for env in envs:
@@ -225,7 +233,7 @@ def main(
         requirements = load_requirements_from_gateway(requirements_gateway_path)
         from_rgw = True
 
-    requirements_to_xlsx(envs, requirements, output_file, from_rgw)
+    requirements_to_xlsx(envs, requirements, output_file, from_rgw, automatic_traceability=automatic_traceability)
     for env in envs:
         env.cleanup()
 
@@ -264,6 +272,13 @@ def cli():
         default=False,
         required=False,
     )
+    parser.add_argument(
+        "--automatic-traceability",
+        action="store_true",
+        help="Enable automatic traceability.",
+        default=False,
+        required=False,
+    )
 
     args = parser.parse_args()
 
@@ -273,6 +288,7 @@ def cli():
         args.requirements_gateway_path,
         init_requirements=args.init_requirements,
         csv_template_path=args.csv_template,
+        automatic_traceability=args.automatic_traceability,
     )
 
 

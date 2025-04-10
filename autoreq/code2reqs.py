@@ -81,7 +81,7 @@ def save_requirements_to_excel(requirements, source_envs, output_file):
     # For each module, write its functions in its own column (starting at column B)
     # and create a named range using create_named_range().
     for i, module in enumerate(modules):
-        functions = funcs[module]
+        functions = funcs[module] + ["None"]
         col = i + 2
         for row, func in enumerate(functions, start=1):
             lists_ws.cell(row=row, column=col, value=func)
