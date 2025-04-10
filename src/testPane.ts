@@ -1431,18 +1431,21 @@ export async function loadTestScript() {
     const enviroName = getEnviroNameFromScript(scriptPath);
 
     // We need to check if it's the env test script in case we clicked on
-    // "Edit Test script". We don't want to load it then.
+    // "Edit Test script". We don't want to check for it then.
     const possibleEnviroTstName = enviroName + ".tst";
     const isTheEnvTestScript = scriptPath.endsWith(possibleEnviroTstName);
 
-    if (enviroName && !isTheEnvTestScript) {
+    if (enviroName) {
       adjustScriptContentsBeforeLoad(scriptPath);
       const enviroPath = normalizePath(
         path.join(path.dirname(scriptPath), enviroName)
       );
 
-      if (!(await checkIfTestExists(enviroPath, scriptPath))) {
-        return;
+      if (!isTheEnvTestScript) {
+        const testExists = await checkIfTestExists(enviroPath, scriptPath);
+        if (!testExists) {
+          return;
+        }
       }
 
       // call clicast to load the test script
