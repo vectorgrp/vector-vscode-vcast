@@ -262,6 +262,12 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
+    specGroups["manage_server"] = {
+      specs: ["./**/**/vcast_manage.test.ts"],
+      env: { MANAGE_TEST: "True" },
+      params: {},
+    };
+
     specGroups["coded_tests_server"] = {
       specs: [
         "./**/**/vcast_coded_tests.test.ts",
