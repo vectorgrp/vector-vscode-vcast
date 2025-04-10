@@ -46,7 +46,6 @@ import {
   globalUnusedCompilerList,
   globalUnusedTestsuiteList,
   nodeKind,
-  refreshAllExtensionData,
   vcastTestItem,
 } from "./testPane";
 import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";

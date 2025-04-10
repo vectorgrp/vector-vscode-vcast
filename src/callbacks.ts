@@ -19,7 +19,6 @@ import {
   removeCBTfilesCacheForEnviro,
   removeNodeFromTestPane,
   updateDataForEnvironment,
-  updateTestPane,
   vcastUnbuiltEnviroList,
 } from "./testPane";
 
