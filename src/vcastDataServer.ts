@@ -265,8 +265,7 @@ export async function initializeServerState() {
   //     - when the vcast installation directory is changed
   //     - when the useServer option is changed
 
-  //if (useServerOption()) {
-  if (false) {
+  if (useServerOption()) {
     if (isEnviroDataServerAvailable()) {
       serverStatusBarObject.show();
       await serverProcessController(serverStateType.running);

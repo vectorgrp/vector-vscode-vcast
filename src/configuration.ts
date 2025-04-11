@@ -157,6 +157,7 @@ export function getUnitTestLocationForPath(dirpath: string): string {
 }
 
 export function useServerOption() {
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  return settings.get("useDataServer", false);
+  //const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  //return settings.get("useDataServer", false);
+  return false;
 }
