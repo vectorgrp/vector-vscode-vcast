@@ -226,7 +226,8 @@ class RequirementsGenerator:
                 if not condition and node.type == 'case_statement':
                     path_labels = {field: re.sub(r'\s{2,}', ' ', 'DEFAULT ==> ENTERED') for field in PATH_NODE_CHILD_PATH_LABELS[node.type]}
                 else:
-                    path_labels = {field: re.sub(r'\s{2,}', ' ', PATH_NODE_CHILD_PATH_LABELS[node.type][field].format(condition.text.decode('utf-8').replace('\n', ''))) for field in PATH_NODE_CHILD_PATH_LABELS[node.type]}
+                    condition_text = condition.text.decode('utf-8') if condition else 'None'
+                    path_labels = {field: re.sub(r'\s{2,}', ' ', PATH_NODE_CHILD_PATH_LABELS[node.type][field].format(condition_text.replace('\n', ''))) for field in PATH_NODE_CHILD_PATH_LABELS[node.type]}
             else:
                 path_labels = {}
                 
