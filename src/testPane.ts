@@ -639,9 +639,14 @@ function addUnbuiltEnviroToTestPane(
 
 export function removeNodeFromTestPane(nodeID: string) {
   // Start searching from top-level items
-  globalController.items.forEach((item) => {
-    deleteItemByID(item, nodeID);
-  });
+  setGlobalProjectIsOpenedChecker();
+  if (globalProjectIsOpenedChecker) {
+    globalController.items.forEach((item) => {
+      deleteItemByID(item, nodeID);
+    });
+  } else {
+    globalController.items.delete(nodeID);
+  }
 }
 
 // Deletes the item with the matching enviroID
@@ -674,6 +679,7 @@ async function loadAllVCTests(
   // We basically delete the entire tree and afterwards build it again.
   // It's simpler, because in case we have less nodes than before we need to find
   // the sepecif node(s) to delete, where we also have to iterate thorugh the whole tree and involves way more logic.
+  // First, delete all children for each item:
   globalController.items.forEach((item) => {
     deleteAllItems(item);
   });
@@ -1613,7 +1619,7 @@ export async function activateTestPane(context: vscode.ExtensionContext) {
 }
 
 export async function buildTestPaneContents() {
-  vscode.window.withProgress(
+  return vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
       title: "VectorCAST Test Pane Initialization",

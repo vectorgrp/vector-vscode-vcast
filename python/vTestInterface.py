@@ -52,19 +52,13 @@ class UsageError(Exception):
 
 modeChoices = [
     "getProjectData",
-    
     "getEnviroData",
-   
     "executeTest",
-   
     "report",
-   
     "mcdcReport",
     "mcdcLines",
     "parseCBT",
-   
     "rebuild",
-,
 ]
 
 
