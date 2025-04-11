@@ -638,10 +638,11 @@ function addUnbuiltEnviroToTestPane(
 }
 
 export function removeNodeFromTestPane(nodeID: string) {
-  // We need to distinguish between a Project being opened and free envs
-  setGlobalProjectIsOpenedChecker();
+  // We need to distinguish between an env within a project and a free Env
+  const enviroPath = getEnviroPathFromID(nodeID);
+  const enviroData = getEnviroNodeData(enviroPath);
   // If we're in a project, we need to go deeper
-  if (globalProjectIsOpenedChecker) {
+  if (enviroData.projectPath !== "") {
     globalController.items.forEach((item) => {
       deleteItemByID(item, nodeID);
     });
