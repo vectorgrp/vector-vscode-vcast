@@ -638,8 +638,9 @@ function addUnbuiltEnviroToTestPane(
 }
 
 export function removeNodeFromTestPane(nodeID: string) {
-  // Start searching from top-level items
+  // We need to distinguish between a Project being opened and free envs
   setGlobalProjectIsOpenedChecker();
+  // If we're in a project, we need to go deeper
   if (globalProjectIsOpenedChecker) {
     globalController.items.forEach((item) => {
       deleteItemByID(item, nodeID);
