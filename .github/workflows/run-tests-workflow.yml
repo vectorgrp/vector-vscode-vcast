@@ -84,13 +84,13 @@ jobs:
             exit 1
           fi
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
-          mv distribution linux_distribution
+          mv distribution /tmp/linux_distribution
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
-          mv distribution win_distribution
+          mv distribution /tmp/win_distribution
 
       - name: Package with VSCE - Linux
         run: |
-          mv linux_distribution ./resources/distribution
+          mv /tmp/linux_distribution ./resources/distribution
           npm run package
           rm -rf ./resources/distribution
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
@@ -100,7 +100,7 @@ jobs:
 
       - name: Package with VSCE - Windows
         run: |
-          mv win_distribution ./resources/distribution
+          mv /tmp/win_distribution ./resources/distribution
           npm run package
           rm -rf ./resources/distribution
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
