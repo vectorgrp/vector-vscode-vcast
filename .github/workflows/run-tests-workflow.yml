@@ -79,14 +79,13 @@ jobs:
             echo "Error: autoreq-linux.tar.gz not found."
             exit 1
           fi
-          tar -xf autoreq-linux.tar.gz
-          mv distribution linux_distribution
-          
           if [ ! -f "autoreq-win.tar.gz" ]; then
             echo "Error: autoreq-win.tar.gz not found."
             exit 1
           fi
-          tar -xf autoreq-win.tar.gz
+          tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
+          mv distribution linux_distribution
+          tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution win_distribution
 
       - name: Package with VSCE - Linux
