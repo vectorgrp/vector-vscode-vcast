@@ -176,10 +176,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await tab.save();
 
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
-
     // Check for server logs when loading scripts
     if (useDataServer) {
       const expectedLoadScriptLogs = [
@@ -488,8 +484,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const workspaceFolderSection = await explorerSideBarView
       .getContent()
       .getSection(workspaceFolderName.toUpperCase());
-    console.log(await workspaceFolderSection.getTitle());
-    await workspaceFolderSection.expand();
+    const cppFolder = workspaceFolderSection.findItem("cpp");
+    await (await cppFolder).select();
 
     const managerCpp = workspaceFolderSection.findItem("manager.cpp");
     await (await managerCpp).select();
