@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import logging
 
 from .vcast_context_builder import VcastContextBuilder
-from .atg_context_builder import ATGContextBuilder 
+from .atg_context_builder import ATGContextBuilder
 from .info_logger import InfoLogger
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
 from ..llm_client import LLMClient
@@ -19,33 +19,41 @@ from ..llm_client import LLMClient
 # Load environment variables from .env file
 load_dotenv()
 
+
 def _derive_test_case_schema(allowed_identifiers=None):
     class TempEnum(str, Enum):
         pass
 
     # If we have knowledge of allowed identifiers, constrain the type of Identifier to those values
     if allowed_identifiers:
-        Identifier = TempEnum("Identifier", [(ident, ident) for ident in allowed_identifiers])
+        Identifier = TempEnum(
+            "Identifier", [(ident, ident) for ident in allowed_identifiers]
+        )
     else:
         Identifier = str
 
     class ValueMapping(BaseModel):
-        identifier: Identifier # type: ignore
+        identifier: Identifier  # type: ignore
         value: str
 
-        def to_vectorcast(self, is_expected=False, no_pointer=False, return_was_pointer=False) -> str:
-            patched_identifier = re.sub(r'(\w+)->', r'*\1.', self.identifier)
-            patched_identifier = re.sub(r'\*(\w+)\.', r'*\1[0].', patched_identifier)
+        def to_vectorcast(
+            self, is_expected=False, no_pointer=False, return_was_pointer=False
+        ) -> str:
+            patched_identifier = re.sub(r"(\w+)->", r"*\1.", self.identifier)
+            patched_identifier = re.sub(r"\*(\w+)\.", r"*\1[0].", patched_identifier)
 
             prefix = "TEST.EXPECTED" if is_expected else "TEST.VALUE"
 
-            pointer_match = re.match(r'<<pointer (.+?)>>', self.value)
+            pointer_match = re.match(r"<<pointer (.+?)>>", self.value)
             if pointer_match:
                 patched_value = pointer_match.group(1)
 
                 if not no_pointer:
                     if return_was_pointer:
-                        return f"TEST.VALUE:USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1:{patched_value}\n{prefix}:{patched_identifier}:VECTORCAST_STR1\n", True
+                        return (
+                            f"TEST.VALUE:USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1:{patched_value}\n{prefix}:{patched_identifier}:VECTORCAST_STR1\n",
+                            True,
+                        )
 
                     return f"TEST.VALUE:USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1:{patched_value}\n{prefix}:{patched_identifier}:VECTORCAST_STR1\n"
                 else:
@@ -59,7 +67,9 @@ def _derive_test_case_schema(allowed_identifiers=None):
 
         @property
         def needed_stub_as_input(self):
-            return_match = re.match(r'([^\.]+\.[^\.]+).*\.return', self.identifier, re.IGNORECASE)
+            return_match = re.match(
+                r"([^\.]+\.[^\.]+).*\.return", self.identifier, re.IGNORECASE
+            )
 
             if return_match:
                 return return_match.group(1)
@@ -68,7 +78,7 @@ def _derive_test_case_schema(allowed_identifiers=None):
 
         @property
         def needed_stub_as_expected(self):
-            match = re.match(r'([^\.]+\.[^\.]+)', self.identifier)
+            match = re.match(r"([^\.]+\.[^\.]+)", self.identifier)
 
             if match:
                 return match.group(1)
@@ -91,14 +101,14 @@ def _derive_test_case_schema(allowed_identifiers=None):
         @property
         def as_partial(self):
             return TestCase(
-                test_name=self.test_name + '-PARTIAL',
+                test_name=self.test_name + "-PARTIAL",
                 test_description=self.test_description,
                 requirement_id=self.requirement_id,
                 unit_name=self.unit_name,
                 subprogram_name=self.subprogram_name,
                 input_values=self.input_values,
-                #expected_values=[]
-                expected_values=self.expected_values
+                # expected_values=[]
+                expected_values=self.expected_values,
             )
 
         def to_vectorcast(self, use_requirement_key=True, add_uuid=False) -> str:
@@ -106,7 +116,11 @@ def _derive_test_case_schema(allowed_identifiers=None):
             test_case_str += f"TEST.SUBPROGRAM:{self.subprogram_name}\n"
             test_case_str += "TEST.NEW\n"
 
-            name = self.test_name if not add_uuid else f"{self.test_name}-{random.randint(0, 100000)}"
+            name = (
+                self.test_name
+                if not add_uuid
+                else f"{self.test_name}-{random.randint(0, 100000)}"
+            )
 
             test_case_str += f"TEST.NAME:{name}-REVIEW-NEEDED\n"
 
@@ -114,12 +128,12 @@ def _derive_test_case_schema(allowed_identifiers=None):
                 test_case_str += f"TEST.REQUIREMENT_KEY:{self.requirement_id}\n"
 
             test_case_str += "TEST.NOTES:\n"
-            test_case_str += "WARNING: This is an automatically generated test case. Please review it carefully.\n\n"
+            test_case_str += "WARNING: This test case was generated by an AI-based system. Please review it carefully.\n\n"
 
             if not use_requirement_key:
                 test_case_str += f"Tested Requirement ID: {self.requirement_id}\n\n"
-                
-            for line in self.test_description.split('\n'):
+
+            for line in self.test_description.split("\n"):
                 test_case_str += f"{line}\n"
             test_case_str += "TEST.END_NOTES:\n"
 
@@ -130,7 +144,9 @@ def _derive_test_case_schema(allowed_identifiers=None):
             seen_inputs = set()
             seen_pointer = False
             for input_value in self.input_values:
-                vectorcast_input, was_pointer = input_value.to_vectorcast(no_pointer=seen_pointer, return_was_pointer=True)
+                vectorcast_input, was_pointer = input_value.to_vectorcast(
+                    no_pointer=seen_pointer, return_was_pointer=True
+                )
                 seen_pointer = was_pointer or seen_pointer
 
                 if vectorcast_input in seen_inputs:
@@ -160,14 +176,14 @@ def _derive_test_case_schema(allowed_identifiers=None):
                 if not stub:
                     continue
 
-                unit_name, subprogram_name = stub.split('.', 1)
+                unit_name, subprogram_name = stub.split(".", 1)
 
                 if self.subprogram_name.startswith(subprogram_name):
                     continue
 
-                if subprogram_name == '<<GLOBAL>>':
+                if subprogram_name == "<<GLOBAL>>":
                     continue
-                
+
                 needed_stubs.add(stub)
 
             for expected_value in self.expected_values:
@@ -176,31 +192,37 @@ def _derive_test_case_schema(allowed_identifiers=None):
                 if not stub:
                     continue
 
-                unit_name, subprogram_name = stub.split('.', 1)
+                unit_name, subprogram_name = stub.split(".", 1)
 
                 if self.subprogram_name.startswith(subprogram_name):
                     continue
 
-                if subprogram_name == '<<GLOBAL>>':
+                if subprogram_name == "<<GLOBAL>>":
                     continue
-                
+
                 needed_stubs.add(stub)
 
             return needed_stubs
 
     return TestCase
 
-def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None, return_size_fallback=False):
+
+def _derive_completion_schema(
+    batched, allowed_identifiers=None, batch_size=None, return_size_fallback=False
+):
     if allowed_identifiers:
-        logging.info(f"Creating schema with {len(allowed_identifiers)} allowed identifiers")
+        logging.info(
+            f"Creating schema with {len(allowed_identifiers)} allowed identifiers"
+        )
 
     TestCase = _derive_test_case_schema(allowed_identifiers=allowed_identifiers)
-    
+
     if not batched:
+
         class TestGenerationResult(BaseModel):
             test_description: str
             test_mapping_analysis: str
-            test_case: TestCase # type: ignore
+            test_case: TestCase  # type: ignore
 
             @property
             def test_cases(self):
@@ -208,19 +230,30 @@ def _derive_completion_schema(batched, allowed_identifiers=None, batch_size=None
 
         schema = TestGenerationResult
     else:
-        assert batch_size is not None, "Batch size must be provided when generating a batched schema."
-        result_keys = {f"test_case_for_requirement_{i+1}": (TestCase, ...) for i in range(batch_size)}
-        schema = create_model('TestGenerationResult', **result_keys)
+        assert batch_size is not None, (
+            "Batch size must be provided when generating a batched schema."
+        )
+        result_keys = {
+            f"test_case_for_requirement_{i + 1}": (TestCase, ...)
+            for i in range(batch_size)
+        }
+        schema = create_model("TestGenerationResult", **result_keys)
 
     schema_json = json.dumps(schema.model_json_schema())
     logging.info(f"Generated schema size: {len(schema_json)} chars")
 
     if len(schema_json) > 15000:
-        logging.warning(f"Schema size is too large ({len(schema_json)} chars). Ignoring allowed identifiers.")
+        logging.warning(
+            f"Schema size is too large ({len(schema_json)} chars). Ignoring allowed identifiers."
+        )
         if return_size_fallback:
-            return _derive_completion_schema(batched, allowed_identifiers=None, batch_size=batch_size), True
+            return _derive_completion_schema(
+                batched, allowed_identifiers=None, batch_size=batch_size
+            ), True
 
-        return _derive_completion_schema(batched, allowed_identifiers=None, batch_size=batch_size)
+        return _derive_completion_schema(
+            batched, allowed_identifiers=None, batch_size=batch_size
+        )
 
     if return_size_fallback:
         return schema, False
@@ -247,44 +280,70 @@ class TestGenerator:
             if func not in by_function:
                 by_function[func] = []
             by_function[func].append(req_id)
-        
+
         # Split each function's requirements into batches
         batches = []
         for func_reqs in by_function.values():
             for i in range(0, len(func_reqs), batch_size):
-                batches.append(func_reqs[i:i + batch_size])
-        
+                batches.append(func_reqs[i : i + batch_size])
+
         return batches
 
     def _get_allowed_identifiers_for_function(self, function_name):
         """Helper method to get allowed identifiers for a function with logging."""
-        allowed_identifiers, used_fallback = self.environment.get_allowed_identifiers_for_function(function_name, return_used_atg_fallback=True)
-        logging.debug(f"Retrieved {len(allowed_identifiers)} allowed identifiers for function {function_name}")
-        
+        allowed_identifiers, used_fallback = (
+            self.environment.get_allowed_identifiers_for_function(
+                function_name, return_used_atg_fallback=True
+            )
+        )
+        logging.debug(
+            f"Retrieved {len(allowed_identifiers)} allowed identifiers for function {function_name}"
+        )
+
         # When this is called for a specific requirement, we'll update the info logger afterward
         return allowed_identifiers, used_fallback
 
-    async def generate_test_cases(self, requirement_ids, batched=True, allow_partial=False, allow_batch_partial=False, batch_size=8, **kwargs):
+    async def generate_test_cases(
+        self,
+        requirement_ids,
+        batched=True,
+        allow_partial=False,
+        allow_batch_partial=False,
+        batch_size=8,
+        **kwargs,
+    ):
         if not requirement_ids:
             return
 
         if batched:
             # Split requirements into appropriate batches
             batches = self._group_requirements_into_batches(requirement_ids, batch_size)
-            
+
             # Create generators
-            generators = [self.generate_batched_test_cases(batch, allow_partial=allow_batch_partial, individual_partial=allow_partial, **kwargs) 
-                        for batch in batches]
-            
+            generators = [
+                self.generate_batched_test_cases(
+                    batch,
+                    allow_partial=allow_batch_partial,
+                    individual_partial=allow_partial,
+                    **kwargs,
+                )
+                for batch in batches
+            ]
+
             async for test_case in merge(*generators):
                 yield test_case
 
         else:
-            routines = [self.generate_test_case(req_id, allow_partial=allow_partial, **kwargs) for req_id in requirement_ids]
+            routines = [
+                self.generate_test_case(req_id, allow_partial=allow_partial, **kwargs)
+                for req_id in requirement_ids
+            ]
             for test_case in asyncio.as_completed(routines):
                 yield await test_case
 
-    async def generate_batched_test_cases(self, requirement_ids, allow_partial=False, individual_partial=False, **kwargs):
+    async def generate_batched_test_cases(
+        self, requirement_ids, allow_partial=False, individual_partial=False, **kwargs
+    ):
         logging.info(f"Generating batched test cases: {requirement_ids}")
         if not requirement_ids:
             return
@@ -293,28 +352,47 @@ class TestGenerator:
             self.info_logger.start_requirement(req_id)
 
         # Verify all requirements belong to the same function using requirements_manager
-        functions = {self.requirements_manager.get_function(req_id) for req_id in requirement_ids}
+        functions = {
+            self.requirements_manager.get_function(req_id) for req_id in requirement_ids
+        }
         if len(functions) != 1:
-            logging.warning("Requirements from different functions detected in batch. Falling back to individual generation.")
-            async for test_case in self.generate_test_cases(requirement_ids, batched=False, allow_partial=individual_partial, **kwargs):
+            logging.warning(
+                "Requirements from different functions detected in batch. Falling back to individual generation."
+            )
+            async for test_case in self.generate_test_cases(
+                requirement_ids,
+                batched=False,
+                allow_partial=individual_partial,
+                **kwargs,
+            ):
                 yield test_case
             return
 
         function_name = functions.pop()
-        allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(function_name)
+        allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(
+            function_name
+        )
         for req_id in requirement_ids:
-            self.info_logger.set_found_no_allowed_identifiers(req_id, len(allowed_identifiers) == 0)
+            self.info_logger.set_found_no_allowed_identifiers(
+                req_id, len(allowed_identifiers) == 0
+            )
             self.info_logger.set_used_atg_identifier_fallback(req_id, used_fallback)
-        
-        requirements_text = "\n".join([f"{i+1}. {req_id}: {self.requirements_manager.get_description(req_id)}" for i, req_id in enumerate(requirement_ids)])
 
+        requirements_text = "\n".join(
+            [
+                f"{i + 1}. {req_id}: {self.requirements_manager.get_description(req_id)}"
+                for i, req_id in enumerate(requirement_ids)
+            ]
+        )
 
         # Build context similar to single test case generation
-        context, used_fallback = await self.context_builder.build_code_context(function_name, include_unit_name=True, return_used_fallback=True)
+        context, used_fallback = await self.context_builder.build_code_context(
+            function_name, include_unit_name=True, return_used_fallback=True
+        )
         for req_id in requirement_ids:
             self.info_logger.set_used_code_context_fallback(req_id, used_fallback)
 
-        context_lines = len(context.strip().split('\n'))
+        context_lines = len(context.strip().split("\n"))
         if context_lines < 200:
             num_examples = 1
             basis_path = True
@@ -322,19 +400,19 @@ class TestGenerator:
             num_examples = 3
             basis_path = True
 
-        atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
+        atg_examples = await self.atg_context_builder.get_relevant_test_cases(
+            function_name, k=num_examples, basis_path=basis_path
+        )
         for req_id in requirement_ids:
             self.info_logger.set_no_atg_examples(req_id, len(atg_examples) == 0)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
 
-        
-
         messages = [
             {
                 "role": "system",
-                "content": "You are an AI assistant that generates test code for given requirements."
+                "content": "You are an AI assistant that generates test code for given requirements.",
             },
             {
                 "role": "user",
@@ -385,54 +463,86 @@ Return your answer in the following format:
     ...
 }}
 ```
-"""
-            }
+""",
+            },
         ]
 
-        schema, used_fallback = _derive_completion_schema(True, allowed_identifiers=allowed_identifiers, batch_size=len(requirement_ids), return_size_fallback=True)
+        schema, used_fallback = _derive_completion_schema(
+            True,
+            allowed_identifiers=allowed_identifiers,
+            batch_size=len(requirement_ids),
+            return_size_fallback=True,
+        )
 
         for req_id in requirement_ids:
             self.info_logger.set_schema_exceeded_size(req_id, used_fallback)
 
         try:
-            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=0.0, extended_reasoning=self.use_extended_reasoning, max_tokens=8192)
+            test_generation_result = await self.llm_client.call_model(
+                messages,
+                schema,
+                temperature=0.0,
+                extended_reasoning=self.use_extended_reasoning,
+                max_tokens=8192,
+            )
         except Exception as e:
             import traceback
+
             logging.exception(f"Call to model failed for batched requirements: {e}")
-            logging.exception("Failed to generate batched test cases because model call failed. Falling back to individual generation.")
+            logging.exception(
+                "Failed to generate batched test cases because model call failed. Falling back to individual generation."
+            )
 
             for req_id in requirement_ids:
                 self.info_logger.add_exception(req_id, traceback.format_exc())
-            
-            async for test_case in self.generate_test_cases(requirement_ids, batched=False, allow_partial=individual_partial, **kwargs):
+
+            async for test_case in self.generate_test_cases(
+                requirement_ids,
+                batched=False,
+                allow_partial=individual_partial,
+                **kwargs,
+            ):
                 yield test_case
             return
 
         test_cases = []
         for i, req_id in enumerate(requirement_ids):
-            test_case = getattr(test_generation_result, f"test_case_for_requirement_{i+1}")
+            test_case = getattr(
+                test_generation_result, f"test_case_for_requirement_{i + 1}"
+            )
             test_cases.append(test_case)
 
         unseen_requirements = set(requirement_ids)
 
         async def process_generated_test_case(test_case):
             nonlocal unseen_requirements
-            
+
             if test_case.requirement_id in unseen_requirements:
                 unseen_requirements.remove(test_case.requirement_id)
             else:
-                logging.warning(f"Requirement {test_case.requirement_id} was generated multiple times or was not requested.")
+                logging.warning(
+                    f"Requirement {test_case.requirement_id} was generated multiple times or was not requested."
+                )
 
-            output = self.environment.run_tests([test_case.to_vectorcast(add_uuid=True)])
+            output = self.environment.run_tests(
+                [test_case.to_vectorcast(add_uuid=True)]
+            )
             errors, test_failures = self._parse_error_output(output)
 
             if errors or (not allow_partial and test_failures):
-                self.info_logger.set_individual_test_generation_needed(test_case.requirement_id)
+                self.info_logger.set_individual_test_generation_needed(
+                    test_case.requirement_id
+                )
                 # TODO: Think about if we want to set this or not
-                #if test_failures:
+                # if test_failures:
                 #    self.info_logger.set_test_run_failure_feedback(test_case.requirement_id)
 
-                return await self.generate_test_case(test_case.requirement_id, already_started=True, allow_partial=individual_partial, **kwargs)
+                return await self.generate_test_case(
+                    test_case.requirement_id,
+                    already_started=True,
+                    allow_partial=individual_partial,
+                    **kwargs,
+                )
             else:
                 self.info_logger.set_test_generated(test_case.requirement_id)
 
@@ -442,16 +552,27 @@ Return your answer in the following format:
             else:
                 return test_case
 
-        for test_case in asyncio.as_completed([process_generated_test_case(test_case) for test_case in test_cases]):
+        for test_case in asyncio.as_completed(
+            [process_generated_test_case(test_case) for test_case in test_cases]
+        ):
             yield await test_case
 
-
         if unseen_requirements:
-            routines = [self.generate_test_case(req_id, already_started=True, allow_partial=individual_partial, **kwargs) for req_id in unseen_requirements]
+            routines = [
+                self.generate_test_case(
+                    req_id,
+                    already_started=True,
+                    allow_partial=individual_partial,
+                    **kwargs,
+                )
+                for req_id in unseen_requirements
+            ]
             for test_case in asyncio.as_completed(routines):
                 yield await test_case
 
-    async def generate_test_case(self, requirement_id, already_started=False, max_retries=1, allow_partial=False):
+    async def generate_test_case(
+        self, requirement_id, already_started=False, max_retries=1, allow_partial=False
+    ):
         try:
             if not already_started:
                 self.info_logger.start_requirement(requirement_id)
@@ -459,28 +580,37 @@ Return your answer in the following format:
             self.info_logger.set_individual_test_generation_needed(requirement_id)
 
             function_name = self.requirements_manager.get_function(requirement_id)
-            allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(function_name)
-            self.info_logger.set_found_no_allowed_identifiers(requirement_id, len(allowed_identifiers) == 0)
-            self.info_logger.set_used_atg_identifier_fallback(requirement_id, used_fallback)
+            allowed_identifiers, used_fallback = (
+                self._get_allowed_identifiers_for_function(function_name)
+            )
+            self.info_logger.set_found_no_allowed_identifiers(
+                requirement_id, len(allowed_identifiers) == 0
+            )
+            self.info_logger.set_used_atg_identifier_fallback(
+                requirement_id, used_fallback
+            )
 
-            schema, used_fallback = _derive_completion_schema(False, allowed_identifiers=allowed_identifiers, return_size_fallback=True)
+            schema, used_fallback = _derive_completion_schema(
+                False,
+                allowed_identifiers=allowed_identifiers,
+                return_size_fallback=True,
+            )
             self.info_logger.set_schema_exceeded_size(requirement_id, used_fallback)
 
             first_try = True
             for i in range(max_retries):
                 self.info_logger.increment_retries_used(requirement_id)
-                #temperature = 0.0 if first_try else 1.0
+                # temperature = 0.0 if first_try else 1.0
                 temperature = 0.0
-                #extended_reasoning = self.use_extended_reasoning and not first_try
+                # extended_reasoning = self.use_extended_reasoning and not first_try
                 extended_reasoning = self.use_extended_reasoning
                 result = await self._generate_test_case_no_retries(
-                    requirement_id, 
-                    temperature=temperature, 
-                    extended_reasoning=extended_reasoning, 
+                    requirement_id,
+                    temperature=temperature,
+                    extended_reasoning=extended_reasoning,
                     allow_partial=allow_partial,
                     schema=schema,
-                    reword_requirement=not first_try
-                    
+                    reword_requirement=not first_try,
                 )
                 if result:
                     self.info_logger.set_test_generated(requirement_id)
@@ -489,36 +619,50 @@ Return your answer in the following format:
                     first_try = False
         except Exception as e:
             import traceback
+
             self.info_logger.add_exception(requirement_id, traceback.format_exc())
-            logging.exception(f"Failed to generate test case for requirement {requirement_id}: {traceback.format_exc()}")
+            logging.exception(
+                f"Failed to generate test case for requirement {requirement_id}: {traceback.format_exc()}"
+            )
 
         return None
 
-    async def _generate_test_case_no_retries(self, requirement_id, temperature=0, extended_reasoning=False, 
-                                           allow_partial=False, schema=None, reword_requirement=False):
+    async def _generate_test_case_no_retries(
+        self,
+        requirement_id,
+        temperature=0,
+        extended_reasoning=False,
+        allow_partial=False,
+        schema=None,
+        reword_requirement=False,
+    ):
         # Remove allowed_identifiers parameter since schema is passed directly
         requirement_text = self.requirements_manager.get_description(requirement_id)
         if not requirement_text:
             logging.warning(f"Requirement {requirement_id} not found.")
             return None
-        
+
         if reword_requirement:
             logging.info(f"Original requirement ({requirement_id}): {requirement_text}")
             requirement_text = await self.llm_client.call_model(
                 messages=[
-                    {"role": "system", "content": "You are an AI assistant that rewords requirements."},
+                    {
+                        "role": "system",
+                        "content": "You are an AI assistant that rewords requirements.",
+                    },
                     {
                         "role": "user",
                         "content": f"Reword the following requirement: {requirement_text}",
                     },
                 ],
-                schema=create_model('RewordedRequirement', reworded_requirement=(str, ...)),
+                schema=create_model(
+                    "RewordedRequirement", reworded_requirement=(str, ...)
+                ),
                 extended_reasoning=extended_reasoning,
                 temperature=temperature,
             )
             requirement_text = requirement_text.reworded_requirement
             logging.info(f"Reworded requirement ({requirement_id}): {requirement_text}")
-
 
         function_name = self.requirements_manager.get_function(requirement_id)
         if not function_name:
@@ -526,12 +670,14 @@ Return your answer in the following format:
             return None
 
         # Build code context using the environment
-        context, used_fallback = await self.context_builder.build_code_context(function_name, include_unit_name=True, return_used_fallback=True)
+        context, used_fallback = await self.context_builder.build_code_context(
+            function_name, include_unit_name=True, return_used_fallback=True
+        )
         self.info_logger.set_used_code_context_fallback(requirement_id, used_fallback)
         logging.debug("Generated code context: %s", context)
-        
+
         # Determine number of example test cases based on context length
-        context_lines = len(context.strip().split('\n'))
+        context_lines = len(context.strip().split("\n"))
         if context_lines < 200:
             num_examples = 1
             basis_path = False
@@ -540,7 +686,9 @@ Return your answer in the following format:
             basis_path = False
 
         logging.info(f"Fetching {num_examples} ATG example test cases")
-        atg_examples = await self.atg_context_builder.get_relevant_test_cases(function_name, k=num_examples, basis_path=basis_path)
+        atg_examples = await self.atg_context_builder.get_relevant_test_cases(
+            function_name, k=num_examples, basis_path=basis_path
+        )
         logging.debug("Retrieved ATG examples: %s", atg_examples)
 
         self.info_logger.set_no_atg_examples(requirement_id, len(atg_examples) == 0)
@@ -560,7 +708,7 @@ Example Test Cases:
         messages = [
             {
                 "role": "system",
-                "content": "You are an AI assistant that generates test code for given requirements."
+                "content": "You are an AI assistant that generates test code for given requirements.",
             },
             {
                 "role": "user",
@@ -599,25 +747,43 @@ Notes:
 - Make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
 - In case the requirement and the code differ, the requirement is what you should test, i.e., it is the source of truth.
 - Watch out for off-by-one errors
-"""
-            }
+""",
+            },
         ]
 
-        #with open("input_messages.txt", "w") as f:
+        # with open("input_messages.txt", "w") as f:
         #    for message in messages:
         #        f.write(f"{message['role']}: {message['content']}\n\n")
 
         # Use provided schema instead of creating a new one
         try:
-            test_generation_result = await self.llm_client.call_model(messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)
+            test_generation_result = await self.llm_client.call_model(
+                messages,
+                schema,
+                temperature=temperature,
+                extended_reasoning=extended_reasoning,
+                max_tokens=4096,
+            )
         except Exception as e:
             import traceback
+
             self.info_logger.add_exception(requirement_id, traceback.format_exc())
-            logging.exception(f"Call to model failed for requirement {requirement_id}: {e}")
+            logging.exception(
+                f"Call to model failed for requirement {requirement_id}: {e}"
+            )
             return None
 
         test_generation_result = await self._iterative_error_correction(
-            requirement_id, test_generation_result, messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, allow_partial=allow_partial, allow_early_partial=False, max_iterations=3, allow_test_feedback=False
+            requirement_id,
+            test_generation_result,
+            messages,
+            schema,
+            temperature=temperature,
+            extended_reasoning=extended_reasoning,
+            allow_partial=allow_partial,
+            allow_early_partial=False,
+            max_iterations=3,
+            allow_test_feedback=False,
         )
 
         if test_generation_result is None:
@@ -625,16 +791,28 @@ Notes:
 
         return test_generation_result.test_case
 
-    async def _iterative_error_correction(self, requirement_id, test_generation_result, messages, schema, 
-                                        temperature=0.0, extended_reasoning=False, max_iterations=3, 
-                                        allow_partial=False, allow_early_partial=False, allow_test_feedback=False):
+    async def _iterative_error_correction(
+        self,
+        requirement_id,
+        test_generation_result,
+        messages,
+        schema,
+        temperature=0.0,
+        extended_reasoning=False,
+        max_iterations=3,
+        allow_partial=False,
+        allow_early_partial=False,
+        allow_test_feedback=False,
+    ):
         # Schema is now passed directly, no need to modify this method
         iteration = 0
         fix_messages = messages
         while iteration < max_iterations:
             iteration += 1
 
-            output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast(add_uuid=True)])
+            output = self.environment.run_tests(
+                [test_generation_result.test_case.to_vectorcast(add_uuid=True)]
+            )
             errors, test_failures = self._parse_error_output(output)
 
             if not allow_test_feedback:
@@ -657,7 +835,7 @@ Notes:
                 fix_messages += [
                     {
                         "role": "assistant",
-                        "content": test_generation_result.model_dump_json(indent=4)
+                        "content": test_generation_result.model_dump_json(indent=4),
                     },
                     {
                         "role": "user",
@@ -682,24 +860,37 @@ Tip:
 - If you get different expected outputs than what you expect, carefully analyze:
     - If this is due to a discrepancy in the requirement and the code, the requirement is the source of truth, so you can leave the test case as is.
     - If it appears that the test framework is working differently than you expected, try to find an indirect way to test the requirement partially, i.e., just a correct return value instead of complex pointer logic
-"""
-                    }
+""",
+                    },
                 ]
 
-                #with open(f"fix_messages_{requirement_id}.txt", "w") as f:
+                # with open(f"fix_messages_{requirement_id}.txt", "w") as f:
                 #    for message in fix_messages:
                 #        f.write(f"{message['role']}: {message['content']}\n\n")
-                
+
                 # Call the model to get the fixed test case
                 try:
-                    test_generation_result = await self.llm_client.call_model(fix_messages, schema, temperature=temperature, extended_reasoning=extended_reasoning, max_tokens=4096)
+                    test_generation_result = await self.llm_client.call_model(
+                        fix_messages,
+                        schema,
+                        temperature=temperature,
+                        extended_reasoning=extended_reasoning,
+                        max_tokens=4096,
+                    )
                 except Exception as e:
                     import traceback
-                    self.info_logger.add_exception(requirement_id, traceback.format_exc())
-                    logging.exception(f"Call to model failed for requirement {requirement_id} (during error correction): {e}")
+
+                    self.info_logger.add_exception(
+                        requirement_id, traceback.format_exc()
+                    )
+                    logging.exception(
+                        f"Call to model failed for requirement {requirement_id} (during error correction): {e}"
+                    )
                     return None
 
-        output = self.environment.run_tests([test_generation_result.test_case.to_vectorcast(add_uuid=True)])
+        output = self.environment.run_tests(
+            [test_generation_result.test_case.to_vectorcast(add_uuid=True)]
+        )
         errors, test_failures = self._parse_error_output(output)
 
         if errors:
@@ -707,7 +898,9 @@ Tip:
             return None
         elif test_failures:
             if allow_partial:
-                logging.info("Converting to partial test case due to persistent test failures")
+                logging.info(
+                    "Converting to partial test case due to persistent test failures"
+                )
                 return self._create_partial_test_case(test_generation_result)
             else:
                 return None
@@ -717,7 +910,9 @@ Tip:
     def _create_partial_test_case(self, test_generation_result):
         partial_result = test_generation_result.model_copy(deep=True)
         partial_result.test_case = partial_result.test_case.as_partial
-        self.info_logger.set_partial_test_generated(partial_result.test_case.requirement_id)
+        self.info_logger.set_partial_test_generated(
+            partial_result.test_case.requirement_id
+        )
         return partial_result
 
     def _parse_error_output(self, output):
@@ -725,17 +920,17 @@ Tip:
         test_fail_lines = []
 
         # Extract error messages starting with (E) and include indented lines
-        lines = output.split('\n')
+        lines = output.split("\n")
         collecting_error = False
         for line in lines:
-            if re.match(r'\(E\)', line):
+            if re.match(r"\(E\)", line):
                 if "TEST.REQUIREMENT_KEY" in line:
                     continue  # Skip requirement key errors
                 error_lines.append(line)
                 collecting_error = True
                 continue
             if collecting_error:
-                if line.startswith('    ') or line.strip() == '':
+                if line.startswith("    ") or line.strip() == "":
                     error_lines.append(line)
                 else:
                     collecting_error = False
@@ -752,15 +947,17 @@ Tip:
             # Extract feedback from test execution
             # We likely do not want to include this
             for line in lines:
-                if '========' in line:
+                if "========" in line:
                     break
-                elif re.search(r'\[\s+FAIL\s+\]', line):
+                elif re.search(r"\[\s+FAIL\s+\]", line):
                     test_fail_lines.append(line.strip())
-                elif re.search(r'\[\s+\]', line):
+                elif re.search(r"\[\s+\]", line):
                     test_fail_lines.append(line.strip())
 
         logging.debug("Output:\n%s", output)
-        logging.debug("Errors:\n%s", '\n'.join(error_lines))
-        logging.debug("Test Failures:\n%s", '\n'.join(test_fail_lines))
+        logging.debug("Errors:\n%s", "\n".join(error_lines))
+        logging.debug("Test Failures:\n%s", "\n".join(test_fail_lines))
 
-        return '\n'.join(error_lines) if error_lines else None, '\n'.join(test_fail_lines) if test_fail_lines else None
+        return "\n".join(error_lines) if error_lines else None, "\n".join(
+            test_fail_lines
+        ) if test_fail_lines else None
