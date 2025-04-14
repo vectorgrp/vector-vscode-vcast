@@ -1320,7 +1320,7 @@ async function generateTestsFromRequirements(enviroPath: string, functionName: s
   // Get the decompose setting from configuration
   const config = vscode.workspace.getConfiguration('vectorcastTestExplorer');
   const decomposeRequirements = config.get<boolean>('decomposeRequirements', true);
-  const enableRequirementKeys = config.get<boolean>('enableRequirementKeys', false);
+  const enableRequirementKeys = findRelevantRequirementGateway(enviroPath) !== null;
   console.log(decomposeRequirements, enableRequirementKeys);
 
   const commandArgs = [

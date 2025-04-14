@@ -309,12 +309,6 @@
             "order": 8,
             "default": true,
             "description": "Decompose requirements when generating tests"
-          },
-          "vectorcastTestExplorer.enableRequirementKeys": {
-            "type": "boolean",
-            "order": 9,
-            "default": false,
-            "description": "Put references to the tested requirements into the requirement key field instead of the test notes (use this if you use the requirements gateway)."
           }
         }
       },
