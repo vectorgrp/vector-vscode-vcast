@@ -60,6 +60,26 @@ reqs2excel_a = Analysis(
     optimize=0,
 )
 
+reqs2rgw_a = Analysis(
+    ['reqs2rgw.py'],
+    pathex=[],
+    binaries=[],
+    datas=[
+        ('autoreq/resources', 'autoreq/resources'),
+        ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
+        ('monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
+        ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
+        ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
+    ],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+
 manage_env_a = Analysis(
     ['manage_env.py'],
     pathex=[],
@@ -78,6 +98,7 @@ reqs2tests_pyz = PYZ(reqs2tests_a.pure)
 code2reqs_pyz = PYZ(code2reqs_a.pure)
 manage_env_pyz = PYZ(manage_env_a.pure)
 reqs2excel_pyz = PYZ(reqs2excel_a.pure)
+reqs2rgw_pyz = PYZ(reqs2rgw_a.pure)
 
 reqs2tests_exe = EXE(
     reqs2tests_pyz,
@@ -133,6 +154,25 @@ reqs2excel_exe = EXE(
     entitlements_file=None,
 )
 
+reqs2rgw_exe = EXE(
+    reqs2rgw_pyz,
+    reqs2rgw_a.scripts,
+    [('u', None, 'OPTION')],
+    exclude_binaries=True,
+    name='reqs2rgw',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+
+
 manage_env_exe = EXE(
     manage_env_pyz,
     manage_env_a.scripts,
@@ -161,6 +201,9 @@ coll = COLLECT(
     reqs2excel_exe,
     reqs2excel_a.binaries,
     reqs2excel_a.datas,
+    reqs2rgw_exe,
+    reqs2rgw_a.binaries,
+    reqs2rgw_a.datas,
     manage_env_exe,
     manage_env_a.binaries,
     manage_env_a.datas,

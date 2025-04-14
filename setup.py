@@ -43,6 +43,7 @@ setup(
             'code2reqs_eval = autoreq.evaluate_code2reqs:cli',
             'manage_env = autoreq.manage_env:cli',
             'reqs2excel = autoreq.reqs2excel:cli',
+            'reqs2rgw = autoreq.reqs2rgw:cli',
         ]
     },
     install_requires=base_requirements,
