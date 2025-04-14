@@ -83,7 +83,6 @@ import {
   rebuildEnvironment,
   removeTestsuiteFromProject,
   importEnvToTestsuite,
-  updateAllOpenedProjects,
   openProjectInVcast,
   createTestsuiteInCompiler,
   addCompilerToProject,
@@ -636,47 +635,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(updateProjectLevelCommand);
 
-  // // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
-  // let buildIncrementalCommand = vscode.commands.registerCommand(
-  //   "vectorcastTestExplorer.buildIncremental",
-  //   async (enviroNode: any) => {
-  //     const enviroPathList: string[] = [];
-  //     let projectPath = "";
-  //     let displayName = "";
-
-  //     // In case the Node id starts with vcast:, it is an environment node and the id is the build path
-  //     if (enviroNode.id.includes("vcast:")) {
-  //       const enviroPath = enviroNode.id.split("vcast:")[1];
-  //       enviroPathList.push(enviroPath);
-  //       const enviroData = getEnviroNodeData(enviroPath);
-  //       ({ displayName, projectPath } = enviroData);
-  //     } else {
-  //       // Otherwise it's either a project, compiler or testsuite node
-  //       projectPath = enviroNode.id.split(".vcm")[0] + ".vcm";
-  //       const projectData = getLevelFromNodeId(enviroNode.id);
-  //       displayName = projectData.level;
-
-  //       // Collect all relevant environment paths
-  //       for (const [envPath, envValue] of environmentDataCache) {
-  //         // If projectPath == enviroNode.id -> Project Node, otherwise we have to check
-  //         // if the current displayName is part of the envValue.displayName (compiler, testsuite)
-  //         if (
-  //           envValue.projectPath === projectPath &&
-  //           (projectPath === enviroNode.id ||
-  //             envValue.displayName.includes(displayName))
-  //         ) {
-  //           enviroPathList.push(envPath);
-  //         }
-  //       }
-  //     }
-
-  //     await buildIncremental(projectPath, displayName, enviroPathList);
-  //   }
-  // );
-
-  // context.subscriptions.push(buildIncrementalCommand);
-
-  // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
+  // Command: vectorcastTestExplorer.buildExecuteIncremental  ////////////////////////////////////////////////////////
   let buildExecuteIncrementalCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.buildExecuteIncremental",
     async (enviroNode: any) => {
@@ -2090,7 +2049,6 @@ async function installPreActivationEventHandlers(
 
 // this method is called when your extension is deactivated
 export async function deactivate() {
-  await updateAllOpenedProjects();
   await serverProcessController(serverStateType.stopped);
   // delete the server log if it exists
   await deleteServerLog();

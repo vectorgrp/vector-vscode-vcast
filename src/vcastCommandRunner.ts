@@ -225,7 +225,7 @@ export function executeWithRealTimeEchoWithProgress(
   return vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `${vscodeMessage}...`,
+      title: `${vscodeMessage}`,
       cancellable: true, // <-- make it cancellable so user gets a cross to click
     },
     async (progress, token) => {

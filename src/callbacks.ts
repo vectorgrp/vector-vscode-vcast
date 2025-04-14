@@ -20,15 +20,11 @@ import {
   removeCBTfilesCacheForEnviro,
   removeNodeFromTestPane,
   updateDataForEnvironment,
-  updateTestPane,
   vcastUnbuiltEnviroList,
 } from "./testPane";
 
 import { removeFilePattern } from "./utilities";
-import {
-  loadTestScriptIntoEnvironment,
-  updateProjectData,
-} from "./vcastAdapter";
+import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
 import {
@@ -102,7 +98,6 @@ export async function buildEnvironmentCallback(
   if (code == 0) {
     await buildTestPaneContents();
     await updateDataForEnvironment(enviroPath);
-    await updateProjectData(enviroPath);
     await refreshAllExtensionData();
   } else {
     try {
