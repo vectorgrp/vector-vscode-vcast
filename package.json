@@ -239,6 +239,11 @@
         "command": "vectorcastTestExplorer.importRequirementsFromGateway",
         "category": "VectorCAST Test Explorer",
         "title": "Import Requirements from Gateway"
+      },
+      {
+        "command": "vectorcastTestExplorer.populateRequirementsGateway",
+        "category": "VectorCAST Test Explorer",
+        "title": "Populate RGW from Requirements"
       }
     ],
     "keybindings": [
@@ -497,6 +502,10 @@
         {
           "command": "vectorcastTestExplorer.importRequirementsFromGateway",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.populateRequirementsGateway",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -675,6 +684,11 @@
         },
         {
           "command": "vectorcastTestExplorer.removeRequirements",
+          "group": "vcast@9",
+          "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+        },
+        {
+          "command": "vectorcastTestExplorer.populateRequirementsGateway",
           "group": "vcast@9",
           "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
         },
