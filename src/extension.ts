@@ -142,11 +142,13 @@ const GENERATE_REQUIREMENTS_ENABLED: boolean = true;
 let CODE2REQS_EXECUTABLE_PATH: string;
 let REQS2TESTS_EXECUTABLE_PATH: string;
 let REQS2EXCEL_EXECUTABLE_PATH: string;
+let REQS2RGW_EXECUTABLE_PATH: string;
 
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "code2reqs").fsPath;
     REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2tests").fsPath;
     REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2excel").fsPath;
+    REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2rgw").fsPath;
     
     //CODE2REQS_EXECUTABLE_PATH = "code2reqs";
     //REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
@@ -447,6 +449,18 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(importRequirementsFromGatewayCommand);
+
+  let populateRequirementsGatewayCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.populateRequirementsGateway",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        await populateRequirementsGateway(enviroPath);
+      }
+    }
+  );
+  context.subscriptions.push(populateRequirementsGatewayCommand);
 
   // Command: vectorcastTestExplorer.createTestScriptFromEditor////////////////////////////////////////////////////////
   // This is the callback for right clicks of the source editor flask+ icon
@@ -1472,6 +1486,95 @@ async function importRequirementsFromGateway(enviroPath: string) {
           reject();
         }
       });
+    });
+  });
+}
+
+async function populateRequirementsGateway(enviroPath: string) {
+  const parentDir = path.dirname(enviroPath);
+  const envName = path.basename(enviroPath);
+  const envPath = path.join(parentDir, `${envName}.env`);
+  const csvPath = path.join(parentDir, 'reqs.csv');
+  const xlsxPath = path.join(parentDir, 'reqs.xlsx');
+  
+  // Check which requirements file exists
+  let requirementsFile = "";
+  let fileType = "";
+  if (fs.existsSync(xlsxPath)) {
+    requirementsFile = xlsxPath;
+    fileType = "Excel";
+  } else if (fs.existsSync(csvPath)) {
+    requirementsFile = csvPath;
+    fileType = "CSV";
+  } else {
+    vscode.window.showErrorMessage('No requirements file found. Generate requirements first.');
+    return;
+  }
+
+  // Check if there is an existing requirements gateway
+  const existingGateway = findRelevantRequirementGateway(enviroPath);
+  if (existingGateway) {
+    const warningMessage = `Warning: An existing requirements gateway was found at ${existingGateway}. Generating requirements will switch the environment gateway to a new one.`;
+    const choice = await vscode.window.showWarningMessage(
+      warningMessage,
+      "Continue",
+      "Cancel"
+    );
+    
+    if (choice !== "Continue") {
+      return;
+    }
+  }
+
+  const exportRepository = path.join(parentDir, 'generated_requirement_repository');
+  
+  // Run reqs2rgw with appropriate parameters
+  const commandArgs = [
+    envPath,
+    requirementsFile,
+    '--gateway-path',
+    exportRepository
+  ];
+  
+  // Log the command being executed
+  const commandString = `${REQS2RGW_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
+  logCliOperation(`Executing command: ${commandString}`);
+    
+  return new Promise<void>((resolve, reject) => {
+    const process = spawn(REQS2RGW_EXECUTABLE_PATH, commandArgs);
+    
+    process.stdout.on("data", (data) => {
+      const output = data.toString().trim();
+      logCliOperation(`reqs2rgw: ${output}`);
+    });
+    
+    process.stderr.on("data", (data) => {
+      const errorOutput = data.toString().trim();
+      logCliError(`reqs2rgw: ${errorOutput}`);
+    });
+    
+    process.on("close", async (code) => {
+      if (code === 0) {
+        logCliOperation(`reqs2rgw completed successfully with code ${code}`);
+        
+        try {
+          // Refresh environment data
+          await refreshAllExtensionData();
+          
+          vscode.window.showInformationMessage(
+            `Successfully populated requirements gateway at ${exportRepository}`
+          );
+          resolve();
+        } catch (err) {
+          vscode.window.showErrorMessage(`Error updating environment configuration: ${err}`);
+          reject(err);
+        }
+      } else {
+        const errorMessage = `Error: reqs2rgw exited with code ${code}`;
+        vscode.window.showErrorMessage(errorMessage);
+        logCliError(errorMessage, true);
+        reject(new Error(errorMessage));
+      }
     });
   });
 }
