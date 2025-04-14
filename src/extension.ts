@@ -161,6 +161,8 @@ function setHardcodedEnvVars() {
   }
 }
 
+let requirementsFileWatcher: vscode.FileSystemWatcher | undefined;
+
 export async function activate(context: vscode.ExtensionContext) {
   // activation gets called when:
   //  -- VectorCAST environment exists in the workspace
@@ -257,10 +259,63 @@ async function activationLogic(context: vscode.ExtensionContext) {
     }
   }
 
+  // Setup file watchers for requirements files
+  setupRequirementsFileWatchers(context);
+
   setupAutoreqExecutablePaths(context);
   setHardcodedEnvVars();
 }
 
+function setupRequirementsFileWatchers(context: vscode.ExtensionContext) {
+  if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
+    // Create a file watcher that watches for requirements files changes
+    // using a glob pattern to match all reqs.csv and reqs.xlsx files in the workspace
+    requirementsFileWatcher = workspace.createFileSystemWatcher('**/reqs.{csv,xlsx}');
+    
+    // When a requirements file is created
+    requirementsFileWatcher.onDidCreate(async (uri) => {
+      logCliOperation(`Requirements file created: ${uri.fsPath}`);
+      const changeDir = path.dirname(uri.fsPath);
+      const envDirName = findEnvironmentInPath(changeDir);
+      if (envDirName) {
+        const envPath = path.join(changeDir, envDirName);
+        updateRequirementsAvailability(envPath);
+      }
+    }, null, context.subscriptions);
+    
+    // When a requirements file is deleted
+    requirementsFileWatcher.onDidDelete(async (uri) => {
+      logCliOperation(`Requirements file deleted: ${uri.fsPath}`);
+      const parentDir = path.dirname(uri.fsPath);
+      const envDirName = findEnvironmentInPath(parentDir);
+      if (envDirName) {
+        const envPath = path.join(parentDir, envDirName);
+        updateRequirementsAvailability(envPath);
+      }
+    }, null, context.subscriptions);
+    
+    // Register the watcher to be disposed when the extension deactivates
+    context.subscriptions.push(requirementsFileWatcher);
+  }
+}
+function findEnvironmentInPath(dirPath: string): string | null {
+  // Check if the directory contains an environment file
+  const envFilePattern = new RegExp(/\.env$/);
+  const files = fs.readdirSync(dirPath);
+
+  const envFiles = files.filter(file => envFilePattern.test(file));
+
+  // Now see if there is a directory with the same name as the env file
+  for (const file of envFiles) {
+    const envName = file.replace(envFilePattern, '');
+    const envDirPath = path.join(dirPath, envName);
+    if (fs.existsSync(envDirPath) && fs.lstatSync(envDirPath).isDirectory()) {
+      return envName;
+    }
+  }
+
+  return null;
+}
 function configureExtension(context: vscode.ExtensionContext) {
   // this sets up the file explorer decorations for code coverage
   updateExploreDecorations();
@@ -1027,6 +1082,10 @@ async function installPreActivationEventHandlers(
 
 // this method is called when your extension is deactivated
 export async function deactivate() {
+  if (requirementsFileWatcher) {
+    requirementsFileWatcher.dispose();
+  }
+  
   await serverProcessController(serverStateType.stopped);
   // delete the server log if it exists
   await deleteServerLog();
@@ -1499,13 +1558,10 @@ async function populateRequirementsGateway(enviroPath: string) {
   
   // Check which requirements file exists
   let requirementsFile = "";
-  let fileType = "";
   if (fs.existsSync(xlsxPath)) {
     requirementsFile = xlsxPath;
-    fileType = "Excel";
   } else if (fs.existsSync(csvPath)) {
     requirementsFile = csvPath;
-    fileType = "CSV";
   } else {
     vscode.window.showErrorMessage('No requirements file found. Generate requirements first.');
     return;
