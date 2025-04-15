@@ -1481,9 +1481,6 @@ function getMCDCReportFromPython(
     commandToRun,
     enviroPath
   );
-  vectorMessage(
-    `Commandstatus: ${commandStatus.errorCode} ${commandStatus.stdout}`
-  );
   return commandStatus;
 }
 
@@ -1512,9 +1509,6 @@ function getMCDCCoverageLinesFromPython(enviroPath: string) {
   const commandStatus: commandStatusType = executeCommandSync(
     commandToRun,
     process.cwd()
-  );
-  vectorMessage(
-    `Commandstatus: ${commandStatus.errorCode} ${commandStatus.stdout}`
   );
   return cleanVectorcastOutput(commandStatus.stdout);
 }

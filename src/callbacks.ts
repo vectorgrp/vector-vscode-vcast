@@ -164,14 +164,10 @@ export async function deleteEnvironmentCallback(
     }
 
     removeCoverageDataForEnviro(enviroPath);
-    updateDisplayedCoverage();
-    updateExploreDecorations();
-    updateTestDecorator();
-
+    await refreshAllExtensionData();
     removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
-    await refreshAllExtensionData();
     removeFilePattern(enviroPath, ".*");
   }
 }

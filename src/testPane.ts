@@ -781,7 +781,7 @@ async function loadAllVCTests(
   // Update coverage and decorators.
   setGlobalProjectIsOpenedChecker();
   setGlobalCompilerAndTestsuites();
-  updateDisplayedCoverage();
+  await updateDisplayedCoverage();
   updateTestDecorator();
 }
 
@@ -1520,7 +1520,7 @@ export async function refreshAllExtensionData() {
   //
   resetCoverageData();
   await buildTestPaneContents();
-  updateCOVdecorations();
+  await updateCOVdecorations();
   // Global varibale to see if we have a manage Project opened or just an Environment
   setGlobalProjectIsOpenedChecker();
   setGlobalCompilerAndTestsuites();

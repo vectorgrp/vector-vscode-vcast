@@ -192,7 +192,7 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
         true
       );
       // default to coverage ON
-      toggleCoverageAction();
+      await toggleCoverageAction();
       // initialize the verbose setting
       adjustVerboseSetting();
     } else {
@@ -230,8 +230,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(coverStatusBar);
   let toggleCoverageCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.coverage",
-    () => {
-      toggleCoverageAction();
+    async () => {
+      await toggleCoverageAction();
     }
   );
   context.subscriptions.push(toggleCoverageCommand);
@@ -1065,7 +1065,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           loadTestScript();
         }
         await updateCodedTestCases(editor);
-        updateCOVdecorations();
+        await updateCOVdecorations();
         updateTestDecorator();
       }
     },
