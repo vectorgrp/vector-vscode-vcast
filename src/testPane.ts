@@ -639,7 +639,14 @@ function addUnbuiltEnviroToTestPane(
 
 export function removeNodeFromTestPane(nodeID: string) {
   // We need to distinguish between an env within a project and a free Env
-  const enviroPath = getEnviroPathFromID(nodeID);
+  // And we need to get the enviroPath like this instead of only using getEnviroPathFromID
+  // Because this can also be called AFTER cleaning up the env, which also deletes it from
+  // the testNodeCache. So as a Backup, we just cut the vcast: part off
+  let enviroPath = "";
+  enviroPath = getEnviroPathFromID(nodeID);
+  if (!enviroPath) {
+    enviroPath = nodeID.split("vcast:")[1];
+  }
   const enviroData = getEnviroNodeData(enviroPath);
   // If we're in a project, we need to go deeper
   if (enviroData.projectPath !== "") {

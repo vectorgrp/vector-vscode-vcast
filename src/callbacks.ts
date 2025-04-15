@@ -136,6 +136,37 @@ export async function rebuildEnvironmentCallback(
   }
 }
 
+export async function cleanEnvironmentCallback(
+  enviroNodeID: string,
+  code: number
+) {
+  // if the delete succeeded then we need to remove the environment from the test pane
+  if (code == 0) {
+    removeCBTfilesCacheForEnviro(enviroNodeID);
+    let enviroPath = getEnviroPathFromID(enviroNodeID);
+    if (!enviroPath) {
+      // We check if it is present in the unbuilt list
+      // If so, we take the id and split it after "vcast:" to get the path
+      // In case that is not possible, we throw an error message
+      if (vcastUnbuiltEnviroList.includes(enviroNodeID)) {
+        const parts = enviroNodeID.split(":");
+        enviroPath = parts.slice(1).join(":");
+      } else {
+        vscode.window.showErrorMessage(
+          `Unable to determine environment path from node: ${enviroNodeID}`
+        );
+        return;
+      }
+    }
+
+    removeCoverageDataForEnviro(enviroPath);
+    await refreshAllExtensionData();
+
+    // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
+    removeFilePattern(enviroPath, ".*");
+  }
+}
+
 export async function deleteEnvironmentCallback(
   enviroNodeID: string,
   code: number

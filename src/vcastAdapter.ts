@@ -8,6 +8,7 @@ import {
   addEnvToProjectCallback,
   buildEnvironmentCallback,
   buildEnvironmentIncrementalCallback,
+  cleanEnvironmentCallback,
   deleteEnvironmentCallback,
 } from "./callbacks";
 
@@ -241,7 +242,7 @@ export async function cleanProjectEnvironment(
     manageArgs,
     projectLocation,
     progressMessage,
-    deleteEnvironmentCallback,
+    cleanEnvironmentCallback,
     enviroNodeID
   );
 }
