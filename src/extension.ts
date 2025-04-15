@@ -89,6 +89,7 @@ import {
   deleteLevel,
   updateProjectData,
   buildExecuteIncremental,
+  cleanProjectEnvironment,
 } from "./vcastAdapter";
 
 import {
@@ -944,24 +945,32 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(deleteEnviro);
 
-  // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
+  // Command: vectorcastTestExplorer.cleanEnviro  ////////////////////////////////////////////////////////
   let cleanEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.cleanEnviro",
     (enviroNode: any) => {
       // this returns the full path to the environment directory
       const enviroPath = getEnviroPathFromID(enviroNode.id);
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      const displayName = enviroData.displayName;
+      const projectPath = enviroData.projectPath;
 
       // always ask for confirmation before deleting an environment
       const message =
         "Environment: " +
         enviroPath +
-        " will be deleted, and this action cannot be undone.";
+        " will be cleaned, and this action cannot be undone.";
       vscode.window
-        .showInformationMessage(message, "Delete", "Cancel")
-        .then((answer) => {
-          if (answer === "Delete") {
+        .showInformationMessage(message, "Clean Environment", "Cancel")
+        .then(async (answer) => {
+          if (answer === "Clean Environment") {
             // execute a clicast call to delete the test
-            deleteEnvironment(enviroPath, enviroNode.id);
+            await cleanProjectEnvironment(
+              enviroPath,
+              enviroNode.id,
+              projectPath,
+              displayName
+            );
           }
         });
     }

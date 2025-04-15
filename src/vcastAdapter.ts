@@ -222,6 +222,30 @@ export async function buildEnvironmentFromScript(
   );
 }
 
+export async function cleanProjectEnvironment(
+  enviroPath: string,
+  enviroNodeID: string,
+  projectPath: string,
+  level: string
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const progressMessage = `Cleaning up Environment ${level}  ...`;
+  const manageArgs = [`-p${projectName}`, `--level=${level}`, "--clean"];
+
+  // if we are in server mode, close any existing connection to the environment
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+
+  executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    progressMessage,
+    deleteEnvironmentCallback,
+    enviroNodeID
+  );
+}
+
 // Delete Environment - server logic included -----------------------------------------
 export async function deleteEnvironment(
   enviroPath: string,
