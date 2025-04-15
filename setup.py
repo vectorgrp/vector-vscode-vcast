@@ -1,5 +1,9 @@
-import sys
 from setuptools import setup, find_packages
+try:
+    from Cython.Build import cythonize
+    use_cython = True
+except ImportError:
+    use_cython = False
 
 base_requirements = [
     'openai>=1.54.0',
@@ -24,19 +28,31 @@ base_requirements = [
 dev_requirements = [
     'pytest==8.3.5',
     'pytest-mock==3.14.0',
-    'pyinstaller==6.12.0'
+    'pyinstaller==6.12.0',
+    'Cython==3.0.12'
 ]
 
 
-if sys.version_info >= (3, 10):
-    base_requirements.append('truststore==0.10.1')
+ext_modules = cythonize(
+    [
+        "autoreq/llm_client.py",
+    ],
+    compiler_directives={
+        'language_level': '3',
+    },
+) if use_cython else []
 
-setup( 
-    name='autoreq', 
+setup(
+    name='autoreq',
     version='0.0.1',
-    packages=find_packages(), 
-    entry_points={ 
-        'console_scripts': [ 
+    packages=find_packages(
+        exclude=[
+            'autoreq/test_verification', 'autoreq/requirement_verification', 'autoreq/evaluate_*'
+        ]
+    ),
+    ext_modules=ext_modules,
+    entry_points={
+        'console_scripts': [
             'code2reqs = autoreq.code2reqs:cli',
             'reqs2tests = autoreq.reqs2tests:cli',
             'reqs2tests_eval = autoreq.evaluate_reqs2tests:cli',
@@ -50,5 +66,5 @@ setup(
     extras_require={
         'dev': dev_requirements,
     },
-    include_package_data=True
+    include_package_data=True,
 )

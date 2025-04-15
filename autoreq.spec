@@ -1,8 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+hiddenimports = ['backoff', 'aiolimiter', 'aiolimiter.AsyncLimiter', 'openai', 'openai.AsyncOpenAI',
+                 'openai.AsyncAzureOpenAI', 'dotenv', 'yaml', 'sys', 'sys.exit', 'functools',
+                 'functools.cached_property']
+
 reqs2tests_a = Analysis(
     ['reqs2tests.py'],
-    pathex=[],
     binaries=[],
     datas=[
         ('autoreq/resources', 'autoreq/resources'),
@@ -11,10 +14,10 @@ reqs2tests_a = Analysis(
         ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
         ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
     ],
-    hiddenimports=[],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['runtime_hook_fix_exit.py'],
     excludes=[],
     noarchive=False,
     optimize=0,
@@ -22,7 +25,6 @@ reqs2tests_a = Analysis(
 
 code2reqs_a = Analysis(
     ['code2reqs.py'],
-    pathex=[],
     binaries=[],
     datas=[
         ('autoreq/resources', 'autoreq/resources'),
@@ -31,10 +33,10 @@ code2reqs_a = Analysis(
         ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
         ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
     ],
-    hiddenimports=[],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['runtime_hook_fix_exit.py'],
     excludes=[],
     noarchive=False,
     optimize=0,
@@ -42,7 +44,6 @@ code2reqs_a = Analysis(
 
 reqs2excel_a = Analysis(
     ['reqs2excel.py'],
-    pathex=[],
     binaries=[],
     datas=[
         ('autoreq/resources', 'autoreq/resources'),
@@ -51,10 +52,10 @@ reqs2excel_a = Analysis(
         ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
         ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
     ],
-    hiddenimports=[],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['runtime_hook_fix_exit.py'],
     excludes=[],
     noarchive=False,
     optimize=0,
@@ -82,13 +83,12 @@ reqs2rgw_a = Analysis(
 
 manage_env_a = Analysis(
     ['manage_env.py'],
-    pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['runtime_hook_fix_exit.py'],
     excludes=[],
     noarchive=False,
     optimize=0,
