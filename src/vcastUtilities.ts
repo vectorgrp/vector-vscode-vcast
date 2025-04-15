@@ -7,7 +7,13 @@ import { deleteEnvironmentCallback, loadScriptCallBack } from "./callbacks";
 
 import { vectorMessage } from "./messagePane";
 
-import { environmentDataCache, getTestNode, testNodeType } from "./testData";
+import {
+  environmentDataCache,
+  environmentNodeDataType,
+  getEnviroNodeData,
+  getTestNode,
+  testNodeType,
+} from "./testData";
 
 import {
   jsoncModificationOptions,
@@ -17,6 +23,7 @@ import {
 } from "./utilities";
 
 import {
+  cleanProjectEnvironment,
   dumpTestScriptFile,
   openProjectInVcast,
   runATGCommands,
@@ -627,7 +634,9 @@ export async function checkIfEnvironmentIsBuildMultipleTimes(
  *
  * @param enviroPath - The file system path of the environment that is being updated.
  */
-export async function deleteOtherBuildFolders(enviroPath: string) {
+export async function deleteOtherBuildFolders(
+  enviroPath: string
+): Promise<void> {
   const givenEnviroName = path.basename(enviroPath);
   for (let envData of environmentDataCache.values()) {
     const currentEnviroPath = envData.buildDirectory;
@@ -637,29 +646,19 @@ export async function deleteOtherBuildFolders(enviroPath: string) {
       currentEnviroPath !== enviroPath &&
       envData.isBuilt === true
     ) {
-      const enclosingDirectory = path.dirname(currentEnviroPath);
-
       // Normalize path to use forward slashes for a consistent enviroNodeID
       const normalizedCurrentEnviroPath = currentEnviroPath.replace(/\\/g, "/");
       const enviroNodeID = "vcast:" + normalizedCurrentEnviroPath;
 
-      // If we are in server mode, close any existing connection to the environment
-      if (globalEnviroDataServerActive)
-        await closeConnection(currentEnviroPath);
+      const enviroData: environmentNodeDataType = getEnviroNodeData(
+        normalizedCurrentEnviroPath
+      );
 
-      // This returns the environment directory name without any nesting
-      let vcastArgs: string[] = ["-e" + currentEnviroName];
-      const progressString = `Deleting ${currentEnviroName}`;
-      vcastArgs.push("enviro");
-      vcastArgs.push("delete");
-
-      await executeWithRealTimeEchoWithProgress(
-        clicastCommandToUse,
-        vcastArgs,
-        enclosingDirectory,
-        progressString,
-        deleteEnvironmentCallback,
-        enviroNodeID
+      await cleanProjectEnvironment(
+        enviroPath,
+        enviroNodeID,
+        enviroData.projectPath,
+        enviroData.displayName
       );
     }
   }

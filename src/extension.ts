@@ -964,7 +964,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         .showInformationMessage(message, "Clean Environment", "Cancel")
         .then(async (answer) => {
           if (answer === "Clean Environment") {
-            // execute a clicast call to delete the test
+            // execute a manage call to clean the env
             await cleanProjectEnvironment(
               enviroPath,
               enviroNode.id,

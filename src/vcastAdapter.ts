@@ -621,8 +621,7 @@ export async function updateProjectData(
     "automaticallyUpdateManageProject",
     true
   );
-  const enviroData: environmentNodeDataType =
-    getEnviroNodeData(normalizedEnviroPath);
+
   const envIsInProject: boolean = envIsEmbeddedInProject(normalizedEnviroPath);
 
   if (envIsInProject && (autoUpdateEnabled || forceUpdate)) {
@@ -632,15 +631,18 @@ export async function updateProjectData(
     if (blockUpdate) {
       // Show an information message with two options.
       const selection = await vscode.window.showInformationMessage(
-        `Updating the project data is currently blocked because ${enviroName} is built in multiple testsuites. You can delete the current build folders of the other builds now and the project will be updated.`,
+        `Updating the project data is currently blocked because ${enviroName} is built in multiple testsuites. You can clean the other Environments now and the project will be updated.`,
         "Cancel",
-        "Delete other Builds"
+        "Clean other Environments"
       );
 
-      if (selection === "Delete other Builds") {
+      if (selection === "Clean other Environments") {
         // Delete the build folders of the other builds.
         await deleteOtherBuildFolders(normalizedEnviroPath);
-        // After deletion, update the project data.
+
+        // Update Project after cleaning the other environments
+        const enviroData: environmentNodeDataType =
+          getEnviroNodeData(normalizedEnviroPath);
         const projectFilePath: string = enviroData.projectPath;
         const projectName: string = path.basename(projectFilePath);
         const projectLocation: string = path.dirname(projectFilePath);
@@ -652,7 +654,7 @@ export async function updateProjectData(
         ];
 
         openMessagePane();
-        const progressMessage = "Updating project data";
+        const progressMessage = "Updating project data ...";
         await executeWithRealTimeEchoWithProgress(
           manageCommandToUse,
           manageArgs,
