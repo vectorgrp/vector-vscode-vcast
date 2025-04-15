@@ -122,6 +122,9 @@ def _derive_test_case_schema(allowed_identifiers=None):
                 else f"{self.test_name}-{random.randint(0, 100000)}"
             )
 
+            # Prevent names with spaces in the name
+            name = name.replace(" ", "_")
+
             test_case_str += f"TEST.NAME:{name}-REVIEW-NEEDED\n"
 
             if use_requirement_key:
