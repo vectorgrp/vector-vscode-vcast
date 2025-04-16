@@ -1,11 +1,6 @@
 import * as vscode from "vscode";
 
 // some functions that are used across functional areas of the extensions
-
-import { updateDisplayedCoverage } from "./coverage";
-import { updateTestDecorator } from "./editorDecorator";
-
-import { updateExploreDecorations } from "./fileDecorator";
 import {
   errorLevel,
   indentString,
