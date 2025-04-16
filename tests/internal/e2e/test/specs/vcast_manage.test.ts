@@ -11,11 +11,9 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  checkIfRequestInLogs,
   getViewContent,
   executeContextMenuAction,
   insertStringToInput,
-  clickButtonBasedOnAriaLabel,
   checkElementExistsInHTML,
   getNodeText,
   getTexts,
@@ -483,13 +481,15 @@ describe("vTypeCheck VS Code Extension", () => {
       "aria/VectorCAST Test Explorer (Extension)"
     );
     const vcastNotification = await vcastNotificationSourceElement.$("..");
-    await (await vcastNotification.$("aria/Delete")).click();
+    await (await vcastNotification.$("aria/Clean Environment")).click();
 
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("clicast: '-eBAR enviro delete' returned exit code: 0"),
+          .includes(
+            `manage: '-pTest.vcm --level=GNU_Native_Automatic_C++/BlackBox/BAR --clean' returned exit code: 0`
+          ),
       { timeout: TIMEOUT }
     );
 
@@ -613,5 +613,70 @@ describe("vTypeCheck VS Code Extension", () => {
     const TestingView = await activityBar.getViewControl("Testing");
     const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
     expect(testsuiteNode).toBeDefined();
+
+    // Closing all current notifications for the next test
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+  });
+
+  it("testing changing project update settings", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    console.log("Changing settings to automatically update project");
+    await workbench.getEditorView().closeAllEditors();
+    const settingsEditor = await workbench.openSettings();
+    await settingsEditor.findSetting(
+      "vectorcastTestExplorer.automaticallyUpdateManageProject"
+    );
+    // Only one setting in search results, so the current way of clicking is correct
+    await (await settingsEditor.checkboxSetting$).click();
+    await workbench.getEditorView().closeAllEditors();
+    const testingView = await activityBar.getViewControl("Testing");
+    await testingView?.openView();
+    console.log("Looking for new `Update Project Environment` Button");
+    await executeContextMenuAction(
+      2,
+      "BAR",
+      true,
+      "Update Project Environment"
+    );
+
+    console.log("Pressing on Notification to Clean other Build");
+    const notifications = await $("aria/Notifications");
+    await notifications.click();
+    const vcastNotificationSourceElement = await $(
+      "aria/VectorCAST Test Explorer (Extension)"
+    );
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
+    await (await vcastNotification.$("aria/Clean other Environments")).click();
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(
+            `manage: '-pTest.vcm --level=GNU_Native_Automatic_C++/WhiteBox/BAR --clean' returned exit code: 0`
+          ),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking for Output logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(
+            `manage: '-pTest.vcm --level=GNU_Native_Automatic_C++/BlackBox/BAR --apply-changes --force' returned exit code: 0`
+          ),
+      { timeout: TIMEOUT }
+    );
   });
 });
