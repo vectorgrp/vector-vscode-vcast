@@ -214,8 +214,6 @@ export function executeWithRealTimeEcho(
   });
 }
 
-// A command runner simmilar to executeWithRealTimeEcho for long running commands
-// like build and rebuild environment but having a progress bar.
 export function executeWithRealTimeEchoWithProgress(
   command: string,
   argList: string[],
@@ -227,11 +225,10 @@ export function executeWithRealTimeEchoWithProgress(
   return vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `${vscodeMessage}...`,
-      cancellable: false,
+      title: `${vscodeMessage}`,
+      cancellable: true, // <-- make it cancellable so user gets a cross to click
     },
-    // We add a progress dialog that the user is informed about the ongoing process
-    async (progress) => {
+    async (progress, token) => {
       progress.report({ increment: 10 });
 
       let processHandle = spawn(command, argList, { cwd: CWD });
@@ -239,7 +236,7 @@ export function executeWithRealTimeEchoWithProgress(
       vectorMessage("-".repeat(100));
       let messageFragment: string = "";
 
-      // Just increment the progress bar every 3 seconds. Gives the user a better feeling of progress.
+      // Progress "feel good" increment
       let progressValue = 10;
       const progressInterval = setInterval(() => {
         if (progressValue < 90) {
@@ -247,6 +244,15 @@ export function executeWithRealTimeEchoWithProgress(
           progress.report({ increment: 10 });
         }
       }, 3000);
+
+      // Handle user cancellation (cross clicked)
+      token.onCancellationRequested(() => {
+        if (processHandle) {
+          processHandle.kill(); // kill the spawned process
+          vectorMessage(`User cancelled the operation.`);
+        }
+        clearInterval(progressInterval);
+      });
 
       await new Promise<void>((resolve) => {
         processHandle.stdout.on("data", function (data: any) {
@@ -272,7 +278,6 @@ export function executeWithRealTimeEchoWithProgress(
 
         processHandle.on("exit", async function (code: any) {
           clearInterval(progressInterval);
-          // Progress bar should be at 100% when the process is done
           progress.report({ increment: 100 });
           vectorMessage("-".repeat(100));
           vectorMessage(

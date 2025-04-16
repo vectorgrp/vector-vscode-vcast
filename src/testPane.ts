@@ -638,10 +638,24 @@ function addUnbuiltEnviroToTestPane(
 }
 
 export function removeNodeFromTestPane(nodeID: string) {
-  // Start searching from top-level items
-  globalController.items.forEach((item) => {
-    deleteItemByID(item, nodeID);
-  });
+  // We need to distinguish between an env within a project and a free Env
+  // And we need to get the enviroPath like this instead of only using getEnviroPathFromID
+  // Because this can also be called AFTER cleaning up the env, which also deletes it from
+  // the testNodeCache. So as a Backup, we just cut the vcast: part off
+  let enviroPath = "";
+  enviroPath = getEnviroPathFromID(nodeID);
+  if (!enviroPath) {
+    enviroPath = nodeID.split("vcast:")[1];
+  }
+  const enviroData = getEnviroNodeData(enviroPath);
+  // If we're in a project, we need to go deeper
+  if (enviroData.projectPath !== "") {
+    globalController.items.forEach((item) => {
+      deleteItemByID(item, nodeID);
+    });
+  } else {
+    globalController.items.delete(nodeID);
+  }
 }
 
 // Deletes the item with the matching enviroID
@@ -674,6 +688,7 @@ async function loadAllVCTests(
   // We basically delete the entire tree and afterwards build it again.
   // It's simpler, because in case we have less nodes than before we need to find
   // the sepecif node(s) to delete, where we also have to iterate thorugh the whole tree and involves way more logic.
+  // First, delete all children for each item:
   globalController.items.forEach((item) => {
     deleteAllItems(item);
   });
@@ -773,7 +788,7 @@ async function loadAllVCTests(
   // Update coverage and decorators.
   setGlobalProjectIsOpenedChecker();
   setGlobalCompilerAndTestsuites();
-  updateDisplayedCoverage();
+  await updateDisplayedCoverage();
   updateTestDecorator();
 }
 
@@ -1512,7 +1527,7 @@ export async function refreshAllExtensionData() {
   //
   resetCoverageData();
   await buildTestPaneContents();
-  updateCOVdecorations();
+  await updateCOVdecorations();
   // Global varibale to see if we have a manage Project opened or just an Environment
   setGlobalProjectIsOpenedChecker();
   setGlobalCompilerAndTestsuites();
@@ -1613,7 +1628,7 @@ export async function activateTestPane(context: vscode.ExtensionContext) {
 }
 
 export async function buildTestPaneContents() {
-  vscode.window.withProgress(
+  return vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
       title: "VectorCAST Test Pane Initialization",
