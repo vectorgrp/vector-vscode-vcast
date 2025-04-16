@@ -192,7 +192,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Setting Up Statement Coverage"),
+          .includes("Setting Up Statement+MC/DC Coverage"),
       { timeout: TIMEOUT }
     );
     await bottomBar.restore();
