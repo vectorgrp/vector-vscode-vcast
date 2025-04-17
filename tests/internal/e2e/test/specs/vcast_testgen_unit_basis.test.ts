@@ -146,6 +146,8 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
+    await browser.pause(4000); // wait another 2 seconds after condition is met
+
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
     await browser.saveScreenshot(
@@ -160,14 +162,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const envName = "DATABASE-MANAGER";
     console.log("Generating all BASIS PATH tests for unit database");
-    const envNode = await findTreeNodeAtLevel(1, "database");
-    // await generateAllTestsForUnit("database", testGenMethod.BasisPath);
-    await executeContextMenuAction(
-      1,
-      "database",
-      true,
-      "Insert Basis Path Tests"
-    );
+    await generateAllTestsForUnit("database", testGenMethod.BasisPath);
     await validateGeneratedTestsForUnit(
       envName,
       "database",
