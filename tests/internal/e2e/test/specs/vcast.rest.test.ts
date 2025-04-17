@@ -201,20 +201,16 @@ describe("vTypeCheck VS Code Extension", () => {
       "TEST.SLOT:1,manager,Manager::PlaceOrder,1,myFirstTest"
     );
     await browser.keys(Key.Enter);
-    await tab.save();
 
     currentLine += 1;
     await tab.setTextAtLine(
       currentLine,
       "TEST.SLOT:2,manager,Manager::PlaceOrder,1,mySecondTest"
     );
-    await tab.save();
 
     await browser.keys(Key.Enter);
-    await tab.save();
     currentLine += 1;
     await tab.setTextAtLine(currentLine, "TEST.END");
-    await tab.save();
     await browser.executeWorkbench((vscode) => {
       vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
     });

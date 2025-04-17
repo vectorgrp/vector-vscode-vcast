@@ -163,7 +163,9 @@ describe("vTypeCheck VS Code Extension", () => {
     // This produces invalid locator error somehow
     // await tab.openContextMenu()
     // Loading test script directly for now
-    await tab.save();
+    await browser.executeWorkbench((vscode) => {
+      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
+    });
   });
 
   it("should run mySecondTest and check its report", async () => {

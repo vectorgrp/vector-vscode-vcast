@@ -149,7 +149,6 @@ describe("vTypeCheck VS Code Extension", () => {
       startingLineNumber,
       "TEST.EXPECTED:database.DataBase::UpdateTableRecord.Data[0].CheckTotal:28"
     );
-    await tab.save();
 
     // This produces invalid locator error somehow
     // await tab.openContextMenu()
@@ -181,10 +180,9 @@ describe("vTypeCheck VS Code Extension", () => {
     const startingLineNumber = await tab.getLineOfText("TEST.NOTES:");
     await tab.setTextAtLine(startingLineNumber, " ");
     await tab.setTextAtLine(startingLineNumber + 1, " ");
-    await tab.save();
 
     await tab.typeTextAt(startingLineNumber, 1, "TEST.NOTES:");
-    await tab.save();
+
     // TEST.END_NOTES: should appear automatically
     const endNotesLineNumber = await tab.getLineOfText("TEST.END_NOTES:");
     // Line number is -1 if TEST.END_NOTES: is not found
