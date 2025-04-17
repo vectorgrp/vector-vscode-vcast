@@ -1612,13 +1612,21 @@ export async function findTreeNodeAtLevel(
   if (!nodes) {
     const viewContent = await getViewContent("Testing");
     const sections = await viewContent.getSections();
-    // Assume the top-level section is "Test Explorer"
-    const testExplorerSection = sections.find(
-      async (section) => (await section.getTitle()).trim() === "Test Explorer"
-    );
+
+    // Manually find the "Test Explorer" section (instead of Promise.any)
+    let testExplorerSection: any | undefined;
+    for (const section of sections) {
+      const title = await section.getTitle();
+      if (title.trim() === "Test Explorer") {
+        testExplorerSection = section;
+        break;
+      }
+    }
+
     if (!testExplorerSection) {
       throw new Error("Test Explorer section not found");
     }
+
     // For ViewSection, use getVisibleItems() to obtain its children.
     nodes = await testExplorerSection.getVisibleItems();
   }
@@ -1631,20 +1639,21 @@ export async function findTreeNodeAtLevel(
         return node;
       }
     }
-    return undefined;
+  } else {
+    // Otherwise, iterate through nodes: expand each, then search its children.
+    for (const node of nodes) {
+      if (!(await node.isExpanded())) {
+        await node.expand();
+      }
+      const children = await node.getChildren();
+      const found = await findTreeNodeAtLevel(level - 1, nodeName, children);
+      if (found) {
+        return found;
+      }
+    }
   }
 
-  // Otherwise, iterate through nodes: expand each, then search its children.
-  for (const node of nodes) {
-    if (!(await node.isExpanded())) {
-      await node.expand();
-    }
-    const children = await node.getChildren();
-    const found = await findTreeNodeAtLevel(level - 1, nodeName, children);
-    if (found) {
-      return found;
-    }
-  }
+  // Not found anywhere
   return undefined;
 }
 
