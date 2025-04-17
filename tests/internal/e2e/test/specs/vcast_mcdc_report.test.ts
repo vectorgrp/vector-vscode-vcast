@@ -171,7 +171,10 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
     await browser.waitUntil(
@@ -208,7 +211,10 @@ describe("vTypeCheck VS Code Extension", () => {
       true
     );
     await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
     await browser.waitUntil(
@@ -254,7 +260,10 @@ describe("vTypeCheck VS Code Extension", () => {
       true
     );
     await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
     await browser.waitUntil(
@@ -461,7 +470,10 @@ describe("vTypeCheck VS Code Extension", () => {
       true
     );
     await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
     await browser.waitUntil(
