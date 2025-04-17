@@ -1543,7 +1543,7 @@ export async function checkForGutterAndGenerateReport(
  */
 export async function rebuildEnvironmentFromTestingPane(envName: string) {
   const vcastTestingViewContent = await getViewContent("Testing");
-  const env = `cpp/unitTests/${envName}`;
+  const env = `${envName}`;
 
   console.log("Re-Building Environment from Test Explorer");
   // Flask --> Right-click on env --> Re-Build environment

@@ -166,7 +166,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await validateGeneratedTest(
       testGenMethod.BasisPath,
-      "cpp/unitTests/DATABASE-MANAGER",
+      "DATABASE-MANAGER",
       "database",
       "DataBase::GetTableRecord",
       "BASIS-PATH-001",
@@ -208,7 +208,7 @@ describe("vTypeCheck VS Code Extension", () => {
       );
       await validateGeneratedTest(
         testGenMethod.ATG,
-        "cpp/unitTests/DATABASE-MANAGER",
+        "DATABASE-MANAGER",
         "database",
         "DataBase::GetTableRecord",
         "ATG-TEST-1",

@@ -9,6 +9,7 @@ import {
   testGenMethod,
   generateAllTestsForUnit,
   validateGeneratedTestsForUnit,
+  executeContextMenuAction,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -156,9 +157,10 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should correctly generate all ATG tests for unit", async () => {
     await updateTestID();
 
-    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    const envName = "DATABASE-MANAGER";
     console.log("Generating all ATG tests for unit database");
-    await generateAllTestsForUnit("database", testGenMethod.ATG);
+    // await generateAllTestsForUnit("database", testGenMethod.ATG);
+    await executeContextMenuAction(1, "database", true, "Insert ATG Tests");
     await validateGeneratedTestsForUnit(envName, "database", testGenMethod.ATG);
   });
 });

@@ -156,7 +156,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should correctly generate all BASIS PATH tests for function", async () => {
     await updateTestID();
 
-    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    const envName = "DATABASE-MANAGER";
     console.log(
       "Generating all BASIS PATH tests for function DataBase::GetTableRecord"
     );
