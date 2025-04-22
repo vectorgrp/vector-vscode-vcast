@@ -1486,6 +1486,11 @@ async function checkIfTestExists(
 ): Promise<boolean> {
   const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
+  // Short-circuit if compound
+  if (/^TEST\.SUBPROGRAM:\s*<<COMPOUND>>$/m.test(scriptContent)) {
+    return true;
+  }
+
   const testNameMatch = scriptContent.match(/^TEST\.NAME:(.*)$/m);
   const unitNameMatch = scriptContent.match(/^TEST\.UNIT:(.*)$/m);
   const subprogramNameMatch = scriptContent.match(/^TEST\.SUBPROGRAM:(.*)$/m);

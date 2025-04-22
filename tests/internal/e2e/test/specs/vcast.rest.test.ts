@@ -211,8 +211,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
     currentLine += 1;
     await tab.setTextAtLine(currentLine, "TEST.END");
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
+    await tab.save();
   });
 });
