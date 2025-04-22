@@ -449,10 +449,11 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing deleting a Testsuite", async () => {
     await updateTestID();
-    await executeContextMenuAction(2, "GreyBox", true, "Delete Testsuite");
-    console.log("Checking for Output logs");
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    await executeContextMenuAction(2, "GreyBox", true, "Delete Testsuite");
+    console.log("Checking for Output logs");
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
