@@ -414,7 +414,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
     const initialWorkdir = process.env.INIT_CWD;
     await executeContextMenuAction(
-      0,
+      1,
       "GNU_Native_Automatic_C++",
       true,
       "Add Testsuite to Compiler"
@@ -449,7 +449,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing deleting a Testsuite", async () => {
     await updateTestID();
-    await executeContextMenuAction(1, "GreyBox", true, "Delete Testsuite");
+    await executeContextMenuAction(2, "GreyBox", true, "Delete Testsuite");
     console.log("Checking for Output logs");
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
@@ -478,7 +478,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
-    await executeContextMenuAction(2, "BAR", true, "Clean Environment");
+    await executeContextMenuAction(3, "BAR", true, "Clean Environment");
 
     const notifications = await $("aria/Notifications");
     await notifications.click();
@@ -510,7 +510,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
-    await executeContextMenuAction(2, "BAR", true, "Build Project Environment");
+    await executeContextMenuAction(3, "BAR", true, "Build Project Environment");
 
     console.log("Checking for Output logs");
     await browser.waitUntil(
@@ -539,7 +539,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
     await executeContextMenuAction(
-      2,
+      3,
       "FREE-BAR",
       true,
       "Remove Environment from Testsuite"
