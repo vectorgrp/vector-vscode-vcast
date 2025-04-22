@@ -1026,6 +1026,10 @@ export async function generateAllTestsForUnit(
   unitName: string,
   testGenMethod: string
 ) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  await bottomBar.toggle(true);
+  const outputView = await bottomBar.openOutputView();
   const menuItemLabel = `Insert ${testGenMethod} Tests`;
   let subprogram: TreeItem;
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -1044,6 +1048,20 @@ export async function generateAllTestsForUnit(
   if (!subprogram) {
     throw `Subprogram ${unitName} not found`;
   }
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for"),
+    { timeout: TIMEOUT }
+  );
 }
 
 export async function generateAllTestsForFunction(
@@ -1051,6 +1069,10 @@ export async function generateAllTestsForFunction(
   functionName: string,
   testGenMethod: string
 ) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  await bottomBar.toggle(true);
+  const outputView = await bottomBar.openOutputView();
   const menuItemLabel = `Insert ${testGenMethod} Tests`;
   let subprogram: TreeItem;
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -1071,6 +1093,20 @@ export async function generateAllTestsForFunction(
   if (!subprogram) {
     throw `Subprogram ${unitName} not found`;
   }
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for"),
+    { timeout: TIMEOUT }
+  );
 }
 
 export async function deleteAllTestsForUnit(
