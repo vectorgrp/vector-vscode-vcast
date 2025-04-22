@@ -579,14 +579,15 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    const bottomBar = workbench.getBottomBar();
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
     const contextMenu = await subprogramMethod.openContextMenu();
     console.log("Deleting coded tests");
     await contextMenu.select("VectorCAST");
     const menuElement = await $("aria/Remove Coded Tests");
     await menuElement.click();
-
-    const bottomBar = workbench.getBottomBar();
-    const outputView = await bottomBar.openOutputView();
 
     await browser.waitUntil(
       async () =>
@@ -611,6 +612,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should add a coded test file with a compile error", async () => {
     await updateTestID();
+    const outputView = await bottomBar.openOutputView();
+    await bottomBar.openOutputView();
+    await outputView.clearText();
 
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
@@ -665,6 +669,20 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
 
     await bottomBar.openOutputView();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Adding coded test file"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
     console.log("Checking that all tests appear");
     let currentTestHandle = await getTestHandle(
       subprogram,
@@ -736,6 +754,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should delete Coded Tests", async () => {
     await updateTestID();
+    const bottomBar = workbench.getBottomBar();
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
 
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
@@ -781,9 +802,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Remove Coded Tests");
     await menuElement.click();
 
-    const bottomBar = workbench.getBottomBar();
-    const outputView = await bottomBar.openOutputView();
-
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
@@ -807,6 +825,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should add a coded test file without the compile error", async () => {
     await updateTestID();
+    const outputView = await bottomBar.openOutputView();
 
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
@@ -846,6 +865,7 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    await outputView.clearText();
     const contextMenu = await subprogramMethod.openContextMenu();
     console.log("Adding existing coded tests file");
     await contextMenu.select("VectorCAST");
@@ -860,6 +880,21 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     await browser.keys(Key.Enter);
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Adding coded test file"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
 
     await bottomBar.openOutputView();
     console.log("Checking that all tests appear");
@@ -969,6 +1004,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should run compileErrorTest and check report", async () => {
     await updateTestID();
+    const bottomBar = workbench.getBottomBar();
+    const outputView = await bottomBar.openOutputView();
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
 
@@ -1019,6 +1056,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Adding managerTest.myTest to the test script");
+    await outputView.clearText();
     let line = 54;
     await tab.moveCursor(line, 1);
     await browser.keys(Key.Escape);
@@ -1033,6 +1071,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.setTextAtLine(line + 5, "}");
     await tab.save();
 
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
+
     console.log(
       "Verifying that managerTests.myTest appears in the test explorer"
     );
@@ -1043,10 +1089,6 @@ describe("vTypeCheck VS Code Extension", () => {
       6
     );
     expect(currentTestHandle).not.toBe(undefined);
-
-    const bottomBar = workbench.getBottomBar();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
     await (await tab.elem).click();
 
