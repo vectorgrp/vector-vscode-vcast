@@ -539,6 +539,17 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
+
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.pause(2000);
+
     console.log("Checking if Env node is in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
     expect(testsuiteNode).toBeDefined();
