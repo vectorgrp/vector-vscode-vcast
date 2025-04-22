@@ -449,6 +449,9 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.pause(2000);
+
     console.log("Checking if Testsuite node is in tree");
     const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
     expect(testsuiteNode).toBeDefined();
