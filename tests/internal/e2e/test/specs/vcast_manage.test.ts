@@ -442,7 +442,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Testsuite node is in tree");
-    const testsuiteNode = findTreeNodeAtLevel(2, "GreyBox");
+    const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
     expect(testsuiteNode).toBeDefined();
     // Check for VSCODE info message?
   });
