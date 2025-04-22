@@ -299,6 +299,12 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes("Processing project:"),
+      { timeout: TIMEOUT }
+    );
+
     console.log("Checking if Env node is in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(
       1,

@@ -146,7 +146,8 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
-    await browser.pause(4000); // wait another 2 seconds after condition is met
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.pause(4000);
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
