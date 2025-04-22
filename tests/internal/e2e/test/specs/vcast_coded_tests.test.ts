@@ -200,6 +200,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should generate and run template test", async () => {
     await updateTestID();
+    const outputView = await bottomBar.openOutputView();
+    await bottomBar.openOutputView();
+    await outputView.clearText();
 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
@@ -252,6 +255,20 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     await browser.keys(Key.Enter);
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Adding coded test file"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
 
     await bottomBar.openOutputView();
     console.log("Checking that tests got generated");
