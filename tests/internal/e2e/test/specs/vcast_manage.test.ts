@@ -412,15 +412,15 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing creating a Testsuite", async () => {
     await updateTestID();
-    const initialWorkdir = process.env.INIT_CWD;
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
     await executeContextMenuAction(
       1,
       "GNU_Native_Automatic_C++",
       true,
       "Add Testsuite to Compiler"
     );
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
     await insertStringToInput("GreyBox", "testSuiteInput");
 
     const button = await $(`aria/OK`);
@@ -438,6 +438,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () =>
         (await outputView.getText()).toString().includes("Processing project:"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
       { timeout: TIMEOUT }
     );
 
