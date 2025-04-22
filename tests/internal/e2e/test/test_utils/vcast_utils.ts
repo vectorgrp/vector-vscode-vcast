@@ -1615,7 +1615,7 @@ export async function executeContextMenuAction(
   contextMenuItemName: string
 ): Promise<void> {
   // Find the target tree node.
-  const targetNode = await findTreeNodeAtLevel(level, nodeName);
+  const targetNode = await retryFindTreeNode(level, nodeName);
   if (!targetNode) {
     throw new Error(`Node "${nodeName}" not found at level ${level}`);
   }
@@ -1629,6 +1629,20 @@ export async function executeContextMenuAction(
   }
   const menuElement = await $(`aria/${contextMenuItemName}`);
   await menuElement.click();
+}
+
+async function retryFindTreeNode(
+  level: number,
+  nodeName: string,
+  retries = 3,
+  delayMs = 500
+): Promise<any | undefined> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const node = await findTreeNodeAtLevel(level, nodeName);
+    if (node) return node;
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return undefined;
 }
 
 /**

@@ -257,7 +257,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if node is in Tree");
-    const envNode = findTreeNodeAtLevel(3, "FREE-BAR");
+    const envNode = await findTreeNodeAtLevel(3, "FREE-BAR");
     expect(envNode).toBeDefined();
   });
 
