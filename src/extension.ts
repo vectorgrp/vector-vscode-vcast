@@ -63,6 +63,7 @@ import {
   globalProjectWebviewComboboxItems,
   setGlobalProjectIsOpenedChecker,
   setGlobalCompilerAndTestsuites,
+  loadTestScriptButton,
 } from "./testPane";
 
 import {
@@ -442,8 +443,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.loadTestScript////////////////////////////////////////////////////////
   let loadTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.loadTestScript",
-    () => {
-      loadTestScript();
+    async () => {
+      await loadTestScriptButton();
     }
   );
   context.subscriptions.push(loadTestScriptCommand);
@@ -829,7 +830,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       <div class="modal">
           <h2>Add Testsuite to Compiler</h2>
           <label for="testsuiteInput">Testsuite Name:</label>
-          <input type="text" id="testsuiteInput" placeholder="Enter Testsuite Name" />
+          <input aria-label="testSuiteInput" type="text" id="testsuiteInput" placeholder="Enter Testsuite Name" />
           <div>
               <button class="primary-button" onclick="submitForm()">OK</button>
               <button class="cancel-button" onclick="cancel()">Cancel</button>
@@ -1071,7 +1072,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         // We want to load the test script automatically when the user saves
         const filePath = editor.uri.fsPath;
         if (filePath.endsWith(".tst") && alreadyConfigured) {
-          loadTestScript();
+          await loadTestScript();
         }
         await updateCodedTestCases(editor);
         await updateCOVdecorations();
@@ -1515,7 +1516,7 @@ async function installPreActivationEventHandlers(
          so the text "Select" is truly centered. -->
     <label>Env File:</label>
     <div class="single-input-container">
-      <input type="text" id="envFileInput" placeholder="Select Env File" readonly />
+      <input aria-label="envFileInput" type="text" id="envFileInput" placeholder="Select Env File" />
       <button class="select-button" onclick="importEnvFile()">Select</button>
     </div>
 
@@ -1874,7 +1875,7 @@ async function installPreActivationEventHandlers(
         <label>Source Files:</label>
         <div id="sourceFilesContainer">
           <div class="single-input-container">
-            <input type="text" placeholder="Enter Source File" />
+            <input aria-label="sourceFileInput" type="text" placeholder="Enter Source File" />
             <button class="remove-button" onclick="this.parentElement.remove()">✖</button>
           </div>
         </div>
@@ -1900,7 +1901,7 @@ async function installPreActivationEventHandlers(
         <!-- OK/Cancel Buttons -->
         <div class="button-container">
           <button class="primary-button" onclick="cancel()">Cancel</button>
-          <button class="primary-button" onclick="submitForm()">OK</button>
+          <button aria-label="importOk" class="primary-button" onclick="submitForm()">OK</button>
         </div>
       </div>
       

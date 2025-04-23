@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 // needed for parsing json files with comments
 import * as jsonc from "jsonc-parser";
 
-import { deleteEnvironmentCallback, loadScriptCallBack } from "./callbacks";
+import { loadScriptCallBack } from "./callbacks";
 
 import { vectorMessage } from "./messagePane";
 
@@ -40,12 +40,7 @@ import {
   vUnitIncludeSuffix,
 } from "./vcastInstallation";
 
-import {
-  clientRequestType,
-  closeConnection,
-  globalEnviroDataServerActive,
-  vcastCommandType,
-} from "../src-common/vcastServer";
+import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
 import {
   globalController,
   globalProjectDataCache,
@@ -53,10 +48,8 @@ import {
   globalUnusedCompilerList,
   globalUnusedTestsuiteList,
   nodeKind,
-  refreshAllExtensionData,
   vcastTestItem,
 } from "./testPane";
-import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";
 
 const fs = require("fs");
 const os = require("os");

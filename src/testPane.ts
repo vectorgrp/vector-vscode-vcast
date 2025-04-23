@@ -1426,20 +1426,9 @@ export async function insertATGTests(testNode: testNodeType) {
   generateAndLoadATGTests(testNode);
 }
 
-const url = require("url");
 export async function loadTestScript() {
-  // This gets called from the right-click editor context menu
-  // The convention is that the .tst file must be in the same directory
-  // as the environment, so we get the enviroName from parsing the
-  // .tst and get the working directory from its location
-
   const activeEditor = vscode.window.activeTextEditor;
   if (activeEditor) {
-    if (activeEditor.document.isDirty) {
-      // need to wait, otherwise we have a race condition with clicast
-      await activeEditor.document.save();
-    }
-
     let scriptPath = url.fileURLToPath(activeEditor.document.uri.toString());
 
     // we use the test script contents to determine the environment name
@@ -1480,11 +1469,34 @@ export async function loadTestScript() {
   }
 }
 
+const url = require("url");
+export async function loadTestScriptButton() {
+  // This gets called from the right-click editor context menu
+  // The convention is that the .tst file must be in the same directory
+  // as the environment, so we get the enviroName from parsing the
+  // .tst and get the working directory from its location
+
+  const activeEditor = vscode.window.activeTextEditor;
+  if (activeEditor) {
+    if (activeEditor.document.isDirty) {
+      // need to wait, otherwise we have a race condition with clicast
+      // This also triggers the onDidTextdocumentSave which triggers the loadTestScript function
+      // If we don't do it that way, we will load the same script twice.
+      await activeEditor.document.save();
+    }
+  }
+}
+
 async function checkIfTestExists(
   enviroPath: string,
   scriptPath: string
 ): Promise<boolean> {
   const scriptContent = fs.readFileSync(scriptPath, "utf8");
+
+  // Short-circuit if this is a COMPOUND or INIT test
+  if (/^TEST\.SUBPROGRAM:\s*<<(?:COMPOUND|INIT)>>$/m.test(scriptContent)) {
+    return true;
+  }
 
   const testNameMatch = scriptContent.match(/^TEST\.NAME:(.*)$/m);
   const unitNameMatch = scriptContent.match(/^TEST\.UNIT:(.*)$/m);
