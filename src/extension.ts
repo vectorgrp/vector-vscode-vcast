@@ -63,6 +63,7 @@ import {
   globalProjectWebviewComboboxItems,
   setGlobalProjectIsOpenedChecker,
   setGlobalCompilerAndTestsuites,
+  loadTestScriptButton,
 } from "./testPane";
 
 import {
@@ -443,7 +444,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   let loadTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.loadTestScript",
     () => {
-      loadTestScript();
+      loadTestScriptButton();
     }
   );
   context.subscriptions.push(loadTestScriptCommand);
