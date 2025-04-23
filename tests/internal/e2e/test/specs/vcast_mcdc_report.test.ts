@@ -455,8 +455,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.saveScreenshot(
       "info_finished_creating_vcast_environment.png"
     );
-    // Clearing all notifications
-    await (await $(".codicon-notifications-clear-all")).click();
 
     // Red MCDC Gutter icon
     await checkForGutterAndGenerateReport(
