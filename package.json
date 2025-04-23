@@ -346,6 +346,98 @@
             "description": "Enables coded testing when building a new environment"
           }
         }
+      },
+      {
+        "id": "ai",
+        "title": "AI Models",
+        "order": 3,
+        "properties": {
+          "vectorcastTestExplorer.aI.modelProvider": {
+            "type": "string",
+            "enum": [
+              "Anthropic",
+              "Azure",
+              "Google",
+              "Ollama",
+              "OpenAI"
+            ],
+            "order": 1,
+            "default": "OpenAI",
+            "description": "Select the AI model provider for requirements and test generation"
+          },
+          "vectorcastTestExplorer.aI.anthropic.apiKey": {
+            "type": "string",
+            "order": 2,
+            "default": "ANTHROPIC_API_KEY",
+            "description": "Name of environment variable containing the API Key for Anthropic"
+          },
+          "vectorcastTestExplorer.aI.anthropic.modelName": {
+            "type": "string",
+            "order": 3,
+            "default": "claude-3-7-sonnet-20250219",
+            "description": "Model name for Anthropic"
+          },
+          "vectorcastTestExplorer.aI.azure.apiKey": {
+            "type": "string",
+            "order": 4,
+            "default": "AZURE_API_KEY",
+            "description": "Name of environment variable containing the API Key for Azure OpenAI"
+          },
+          "vectorcastTestExplorer.aI.azure.baseUrl": {
+            "type": "string",
+            "order": 5,
+            "default": "",
+            "description": "Base URL for Azure OpenAI (e.g., https://your-resource.openai.azure.com/)"
+          },
+          "vectorcastTestExplorer.aI.azure.deployment": {
+            "type": "string",
+            "order": 6,
+            "default": "",
+            "description": "Deployment name for Azure OpenAI"
+          },
+          "vectorcastTestExplorer.aI.azure.modelName": {
+            "type": "string",
+            "order": 7,
+            "default": "",
+            "description": "Model name for Azure OpenAI"
+          },
+          "vectorcastTestExplorer.aI.google.apiKey": {
+            "type": "string",
+            "order": 8,
+            "default": "GOOGLE_API_KEY",
+            "description": "Name of environment variable containing the API Key for Google"
+          },
+          "vectorcastTestExplorer.aI.google.modelName": {
+            "type": "string",
+            "order": 9,
+            "default": "gemini-2.0-flash",
+            "description": "Model name for Google"
+          },
+          "vectorcastTestExplorer.aI.ollama.baseUrl": {
+            "type": "string",
+            "order": 10,
+            "default": "http://localhost:11434",
+            "description": "Base URL for Ollama"
+          },
+          "vectorcastTestExplorer.aI.ollama.modelName": {
+            "type": "string",
+            "order": 11,
+            "default": "",
+            "description": "Model name for Ollama"
+          },
+          "vectorcastTestExplorer.aI.openai.apiKey": {
+            "type": "string",
+            "order": 12,
+            "default": "OPENAI_API_KEY",
+            "description": "Name of environment variable containing the API Key for OpenAI"
+          },
+          "vectorcastTestExplorer.aI.openai.modelName": {
+            "type": "string",
+            "order": 13,
+            "default": "gpt-4o",
+            "description": "Model name for OpenAI"
+          }
+        }
       }
     ],
     "menus": {
