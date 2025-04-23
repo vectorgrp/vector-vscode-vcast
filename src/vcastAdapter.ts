@@ -16,7 +16,6 @@ import { openMessagePane, vectorMessage } from "./messagePane";
 
 import {
   environmentDataCache,
-  environmentNodeDataType,
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
   getEnviroNameFromID,
