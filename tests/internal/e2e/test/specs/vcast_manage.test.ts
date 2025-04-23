@@ -53,21 +53,18 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should activate vcastAdapter", async () => {
     await updateTestID();
 
-    console.log("Opening Command Palette...");
     await browser.keys([Key.Control, Key.Shift, "p"]);
-
-    console.log("Typing 'vector'...");
+    // Typing Vector in the quick input box
+    // This brings up VectorCAST Test Explorer: Configure
+    // so just need to hit Enter to activate
     for (const character of "vector") {
       await browser.keys(character);
     }
 
-    console.log("Executing command...");
     await browser.keys(Key.Enter);
 
     const activityBar = workbench.getActivityBar();
     const viewControls = await activityBar.getViewControls();
-
-    console.log("Available Activity Bar views:");
     for (const viewControl of viewControls) {
       console.log(await viewControl.getTitle());
     }
@@ -75,26 +72,25 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
-    console.log("Waiting for VectorCAST Test Pane Initialization...");
+    console.log("Waiting for VectorCAST activation");
     await $("aria/VectorCAST Test Pane Initialization");
-
-    console.log("Waiting for Testing view to become available...");
+    console.log("WAITING FOR TESTING");
     await browser.waitUntil(
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
       { timeout: TIMEOUT }
     );
-
+    console.log("WAITING FOR TEST EXPLORER");
     await outputView.selectChannel("VectorCAST Test Explorer");
-    console.log("Selected 'VectorCAST Test Explorer' channel");
-
-    console.log("Waiting for language server to start...");
+    console.log("Channel selected");
+    console.log("WAITING FOR LANGUAGE SERVER");
     await browser.waitUntil(
       async () =>
-        (await outputView.getText()).includes("Starting the language server"),
+        (await outputView.getText())
+          .toString()
+          .includes("Starting the language server"),
       { timeout: TIMEOUT }
     );
 
-    console.log("Opening 'Testing' view...");
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
   });
