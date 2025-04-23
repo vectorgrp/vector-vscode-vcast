@@ -336,16 +336,16 @@ export async function getTestHandle(
     await customSubprogramMethod.select();
   }
 
-  // try {
-  //   await browser.waitUntil(
-  //     async () =>
-  //       (await customSubprogramMethod.getChildren()).length ===
-  //       totalNumberOfTestsForMethod,
-  //     { timeout: 8000, timeoutMsg: `${expectedTestName} not found` }
-  //   );
-  // } catch {
-  //   return undefined;
-  // }
+  try {
+    await browser.waitUntil(
+      async () =>
+        (await customSubprogramMethod.getChildren()).length ===
+        totalNumberOfTestsForMethod,
+      { timeout: 10000, timeoutMsg: `${expectedTestName} not found` }
+    );
+  } catch {
+    return undefined;
+  }
 
   for (const testHandle of await customSubprogramMethod.getChildren()) {
     const testName = await (
