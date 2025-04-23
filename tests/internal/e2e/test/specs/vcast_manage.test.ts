@@ -548,7 +548,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     // Need to wait because there are more than one "Processing environment data for" messages
-    await browser.pause(2000);
+    await browser.pause(4000);
 
     console.log("Checking if Env node is in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
