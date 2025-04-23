@@ -163,24 +163,46 @@ jobs:
         shell: bash
         run: |
           COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"          
-          echo "## Vsix - Linux" >> $GITHUB_STEP_SUMMARY
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"
+          README_URL="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/demo-data/Readme.pdf"
+          ENV_SAMPLES=(
+            "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/demo-data/TUTORIAL_C.zip"
+          )
+          mkdir .distribution && cd .distribution
+          
+          wget $README_URL -O Readme.pdf
+          for url in "${ENV_SAMPLES[@]}"; do
+            wget $url -O $(basename $url)
+            unzip $(basename $url)
+            rm $(basename $url)
+          done
+          
+          echo "## Distribution - Linux" >> $GITHUB_STEP_SUMMARY
           if [[ -f ${{ env.LINUX_VSIX_FILE }} ]] ; then
-            URL="$ARTIFACTORY_URL/$(basename ${{ env.LINUX_VSIX_FILE }})"
-            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ${{ env.LINUX_VSIX_FILE }}
-            echo "[Download Vsix - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
+             VSIX_FILE=${{ env.LINUX_VSIX_FILE }}
+             cp $VSIX_FILE $(basename "${VSIX_FILE%.linux.vsix}.vsix")
+             tar -cvzf ../VectorCAST-Reqs2Tests-Linux.tar.gz * > /dev/null
+             URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
+             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Linux.tar.gz
+             echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
+             rm *.vsix
           else
-            echo "Unable to build vsix file for Linux" >> $GITHUB_STEP_SUMMARY
+             echo "Unable to build distribution for Linux" >> $GITHUB_STEP_SUMMARY
           fi
           
-          echo "## Vsix - Windows" >> $GITHUB_STEP_SUMMARY
+          echo "## Distribution - Windows" >> $GITHUB_STEP_SUMMARY
           if [[ -f ${{ env.WIN_VSIX_FILE }} ]] ; then
-            URL="$ARTIFACTORY_URL/$(basename ${{ env.WIN_VSIX_FILE }})"
-            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ${{ env.WIN_VSIX_FILE }}
-            echo "[Download Vsix - Windows]($URL)" >> $GITHUB_STEP_SUMMARY
+             VSIX_FILE=${{ env.WIN_VSIX_FILE }}
+             cp $VSIX_FILE $(basename "${VSIX_FILE%.win.vsix}.vsix")
+             tar -cvzf ../VectorCAST-Reqs2Tests-Windows.tar.gz * > /dev/null
+             URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Windows.tar.gz"
+             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Windows.tar.gz
+             echo "[Download distribution - Windows]($URL)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "Unable to build vsix file for Windows" >> $GITHUB_STEP_SUMMARY
+             echo "Unable to build distribution for Windows" >> $GITHUB_STEP_SUMMARY
           fi
+          
+          cd .. && rm -rf .distribution VectorCAST-Reqs2Tests-*.tar.gz
 
       - name: Upload coverage artifact
         if: ${{ always() && strategy.job-index == '0' }}
