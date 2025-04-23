@@ -180,7 +180,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (useDataServer) {
       const expectedLoadScriptLogs = [
         "received client request: runClicastCommand",
-        "commandString: -eBAR test script run",
+        "commandString: -eDATABASE-MANAGER -umanager -sManager::PlaceOrder test script create",
         "server return code: 0",
       ];
       const loadScriptLog = await checkIfRequestInLogs(
