@@ -237,7 +237,7 @@ export async function cleanProjectEnvironment(
   // if we are in server mode, close any existing connection to the environment
   if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
-  executeWithRealTimeEchoWithProgress(
+  await executeWithRealTimeEchoWithProgress(
     manageCommandToUse,
     manageArgs,
     projectLocation,
@@ -608,87 +608,66 @@ export async function updateAllOpenedProjects() {
 /**
  * Updates the project data for the given environment
  * @param enviroPath Path to the environment
- * @param enviroName Name of the environment
+ * @param forceUpdate Whether to force update even if auto-update is disabled
  */
 export async function updateProjectData(
   enviroPath: string,
   forceUpdate = false
 ) {
-  // Only update if the current env is embedded in a project and the setting is enabled
-  // or we force the update by actively clicking on the Update Project Button
-  const normalizedEnviroPath = normalizePath(enviroPath);
+  const normalizedPath = normalizePath(enviroPath);
   const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const autoUpdateEnabled = config.get<boolean>(
+  const autoUpdate = config.get<boolean>(
     "automaticallyUpdateManageProject",
     true
   );
 
-  const envIsInProject: boolean = envIsEmbeddedInProject(normalizedEnviroPath);
-
-  if (envIsInProject && (autoUpdateEnabled || forceUpdate)) {
-    const enviroName = path.basename(normalizedEnviroPath);
-    const blockUpdate =
-      await checkIfEnvironmentIsBuildMultipleTimes(enviroName);
-    if (blockUpdate) {
-      // Show an information message with two options.
-      const selection = await vscode.window.showInformationMessage(
-        `Updating the project data is currently blocked because ${enviroName} is built in multiple testsuites. You can clean the other Environments now and the project will be updated.`,
-        "Cancel",
-        "Clean other Environments"
-      );
-
-      if (selection === "Clean other Environments") {
-        // Delete the build folders of the other builds.
-        await deleteOtherBuildFolders(normalizedEnviroPath);
-
-        // Update Project after cleaning the other environments
-        const enviroData: environmentNodeDataType =
-          getEnviroNodeData(normalizedEnviroPath);
-        const projectFilePath: string = enviroData.projectPath;
-        const projectName: string = path.basename(projectFilePath);
-        const projectLocation: string = path.dirname(projectFilePath);
-        const manageArgs: string[] = [
-          `-p${projectName}`,
-          `--level=${enviroData.displayName}`,
-          "--apply-changes",
-          "--force",
-        ];
-
-        openMessagePane();
-        const progressMessage = "Updating project data ...";
-        await executeWithRealTimeEchoWithProgress(
-          manageCommandToUse,
-          manageArgs,
-          projectLocation,
-          progressMessage
-        );
-      } else {
-        // User chose Cancel; do nothing.
-        return;
-      }
-    } else {
-      const enviroData: environmentNodeDataType =
-        getEnviroNodeData(normalizedEnviroPath);
-      const projectFilePath: string = enviroData.projectPath;
-      const projectName: string = path.basename(projectFilePath);
-      const projectLocation: string = path.dirname(projectFilePath);
-      const manageArgs: string[] = [
-        `-p${projectName}`,
-        `--level=${enviroData.displayName}`,
-        "--apply-changes",
-        "--force",
-      ];
-
-      openMessagePane();
-      const progressMessage = "Updating project data ...";
-      await executeWithRealTimeEchoWithProgress(
-        manageCommandToUse,
-        manageArgs,
-        projectLocation,
-        progressMessage
-      );
-    }
+  // Only update if the current env is embedded in a project and the setting is enabled
+  // or we force the update by actively clicking on the Update Project Button
+  if (
+    !envIsEmbeddedInProject(normalizedPath) ||
+    (!autoUpdate && !forceUpdate)
+  ) {
+    return;
   }
+
+  const enviroName = path.basename(normalizedPath);
+
+  // Check if the environment is built in multiple test suites
+  const shouldBlock = await checkIfEnvironmentIsBuildMultipleTimes(enviroName);
+
+  if (shouldBlock) {
+    // Show an information message with two options.
+    const choice = await vscode.window.showInformationMessage(
+      `Updating the project data is currently blocked because ${enviroName} is built in multiple testsuites. You can clean the other Environments now and the project will be updated.`,
+      "Cancel",
+      "Clean other Environments"
+    );
+
+    if (choice !== "Clean other Environments") return;
+
+    // Delete the build folders of the other builds.
+    await deleteOtherBuildFolders(normalizedPath);
+  }
+
+  // Update Project after cleaning the other environments OR if update is not blocked
+  const { projectPath, displayName } = getEnviroNodeData(normalizedPath);
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--level=${displayName}`,
+    "--apply-changes",
+    "--force",
+  ];
+
+  openMessagePane();
+  const progressMessage = "Updating project data ...";
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    progressMessage
+  );
 }
 
 // Load Test Script - server logic included -----------------------------------------

@@ -1493,8 +1493,8 @@ async function checkIfTestExists(
 ): Promise<boolean> {
   const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-  // Short-circuit if compound
-  if (/^TEST\.SUBPROGRAM:\s*<<COMPOUND>>$/m.test(scriptContent)) {
+  // Short-circuit if this is a COMPOUND or INIT test
+  if (/^TEST\.SUBPROGRAM:\s*<<(?:COMPOUND|INIT)>>$/m.test(scriptContent)) {
     return true;
   }
 
