@@ -38,17 +38,20 @@ import {
 
 import {
   addCodedTestToEnvironment,
-  importEnvToTestsuite,
   buildEnvironmentFromScript,
   codedTestAction,
   executeTest,
   getMCDCReport,
   getTestExecutionReport,
   setCodedTestOption,
+} from "./vcastAdapter";
+
+import {
+  importEnvToTestsuite,
   updateProjectData,
   addEnvToTestsuite,
   createNewTestsuiteInProject,
-} from "./vcastAdapter";
+} from "./manage/manageSrc/manageCommands";
 
 import {
   commandStatusType,

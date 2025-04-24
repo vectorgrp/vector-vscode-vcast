@@ -59,8 +59,9 @@ import {
   getDataForProject,
   loadTestScriptIntoEnvironment,
   refreshCodedTests,
-  updateProjectData,
 } from "./vcastAdapter";
+
+import { updateProjectData } from "./manage/manageSrc/manageCommands";
 
 import { globalPathToSupportFiles, launchFile } from "./vcastInstallation";
 
@@ -348,7 +349,22 @@ export type enviroListAsMapType = Map<string, projectEnvironmentType>;
 // the inner map key is the build directory
 export let globalProjectDataCache = new Map<string, enviroListAsMapType>();
 
+// Boolean to check, if the current opened directory contains a project
 export let globalProjectIsOpenedChecker: boolean = false;
+
+/**
+ * Sets the global variable to check if the dir contains a project or not
+ */
+export function setGlobalProjectIsOpenedChecker() {
+  globalProjectIsOpenedChecker = checkIfAnyProjectsAreOpened();
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.globalProjectIsOpenedChecker",
+    globalProjectIsOpenedChecker
+  );
+}
+
+// Map to store all compilers and testsuites for the combobox items in the project webviews
 export let globalProjectWebviewComboboxItems = new Map<
   string,
   { compilers: string[]; testsuites: string[] }
@@ -362,12 +378,17 @@ export let globalCompilersAndTestsuites: {
   testsuites: [],
 };
 
+// Empty Compilers or Testsuites that do not contain anything.
+// We need to store and process them seperately, because otherwise they are not shown in the tree
 export let globalUnusedTestsuiteList: { displayName: string }[] = [];
 export let globalUnusedCompilerList: {
   projectFile: string;
   displayName: string;
 }[] = [];
 
+/**
+ * Updates the global compilers and testsuites list based on all nodes in the test tree.
+ */
 export function updateGlobalCompilersAndTestsuites() {
   const compilers = new Set<string>();
   const testsuites = new Set<string>();
@@ -396,6 +417,9 @@ export function updateGlobalCompilersAndTestsuites() {
   };
 }
 
+/**
+ * Clears the global compilers and testsuites list.
+ */
 export function clearGlobalCompilersAndTestsuites() {
   globalCompilersAndTestsuites = {
     compiler: [],
@@ -405,6 +429,11 @@ export function clearGlobalCompilersAndTestsuites() {
   globalUnusedTestsuiteList = [];
 }
 
+/**
+ * Sets the global compilers and testsuites list in the for package.json.
+ * This is how we an check in the package.json if the current node is a testsuite
+ * or compiler and therefore show the correct context menu items.
+ */
 export function setGlobalCompilerAndTestsuites() {
   updateGlobalCompilersAndTestsuites();
   vscode.commands.executeCommand(
@@ -419,15 +448,11 @@ export function setGlobalCompilerAndTestsuites() {
   );
 }
 
-export function setGlobalProjectIsOpenedChecker() {
-  globalProjectIsOpenedChecker = checkIfAnyProjectsAreOpened();
-  vscode.commands.executeCommand(
-    "setContext",
-    "vectorcastTestExplorer.globalProjectIsOpenedChecker",
-    globalProjectIsOpenedChecker
-  );
-}
-
+/**
+ * Converts the raw environment data into a map for the cache.
+ * @param enviroList - The list of environments to convert
+ * @returns A map where the key is the build directory and the value is the environment data
+ */
 export async function convertProjectDataToMap(
   enviroList: any[]
 ): Promise<enviroListAsMapType> {
@@ -451,6 +476,10 @@ export async function convertProjectDataToMap(
   return returnData;
 }
 
+/**
+ * Builds the project data cache for all projects in the given directory.
+ * @param baseDirectory - The base directory to search for projects
+ */
 export async function buildProjectDataCache(baseDirectory: string) {
   const options = { cwd: baseDirectory, absolute: true, strict: false };
   const projectFileList = glob.sync("**/*.vcm", options);
@@ -484,6 +513,11 @@ export async function buildProjectDataCache(baseDirectory: string) {
   }
 }
 
+/**
+ * Checks if the given path is an environment of interest.
+ * @param candidatePath - The path to check
+ * @returns True if the path is an environment of interest, false otherwise
+ */
 function isEnvironmentOfInterest(candidatePath: string): boolean {
   let returnValue: boolean = true;
 
@@ -603,6 +637,11 @@ export async function updateTestsForEnvironment(
   }
 }
 
+/**
+ * This function is used to push the unbuilt environment list to the context menu.
+ * This is also required for the package.json to get the correct context menu items for
+ * all unbuilt envs.
+ */
 function pushUnbuiltEnviroListToContextMenu() {
   vscode.commands.executeCommand(
     "setContext",
