@@ -23,12 +23,13 @@ import {
 } from "./utilities";
 
 import {
-  cleanProjectEnvironment,
   dumpTestScriptFile,
   openProjectInVcast,
   runATGCommands,
   runBasisPathCommands,
 } from "./vcastAdapter";
+
+import { cleanProjectEnvironment } from "./manage/manageSrc/manageCommands";
 
 import {
   clicastCommandToUse,

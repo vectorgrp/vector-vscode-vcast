@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Create Environment</title>
+
+  <!-- replaced at runtime -->
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal">
+    <h2>Create Environment in Project</h2>
+
+    <label>Project Path:</label>
+    <div class="single-input-container">
+      <select id="projectPath"></select>
+    </div>
+
+    <label>Source Files:</label>
+    <div id="sourceFilesContainer"></div>
+    <div class="single-add-row">
+      <button type="button" class="add-button" id="btnAddSource">➕</button>
+    </div>
+
+    <div class="label-row">
+      <div>Select Compiler</div><div>Select Testsuite</div><div></div>
+    </div>
+    <div id="compilerContainer"></div>
+    <div class="double-add-row">
+      <button type="button" class="add-button" id="btnAddCompiler">➕</button>
+    </div>
+
+    <div class="button-container">
+      <button type="button" class="cancel-button" id="btnCancel">Cancel</button>
+      <button type="button" class="primary-button" id="btnSubmit">OK</button>
+    </div>
+  </div>
+
+  <!-- replaced at runtime with nonce -->
+  <script src="{{ scriptUri }}"></script>
+</body>
+</html>

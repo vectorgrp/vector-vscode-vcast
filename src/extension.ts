@@ -77,21 +77,26 @@ import {
 
 import {
   buildEnvironmentFromScript,
-  buildProjectEnvironment,
   deleteEnvironment,
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
   rebuildEnvironment,
+  openProjectInVcast,
+  deleteLevel,
+} from "./vcastAdapter";
+
+import {
+  buildProjectEnvironment,
   removeTestsuiteFromProject,
   importEnvToTestsuite,
-  openProjectInVcast,
   createTestsuiteInCompiler,
   addCompilerToProject,
-  deleteLevel,
   updateProjectData,
   buildExecuteIncremental,
   cleanProjectEnvironment,
-} from "./vcastAdapter";
+  addEnvToTestsuite,
+  deleteEnvironmentFromProject,
+} from "./manage/manageSrc/manageCommands";
 
 import {
   deleteServerLog,
@@ -131,6 +136,7 @@ import {
 } from "./vcastUtilities";
 
 import fs = require("fs");
+import { getNonce } from "./manage/manageSrc/manageUtils";
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
@@ -443,8 +449,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.loadTestScript////////////////////////////////////////////////////////
   let loadTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.loadTestScript",
-    () => {
-      loadTestScriptButton();
+    async () => {
+      await loadTestScriptButton();
     }
   );
   context.subscriptions.push(loadTestScriptCommand);
@@ -735,17 +741,23 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(addCompilerToProjectCommand);
 
-  let addTestsuiteToCompiler = vscode.commands.registerCommand(
+  const addTestsuiteToCompiler = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addTestsuiteToCompiler",
     async (node: any) => {
       const panel = vscode.window.createWebviewPanel(
         "addTestsuiteToCompiler",
         "Add Testsuite to Compiler",
         vscode.ViewColumn.Active,
-        { enableScripts: true, retainContextWhenHidden: true }
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [
+            vscode.Uri.file(path.join(context.extensionPath, "src", "manage")),
+          ],
+        }
       );
 
-      panel.webview.html = getTestsuiteWebviewContent();
+      panel.webview.html = getTestsuiteWebviewContent(context, panel);
 
       panel.webview.onDidReceiveMessage((message) => {
         if (message.command === "submit") {
@@ -767,88 +779,49 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(addTestsuiteToCompiler);
 
   // Webview HTML content.
-  function getTestsuiteWebviewContent() {
-    return `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-      <title>Add Testsuite to Compiler</title>
-      <style>
-          body {
-              font-family: sans-serif;
-              background-color: #1e1e1e;
-              color: #d4d4d4;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              height: 100vh;
-              margin: 0;
-          }
-          .modal {
-              width: 400px;
-              background-color: #252526;
-              padding: 20px;
-              border-radius: 8px;
-              box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-              text-align: center;
-          }
-          label {
-              display: block;
-              text-align: center;
-              margin-bottom: 5px;
-          }
-          input[type="text"] {
-              display: block;
-              width: 80%;
-              margin: 10px auto;
-              padding: 10px;
-              border: 1px solid #555;
-              border-radius: 4px;
-              background-color: #3c3c3c;
-              color: #d4d4d4;
-          }
-          button {
-              padding: 10px 20px;
-              margin: 10px;
-              border: none;
-              border-radius: 4px;
-              cursor: pointer;
-          }
-          .primary-button {
-              background-color: #007acc;
-              color: white;
-          }
-          .cancel-button {
-              background-color: #cc4444;
-              color: white;
-          }
-      </style>
-  </head>
-  <body>
-      <div class="modal">
-          <h2>Add Testsuite to Compiler</h2>
-          <label for="testsuiteInput">Testsuite Name:</label>
-          <input aria-label="testSuiteInput" type="text" id="testsuiteInput" placeholder="Enter Testsuite Name" />
-          <div>
-              <button class="primary-button" onclick="submitForm()">OK</button>
-              <button class="cancel-button" onclick="cancel()">Cancel</button>
-          </div>
-      </div>
-      <script>
-          const vscode = acquireVsCodeApi();
-          function submitForm() {
-              const testsuiteName = document.getElementById('testsuiteInput').value;
-              vscode.postMessage({ command: 'submit', testsuiteName: testsuiteName });
-          }
-          function cancel() {
-              vscode.postMessage({ command: 'cancel' });
-          }
-      </script>
-  </body>
-  </html>
-  `;
+  function getTestsuiteWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel
+  ): string {
+    const base = path.join(context.extensionPath, "src", "manage", "webviews");
+
+    // on-disk locations
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "addTestsuite.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "addTestsuite.js")
+    );
+    const htmlPath = path.join(base, "html", "addTestsuite.html");
+
+    // webview URIs
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // read template
+    let html = fs.readFileSync(htmlPath, "utf8");
+
+    // build CSP + nonce
+    const nonce = getNonce();
+    const cspMeta = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+
+    // inject CSP
+    html = html.replace(/<head>/, `<head>${cspMeta}`);
+
+    // replace placeholders and add nonce to script tag
+    html = html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      );
+
+    return html;
   }
 
   // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
@@ -895,6 +868,33 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(deleteCompilerCommand);
+
+  // Command: vectorcastTestExplorer.deleteEnviroFromProject  ////////////////////////////////////////////////////////
+  let deleteEnviroFromProject = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.deleteEnviroFromProject",
+    async (enviroNode: any) => {
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      const enviroName = path.basename(enviroPath);
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      // always ask for confirmation before deleting an environment
+      const message =
+        "Environment: " +
+        enviroName +
+        " will be deleted from the project, and this action cannot be undone.";
+      vscode.window
+        .showInformationMessage(message, "Delete", "Cancel")
+        .then(async (answer) => {
+          if (answer === "Delete") {
+            // Delete the env completely from the project
+            await deleteEnvironmentFromProject(
+              enviroData.projectPath,
+              enviroName
+            );
+          }
+        });
+    }
+  );
+  context.subscriptions.push(deleteEnviroFromProject);
 
   // Command: vectorcastTestExplorer.removeTestsuite  ////////////////////////////////////////////////////////
   let removeTestsuite = vscode.commands.registerCommand(
@@ -1072,7 +1072,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         // We want to load the test script automatically when the user saves
         const filePath = editor.uri.fsPath;
         if (filePath.endsWith(".tst") && alreadyConfigured) {
-          loadTestScript();
+          await loadTestScript();
         }
         await updateCodedTestCases(editor);
         await updateCOVdecorations();
@@ -1179,57 +1179,61 @@ async function installPreActivationEventHandlers(
   context.subscriptions.push(newEnviroVCASTCommand);
 
   // Command: vectorcastTestExplorer.importEnviroToProject ////////////////////////////////////////////////////////
-  let importEnviroToProjectCommand = vscode.commands.registerCommand(
+  const importEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importEnviroToProject",
-    async (args: vscode.Uri, argList: vscode.Uri[]) => {
+    async (_args: vscode.Uri, argList: vscode.Uri[]) => {
       const panel = vscode.window.createWebviewPanel(
         "importEnviroToProject",
         "Import Environment to Project",
         vscode.ViewColumn.Active,
-        { enableScripts: true, retainContextWhenHidden: true }
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [
+            vscode.Uri.file(
+              path.join(context.extensionPath, "src", "manage", "webviews")
+            ),
+          ],
+        }
       );
 
-      // Pass the initial list of files (env files) to pre-fill the form.
-      panel.webview.html = getImportEnvProjectWebviewContent(argList);
+      panel.webview.html = getImportEnvWebviewContent(context, panel, argList);
 
       panel.webview.onDidReceiveMessage(
         async (message) => {
-          if (message.command === "importEnvFile") {
-            const files = await vscode.window.showOpenDialog({
-              canSelectMany: false,
-              openLabel: "Select Env File",
-              filters: {
-                "Env Files": ["env"],
-              },
-            });
-            if (files && files.length > 0) {
-              const envFile = files[0].fsPath;
-              panel.webview.postMessage({
-                command: "envFileSelected",
-                envFile,
+          switch (message.command) {
+            case "importEnvFile": {
+              const files = await vscode.window.showOpenDialog({
+                canSelectMany: false,
+                filters: { "Env Files": ["env"] },
+                openLabel: "Select Env File",
               });
+              if (files?.length) {
+                panel.webview.postMessage({
+                  command: "envFileSelected",
+                  envFile: files[0].fsPath,
+                });
+              }
+              break;
             }
-          } else if (message.command === "submit") {
-            const { projectPath, envFiles, testsuiteArgs } = message;
-            if (!projectPath || !envFiles || !testsuiteArgs) {
-              vscode.window.showErrorMessage(
-                "Project Path, Env Files, and Testsuite are required."
-              );
-              return;
+            case "submit": {
+              const { projectPath, envFiles, testsuiteArgs } = message;
+              if (!projectPath || !envFiles?.length || !testsuiteArgs?.length) {
+                vscode.window.showErrorMessage(
+                  "Project Path, Env Files, and Testsuite are required."
+                );
+                return;
+              }
+              for (const file of envFiles) {
+                vectorMessage(`Env File: ${file}`);
+                await importEnvToTestsuite(projectPath, testsuiteArgs, file);
+              }
+              panel.dispose();
+              break;
             }
-
-            // Iterate through each Env File and log it.
-            envFiles.forEach(async (file: string) => {
-              vectorMessage(`Env File: ${file}`);
-              await importEnvToTestsuite(projectPath, testsuiteArgs, file);
-            });
-
-            // Call your helper to process the new environment.
-            // This function should handle adding the environment to the project.
-
-            panel.dispose();
-          } else if (message.command === "cancel") {
-            panel.dispose();
+            case "cancel":
+              panel.dispose();
+              break;
           }
         },
         undefined,
@@ -1237,59 +1241,82 @@ async function installPreActivationEventHandlers(
       );
     }
   );
-  context.subscriptions.push(importEnviroToProjectCommand);
+  context.subscriptions.push(importEnviroToProject);
 
-  // Command: vectorcastTestExplorer.addEnviroToProject  ////////////////////////////////////////////////////////
-
-  let addEnviroToProject = vscode.commands.registerCommand(
+  // Command: vectorcastTestExplorer.addEnviroToProject ////////////////////////////////////////////////////////
+  const addEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addEnviroToProject",
-    async (projectNode) => {
+    async (_projectNode: any) => {
       const panel = vscode.window.createWebviewPanel(
         "addEnviroToProject",
         "Add Environment To Project",
-        vscode.ViewColumn.Active, // Keeps it central
-        { enableScripts: true, retainContextWhenHidden: true } // Makes it act more like a modal
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [
+            vscode.Uri.file(
+              path.join(context.extensionPath, "src", "manage", "webviews")
+            ),
+          ],
+        }
       );
 
-      // Pass an empty array since no env file is provided
-      panel.webview.html = getImportEnvProjectWebviewContent([]);
+      // no initial env files
+      panel.webview.html = getImportEnvWebviewContent(context, panel, []);
 
-      // Listen for messages from the Webview
-      panel.webview.onDidReceiveMessage(async (message) => {
-        if (message.command === "submit") {
-          const { projectPath, envFiles, testsuiteArgs } = message;
-          if (!projectPath || !envFiles || !testsuiteArgs) {
-            vscode.window.showErrorMessage(
-              "Project Path, Env Files, and Testsuite are required."
-            );
-            return;
+      panel.webview.onDidReceiveMessage(
+        async (message) => {
+          switch (message.command) {
+            case "importEnvFile": {
+              const uri = await vscode.window.showOpenDialog({
+                canSelectMany: false,
+                filters: { "Environment Files": ["env"] },
+                openLabel: "Select Environment File",
+              });
+              if (uri?.length) {
+                panel.webview.postMessage({
+                  command: "envFileSelected",
+                  envFile: uri[0].fsPath,
+                });
+              }
+              break;
+            }
+            case "submit": {
+              const { projectPath, envFiles, testsuiteArgs } = message;
+              if (!projectPath || !envFiles?.length || !testsuiteArgs?.length) {
+                vscode.window.showErrorMessage(
+                  "Project Path, Env Files, and Testsuite are required."
+                );
+                return;
+              }
+              // This should not happen, but just in case
+              if (envFiles.length > 1) {
+                vscode.window.showInformationMessage(
+                  "Multiple Env Files selected. Only the first one will be used."
+                );
+              }
+              const file = envFiles[0];
+              for (let level of testsuiteArgs) {
+                vectorMessage(`Env File: ${file}`);
+                if (level == testsuiteArgs[0]) {
+                  await importEnvToTestsuite(projectPath, level, file);
+                } else {
+                  const enviroName = path.basename(file).split(".")[0];
+                  await addEnvToTestsuite(projectPath, level, enviroName);
+                }
+              }
+              panel.dispose();
+              break;
+            }
+            case "cancel":
+              panel.dispose();
+              break;
           }
-
-          // Iterate through each Env File and log it.
-          envFiles.forEach(async (file: string) => {
-            vectorMessage(`Env File: ${file}`);
-            await importEnvToTestsuite(projectPath, testsuiteArgs, file);
-          });
-          panel.dispose(); // Close the webview after submission
-        } else if (message.command === "importEnvFile") {
-          // Open file picker for .env files
-          const uri = await vscode.window.showOpenDialog({
-            canSelectMany: false,
-            filters: { "Environment Files": ["env"] },
-            openLabel: "Select Environment File",
-          });
-
-          if (uri && uri.length > 0) {
-            // Send selected file path back to webview
-            panel.webview.postMessage({
-              command: "envFileSelected",
-              envFile: uri[0].fsPath,
-            });
-          }
-        } else if (message.command === "cancel") {
-          panel.dispose(); // Close the webview if user cancels
-        }
-      }, undefined);
+        },
+        undefined,
+        context.subscriptions
+      );
     }
   );
   context.subscriptions.push(addEnviroToProject);
@@ -1303,757 +1330,160 @@ async function installPreActivationEventHandlers(
    *
    * The label "Source Files" is replaced with "Env Files" in this version.
    */
-  function getImportEnvProjectWebviewContent(
-    argList: vscode.Uri[] | { fsPath: any }[]
+  function getImportEnvWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    argList: vscode.Uri[]
   ): string {
-    // Convert your globalProjectWebviewComboboxItems to an array for embedding.
+    const base = path.join(context.extensionPath, "src", "manage", "webviews");
+
+    // on-disk resource locations
+    const cssOnDisk = vscode.Uri.file(path.join(base, "css", "importEnv.css"));
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "importEnv.js")
+    );
+    const htmlPath = path.join(base, "html", "importEnv.html");
+
+    // convert to webview URIs
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // prepare dynamic data
     const projectData = JSON.stringify(
       Array.from(globalProjectWebviewComboboxItems.entries())
     );
+    const initialEnvFile = JSON.stringify(argList[0]?.fsPath || "");
 
-    // Only use the first file if multiple env files are provided
-    const initialEnvFilesArray = argList.map((uri) => uri.fsPath);
-    const initialEnvFile =
-      initialEnvFilesArray.length > 0 ? initialEnvFilesArray[0] : "";
-    const initialEnvFileJson = JSON.stringify(initialEnvFile);
+    // load the template
+    let html = fs.readFileSync(htmlPath, "utf8");
 
-    return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Create Environment</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background-color: #1e1e1e;
-      color: #d4d4d4;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
-    .modal {
-      width: 700px;
-      background-color: #252526;
-      padding: 25px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-      text-align: center;
-    }
-    h2 {
-      color: #ffffff;
-      margin-bottom: 15px;
-      font-size: 22px;
-    }
-    label {
-      font-size: 16px;
-      display: block;
-      text-align: left;
-      margin-top: 12px;
-      margin-bottom: 6px;
-    }
-    /* Inputs & selects */
-    input, select {
-      padding: 10px;
-      font-size: 14px;
-      background-color: #3c3c3c;
-      color: #d4d4d4;
-      border: 1px solid #555;
-      border-radius: 4px;
-      width: 100%;
-    }
-    select option {
-      padding: 10px;
-      border: 1px solid #555;
-      margin: 2px;
-    }
+    // inject CSP + nonce
+    const nonce = getNonce();
+    const cspMeta = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+    html = html.replace(/<head>/, `<head>${cspMeta}`);
 
-    /* Row with input + button: grid with 2 columns: 1fr for input, 60px (or 70px) for button. */
-    .single-input-container {
-      display: grid;
-      grid-template-columns: 1fr 70px; /* enough width for the text "Select" */
-      gap: 10px;
-      align-items: center;
-      width: 100%;
-      margin-bottom: 10px;
-    }
-
-    /* Row with double input + remove button. 50px for the remove button. */
-    .double-input-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr 50px;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 10px;
-      width: 100%;
-    }
-    /* The row that has the plus (➕) button. */
-    .double-add-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 50px;
-      gap: 10px;
-      width: 100%;
-      margin-bottom: 20px;
-    }
-    .double-add-row button { 
-      grid-column: 1; 
-      justify-self: start; 
-    }
-
-    /* The label row for compiler/testsuite, also with 3 columns. */
-    .label-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 50px;
-      gap: 10px;
-      margin-top: 20px;
-      margin-bottom: 10px;
-      width: 100%;
-      font-weight: bold;
-      text-align: center;
-    }
-    .label-row > div {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    /* Buttons */
-    button {
-      border: none;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    .remove-button {
-      background-color: #cc4444;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 10px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    .remove-button:hover { 
-      background-color: #992222; 
-    }
-    .select-button {
-      background-color: #007acc;
-      color: white;
-      /* Center text horizontally & vertically */
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 36px; /* match input height */
-      width: 100%;  /* fill the 70px column */
-    }
-    .add-button {
-      background-color: #007acc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 6px 10px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    .add-button:hover { 
-      background-color: #005f99; 
-    }
-    /* Labels for the double row */
-    .label-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 50px;
-      gap: 10px;
-      margin-bottom: 10px;
-      width: 100%;
-      font-weight: bold;
-      text-align: center;
-    }
-    .label-row > div {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .button-container {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
-    }
-    .primary-button {
-      background-color: #007acc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 10px 15px;
-      font-size: 16px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    .primary-button:hover { 
-      background-color: #005f99; 
-    }
-  </style>
-</head>
-<body>
-  <div class="modal">
-    <h2>Create Environment in Project</h2>
-
-    <!-- Project Path -->
-    <label>Project Path:</label>
-    <div class="single-input-container">
-      <select id="projectPath"></select>
-    </div>
-
-    <!-- Env File with a Select button. 
-         The button is 70px wide (from the grid) and uses display:flex 
-         so the text "Select" is truly centered. -->
-    <label>Env File:</label>
-    <div class="single-input-container">
-      <input aria-label="envFileInput" type="text" id="envFileInput" placeholder="Select Env File" />
-      <button class="select-button" onclick="importEnvFile()">Select</button>
-    </div>
-
-    <!-- Compiler/Testsuite Labels -->
-    <div class="label-row">
-      <div>Select Compiler</div>
-      <div>Select Testsuite</div>
-      <div></div>
-    </div>
-
-    <!-- Compiler/Testsuite Rows -->
-    <div id="compilerContainer"></div>
-    <div class="double-add-row">
-      <button class="add-button" onclick="addCompilerRow()">➕</button>
-    </div>
-
-    <!-- OK/Cancel Buttons -->
-    <div class="button-container">
-      <button class="primary-button" onclick="cancel()">Cancel</button>
-      <button class="primary-button" onclick="submitForm()">OK</button>
-    </div>
-  </div>
-
-  <script>
-    const vscode = acquireVsCodeApi();
-    const projectData = ${projectData};
-    const projectMap = new Map(projectData);
-
-    // Fill Project Path combobox
-    const projectPathSelect = document.getElementById('projectPath');
-    projectMap.forEach((value, key) => {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = key;
-      projectPathSelect.appendChild(opt);
-    });
-
-    // Import .env file
-    function importEnvFile() {
-      vscode.postMessage({ command: 'importEnvFile' });
-    }
-
-    // Listen for envFileSelected
-    window.addEventListener('message', event => {
-      const msg = event.data;
-      if (msg.command === 'envFileSelected') {
-        document.getElementById('envFileInput').value = msg.envFile;
-      }
-    });
-
-    function generateOptions(arr) {
-      return arr.map(item => '<option value="' + item + '">' + item + '</option>').join('');
-    }
-
-    function addCompilerRow() {
-      const selectedProject = projectPathSelect.value;
-      const projectInfo = projectMap.get(selectedProject);
-      if (!projectInfo) {
-        vscode.postMessage({ command: 'error', message: 'No project data available.' });
-        return;
-      }
-      const container = document.getElementById('compilerContainer');
-      const row = document.createElement('div');
-      row.classList.add('double-input-container');
-
-      const compilerSelect = document.createElement('select');
-      compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
-
-      const testsuiteSelect = document.createElement('select');
-      testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
-
-      // Delete button
-      const removeBtn = document.createElement('button');
-      removeBtn.textContent = '✖';
-      removeBtn.classList.add('remove-button');
-      removeBtn.onclick = () => row.remove();
-
-      row.appendChild(compilerSelect);
-      row.appendChild(testsuiteSelect);
-      row.appendChild(removeBtn);
-      container.appendChild(row);
-    }
-
-    // If project changes, update existing rows
-    projectPathSelect.addEventListener('change', () => {
-      const selectedProject = projectPathSelect.value;
-      const projectInfo = projectMap.get(selectedProject);
-      if (!projectInfo) return;
-
-      document.querySelectorAll('#compilerContainer .double-input-container').forEach(row => {
-        const [compilerSelect, testsuiteSelect] = row.children;
-        const currentCompiler = compilerSelect.value;
-        const currentTestsuite = testsuiteSelect.value;
-        compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
-        testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
-        compilerSelect.value = projectInfo.compilers.includes(currentCompiler) ? currentCompiler : projectInfo.compilers[0];
-        testsuiteSelect.value = projectInfo.testsuites.includes(currentTestsuite) ? currentTestsuite : projectInfo.testsuites[0];
-      });
-    });
-
-    function submitForm() {
-      const projectPath = projectPathSelect.value;
-      const envFile = document.getElementById('envFileInput').value;
-      const rows = document.querySelectorAll('#compilerContainer .double-input-container');
-      const testsuiteArgs = Array.from(rows).map(row => {
-        const [compilerSelect, testsuiteSelect] = row.children;
-        return compilerSelect.value + '/' + testsuiteSelect.value;
-      });
-      if (!projectPath || !envFile || testsuiteArgs.some(arg => !arg)) {
-        vscode.postMessage({ command: 'error', message: 'Project Path, Env File, and Compiler/Testsuite are required.' });
-        return;
-      }
-      vscode.postMessage({
-        command: 'submit',
-        projectPath,
-        envFiles: [envFile],
-        testsuiteArgs
-      });
-    }
-
-    function cancel() {
-      vscode.postMessage({ command: 'cancel' });
-    }
-
-    // Pre-fill env file
-    const initialEnvFile = ${initialEnvFileJson};
-    window.addEventListener('DOMContentLoaded', () => {
-      if (initialEnvFile) {
-        document.getElementById('envFileInput').value = initialEnvFile;
-      }
-      // add initial compiler row
-      addCompilerRow();
-    });
-  </script>
-</body>
-</html>
-  `;
-  }
-
-  let newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.newEnviroInProjectVCAST",
-    async (args: vscode.Uri, argList: vscode.Uri[]) => {
-      const panel = vscode.window.createWebviewPanel(
-        "addEnviroToProject",
-        "Create Environment in Project",
-        vscode.ViewColumn.Active,
-        { enableScripts: true, retainContextWhenHidden: true }
+    // inject URIs + data
+    html = html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      )
+      .replace(
+        /<\/head>/,
+        `  <script nonce="${nonce}">
+         window.projectData = ${projectData};
+         window.initialEnvFile = ${initialEnvFile};
+        </script>\n</head>`
       );
 
-      panel.webview.html = getProjectWebviewContent(argList);
+    return html;
+  }
 
-      panel.webview.onDidReceiveMessage(async (message) => {
-        if (message.command === "submit") {
-          const { projectPath, sourceFiles, testsuiteArgs } = message;
-          if (!projectPath || !sourceFiles || !testsuiteArgs) {
-            vscode.window.showErrorMessage(
-              "Compiler Name and Testsuite Name are required."
-            );
-            return;
-          }
-          const projectEnvParameters: ProjectEnvParameters = {
-            path: projectPath,
-            sourceFiles: sourceFiles,
-            testsuiteArgs: testsuiteArgs,
-          };
-
-          vscode.window.showInformationMessage(
-            "Creating environment with Environment Paths: " +
-              testsuiteArgs.join(", ") +
-              ", Source Files: " +
-              sourceFiles.join(", ") +
-              " in Project " +
-              projectPath
-          );
-
-          newEnvironment(argList, projectEnvParameters);
-
-          panel.dispose();
-        } else if (message.command === "cancel") {
-          panel.dispose();
+  const newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.newEnviroInProjectVCAST",
+    async (_args: vscode.Uri, argList: vscode.Uri[]) => {
+      const panel = vscode.window.createWebviewPanel(
+        "newEnvProject",
+        "Create Environment in Project",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [
+            vscode.Uri.file(
+              path.join(context.extensionPath, "src", "manage", "webviews")
+            ),
+          ],
         }
-      }, undefined);
+      );
+
+      panel.webview.html = getNewEnvWebviewContent(context, panel, argList);
+
+      panel.webview.onDidReceiveMessage(
+        async (message) => {
+          if (message.command === "submit") {
+            const { projectPath, sourceFiles, testsuiteArgs } = message;
+            if (!projectPath || !testsuiteArgs?.length) {
+              vscode.window.showErrorMessage(
+                "Compiler Name and Testsuite Name are required."
+              );
+              return;
+            }
+            const params: ProjectEnvParameters = {
+              path: projectPath,
+              sourceFiles,
+              testsuiteArgs,
+            };
+            vscode.window.showInformationMessage(
+              `Creating environment in ${projectPath} with ${testsuiteArgs.join(", ")} and sources ${sourceFiles.join(", ")}`
+            );
+            await newEnvironment(argList, params);
+            panel.dispose();
+          } else if (message.command === "cancel") {
+            panel.dispose();
+          }
+        },
+        undefined,
+        context.subscriptions
+      );
     }
   );
   context.subscriptions.push(newEnviroInProjectVCASTCommand);
 
-  // Webview HTML content.
-  function getProjectWebviewContent(argList: vscode.Uri[] | { fsPath: any }[]) {
-    return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-      <title>Create Environment</title>
-      <style>
-        /* Basic reset and styling */
-        * { box-sizing: border-box; }
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-          background-color: #1e1e1e;
-          color: #d4d4d4;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          margin: 0;
-        }
-        .modal {
-          width: 700px;
-          background-color: #252526;
-          padding: 25px;
-          border-radius: 8px;
-          box-shadow: 0 0 10px rgba(0,0,0,0.3);
-          text-align: center;
-        }
-        h2 { 
-          color: #ffffff; 
-          margin-bottom: 15px; 
-          font-size: 22px; 
-        }
-        label {
-          font-size: 16px;
-          display: block;
-          text-align: left;
-          margin-top: 12px;
-          margin-bottom: 6px;
-        }
-        input, select {
-          padding: 10px;
-          font-size: 14px;
-          background-color: #3c3c3c;
-          color: #d4d4d4;
-          border: 1px solid #555;
-          border-radius: 4px;
-          width: 100%;
-          margin-bottom: 10px;
-        }
-        select option {
-          padding: 10px;
-          border: 1px solid #555;
-          margin: 2px;
-        }
-        
-        /* Layout for single-input rows (Project Path, Source Files) */
-        .single-input-container {
-          display: grid;
-          grid-template-columns: 1fr 50px;
-          gap: 10px;
-          align-items: center;
-          margin-bottom: 10px;
-          width: 100%;
-        }
-        .single-add-row {
-          display: grid;
-          grid-template-columns: 1fr 50px;
-          gap: 10px;
-          width: 100%;
-          margin-bottom: 20px;
-        }
-        .single-add-row button { 
-          grid-column: 1; 
-          justify-self: start; 
-        }
-        /* Layout for double-input rows (Compiler, Testsuite) */
-        .double-input-container {
-          display: grid;
-          grid-template-columns: 1fr 1fr 50px;
-          gap: 10px;
-          align-items: center;
-          margin-bottom: 10px;
-          width: 100%;
-        }
-        .double-add-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr 50px;
-          gap: 10px;
-          width: 100%;
-          margin-bottom: 20px;
-        }
-        .double-add-row button { 
-          grid-column: 1; 
-          justify-self: start; 
-        }
-        .remove-button {
-          background-color: #cc4444;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 10px;
-          cursor: pointer;
-          transition: background-color 0.3s;
-        }
-        .remove-button:hover { 
-          background-color: #992222; 
-        }
-        .add-button {
-          background-color: #007acc;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 6px 10px;
-          font-size: 14px;
-          cursor: pointer;
-          transition: background-color 0.3s;
-        }
-        .add-button:hover { 
-          background-color: #005f99; 
-        }
-        /* Labels for the double row */
-        .label-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr 50px;
-          gap: 10px;
-          margin-bottom: 10px;
-          width: 100%;
-          font-weight: bold;
-          text-align: center;
-        }
-        .label-row > div {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-        .button-container {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 20px;
-        }
-        .primary-button {
-          background-color: #007acc;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 10px 15px;
-          font-size: 16px;
-          cursor: pointer;
-          transition: background-color 0.3s;
-        }
-        .primary-button:hover { 
-          background-color: #005f99; 
-        }
-      </style>
-    </head>
-    <body>
-      <div class="modal">
-        <h2>Create Environment in Project</h2>
-        
-        <!-- Project Path Combobox -->
-        <label>Project Path:</label>
-        <div class="single-input-container">
-          <select id="projectPath"></select>
-        </div>
-        
-        <!-- Source Files -->
-        <label>Source Files:</label>
-        <div id="sourceFilesContainer">
-          <div class="single-input-container">
-            <input aria-label="sourceFileInput" type="text" placeholder="Enter Source File" />
-            <button class="remove-button" onclick="this.parentElement.remove()">✖</button>
-          </div>
-        </div>
-        <div class="single-add-row">
-          <button class="add-button" onclick="addInputRow('sourceFilesContainer', 'Enter Source File')">➕</button>
-        </div>
-        
-        <!-- Compiler/Testsuite Labels -->
-        <div class="label-row">
-          <div>Select Compiler</div>
-          <div>Select Testsuite</div>
-          <div></div>
-        </div>
-        
-        <!-- Compiler/Testsuite Container -->
-        <div id="compilerContainer">
-          <!-- Initial row will be added dynamically -->
-        </div>
-        <div class="double-add-row">
-          <button class="add-button" onclick="addCompilerRow()">➕</button>
-        </div>
-        
-        <!-- OK/Cancel Buttons -->
-        <div class="button-container">
-          <button class="primary-button" onclick="cancel()">Cancel</button>
-          <button aria-label="importOk" class="primary-button" onclick="submitForm()">OK</button>
-        </div>
-      </div>
-      
-      <script>
-        const vscode = acquireVsCodeApi();
-    
-        // globalProjectWebviewComboboxItems is embedded into the webview.
-        // It is expected to be a Map<string, { compilers: string[]; testsuites: string[] }>
-        const projectData = ${JSON.stringify(Array.from(globalProjectWebviewComboboxItems.entries()))};
-        const projectMap = new Map(projectData);
-    
-        // Populate the Project Path combobox from the keys of the projectMap.
-        const projectPathSelect = document.getElementById('projectPath');
-        projectMap.forEach(function(value, key) {
-          const option = document.createElement('option');
-          option.value = key;
-          option.textContent = key;
-          projectPathSelect.appendChild(option);
-        });
-    
-        // Helper function to generate <option> elements as HTML from an array.
-        function generateOptions(arr) {
-          let html = '';
-          arr.forEach(function(item) {
-            html += '<option value="' + item + '">' + item + '</option>';
-          });
-          return html;
-        }
-    
-        // Adds a new row for Compiler and Testsuite.
-        function addCompilerRow() {
-          const selectedProject = projectPathSelect.value;
-          const projectInfo = projectMap.get(selectedProject);
-          if (!projectInfo) {
-            vscode.postMessage({ command: 'error', message: 'No project data available for the selected project.' });
-            return;
-          }
-          const container = document.getElementById('compilerContainer');
-          const row = document.createElement('div');
-          row.classList.add('double-input-container');
-    
-          const compilerSelect = document.createElement('select');
-          compilerSelect.required = true;
-          compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
-    
-          const testsuiteSelect = document.createElement('select');
-          testsuiteSelect.required = true;
-          testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
-    
-          const removeButton = document.createElement('button');
-          removeButton.textContent = '✖';
-          removeButton.classList.add('remove-button');
-          removeButton.onclick = function() { row.remove(); };
-    
-          row.appendChild(compilerSelect);
-          row.appendChild(testsuiteSelect);
-          row.appendChild(removeButton);
-          container.appendChild(row);
-        }
-    
-        // Update existing rows when the Project Path changes.
-        projectPathSelect.addEventListener('change', function() {
-          const selectedProject = projectPathSelect.value;
-          const projectInfo = projectMap.get(selectedProject);
-          if (!projectInfo) return;
-          const rows = document.querySelectorAll('#compilerContainer .double-input-container');
-          rows.forEach(function(row) {
-            const compilerSelect = row.children[0];
-            const testsuiteSelect = row.children[1];
-            const currentCompiler = compilerSelect.value;
-            const currentTestsuite = testsuiteSelect.value;
-            compilerSelect.innerHTML = generateOptions(projectInfo.compilers);
-            testsuiteSelect.innerHTML = generateOptions(projectInfo.testsuites);
-            compilerSelect.value = projectInfo.compilers.indexOf(currentCompiler) !== -1 ? currentCompiler : projectInfo.compilers[0];
-            testsuiteSelect.value = projectInfo.testsuites.indexOf(currentTestsuite) !== -1 ? currentTestsuite : projectInfo.testsuites[0];
-          });
-        });
-    
-        // Adds a new source file input row.
-        function addInputRow(containerId, placeholderText) {
-          const container = document.getElementById(containerId);
-          const row = document.createElement('div');
-          row.classList.add('single-input-container');
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.placeholder = placeholderText;
-          const removeButton = document.createElement('button');
-          removeButton.textContent = '✖';
-          removeButton.classList.add('remove-button');
-          removeButton.onclick = function() { row.remove(); };
-          row.appendChild(input);
-          row.appendChild(removeButton);
-          container.appendChild(row);
-        }
-    
-        // Submit the form. Combine each row's values into a single string.
-        function submitForm() {
-          const projectPath = projectPathSelect.value;
-          const sourceFiles = Array.from(document.querySelectorAll('#sourceFilesContainer .single-input-container input[type="text"]')).map(function(i) { return i.value; });
-          const testsuiteArgs = Array.from(document.querySelectorAll('#compilerContainer .double-input-container')).map(function(row) {
-            const compiler = row.children[0].value;
-            const testsuite = row.children[1].value;
-            return compiler + "/" + testsuite;
-          });
-          if (!projectPath || testsuiteArgs.some(function(arg) { return !arg; })) {
-            vscode.postMessage({ command: 'error', message: 'Project Path, Compiler, and Testsuite are required.' });
-            return;
-          }
-          vscode.postMessage({
-            command: 'submit',
-            projectPath: projectPath,
-            sourceFiles: sourceFiles,
-            testsuiteArgs: testsuiteArgs
-          });
-        }
-    
-        function cancel() {
-          vscode.postMessage({ command: 'cancel' });
-        }
-    
-        // Pre-fill source files if provided.
-        const initialSourceFiles = ${JSON.stringify(
-          argList.map(function (uri) {
-            return uri.fsPath;
-          })
-        )};
-        window.addEventListener('DOMContentLoaded', function() {
-          const sourceContainer = document.getElementById('sourceFilesContainer');
-          if (initialSourceFiles && initialSourceFiles.length > 0) {
-            sourceContainer.innerHTML = '';
-            initialSourceFiles.forEach(function(file) {
-              const row = document.createElement('div');
-              row.classList.add('single-input-container');
-              const input = document.createElement('input');
-              input.type = 'text';
-              input.value = file;
-              const removeButton = document.createElement('button');
-              removeButton.textContent = '✖';
-              removeButton.classList.add('remove-button');
-              removeButton.onclick = function() { row.remove(); };
-              row.appendChild(input);
-              row.appendChild(removeButton);
-              sourceContainer.appendChild(row);
-            });
-          }
-          // Add an initial compiler/testsuites row.
-          addCompilerRow();
-        });
-      </script>
-    </body>
-    </html>
+  function getNewEnvWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    argList: vscode.Uri[]
+  ): string {
+    const base = path.join(context.extensionPath, "src", "manage", "webviews");
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "newEnvProject.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "newEnvProject.js")
+    );
+    const htmlPath = path.join(base, "html", "newEnvProject.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    const projectData = JSON.stringify(
+      Array.from(globalProjectWebviewComboboxItems.entries())
+    );
+    const initialSourceFiles = JSON.stringify(argList.map((u) => u.fsPath));
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+
+    const nonce = getNonce();
+    const csp = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
     `;
+    html = html.replace(/<head>/, `<head>${csp}`);
+
+    html = html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      )
+      .replace(
+        /<\/head>/,
+        `<script nonce="${nonce}">
+           window.projectData = ${projectData};
+           window.initialSourceFiles = ${initialSourceFiles};
+         </script>\n</head>`
+      );
+
+    return html;
   }
 }
 

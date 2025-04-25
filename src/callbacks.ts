@@ -30,59 +30,11 @@ import {
 const fs = require("fs");
 const path = require("path");
 
-export async function addEnvToProjectCallback(
-  enviroPath: string,
-  code: number
-) {
-  // This function gets called after we add an environment to a project.
-  // We check the return code, update Project Tree, and cleanup on failure
-
-  if (code == 0) {
-    await refreshAllExtensionData();
-  } else {
-    try {
-      // remove the environment directory, as well as the .vce file
-      vectorMessage("Environment adding failed, removing artifacts ...");
-      fs.rmSync(enviroPath, { recursive: true, force: true });
-      fs.unlinkSync(enviroPath + ".vce");
-      // Don't want to remove the .env, because leaving it allows the
-      // user to edit and then right click to try a re-build
-    } catch {
-      // ignore errors
-    }
-  }
-}
-
 /**
- * Callback function for executing buildEnvironmentIncremental command
- * @param enviroPathList List of env path
- * @param code Exit code
+ * Callback function when we build a single (Project-) Environment
+ * @param enviroPath Path to env
+ * @param code Exit code of the process
  */
-export async function buildEnvironmentIncrementalCallback(
-  enviroPathList: string[],
-  code: number
-) {
-  // This function gets called after we build an environment
-  // We check the return code, update the test pane, and cleanup on failure
-
-  for (let enviroPath of enviroPathList) {
-    if (code == 0) {
-      await updateDataForEnvironment(enviroPath);
-    } else {
-      try {
-        // remove the environment directory, as well as the .vce file
-        vectorMessage("Environment build failed, removing artifacts ...");
-        fs.rmSync(enviroPath, { recursive: true, force: true });
-        fs.unlinkSync(enviroPath + ".vce");
-        // Don't want to remove the .env, because leaving it allows the
-        // user to edit and then right click to try a re-build
-      } catch {
-        // ignore errors
-      }
-    }
-  }
-}
-
 export async function buildEnvironmentCallback(
   enviroPath: string,
   code: number
@@ -108,6 +60,11 @@ export async function buildEnvironmentCallback(
   }
 }
 
+/**
+ * Callback function when we re-build a single (Project-) Environment
+ * @param enviroPath Path to env
+ * @param code Exit code of the process
+ */
 export async function rebuildEnvironmentCallback(
   enviroPath: string,
   code: number
@@ -131,37 +88,11 @@ export async function rebuildEnvironmentCallback(
   }
 }
 
-export async function cleanEnvironmentCallback(
-  enviroNodeID: string,
-  code: number
-) {
-  // if the delete succeeded then we need to remove the environment from the test pane
-  if (code == 0) {
-    removeCBTfilesCacheForEnviro(enviroNodeID);
-    let enviroPath = getEnviroPathFromID(enviroNodeID);
-    if (!enviroPath) {
-      // We check if it is present in the unbuilt list
-      // If so, we take the id and split it after "vcast:" to get the path
-      // In case that is not possible, we throw an error message
-      if (vcastUnbuiltEnviroList.includes(enviroNodeID)) {
-        const parts = enviroNodeID.split(":");
-        enviroPath = parts.slice(1).join(":");
-      } else {
-        vscode.window.showErrorMessage(
-          `Unable to determine environment path from node: ${enviroNodeID}`
-        );
-        return;
-      }
-    }
-
-    removeCoverageDataForEnviro(enviroPath);
-    await refreshAllExtensionData();
-
-    // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
-    removeFilePattern(enviroPath, ".*");
-  }
-}
-
+/**
+ * Callback function when we delete a single Environment
+ * @param enviroPath Path to env
+ * @param code Exit code of the process
+ */
 export async function deleteEnvironmentCallback(
   enviroNodeID: string,
   code: number

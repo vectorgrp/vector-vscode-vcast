@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Import Environment to Project</title>
+
+  <!-- replaced at runtime -->
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal">
+    <h2>Create Environment in Project</h2>
+
+    <!-- Project Path -->
+    <label>Project Path:</label>
+    <div class="single-input-container">
+      <select id="projectPath"></select>
+    </div>
+
+    <!-- Env File -->
+    <label>Env File:</label>
+    <div class="single-input-container">
+      <input aria-label="envFileInput" type="text" id="envFileInput" placeholder="Select Env File" />
+      <button type="button" class="select-button" id="btnSelectEnv">Select</button>
+    </div>
+
+    <!-- Compiler/Testsuite Labels -->
+    <div class="label-row">
+      <div>Select Compiler</div>
+      <div>Select Testsuite</div>
+      <div></div>
+    </div>
+
+    <!-- Compiler/Testsuite Rows -->
+    <div id="compilerContainer"></div>
+    <div class="double-add-row">
+      <button type="button" class="add-button" id="btnAddRow">➕</button>
+    </div>
+
+    <!-- OK/Cancel Buttons -->
+    <div class="button-container">
+      <button type="button" class="cancel-button" id="btnCancel">Cancel</button>
+      <button type="button" class="primary-button" id="btnSubmit">OK</button>
+    </div>
+  </div>
+
+  <!-- replaced at runtime (with nonce) -->
+  <script src="{{ scriptUri }}"></script>
+</body>
+</html>
