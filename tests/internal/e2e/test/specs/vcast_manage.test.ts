@@ -234,7 +234,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Add existing Environment to Project"
     );
     console.log("Insert the path to the env file");
-    await insertStringToInput(testInputManage, "envFileInput");
+    await insertStringToInput(testInputManage, "Environment File Path");
 
     const button = await $(`aria/OK`);
     await button.click();
@@ -421,7 +421,7 @@ describe("vTypeCheck VS Code Extension", () => {
       true,
       "Add Testsuite to Compiler"
     );
-    await insertStringToInput("GreyBox", "testSuiteInput");
+    await insertStringToInput("GreyBox", "Testsuite Input");
 
     const button = await $(`aria/OK`);
     await button.click();
@@ -455,7 +455,6 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Checking if Testsuite node is in tree");
     const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
     expect(testsuiteNode).toBeDefined();
-    // Check for VSCODE info message?
   });
 
   it("testing deleting a Testsuite", async () => {
@@ -482,7 +481,6 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Checking if Testsuite node is not in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
     expect(testsuiteNode).toBeUndefined();
-    // Check for VSCODE info message?
   });
 
   it("testing deleting a project Environment", async () => {
@@ -514,7 +512,6 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Checking if Env node is in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
     expect(testsuiteNode).toBeDefined();
-    // Check for VSCODE info message?
   });
 
   it("testing building a single project environment", async () => {
@@ -553,7 +550,6 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Checking if Env node is in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
     expect(testsuiteNode).toBeDefined();
-    // Check for VSCODE info message?
   });
 
   it("testing remove environment from testsuite", async () => {
@@ -582,7 +578,53 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Checking if Env node is not in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(3, "FREE-ENV");
     expect(testsuiteNode).toBeUndefined();
-    // Check for VSCODE info message?
+  });
+
+  it("testing deleting an environment from project", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+    await executeContextMenuAction(
+      3,
+      "QUACK",
+      true,
+      "Delete Environment from Project"
+    );
+
+    const notifications = await $("aria/Notifications");
+    await notifications.click();
+    const vcastNotificationSourceElement = await $(
+      "aria/VectorCAST Test Explorer (Extension)"
+    );
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
+    await (await vcastNotification.$("aria/Delete")).click();
+
+    console.log("Checking for Output logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(
+            `manage: '-pTest.vcm -eQUACK --delete --force' returned exit code: 0`
+          ),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Processing environment data for:`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node is not in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
+    expect(testsuiteNode).toBeUndefined();
   });
 
   it("testing creating an Env from Source Files", async () => {
@@ -620,7 +662,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Open the webview
     await webview.open();
 
-    const button = await $(`aria/importOk`);
+    const button = await $(`aria/Import OK`);
     await button.click();
 
     console.log("Checking for Output logs");
