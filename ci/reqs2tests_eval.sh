@@ -62,11 +62,13 @@ setup() {
 }
 
 main () {
+  export REPO_DIR=$PWD
   setup
 
   cd $VCAST_USER_HOME/.envs
   source $VCAST_USER_HOME/.venv/bin/activate
-  reqs2tests_eval @$BENCH_ENVS_DIR/bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR r2t_eval_results
+ 
+  python $REPO_DIR/autoreq/evaluate_reqs2tests.py @$BENCH_ENVS_DIR/bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR r2t_eval_results
   deactivate
   if [[ -d "r2t_eval_results" ]]; then
     echo "Results folder exists at: $(realpath r2t_eval_results)"

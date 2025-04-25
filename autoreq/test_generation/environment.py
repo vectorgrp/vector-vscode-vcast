@@ -1,5 +1,6 @@
 from functools import cached_property
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
 import re
@@ -10,6 +11,9 @@ import sqlite3
 import logging
 import charset_normalizer
 import platform
+
+from autoreq.constants import TEST_COVERAGE_SCRIPT_PATH
+
 from typing import Union
 from ..codebase import Codebase
 
@@ -54,6 +58,9 @@ class TestCase:
             "expected_values": [v.to_dict() for v in self.expected_values],
             "requirement_id": self.requirement_id,
         }
+
+    def to_identifier(self):
+        return f"{self.unit_name}.{self.subprogram_name}.{self.test_name}"
 
 
 def _get_vectorcast_cmd(executable: str, args: List[str] = None) -> List[str]:
@@ -150,9 +157,50 @@ class Environment:
 
             return output
 
+    def _get_coverage_info(self, tests: TestCase) -> Optional[dict]:
+        cmd = _get_vectorcast_cmd(
+            "vpython",
+            [
+                str(TEST_COVERAGE_SCRIPT_PATH),
+                self.env_name,
+                *(t.to_identifier() for t in tests),
+            ],
+        )
+
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=self.env_dir,
+                env=os.environ.copy(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
+            return None
+
+        if result.returncode != 0:
+            error_msg = f"Coverage command '{' '.join(cmd)}' failed with error:\n{result.stderr or result.stdout}"
+            raise RuntimeError(error_msg)
+
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse coverage data: {e}")
+            return None
+
     def run_test_script(self, tst_file_path: str, with_coverage=False) -> Optional[str]:
-        # TODO: Deal with ENABLE_FUNCTION_CALL_COVERAGE parsing issues
         tst_file_path = os.path.abspath(tst_file_path)
+
+        with open(tst_file_path, "r") as f:
+            content = f.read()
+
+        if "MIXED_CASE_NAMES" not in content:
+            logging.warning(
+                "The MIXED_CASE_NAMES script feature is not enabled in your script, watch out when trying to run tests with mixed case names"
+            )
 
         tests = self._parse_test_script(tst_file_path)
 
@@ -202,34 +250,6 @@ class Environment:
             for test in tests
         ]
 
-        temp_coverage_file_path = None
-        if with_coverage:
-            raise RuntimeError(
-                "Coverage not supported yet with new test execution model"
-            )
-            temp_coverage_file_path = self._get_temporary_file_path(
-                f"coverage_{self.env_name}.txt"
-            )
-            commands.append(
-                _get_vectorcast_cmd(
-                    "clicast", ["-lc", "option", "VCAST_CUSTOM_REPORT_FORMAT", "TEXT"]
-                )
-            )
-            commands.append(
-                _get_vectorcast_cmd(
-                    "clicast",
-                    [
-                        "-lc",
-                        "-e",
-                        self.env_name,
-                        "report",
-                        "custom",
-                        "coverage",
-                        temp_coverage_file_path,
-                    ],
-                )
-            )
-
         output = ""
         env_vars = os.environ.copy()
         # Execute the commands using subprocess and capture the outputs
@@ -253,41 +273,8 @@ class Environment:
 
             output += result.stdout
 
-        if (
-            with_coverage
-            and temp_coverage_file_path
-            and os.path.exists(temp_coverage_file_path)
-        ):
-            coverage_output = str(
-                charset_normalizer.from_path(temp_coverage_file_path).best()
-            )
-
-            coverage_data = {}
-            match = re.search(
-                r"GRAND TOTALS.* (\d+) \/ (\d+) .* (\d+) \/ (\d+) ", coverage_output
-            )
-
-            if match:
-                (
-                    covered_statements,
-                    total_statements,
-                    covered_branches,
-                    total_branches,
-                ) = match.groups()
-                coverage_data["statements"] = {
-                    "covered": int(covered_statements),
-                    "total": int(total_statements),
-                    "percentage": int(covered_statements) / int(total_statements),
-                }
-                coverage_data["branches"] = {
-                    "covered": int(covered_branches),
-                    "total": int(total_branches),
-                    "percentage": int(covered_branches) / int(total_branches),
-                }
-            else:
-                logging.warning("Coverage data not found in the output.")
-                coverage_data = None
-
+        if with_coverage:
+            coverage_data = self._get_coverage_info(tests)
             output = (output, coverage_data)
 
         # Remove the test cases

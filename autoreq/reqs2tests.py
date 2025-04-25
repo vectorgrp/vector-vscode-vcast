@@ -216,6 +216,20 @@ async def main():
 
     if args.export_tst:
         with open(args.export_tst, "w") as output_file:
+            output_file.write("-- VectorCAST 6.4s (05/01/17)\n")
+            output_file.write("-- Test Case Script\n")
+            output_file.write(f"-- Environment    : {environment.env_name}\n")
+            output_file.write(
+                f"-- Unit(s) Under Test: {', '.join(environment.units)}\n"
+            )
+            output_file.write("-- \n")
+            output_file.write("-- Script Features\n")
+            output_file.write("TEST.SCRIPT_FEATURE:C_DIRECT_ARRAY_INDEXING\n")
+            output_file.write("TEST.SCRIPT_FEATURE:CPP_CLASS_OBJECT_REVISION\n")
+            output_file.write("TEST.SCRIPT_FEATURE:MULTIPLE_UUT_SUPPORT\n")
+            output_file.write("TEST.SCRIPT_FEATURE:MIXED_CASE_NAMES\n")
+            output_file.write("TEST.SCRIPT_FEATURE:STATIC_HEADER_FUNCS_IN_UUTS\n\n")
+        with open(args.export_tst, "w") as output_file:
             for vectorcast_case in vectorcast_test_cases:
                 output_file.write(vectorcast_case + "\n")
 
