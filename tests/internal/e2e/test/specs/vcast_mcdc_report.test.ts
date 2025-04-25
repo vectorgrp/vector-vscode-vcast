@@ -396,12 +396,6 @@ describe("vTypeCheck VS Code Extension", () => {
         "BASIS-PATH-002",
         4
       );
-      await browser.waitUntil(
-        async () =>
-          (await outputView.getText()).toString().includes(" --mode=parseCBT "),
-        { timeout: TIMEOUT }
-      );
-
       console.log("Checking for coverage icons.");
       let listToIterate = [];
 

@@ -1445,8 +1445,8 @@ export async function deleteTests(nodeList: any[]) {
   for (let enviroNodeID of changedEnvironmentIDList) {
     // remove any coded test files from the cache since
     // they will be re-added by the update
-    const enviroPath = getEnviroPathFromID(enviroNodeID);
     removeCBTfilesCacheForEnviro(enviroNodeID);
+    const enviroPath = getEnviroPathFromID(enviroNodeID);
     await updateDataForEnvironment(enviroPath);
     await updateProjectData(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
