@@ -34,7 +34,6 @@ import {
 } from "../../../src-common/vcastServer";
 
 import {
-  globalController,
   globalProjectDataCache,
   refreshAllExtensionData,
   runTests,
@@ -188,6 +187,35 @@ export async function removeTestsuiteFromProject(
     deleteEnvironmentCallback,
     enviroNodeID
   );
+}
+
+/**
+ * Deletes the environment from the project
+ * @param projectPath Path to the project
+ * @param enviroName Name of the environment
+ */
+export async function deleteEnvironmentFromProject(
+  projectPath: string,
+  enviroName: string
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `-e${enviroName}`,
+    `--delete`,
+    `--force`,
+  ];
+
+  const message = `Deleting ${enviroName} from Project ${projectName} ...`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message
+  );
+  await refreshAllExtensionData();
 }
 
 export async function createTestsuiteInCompiler(

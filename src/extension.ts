@@ -95,6 +95,7 @@ import {
   buildExecuteIncremental,
   cleanProjectEnvironment,
   addEnvToTestsuite,
+  deleteEnvironmentFromProject,
 } from "./manage/manageSrc/manageCommands";
 
 import {
@@ -867,6 +868,33 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(deleteCompilerCommand);
+
+  // Command: vectorcastTestExplorer.deleteEnviroFromProject  ////////////////////////////////////////////////////////
+  let deleteEnviroFromProject = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.deleteEnviroFromProject",
+    async (enviroNode: any) => {
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      const enviroName = path.basename(enviroPath);
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      // always ask for confirmation before deleting an environment
+      const message =
+        "Environment: " +
+        enviroName +
+        " will be deleted from the project, and this action cannot be undone.";
+      vscode.window
+        .showInformationMessage(message, "Delete", "Cancel")
+        .then(async (answer) => {
+          if (answer === "Delete") {
+            // Delete the env completely from the project
+            await deleteEnvironmentFromProject(
+              enviroData.projectPath,
+              enviroName
+            );
+          }
+        });
+    }
+  );
+  context.subscriptions.push(deleteEnviroFromProject);
 
   // Command: vectorcastTestExplorer.removeTestsuite  ////////////////////////////////////////////////////////
   let removeTestsuite = vscode.commands.registerCommand(
