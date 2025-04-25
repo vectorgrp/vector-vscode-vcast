@@ -10,7 +10,9 @@ class VcastContextBuilder:
         self.cache = {}
         self.locks = {}
 
-    async def build_code_context(self, function_name, include_unit_name=False, return_used_fallback=False):
+    async def build_code_context(
+        self, function_name, include_unit_name=False, return_used_fallback=False
+    ):
         context, used_fallback = await self._build_raw_code_context(function_name)
 
         if include_unit_name:
@@ -45,12 +47,12 @@ class VcastContextBuilder:
                 self.cache[function_name] = (llm_context, True)
                 return llm_context, True
 
-            return self.environment.get_tu_content(reduction_level='high'), True
+            return self.environment.get_tu_content(reduction_level="high"), True
 
     async def _reduce_context_llm(self, function_name):
-        context = self.environment.get_tu_content(reduction_level='medium') 
+        context = self.environment.get_tu_content(reduction_level="medium")
         if len(context) > 1000000 or len(context.split("\n")) > 1000:
-            context = self.environment.get_tu_content(reduction_level='high') 
+            context = self.environment.get_tu_content(reduction_level="high")
 
         search_engine = SearchEngine(context)
         reduced_context = await search_engine.search(
@@ -64,7 +66,9 @@ class VcastContextBuilder:
 
     def _reduce_context_ast(self, function_name):
         codebase = self.environment.tu_codebase
-        relevant_definitions = codebase.get_definitions_for_symbol(function_name, collapse_function_body=False, return_dict=True, depth=3)
+        relevant_definitions = codebase.get_definitions_for_symbol(
+            function_name, collapse_function_body=False, return_dict=True, depth=3
+        )
 
         if not relevant_definitions:
             return None
@@ -74,13 +78,17 @@ class VcastContextBuilder:
             if symbol == function_name:
                 continue
             definition_groups[definition].append(symbol)
-            
+
         reduced_context = []
 
-        reduced_context.append("// Definitions of types, called functions and data structures:")
+        reduced_context.append(
+            "// Definitions of types, called functions and data structures:"
+        )
         for definition, _ in definition_groups.items():
             reduced_context.append(f"\n{definition}")
 
-        reduced_context.append(f"\n// Code for {function_name}:\n{codebase.find_definitions_by_name(function_name)[0]}")
+        reduced_context.append(
+            f"\n// Code for {function_name}:\n{codebase.find_definitions_by_name(function_name)[0]}"
+        )
 
         return "\n".join(reduced_context)

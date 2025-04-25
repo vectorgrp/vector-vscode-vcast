@@ -1,14 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_dynamic_libs
+from autoreq.autoreq_hiddenimports import hiddenimports
 
-hiddenimports = ['backoff', 'aiolimiter', 'aiolimiter.AsyncLimiter', 'openai', 'openai.AsyncOpenAI',
-                 'openai.AsyncAzureOpenAI', 'dotenv', 'yaml', 'sys', 'sys.exit', 'functools',
-                 'functools.cached_property']
 
 reqs2tests_a = Analysis(
     ['reqs2tests.py'],
-    binaries=[],
+    binaries=collect_dynamic_libs(
+        package="autoreq", search_patterns=["*.dll", "*.dylib", "*.so","*.pyd"]
+    ),
     datas=[
-        ('autoreq/resources', 'autoreq/resources'),
         ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
         ('monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
         ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
@@ -25,9 +25,10 @@ reqs2tests_a = Analysis(
 
 code2reqs_a = Analysis(
     ['code2reqs.py'],
-    binaries=[],
+    binaries=collect_dynamic_libs(
+        package="autoreq", search_patterns=["*.dll", "*.dylib", "*.so","*.pyd"]
+    ),
     datas=[
-        ('autoreq/resources', 'autoreq/resources'),
         ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
         ('monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
         ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
@@ -44,7 +45,9 @@ code2reqs_a = Analysis(
 
 reqs2excel_a = Analysis(
     ['reqs2excel.py'],
-    binaries=[],
+    binaries=collect_dynamic_libs(
+        package="autoreq", search_patterns=["*.dll", "*.dylib", "*.so","*.pyd"]
+    ),
     datas=[
         ('autoreq/resources', 'autoreq/resources'),
         ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
@@ -64,7 +67,9 @@ reqs2excel_a = Analysis(
 reqs2rgw_a = Analysis(
     ['reqs2rgw.py'],
     pathex=[],
-    binaries=[],
+    binaries=collect_dynamic_libs(
+        package="autoreq", search_patterns=["*.dll", "*.dylib", "*.so","*.pyd"]
+    ),
     datas=[
         ('autoreq/resources', 'autoreq/resources'),
         ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
@@ -75,28 +80,15 @@ reqs2rgw_a = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    noarchive=False,
-    optimize=0,
-)
-
-manage_env_a = Analysis(
-    ['manage_env.py'],
-    binaries=[],
-    datas=[],
-    hiddenimports=hiddenimports,
-    hookspath=[],
-    hooksconfig={},
     runtime_hooks=['runtime_hook_fix_exit.py'],
     excludes=[],
     noarchive=False,
     optimize=0,
 )
 
+
 reqs2tests_pyz = PYZ(reqs2tests_a.pure)
 code2reqs_pyz = PYZ(code2reqs_a.pure)
-manage_env_pyz = PYZ(manage_env_a.pure)
 reqs2excel_pyz = PYZ(reqs2excel_a.pure)
 reqs2rgw_pyz = PYZ(reqs2rgw_a.pure)
 
@@ -173,24 +165,6 @@ reqs2rgw_exe = EXE(
 )
 
 
-manage_env_exe = EXE(
-    manage_env_pyz,
-    manage_env_a.scripts,
-    [('u', None, 'OPTION')],
-    exclude_binaries=True,
-    name='manage_env',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-)
-
 coll = COLLECT(
     reqs2tests_exe,
     reqs2tests_a.binaries,
@@ -204,9 +178,6 @@ coll = COLLECT(
     reqs2rgw_exe,
     reqs2rgw_a.binaries,
     reqs2rgw_a.datas,
-    manage_env_exe,
-    manage_env_a.binaries,
-    manage_env_a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],

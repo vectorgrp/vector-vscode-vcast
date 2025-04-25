@@ -1,5 +1,6 @@
 cd c:\r2t
-.\venv\Scripts\python setup.py build_ext --inplace
+.\venv\Scripts\python setup.py build_ext --inplace -j 6
+.\venv\Scripts\python collect_imports.py
 .\venv\Scripts\pyinstaller autoreq.spec
 cd dist
 move autoreq distribution
