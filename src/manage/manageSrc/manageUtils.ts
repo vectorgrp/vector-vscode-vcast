@@ -3,7 +3,6 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { globalController } from "../../testPane";
-import { vectorMessage } from "../../messagePane";
 
 /**
  * Searches the entire globalController for a test item with the specified id.
