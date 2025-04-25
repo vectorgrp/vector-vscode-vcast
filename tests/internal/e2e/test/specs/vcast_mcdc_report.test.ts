@@ -389,11 +389,17 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log(
         "Deleting one BASIS-PATHS test for more individual coverage icons."
       );
+      await outputView.clearText();
       await deleteGeneratedTest(
         "manager",
         "Manager::AddIncludedDessert",
         "BASIS-PATH-002",
         4
+      );
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText()).toString().includes(" --mode=parseCBT "),
+        { timeout: TIMEOUT }
       );
 
       console.log("Checking for coverage icons.");
