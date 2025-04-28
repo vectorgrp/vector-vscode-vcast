@@ -268,8 +268,7 @@ export function executeWithRealTimeEchoWithProgress(
             messageFragment = lineArray.pop();
           }
 
-          for (let i = 0; i < lineArray.length; i++) {
-            const line = lineArray[i];
+          for (const line of lineArray) {
             if (line.length > 0) {
               vectorMessage(line.replace(/\n/g, ""));
             }

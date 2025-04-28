@@ -109,7 +109,7 @@ export async function deleteEnvironmentCallback(
       // We check if it is present in the unbuilt list
       // If so, we take the id and split it after "vcast:" to get the path
       // In case that is not possible, we throw an error message
-      if (vcastUnbuiltEnviroList.has(enviroNodeID)) {
+      if (vcastUnbuiltEnviroList.includes(enviroNodeID)) {
         const parts = enviroNodeID.split(":");
         enviroPath = parts.slice(1).join(":");
       } else {

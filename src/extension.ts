@@ -907,7 +907,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         // So we check if it is present in the unbuilt list
         // If so, we take the id and split it after "vcast:" to get the path
         // In case that is not possible, we throw an error message
-        if (vcastUnbuiltEnviroList.has(enviroNode.id)) {
+        if (vcastUnbuiltEnviroList.includes(enviroNode.id)) {
           const parts = enviroNode.id.split(":");
           enviroPath = parts.slice(1).join(":");
         } else {
@@ -1171,7 +1171,7 @@ async function installPreActivationEventHandlers(
         // of all items if this is a multi-select.  Since argList is always valid, even for a single
         // selection, we just use this here.
         if (argList) {
-          newEnvironment(argList);
+          await newEnvironment(argList);
         }
       }
     }
@@ -1423,7 +1423,7 @@ async function installPreActivationEventHandlers(
             vscode.window.showInformationMessage(
               `Creating environment in ${projectPath} with ${testsuiteArgs.join(", ")} and sources ${sourceFiles.join(", ")}`
             );
-            newEnvironment(argList, params);
+            await newEnvironment(argList, params);
             panel.dispose();
           } else if (message.command === "cancel") {
             panel.dispose();

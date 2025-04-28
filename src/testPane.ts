@@ -366,7 +366,7 @@ export function setGlobalProjectIsOpenedChecker() {
 }
 
 // Map to store all compilers and testsuites for the combobox items in the project webviews
-export let globalProjectWebviewComboboxItems = new Map<
+export const globalProjectWebviewComboboxItems = new Map<
   string,
   { compilers: string[]; testsuites: string[] }
 >();
@@ -576,7 +576,7 @@ function getEnvironmentList(baseDirectory: string): string[] {
 // this list in a "when" clause
 let vcastEnviroList: string[] = [];
 
-export const vcastUnbuiltEnviroList = new Set<string>();
+export let vcastUnbuiltEnviroList: string[] = [];
 // Helper to turn a buildDirectory into the unique test‐item ID
 function makeEnviroNodeID(buildDirectory: string): string {
   return `vcast:${buildDirectory}`;
@@ -675,8 +675,8 @@ function addUnbuiltEnviroToTestPane(
   saveEnviroNodeData(enviroData.buildDirectory, enviroData);
 
   // If not already marked “unbuilt”, add it and update context
-  // (Set.add always returns the Set itself, so we check size>0 to know it's present)
-  if (vcastUnbuiltEnviroList.add(nodeID).size !== 0) {
+  if (!vcastUnbuiltEnviroList.includes(nodeID)) {
+    vcastUnbuiltEnviroList.push(nodeID);
     pushUnbuiltEnviroListToContextMenu();
   }
 }
@@ -739,7 +739,7 @@ async function loadAllVCTests(
 
   // Reset caches and environment lists.
   vcastEnviroList = [];
-  vcastUnbuiltEnviroList.clear();
+  vcastUnbuiltEnviroList = [];
   clearEnviroDataCache();
   clearTestNodeCache();
 
@@ -1312,9 +1312,10 @@ export async function updateDataForEnvironment(enviroPath: string) {
 
   // remove environment from the unbuilt list if it's there
   const nodeID = makeEnviroNodeID(enviroPath);
-  if (vcastUnbuiltEnviroList.delete(nodeID)) {
-    pushUnbuiltEnviroListToContextMenu();
-  }
+  vcastUnbuiltEnviroList = vcastUnbuiltEnviroList.filter(
+    (item) => item !== nodeID
+  );
+  pushUnbuiltEnviroListToContextMenu();
 }
 
 function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {
@@ -1375,7 +1376,7 @@ export async function runTests(
       await closeConnection(enviroPath);
     }
   }
-  updateDisplayedCoverage();
+  await updateDisplayedCoverage();
   run.end();
 }
 
@@ -1531,46 +1532,62 @@ export async function loadTestScriptButton() {
   }
 }
 
-async function checkIfTestExists(
+export async function checkIfTestExists(
   enviroPath: string,
   scriptPath: string
 ): Promise<boolean> {
   const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-  // Short-circuit if this is a COMPOUND or INIT test
-  if (/^TEST\.SUBPROGRAM:\s*<<(?:COMPOUND|INIT)>>$/m.test(scriptContent)) {
-    return true;
-  }
+  // Pre-compile all regexes
+  const nameRe = /^TEST\.NAME:(.*)$/m;
+  const subprogRe = /^TEST\.SUBPROGRAM:(.*)$/m;
+  const unitRe = /^TEST\.UNIT:(.*)$/m;
+  const isCompoundOrInitRe = /^TEST\.SUBPROGRAM:\s*<<(?:COMPOUND|INIT)>>$/m;
 
-  const testNameMatch = scriptContent.match(/^TEST\.NAME:(.*)$/m);
-  const unitNameMatch = scriptContent.match(/^TEST\.UNIT:(.*)$/m);
-  const subprogramNameMatch = scriptContent.match(/^TEST\.SUBPROGRAM:(.*)$/m);
+  // Name and Subprogram
+  const nameMatch = scriptContent.match(nameRe);
+  const subprogMatch = scriptContent.match(subprogRe);
 
-  if (!testNameMatch || !unitNameMatch || !subprogramNameMatch) {
+  if (!nameMatch || !subprogMatch) {
     vscode.window.showErrorMessage(
-      "Failed to find TEST.NAME, TEST.UNIT, or TEST.SUBPROGRAM in script."
+      "Failed to find TEST.NAME or TEST.SUBPROGRAM in script."
     );
     return false;
   }
 
-  const testName = testNameMatch[1].trim();
-  const unitName = unitNameMatch[1].trim();
-  const subprogramName = subprogramNameMatch[1].trim();
+  const testName = nameMatch[1].trim();
+  const subprogName = subprogMatch[1].trim();
 
-  const fullTestName = `vcast:${enviroPath}|${unitName}.${subprogramName}.${testName}`;
-
-  for (const key of testNodeCache.keys()) {
-    if (key === fullTestName) {
-      const answer = await vscode.window.showInformationMessage(
-        `Test "${testName}" already exists. Loading will create a duplicate with an incremental number. Do you want to proceed?`,
-        "Yes",
-        "No"
-      );
-      return answer === "Yes";
+  // Build the fullTestName according to compound/init vs. normal
+  let fullTestName: string;
+  // Is it a COMPOUND or INIT test?
+  if (isCompoundOrInitRe.test(scriptContent)) {
+    fullTestName = `vcast:${enviroPath}|not-used.${subprogName}.${testName}`;
+  } else {
+    // Normal test
+    const unitMatch = scriptContent.match(unitRe);
+    if (!unitMatch) {
+      vscode.window.showErrorMessage("Failed to find TEST.UNIT in script.");
+      return false;
     }
+    const unitName = unitMatch[1].trim();
+    fullTestName = `vcast:${enviroPath}|${unitName}.${subprogName}.${testName}`;
   }
 
-  return true; // Test doesn't exist, safe to proceed
+  // Check if test name already exists
+  const exists = Array.from(testNodeCache.keys()).some(
+    (key) => key === fullTestName
+  );
+  if (exists) {
+    const answer = await vscode.window.showInformationMessage(
+      `Test "${testName}" already exists. Loading will create a duplicate with an incremental number. Do you want to proceed?`,
+      "Yes",
+      "No"
+    );
+    return answer === "Yes";
+  }
+
+  return true;
 }
 
 export async function refreshAllExtensionData() {
