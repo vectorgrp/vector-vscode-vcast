@@ -73,10 +73,10 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     console.log("WAITING FOR TEST EXPLORER");
     await new Promise((resolve) => setTimeout(resolve, 2000));
+    let channelNames = await outputView.getChannelNames();
+    console.log(channelNames);
     await browser.waitUntil(async () =>
-      (await outputView.getChannelNames())
-        .toString()
-        .includes("VectorCAST Test Explorer")
+      channelNames.toString().includes("VectorCAST Test Explorer")
     );
     await outputView.selectChannel("VectorCAST Test Explorer");
     console.log("Channel selected");
