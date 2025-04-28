@@ -711,7 +711,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.addCompilerToProject",
     async (args: any) => {
       // Verify that the command was invoked from a node with an 'id' property.
-      if (!args || !args.id) {
+      if (!args?.id) {
         vscode.window.showErrorMessage("No project node provided.");
         return;
       }
@@ -907,7 +907,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         // So we check if it is present in the unbuilt list
         // If so, we take the id and split it after "vcast:" to get the path
         // In case that is not possible, we throw an error message
-        if (vcastUnbuiltEnviroList.includes(enviroNode.id)) {
+        if (vcastUnbuiltEnviroList.has(enviroNode.id)) {
           const parts = enviroNode.id.split(":");
           enviroPath = parts.slice(1).join(":");
         } else {
@@ -1352,7 +1352,7 @@ async function installPreActivationEventHandlers(
     const projectData = JSON.stringify(
       Array.from(globalProjectWebviewComboboxItems.entries())
     );
-    const initialEnvFile = JSON.stringify(argList[0]?.fsPath || "");
+    const initialEnvFile = JSON.stringify(argList[0]?.fsPath ?? "");
 
     // load the template
     let html = fs.readFileSync(htmlPath, "utf8");
@@ -1423,7 +1423,7 @@ async function installPreActivationEventHandlers(
             vscode.window.showInformationMessage(
               `Creating environment in ${projectPath} with ${testsuiteArgs.join(", ")} and sources ${sourceFiles.join(", ")}`
             );
-            await newEnvironment(argList, params);
+            newEnvironment(argList, params);
             panel.dispose();
           } else if (message.command === "cancel") {
             panel.dispose();

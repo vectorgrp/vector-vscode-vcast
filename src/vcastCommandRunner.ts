@@ -102,14 +102,12 @@ function processExceptionFromExecuteCommand(
     commandStatus.errorCode = 0;
     vectorMessage("Exception while executing python interface");
     vectorMessage(stdoutString, errorLevel.info, indentString);
-    openMessagePane();
   } else {
     commandStatus.errorCode = error.status;
     if (printErrorDetails) {
       vectorMessage("Exception while executing VectorCAST command");
       vectorMessage(command, errorLevel.trace, indentString);
       vectorMessage(stdoutString, errorLevel.info, indentString);
-      openMessagePane();
     }
   }
 
@@ -136,6 +134,7 @@ export function executeCommandSync(
       error,
       printErrorDetails
     );
+    openMessagePane();
   }
   return commandStatus;
 }
