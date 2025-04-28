@@ -61,9 +61,6 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log(await viewControl.getTitle());
     }
 
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
-
     console.log("Waiting for VectorCAST activation");
     await $("aria/VectorCAST Test Pane Initialization");
     console.log("WAITING FOR TESTING");
@@ -71,8 +68,21 @@ describe("vTypeCheck VS Code Extension", () => {
       async () => (await activityBar.getViewControl("Testing")) !== undefined,
       { timeout: TIMEOUT }
     );
+    const testingView = await activityBar.getViewControl("Testing");
+    await testingView?.openView();
+  });
+
+  it("should set default config file", async () => {
+    await updateTestID();
+
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
     console.log("WAITING FOR TEST EXPLORER");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await browser.waitUntil(async () =>
+      (await outputView.getChannelNames())
+        .toString()
+        .includes("VectorCAST Test Explorer")
+    );
     await outputView.selectChannel("VectorCAST Test Explorer");
     console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
@@ -83,13 +93,6 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Starting the language server"),
       { timeout: TIMEOUT }
     );
-
-    const testingView = await activityBar.getViewControl("Testing");
-    await testingView?.openView();
-  });
-
-  it("should set default config file", async () => {
-    await updateTestID();
 
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
