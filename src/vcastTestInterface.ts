@@ -26,6 +26,7 @@ import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 import {
   enviroListAsMapType,
   globalProjectDataCache,
+  refreshAllExtensionData,
   updateTestPane,
 } from "./testPane";
 
@@ -882,7 +883,7 @@ function commonNewEnvironmentStuff(
 // Improvement needed: get the language extensions automatically, don't hard-code
 const extensionsOfInterest = ["c", "cpp", "cc", "cxx"];
 
-export function newEnvironment(
+export async function newEnvironment(
   URIlist: Uri[],
   projectEnvParameters?: ProjectEnvParameters
 ) {
@@ -940,6 +941,7 @@ export function newEnvironment(
         "]"
     );
   }
+  await refreshAllExtensionData();
 }
 
 function valueOrDefault(name: string): string {

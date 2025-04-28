@@ -711,7 +711,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.addCompilerToProject",
     async (args: any) => {
       // Verify that the command was invoked from a node with an 'id' property.
-      if (!args || !args.id) {
+      if (!args?.id) {
         vscode.window.showErrorMessage("No project node provided.");
         return;
       }
@@ -1170,7 +1170,7 @@ async function installPreActivationEventHandlers(
         // of all items if this is a multi-select.  Since argList is always valid, even for a single
         // selection, we just use this here.
         if (argList) {
-          newEnvironment(argList);
+          await newEnvironment(argList);
         }
       }
     }
@@ -1349,7 +1349,7 @@ async function installPreActivationEventHandlers(
     const projectData = JSON.stringify(
       Array.from(globalProjectWebviewComboboxItems.entries())
     );
-    const initialEnvFile = JSON.stringify(argList[0]?.fsPath || "");
+    const initialEnvFile = JSON.stringify(argList[0]?.fsPath ?? "");
 
     // load the template
     let html = fs.readFileSync(htmlPath, "utf8");

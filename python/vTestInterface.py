@@ -626,7 +626,7 @@ def isManageEnviroOfInterest(enviroNode):
 
     returnValue = False
     # we only care about unit test environments
-    if not enviroNode.definition.env_type == EnvironmentType.COVER:
+    if enviroNode.definition.env_type != EnvironmentType.COVER:
         # we don't care about ignored or monitored environments
         if enviroNode.is_active and not enviroNode.is_monitored:
             returnValue = True
@@ -635,13 +635,13 @@ def isManageEnviroOfInterest(enviroNode):
 
 
 def manageEnviroIsBuilt(enviroNode, enviroName):
-
     returnValue = False
-    if os.path.isdir(enviroNode.build_directory):
-        if os.path.isfile(
-            os.path.join(enviroNode.build_directory, enviroName, "UNITDATA.VCD")
-        ):
-            returnValue = True
+
+    if os.path.isdir(enviroNode.build_directory) and os.path.isfile(
+        os.path.join(enviroNode.build_directory, enviroName, "UNITDATA.VCD")
+    ):
+        returnValue = True
+
     return returnValue
 
 

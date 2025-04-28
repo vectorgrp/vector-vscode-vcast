@@ -108,7 +108,6 @@ function processExceptionFromExecuteCommand(
       vectorMessage("Exception while executing VectorCAST command");
       vectorMessage(command, errorLevel.trace, indentString);
       vectorMessage(stdoutString, errorLevel.info, indentString);
-      openMessagePane();
     }
   }
 
@@ -135,6 +134,7 @@ export function executeCommandSync(
       error,
       printErrorDetails
     );
+    openMessagePane();
   }
   return commandStatus;
 }
@@ -268,8 +268,7 @@ export function executeWithRealTimeEchoWithProgress(
             messageFragment = lineArray.pop();
           }
 
-          for (let i = 0; i < lineArray.length; i++) {
-            const line = lineArray[i];
+          for (const line of lineArray) {
             if (line.length > 0) {
               vectorMessage(line.replace(/\n/g, ""));
             }

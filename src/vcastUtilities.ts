@@ -575,16 +575,21 @@ export function checkIfAnyProjectsAreOpened() {
  * @param fullPath Full Path to the Project File
  */
 export function getVcmRoot(fullPath: string) {
-  // Match the path up to and including the .vcm directory
-  const match = fullPath.match(/(.*\/)([^\/]+\.vcm)(?:\/.*)?$/);
+  // pre-compile the regex once
+  const vcmRe = /(.*\/)([^\/]+\.vcm)(?:\/.*)?$/;
+
+  // use exec() instead of match() (sonarcloud)
+  const match = vcmRe.exec(fullPath);
+
   if (match) {
+    // match[1] is the directory (with trailing slash), match[2] is the .vcm name
     const rootPath = match[1].replace(/\/$/, "");
     const vcmName = match[2];
     return { rootPath, vcmName };
   }
+
   return null;
 }
-
 /**
  * Opens the Project based on the Environment path if the Environment is part of a Project
  * @param enviroPath Path to the Environment

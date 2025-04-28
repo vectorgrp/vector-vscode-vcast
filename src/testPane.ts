@@ -123,8 +123,8 @@ function addTestNodes(
       resultFilePath: "",
       stdout: "",
       compoundOnly: testList[testIndex].compoundOnly,
-      testFile: testList[testIndex].codedTestFile || "",
-      testStartLine: testList[testIndex].codedTestLine || 1,
+      testFile: testList[testIndex].codedTestFile ?? "",
+      testStartLine: testList[testIndex].codedTestLine ?? 1,
     };
 
     testData.testFile = forceLowerCaseDriveLetter(
@@ -324,7 +324,7 @@ function getWorkspaceFolderList(): string[] {
   // string list of folders to be used in getEnvironmentList
 
   let returnList: string[] = [];
-  for (const workspace of vscode.workspace.workspaceFolders || []) {
+  for (const workspace of vscode.workspace.workspaceFolders ?? []) {
     const workspaceRoot = workspace.uri.fsPath;
     // doing the path separate replacement here to avoid complexity below
     returnList.push(workspaceRoot.replaceAll("\\", "/"));
@@ -347,9 +347,10 @@ export type enviroListAsMapType = Map<string, projectEnvironmentType>;
 // This is built once each time we load a workspace.
 // The outer map key is the project filename,
 // the inner map key is the build directory
-export let globalProjectDataCache = new Map<string, enviroListAsMapType>();
+export const globalProjectDataCache = new Map<string, enviroListAsMapType>();
 
 // Boolean to check, if the current opened directory contains a project
+// Have to keep it "let" instead of "const" because it's only a boolean
 export let globalProjectIsOpenedChecker: boolean = false;
 
 /**
@@ -365,12 +366,12 @@ export function setGlobalProjectIsOpenedChecker() {
 }
 
 // Map to store all compilers and testsuites for the combobox items in the project webviews
-export let globalProjectWebviewComboboxItems = new Map<
+export const globalProjectWebviewComboboxItems = new Map<
   string,
   { compilers: string[]; testsuites: string[] }
 >();
 // Global variable to store compilers and testsuites.
-export let globalCompilersAndTestsuites: {
+export const globalCompilersAndTestsuites: {
   compiler: string[];
   testsuites: string[];
 } = {
@@ -380,8 +381,8 @@ export let globalCompilersAndTestsuites: {
 
 // Empty Compilers or Testsuites that do not contain anything.
 // We need to store and process them seperately, because otherwise they are not shown in the tree
-export let globalUnusedTestsuiteList: { displayName: string }[] = [];
-export let globalUnusedCompilerList: {
+export const globalUnusedTestsuiteList: { displayName: string }[] = [];
+export const globalUnusedCompilerList: {
   projectFile: string;
   displayName: string;
 }[] = [];
@@ -396,37 +397,33 @@ export function updateGlobalCompilersAndTestsuites() {
   // Recursive helper that traverses the test tree.
   function traverse(node: vcastTestItem) {
     if (node.nodeKind === nodeKind.compiler) {
-      // Add the full node ID (or full path) for the compiler.
       compilers.add(node.id);
     } else if (node.nodeKind === nodeKind.testsuite) {
       testsuites.add(node.id);
     }
-    // Recurse over children.
     node.children.forEach((child) => traverse(child as vcastTestItem));
   }
 
-  // Start traversal from all top-level items.
-  globalController.items.forEach((item) => {
-    traverse(item as vcastTestItem);
-  });
+  // Walk all top-level items
+  globalController.items.forEach((item) => traverse(item as vcastTestItem));
 
-  // Update the global variable.
-  globalCompilersAndTestsuites = {
-    compiler: Array.from(compilers),
-    testsuites: Array.from(testsuites),
-  };
+  // MUTATE the existing arrays rather than reassigning:
+  globalCompilersAndTestsuites.compiler.length = 0;
+  globalCompilersAndTestsuites.compiler.push(...Array.from(compilers));
+
+  globalCompilersAndTestsuites.testsuites.length = 0;
+  globalCompilersAndTestsuites.testsuites.push(...Array.from(testsuites));
 }
 
 /**
  * Clears the global compilers and testsuites list.
  */
 export function clearGlobalCompilersAndTestsuites() {
-  globalCompilersAndTestsuites = {
-    compiler: [],
-    testsuites: [],
-  };
-  globalUnusedCompilerList = [];
-  globalUnusedTestsuiteList = [];
+  globalCompilersAndTestsuites.compiler.length = 0;
+  globalCompilersAndTestsuites.testsuites.length = 0;
+
+  globalUnusedCompilerList.length = 0;
+  globalUnusedTestsuiteList.length = 0;
 }
 
 /**
@@ -493,14 +490,16 @@ export async function buildProjectDataCache(baseDirectory: string) {
 
     // This includes all unused and empty testsuites and compilers because
     // they are not in the enviroList as they do not include any envs
-    globalUnusedTestsuiteList = projectData.projectTestsuiteData;
+    globalUnusedTestsuiteList.length = 0;
+    globalUnusedTestsuiteList.push(...projectData.projectTestsuiteData);
 
     projectData.projectCompilerData.forEach(
       (item: { projectFile: string | undefined }) => {
         item.projectFile = forceLowerCaseDriveLetter(item.projectFile);
       }
     );
-    globalUnusedCompilerList = projectData.projectCompilerData;
+    globalUnusedCompilerList.length = 0;
+    globalUnusedCompilerList.push(...projectData.projectCompilerData);
 
     // convert the raw json data into a map for the cache
     const enviroListAsMap = await convertProjectDataToMap(enviroList);
@@ -576,7 +575,13 @@ function getEnvironmentList(baseDirectory: string): string[] {
 // to see where we reference them
 // this list in a "when" clause
 let vcastEnviroList: string[] = [];
+
 export let vcastUnbuiltEnviroList: string[] = [];
+// Helper to turn a buildDirectory into the unique test‐item ID
+function makeEnviroNodeID(buildDirectory: string): string {
+  return `vcast:${buildDirectory}`;
+}
+
 let vcastHasCodedTestsList: string[] = [];
 
 /**
@@ -653,25 +658,25 @@ function addUnbuiltEnviroToTestPane(
   parentNode: vcastTestItem | null,
   enviroData: environmentNodeDataType
 ) {
-  const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
-  // Extract only the last segment for the environment label.
-  const envName = path.basename(enviroData.displayName);
-  const enviroNode: vcastTestItem = globalController.createTestItem(
-    enviroNodeID,
-    envName
-  );
-  enviroNode.nodeKind = nodeKind.environment;
+  const nodeID = makeEnviroNodeID(enviroData.buildDirectory);
+  const label = path.basename(enviroData.displayName);
+
+  // Create the TestItem
+  const envNode: vcastTestItem = globalController.createTestItem(nodeID, label);
+  envNode.nodeKind = nodeKind.environment;
 
   if (parentNode) {
-    parentNode.children.add(enviroNode);
+    parentNode.children.add(envNode);
   } else {
-    globalController.items.add(enviroNode);
+    globalController.items.add(envNode);
   }
 
+  // Cache its data for later
   saveEnviroNodeData(enviroData.buildDirectory, enviroData);
 
-  if (!vcastUnbuiltEnviroList.includes(enviroNodeID)) {
-    vcastUnbuiltEnviroList.push(enviroNodeID);
+  // If not already marked “unbuilt”, add it and update context
+  if (!vcastUnbuiltEnviroList.includes(nodeID)) {
+    vcastUnbuiltEnviroList.push(nodeID);
     pushUnbuiltEnviroListToContextMenu();
   }
 }
@@ -1306,8 +1311,9 @@ export async function updateDataForEnvironment(enviroPath: string) {
   updateTestDecorator();
 
   // remove environment from the unbuilt list if it's there
+  const nodeID = makeEnviroNodeID(enviroPath);
   vcastUnbuiltEnviroList = vcastUnbuiltEnviroList.filter(
-    (item) => item !== `vcast:${enviroPath}`
+    (item) => item !== nodeID
   );
   pushUnbuiltEnviroListToContextMenu();
 }
@@ -1370,7 +1376,7 @@ export async function runTests(
       await closeConnection(enviroPath);
     }
   }
-  updateDisplayedCoverage();
+  await updateDisplayedCoverage();
   run.end();
 }
 
@@ -1526,46 +1532,62 @@ export async function loadTestScriptButton() {
   }
 }
 
-async function checkIfTestExists(
+export async function checkIfTestExists(
   enviroPath: string,
   scriptPath: string
 ): Promise<boolean> {
   const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-  // Short-circuit if this is a COMPOUND or INIT test
-  if (/^TEST\.SUBPROGRAM:\s*<<(?:COMPOUND|INIT)>>$/m.test(scriptContent)) {
-    return true;
-  }
+  // Pre-compile all regexes
+  const nameRe = /^TEST\.NAME:(.*)$/m;
+  const subprogRe = /^TEST\.SUBPROGRAM:(.*)$/m;
+  const unitRe = /^TEST\.UNIT:(.*)$/m;
+  const isCompoundOrInitRe = /^TEST\.SUBPROGRAM:\s*<<(?:COMPOUND|INIT)>>$/m;
 
-  const testNameMatch = scriptContent.match(/^TEST\.NAME:(.*)$/m);
-  const unitNameMatch = scriptContent.match(/^TEST\.UNIT:(.*)$/m);
-  const subprogramNameMatch = scriptContent.match(/^TEST\.SUBPROGRAM:(.*)$/m);
+  // Name and Subprogram
+  const nameMatch = scriptContent.match(nameRe);
+  const subprogMatch = scriptContent.match(subprogRe);
 
-  if (!testNameMatch || !unitNameMatch || !subprogramNameMatch) {
+  if (!nameMatch || !subprogMatch) {
     vscode.window.showErrorMessage(
-      "Failed to find TEST.NAME, TEST.UNIT, or TEST.SUBPROGRAM in script."
+      "Failed to find TEST.NAME or TEST.SUBPROGRAM in script."
     );
     return false;
   }
 
-  const testName = testNameMatch[1].trim();
-  const unitName = unitNameMatch[1].trim();
-  const subprogramName = subprogramNameMatch[1].trim();
+  const testName = nameMatch[1].trim();
+  const subprogName = subprogMatch[1].trim();
 
-  const fullTestName = `vcast:${enviroPath}|${unitName}.${subprogramName}.${testName}`;
-
-  for (const key of testNodeCache.keys()) {
-    if (key === fullTestName) {
-      const answer = await vscode.window.showInformationMessage(
-        `Test "${testName}" already exists. Loading will create a duplicate with an incremental number. Do you want to proceed?`,
-        "Yes",
-        "No"
-      );
-      return answer === "Yes";
+  // Build the fullTestName according to compound/init vs. normal
+  let fullTestName: string;
+  // Is it a COMPOUND or INIT test?
+  if (isCompoundOrInitRe.test(scriptContent)) {
+    fullTestName = `vcast:${enviroPath}|not-used.${subprogName}.${testName}`;
+  } else {
+    // Normal test
+    const unitMatch = scriptContent.match(unitRe);
+    if (!unitMatch) {
+      vscode.window.showErrorMessage("Failed to find TEST.UNIT in script.");
+      return false;
     }
+    const unitName = unitMatch[1].trim();
+    fullTestName = `vcast:${enviroPath}|${unitName}.${subprogName}.${testName}`;
   }
 
-  return true; // Test doesn't exist, safe to proceed
+  // Check if test name already exists
+  const exists = Array.from(testNodeCache.keys()).some(
+    (key) => key === fullTestName
+  );
+  if (exists) {
+    const answer = await vscode.window.showInformationMessage(
+      `Test "${testName}" already exists. Loading will create a duplicate with an incremental number. Do you want to proceed?`,
+      "Yes",
+      "No"
+    );
+    return answer === "Yes";
+  }
+
+  return true;
 }
 
 export async function refreshAllExtensionData() {
@@ -1585,12 +1607,13 @@ export async function refreshAllExtensionData() {
 }
 
 // create the controller
+// Requires to stay "let" --> see activateTestPane
 export let globalController: vscode.TestController;
 
 // We nest each project under the globalProjectsNode, so
 // this is needed to allow us to save and later lookup
 // the parent node for any environment that is part of a project
-export let globalProjectMap: Map<string, vcastTestItem> = new Map();
+export const globalProjectMap: Map<string, vcastTestItem> = new Map();
 /**
  * Given an environment’s data, this function builds (if needed) and returns
  * the parent node for the environment. It uses the environment’s displayName,
@@ -1774,7 +1797,7 @@ async function addCodedTestfileToCache(
   // we also need to add this Coded Test file to the enviro cache
   let enviroCacheData: Set<string> | undefined =
     enviroToCBTfilesCache.get(enviroNodeID);
-  if (enviroCacheData == undefined) {
+  if (!enviroCacheData) {
     enviroCacheData = new Set();
   }
   enviroCacheData.add(functionNodeForCache.testFile);

@@ -84,7 +84,12 @@ export async function cleanProjectEnvironment(
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
   const progressMessage = `Cleaning up Environment ${level}  ...`;
-  const manageArgs = [`-p${projectName}`, `--level=${level}`, "--clean"];
+  const manageArgs = [
+    `-p${projectName}`,
+    `--level=${level}`,
+    "--clean",
+    "--force",
+  ];
 
   // if we are in server mode, close any existing connection to the environment
   if (globalEnviroDataServerActive) await closeConnection(enviroPath);

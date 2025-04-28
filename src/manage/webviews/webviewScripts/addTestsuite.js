@@ -1,5 +1,3 @@
-// manage/webviewScripts/addTestsuite.js
-
 const vscode = acquireVsCodeApi();
 
 function submitForm() {
