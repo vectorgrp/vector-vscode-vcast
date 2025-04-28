@@ -72,6 +72,12 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await browser.waitUntil(async () =>
+      (await outputView.getChannelNames())
+        .toString()
+        .includes("VectorCAST Test Explorer")
+    );
     await outputView.selectChannel("VectorCAST Test Explorer");
     console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
