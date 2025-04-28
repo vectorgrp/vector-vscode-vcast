@@ -9,6 +9,7 @@ except ImportError:
 
 
 base_requirements = [
+    "anthropic>=0.50.0",
     "openai>=1.54.0",
     "pydantic>=2.9.2",
     "python-dotenv==1.0.0",
@@ -26,6 +27,8 @@ base_requirements = [
     "markdownify==1.1.0",
     "PyYAML==6.0.2",
     "openpyxl==3.1.5",
+    "httpx==0.27.2",
+    "instructor==1.7.0",
 ]
 
 dev_requirements = [

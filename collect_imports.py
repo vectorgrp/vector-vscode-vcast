@@ -247,6 +247,7 @@ def main():
                     "verification",
                     "summary",
                     "trace_reqs2code",
+                    "vector",  # cause it's vpython only
                 ]
             ]
         )

@@ -29,3 +29,5 @@ distribution
 autoreq/**/*.c
 autoreq/*.c
 *.zip
+*.tar.gz
+*.xlsx

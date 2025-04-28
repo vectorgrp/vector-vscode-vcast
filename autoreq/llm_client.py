@@ -9,6 +9,8 @@ import backoff
 from aiolimiter import AsyncLimiter
 import openai
 from openai import AsyncOpenAI, AsyncAzureOpenAI
+import anthropic
+import instructor
 from dotenv import load_dotenv
 from sys import exit
 
@@ -17,7 +19,7 @@ load_dotenv()
 # TODO: Ensure we have json schemas for how providers need to be configured, perhaps using pydantic
 
 RATE_LIMIT = AsyncLimiter(30, 60)
-SUPPORTED_PROVIDERS = ("azure_openai", "ollama")
+SUPPORTED_PROVIDERS = ("azure_openai", "ollama", "anthropic")
 OPENAI_COMPATIBLE_PROVIDERS = ("ollama", "openai")
 
 INCOMPATIBLE_ARGS = {
@@ -38,6 +40,11 @@ EXAMPLE_CONFIGS = {
         "BASE_URL": "https://rg-example.openai.azure.com",
         "DEPLOYMENT": "gpt-4o-example",
         "MODEL_NAME": "gpt-4o",
+    },
+    "claude-3-7-sonnet": {
+        "PROVIDER": "anthropic",
+        "API_KEY": "none",
+        "MODEL_NAME": "claude-3-7-sonnet-20250219",
     },
 }
 
@@ -147,6 +154,10 @@ class LLMClient:
                 else "none",
                 base_url=config.BASE_URL,
             )
+        elif provider == "anthropic":
+            return instructor.from_anthropic(anthropic.AsyncAnthropic(
+                api_key=config.API_KEY,
+            ))
         else:
             raise NotImplementedError(f"Provider {provider} is not supported")
 
@@ -176,33 +187,56 @@ class LLMClient:
                 call_config = self.config if not extended_reasoning else self.reasoning_config
                 call_client = self.client if not extended_reasoning else self.reasoning_client
                 call_type = "generation" if not extended_reasoning else "reasoning"
-
-                #print(f"Calling {call_config.MODEL_NAME} with {call_type} model")
-
-                kwargs.update(
-                    {
-                        "model": call_config.MODEL_NAME,
-                        "messages": messages,
-                        "response_format": schema,
-                        "temperature": temperature,
-                        "seed": seed,
-                        "max_completion_tokens": max_tokens,
-                    }
-                )
-
-                if call_config.MODEL_NAME in INCOMPATIBLE_ARGS:
-                    for arg in INCOMPATIBLE_ARGS[call_config.MODEL_NAME]:
-                        kwargs.pop(arg, None)
                 
-                completion = await call_client.beta.chat.completions.parse(**kwargs)
+                if call_config.PROVIDER == "anthropic":
+                    # Handle Anthropic differently
+                    completion = await call_client.chat.completions.create(
+                        model=call_config.MODEL_NAME,
+                        max_tokens=max_tokens,
+                        response_model=schema,
+                        messages=messages,
+                        temperature=temperature,
+                    )
+                    
+                    # Estimate token usage for Anthropic
+                    # This is an approximation as Anthropic doesn't return token counts the same way
+                    # You might want to implement a better token counting mechanism
+                    input_tokens = sum(len(m.get("content", "")) for m in messages) // 4
+                    output_tokens = len(str(completion)) // 4
+                    
+                    self.token_usage[call_type]["input_tokens"] += input_tokens
+                    self.token_usage[call_type]["output_tokens"] += output_tokens
+                    
+                    result = completion
+                else:
+                    # Use the existing OpenAI-compatible flow
+                    kwargs.update(
+                        {
+                            "model": call_config.MODEL_NAME,
+                            "messages": messages,
+                            "response_format": schema,
+                            "temperature": temperature,
+                            "seed": seed,
+                            "max_completion_tokens": max_tokens,
+                        }
+                    )
 
-                # Update token usage for the generation model
-                self.token_usage[call_type]["input_tokens"] += (
-                    completion.usage.prompt_tokens
-                )
-                self.token_usage[call_type]["output_tokens"] += (
-                    completion.usage.completion_tokens
-                )
+                    if call_config.MODEL_NAME in INCOMPATIBLE_ARGS:
+                        for arg in INCOMPATIBLE_ARGS[call_config.MODEL_NAME]:
+                            kwargs.pop(arg, None)
+                    
+                    completion = await call_client.beta.chat.completions.parse(**kwargs)
+
+                    # Update token usage for OpenAI models
+                    self.token_usage[call_type]["input_tokens"] += (
+                        completion.usage.prompt_tokens
+                    )
+                    self.token_usage[call_type]["output_tokens"] += (
+                        completion.usage.completion_tokens
+                    )
+                    
+                    result = completion.choices[0].message.parsed
+                    
             except Exception as e:
                 if isinstance(e, openai.LengthFinishReasonError):
                     self.token_usage[call_type]["input_tokens"] += (
@@ -212,8 +246,6 @@ class LLMClient:
                         e.completion.usage.completion_tokens
                     )
                 raise e
-
-            result = completion.choices[0].message.parsed
 
             if return_raw_completion:
                 return result, completion
