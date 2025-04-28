@@ -102,6 +102,7 @@ function processExceptionFromExecuteCommand(
     commandStatus.errorCode = 0;
     vectorMessage("Exception while executing python interface");
     vectorMessage(stdoutString, errorLevel.info, indentString);
+    openMessagePane();
   } else {
     commandStatus.errorCode = error.status;
     if (printErrorDetails) {
