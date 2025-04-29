@@ -504,7 +504,7 @@ describe("vTypeCheck VS Code Extension", () => {
         (await outputView.getText())
           .toString()
           .includes(
-            `manage: '-pTest.vcm --level=GNU_Native_Automatic_C++/BlackBox/BAR --clean' returned exit code: 0`
+            `manage: '-pTest.vcm --level=GNU_Native_Automatic_C++/BlackBox/BAR --clean --force' returned exit code: 0`
           ),
       { timeout: TIMEOUT }
     );

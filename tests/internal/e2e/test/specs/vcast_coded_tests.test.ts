@@ -1305,11 +1305,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.moveCursor(messageLine, 1);
 
     console.log("Open Editor");
-    let sourceFileTab = (await editorView.openEditor(
-      "manager-Tests.cpp"
-    )) as TextEditor;
-    await sourceFileTab.setTextAtLine(errorLine, "");
-    await sourceFileTab.save();
+    await tab.setTextAtLine(errorLine, "");
+    await tab.save();
 
     const bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
@@ -1322,19 +1319,17 @@ describe("vTypeCheck VS Code Extension", () => {
     await contextMenu.select("VectorCAST");
     menuElement = await $("aria/Edit Coded Test");
     await menuElement.click();
-    sourceFileTab = (await editorView.openEditor(
-      "manager-Tests.cpp"
-    )) as TextEditor;
+    tab = (await editorView.openEditor("manager-Tests.cpp")) as TextEditor;
 
     console.log("Opened Editor");
     await browser.pause(3000);
-    await (await sourceFileTab.elem).click();
+    await (await tab.elem).click();
     // Closing the squiggle
     await browser.keys(Key.Escape);
-    await (await sourceFileTab.elem).click();
+    await (await tab.elem).click();
 
     console.log("Moving cursor to the line with the error");
-    await sourceFileTab.moveCursor(messageLine, 1);
+    await tab.moveCursor(messageLine, 1);
     lineNumberElement = await $(`.line-numbers=${messageLine}`);
     runArrowElement = await (
       await lineNumberElement.parentElement()
