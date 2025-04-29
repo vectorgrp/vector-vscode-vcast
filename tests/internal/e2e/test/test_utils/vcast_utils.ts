@@ -1658,30 +1658,22 @@ export async function findTreeNodeAtLevel(
   nodeName: string,
   nodes?: any[]
 ): Promise<any | undefined> {
-  // If no nodes are provided, start at the "Test Explorer" section.
+  // Step 1: bootstrap from the Test Explorer
   if (!nodes) {
-    const viewContent = await getViewContent("Testing");
-    const sections = await viewContent.getSections();
-
-    // Manually find the "Test Explorer" section (instead of Promise.any)
-    let testExplorerSection: any | undefined;
-    for (const section of sections) {
-      const title = await section.getTitle();
-      if (title.trim() === "Test Explorer") {
-        testExplorerSection = section;
+    const view = await getViewContent("Testing");
+    const sections = await view.getSections();
+    let testSection;
+    for (const s of sections) {
+      if ((await s.getTitle()).trim() === "Test Explorer") {
+        testSection = s;
         break;
       }
     }
-
-    if (!testExplorerSection) {
-      throw new Error("Test Explorer section not found");
-    }
-
-    // For ViewSection, use getVisibleItems() to obtain its children.
-    nodes = await testExplorerSection.getVisibleItems();
+    if (!testSection) throw new Error("Test Explorer section not found");
+    nodes = await testSection.getVisibleItems();
   }
 
-  // If level is zero, check among these nodes.
+  // Step 2: if we're at the target level, scan for a matching name
   if (level === 0) {
     for (const node of nodes) {
       const text = (await node.elem.getText()).trim();
@@ -1689,21 +1681,25 @@ export async function findTreeNodeAtLevel(
         return node;
       }
     }
-  } else {
-    // Otherwise, iterate through nodes: expand each, then search its children.
-    for (const node of nodes) {
-      if (!(await node.isExpanded())) {
-        await node.expand();
-      }
-      const children = await node.getChildren();
-      const found = await findTreeNodeAtLevel(level - 1, nodeName, children);
-      if (found) {
-        return found;
-      }
+    return undefined;
+  }
+
+  // Step 3: otherwise, recurse into each node's children
+  for (const node of nodes) {
+    if (!(await node.isExpanded())) {
+      await node.expand();
+      // give the UI a moment to populate children
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const children = await node.getChildren();
+    // **explicitly return** the recursive call if it finds something
+    const found = await findTreeNodeAtLevel(level - 1, nodeName, children);
+    if (found !== undefined) {
+      return found;
     }
   }
 
-  // Not found anywhere
+  // nothing found anywhere
   return undefined;
 }
 
