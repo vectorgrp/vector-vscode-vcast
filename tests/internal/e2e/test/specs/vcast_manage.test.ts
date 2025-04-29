@@ -478,6 +478,7 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
+    await browser.pause(2000);
     console.log("Checking if Testsuite node is not in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
     expect(testsuiteNode).toBeUndefined();
@@ -510,6 +511,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Env node is in Tree");
+    await browser.pause(2000);
     const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
     expect(testsuiteNode).toBeDefined();
   });
@@ -576,6 +578,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Env node is not in Tree");
+    await browser.pause(2000);
     const testsuiteNode = await findTreeNodeAtLevel(3, "FREE-ENV");
     expect(testsuiteNode).toBeUndefined();
   });
@@ -623,6 +626,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Env node is not in Tree");
+    await browser.pause(2000);
     const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
     expect(testsuiteNode).toBeUndefined();
     await browser.pause(3000);
