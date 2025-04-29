@@ -625,6 +625,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Checking if Env node is not in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
     expect(testsuiteNode).toBeUndefined();
+    await browser.pause(3000);
   });
 
   it("testing creating an Env from Source Files", async () => {
