@@ -160,6 +160,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Create VectorCAST Environment")).click();
 
     // Making sure notifications are shown
+    await browser.pause(4000);
     await (await $("aria/Notifications")).click();
 
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
