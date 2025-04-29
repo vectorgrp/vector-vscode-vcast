@@ -734,9 +734,20 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         except Exception as err:
             raise UsageError(err)
 
-        topLevel["projectEnvData"] = getProjectData(api)
-        topLevel["projectTestsuiteData"] = getProjectTestsuiteData(api)
-        topLevel["projectCompilerData"] = getProjectCompilerData(api)
+        try:
+            topLevel["projectEnvData"] = getProjectData(api)
+        except Exception as e:
+            raise UsageError(f"Error gathering project environment data: {e}")
+
+        try:
+            topLevel["projectTestsuiteData"] = getProjectTestsuiteData(api)
+        except Exception as e:
+            raise UsageError(f"Error gathering testsuite data: {e}")
+
+        try:
+            topLevel["projectCompilerData"] = getProjectCompilerData(api)
+        except Exception as e:
+            raise UsageError(f"Error gathering compiler data: {e}")
 
         api.close()
         returnObject = topLevel
