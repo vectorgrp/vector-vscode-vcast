@@ -1307,12 +1307,6 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Open Editor");
     await tab.setTextAtLine(errorLine, "");
     await tab.save();
-
-    const bottomBar = workbench.getBottomBar();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
-    await outputView.clearText();
-
     await editorView.closeAllEditors();
 
     console.log("Getting testhandle again");
@@ -1330,7 +1324,6 @@ describe("vTypeCheck VS Code Extension", () => {
     tab = (await editorView.openEditor("manager-Tests.cpp")) as TextEditor;
 
     console.log("Opened Editor");
-    await browser.pause(3000);
     await (await tab.elem).click();
     // Closing the squiggle
     await browser.keys(Key.Escape);
