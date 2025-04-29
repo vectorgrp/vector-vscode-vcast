@@ -410,6 +410,69 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("VectorCAST Report", 1);
   });
 
+  it("testing creating an Env from Source Files", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+    const cppFolder = workspaceFolderSection.findItem("tutorial");
+    await (await cppFolder).select();
+
+    console.log("Selecting database.cpp & manager.cpp");
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
+    await executeCtrlClickOn(databaseCpp);
+    await executeCtrlClickOn(managerCpp);
+    await releaseCtrl();
+
+    console.log("Executing: Create VectorCAST Environment in Project");
+    await databaseCpp.openContextMenu();
+    await (await $("aria/Create VectorCAST Environment in Project")).click();
+
+    // Retrieve all webviews and check the number of webviews open
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1); // Assumes only one webview is open
+    const webview = webviews[0];
+
+    // Open the webview
+    await webview.open();
+
+    const button = await $(`aria/Import OK`);
+    await button.click();
+
+    console.log("Checking for Output logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Creating environment 'DATABASE-MANAGER for 2 file(s) ...`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes(`Processing project:`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node is not in Tree");
+    const TestingView = await activityBar.getViewControl("Testing");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+    expect(testsuiteNode).toBeDefined();
+
+    // Closing all current notifications for the next test
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+  });
+
   it("testing creating a Testsuite", async () => {
     await updateTestID();
     await bottomBar.toggle(true);
@@ -630,69 +693,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
     expect(testsuiteNode).toBeUndefined();
     await browser.pause(3000);
-  });
-
-  it("testing creating an Env from Source Files", async () => {
-    await updateTestID();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
-    await outputView.clearText();
-
-    const workbench = await browser.getWorkbench();
-    const activityBar = workbench.getActivityBar();
-    const explorerView = await activityBar.getViewControl("Explorer");
-    await explorerView?.openView();
-
-    const workspaceFolderSection =
-      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-    const cppFolder = workspaceFolderSection.findItem("tutorial");
-    await (await cppFolder).select();
-
-    console.log("Selecting database.cpp & manager.cpp");
-    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
-    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
-    await executeCtrlClickOn(databaseCpp);
-    await executeCtrlClickOn(managerCpp);
-    await releaseCtrl();
-
-    console.log("Executing: Create VectorCAST Environment in Project");
-    await databaseCpp.openContextMenu();
-    await (await $("aria/Create VectorCAST Environment in Project")).click();
-
-    // Retrieve all webviews and check the number of webviews open
-    const webviews = await workbench.getAllWebviews();
-    expect(webviews).toHaveLength(1); // Assumes only one webview is open
-    const webview = webviews[0];
-
-    // Open the webview
-    await webview.open();
-
-    const button = await $(`aria/Import OK`);
-    await button.click();
-
-    console.log("Checking for Output logs");
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes(`Creating environment 'DATABASE-MANAGER for 2 file(s) ...`),
-      { timeout: TIMEOUT }
-    );
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText()).toString().includes(`Processing project:`),
-      { timeout: TIMEOUT }
-    );
-
-    console.log("Checking if Env node is not in Tree");
-    const TestingView = await activityBar.getViewControl("Testing");
-    const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
-    expect(testsuiteNode).toBeDefined();
-
-    // Closing all current notifications for the next test
-    const notificationsCenter = await workbench.openNotificationsCenter();
-    await notificationsCenter.clearAllNotifications();
   });
 
   it("testing changing project update settings", async () => {
