@@ -464,6 +464,8 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Env node is not in Tree");
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.pause(3000);
     const TestingView = await activityBar.getViewControl("Testing");
     const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
     expect(testsuiteNode).toBeDefined();
