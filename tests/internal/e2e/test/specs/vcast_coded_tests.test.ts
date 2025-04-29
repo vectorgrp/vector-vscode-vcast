@@ -1318,6 +1318,8 @@ describe("vTypeCheck VS Code Extension", () => {
     contextMenu = await currentTestHandle.openContextMenu();
     await contextMenu.select("VectorCAST");
     menuElement = await $("aria/Edit Coded Test");
+    await menuElement.waitForDisplayed({ timeout: 5000 });
+    await menuElement.waitForEnabled({ timeout: 5000 });
     await menuElement.click();
     tab = (await editorView.openEditor("manager-Tests.cpp")) as TextEditor;
 
