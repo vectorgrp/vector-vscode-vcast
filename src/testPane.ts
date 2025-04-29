@@ -1369,6 +1369,7 @@ export async function runTests(
   const endTime: number = performance.now();
   const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
   vectorMessage(`Execution event took: ${deltaString} seconds`);
+  run.end();
 
   for (let enviroPath of enviroPathList) {
     await updateDataForEnvironment(enviroPath);
@@ -1377,7 +1378,6 @@ export async function runTests(
     }
   }
   await updateDisplayedCoverage();
-  run.end();
 }
 
 function isSingleTestNode(request: vscode.TestRunRequest): boolean {
