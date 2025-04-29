@@ -1325,11 +1325,15 @@ describe("vTypeCheck VS Code Extension", () => {
     sourceFileTab = (await editorView.openEditor(
       "manager-Tests.cpp"
     )) as TextEditor;
+
+    console.log("Opened Editor");
+    await browser.pause(3000);
     await (await sourceFileTab.elem).click();
     // Closing the squiggle
     await browser.keys(Key.Escape);
     await (await sourceFileTab.elem).click();
 
+    console.log("Moving cursor to the line with the error");
     await sourceFileTab.moveCursor(messageLine, 1);
     lineNumberElement = await $(`.line-numbers=${messageLine}`);
     runArrowElement = await (
