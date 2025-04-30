@@ -285,8 +285,17 @@ export function normalizePath(path: string): string {
   return returnPath;
 }
 
+/**
+ * this function returns a single line range DecorationOption
+ * @param lineIndex line index to be used for the range
+ * @returns DecorationOptions for the line
+ */
 export function getRangeOption(lineIndex: number): vscode.DecorationOptions {
-  // this function returns a single line range DecorationOption
+  // If we start the extension with a cpp file opened and in focus, lineIndex is -1 because the cursor is not
+  // on a line. We need to set it to 0 in that case
+  if (lineIndex < 0) {
+    lineIndex = 0;
+  }
   const startPos = new vscode.Position(lineIndex, 0);
   const endPos = new vscode.Position(lineIndex, 0);
   return { range: new vscode.Range(startPos, endPos) };
