@@ -215,6 +215,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing creating an Env from Source Files", async () => {
     await updateTestID();
+    await browser.pause(5000);
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
@@ -247,6 +248,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Open the webview
     await webview.open();
+    await browser.pause(10000);
 
     const button = await $(`aria/Import OK`);
     await button.click();
