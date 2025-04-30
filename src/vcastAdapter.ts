@@ -865,8 +865,8 @@ export async function rebuildEnvironmentUsingPython(
           commandVerb,
           commandPieces,
           unitTestLocation,
-          (envPath: string, errorCode: number) => {
-            rebuildEnvironmentCallback(envPath, errorCode);
+          async (envPath: string, errorCode: number) => {
+            await rebuildEnvironmentCallback(envPath, errorCode);
             resolve();
           },
           enviroPath
@@ -911,7 +911,7 @@ export async function rebuildEnvironmentUsingServer(
   vectorMessage(commandStatus.stdout);
 
   // call the callback to update the test explorer pane
-  rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
+  await rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
 }
 
 // Get Execution Report ----------------------------------------------------------------

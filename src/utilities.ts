@@ -9,6 +9,7 @@ import { errorLevel, vectorMessage } from "./messagePane";
 import { getGlobalCoverageData } from "./vcastTestInterface";
 import { rebuildEnvironment } from "./vcastAdapter";
 import { rebuildEnvironmentCallback } from "./callbacks";
+import { refreshAllExtensionData } from "./testPane";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -411,4 +412,5 @@ export async function updateCoverageAndRebuildEnv() {
   for (let enviroPath of envArray) {
     await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
   }
+  await refreshAllExtensionData();
 }
