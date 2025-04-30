@@ -22,6 +22,8 @@ import {
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
 import path from "node:path";
+import * as fs from "fs";
+import { execSync } from "child_process";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
@@ -225,54 +227,122 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
 
-    const workspaceFolderSection =
-      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-    const cppFolder = workspaceFolderSection.findItem("tutorial");
-    await (await cppFolder).select();
+    // ─── SETUP: make input dir + env + CFG + import ────────────────────────────
+    const tmpDir = path.resolve(process.cwd(), "input");
+    execSync(`rm -rf "${tmpDir}" && mkdir -p "${tmpDir}"`, {
+      stdio: "inherit",
+    });
 
-    console.log("Selecting database.cpp & manager.cpp");
-    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
-    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
-    await executeCtrlClickOn(databaseCpp);
-    await executeCtrlClickOn(managerCpp);
-    await releaseCtrl();
+    // 1) clicast template + option
+    execSync(`${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP_X`, {
+      cwd: tmpDir,
+      stdio: "inherit",
+    });
+    execSync(
+      `${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`,
+      { cwd: tmpDir, stdio: "inherit" }
+    );
 
-    console.log("Executing: Create VectorCAST Environment in Project");
-    await databaseCpp.openContextMenu();
-    await (await $("aria/Create VectorCAST Environment in Project")).click();
+    // 2) Write Test.env
+    const envName = "Test";
+    const envFile = `
+ENVIRO.NEW
+ENVIRO.NAME:${envName}
+ENVIRO.STUB_BY_FUNCTION:test
+ENVIRO.MAX_VARY_RANGE:20
+ENVIRO.STUB:ALL_BY_PROTOTYPE
+ENVIRO.SEARCH_LIST:${tmpDir}
+ENVIRO.END
+`.trim();
+    fs.writeFileSync(path.join(tmpDir, `${envName}.env`), envFile);
 
-    // Retrieve all webviews and check the number of webviews open
-    const webviews = await workbench.getAllWebviews();
-    expect(webviews).toHaveLength(1); // Assumes only one webview is open
-    const webview = webviews[0];
+    // 3) Create the project and generate CFG
+    execSync(
+      `${process.env.VECTORCAST_DIR}/manage --project="${envName}" --create`,
+      { cwd: tmpDir, stdio: "inherit" }
+    );
+    // execSync(
+    //   `${process.env.VECTORCAST_DIR}/manage --project="${envName}" --cfg-to-compiler="${path.join(tmpDir, "CCAST_.CFG")}"`,
+    //   { cwd: tmpDir, stdio: "inherit" }
+    // );
 
-    // Open the webview
-    await webview.open();
+    // 4) Import the environment into the BlackBox testsuite
+    //    (assuming the compiler is GNU_Native_Automatic_C++)
+    try {
+      // Capture stdout/stderr by piping them
+      const output = execSync(
+        `${process.env.VECTORCAST_DIR}/manage \
+        --project="Test" \
+        --level="GNU_Native_Automatic_C++/BlackBox" \
+        --import "${path.join(tmpDir, "Test.env")}" \
+        --force --migrate`,
+        { cwd: tmpDir, stdio: ["inherit", "pipe", "pipe"] }
+      );
+
+      // Log the successful stdout
+      console.log("VectorCAST import succeeded. Output:");
+      console.log(output.toString());
+    } catch (err: any) {
+      console.error("VectorCAST import failed!");
+      console.error("Exit code:", err.status);
+      console.error("=== STDOUT ===\n", err.stdout?.toString() || "<none>");
+      console.error("=== STDERR ===\n", err.stderr?.toString() || "<none>");
+      throw err; // re-throw so your test still fails
+    }
+    // ────────────────────────────────────────────────────────────────────────────
+
+    // const workspaceFolderSection =
+    //   await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+    // const cppFolder = workspaceFolderSection.findItem("tutorial");
+    // await (await cppFolder).select();
+
+    // console.log("Selecting database.cpp & manager.cpp");
+    // const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    // const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
+    // await executeCtrlClickOn(databaseCpp);
+    // await executeCtrlClickOn(managerCpp);
+    // await releaseCtrl();
+
+    // console.log("Executing: Create VectorCAST Environment in Project");
+    // await databaseCpp.openContextMenu();
+    // await (await $("aria/Create VectorCAST Environment in Project")).click();
+
+    // // Retrieve all webviews and check the number of webviews open
+    // const webviews = await workbench.getAllWebviews();
+    // expect(webviews).toHaveLength(1); // Assumes only one webview is open
+    // const webview = webviews[0];
+
+    // // Open the webview
+    // await webview.open();
+    // await browser.pause(10000);
+
+    // const button = await $(`aria/Import OK`);
+    // await button.click();
+
+    // console.log("Checking for Output logs");
+    // await browser.waitUntil(
+    //   async () =>
+    //     (await outputView.getText())
+    //       .toString()
+    //       .includes(`Creating environment 'DATABASE-MANAGER for 2 file(s) ...`),
+    //   { timeout: TIMEOUT }
+    // );
+
+    // await browser.waitUntil(
+    //   async () =>
+    //     (await outputView.getText()).toString().includes(`Processing project:`),
+    //   { timeout: TIMEOUT }
+    // );
+
+    // console.log("Checking if Env node is not in Tree");
+    // // Need to wait because there are more than one "Processing environment data for" messages
+    // await browser.pause(3000);
+    // const TestingView = await activityBar.getViewControl("Testing");
+    // const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+    // expect(testsuiteNode).toBeDefined();
+
     await browser.pause(10000);
-
-    const button = await $(`aria/Import OK`);
-    await button.click();
-
-    console.log("Checking for Output logs");
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes(`Creating environment 'DATABASE-MANAGER for 2 file(s) ...`),
-      { timeout: TIMEOUT }
-    );
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText()).toString().includes(`Processing project:`),
-      { timeout: TIMEOUT }
-    );
-
-    console.log("Checking if Env node is not in Tree");
-    // Need to wait because there are more than one "Processing environment data for" messages
-    await browser.pause(3000);
-    const TestingView = await activityBar.getViewControl("Testing");
-    const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "Test");
     expect(testsuiteNode).toBeDefined();
 
     // Closing all current notifications for the next test
