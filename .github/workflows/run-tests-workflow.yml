@@ -196,7 +196,14 @@ jobs:
         run: |
           cd tests/internal/e2e/test
           npx tsx get_gha_matrix.ts
-          echo "matrix=$(cat gha_matrix.json)" >> "$GITHUB_OUTPUT"
+          MATRIX=$(cat gha_matrix.json)
+
+          if jq -e 'any(.[]; (.version|tonumber) > 24)' <<<"$MATRIX"; then
+          ADD_V24=$(jq '[.[] | select(.version=="24")]' <<<"$MATRIX")
+          MATRIX=$(jq -s '.[0] + .[1]' <(echo "$MATRIX") <(echo "$ADD_V24"))
+          fi
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
 
   e2e-tests:
     needs: generate-e2e-matrix
