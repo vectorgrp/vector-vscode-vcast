@@ -230,6 +230,29 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
 const HARDCODED_ENV_VARS: Record<string, string> = {
 }
 
+async function getEnvironmentListIncludingUnbuilt(workspacePath: string): Promise<string[]> {
+  return new Promise<string[]>((resolve, reject) => {
+    // Use glob to find all .env files in the workspace
+    const glob = require('glob');
+    glob('**/*.env', { cwd: workspacePath, nodir: true }, (err: Error, envFiles: string[]) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      
+      // Convert each .env file to its corresponding environment path
+      const envPaths = envFiles.map(envFile => {
+        const fullPath = path.join(workspacePath, envFile);
+        const dirPath = path.dirname(fullPath);
+        const baseName = path.basename(envFile, '.env');
+        return path.join(dirPath, baseName);
+      });
+      
+      resolve(envPaths);
+    });
+  });
+}
+
 async function activationLogic(context: vscode.ExtensionContext) {
   // adds all of the command handlers
   configureExtension(context);
@@ -253,7 +276,7 @@ async function activationLogic(context: vscode.ExtensionContext) {
 
   // Initialize requirements availability for all environments
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
-    const envPaths = await getEnvironmentList(workspace.workspaceFolders[0].uri.fsPath);
+    const envPaths = await getEnvironmentListIncludingUnbuilt(workspace.workspaceFolders[0].uri.fsPath);
     for (const envPath of envPaths) {
       updateRequirementsAvailability(envPath);
     }
@@ -935,7 +958,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       refreshAllExtensionData();
       // Refresh requirements availability for all environments
       if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
-        const envPaths = await getEnvironmentList(workspace.workspaceFolders[0].uri.fsPath);
+        const envPaths = await getEnvironmentListIncludingUnbuilt(workspace.workspaceFolders[0].uri.fsPath);
         for (const envPath of envPaths) {
           updateRequirementsAvailability(envPath);
         }
