@@ -16,13 +16,11 @@ def getMCDCLineDic(sourceObject):
     unitFile = sourceObject.cover_data.name
     unit = unitFile.rsplit(".", 1)[0]
     for mcdc in sourceObject.cover_data.mcdc_decisions:
-
         # If it s not a mcdc pair --> continue
         if not mcdc.num_conditions:
             continue
 
         start_line = mcdc.start_line
-
         # Per default, we set the line to be uncovered
         temp_line_coverage_dic[start_line] = MCDCLineCoverage.uncovered
         mcdc_unit_line_dic[unit] = temp_line_coverage_dic
@@ -74,39 +72,39 @@ def handleMcdcCoverage(
     metrics = line.metrics
     line_number = line.line_number
 
-    # Since we only have mcdc lines and not statements, we first need to check whether our unit is in the dic first
+    # Retrieve MCDC coverage info for this line, if any
     unit_mcdc_lines = mcdc_line_dic.get(unit, {})
-    mcdc_line_coverage = unit_mcdc_lines.get(line_number, None)
+    mcdc_line_coverage = unit_mcdc_lines.get(line_number)
 
-    if mcdc_line_coverage is not None:
-        has_branch_coverage = (
-            metrics.max_covered_branches > 0 or metrics.max_annotations_branches > 0
+    if mcdc_line_coverage is None:
+        return coveredString, partiallyCoveredString, uncoveredString
+
+    # Determine branch count: prefer mcdc_branches (introduced in 2025), fallback to branches
+    branch_count = getattr(metrics, "mcdc_branches", 0) or metrics.branches
+
+    # Total covered branches (including annotations)
+    covered_branches = metrics.max_covered_branches + metrics.max_annotations_branches
+
+    # Check if any branch coverage exists
+    has_branch_coverage = covered_branches > 0
+
+    if has_branch_coverage:
+        # Fully MCDC covered if all branches and MCDC pairs covered
+        is_fully_mcdc_covered = (
+            covered_branches == branch_count
+            and mcdc_line_coverage == MCDCLineCoverage.covered
         )
-        # First check for the branch coverage. If it has none, it can not be partially covered / covered
-        if has_branch_coverage:
-            mcdc_line_coverage = mcdc_line_dic[unit].get(
-                line_number, MCDCLineCoverage.uncovered
-            )
 
-            # To be fully mcdc covered: All Branches + All MCDC pairs
-            is_fully_mcdc_covered = (
-                metrics.max_covered_branches + metrics.max_annotations_branches
-                == metrics.branches
-                and mcdc_line_coverage == MCDCLineCoverage.covered
-            )
-            # If it's fully covered --> It's an mcdc line and fully covered --> green
-            if is_fully_mcdc_covered:
-                coveredString += f"{line.line_number},"
-            # Partially covered mcdc line --> orange
-            elif mcdc_line_coverage == MCDCLineCoverage.partially_covered:
-                partiallyCoveredString += f"{line.line_number},"
-            # If it has branches covered but not mcdc pair
-            else:
-                uncoveredString += f"{line.line_number},"
+        if is_fully_mcdc_covered:
+            coveredString += f"{line_number},"
+        elif mcdc_line_coverage == MCDCLineCoverage.partially_covered:
+            partiallyCoveredString += f"{line_number},"
+        else:
+            uncoveredString += f"{line_number},"
 
-        # It has no branch coverage but there are branches --> uncovered
-        elif metrics.branches > 0:
-            uncoveredString += str(line.line_number) + ","
+    # No branches covered but branches exist --> uncovered
+    elif branch_count > 0:
+        uncoveredString += f"{line_number},"
 
     return coveredString, partiallyCoveredString, uncoveredString
 
@@ -125,51 +123,51 @@ def handleStatementMcdcCoverage(
     metrics = line.metrics
     line_number = line.line_number
 
-    has_coverage = (
+    # Determine branch count: prefer mcdc_branches (introduced in 2025), fallback to branches
+    branch_count = getattr(metrics, "mcdc_branches", 0) or metrics.branches
+
+    # Check for any statement coverage
+    has_statement_coverage = (
         metrics.max_covered_statements > 0 or metrics.max_annotations_statements > 0
     )
 
-    # Check if it s an uncovered statement
-    if has_coverage:
-
-        # Check if the unit is in the dic
+    if has_statement_coverage:
+        # Retrieve MCDC coverage info for this line, if any
         unit_mcdc_lines = mcdc_line_dic.get(unit, {})
-        mcdc_line_coverage = unit_mcdc_lines.get(line_number, None)
+        mcdc_line_coverage = unit_mcdc_lines.get(line_number)
 
         if mcdc_line_coverage is not None:
-            mcdc_line_coverage = mcdc_line_dic[unit].get(
-                line_number, MCDCLineCoverage.uncovered
+            # Total covered statements and branches
+            covered_statements = (
+                metrics.max_covered_statements + metrics.max_annotations_statements
+            )
+            covered_branches = (
+                metrics.max_covered_branches + metrics.max_annotations_branches
             )
 
-            # To be fully mcdc covered: All Statements + All Branches + All MCDC pairs
+            # Fully covered if all statements, branches, and MCDC pairs covered
             is_fully_mcdc_covered = (
-                metrics.max_covered_statements + metrics.max_annotations_statements
-                == metrics.statements
-                and metrics.max_covered_branches + metrics.max_annotations_branches
-                == metrics.branches
+                covered_statements == metrics.statements
+                and covered_branches == branch_count
                 and mcdc_line_coverage == MCDCLineCoverage.covered
             )
 
-            # If it's fully covered --> It's an mcdc line and fully covered --> green
             if is_fully_mcdc_covered:
-                coveredString += f"{line.line_number},"
-            # Partially covered mcdc line --> orange
+                coveredString += f"{line_number},"
             elif mcdc_line_coverage == MCDCLineCoverage.partially_covered:
-                partiallyCoveredString += f"{line.line_number},"
-            # a mcdc line that has no coverage --> Red
+                partiallyCoveredString += f"{line_number},"
             else:
-                uncoveredString += f"{line.line_number},"
+                uncoveredString += f"{line_number},"
 
-        # It's a fully covered statement and not a mcdc line --> green
+        # Not an MCDC line but fully statement covered --> covered
         elif (
             metrics.max_covered_statements + metrics.max_annotations_statements
-            == metrics.statements
-        ):
-            coveredString += str(line.line_number) + ","
+        ) == metrics.statements:
+            coveredString += f"{line_number},"
 
-    # If it s no mcdc line is not covered but still has statements --> uncovered statement line --> red
+    # No statement coverage but statements exist --> uncovered
     elif metrics.statements > 0:
-        uncoveredString += str(line.line_number) + ","
+        uncoveredString += f"{line_number},"
 
     return coveredString, partiallyCoveredString, uncoveredString
 

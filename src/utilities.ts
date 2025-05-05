@@ -412,5 +412,4 @@ export async function updateCoverageAndRebuildEnv() {
   for (let enviroPath of envArray) {
     await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
   }
-  await refreshAllExtensionData();
 }
