@@ -411,6 +411,14 @@ export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
         .includes("Starting execution of test: BASIS-PATH-004"),
     { timeout: TIMEOUT }
   );
+
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Processing environment data for:"),
+    { timeout: TIMEOUT }
+  );
 }
 
 export async function generateBasisPathTestForSubprogram(

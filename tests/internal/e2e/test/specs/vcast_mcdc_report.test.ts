@@ -161,21 +161,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await insertBasisPathTestFor(subprogramMethod);
 
-    subprogramMethod = await findSubprogramMethod(
-      subprogram,
-      "Manager::GetNextPartyToBeSeated"
-    );
-    if (!subprogramMethod) {
-      throw new Error(
-        "Subprogram method 'Manager::GetNextPartyToBeSeated' not found"
-      );
-    }
-
-    await insertBasisPathTestFor(subprogramMethod);
-
     // Green MCDC Gutter icon
     await checkForGutterAndGenerateReport(
-      96,
+      19,
       "manager.cpp",
       "cover-icon-with-mcdc",
       true,
@@ -201,7 +189,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Some important lines we want to check for in the report
     await expect(await checkElementExistsInHTML("manager.cpp")).toBe(true);
-    await expect(await checkElementExistsInHTML("96")).toBe(true);
+    await expect(await checkElementExistsInHTML("19")).toBe(true);
     await expect(
       await checkElementExistsInHTML("Pairs satisfied: 1 of 1 ( 100% )")
     ).toBe(true);
@@ -329,7 +317,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Coverage checklist for Branch
     const branchGutterLines = [
       {
-        "96": "cover-icon",
+        "19": "cover-icon",
         "28": "partially-cover-icon",
         "84": "no-cover-icon",
       },
@@ -338,7 +326,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Coverage checklist for MCDC
     const mcdcGutterLines = [
       {
-        "96": "cover-icon-with-mcdc",
+        "19": "cover-icon-with-mcdc",
         "28": "partially-cover-icon-with-mcdc",
         "84": "no-cover-icon-with-mcdc",
       },
