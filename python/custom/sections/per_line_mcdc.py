@@ -42,6 +42,7 @@ def entry_exit_decorator(func):
 
         # Run the original code
         result = func(*args, **kwargs)
+        print(result)
 
         # Reset our patched decisions
         InstrumentedFunction.mcdc_decisions = orig_mcdc_decisions
@@ -55,7 +56,7 @@ def entry_exit_decorator(func):
 class PerLineMcdc(McdcTables):
     @entry_exit_decorator
     def prepare_data(self):
-        super().prepare_data()
+        super()._McdcTables__prepare_tu_data()
 
 
 # EOF
