@@ -22,13 +22,13 @@ from .requirement_generation.generation import RequirementsGenerator
 
 
 def save_requirements_to_json(requirements, output_file):
-    with open(output_file, "w") as f:
+    with open(output_file, 'w') as f:
         json.dump(requirements, f, indent=4)
 
 
 def save_requirements_to_csv(requirements, output_file):
-    fieldnames = ["Key", "ID", "Module", "Title", "Description", "Function"]
-    with open(output_file, "w", newline="") as f:
+    fieldnames = ['Key', 'ID', 'Module', 'Title', 'Description', 'Function']
+    with open(output_file, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for req in requirements:
@@ -45,24 +45,25 @@ def fix_worksheet_cols_width(ws):
                 )
     for col, value in dims.items():
         ws.column_dimensions[get_column_letter(col)].width = value
-            
+
+
 def save_requirements_to_excel(requirements, source_envs, output_file):
     funcs = {}
     for env in source_envs:
         for f in env.testable_functions:
             # TODO right now only one module per environment is supported
-            key = f"{env.env_name}.{env.module.title()}"
+            key = f'{env.env_name}.{env.module.title()}'
             funcs.setdefault(key, [])
-            funcs[key].append(f["name"])
+            funcs[key].append(f['name'])
 
     workbook = Workbook()
     main_ws = workbook.active
-    main_ws.title = "Requirements"
-    lists_ws = workbook.create_sheet("Options")
-    lists_ws.sheet_state = "hidden"
+    main_ws.title = 'Requirements'
+    lists_ws = workbook.create_sheet('Options')
+    lists_ws.sheet_state = 'hidden'
 
     header_font = Font(bold=True)
-    header_fill = PatternFill(fill_type="solid", start_color="C6EFCE")
+    header_fill = PatternFill(fill_type='solid', start_color='C6EFCE')
     headers = list(requirements[0].keys())
     for col, header in enumerate(headers, start=1):
         cell = main_ws.cell(row=1, column=col, value=header)
@@ -81,34 +82,34 @@ def save_requirements_to_excel(requirements, source_envs, output_file):
     # For each module, write its functions in its own column (starting at column B)
     # and create a named range using create_named_range().
     for i, module in enumerate(modules):
-        functions = funcs[module] + ["None"]
+        functions = funcs[module] + ['None']
         col = i + 2
         for row, func in enumerate(functions, start=1):
             lists_ws.cell(row=row, column=col, value=func)
         col_letter = get_column_letter(col)
         end_row = len(functions)
-        range_ref = f"${col_letter}$1:${col_letter}${end_row}"
-        range_name = module.replace(" ", "_").replace("-", "_")
+        range_ref = f'${col_letter}$1:${col_letter}${end_row}'
+        range_name = module.replace(' ', '_').replace('-', '_')
         workbook.create_named_range(range_name, lists_ws, range_ref)
 
     num_data_rows = len(requirements)
-    module_col_index = headers.index("Module") + 1
-    function_col_index = headers.index("Function") + 1
+    module_col_index = headers.index('Module') + 1
+    function_col_index = headers.index('Function') + 1
     module_col_letter = get_column_letter(module_col_index)
     dv_module = DataValidation(
-        type="list", formula1=f"=Options!$A$1:$A${len(modules)}", allow_blank=True
+        type='list', formula1=f'=Options!$A$1:$A${len(modules)}', allow_blank=True
     )
     main_ws.add_data_validation(dv_module)
-    dv_module_range = f"{get_column_letter(module_col_index)}2:{get_column_letter(module_col_index)}{num_data_rows + 1}"
+    dv_module_range = f'{get_column_letter(module_col_index)}2:{get_column_letter(module_col_index)}{num_data_rows + 1}'
     dv_module.add(dv_module_range)
 
     # Use INDIRECT with SUBSTITUTE to reference the named range based on the Module cell.
     for row in range(2, num_data_rows + 2):
-        module_cell = f"{module_col_letter}{row}"
+        module_cell = f'{module_col_letter}{row}'
         formula = f'=INDIRECT(SUBSTITUTE({module_cell}," ","_"))'
-        dv_func = DataValidation(type="list", formula1=formula, allow_blank=True)
+        dv_func = DataValidation(type='list', formula1=formula, allow_blank=True)
         main_ws.add_data_validation(dv_func)
-        function_cell = f"{get_column_letter(function_col_index)}{row}"
+        function_cell = f'{get_column_letter(function_col_index)}{row}'
         dv_func.add(function_cell)
 
     fix_worksheet_cols_width(main_ws)
@@ -135,20 +136,20 @@ def save_requirements_to_html(requirements, output_file):
     # Group requirements by function
     requirements_by_function = {}
     for req in requirements:
-        func_name = req["Function"]
+        func_name = req['Function']
         requirements_by_function.setdefault(func_name, []).append(req)
     # Generate HTML content
     for func_name, reqs in requirements_by_function.items():
-        html_content += f"<h2>{func_name}</h2>"
+        html_content += f'<h2>{func_name}</h2>'
         for req in reqs:
             html_content += f"""
             <div class="requirement">
-                <div class="req-key">{req["Key"]}</div>
-                <div class="req-description">{req["Description"]}</div>
+                <div class="req-key">{req['Key']}</div>
+                <div class="req-description">{req['Description']}</div>
             </div>
             """
-    html_content += "</body></html>"
-    with open(output_file, "w") as f:
+    html_content += '</body></html>'
+    with open(output_file, 'w') as f:
         f.write(html_content)
 
 
@@ -161,13 +162,13 @@ def execute_command(command_list):
             shell=False,  # More secure
         )
         if result.returncode != 0:
-            logging.error(f"Error executing command: {' '.join(command_list)}")
+            logging.error(f'Error executing command: {" ".join(command_list)}')
             logging.error(result.stderr)
         else:
             logging.info(result.stdout)
         return result
     except Exception as e:
-        logging.error(f"Failed to execute command: {e}")
+        logging.error(f'Failed to execute command: {e}')
         raise
 
 
@@ -176,37 +177,37 @@ def execute_rgw_commands(env_path, csv_path, export_repository):
     export_path.mkdir(parents=True, exist_ok=True)
 
     env_dir = Path(env_path).parent
-    vectorcast_dir = os.environ.get("VECTORCAST_DIR", "")
-    clicast = str(Path(vectorcast_dir) / "clicast")
-    if os.name == "nt" and not clicast.endswith(".exe"):
-        clicast += ".exe"
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
+    clicast = str(Path(vectorcast_dir) / 'clicast')
+    if os.name == 'nt' and not clicast.endswith('.exe'):
+        clicast += '.exe'
 
     # Convert paths to absolute and ensure proper formatting
     abs_export_path = str(export_path.resolve())
     abs_csv_path = str(Path(csv_path).resolve())
 
     rgw_prep_commands = [
-        [clicast, "-lc", "option", "VCAST_REPOSITORY", abs_export_path],
-        [clicast, "-lc", "RGw", "INitialize"],
-        [clicast, "-lc", "Rgw", "Set", "Gateway", "CSV"],
-        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "csv_path", abs_csv_path],
-        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "use_attribute_filter", "0"],
-        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "filter_attribute"],
-        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "filter_attribute_value"],
-        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "id_attribute", "ID"],
-        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "key_attribute", "Key"],
-        [clicast, "-lc", "RGw", "Configure", "Set", "CSV", "title_attribute", "Title"],
+        [clicast, '-lc', 'option', 'VCAST_REPOSITORY', abs_export_path],
+        [clicast, '-lc', 'RGw', 'INitialize'],
+        [clicast, '-lc', 'Rgw', 'Set', 'Gateway', 'CSV'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'csv_path', abs_csv_path],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'use_attribute_filter', '0'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute_value'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'id_attribute', 'ID'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'key_attribute', 'Key'],
+        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'title_attribute', 'Title'],
         [
             clicast,
-            "-lc",
-            "RGw",
-            "Configure",
-            "Set",
-            "CSV",
-            "description_attribute",
-            "Description",
+            '-lc',
+            'RGw',
+            'Configure',
+            'Set',
+            'CSV',
+            'description_attribute',
+            'Description',
         ],
-        [clicast, "-lc", "RGw", "Import"],
+        [clicast, '-lc', 'RGw', 'Import'],
     ]
 
     # Change working directory before executing commands
@@ -218,7 +219,18 @@ def execute_rgw_commands(env_path, csv_path, export_repository):
     finally:
         os.chdir(original_dir)
 
-async def main(env_path, export_csv=None, export_html=None, export_repository=None, export_excel=None, json_events=False, combine_related_requirements=False, extended_reasoning=False, no_automatic_build=False):
+
+async def main(
+    env_path,
+    export_csv=None,
+    export_html=None,
+    export_repository=None,
+    export_excel=None,
+    json_events=False,
+    combine_related_requirements=False,
+    extended_reasoning=False,
+    no_automatic_build=False,
+):
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level)
@@ -227,15 +239,21 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     if not environment.is_built:
         if no_automatic_build:
-            logging.error("Environment is not built and --no-automatic-build is set. Exiting.")
+            logging.error(
+                'Environment is not built and --no-automatic-build is set. Exiting.'
+            )
             return
         else:
-            logging.info("Environment is not built. Building it now...")
+            logging.info('Environment is not built. Building it now...')
             environment.build()
-        
+
     functions = environment.testable_functions
 
-    generator = RequirementsGenerator(environment, combine_related_requirements=combine_related_requirements, extended_reasoning=extended_reasoning)
+    generator = RequirementsGenerator(
+        environment,
+        combine_related_requirements=combine_related_requirements,
+        extended_reasoning=extended_reasoning,
+    )
 
     requirements = []
 
@@ -245,31 +263,31 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
 
     async def generate_requirements(func):
         nonlocal processed_functions
-        func_name = func["name"]
-        func_file = func["file"]
+        func_name = func['name']
+        func_file = func['file']
         result = await generator.generate(func_name)
         processed_functions += 1
         progress = processed_functions / total_functions
 
         if json_events:
-            print(json.dumps({"event": "progress", "value": progress}), flush=True)
+            print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
 
         if result:
             module = (
                 os.path.basename(func_file)
-                .replace(".cpp", "")
-                .replace(".c", "")
+                .replace('.cpp', '')
+                .replace('.c', '')
                 .title()
             )
             for i, req in enumerate(result):
-                req_id = f"{func_name}.{i + 1}"
+                req_id = f'{func_name}.{i + 1}'
                 requirement = {
-                    "Key": req_id,
-                    "ID": req_id,
-                    "Module": environment.module,
-                    "Title": req,
-                    "Description": req,
-                    "Function": func_name,
+                    'Key': req_id,
+                    'ID': req_id,
+                    'Module': environment.module,
+                    'Title': req,
+                    'Description': req,
+                    'Function': func_name,
                 }
                 requirements.append(requirement)
 
@@ -281,7 +299,7 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
         csv_path = export_csv
         save_requirements_to_csv(requirements, csv_path)
     else:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_csv:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as temp_csv:
             csv_path = temp_csv.name
         save_requirements_to_csv(requirements, csv_path)
 
@@ -294,34 +312,70 @@ async def main(env_path, export_csv=None, export_html=None, export_repository=No
     if export_repository:
         execute_rgw_commands(env_path, csv_path, export_repository)
 
-    return generator.llm_client.total_cost["total_cost"], requirements
+    return generator.llm_client.total_cost['total_cost'], requirements
 
 
 def cli():
-    parser = argparse.ArgumentParser(description="Decompose design of functions into requirements.")
-    parser.add_argument("env_path", help="Path to the VectorCAST environment directory.")
-    parser.add_argument("--export-csv", help="Path to the output CSV file for requirements.")
-    parser.add_argument("--export-html", help="Optional path to the output HTML file for pretty-printed requirements.")
-    parser.add_argument("--export-excel", help="Optional path to the output Excel file for requirements.")
-    parser.add_argument("--export-repository", help="Path to the VCAST_REPOSITORY for registering requirements.")
-    parser.add_argument('--json-events', action='store_true', help='Output events in JSON format.')
-    parser.add_argument('--overwrite-env', action='store_true', help='Prompt user for environment variables even if they are already set.')
-    parser.add_argument('--combine-related-requirements', action='store_true', help='Combine related requirements into a single requirement after initial generation.')
-    parser.add_argument('--extended-reasoning', action='store_true', help='Use extended reasoning for test generation.')
-    parser.add_argument('--no-automatic-build', action='store_true', help='If the environment is not built, do not build it automatically.')
+    parser = argparse.ArgumentParser(
+        description='Decompose design of functions into requirements.'
+    )
+    parser.add_argument(
+        'env_path', help='Path to the VectorCAST environment directory.'
+    )
+    parser.add_argument(
+        '--export-csv', help='Path to the output CSV file for requirements.'
+    )
+    parser.add_argument(
+        '--export-html',
+        help='Optional path to the output HTML file for pretty-printed requirements.',
+    )
+    parser.add_argument(
+        '--export-excel',
+        help='Optional path to the output Excel file for requirements.',
+    )
+    parser.add_argument(
+        '--export-repository',
+        help='Path to the VCAST_REPOSITORY for registering requirements.',
+    )
+    parser.add_argument(
+        '--json-events', action='store_true', help='Output events in JSON format.'
+    )
+    parser.add_argument(
+        '--overwrite-env',
+        action='store_true',
+        help='Prompt user for environment variables even if they are already set.',
+    )
+    parser.add_argument(
+        '--combine-related-requirements',
+        action='store_true',
+        help='Combine related requirements into a single requirement after initial generation.',
+    )
+    parser.add_argument(
+        '--extended-reasoning',
+        action='store_true',
+        help='Use extended reasoning for test generation.',
+    )
+    parser.add_argument(
+        '--no-automatic-build',
+        action='store_true',
+        help='If the environment is not built, do not build it automatically.',
+    )
 
     args = parser.parse_args()
 
-    asyncio.run(main(
-        args.env_path,
-        args.export_csv,
-        args.export_html,
-        args.export_repository,
-        args.export_excel,
-        json_events=args.json_events,
-        extended_reasoning=args.extended_reasoning,
-        no_automatic_build=args.no_automatic_build,
-    ))
+    asyncio.run(
+        main(
+            args.env_path,
+            args.export_csv,
+            args.export_html,
+            args.export_repository,
+            args.export_excel,
+            json_events=args.json_events,
+            extended_reasoning=args.extended_reasoning,
+            no_automatic_build=args.no_automatic_build,
+        )
+    )
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     cli()

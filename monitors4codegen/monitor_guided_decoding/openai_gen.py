@@ -12,8 +12,10 @@ from openai import OpenAI
 from monitors4codegen.monitor_guided_decoding.monitor import Monitor
 from monitors4codegen.monitor_guided_decoding.tokenizer_wrapper import TikTokenWrapper
 
+
 class OpenAI_Models(Enum):
     TD3 = 'text-davinci-003'
+
 
 def openai_mgd(
     client: OpenAI,
@@ -23,7 +25,7 @@ def openai_mgd(
     temp: float,
     top_p: float,
     monitor: Monitor,
-    num_new_tokens: int
+    num_new_tokens: int,
 ):
     """
     This function generates completions with OpenAI models using the Monitor-Guided Decoding scheme.
@@ -33,13 +35,13 @@ def openai_mgd(
 
     all_tokens: torch.Tensor = prompt_tokenized
     gen_text: bytes = b''
-    
+
     gen_tokens: List[int] = []
 
-    tokens_sort_key = {k:[0, 0] for k in tokenizer.all_token_ids}
-    
+    tokens_sort_key = {k: [0, 0] for k in tokenizer.all_token_ids}
+
     # # TODO: Find a way to prioritize tokens to be blacklisted
-    
+
     # # Why prioritize? OpenAI allows applying logit_bias to upto 300 tokens, whereas the typical number of tokens in vocabulary is 50,000.
     # # Because of this, it is necessary to identify the top 300 tokens, that we think need to be either blacklisted, or whitelisted.
     # # This prioritization should be done taking into account what violating token is the model likely to predict in the next step.
@@ -69,11 +71,16 @@ def openai_mgd(
 
     while all_tokens.shape[0] < prompt_num_tokens + num_new_tokens:
         num_toks_to_gen = (prompt_num_tokens + num_new_tokens) - all_tokens.shape[0]
-        
-        blacklisted_ids: List[int] = asyncio.run_coroutine_threadsafe(monitor.maskgen(all_tokens.tolist()), monitor.monitor_file_buffer.lsp.server.loop).result()
-        white_listed_ids: Set[int] = set(tokenizer.all_token_ids) - set(blacklisted_ids+[50256])
 
-        logit_bias = {50256:-100}
+        blacklisted_ids: List[int] = asyncio.run_coroutine_threadsafe(
+            monitor.maskgen(all_tokens.tolist()),
+            monitor.monitor_file_buffer.lsp.server.loop,
+        ).result()
+        white_listed_ids: Set[int] = set(tokenizer.all_token_ids) - set(
+            blacklisted_ids + [50256]
+        )
+
+        logit_bias = {50256: -100}
 
         for token_id in priority_blacklist:
             logit_bias[token_id] = -100
@@ -82,7 +89,9 @@ def openai_mgd(
             for white_token_id in white_listed_ids:
                 logit_bias[white_token_id] = 100
         else:
-            for candidate_token in sorted(blacklisted_ids, key=lambda x: tokens_sort_key[x], reverse=True):
+            for candidate_token in sorted(
+                blacklisted_ids, key=lambda x: tokens_sort_key[x], reverse=True
+            ):
                 if len(logit_bias) >= 300:
                     break
                 if candidate_token in blacklisted_ids:
@@ -94,7 +103,7 @@ def openai_mgd(
                 prompt_arg: str = all_text_bytes.decode('utf-8', errors='strict')
             except UnicodeDecodeError:
                 prompt_arg: List[int] = all_tokens.tolist()
-            
+
             try:
                 response = client.completions.create(
                     model=model.value,
@@ -104,13 +113,13 @@ def openai_mgd(
                     top_p=top_p,
                     stop=['.'],
                     logit_bias=logit_bias,
-                    logprobs=5
+                    logprobs=5,
                 )
                 break
             except Exception:
                 time.sleep(exponential_backoff_wait)
                 if exponential_backoff_wait < 64:
-                    exponential_backoff_wait = exponential_backoff_wait*2
+                    exponential_backoff_wait = exponential_backoff_wait * 2
                 else:
                     exponential_backoff_wait = 1
 
@@ -122,7 +131,9 @@ def openai_mgd(
             else:
                 return x.encode()
 
-        tokens_gen_bytes_ = list(map(convert_bytesrep_to_bytes, response.choices[0].logprobs.tokens))
+        tokens_gen_bytes_ = list(
+            map(convert_bytesrep_to_bytes, response.choices[0].logprobs.tokens)
+        )
         tokens_gen_bytes = []
         dot_found = False
         for token_bytes in tokens_gen_bytes_:
@@ -145,32 +156,41 @@ def openai_mgd(
         elif response.choices[0].finish_reason == 'length':
             should_manually_add_dot = False
         else:
-            raise Exception("Unknown finish reason", response.choices[0].finish_reason)
+            raise Exception('Unknown finish reason', response.choices[0].finish_reason)
 
-        tokens_gen = list(map(lambda x: tokenizer.tokenizer.encode_single_token(x), tokens_gen_bytes))
+        tokens_gen = list(
+            map(lambda x: tokenizer.tokenizer.encode_single_token(x), tokens_gen_bytes)
+        )
 
         assert should_manually_add_dot is not None
         if should_manually_add_dot:
             gen_text += b'.'
             all_text_bytes += b'.'
             tokens_gen.append(tokenizer.tokenizer.encode_single_token('.'))
-        
+
         if len(logit_bias) > 1:
-            assert len(tokens_gen) == 1, (print(response), response, launch_debug(locals()))
+            assert len(tokens_gen) == 1, (
+                print(response),
+                response,
+                launch_debug(locals()),
+            )
             if tokens_gen[0] in blacklisted_ids:
                 priority_blacklist.append(tokens_gen[0])
                 continue
         priority_blacklist = []
 
-        new_all_tokens = torch.cat([
-            all_tokens,
-            torch.tensor(tokens_gen)
-        ]).to(all_tokens)
+        new_all_tokens = torch.cat([all_tokens, torch.tensor(tokens_gen)]).to(
+            all_tokens
+        )
 
         assert len(new_all_tokens.shape) == 1
-        assert new_all_tokens.shape[0] > all_tokens.shape[0], (new_all_tokens.shape, all_tokens.shape, launch_debug(locals()))
-        assert torch.equal(new_all_tokens[:all_tokens.shape[0]], all_tokens)
-        gen_tokens += new_all_tokens[all_tokens.shape[0]:].tolist()
+        assert new_all_tokens.shape[0] > all_tokens.shape[0], (
+            new_all_tokens.shape,
+            all_tokens.shape,
+            launch_debug(locals()),
+        )
+        assert torch.equal(new_all_tokens[: all_tokens.shape[0]], all_tokens)
+        gen_tokens += new_all_tokens[all_tokens.shape[0] :].tolist()
         all_tokens = new_all_tokens
 
     return gen_tokens, gen_text.decode()

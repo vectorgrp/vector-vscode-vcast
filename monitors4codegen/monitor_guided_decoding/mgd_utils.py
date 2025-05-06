@@ -18,13 +18,15 @@ class PLUtils:
         """
         Tokenizes the given text using code_tokenize
         """
-        lang_s = str(lang) if lang != Language.CSHARP else "c-sharp"
-        if inp_text.strip() == "":
+        lang_s = str(lang) if lang != Language.CSHARP else 'c-sharp'
+        if inp_text.strip() == '':
             return []
         lsp_text_lang_tokenized: List[ctok.tokens.ASTToken] = ctok.tokenize(
-            inp_text, lang=lang_s, syntax_error="ignore"
+            inp_text, lang=lang_s, syntax_error='ignore'
         )
-        lsp_text_lang_tokenized: List[ctok.tokens.ASTToken] = [tok for tok in lsp_text_lang_tokenized if tok.text != ""]
+        lsp_text_lang_tokenized: List[ctok.tokens.ASTToken] = [
+            tok for tok in lsp_text_lang_tokenized if tok.text != ''
+        ]
         return lsp_text_lang_tokenized
 
     @staticmethod
@@ -36,23 +38,23 @@ class PLUtils:
         err = False
         lsp_text_lang_tokenized = PLUtils.tokenizer_pl(inp_text, lang)
         for tok in lsp_text_lang_tokenized:
-            if tok.type in ["{", "(", "["]:
+            if tok.type in ['{', '(', '[']:
                 bracket_stream.append(tok.type)
-            elif tok.type in ["}", ")", "]"]:
+            elif tok.type in ['}', ')', ']']:
                 if len(bracket_stream) == 0:
                     err = True
                     break
                 if (
-                    (tok.type == "}" and bracket_stream[-1] == "{")
-                    or (tok.type == ")" and bracket_stream[-1] == "(")
-                    or (tok.type == "]" and bracket_stream[-1] == "[")
+                    (tok.type == '}' and bracket_stream[-1] == '{')
+                    or (tok.type == ')' and bracket_stream[-1] == '(')
+                    or (tok.type == ']' and bracket_stream[-1] == '[')
                 ):
                     bracket_stream.pop()
                 else:
                     err = True
                     break
         if err:
-            raise Exception("Invalid bracket stream")
+            raise Exception('Invalid bracket stream')
         return bracket_stream
 
     @staticmethod
@@ -64,21 +66,21 @@ class PLUtils:
         err = False
         lsp_text_lang_tokenized = PLUtils.tokenizer_pl(inp_text, lang)
         for tok in lsp_text_lang_tokenized[::-1]:
-            if tok.type in ["}", ")", "]"]:
+            if tok.type in ['}', ')', ']']:
                 bracket_stream.append(tok.type)
-            elif tok.type in ["{", "(", "["]:
+            elif tok.type in ['{', '(', '[']:
                 if len(bracket_stream) == 0:
                     err = True
                     break
                 if (
-                    (tok.type == "{" and bracket_stream[-1] == "}")
-                    or (tok.type == "(" and bracket_stream[-1] == ")")
-                    or (tok.type == "[" and bracket_stream[-1] == "]")
+                    (tok.type == '{' and bracket_stream[-1] == '}')
+                    or (tok.type == '(' and bracket_stream[-1] == ')')
+                    or (tok.type == '[' and bracket_stream[-1] == ']')
                 ):
                     bracket_stream.pop()
                 else:
                     err = True
                     break
         if err:
-            raise Exception("Invalid bracket stream")
+            raise Exception('Invalid bracket stream')
         return bracket_stream[::-1]

@@ -1,0 +1,7 @@
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+docstring-code-format = false

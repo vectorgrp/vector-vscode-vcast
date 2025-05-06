@@ -32,8 +32,15 @@ class DereferencesMonitor(Monitor):
     Provides the dereferences monitor
     """
 
-    def __init__(self, tokenizer: TokenizerWrapper, monitor_file_buffer: MonitorFileBuffer, responsible_for_file_buffer_state: bool = True) -> None:
-        super().__init__(tokenizer, monitor_file_buffer, responsible_for_file_buffer_state)
+    def __init__(
+        self,
+        tokenizer: TokenizerWrapper,
+        monitor_file_buffer: MonitorFileBuffer,
+        responsible_for_file_buffer_state: bool = True,
+    ) -> None:
+        super().__init__(
+            tokenizer, monitor_file_buffer, responsible_for_file_buffer_state
+        )
         self.decoder_state = DecoderStates.UnInitialized
         self.all_break_chars = DereferencesMonitor.find_all_break_chars(
             self.tokenizer.tokenizer_char_set, monitor_file_buffer.language
@@ -50,9 +57,11 @@ class DereferencesMonitor(Monitor):
         """
         all_break_chars: Set[str] = set()
         for vocab_char in charset:
-            toks: List[ctok.tokens.ASTToken] = PLUtils.tokenizer_pl("abc" + vocab_char, language)
-            toks = [t for t in toks if t.text != ""]
-            if len(toks) == 0 or toks[0].text == "abc":
+            toks: List[ctok.tokens.ASTToken] = PLUtils.tokenizer_pl(
+                'abc' + vocab_char, language
+            )
+            toks = [t for t in toks if t.text != '']
+            if len(toks) == 0 or toks[0].text == 'abc':
                 all_break_chars.add(vocab_char)
         return all_break_chars
 
@@ -69,14 +78,16 @@ class DereferencesMonitor(Monitor):
         In case of dereferences monitor, the last character shuold be a dot
         """
         cursor_idx = TextUtils.get_index_from_line_col(
-            self.monitor_file_buffer.lsp.get_open_file_text(self.monitor_file_buffer.file_path),
+            self.monitor_file_buffer.lsp.get_open_file_text(
+                self.monitor_file_buffer.file_path
+            ),
             self.monitor_file_buffer.current_lc[0],
             self.monitor_file_buffer.current_lc[1],
         )
-        text_upto_cursor = self.monitor_file_buffer.lsp.get_open_file_text(self.monitor_file_buffer.file_path)[
-            :cursor_idx
-        ]
-        if text_upto_cursor[-1] != ".":
+        text_upto_cursor = self.monitor_file_buffer.lsp.get_open_file_text(
+            self.monitor_file_buffer.file_path
+        )[:cursor_idx]
+        if text_upto_cursor[-1] != '.':
             self.decoder_state = DecoderStates.S0
             return
 
@@ -91,7 +102,7 @@ class DereferencesMonitor(Monitor):
     async def maskgen(self, input_ids: List[int]) -> List[int]:
         """
         Takes the list of input tokens, and returns the list of tokens to be blacklisted in the next step
-        
+
         maskgen is invoked for every new token to be generated
         The first time it is invoked, maskgen performs the initialization
         Subsequent invocations are handled based on the current state of the decoder
@@ -109,9 +120,14 @@ class DereferencesMonitor(Monitor):
         else:
             # A new token has been generated. Handle the new token by calling update
             gen_so_far = self.tokenizer.decode(
-                input_ids[self.prompt_len :], clean_up_tokenization_spaces=False, skip_special_tokens=True
+                input_ids[self.prompt_len :],
+                clean_up_tokenization_spaces=False,
+                skip_special_tokens=True,
             )
-            assert gen_so_far.startswith(self.monitor_file_buffer.gen_text), (gen_so_far, self.monitor_file_buffer.gen_text)
+            assert gen_so_far.startswith(self.monitor_file_buffer.gen_text), (
+                gen_so_far,
+                self.monitor_file_buffer.gen_text,
+            )
             assert input_text.endswith(gen_so_far)
             new_gen_text = gen_so_far[len(self.monitor_file_buffer.gen_text) :]
 
@@ -131,15 +147,25 @@ class DereferencesMonitor(Monitor):
                 # If a token contains part of the end of an identifier followed by some breaking characters, then we allow it
                 # allow decoding of tokens like 'abc<', basically tokens that span identifier boundaries
                 if self.tokenizer.vocab_trie.has_node(legal_suffix) != 0:
-                    for suffix_token, suffix_token_id in self.tokenizer.vocab_trie.iteritems(prefix=legal_suffix):
-                        if suffix_token[len(legal_suffix) : len(legal_suffix) + 1] in self.all_break_chars:
+                    for (
+                        suffix_token,
+                        suffix_token_id,
+                    ) in self.tokenizer.vocab_trie.iteritems(prefix=legal_suffix):
+                        if (
+                            suffix_token[len(legal_suffix) : len(legal_suffix) + 1]
+                            in self.all_break_chars
+                        ):
                             possible_token_ids.add(suffix_token_id)
 
                 # If a token is a prefix of the remaining suffix, then we allow it
-                for suffix_token, suffix_token_id in self.tokenizer.vocab_trie.prefixes(legal_suffix):
+                for suffix_token, suffix_token_id in self.tokenizer.vocab_trie.prefixes(
+                    legal_suffix
+                ):
                     possible_token_ids.add(suffix_token_id)
 
-            blacklisted_ids = [i for i in self.tokenizer.all_token_ids if i not in possible_token_ids]
+            blacklisted_ids = [
+                i for i in self.tokenizer.all_token_ids if i not in possible_token_ids
+            ]
         else:
             blacklisted_ids = []
 
@@ -158,11 +184,13 @@ class DereferencesMonitor(Monitor):
                 relative_file_path, line, column, allow_incomplete=True
             )
             legal_completions1 = [
-                completion["completionText"]
+                completion['completionText']
                 for completion in legal_completions1
-                if completion["kind"] != multilspy_types.CompletionItemKind.Keyword
+                if completion['kind'] != multilspy_types.CompletionItemKind.Keyword
             ]
-            lsp_text = self.monitor_file_buffer.lsp.get_open_file_text(relative_file_path)
+            lsp_text = self.monitor_file_buffer.lsp.get_open_file_text(
+                relative_file_path
+            )
             request_idx = TextUtils.get_index_from_line_col(lsp_text, line, column)
             opening_bracket_stream = PLUtils.get_opening_bracket_stream(
                 lsp_text[:request_idx], self.monitor_file_buffer.language
@@ -178,37 +206,51 @@ class DereferencesMonitor(Monitor):
 
             err = False
             for j in range(len(closing_bracket_stream)):
-                if closing_bracket_stream[-j - 1] == "}" and opening_bracket_stream[j] != "{":
+                if (
+                    closing_bracket_stream[-j - 1] == '}'
+                    and opening_bracket_stream[j] != '{'
+                ):
                     err = True
                     break
-                elif closing_bracket_stream[-j - 1] == ")" and opening_bracket_stream[j] != "(":
+                elif (
+                    closing_bracket_stream[-j - 1] == ')'
+                    and opening_bracket_stream[j] != '('
+                ):
                     err = True
                     break
-                elif closing_bracket_stream[-j - 1] == "]" and opening_bracket_stream[j] != "[":
+                elif (
+                    closing_bracket_stream[-j - 1] == ']'
+                    and opening_bracket_stream[j] != '['
+                ):
                     err = True
                     break
 
             if err:
                 return legal_completions1
 
-            opening_bracket_stream = opening_bracket_stream[len(closing_bracket_stream) :]
+            opening_bracket_stream = opening_bracket_stream[
+                len(closing_bracket_stream) :
+            ]
             remaining_close_brackets = list(
-                map(lambda x: "}" if x == "{" else (")" if x == "(" else "]"), opening_bracket_stream)
+                map(
+                    lambda x: '}' if x == '{' else (')' if x == '(' else ']'),
+                    opening_bracket_stream,
+                )
             )[::-1]
 
-            insert_text = "".join(remaining_close_brackets)
+            insert_text = ''.join(remaining_close_brackets)
             updated_cursor = self.monitor_file_buffer.lsp.insert_text_at_position(
                 relative_file_path, line, column, insert_text
             )
-            assert updated_cursor["line"] == line
-            assert updated_cursor["character"] == column + len(insert_text)
+            assert updated_cursor['line'] == line
+            assert updated_cursor['character'] == column + len(insert_text)
             legal_completions2 = await self.monitor_file_buffer.lsp.request_completions(
                 relative_file_path, line, column, allow_incomplete=True
             )
             legal_completions2 = [
-                completion["completionText"]
+                completion['completionText']
                 for completion in legal_completions2
-                if completion["kind"] != multilspy_types.CompletionItemKind.Keyword
+                if completion['kind'] != multilspy_types.CompletionItemKind.Keyword
             ]
 
             deleted_text = self.monitor_file_buffer.lsp.delete_text_between_positions(

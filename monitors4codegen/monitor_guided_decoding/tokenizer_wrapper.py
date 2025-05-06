@@ -1,5 +1,5 @@
 """
-This file provides the tokenizer wrapper that is used to provide a common interface over 
+This file provides the tokenizer wrapper that is used to provide a common interface over
 HF tokenizers and TikToken tokenizers
 """
 
@@ -16,7 +16,9 @@ class TokenizerWrapper:
     This class provides a common interface over HF tokenizers and TikToken tokenizers
     """
 
-    def __init__(self, tokenizer: Union[PreTrainedTokenizerBase, tiktoken.core.Encoding]):
+    def __init__(
+        self, tokenizer: Union[PreTrainedTokenizerBase, tiktoken.core.Encoding]
+    ):
         """
         Initializes the tokenizer wrapper
         """
@@ -51,12 +53,15 @@ class HFTokenizerWrapper(TokenizerWrapper):
     """
     This class provides an instance of TokenizerWrapper for HF tokenizers
     """
+
     def __init__(self, tokenizer: PreTrainedTokenizerBase):
         super().__init__(tokenizer)
         self.__dict__.update(tokenizer.__dict__)
         for k, v in tokenizer.vocab.items():
-            decoded_token = tokenizer.decode(v, clean_up_tokenization_spaces=False, skip_special_tokens=True)
-            if decoded_token != "":
+            decoded_token = tokenizer.decode(
+                v, clean_up_tokenization_spaces=False, skip_special_tokens=True
+            )
+            if decoded_token != '':
                 self.tokenizer_char_set.update(decoded_token)
                 self.vocab_trie[decoded_token] = v
         self.all_token_ids = set(tokenizer.vocab.values())
@@ -84,15 +89,19 @@ class TikTokenWrapper(TokenizerWrapper):
     """
     This class provides an instance of TokenizerWrapper for TikToken tokenizers
     """
+
     def __init__(self, tokenizer: tiktoken.core.Encoding):
         super().__init__(tokenizer)
 
         assert len(tokenizer.special_tokens_set) == 1
-        self.all_special_ids = {tokenizer.encode_single_token(token) for token in tokenizer.special_tokens_set}
+        self.all_special_ids = {
+            tokenizer.encode_single_token(token)
+            for token in tokenizer.special_tokens_set
+        }
         for k_ in tokenizer.token_byte_values():
             v = tokenizer.encode_single_token(k_)
             decoded_token = tokenizer.decode([tokenizer.encode_single_token(k_)])
-            if decoded_token != "":
+            if decoded_token != '':
                 self.tokenizer_char_set.update(decoded_token)
                 self.vocab_trie[decoded_token] = v
                 self.all_token_ids.add(v)
@@ -110,9 +119,11 @@ class TikTokenWrapper(TokenizerWrapper):
             skip_special_tokens, clean_up_tokenization_spaces = args[0], args[1]
 
         if clean_up_tokenization_spaces is None:
-            clean_up_tokenization_spaces = kwargs.get("clean_up_tokenization_spaces", True)
+            clean_up_tokenization_spaces = kwargs.get(
+                'clean_up_tokenization_spaces', True
+            )
         if skip_special_tokens is None:
-            skip_special_tokens = kwargs.get("skip_special_tokens", False)
+            skip_special_tokens = kwargs.get('skip_special_tokens', False)
 
         assert not clean_up_tokenization_spaces
         assert skip_special_tokens
@@ -133,4 +144,4 @@ class TikTokenWrapper(TokenizerWrapper):
         """
         Converts the given list of tokens to a string
         """
-        return "".join(x)
+        return ''.join(x)

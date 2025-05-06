@@ -5,15 +5,17 @@ import glob
 import csv
 import os
 
-codebase = Codebase(["data/pi--innovo-large-scale/src"])
+codebase = Codebase(['data/pi--innovo-large-scale/src'])
 
 functions = codebase.get_all_functions()
 
 requirements = []
-with open('data/pi--innovo-large-scale/vcast/rgw/low_level_requirements.csv', 'r') as csvfile:
+with open(
+    'data/pi--innovo-large-scale/vcast/rgw/low_level_requirements.csv', 'r'
+) as csvfile:
     reader = csv.DictReader(csvfile)
     requirements = list(reader)
-print(f"Loaded {len(requirements)} requirements")
+print(f'Loaded {len(requirements)} requirements')
 
 
 def get_unit_for_env(env_file_path):
@@ -27,16 +29,20 @@ def get_unit_for_env(env_file_path):
 
 
 unit_to_env = {}
-for env_file in glob.glob("data/pi--innovo-large-scale/vcast/**/build/*/*.env", recursive=True):
+for env_file in glob.glob(
+    'data/pi--innovo-large-scale/vcast/**/build/*/*.env', recursive=True
+):
     unit_name = get_unit_for_env(env_file)
     if unit_name:
         unit_to_env[unit_name] = env_file
+
 
 def get_env_for_func(func_def):
     unit_name = os.path.basename(func_def['file']).split('.')[0]
 
     if unit_name in unit_to_env:
         return unit_to_env[unit_name]
+
 
 # req files for each env
 
@@ -47,10 +53,13 @@ for func in functions:
     if env_file:
         env_funcs[env_file].append(func)
 
+
 def get_reqs_for_func(func_def):
     func_name = func_def['name']
     code = func_def['definition']
-    module = os.path.basename(func_def['file']).replace('.cpp', '').replace('.c', '').title()
+    module = (
+        os.path.basename(func_def['file']).replace('.cpp', '').replace('.c', '').title()
+    )
 
     raw_reqs = []
     for req in requirements:
@@ -60,22 +69,25 @@ def get_reqs_for_func(func_def):
     reqs = []
     for i, raw_req in enumerate(raw_reqs):
         req_id = func_name + '.' + str(i + 1)
-        reqs.append({
-            'Key': req_id,
-            'ID': req_id,
-            'Module': module,
-            'Title': raw_req['Text'],
-            'Description': raw_req['Text'],
-            'Function': func_name
-        })
+        reqs.append(
+            {
+                'Key': req_id,
+                'ID': req_id,
+                'Module': module,
+                'Title': raw_req['Text'],
+                'Description': raw_req['Text'],
+                'Function': func_name,
+            }
+        )
 
     return reqs
+
 
 non_empty_envs = []
 for env_file, funcs in env_funcs.items():
     env_folder = os.path.dirname(env_file)
     env_name = os.path.basename(env_folder)
-    
+
     env_reqs = []
     for func in funcs:
         env_reqs.extend(get_reqs_for_func(func))
@@ -89,6 +101,6 @@ for env_file, funcs in env_funcs.items():
                 writer.writerow(req)
 
         non_empty_envs.append(env_name)
-        
-        
+
+
 print(non_empty_envs)

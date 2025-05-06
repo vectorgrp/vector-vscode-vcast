@@ -10,6 +10,7 @@ from typing import List, Union
 from transformers import LogitsProcessor
 from monitors4codegen.monitor_guided_decoding.monitor import Monitor
 
+
 class MGDLogitsProcessor(LogitsProcessor):
     """
     Provides the logits processor for monitor guided decoding
@@ -17,7 +18,9 @@ class MGDLogitsProcessor(LogitsProcessor):
 
     loop: AbstractEventLoop
 
-    def __init__(self, monitors: List[Monitor], loop: Union[None, AbstractEventLoop] = None) -> None:
+    def __init__(
+        self, monitors: List[Monitor], loop: Union[None, AbstractEventLoop] = None
+    ) -> None:
         super().__init__()
 
         if loop is None:
@@ -33,15 +36,24 @@ class MGDLogitsProcessor(LogitsProcessor):
         """
         Asynchronously processes the scores for a single input id using the MGD framework
         """
-        blacklisted_ids: List[int] = await self.monitors[segment_idx].maskgen(input_ids.tolist())
+        blacklisted_ids: List[int] = await self.monitors[segment_idx].maskgen(
+            input_ids.tolist()
+        )
         output_scores: torch.FloatTensor = torch.where(
-            torch.tensor([True if i in blacklisted_ids else False for i in range(scores.shape[0])]).to(scores.device),
-            float("-inf") * torch.ones(scores.shape[0]).to(scores.device),
+            torch.tensor(
+                [
+                    True if i in blacklisted_ids else False
+                    for i in range(scores.shape[0])
+                ]
+            ).to(scores.device),
+            float('-inf') * torch.ones(scores.shape[0]).to(scores.device),
             scores,
         ).to(scores)
         return output_scores
 
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+    def __call__(
+        self, input_ids: torch.LongTensor, scores: torch.FloatTensor
+    ) -> torch.FloatTensor:
         """
         This method is called by the HuggingFace decoder, for every token generation with
         the input_ids (seen so far including prompt) and scores (for the next token).
@@ -53,7 +65,9 @@ class MGDLogitsProcessor(LogitsProcessor):
 
         async def f(input_ids_arg: torch.LongTensor, scores_arg: torch.FloatTensor):
             new_score_coroutines = [
-                self.process_scores_for_single_input_id(i, input_ids_arg[i], scores_arg[i])
+                self.process_scores_for_single_input_id(
+                    i, input_ids_arg[i], scores_arg[i]
+                )
                 for i in range(input_ids_arg.shape[0])
             ]
             new_scores = await asyncio.gather(*new_score_coroutines)

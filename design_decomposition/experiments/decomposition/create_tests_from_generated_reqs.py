@@ -9,19 +9,33 @@ import charset_normalizer
 # Import TestGenerator and RequirementReference
 from test_generation.generation import TestGenerator
 from codebase.extraction import RequirementReference
+
 # Import TestEnvironmentManager
 from test_generation.environment import TestEnvironmentManager
 
+
 def main():
     parser = argparse.ArgumentParser(description='Generate tests from requirements.')
-    parser.add_argument('requirements', nargs='?', default='DrvI2c/generated_reqs.json',
-                        help='Path to the requirements JSON file.')
-    parser.add_argument('--limit', '-n', type=int, help='Number of requirements to sample.')
+    parser.add_argument(
+        'requirements',
+        nargs='?',
+        default='DrvI2c/generated_reqs.json',
+        help='Path to the requirements JSON file.',
+    )
+    parser.add_argument(
+        '--limit', '-n', type=int, help='Number of requirements to sample.'
+    )
     parser.add_argument('--output_file', '-o', help='Output file path.')
-    parser.add_argument('--source_dirs', nargs='+',
-                        help='List of source directories to search for function definitions.')
+    parser.add_argument(
+        '--source_dirs',
+        nargs='+',
+        help='List of source directories to search for function definitions.',
+    )
     # Add argument for requirement references file
-    parser.add_argument('--requirement_references', help='Path to a file containing requirement references.')
+    parser.add_argument(
+        '--requirement_references',
+        help='Path to a file containing requirement references.',
+    )
     # Add argument for environments path
     parser.add_argument('--envs_path', help='Path to environments directory.')
     args = parser.parse_args()
@@ -54,13 +68,20 @@ def main():
     # Load requirement references
     with open(args.requirement_references) as f:
         requirement_references_data = json.load(f)
-        requirement_references = [RequirementReference(**ref) for ref in requirement_references_data]
+        requirement_references = [
+            RequirementReference(**ref) for ref in requirement_references_data
+        ]
 
     # Instantiate TestEnvironmentManager
     env_manager = TestEnvironmentManager(args.envs_path)
 
     # Instantiate TestGenerator with environment manager
-    test_generator = TestGenerator(requirements, requirement_references, args.source_dirs, environment_manager=env_manager)
+    test_generator = TestGenerator(
+        requirements,
+        requirement_references,
+        args.source_dirs,
+        environment_manager=env_manager,
+    )
 
     # Generate tests and save to output file
     with open(args.output_file, 'w') as output_file:
@@ -101,11 +122,14 @@ def main():
                         output_file.write('Execution Output:\n')
                         output_file.write(output + '\n')
                     else:
-                        output_file.write('No suitable environment found for execution.\n')
+                        output_file.write(
+                            'No suitable environment found for execution.\n'
+                        )
                 output_file.write('=' * 40 + '\n')
             else:
                 output_file.write(f'Could not generate test for {requirement_id}\n')
                 output_file.write('=' * 40 + '\n')
+
 
 if __name__ == '__main__':
     main()

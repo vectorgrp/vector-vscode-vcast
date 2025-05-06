@@ -11,5 +11,5 @@ def create_identifier_type(allowed_identifiers=None):
         class TempEnum(str, Enum):
             pass
 
-        return TempEnum("Identifier", [(ident, ident) for ident in allowed_identifiers])
+        return TempEnum('Identifier', [(ident, ident) for ident in allowed_identifiers])
     return str

@@ -23,16 +23,24 @@ def paths_to_files(paths, file_extensions=['c']):
         if os.path.isfile(path):
             files.add(path)
         else:
-            files |= set(p for ext in file_extensions for p in glob.glob(os.path.join(path, '**', '*') + '.' + ext, recursive=True))
+            files |= set(
+                p
+                for ext in file_extensions
+                for p in glob.glob(
+                    os.path.join(path, '**', '*') + '.' + ext, recursive=True
+                )
+            )
 
     return files
 
 
 class TempCopy:
-    def __init__(self, source_path: str, transform: Optional[Callable[[str], str]] = None):
+    def __init__(
+        self, source_path: str, transform: Optional[Callable[[str], str]] = None
+    ):
         """
         Context manager that creates a temporary copy of a file with optional content transformation.
-        
+
         Args:
             source_path (str): Path to the source file to copy
             transform (Callable[[str], str], optional): Function to transform the file contents
@@ -46,11 +54,11 @@ class TempCopy:
         source_dir = os.path.dirname(self.source_path)
         source_name = os.path.basename(self.source_path)
         base, ext = os.path.splitext(source_name)
-        
+
         # Find a unique filename by appending numbers
         counter = 1
         while True:
-            temp_name = f"{base}_temp_{counter}{ext}"
+            temp_name = f'{base}_temp_{counter}{ext}'
             self.temp_path = os.path.join(source_dir, temp_name)
             if not os.path.exists(self.temp_path):
                 break
@@ -74,16 +82,16 @@ class TempCopy:
 def replace_func_and_var(code: str):
     FUNC_REGEX = re.compile(r'FUNC\((\w+?), ?\w+?\)')
     VAR_REGEX = re.compile(r'VAR\((\w+?), ?\w+?\)')
-    
+
     def replace(match):
         return match.group(1)
-    
+
     code = FUNC_REGEX.sub(replace, code)
     code = VAR_REGEX.sub(replace, code)
-    
+
     return code
 
-    
+
 import os
 import json
 from typing import Callable, Dict, Optional
@@ -96,30 +104,26 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 from appdirs import user_cache_dir
 
-def ensure_env(
-    required_keys,
-    fallback,
-    force_fallback = False
-):
+
+def ensure_env(required_keys, fallback, force_fallback=False):
     global ENV_STORE
-    
+
     result = {}
     for key in required_keys:
         result[key] = ENV_STORE.load(
-            key,
-            (lambda k=key: fallback(k)) if fallback else None,
-            force_fallback
+            key, (lambda k=key: fallback(k)) if fallback else None, force_fallback
         )
 
     for key, value in result.items():
         os.environ[key] = value
-    
+
     return result
+
 
 class EnvStore:
     def __init__(self):
         self._cache_dir = Path(user_cache_dir(APP_NAME))
-        self._cache_file = self._cache_dir / "env_cache.enc"
+        self._cache_file = self._cache_dir / 'env_cache.enc'
         self._cache: Dict[str, str] = {}
         self._fernet = self._setup_encryption()
         self._load_cache()
@@ -128,7 +132,7 @@ class EnvStore:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=b"secure_env_manager_salt",
+            salt=b'secure_env_manager_salt',
             iterations=100000,
         )
         key = base64.urlsafe_b64encode(kdf.derive(APP_NAME.encode()))
@@ -149,11 +153,11 @@ class EnvStore:
         self._cache_file.write_bytes(encrypted)
 
     def load(
-        self, 
-        key: str, 
+        self,
+        key: str,
         fallback: Optional[Callable[[], str]] = None,
         force_fallback: bool = False,
-        allow_from_env: bool = True
+        allow_from_env: bool = True,
     ) -> str:
         if not force_fallback:
             # Check actual environment first
@@ -183,6 +187,7 @@ class EnvStore:
         if self._cache_file.exists():
             self._cache_file.unlink()
 
+
 ENV_STORE = EnvStore()
 
 
@@ -196,5 +201,5 @@ def parse_code(code):
 
     tree = parser.parse(bytes(code, 'utf-8'))
     root_node = tree.root_node
-    
+
     return root_node

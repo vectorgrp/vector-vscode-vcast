@@ -4,26 +4,26 @@ from pydantic import BaseModel
 from design_decomposition.shared_models import DesignDecompositionResult
 from design_decomposition.strategy.decomposition_strategy import DecompositionStrategy
 
+
 class DesignDecompositionResultWithPseudocode(BaseModel):
     pseudo_code_output: str
     requirements: List[str]
 
     @property
     def without_code(self):
-        return DesignDecompositionResult(
-            requirements=self.requirements
-        )
+        return DesignDecompositionResult(requirements=self.requirements)
+
 
 class PseudocodeDecompositionStrategy(DecompositionStrategy):
     def decompose(self, func_def, n=1, return_messages=False):
         messages = [
             {
-                "role": "system",
-                "content": "You are an AI assistant proficient in requirements engineering."
+                'role': 'system',
+                'content': 'You are an AI assistant proficient in requirements engineering.',
             },
             {
-                "role": "user",
-                "content": f"""
+                'role': 'user',
+                'content': f"""
 Derive a complete list of functional requirements for the given function definition.
 
 You are given the following inputs:
@@ -88,12 +88,12 @@ if __name__ == "__main__":
 ```
 
 The success of this task is critical. The purpose is to derive unit tests, exactly one per requirement, that will test the behaviour of the code path described in the final requirements.
-"""
-            }
+""",
+            },
         ]
 
         completion = self.client.beta.chat.completions.parse(
-            model="gpt-4o",
+            model='gpt-4o',
             messages=messages,
             response_format=DesignDecompositionResultWithPseudocode,
             temperature=0.0 if n == 1 else 0.5,
@@ -102,7 +102,10 @@ The success of this task is critical. The purpose is to derive unit tests, exact
             max_tokens=5000,
         )
 
-        decomposition_results = [choice.message.parsed.without_code.without_requirement_indices for choice in completion.choices]
+        decomposition_results = [
+            choice.message.parsed.without_code.without_requirement_indices
+            for choice in completion.choices
+        ]
 
         if return_messages:
             return decomposition_results, messages

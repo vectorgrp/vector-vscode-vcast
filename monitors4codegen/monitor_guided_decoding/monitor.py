@@ -9,6 +9,7 @@ from monitors4codegen.multilspy.multilspy_config import Language
 from dataclasses import dataclass
 from monitors4codegen.multilspy.multilspy_utils import TextUtils
 
+
 @dataclass
 class MonitorFileBuffer:
     """
@@ -20,20 +21,26 @@ class MonitorFileBuffer:
     prompt_lc: Tuple[int, int]
     current_lc: Tuple[int, int]
     language: Language
-    gen_text: str = ""
+    gen_text: str = ''
 
     def append_text(self, text: str):
         """
         Appends the given text to the prompt file and returns the new line and character
         """
         current_lc_index = TextUtils.get_index_from_line_col(
-            self.lsp.get_open_file_text(self.file_path), self.current_lc[0], self.current_lc[1]
+            self.lsp.get_open_file_text(self.file_path),
+            self.current_lc[0],
+            self.current_lc[1],
         )
-        new_lc = self.lsp.insert_text_at_position(self.file_path, self.current_lc[0], self.current_lc[1], text)
-        self.current_lc = (new_lc["line"], new_lc["character"])
+        new_lc = self.lsp.insert_text_at_position(
+            self.file_path, self.current_lc[0], self.current_lc[1], text
+        )
+        self.current_lc = (new_lc['line'], new_lc['character'])
         self.gen_text += text
         assert current_lc_index + len(text) == TextUtils.get_index_from_line_col(
-            self.lsp.get_open_file_text(self.file_path), self.current_lc[0], self.current_lc[1]
+            self.lsp.get_open_file_text(self.file_path),
+            self.current_lc[0],
+            self.current_lc[1],
         )
 
 
@@ -42,7 +49,12 @@ class Monitor:
     Provides the definition of a monitor as per the Monitor-Guided Decoding framework
     """
 
-    def __init__(self, tokenizer: TokenizerWrapper, monitor_file_buffer: MonitorFileBuffer, responsible_for_file_buffer_state: bool = True) -> None:
+    def __init__(
+        self,
+        tokenizer: TokenizerWrapper,
+        monitor_file_buffer: MonitorFileBuffer,
+        responsible_for_file_buffer_state: bool = True,
+    ) -> None:
         self.tokenizer = tokenizer
         self.monitor_file_buffer = monitor_file_buffer
         self.responsible_for_file_buffer_state = responsible_for_file_buffer_state

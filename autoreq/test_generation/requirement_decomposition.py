@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 from typing import List, Union
@@ -12,17 +11,26 @@ class DecomposedRequirement(BaseModel):
     original_requirement_index: int
     atomic_requirements: List[str]
 
+
 class RequirementDescription(BaseModel):
     nonatomic_requirements: List[DecomposedRequirement]
 
+
 async def decompose_requirements(requirements, llm_client=LLMClient()):
     try:
-        requirements_text = "\n".join(f"{i+1}. " + r for i, r in enumerate(requirements))
+        requirements_text = '\n'.join(
+            f'{i + 1}. ' + r for i, r in enumerate(requirements)
+        )
 
         result = await llm_client.call_model(
             messages=[
-                {"role": "system", "content": "You are a world-class software engineer specializing in requirements engineering."},
-                {"role": "user", "content": f"""
+                {
+                    'role': 'system',
+                    'content': 'You are a world-class software engineer specializing in requirements engineering.',
+                },
+                {
+                    'role': 'user',
+                    'content': f"""
 Find non-atomic requirements in the given set of requirements and decompose them.
 
 An atomic requirement is a singular, verifiable, and testable statement. It can be be directly validated by a single test case, following a unique execution path in the software.
@@ -50,24 +58,26 @@ Your final answer must strictly adhere to the following model. Return your outpu
 Exceptions:
 Sometimes there are multiple test conditions that need to be checked to validate a single requirement but this is possible using a single test case, i.e., a single run of the function with some inputs and expected outputs is sufficient.
 In such cases, the requirement should be considered atomic and therefore not added to the output (even though it is technically composed of multiple test conditions).
-"""
-                }
+""",
+                },
             ],
             schema=RequirementDescription,
-            extended_reasoning=True
+            extended_reasoning=True,
         )
     except openai.BadRequestError as e:
-        logging.error(f"Bad request error: {e}")
+        logging.error(f'Bad request error: {e}')
         return requirements
 
-    req_mapping = {req.original_requirement_index: req.atomic_requirements for req in result.nonatomic_requirements}
+    req_mapping = {
+        req.original_requirement_index: req.atomic_requirements
+        for req in result.nonatomic_requirements
+    }
 
     decomposed_requirements = []
     for i, unprocessed_requirement in enumerate(requirements):
         decomposed_requirements.append(
-            req_mapping.get(i+1, [unprocessed_requirement])
+            req_mapping.get(i + 1, [unprocessed_requirement])
         )
-
 
     return decomposed_requirements
 

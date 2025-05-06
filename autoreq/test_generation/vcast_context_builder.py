@@ -19,7 +19,7 @@ class VcastContextBuilder:
             assert len(self.environment.units) == 1
             unit_name = self.environment.units[0]
 
-            context = f"// Unit: {unit_name}\n\n{context}"
+            context = f'// Unit: {unit_name}\n\n{context}'
 
         if return_used_fallback:
             return context, used_fallback
@@ -47,19 +47,19 @@ class VcastContextBuilder:
                 self.cache[function_name] = (llm_context, True)
                 return llm_context, True
 
-            return self.environment.get_tu_content(reduction_level="high"), True
+            return self.environment.get_tu_content(reduction_level='high'), True
 
     async def _reduce_context_llm(self, function_name):
-        context = self.environment.get_tu_content(reduction_level="medium")
-        if len(context) > 1000000 or len(context.split("\n")) > 1000:
-            context = self.environment.get_tu_content(reduction_level="high")
+        context = self.environment.get_tu_content(reduction_level='medium')
+        if len(context) > 1000000 or len(context.split('\n')) > 1000:
+            context = self.environment.get_tu_content(reduction_level='high')
 
         search_engine = SearchEngine(context)
         reduced_context = await search_engine.search(
-            f"Give me only the relevant code to test this function: {function_name}. "
-            "Include all necessary transitive dependencies in terms of type definitions, "
-            "called functions, etc. but not anything else. Also include the name of "
-            "the file where the code is located."
+            f'Give me only the relevant code to test this function: {function_name}. '
+            'Include all necessary transitive dependencies in terms of type definitions, '
+            'called functions, etc. but not anything else. Also include the name of '
+            'the file where the code is located.'
         )
 
         return reduced_context
@@ -82,13 +82,13 @@ class VcastContextBuilder:
         reduced_context = []
 
         reduced_context.append(
-            "// Definitions of types, called functions and data structures:"
+            '// Definitions of types, called functions and data structures:'
         )
         for definition, _ in definition_groups.items():
-            reduced_context.append(f"\n{definition}")
+            reduced_context.append(f'\n{definition}')
 
         reduced_context.append(
-            f"\n// Code for {function_name}:\n{codebase.find_definitions_by_name(function_name)[0]}"
+            f'\n// Code for {function_name}:\n{codebase.find_definitions_by_name(function_name)[0]}'
         )
 
-        return "\n".join(reduced_context)
+        return '\n'.join(reduced_context)

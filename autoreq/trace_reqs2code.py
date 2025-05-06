@@ -20,11 +20,11 @@ class Reqs2CodeMapper:
                 env_path=input_env_path,
             )
             self.current_env_synthetic_requirements_mapping[input_env_path] = {
-                requirement_info["Description"]: requirement_info["Function"]
+                requirement_info['Description']: requirement_info['Function']
                 for requirement_info in current_env_generated_requirements
             }
         except Exception as e:
-            print(f"Error generating requirements for {input_env_path}: {e}")
+            print(f'Error generating requirements for {input_env_path}: {e}')
             self.current_env_synthetic_requirements_mapping[input_env_path] = {}
 
         return self.current_env_synthetic_requirements_mapping
@@ -55,12 +55,12 @@ class Reqs2CodeMapper:
         """
             task_prompt = task_prompt[: 14000 * 4] + final_instruction_text
 
-        corresponding_function = ""
+        corresponding_function = ''
         try:
             message: CorrespondingFunction = await self.current_llm_client.call_model(
                 messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": task_prompt},
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': task_prompt},
                 ],
                 schema=CorrespondingFunction,
                 temperature=0,
@@ -68,8 +68,8 @@ class Reqs2CodeMapper:
             )
             corresponding_function = message.corresponding_function
         except Exception as e:
-            print(f"Error processing requirement {req}: {e}")
-            print("Defaulting to first function in mapping")
+            print(f'Error processing requirement {req}: {e}')
+            print('Defaulting to first function in mapping')
             corresponding_function = list(
                 self.current_env_synthetic_requirements_mapping[input_env_path].values()
             )[0]
@@ -89,7 +89,7 @@ class Reqs2CodeMapper:
     async def map_reqs_to_code_for_env(self, input_env_path, real_requirements):
         synthetic_reqs = await self._generate_requirements_for_env(input_env_path)
         if not synthetic_reqs:
-            print(f"No synthetic requirements generated for {input_env_path}")
+            print(f'No synthetic requirements generated for {input_env_path}')
             return {}
         req2func_mappings = await self._process_all_requirements(
             real_requirements, input_env_path

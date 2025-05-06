@@ -45,7 +45,7 @@ jobs:
         id: cache-venv-restore
         with:
           path: ${{ env.VCAST_USER_HOME }}/.venv/
-          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
 
       - name: Setup Python virtual environment
         if: steps.cache-venv-restore.outputs.cache-hit != 'true'
@@ -62,7 +62,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.VCAST_USER_HOME }}/.venv/
-          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
 
       - name: Reqs2tests distribution
         run: |

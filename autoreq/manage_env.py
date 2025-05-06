@@ -2,8 +2,11 @@ import argparse
 import json
 from autoreq.util import ENV_STORE
 
+
 def cli():
-    parser = argparse.ArgumentParser(description='Manage encrypted environment variables')
+    parser = argparse.ArgumentParser(
+        description='Manage encrypted environment variables'
+    )
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
 
     # Set command
@@ -25,29 +28,30 @@ def cli():
 
     if args.command == 'set':
         ENV_STORE.store(args.key, args.value)
-        print(f"Stored value for {args.key}")
-    
+        print(f'Stored value for {args.key}')
+
     elif args.command == 'get':
         try:
             value = ENV_STORE.load(args.key)
             print(value)
         except KeyError:
-            print(f"No value found for {args.key}")
+            print(f'No value found for {args.key}')
             exit(1)
-    
+
     elif args.command == 'list':
         try:
             print(json.dumps(ENV_STORE._cache, indent=2))
         except Exception as e:
-            print(json.dumps({"error": str(e)}))
+            print(json.dumps({'error': str(e)}))
             exit(1)
-    
+
     elif args.command == 'clear':
         ENV_STORE.clear()
-        print("Cleared all stored variables")
-    
+        print('Cleared all stored variables')
+
     else:
         parser.print_help()
+
 
 if __name__ == '__main__':
     cli()
