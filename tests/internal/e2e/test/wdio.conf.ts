@@ -462,6 +462,8 @@ export const config: Options.Testrunner = {
       if (toolVersion >= 24) {
         const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
         await executeCommand(setCoded);
+        const setCoverage = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_COVERAGE_SOURCE_FILE_PERSPECTIVE FALSE`;
+        await executeCommand(setCoverage);
       }
     }
 
