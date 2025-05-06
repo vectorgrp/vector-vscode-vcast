@@ -56,7 +56,16 @@ def entry_exit_decorator(func):
 class PerLineMcdc(McdcTables):
     @entry_exit_decorator
     def prepare_data(self):
-        super()._McdcTables__prepare_tu_data()
+         # get a handle to the parent class’s methods
+        parent = super(PerLineMcdc, self)
+
+        # If the newer private TU‑prep exists, call it…
+        if hasattr(parent, "_McdcTables__prepare_tu_data") and callable(parent._McdcTables__prepare_tu_data):
+            parent._McdcTables__prepare_tu_data()
+
+        # …otherwise fall back to the classic prepare_data
+        else:
+            parent.prepare_data()
 
 
 # EOF
