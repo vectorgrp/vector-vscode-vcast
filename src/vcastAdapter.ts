@@ -507,15 +507,32 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
     `Calling vcast with args: ${vcastCommandToUse} ${vcastArgs.join(" ")}`
   );
   // we use spawn directly to control the detached and shell args
-  let vcast = spawn(vcastCommandToUse, vcastArgs, {
+  const vcast = spawn(vcastCommandToUse, vcastArgs, {
     cwd: enclosingDirectory,
     detached: true,
     shell: true,
     windowsHide: true,
   });
+
+  vcast.stdout.on("data", (data) => {
+    vectorMessage(`stdout: ${data.toString()}`);
+  });
+
+  vcast.stderr.on("data", (data) => {
+    vectorMessage(`stderr: ${data.toString()}`);
+  });
+
+  vcast.on("error", (err) => {
+    vectorMessage(`Failed to start VectorCAST process: ${err.message}`);
+  });
+
   vcast.on("exit", function (code: any) {
+    if (code !== 0) {
+      vectorMessage(`VectorCAST exited with error code: ${code}`);
+    } else {
+      vectorMessage("VectorCAST exited successfully.");
+    }
     callback(enviroPath);
-    vectorMessage("Exiting VecotrCAST GUI with code: " + code);
   });
 }
 
