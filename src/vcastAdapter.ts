@@ -9,9 +9,12 @@ import {
   deleteEnvironmentCallback,
 } from "./callbacks";
 
+import { updateProjectData } from "./manage/manageSrc/manageCommands";
+
 import { openMessagePane, vectorMessage } from "./messagePane";
 
 import {
+  environmentDataCache,
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
   getEnviroNameFromID,
@@ -29,11 +32,13 @@ import {
   executeVPythonScript,
   executeWithRealTimeEcho,
   getJsonDataFromTestInterface,
+  executeWithRealTimeEchoWithProgress,
 } from "./vcastCommandRunner";
 
 import {
   atgCommandToUse,
   clicastCommandToUse,
+  manageCommandToUse,
   vcastCommandToUse,
 } from "./vcastInstallation";
 
@@ -55,6 +60,7 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import { cleanVectorcastOutput } from "../src-common/commonUtilities";
+import { refreshAllExtensionData, removeNodeFromTestPane } from "./testPane";
 
 const path = require("path");
 
@@ -120,18 +126,43 @@ export async function deleteEnvironment(
   );
 }
 
+export async function deleteLevel(projectPath: string, level: string) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const manageArgs = [
+    `-p${projectName}`,
+    `--level=${level}`,
+    `--delete`,
+    `--force`,
+  ];
+
+  const message = `Deleting ${level} from Project ${projectName} ...`;
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    message
+  );
+
+  const nodeId = path.join(projectPath, level);
+
+  await refreshAllExtensionData();
+  removeNodeFromTestPane(nodeId);
+}
+
 // Load Test Script - server logic included -----------------------------------------
 export async function loadTestScriptIntoEnvironment(
   enviroName: string,
   scriptPath: string
 ) {
+  const enviroPath = path.join(path.dirname(scriptPath), enviroName);
   // call clicast to load the test script
   let loadScriptArgs: string = `-e${enviroName} test script run ${scriptPath}`;
 
   let commandStatus: commandStatusType;
   // using server ....
   if (globalEnviroDataServerActive) {
-    const enviroPath = path.join(path.dirname(scriptPath), enviroName);
     commandStatus = await executeClicastCommandUsingServer(
       enviroPath,
       loadScriptArgs
@@ -147,7 +178,9 @@ export async function loadTestScriptIntoEnvironment(
   // will open the message pane.  If the load passes, we want to give the
   // user an indication that it worked ...
   if (commandStatus.errorCode == 0) {
+    // update project data after the script is loaded successfully
     vectorMessage("Script loaded successfully");
+    await updateProjectData(enviroPath);
     // Maybe this will be annoying to users, but I think
     // it's good to know when the load is complete.
     vscode.window.showInformationMessage(`Test script loaded successfully`);
@@ -486,6 +519,35 @@ export async function openVcastFromEnviroNode(
   });
 }
 
+export async function openProjectInVcast(
+  projectRoot: string,
+  projectName: string
+) {
+  // this returns the environment directory name without any nesting
+  let vcastArgs: string[] = ["-e " + projectName];
+
+  const projectPath = path.join(projectRoot, projectName);
+  // close any existing clicast connection to this environment
+  if (globalEnviroDataServerActive) {
+    for (let envData of environmentDataCache.values()) {
+      if (envData.projectPath === projectPath) {
+        await closeConnection(envData.buildDirectory);
+      }
+    }
+  }
+
+  // we use spawn directly to control the detached and shell args
+  let vcast = spawn(vcastCommandToUse, vcastArgs, {
+    cwd: projectRoot,
+    detached: true,
+    shell: true,
+    windowsHide: true,
+  });
+  vcast.on("exit", async function (code: any) {
+    await refreshAllExtensionData();
+  });
+}
+
 // Open VectorCAST for a .vce file ---------------------------------------------------
 // Server logic to close existing connection is included
 export async function openVcastFromVCEfile(vcePath: string, callback: any) {
@@ -516,6 +578,71 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
 // ------------------------------------------------------------------------------------
 // Direct vpython calls
 // ------------------------------------------------------------------------------------
+
+// Get Project Data ---------------------------------------------------------------
+// Server logic is in a separate function below
+export async function getDataForProject(projectFilePath: string): Promise<any> {
+  // We get back is a JSON formatted string (if the command works)
+  // with a list of environments and their attributes
+
+  // strip the .vcm extension from the project file path
+  let projectDirectoryPath = projectFilePath.slice(0, -4);
+
+  let jsonData: any;
+  if (globalEnviroDataServerActive) {
+    jsonData = await getProjectDataFromServer(projectDirectoryPath);
+  } else {
+    jsonData = getProjectDataFromPython(projectDirectoryPath);
+  }
+
+  return jsonData;
+}
+
+// vPython Logic
+function getProjectDataFromPython(projectDirectoryPath: string): any {
+  // This function will return the environment data for a single directory
+  // by calling vpython with the appropriate command
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.getProjectData,
+    projectDirectoryPath
+  );
+  let jsonData = getJsonDataFromTestInterface(
+    commandToRun,
+    projectDirectoryPath
+  );
+  return jsonData;
+}
+
+// Server Logic
+async function getProjectDataFromServer(
+  projectDirectoryPath: string
+): Promise<any> {
+  //
+  const requestObject: clientRequestType = {
+    command: vcastCommandType.getProjectData,
+    path: projectDirectoryPath,
+  };
+
+  let transmitResponse: transmitResponseType =
+    await transmitCommand(requestObject);
+
+  // transmitResponse.returnData is an object with exitCode and data properties
+  // for getProjectData we might have a version miss-match if the enviro is newer
+  // than the version of vcast we are using, so handle that here
+  if (transmitResponse.success) {
+    const returnData = transmitResponse.returnData;
+    if (returnData.exitCode == 0) {
+      return returnData.data;
+    } else {
+      vectorMessage(returnData.data.text.join("\n"));
+      return undefined;
+    }
+  } else {
+    await vectorMessage(transmitResponse.statusText);
+    openMessagePane();
+    return undefined;
+  }
+}
 
 // Get Environment Data ---------------------------------------------------------------
 // Server logic is in a separate function below
@@ -841,9 +968,6 @@ function getMCDCReportFromPython(
     commandToRun,
     enviroPath
   );
-  vectorMessage(
-    `Commandstatus: ${commandStatus.errorCode} ${commandStatus.stdout}`
-  );
   return commandStatus;
 }
 
@@ -872,9 +996,6 @@ function getMCDCCoverageLinesFromPython(enviroPath: string) {
   const commandStatus: commandStatusType = executeCommandSync(
     commandToRun,
     process.cwd()
-  );
-  vectorMessage(
-    `Commandstatus: ${commandStatus.errorCode} ${commandStatus.stdout}`
   );
   return cleanVectorcastOutput(commandStatus.stdout);
 }

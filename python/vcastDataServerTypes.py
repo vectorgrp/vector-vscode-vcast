@@ -27,6 +27,7 @@ class commandType(str, Enum):
     shutdown = "shutdown"
     closeConnection = "closeConnection"
     runClicastCommand = "runClicastCommand"
+    getProjectData = "getProjectData"
     getEnviroData = "getEnviroData"
     rebuild = "rebuild"
     executeTest = "executeTest"

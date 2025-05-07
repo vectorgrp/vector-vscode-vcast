@@ -15,3 +15,8 @@ coverage
 *.tar.gz
 *.bat
 *.sh
+
+# <— unignore webview assets
+!src/manage/webviews/html/**
+!src/manage/webviews/css/**
+!src/manage/webviews/webviewScripts/**

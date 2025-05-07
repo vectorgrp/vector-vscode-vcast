@@ -6,7 +6,7 @@ const fs = require("fs");
 
 // TBD TODAY - We switch txt to html ...
 let htmlReportPanel: vscode.WebviewPanel | undefined = undefined;
-function viewResultsReportVC(htmlFilePath: string) {
+export function viewResultsReportVC(htmlFilePath: string) {
   // The stock VectorCAST HTML reports look ugly in VS Code so
   // we do a manual edits, and color changes.
   vectorMessage(`Report file path is: ${htmlFilePath}`);

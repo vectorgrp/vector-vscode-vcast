@@ -24,6 +24,8 @@
     "vunit"
   ],
   "python.analysis.extraPaths": [
-    "${workspaceFolder}/python"
+    "${workspaceFolder}/python",
+    "c:/RDS/vector-vscode-vcast/python",
+    "c:/RDS/VectorCAST-Source/python"
   ],
 }

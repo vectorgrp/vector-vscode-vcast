@@ -23,10 +23,16 @@ import {
 
 import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
-import { updateTestPane } from "./testPane";
+import {
+  enviroListAsMapType,
+  globalProjectDataCache,
+  refreshAllExtensionData,
+  updateTestPane,
+} from "./testPane";
 
 import {
   forceLowerCaseDriveLetter,
+  normalizePath,
   openFileWithLineSelected,
   showSettings,
 } from "./utilities";
@@ -42,6 +48,13 @@ import {
 } from "./vcastAdapter";
 
 import {
+  importEnvToTestsuite,
+  updateProjectData,
+  addEnvToTestsuite,
+  createNewTestsuiteInProject,
+} from "./manage/manageSrc/manageCommands";
+
+import {
   commandStatusType,
   executeCommandSync,
   executeVPythonScript,
@@ -54,11 +67,22 @@ import {
   openTestFileAndErrors,
   testStatus,
 } from "./vcastUtilities";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../src-common/vcastServer";
 
 const fs = require("fs");
 const path = require("path");
 
 export const vcastEnviroFile = "UNITDATA.VCD";
+
+// Define the interface for project environment parameters.
+export interface ProjectEnvParameters {
+  path: string;
+  sourceFiles: string[];
+  testsuiteArgs: string[];
+}
 
 // Creating a cache for the checksums so we don't constantly re-run the command
 interface ChecksumCacheType {
@@ -632,7 +656,8 @@ function createVcastEnvironmentScript(
 function buildEnvironmentVCAST(
   fileList: string[],
   unitTestLocation: string,
-  enviroName: string
+  enviroName: string,
+  shouldBuildEnviro: boolean = true
 ) {
   // enviroName is the name of the enviro without the .env
 
@@ -650,7 +675,10 @@ function buildEnvironmentVCAST(
   // It is important that this call be done before the creation of the .env
   // Check that we have a valid configuration file, and create one if we don't
   // This function will return True if there is a CFG when it is done.
-  if (initializeConfigurationFile(unitTestLocation)) {
+  if (!shouldBuildEnviro) {
+    setCodedTestOption(unitTestLocation);
+    createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
+  } else if (initializeConfigurationFile(unitTestLocation)) {
     setCodedTestOption(unitTestLocation);
 
     createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
@@ -659,19 +687,110 @@ function buildEnvironmentVCAST(
   }
 }
 
-function configureWorkspaceAndBuildEnviro(
+/**
+ * Processes the import of an environment to a project and the creation of the first testsuite
+ * @param projectPath Path to Project file
+ * @param testSuite Testsuite string containing Compiler/TestSuite/Group
+ * @param envFilePath Path to env file
+ */
+async function processFirstTestSuite(
+  projectPath: string,
+  testSuite: string,
+  envFilePath: string
+) {
+  // Need to extract the group from the testsuite string
+  const parts = testSuite.split("/");
+  const baseDisplayName = parts.slice(0, 2).join("/");
+  await importEnvToTestsuite(projectPath, baseDisplayName, envFilePath);
+}
+
+/**
+ * Processes the creation of additional testsuites in a project and the addition of the environment to the testsuite
+ * @param projectPath Path to Project file
+ * @param testSuite Testsuite string containing Compiler/TestSuite/Group
+ * @param envName Name of the environment (The Env needs to be already imported to use this function).
+ * @param projectEnvData Data of the project environments
+ */
+async function processAdditionalTestSuite(
+  projectPath: string,
+  testSuite: string,
+  envName: string,
+  projectEnvData: enviroListAsMapType
+) {
+  // Need to extract the group from the testsuite string
+  const parts = testSuite.split("/");
+  const baseDisplayName = parts.slice(0, 2).join("/");
+
+  // Check if the testsuite already exists in the project data
+  let existsInProject = false;
+  if (projectEnvData) {
+    for (const envData of projectEnvData.values()) {
+      const existingBaseName = envData.displayName
+        .split("/")
+        .slice(0, 2)
+        .join("/");
+      if (existingBaseName === baseDisplayName) {
+        existsInProject = true;
+        break;
+      }
+    }
+  }
+  if (!existsInProject) {
+    await createNewTestsuiteInProject(projectPath, baseDisplayName);
+  }
+  await addEnvToTestsuite(projectPath, baseDisplayName, envName);
+}
+
+async function configureWorkspaceAndBuildEnviro(
   fileList: string[],
-  unitTestLocation: string
+  envLocation: string,
+  projectEnvParameters?: ProjectEnvParameters
 ) {
   // This function will check if unit test directory exists
   // and if not ask the user if we should auto-create it or not
 
-  if (fs.existsSync(unitTestLocation)) {
-    commonNewEnvironmentStuff(fileList, unitTestLocation);
+  // If we have project params, we want to create an env within a project
+  if (projectEnvParameters) {
+    // Create the environment using the provided file list
+    commonNewEnvironmentStuff(fileList, envLocation, false);
+
+    const envName = createEnvNameFromFiles(fileList);
+    const envFilePath = path.join(envLocation, `${envName}.env`);
+    const testSuites = projectEnvParameters.testsuiteArgs;
+    const projectPath = projectEnvParameters.path;
+
+    // First we need to import the Env and therefore process the first testsuite separately
+    await processFirstTestSuite(projectPath, testSuites[0], envFilePath);
+
+    // Process each additional testsuite
+    const projectEnvData = globalProjectDataCache.get(projectPath);
+    if (projectEnvData) {
+      for (let i = 1; i < testSuites.length; i++) {
+        await processAdditionalTestSuite(
+          projectPath,
+          testSuites[i],
+          envName,
+          projectEnvData
+        );
+      }
+    }
+
+    // Delete the temporary folder and its contents
+    try {
+      if (fs.existsSync(envLocation)) {
+        fs.rmdirSync(envLocation, { recursive: true });
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Error deleting temporary folder: ${error}`
+      );
+    }
+  } else if (fs.existsSync(envLocation)) {
+    commonNewEnvironmentStuff(fileList, envLocation);
   } else {
     const message =
       "Unit test location: '" +
-      unitTestLocation +
+      envLocation +
       " does not exist.\n" +
       "Do you want to create and initialize this directory?";
     vscode.window
@@ -679,18 +798,18 @@ function configureWorkspaceAndBuildEnviro(
       .then((answer) => {
         if (answer === "Yes") {
           try {
-            fs.mkdirSync(unitTestLocation, { recursive: true });
-            commonNewEnvironmentStuff(fileList, unitTestLocation);
+            fs.mkdirSync(envLocation, { recursive: true });
+            commonNewEnvironmentStuff(fileList, envLocation);
           } catch (error: any) {
             vscode.window.showErrorMessage(
-              `Error creating directory: ${unitTestLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
+              `Error creating directory: ${envLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
             );
-            vectorMessage("Error creating directory: " + unitTestLocation);
+            vectorMessage("Error creating directory: " + envLocation);
             showSettings();
           }
         } else {
           vscode.window.showWarningMessage(
-            `Please create the unit test directory: '${unitTestLocation}', or update the 'Unit Test Location' option`
+            `Please create the unit test directory: '${envLocation}', or update the 'Unit Test Location' option`
           );
           showSettings();
         }
@@ -698,10 +817,7 @@ function configureWorkspaceAndBuildEnviro(
   }
 }
 
-function commonNewEnvironmentStuff(
-  fileList: string[],
-  unitTestLocation: string
-) {
+export function createEnvNameFromFiles(fileList: string[]) {
   if (fileList.length > 0) {
     const firstFile = fileList[0];
     const filename = path.basename(firstFile);
@@ -715,7 +831,18 @@ function commonNewEnvironmentStuff(
         .toUpperCase()}`;
     }
 
-    let enviroPath = path.join(unitTestLocation, enviroName);
+    return enviroName;
+  }
+}
+
+function commonNewEnvironmentStuff(
+  fileList: string[],
+  envLocation: string,
+  shouldBuildEnviro: boolean = true
+) {
+  if (fileList.length > 0) {
+    let enviroName = createEnvNameFromFiles(fileList);
+    let enviroPath = path.join(envLocation, enviroName);
 
     if (fs.existsSync(enviroPath)) {
       vscode.window
@@ -728,7 +855,7 @@ function commonNewEnvironmentStuff(
         .then((response) => {
           if (response) {
             enviroName = response.toUpperCase();
-            enviroPath = path.join(unitTestLocation, response);
+            enviroPath = path.join(envLocation, response);
             if (fs.existsSync(enviroPath))
               vscode.window.showErrorMessage(
                 `Environment name: ${enviroName}, already in use, aborting`
@@ -736,16 +863,18 @@ function commonNewEnvironmentStuff(
             else
               buildEnvironmentVCAST(
                 fileList,
-                unitTestLocation,
-                response.toUpperCase()
+                envLocation,
+                response.toUpperCase(),
+                shouldBuildEnviro
               );
           }
         });
     } else {
       buildEnvironmentVCAST(
         fileList,
-        unitTestLocation,
-        enviroName.toUpperCase()
+        envLocation,
+        enviroName.toUpperCase(),
+        shouldBuildEnviro
       );
     }
   } else vectorMessage("No C/C++ source files found in selection ...");
@@ -754,7 +883,10 @@ function commonNewEnvironmentStuff(
 // Improvement needed: get the language extensions automatically, don't hard-code
 const extensionsOfInterest = ["c", "cpp", "cc", "cxx"];
 
-export function newEnvironment(URIlist: Uri[]) {
+export async function newEnvironment(
+  URIlist: Uri[],
+  projectEnvParameters?: ProjectEnvParameters
+) {
   // This is called from the right click in the file explorer tree
   // Based on the package.json, we know tha that at least one
   // file in the list will be a C/C++ file but we need to filter
@@ -770,10 +902,38 @@ export function newEnvironment(URIlist: Uri[]) {
     }
   }
   if (fileList.length > 0) {
-    let unitTestLocation = getUnitTestLocationForPath(
-      path.dirname(fileList[0])
-    );
-    configureWorkspaceAndBuildEnviro(fileList, unitTestLocation);
+    if (projectEnvParameters) {
+      // Get the workspace root folder.
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("No workspace folder is open.");
+        return;
+      }
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+      //Create a new folder "tempEnv" under the workspace root.
+      const tempEnvPath = path.join(workspaceRoot, "tempEnv");
+      try {
+        if (!fs.existsSync(tempEnvPath)) {
+          fs.mkdirSync(tempEnvPath);
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Failed to create tempEnv folder: ${error}`
+        );
+        return;
+      }
+      configureWorkspaceAndBuildEnviro(
+        fileList,
+        tempEnvPath,
+        projectEnvParameters
+      );
+    } else {
+      let unitTestLocation = getUnitTestLocationForPath(
+        path.dirname(fileList[0])
+      );
+      configureWorkspaceAndBuildEnviro(fileList, unitTestLocation);
+    }
   } else {
     vscode.window.showWarningMessage(
       "Create environment may only be run for source files [" +
@@ -781,6 +941,7 @@ export function newEnvironment(URIlist: Uri[]) {
         "]"
     );
   }
+  await refreshAllExtensionData();
 }
 
 function valueOrDefault(name: string): string {
@@ -880,6 +1041,7 @@ async function commonCodedTestProcessing(
 ) {
   let testNode: testNodeType = getTestNode(testID);
   const enviroPath = getEnviroPathFromID(testID);
+  const enviroName = path.basename(enviroPath);
 
   await vectorMessage(
     `Adding coded test file: ${userFilePath} for environment: ${enviroPath}`
@@ -890,15 +1052,19 @@ async function commonCodedTestProcessing(
     enviroPath,
     testNode,
     action,
-    userFilePath
+    normalizePath(userFilePath)
   );
 
   await updateTestPane(enviroPath);
-  if (commandStatus.errorCode == 0) {
+
+  if (commandStatus.errorCode == 0 && enviroName) {
+    // update project data after the script is loaded
+    await updateProjectData(enviroPath);
     vscode.window.showInformationMessage(`Coded Tests added successfully`);
   } else {
     openTestFileAndErrors(testNode);
   }
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 }
 
 export async function addExistingCodedTestFile(testID: string) {
