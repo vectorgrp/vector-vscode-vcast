@@ -140,21 +140,26 @@ def handleStatementMcdcCoverage(
         unit_mcdc_lines = mcdc_line_dic.get(unit, {})
         mcdc_line_coverage = unit_mcdc_lines.get(line_number, None)
 
-        if mcdc_line_coverage is not None:
-            # Determine statement coverage and mcdc branch coverage
-            covered_statements = (
-                metrics.max_covered_statements + metrics.max_annotations_statements
-            )
-            total_statements = metrics.statements
-            total_mcdc_branches = getattr(metrics, "mcdc_branches", 0)
-            covered_mcdc = getattr(metrics, "max_covered_mcdc_branches", 0) + getattr(
-                metrics, "max_annotations_mcdc_branches", 0
-            )
+        # Decide whether to use mcdc_branches or fallback to normal branches (> 25 needs mcdc_branches)
+        use_mcdc = getattr(metrics, "mcdc_branches", 0) > 0
+        branch_total = metrics.mcdc_branches if use_mcdc else metrics.branches
+        covered_branches = (
+            metrics.max_covered_mcdc_branches + metrics.max_annotations_mcdc_branches
+            if use_mcdc
+            else metrics.max_covered_branches + metrics.max_annotations_branches
+        )
 
-            # To be fully mcdc covered: All Statements + All MCDC branches + All MCDC pairs
+        # Determine statement coverage
+        covered_statements = (
+            metrics.max_covered_statements + metrics.max_annotations_statements
+        )
+        total_statements = metrics.statements
+
+        if mcdc_line_coverage is not None:
+            # To be fully mcdc covered: All Statements + All Branches + All MCDC pairs
             is_fully_mcdc_covered = (
                 covered_statements == total_statements
-                and covered_mcdc == total_mcdc_branches
+                and covered_branches == branch_total
                 and mcdc_line_coverage == MCDCLineCoverage.covered
             )
 
@@ -169,10 +174,7 @@ def handleStatementMcdcCoverage(
                 uncoveredString += f"{line_number},"
 
         # It's a fully covered statement and not a mcdc line --> green
-        elif (
-            metrics.max_covered_statements + metrics.max_annotations_statements
-            == metrics.statements
-        ):
+        elif covered_statements == total_statements:
             coveredString += f"{line_number},"
 
     # If it s no mcdc line is not covered but still has statements --> uncovered statement line --> red
