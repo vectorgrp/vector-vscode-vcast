@@ -260,7 +260,6 @@ describe("vTypeCheck VS Code Extension", () => {
           console.log(stderr);
         }
         lastStdout = stdout;
-        console.log(lastStdout);
         return stdout.includes("vcastqt");
       },
       {
