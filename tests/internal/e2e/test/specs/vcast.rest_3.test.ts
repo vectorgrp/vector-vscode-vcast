@@ -250,21 +250,24 @@ describe("vTypeCheck VS Code Extension", () => {
     let checkVcastQtCmd = "ps -ef";
     if (process.platform == "win32") checkVcastQtCmd = "tasklist";
 
-    {
-      const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);
+    let lastStdout = "";
 
-      if (stderr) {
-        console.log(stderr);
-        throw new Error(`Error when running ${checkVcastQtCmd}`);
+    await browser.waitUntil(
+      async () => {
+        const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);
+        if (stderr) {
+          console.log(`Error when running ${checkVcastQtCmd}`);
+          console.log(stderr);
+        }
+        lastStdout = stdout;
+        console.log(lastStdout);
+        return stdout.includes("vcastqt");
+      },
+      {
+        timeout: TIMEOUT,
       }
-
-      await browser.waitUntil(
-        async () =>
-          (await promisifiedExec(checkVcastQtCmd)).stdout.includes("vcastqt"),
-        { timeout: TIMEOUT }
-      );
-      expect(stdout).toContain("vcastqt");
-    }
+    );
+    expect(lastStdout).toContain("vcastqt");
 
     let stopVcastCmd = "pkill vcastqt";
     if (process.platform == "win32")

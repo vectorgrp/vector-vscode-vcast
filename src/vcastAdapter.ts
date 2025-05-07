@@ -515,6 +515,7 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   });
   vcast.on("exit", function (code: any) {
     callback(enviroPath);
+    vectorMessage("Exiting VecotrCAST GUI with code: " + code);
   });
 }
 
