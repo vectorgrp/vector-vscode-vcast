@@ -259,8 +259,14 @@ describe("vTypeCheck VS Code Extension", () => {
       }
 
       await browser.waitUntil(
-        async () =>
-          (await promisifiedExec(checkVcastQtCmd)).stdout.includes("vcastqt"),
+        async () => {
+          const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);
+          console.log("checkVcastQtCmd stdout:", stdout);
+          if (stderr) {
+            console.warn("⚠️ checkVcastQtCmd stderr:", stderr);
+          }
+          return stdout.includes("vcastqt");
+        },
         { timeout: TIMEOUT }
       );
       expect(stdout).toContain("vcastqt");
