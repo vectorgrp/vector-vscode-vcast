@@ -494,7 +494,7 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   let vcastArgs: string[] = ["-e " + vceFilename];
 
   const setupString =
-    "export QT_DEBUG_PLUGINS=1 && sudo apt-get install libxcb\\*";
+    "export QT_DEBUG_PLUGINS=1 && sudo apt-get install -y libxcb\\*";
 
   const dotIndex = vcePath.lastIndexOf(".");
   const enviroPath = vcePath.slice(0, dotIndex);
@@ -518,13 +518,13 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   });
 
   setup.stdout?.on("data", (data) => {
-    console.log(`[setup stdout] ${data}`);
+    vectorMessage(`[setup stdout] ${data}`);
   });
   setup.stderr?.on("data", (data) => {
-    console.error(`[setup stderr] ${data}`);
+    vectorMessage(`[setup stderr] ${data}`);
   });
   setup.on("close", (code) => {
-    console.log(`setup process exited with code ${code}`);
+    vectorMessage(`setup process exited with code ${code}`);
   });
 
   // we use spawn directly to control the detached and shell args
