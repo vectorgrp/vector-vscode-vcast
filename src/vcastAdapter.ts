@@ -491,10 +491,10 @@ export async function openVcastFromEnviroNode(
 export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   // split vceFile path into the CWD and the Environment
   const vceFilename = path.basename(vcePath);
-  let vcastArgs: string[] = [
-    "export QT_DEBUG_PLUGINS=1 && sudo apt-get install libxcb\\* && -e " +
-      vceFilename,
-  ];
+  let vcastArgs: string[] = ["-e " + vceFilename];
+
+  const setupString =
+    "export QT_DEBUG_PLUGINS=1 && sudo apt-get install libxcb\\*";
 
   const dotIndex = vcePath.lastIndexOf(".");
   const enviroPath = vcePath.slice(0, dotIndex);
@@ -509,6 +509,24 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   vectorMessage(
     `Calling vcast with args: ${vcastCommandToUse} ${vcastArgs.join(" ")}`
   );
+
+  const setup = spawn(setupString, {
+    cwd: enclosingDirectory,
+    detached: true,
+    shell: true,
+    windowsHide: true,
+  });
+
+  setup.stdout?.on("data", (data) => {
+    console.log(`[setup stdout] ${data}`);
+  });
+  setup.stderr?.on("data", (data) => {
+    console.error(`[setup stderr] ${data}`);
+  });
+  setup.on("close", (code) => {
+    console.log(`setup process exited with code ${code}`);
+  });
+
   // we use spawn directly to control the detached and shell args
   const vcast = spawn(vcastCommandToUse, vcastArgs, {
     cwd: enclosingDirectory,
