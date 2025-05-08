@@ -493,8 +493,8 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   const vceFilename = path.basename(vcePath);
   let vcastArgs: string[] = ["-e " + vceFilename];
 
-  const setupString =
-    "export QT_DEBUG_PLUGINS=1 && sudo apt-get install -y libxcb\\*";
+  // const setupString =
+  //   "export QT_DEBUG_PLUGINS=1 && sudo apt-get install -y libxcb\\*";
 
   const dotIndex = vcePath.lastIndexOf(".");
   const enviroPath = vcePath.slice(0, dotIndex);
