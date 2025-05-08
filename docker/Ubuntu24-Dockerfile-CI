@@ -71,10 +71,8 @@ RUN sudo apt-get update && \
     sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
     mkdir -p /home/${USERNAME}/software/vcast/
 
-RUN sudo apt-get update && sudo apt-get install -y libxcb-xinerama0
-
-RUN sudo apt-get update && sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-cursor && \
-    sudo apt-get update && sudo apt-get install -y libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libegl1-mesa
+RUN sudo apt-get install -y libxcb\*
+RUN sudo apt-get install -y libxcb-xinerama0
 
 ENV TESTING_IN_CONTAINER=True \
     RUNNING_ON_SERVER=False \
