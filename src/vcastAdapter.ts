@@ -533,6 +533,10 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
     detached: true,
     shell: true,
     windowsHide: true,
+    env: {
+      ...process.env,
+      QT_DEBUG_PLUGINS: "1",
+    },
   });
 
   vcast.stdout.on("data", (data) => {
