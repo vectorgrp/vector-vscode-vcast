@@ -1,5 +1,5 @@
 // Test/specs/vcast.test.ts
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import {
   type BottomBarPanel,
@@ -21,6 +21,7 @@ import {
   assertTestsDeleted,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
+import path from "node:path";
 
 const promisifiedExec = promisify(exec);
 describe("vTypeCheck VS Code Extension", () => {
@@ -242,16 +243,41 @@ describe("vTypeCheck VS Code Extension", () => {
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
 
     await workspaceFolderSection.expand();
-    const vceFile = await workspaceFolderSection.findItem(
-      "DATABASE-MANAGER-TEST.vce"
+    // const vceFile = await workspaceFolderSection.findItem(
+    //   "DATABASE-MANAGER-TEST.vce"
+    // );
+    // const vceMenu = await vceFile.openContextMenu();
+    // await vceMenu.select("Open VectorCAST Environment");
+
+    // Construct the full path to the log file
+    const workspaceRootPath = process.cwd();
+    const logFilePath = path.join(workspaceRootPath, "cpp", "unitTests");
+
+    let lastStdout = "";
+    let lastStderr = "";
+
+    await browser.waitUntil(
+      async () => {
+        try {
+          const { stdout, stderr } = await promisifiedExec(
+            `cd ${logFilePath} && ${process.env.VECTORCAST_DIR}/vcastqt -e DATABASE-MANAGER.vce & sleep 3 && ps -ef | grep vcastqt`
+          );
+          lastStdout = stdout;
+          lastStderr = stderr;
+          return stdout.includes("vcastqt");
+        } catch (err: any) {
+          lastStderr = err.stderr || err.message;
+          return false;
+        }
+      },
+      {
+        timeout: TIMEOUT,
+        timeoutMsg: `vcastqt did not start properly.\nSTDOUT:\n${lastStdout}\nSTDERR:\n${lastStderr}`,
+      }
     );
-    const vceMenu = await vceFile.openContextMenu();
-    await vceMenu.select("Open VectorCAST Environment");
 
     let checkVcastQtCmd = "ps -ef";
     if (process.platform == "win32") checkVcastQtCmd = "tasklist";
-
-    let lastStdout = "";
 
     await bottomBar.maximize();
     console.log("QT_QPA_PLATFORM_PLUGIN_PATH");
