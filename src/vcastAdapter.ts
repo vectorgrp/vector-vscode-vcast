@@ -510,28 +510,27 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
     `Calling vcast with args: ${vcastCommandToUse} ${vcastArgs.join(" ")}`
   );
 
-  const setup = spawn(setupString, {
-    cwd: enclosingDirectory,
-    detached: true,
-    shell: true,
-    windowsHide: true,
-  });
+  // const setup = spawn(setupString, {
+  //   cwd: enclosingDirectory,
+  //   detached: true,
+  //   shell: true,
+  //   windowsHide: true,
+  // });
 
-  setup.stdout?.on("data", (data) => {
-    vectorMessage(`[setup stdout] ${data}`);
-  });
-  setup.stderr?.on("data", (data) => {
-    vectorMessage(`[setup stderr] ${data}`);
-  });
-  setup.on("close", (code) => {
-    vectorMessage(`setup process exited with code ${code}`);
-  });
+  // setup.stdout?.on("data", (data) => {
+  //   vectorMessage(`[setup stdout] ${data}`);
+  // });
+  // setup.stderr?.on("data", (data) => {
+  //   vectorMessage(`[setup stderr] ${data}`);
+  // });
+  // setup.on("close", (code) => {
+  //   vectorMessage(`setup process exited with code ${code}`);
+  // });
 
   // we use spawn directly to control the detached and shell args
   const vcast = spawn(vcastCommandToUse, vcastArgs, {
     cwd: enclosingDirectory,
     detached: true,
-    shell: true,
     windowsHide: true,
     env: {
       ...process.env,
