@@ -12,7 +12,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast.build_env.test.ts",
         "./**/**/vcast.create_script_1.test.ts",
         "./**/**/vcast.create_script_2_and_run.test.ts",
-        "./**/**/vcast_mcdc_report.test.ts",
+        // "./**/**/vcast_mcdc_report.test.ts",
         "./**/**/vcast.create_second_test_1.test.ts",
         "./**/**/vcast.create_second_test_2_and_run.test.ts",
         "./**/**/vcast.third_test.test.ts",

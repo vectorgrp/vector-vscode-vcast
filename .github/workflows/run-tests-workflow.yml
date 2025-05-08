@@ -293,10 +293,10 @@ jobs:
             exit 1
           fi
           echo 'Activating Vcast ${{ matrix.version }}'
-          export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms
+          export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/plugins/platforms
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
-          echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
+          echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/plugins/platforms" >> $GITHUB_ENV
           USE_VCAST_24=$(if [[ $(cat $RELEASE_DIR/DATA/tool_version.txt) == 24* ]]; then echo "True"; else echo "False"; fi)
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
         shell: bash
