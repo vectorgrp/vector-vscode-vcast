@@ -296,6 +296,18 @@ jobs:
           export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
+
+          # Find a Qt library to locate the install path
+          QT_LIB_PATH=$(find /usr/lib /lib -type f -name "libQt5Core.so.5" 2>/dev/null | head -n 1 | xargs dirname)
+
+          if [ -n "$QT_LIB_PATH" ]; then
+            echo "Detected Qt libraries in: $QT_LIB_PATH"
+            export LD_LIBRARY_PATH=$QT_LIB_PATH:$LD_LIBRARY_PATH
+            echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          else
+            echo "Could not find Qt library path. Some Qt dependencies may not resolve."
+          fi
+
           echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
