@@ -4,6 +4,7 @@ import os
 import tempfile
 import shutil
 from typing import Callable, Optional
+from collections import Counter
 
 
 def paths_to_files(paths, file_extensions=['c']):
@@ -203,3 +204,9 @@ def parse_code(code):
     root_node = tree.root_node
 
     return root_node
+
+
+def average_set(sets, threshold_frequency=0.5):
+    n = len(sets)
+    cnt = Counter(x for s in sets for x in s)
+    return {x for x, c in cnt.items() if c / n >= threshold_frequency}

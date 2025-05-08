@@ -75,6 +75,9 @@ async def main():
         help='Do not decompose requirements before generating tests.',
     )
     parser.add_argument(
+        '--individual-decomposition', action='store_true', help=argparse.SUPPRESS
+    )
+    parser.add_argument(
         '--no-automatic-build',
         action='store_true',
         help='If the environment is not built, do not build it automatically.',
@@ -113,7 +116,12 @@ async def main():
         rm = RequirementsManager(args.requirements_file)
         x = {req_id: rm.get_description(req_id) for req_id in rm.requirement_ids}
 
-        decomposed = await decompose_requirements(list(x.values()))
+        decomposed = await decompose_requirements(
+            list(x.values()),
+            individual=args.individual_decomposition,
+            k=5,
+            threshold_frequency=0.2,
+        )
         decomposed_req_map = {
             req_id: reqs for req_id, reqs in zip(rm.requirement_ids, decomposed)
         }
@@ -132,6 +140,15 @@ async def main():
             logging.info(
                 'Decomposed Requirement:', [r['Description'] for r in decomposed_reqs]
             )
+
+            if len(decomposed_reqs) > 1:
+                print('Decomposed requirement:')
+                print('Original:', req['Description'])
+                print(
+                    'Decomposed:',
+                    [r['Description'] for r in decomposed_reqs],
+                )
+
             return decomposed_reqs
 
         rm = await DecomposingRequirementsManager.from_file(

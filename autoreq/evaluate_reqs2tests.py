@@ -962,7 +962,7 @@ async def main():
                     req_id: rm.get_description(req_id) for req_id in rm.requirement_ids
                 }
 
-                decomposed = await decompose_requirements(list(x.values()))
+                decomposed = await decompose_requirements(list(x.values()), k=5, threshold_frequency=0.2)
                 decomposed_req_map = {
                     req_id: reqs for req_id, reqs in zip(rm.requirement_ids, decomposed)
                 }
