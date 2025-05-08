@@ -294,9 +294,11 @@ jobs:
           fi
           echo 'Activating Vcast ${{ matrix.version }}'
           export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms
+          export LD_LIBRARY_PATH=$RELEASE_DIR/lib
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
           echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$RELEASE_DIR/lib" >> $GITHUB_ENV
 
           echo "Running ldd on $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so"
           if [ -f "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" ]; then
