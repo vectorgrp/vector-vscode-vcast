@@ -257,6 +257,9 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("QT_QPA_PLATFORM_PLUGIN_PATH");
     console.log(process.env.QT_QPA_PLATFORM_PLUGIN_PATH);
 
+    console.log("LD_LIBRARY_PATH");
+    console.log(process.env.LD_LIBRARY_PATH);
+
     await browser.waitUntil(
       async () => {
         const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);

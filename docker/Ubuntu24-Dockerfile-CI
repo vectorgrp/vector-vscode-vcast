@@ -63,7 +63,6 @@ RUN sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libexpat
 SHELL ["/bin/bash", "--login", "-c"]
 
 ENV QT_DEBUG_PLUGINS=1
-ENV LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
 RUN sudo apt-get update && \
     sudo apt-get install -y libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev libxcb\* && \
@@ -81,7 +80,16 @@ RUN sudo apt-get update && sudo apt-get install -y \
     libqt5xcbqpa5 \
     libxcb-xinerama0 \
     libxkbcommon-x11-0
-    
+
+# Dynamically find Qt lib path and set ENV
+RUN QT_LIB_DIR=$(find /usr/lib /lib /usr/lib/x86_64-linux-gnu -type f -name "libQt5Core.so.5" 2>/dev/null | head -n 1 | xargs dirname) && \
+    echo "Found Qt library directory: $QT_LIB_DIR" && \
+    echo "LD_LIBRARY_PATH=${QT_LIB_DIR}:\$LD_LIBRARY_PATH" >> /tmp/setenv && \
+    cat /tmp/setenv
+
+# Then persist it
+ENV LD_LIBRARY_PATH=${QT_LIB_DIR}:${LD_LIBRARY_PATH}
+
 ENV TESTING_IN_CONTAINER=True \
     RUNNING_ON_SERVER=False \
     PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
