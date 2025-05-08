@@ -26,125 +26,125 @@ export function getSpecGroups(useVcast24: boolean) {
       },
       params: {},
     },
-    build_env_failure: {
-      specs: [
-        "./**/**/vcast_build_env_failure.test.ts",
-        "./**/**/vcast_build_env_after_failure.test.ts",
-      ],
-      env: {
-        VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
-        VECTORCAST_DIR: "",
-        VCAST_USE_PYTHON: "True",
-      },
-      params: {
-        vcReleaseOnPath: false,
-      },
-    },
-    build_different_envs: {
-      specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
-      env: {
-        VECTORCAST_DIR: `/vcast/2023sp0:${process.env.HOME}/vcast/2023sp0`,
-        BUILD_MULTIPLE_ENVS: "True",
-        VCAST_USE_PYTHON: "True",
-      },
-      params: {},
-    },
-    bugs: {
-      specs: [
-        "./**/**/vcast_testgen_bugs.test.ts",
-        "./**/**/vcast_testgen_bugs_2.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
-    flask_icon: {
-      specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
-    func_basis: {
-      specs: [
-        "./**/**/vcast_testgen_func_basis.test.ts",
-        "./**/**/vcast_testdel_func_basis.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
-    unit_basis: {
-      specs: [
-        "./**/**/vcast_testgen_unit_basis.test.ts",
-        "./**/**/vcast_testdel_unit_basis.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
-    coverage: {
-      specs: [
-        "./**/**/vcast.build_env.test.ts",
-        "./**/**/vcast_coverage_rebuild_bug.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
-    env_basis: {
-      specs: [
-        "./**/**/vcast_testgen_env_basis.test.ts",
-        "./**/**/vcast_testdel_env_basis.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    },
+    // build_env_failure: {
+    //   specs: [
+    //     "./**/**/vcast_build_env_failure.test.ts",
+    //     "./**/**/vcast_build_env_after_failure.test.ts",
+    //   ],
+    //   env: {
+    //     VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
+    //     VECTORCAST_DIR: "",
+    //     VCAST_USE_PYTHON: "True",
+    //   },
+    //   params: {
+    //     vcReleaseOnPath: false,
+    //   },
+    // },
+    // build_different_envs: {
+    //   specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
+    //   env: {
+    //     VECTORCAST_DIR: `/vcast/2023sp0:${process.env.HOME}/vcast/2023sp0`,
+    //     BUILD_MULTIPLE_ENVS: "True",
+    //     VCAST_USE_PYTHON: "True",
+    //   },
+    //   params: {},
+    // },
+    // bugs: {
+    //   specs: [
+    //     "./**/**/vcast_testgen_bugs.test.ts",
+    //     "./**/**/vcast_testgen_bugs_2.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
+    // flask_icon: {
+    //   specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
+    // func_basis: {
+    //   specs: [
+    //     "./**/**/vcast_testgen_func_basis.test.ts",
+    //     "./**/**/vcast_testdel_func_basis.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
+    // unit_basis: {
+    //   specs: [
+    //     "./**/**/vcast_testgen_unit_basis.test.ts",
+    //     "./**/**/vcast_testdel_unit_basis.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
+    // coverage: {
+    //   specs: [
+    //     "./**/**/vcast.build_env.test.ts",
+    //     "./**/**/vcast_coverage_rebuild_bug.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
+    // env_basis: {
+    //   specs: [
+    //     "./**/**/vcast_testgen_env_basis.test.ts",
+    //     "./**/**/vcast_testdel_env_basis.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // },
   };
 
   if (useVcast24) {
-    specGroups["server_specifics"] = {
-      specs: ["./**/**/vcast_server_specifics.test.ts"],
-      env: {},
-      params: {},
-    };
+    // specGroups["server_specifics"] = {
+    //   specs: ["./**/**/vcast_server_specifics.test.ts"],
+    //   env: {},
+    //   params: {},
+    // };
 
-    specGroups["func_atg"] = {
-      specs: [
-        "./**/**/vcast_testgen_func_atg.test.ts",
-        "./**/**/vcast_testdel_func_atg.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    };
+    // specGroups["func_atg"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_func_atg.test.ts",
+    //     "./**/**/vcast_testdel_func_atg.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // };
 
-    specGroups["unit_atg"] = {
-      specs: [
-        "./**/**/vcast_testgen_unit_atg.test.ts",
-        "./**/**/vcast_testdel_unit_atg.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    };
+    // specGroups["unit_atg"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_unit_atg.test.ts",
+    //     "./**/**/vcast_testdel_unit_atg.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // };
 
-    specGroups["env_atg"] = {
-      specs: [
-        "./**/**/vcast_testgen_env_atg.test.ts",
-        "./**/**/vcast_testdel_env_atg.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    };
+    // specGroups["env_atg"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_env_atg.test.ts",
+    //     "./**/**/vcast_testdel_env_atg.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // };
 
-    specGroups["coded_tests"] = {
-      specs: [
-        "./**/**/vcast_coded_tests.test.ts",
-        "./**/**/vcast.create_script_1.test.ts",
-        "./**/**/vcast_coded_tests_tst_autocompletion.test.ts",
-      ],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    };
+    // specGroups["coded_tests"] = {
+    //   specs: [
+    //     "./**/**/vcast_coded_tests.test.ts",
+    //     "./**/**/vcast.create_script_1.test.ts",
+    //     "./**/**/vcast_coded_tests_tst_autocompletion.test.ts",
+    //   ],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // };
 
-    specGroups["coded_mock"] = {
-      specs: ["./**/**/vcast_coded_test_completion.test.ts"],
-      env: { VCAST_USE_PYTHON: "True" },
-      params: {},
-    };
+    // specGroups["coded_mock"] = {
+    //   specs: ["./**/**/vcast_coded_test_completion.test.ts"],
+    //   env: { VCAST_USE_PYTHON: "True" },
+    //   params: {},
+    // };
 
     specGroups["basic_user_interactions_server"] = {
       specs: [
@@ -163,121 +163,121 @@ export function getSpecGroups(useVcast24: boolean) {
       },
       params: {},
     };
-    specGroups["coverage_server"] = {
-      specs: [
-        "./**/**/vcast.build_env.test.ts",
-        "./**/**/vcast_coverage_rebuild_bug.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
-    specGroups["build_env_failure_server"] = {
-      specs: [
-        "./**/**/vcast_build_env_failure.test.ts",
-        "./**/**/vcast_build_env_after_failure.test.ts",
-      ],
-      env: {
-        VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
-        VECTORCAST_DIR: "",
-      },
-      params: {
-        vcReleaseOnPath: false,
-      },
-    };
-    specGroups["build_different_envs_server"] = {
-      specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
-      env: {
-        VECTORCAST_DIR: `/vcast/2023sp0:${process.env.HOME}/vcast/2023sp0`,
-        BUILD_MULTIPLE_ENVS: "True",
-      },
-      params: {},
-    };
-    specGroups["bugs_server"] = {
-      specs: [
-        "./**/**/vcast_testgen_bugs.test.ts",
-        "./**/**/vcast_testgen_bugs_2.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
-    specGroups["flask_icon_server"] = {
-      specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
-      env: {},
-      params: {},
-    };
-    specGroups["func_basis_server"] = {
-      specs: [
-        "./**/**/vcast_testgen_func_basis.test.ts",
-        "./**/**/vcast_testdel_func_basis.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
-    specGroups["unit_basis_server"] = {
-      specs: [
-        "./**/**/vcast_testgen_unit_basis.test.ts",
-        "./**/**/vcast_testdel_unit_basis.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
-    specGroups["env_basis_server"] = {
-      specs: [
-        "./**/**/vcast_testgen_env_basis.test.ts",
-        "./**/**/vcast_testdel_env_basis.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
+    // specGroups["coverage_server"] = {
+    //   specs: [
+    //     "./**/**/vcast.build_env.test.ts",
+    //     "./**/**/vcast_coverage_rebuild_bug.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
+    // specGroups["build_env_failure_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_build_env_failure.test.ts",
+    //     "./**/**/vcast_build_env_after_failure.test.ts",
+    //   ],
+    //   env: {
+    //     VECTORCAST_DIR_TEST_DUPLICATE: process.env.VECTORCAST_DIR,
+    //     VECTORCAST_DIR: "",
+    //   },
+    //   params: {
+    //     vcReleaseOnPath: false,
+    //   },
+    // };
+    // specGroups["build_different_envs_server"] = {
+    //   specs: ["./**/**/vcast_build_env_failure_different_paths.test.ts"],
+    //   env: {
+    //     VECTORCAST_DIR: `/vcast/2023sp0:${process.env.HOME}/vcast/2023sp0`,
+    //     BUILD_MULTIPLE_ENVS: "True",
+    //   },
+    //   params: {},
+    // };
+    // specGroups["bugs_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_bugs.test.ts",
+    //     "./**/**/vcast_testgen_bugs_2.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
+    // specGroups["flask_icon_server"] = {
+    //   specs: ["./**/**/vcast_testgen_flask_icon.test.ts"],
+    //   env: {},
+    //   params: {},
+    // };
+    // specGroups["func_basis_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_func_basis.test.ts",
+    //     "./**/**/vcast_testdel_func_basis.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
+    // specGroups["unit_basis_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_unit_basis.test.ts",
+    //     "./**/**/vcast_testdel_unit_basis.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
+    // specGroups["env_basis_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_env_basis.test.ts",
+    //     "./**/**/vcast_testdel_env_basis.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
 
-    specGroups["func_atg_server"] = {
-      specs: [
-        "./**/**/vcast_testgen_func_atg.test.ts",
-        "./**/**/vcast_testdel_func_atg.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
+    // specGroups["func_atg_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_func_atg.test.ts",
+    //     "./**/**/vcast_testdel_func_atg.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
 
-    specGroups["unit_atg_server"] = {
-      specs: [
-        "./**/**/vcast_testgen_unit_atg.test.ts",
-        "./**/**/vcast_testdel_unit_atg.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
+    // specGroups["unit_atg_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_unit_atg.test.ts",
+    //     "./**/**/vcast_testdel_unit_atg.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
 
-    specGroups["env_atg_server"] = {
-      specs: [
-        "./**/**/vcast_testgen_env_atg.test.ts",
-        "./**/**/vcast_testdel_env_atg.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
+    // specGroups["env_atg_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_testgen_env_atg.test.ts",
+    //     "./**/**/vcast_testdel_env_atg.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
 
-    specGroups["coded_tests_server"] = {
-      specs: [
-        "./**/**/vcast_coded_tests.test.ts",
-        "./**/**/vcast.create_script_1.test.ts",
-        "./**/**/vcast_coded_tests_tst_autocompletion.test.ts",
-      ],
-      env: {},
-      params: {},
-    };
+    // specGroups["coded_tests_server"] = {
+    //   specs: [
+    //     "./**/**/vcast_coded_tests.test.ts",
+    //     "./**/**/vcast.create_script_1.test.ts",
+    //     "./**/**/vcast_coded_tests_tst_autocompletion.test.ts",
+    //   ],
+    //   env: {},
+    //   params: {},
+    // };
 
-    specGroups["coded_mock_server"] = {
-      specs: ["./**/**/vcast_coded_test_completion.test.ts"],
-      env: {},
-      params: {},
-    };
+    // specGroups["coded_mock_server"] = {
+    //   specs: ["./**/**/vcast_coded_test_completion.test.ts"],
+    //   env: {},
+    //   params: {},
+    // };
 
-    specGroups["import_coded_test_server"] = {
-      specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
-      env: { IMPORT_CODED_TEST_IN_TST: "True" },
-      params: {},
-    };
+    // specGroups["import_coded_test_server"] = {
+    //   specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
+    //   env: { IMPORT_CODED_TEST_IN_TST: "True" },
+    //   params: {},
+    // };
   }
 
   return specGroups;

@@ -491,7 +491,10 @@ export async function openVcastFromEnviroNode(
 export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   // split vceFile path into the CWD and the Environment
   const vceFilename = path.basename(vcePath);
-  let vcastArgs: string[] = ["-e " + vceFilename];
+  let vcastArgs: string[] = [
+    "export QT_DEBUG_PLUGINS=1 && sudo apt-get install libxcb\\* && -e " +
+      vceFilename,
+  ];
 
   const dotIndex = vcePath.lastIndexOf(".");
   const enviroPath = vcePath.slice(0, dotIndex);
