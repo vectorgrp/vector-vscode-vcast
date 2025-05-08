@@ -299,33 +299,10 @@ jobs:
           echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
 
           echo "Running ldd on $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so"
-          # Ensure apt-file is available
-          sudo apt-get update && sudo apt-get install -y apt-file
-          sudo apt-file update
-          
           if [ -f "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" ]; then
-            missing_libs=$(ldd "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" | grep "not found" | awk '{print $1}')
-            
-            if [ -n "$missing_libs" ]; then
-              echo "Missing libraries detected:"
-              echo "$missing_libs"
-              
-              for lib in $missing_libs; do
-                echo "Searching for apt package providing $lib..."
-                pkg=$(apt-file search --package-only "lib/${lib}" | head -n 1)
-                
-                if [ -n "$pkg" ]; then
-                  echo "Installing package: $pkg"
-                  sudo apt-get install -y "$pkg"
-                else
-                  echo "⚠️ Could not determine package for: $lib"
-                fi
-              done
-            else
-              echo "✅ All dependencies resolved."
-            fi
+            ldd "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" | grep "not found" || echo "All dependencies resolved."
           else
-            echo "❌ Error: $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so not found."
+            echo "Error: $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so not found."
             exit 1
           fi
 
