@@ -76,12 +76,18 @@ jobs:
       - name: Vcast activation
         run: |
           RELEASE_DIR=/vcast/${{ matrix.vcast }}
+
           if [ ! -d "$RELEASE_DIR" ]; then
             echo "Error: $RELEASE_DIR does not exist."
             exit 1
           fi
-          echo 'Activating Vcast ${{ matrix.vcast }}'
+
+          echo "Activating Vcast ${{ matrix.vcast }}"
+
+          export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms
+
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
+          echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
         shell: bash
 
