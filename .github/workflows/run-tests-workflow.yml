@@ -293,16 +293,35 @@ jobs:
             exit 1
           fi
           echo 'Activating Vcast ${{ matrix.version }}'
-          export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/plugins/platforms
+          export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
-          echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/plugins/platforms" >> $GITHUB_ENV
+          echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
 
           echo "Running ldd on $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so"
           if [ -f "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" ]; then
-            ldd "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" | grep "not found" || echo "All dependencies resolved."
+            missing_libs=$(ldd "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" | grep "not found" | awk '{print $1}')
+            
+            if [ -n "$missing_libs" ]; then
+              echo "Missing libraries detected:"
+              echo "$missing_libs"
+              
+              for lib in $missing_libs; do
+                echo "Searching for apt package providing $lib..."
+                pkg=$(apt-file search --package-only "lib/${lib}" | head -n 1)
+                
+                if [ -n "$pkg" ]; then
+                  echo "Installing package: $pkg"
+                  sudo apt-get install -y "$pkg"
+                else
+                  echo "⚠️ Could not determine package for: $lib"
+                fi
+              done
+            else
+              echo "✅ All dependencies resolved."
+            fi
           else
-            echo "Error: $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so not found."
+            echo "❌ Error: $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so not found."
             exit 1
           fi
 
