@@ -72,15 +72,7 @@ RUN sudo apt-get update && \
     mkdir -p /home/${USERNAME}/software/vcast/
 
 RUN apt-get update && apt-get install -y \
-    libxcb1 \
-    libxcb-render0 \
-    libxcb-shm0 \
-    libxcb-shape0 \
-    libxcb-xfixes0 \
-    libxcb-xinerama0 \
-    libxcb-xkb1 \
-    libx11-xcb1 \
-    libxkbcommon-x11-0
+    libx11-xcb1
 
 ENV TESTING_IN_CONTAINER=True \
     RUNNING_ON_SERVER=False \

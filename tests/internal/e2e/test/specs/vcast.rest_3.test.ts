@@ -236,6 +236,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
+    process.env.QT_DEBUG_PLUGINS = "1";
 
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
@@ -251,6 +252,8 @@ describe("vTypeCheck VS Code Extension", () => {
     if (process.platform == "win32") checkVcastQtCmd = "tasklist";
 
     let lastStdout = "";
+
+    await bottomBar.maximize();
 
     await browser.waitUntil(
       async () => {
