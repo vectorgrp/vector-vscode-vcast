@@ -299,6 +299,10 @@ jobs:
           echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
 
           echo "Running ldd on $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so"
+          # Ensure apt-file is available
+          sudo apt-get update && sudo apt-get install -y apt-file
+          sudo apt-file update
+          
           if [ -f "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" ]; then
             missing_libs=$(ldd "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" | grep "not found" | awk '{print $1}')
             
