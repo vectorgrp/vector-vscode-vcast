@@ -294,6 +294,7 @@ jobs:
           fi
           echo 'Activating Vcast ${{ matrix.version }}'
           export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms
+          export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
           echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
