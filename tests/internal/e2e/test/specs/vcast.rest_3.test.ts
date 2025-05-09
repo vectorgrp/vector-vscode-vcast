@@ -236,6 +236,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
+    process.env.QT_DEBUG_PLUGINS = "1";
 
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
@@ -250,21 +251,24 @@ describe("vTypeCheck VS Code Extension", () => {
     let checkVcastQtCmd = "ps -ef";
     if (process.platform == "win32") checkVcastQtCmd = "tasklist";
 
-    {
-      const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);
+    let lastStdout = "";
 
-      if (stderr) {
-        console.log(stderr);
-        throw new Error(`Error when running ${checkVcastQtCmd}`);
+    await bottomBar.maximize();
+    await browser.waitUntil(
+      async () => {
+        const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);
+        if (stderr) {
+          console.log(`Error when running ${checkVcastQtCmd}`);
+          console.log(stderr);
+        }
+        lastStdout = stdout;
+        return stdout.includes("vcastqt");
+      },
+      {
+        timeout: TIMEOUT,
       }
-
-      await browser.waitUntil(
-        async () =>
-          (await promisifiedExec(checkVcastQtCmd)).stdout.includes("vcastqt"),
-        { timeout: TIMEOUT }
-      );
-      expect(stdout).toContain("vcastqt");
-    }
+    );
+    expect(lastStdout).toContain("vcastqt");
 
     let stopVcastCmd = "pkill vcastqt";
     if (process.platform == "win32")

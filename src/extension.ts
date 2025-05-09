@@ -525,9 +525,9 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.openVCAST  ////////////////////////////////////////////////////////
   let openVCAST = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCAST",
-    (enviroNode: any) => {
+    async (enviroNode: any) => {
       vectorMessage("Starting VectorCAST ...");
-      openVcastFromEnviroNode(enviroNode.id, updateDataForEnvironment);
+      await openVcastFromEnviroNode(enviroNode.id, updateDataForEnvironment);
     }
   );
   context.subscriptions.push(openVCAST);
@@ -535,9 +535,9 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.openVCASTFromVce  ////////////////////////////////////////////////////////
   let openVCASTFromVce = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCASTFromVce",
-    (arg: any) => {
+    async (arg: any) => {
       vectorMessage("Starting VectorCAST ...");
-      openVcastFromVCEfile(arg.fsPath, updateDataForEnvironment);
+      await openVcastFromVCEfile(arg.fsPath, updateDataForEnvironment);
     }
   );
   context.subscriptions.push(openVCASTFromVce);
