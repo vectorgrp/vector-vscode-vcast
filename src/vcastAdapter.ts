@@ -535,8 +535,6 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
     env: {
       ...process.env,
       QT_DEBUG_PLUGINS: "1",
-      QT_QPA_PLATFORM_PLUGIN_PATH: `${process.env.VECTORAST_DIR}/platforms`,
-      LD_LIBRARY_PATH: `${process.env.VECTORAST_DIR}/lib64`,
     },
   });
 

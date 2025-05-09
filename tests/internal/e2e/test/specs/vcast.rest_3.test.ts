@@ -254,12 +254,6 @@ describe("vTypeCheck VS Code Extension", () => {
     let lastStdout = "";
 
     await bottomBar.maximize();
-    console.log("QT_QPA_PLATFORM_PLUGIN_PATH");
-    console.log(process.env.QT_QPA_PLATFORM_PLUGIN_PATH);
-
-    console.log("QT_QPA_PLATFORM_PLUGIN_PATH");
-    console.log(process.env.QT_QPA_PLATFORM_PLUGIN_PATH);
-
     await browser.waitUntil(
       async () => {
         const { stdout, stderr } = await promisifiedExec(checkVcastQtCmd);

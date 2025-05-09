@@ -76,18 +76,12 @@ jobs:
       - name: Vcast activation
         run: |
           RELEASE_DIR=/vcast/${{ matrix.vcast }}
-
           if [ ! -d "$RELEASE_DIR" ]; then
             echo "Error: $RELEASE_DIR does not exist."
             exit 1
           fi
-
-          echo "Activating Vcast ${{ matrix.vcast }}"
-
-          export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms
-
+          echo 'Activating Vcast ${{ matrix.vcast }}'
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
-          echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
         shell: bash
 
@@ -293,21 +287,8 @@ jobs:
             exit 1
           fi
           echo 'Activating Vcast ${{ matrix.version }}'
-          export QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms
-          export LD_LIBRARY_PATH=$RELEASE_DIR/lib64
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
-          echo "QT_QPA_PLATFORM_PLUGIN_PATH=$RELEASE_DIR/platforms" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$RELEASE_DIR/lib64" >> $GITHUB_ENV
-
-          echo "Running ldd on $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so"
-          if [ -f "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" ]; then
-            ldd "$QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so" | grep "not found" || echo "All dependencies resolved."
-          else
-            echo "Error: $QT_QPA_PLATFORM_PLUGIN_PATH/libqxcb.so not found."
-            exit 1
-          fi
-
           USE_VCAST_24=$(if [[ $(cat $RELEASE_DIR/DATA/tool_version.txt) == 24* ]]; then echo "True"; else echo "False"; fi)
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
         shell: bash
