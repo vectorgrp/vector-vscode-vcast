@@ -493,9 +493,6 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   const vceFilename = path.basename(vcePath);
   let vcastArgs: string[] = ["-e " + vceFilename];
 
-  // const setupString =
-  //   "sudo apt-get install -y libxcb\\*";
-
   const dotIndex = vcePath.lastIndexOf(".");
   const enviroPath = vcePath.slice(0, dotIndex);
 
@@ -509,23 +506,6 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   vectorMessage(
     `Calling vcast with args: ${vcastCommandToUse} ${vcastArgs.join(" ")}`
   );
-
-  // const setup = spawn(setupString, {
-  //   cwd: enclosingDirectory,
-  //   detached: true,
-  //   shell: true,
-  //   windowsHide: true,
-  // });
-
-  // setup.stdout?.on("data", (data) => {
-  //   vectorMessage(`[setup stdout] ${data}`);
-  // });
-  // setup.stderr?.on("data", (data) => {
-  //   vectorMessage(`[setup stderr] ${data}`);
-  // });
-  // setup.on("close", (code) => {
-  //   vectorMessage(`setup process exited with code ${code}`);
-  // });
 
   // we use spawn directly to control the detached and shell args
   const vcast = spawn(vcastCommandToUse, vcastArgs, {
