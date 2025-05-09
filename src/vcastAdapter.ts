@@ -494,7 +494,7 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   let vcastArgs: string[] = ["-e " + vceFilename];
 
   // const setupString =
-  //   "export QT_DEBUG_PLUGINS=1 && sudo apt-get install -y libxcb\\*";
+  //   "sudo apt-get install -y libxcb\\*";
 
   const dotIndex = vcePath.lastIndexOf(".");
   const enviroPath = vcePath.slice(0, dotIndex);
@@ -535,6 +535,8 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
     env: {
       ...process.env,
       QT_DEBUG_PLUGINS: "1",
+      QT_QPA_PLATFORM_PLUGIN_PATH: `${process.env.VECTORAST_DIR}/platforms`,
+      LD_LIBRARY_PATH: `${process.env.VECTORAST_DIR}/lib64`,
     },
   });
 
