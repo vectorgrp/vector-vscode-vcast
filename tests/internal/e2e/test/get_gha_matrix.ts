@@ -11,8 +11,9 @@ function dumpGhaMatrix() {
   const result: { version: number; group: string }[] = [];
 
   versions.forEach((version) => {
-    const vcast24 = version.startsWith("2024");
-    const specs = getSpecGroups(vcast24);
+    const year = Number(version.slice(0, 4));
+    const is2024OrHigher = year >= 2024;
+    const specs = getSpecGroups(is2024OrHigher);
     Object.keys(specs).forEach((group) => {
       result.push({ version, group });
     });

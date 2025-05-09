@@ -745,7 +745,7 @@ async function configureWorkspaceAndBuildEnviro(
   fileList: string[],
   envLocation: string,
   projectEnvParameters?: ProjectEnvParameters
-) {
+): Promise<void> {
   // This function will check if unit test directory exists
   // and if not ask the user if we should auto-create it or not
 
@@ -786,34 +786,40 @@ async function configureWorkspaceAndBuildEnviro(
       );
     }
   } else if (fs.existsSync(envLocation)) {
+    // If no project params but the folder already exists, just do the common setup
     commonNewEnvironmentStuff(fileList, envLocation);
   } else {
+    // Otherwise prompt the user to create it
     const message =
       "Unit test location: '" +
       envLocation +
-      " does not exist.\n" +
+      "' does not exist.\n" +
       "Do you want to create and initialize this directory?";
-    vscode.window
-      .showInformationMessage(message, "Yes", "No")
-      .then((answer) => {
-        if (answer === "Yes") {
-          try {
-            fs.mkdirSync(envLocation, { recursive: true });
-            commonNewEnvironmentStuff(fileList, envLocation);
-          } catch (error: any) {
-            vscode.window.showErrorMessage(
-              `Error creating directory: ${envLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
-            );
-            vectorMessage("Error creating directory: " + envLocation);
-            showSettings();
-          }
-        } else {
-          vscode.window.showWarningMessage(
-            `Please create the unit test directory: '${envLocation}', or update the 'Unit Test Location' option`
-          );
-          showSettings();
-        }
-      });
+
+    // await the user's choice instead of using .then()
+    const answer = await vscode.window.showInformationMessage(
+      message,
+      "Yes",
+      "No"
+    );
+
+    if (answer === "Yes") {
+      try {
+        fs.mkdirSync(envLocation, { recursive: true });
+        commonNewEnvironmentStuff(fileList, envLocation);
+      } catch (error: any) {
+        vscode.window.showErrorMessage(
+          `Error creating directory: ${envLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
+        );
+        vectorMessage("Error creating directory: " + envLocation);
+        showSettings();
+      }
+    } else {
+      vscode.window.showWarningMessage(
+        `Please create the unit test directory: '${envLocation}', or update the 'Unit Test Location' option`
+      );
+      showSettings();
+    }
   }
 }
 
@@ -923,7 +929,7 @@ export async function newEnvironment(
         );
         return;
       }
-      configureWorkspaceAndBuildEnviro(
+      await configureWorkspaceAndBuildEnviro(
         fileList,
         tempEnvPath,
         projectEnvParameters
@@ -932,7 +938,7 @@ export async function newEnvironment(
       let unitTestLocation = getUnitTestLocationForPath(
         path.dirname(fileList[0])
       );
-      configureWorkspaceAndBuildEnviro(fileList, unitTestLocation);
+      await configureWorkspaceAndBuildEnviro(fileList, unitTestLocation);
     }
   } else {
     vscode.window.showWarningMessage(

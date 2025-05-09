@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 
 import { globalController } from "../../testPane";
 
@@ -62,4 +64,48 @@ export function getNonce(): string {
     text += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return text;
+}
+
+/**
+ * Resolves the on‐disk base directory for our `src/manage/webviews` folder.
+ *
+ * 1. Tries the normal location under the installed extension:
+ *      <extensionPath>/src/manage/webviews
+ * 2. If that doesn’t exist, checks if we're running in the E2E test harness
+ *    under "<...>/tests/internal/e2e/test/extension". If so, strips off
+ *    that suffix and uses the repo root to locate:
+ *      <repoRoot>/src/manage/webviews
+ * 3. If neither exists, throws an error.
+ *
+ * @param context The ExtensionContext, used to read `extensionPath`.
+ * @returns The filesystem path to the `webviews` folder.
+ * @throws If no valid `webviews` folder can be found.
+ */
+export function resolveWebviewBase(context: vscode.ExtensionContext): string {
+  // 1) Normal installed extension layout
+  const normal = path.join(context.extensionPath, "src", "manage", "webviews");
+  if (fs.existsSync(normal)) {
+    return normal;
+  }
+
+  // 2) Fallback for E2E tests under tests/internal/e2e/test/extension
+  const marker = path.join("tests", "internal", "e2e", "test", "extension");
+  const extPath = context.extensionPath;
+  const idx = extPath.indexOf(marker);
+  if (idx !== -1) {
+    const repoRoot = extPath.slice(0, idx);
+    const fallback = path.join(repoRoot, "src", "manage", "webviews");
+    if (fs.existsSync(fallback)) {
+      return fallback;
+    }
+  }
+
+  throw new Error(
+    `Could not resolve webview base directory. Tried:\n` +
+      `  ${normal}\n` +
+      (marker && extPath.indexOf(marker) !== -1
+        ? `  ${path.join(extPath.slice(0, extPath.indexOf(marker)), "src/manage/webviews")}\n`
+        : "") +
+      `Please ensure that 'src/manage/webviews' exists either under the extension path or under the repo root.`
+  );
 }

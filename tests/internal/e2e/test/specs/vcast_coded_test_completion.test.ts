@@ -160,6 +160,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Create VectorCAST Environment")).click();
 
     // Making sure notifications are shown
+    await browser.pause(4000);
     await (await $("aria/Notifications")).click();
 
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
@@ -253,6 +254,9 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    const outputView = await bottomBar.openOutputView();
+    await bottomBar.openOutputView();
+    await outputView.clearText();
     let contextMenu = await subprogramMethod.openContextMenu();
     console.log("Generating template test");
     await contextMenu.select("VectorCAST");
@@ -265,8 +269,20 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     await browser.keys(Key.Enter);
-
-    await bottomBar.openOutputView();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Adding coded test file"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
     console.log("Checking that tests got generated");
     let testHandle = await getTestHandle(
       subprogram,

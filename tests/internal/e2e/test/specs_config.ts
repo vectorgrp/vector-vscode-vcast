@@ -145,6 +145,11 @@ export function getSpecGroups(useVcast24: boolean) {
       env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
+    specGroups["manage"] = {
+      specs: ["./**/**/vcast_manage.test.ts"],
+      env: { VCAST_USE_PYTHON: "True", MANAGE_TEST: "True" },
+      params: {},
+    };
 
     specGroups["basic_user_interactions_server"] = {
       specs: [
@@ -254,6 +259,12 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testdel_env_atg.test.ts",
       ],
       env: {},
+      params: {},
+    };
+
+    specGroups["manage_server"] = {
+      specs: ["./**/**/vcast_manage.test.ts"],
+      env: { MANAGE_TEST: "True" },
       params: {},
     };
 

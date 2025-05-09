@@ -146,6 +146,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Notifications")).click();
 
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    await browser.pause(4000);
     const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );
@@ -162,6 +163,9 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT }
     );
+
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.pause(4000);
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();

@@ -151,6 +151,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Notifications")).click();
 
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    await browser.pause(4000);
     const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );
@@ -200,6 +201,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should generate and run template test", async () => {
     await updateTestID();
+    const outputView = await bottomBar.openOutputView();
+    await bottomBar.openOutputView();
+    await outputView.clearText();
 
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
@@ -252,6 +256,20 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     await browser.keys(Key.Enter);
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Adding coded test file"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
 
     await bottomBar.openOutputView();
     console.log("Checking that tests got generated");
@@ -562,14 +580,15 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    const bottomBar = workbench.getBottomBar();
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
     const contextMenu = await subprogramMethod.openContextMenu();
     console.log("Deleting coded tests");
     await contextMenu.select("VectorCAST");
     const menuElement = await $("aria/Remove Coded Tests");
     await menuElement.click();
-
-    const bottomBar = workbench.getBottomBar();
-    const outputView = await bottomBar.openOutputView();
 
     await browser.waitUntil(
       async () =>
@@ -594,6 +613,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should add a coded test file with a compile error", async () => {
     await updateTestID();
+    const outputView = await bottomBar.openOutputView();
+    await bottomBar.openOutputView();
+    await outputView.clearText();
 
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
@@ -648,6 +670,20 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(Key.Enter);
 
     await bottomBar.openOutputView();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Adding coded test file"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
     console.log("Checking that all tests appear");
     let currentTestHandle = await getTestHandle(
       subprogram,
@@ -719,6 +755,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should delete Coded Tests", async () => {
     await updateTestID();
+    const bottomBar = workbench.getBottomBar();
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
 
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
@@ -764,9 +803,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Remove Coded Tests");
     await menuElement.click();
 
-    const bottomBar = workbench.getBottomBar();
-    const outputView = await bottomBar.openOutputView();
-
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
@@ -790,6 +826,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should add a coded test file without the compile error", async () => {
     await updateTestID();
+    const outputView = await bottomBar.openOutputView();
 
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
@@ -829,6 +866,7 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    await outputView.clearText();
     const contextMenu = await subprogramMethod.openContextMenu();
     console.log("Adding existing coded tests file");
     await contextMenu.select("VectorCAST");
@@ -843,6 +881,21 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     await browser.keys(Key.Enter);
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Adding coded test file"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
 
     await bottomBar.openOutputView();
     console.log("Checking that all tests appear");
@@ -952,6 +1005,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should run compileErrorTest and check report", async () => {
     await updateTestID();
+    const bottomBar = workbench.getBottomBar();
+    const outputView = await bottomBar.openOutputView();
     const vcastTestingViewContent = await getViewContent("Testing");
     let subprogram: TreeItem;
 
@@ -1002,6 +1057,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Adding managerTest.myTest to the test script");
+    await outputView.clearText();
     let line = 54;
     await tab.moveCursor(line, 1);
     await browser.keys(Key.Escape);
@@ -1016,6 +1072,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.setTextAtLine(line + 5, "}");
     await tab.save();
 
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
+
     console.log(
       "Verifying that managerTests.myTest appears in the test explorer"
     );
@@ -1026,10 +1090,6 @@ describe("vTypeCheck VS Code Extension", () => {
       6
     );
     expect(currentTestHandle).not.toBe(undefined);
-
-    const bottomBar = workbench.getBottomBar();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
     await (await tab.elem).click();
 
@@ -1245,32 +1305,33 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.moveCursor(messageLine, 1);
 
     console.log("Open Editor");
-    let sourceFileTab = (await editorView.openEditor(
-      "manager-Tests.cpp"
-    )) as TextEditor;
-    await sourceFileTab.setTextAtLine(errorLine, "");
-    await sourceFileTab.save();
-
-    const bottomBar = workbench.getBottomBar();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
-    await outputView.clearText();
-
+    await tab.setTextAtLine(errorLine, "");
+    await tab.save();
     await editorView.closeAllEditors();
 
-    contextMenu = await currentTestHandle.openContextMenu();
+    console.log("Getting testhandle again");
+    let currentTestHandle2 = await getTestHandle(
+      subprogram,
+      "Coded Tests",
+      "managerTests.compileErrorTest",
+      6
+    );
+
+    console.log("Executing Edid Coded Test");
+    contextMenu = await currentTestHandle2.openContextMenu();
     await contextMenu.select("VectorCAST");
     menuElement = await $("aria/Edit Coded Test");
     await menuElement.click();
-    sourceFileTab = (await editorView.openEditor(
-      "manager-Tests.cpp"
-    )) as TextEditor;
-    await (await sourceFileTab.elem).click();
+    tab = (await editorView.openEditor("manager-Tests.cpp")) as TextEditor;
+
+    console.log("Opened Editor");
+    await (await tab.elem).click();
     // Closing the squiggle
     await browser.keys(Key.Escape);
-    await (await sourceFileTab.elem).click();
+    await (await tab.elem).click();
 
-    await sourceFileTab.moveCursor(messageLine, 1);
+    console.log("Moving cursor to the line with the error");
+    await tab.moveCursor(messageLine, 1);
     lineNumberElement = await $(`.line-numbers=${messageLine}`);
     runArrowElement = await (
       await lineNumberElement.parentElement()

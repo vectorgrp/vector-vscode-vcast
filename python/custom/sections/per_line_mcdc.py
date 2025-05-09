@@ -55,7 +55,14 @@ def entry_exit_decorator(func):
 class PerLineMcdc(McdcTables):
     @entry_exit_decorator
     def prepare_data(self):
-        super().prepare_data()
+        parent = super(PerLineMcdc, self)
+
+        try:
+            # Newer versions expose this private hook
+            parent._McdcTables__prepare_tu_data()
+        except (AttributeError, TypeError):
+            # Older versions only have the public method
+            parent.prepare_data()
 
 
 # EOF
