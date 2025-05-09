@@ -467,7 +467,7 @@ export const config: Options.Testrunner = {
       if (toolVersion == 25) {
         coded_mock_different_env_version = "2024sp1";
       } else {
-        coded_mock_different_env_version = "2024sp1";
+        coded_mock_different_env_version = "2025sp0";
       }
 
       // Look up what testing group called this function (coded_mock_different_env or import_coded_test) and
@@ -575,7 +575,7 @@ TEST.END`;
       if (toolVersion == 25) {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
       } else {
-        process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, "2025sp1");
       }
     }
 
