@@ -145,3 +145,14 @@ This option is new for VectorCAST 23 sp2
 - Fix hover colours execution reports (#236)
 - Fix View Test Results context menu (#237)
 
+## [1.0.15] - 2024-12-20
+- Implemented MCDC and MCDC+Statement Coverage (#243)
+- Added ability to generate MCDC reports 
+
+### Bug Fixes
+- Fixed wrong Test Results message log (#248)
+
+## [1.0.16] - 2024-05-08
+- Implemented Manage support (#253)
+
+

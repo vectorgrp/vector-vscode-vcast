@@ -1225,6 +1225,14 @@ async function installPreActivationEventHandlers(
                 return;
               }
               for (const file of envFiles) {
+                // Should not happen as we right click on the env file, but to be sure
+                if (!fs.existsSync(file)) {
+                  vscode.window.showInformationMessage(
+                    `Environment file ${file} does not exist.`
+                  );
+                  return;
+                }
+
                 vectorMessage(`Env File: ${file}`);
                 await importEnvToTestsuite(projectPath, testsuiteArgs, file);
               }
@@ -1295,6 +1303,13 @@ async function installPreActivationEventHandlers(
               }
               const file = envFiles[0];
               for (let level of testsuiteArgs) {
+                // Making sure the file exists
+                if (!fs.existsSync(file)) {
+                  vscode.window.showInformationMessage(
+                    `Environment file ${file} does not exist.`
+                  );
+                  return;
+                }
                 vectorMessage(`Env File: ${file}`);
                 if (level == testsuiteArgs[0]) {
                   await importEnvToTestsuite(projectPath, level, file);
@@ -1418,6 +1433,16 @@ async function installPreActivationEventHandlers(
               sourceFiles,
               testsuiteArgs,
             };
+
+            // Checking if the files really exists.
+            for (const file of sourceFiles) {
+              if (!fs.existsSync(file)) {
+                vscode.window.showInformationMessage(
+                  `Source file ${file} does not exist.`
+                );
+                return;
+              }
+            }
             vscode.window.showInformationMessage(
               `Creating environment in ${projectPath} with ${testsuiteArgs.join(", ")} and sources ${sourceFiles.join(", ")}`
             );
