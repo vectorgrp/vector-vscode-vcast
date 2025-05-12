@@ -1438,9 +1438,6 @@ export async function deleteTests(nodeList: any[]) {
 
     if (commandStatus.errorCode == 0) {
       changedEnvironmentIDList.add(getEnviroNodeIDFromID(node.id));
-      // Delete the test node from cache, because otherwise the tests are deleted and
-      // if trying to load the same test name again, it will say "it already exists".
-      testNodeCache.delete(node.id);
     } else {
       vectorMessage("Error deleting test\n");
       openMessagePane();
@@ -1457,6 +1454,7 @@ export async function deleteTests(nodeList: any[]) {
     await updateProjectData(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
   }
+  await refreshAllExtensionData();
 }
 
 export async function insertBasisPathTests(testNode: testNodeType) {

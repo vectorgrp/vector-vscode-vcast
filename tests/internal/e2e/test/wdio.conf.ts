@@ -485,12 +485,12 @@ export const config: Options.Testrunner = {
       );
 
       let vcastRoot = await getVcastRoot();
-      let coded_mock_different_env_version: string;
       const toolVersion = await getToolVersion();
-      if (toolVersion == 24) {
-        coded_mock_different_env_version = "2024sp1";
-      } else if (toolVersion == 25) {
+      let coded_mock_different_env_version: string;
+      if (toolVersion == 25) {
         coded_mock_different_env_version = "2025sp0";
+      } else {
+        coded_mock_different_env_version = "2024sp1";
       }
 
       // Look up what testing group called this function (coded_mock_different_env or import_coded_test) and
@@ -595,10 +595,10 @@ TEST.END`;
       await executeCommand(setEnviro);
       await executeCommand(runTest);
 
-      if (toolVersion == 24) {
-        process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
-      } else if (toolVersion == 25) {
+      if (toolVersion == 25) {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, "2025sp1");
+      } else {
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
       }
     }
 
