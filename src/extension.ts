@@ -558,6 +558,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   let openVCAST = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCAST",
     async (enviroNode: any) => {
+    async (enviroNode: any) => {
       vectorMessage("Starting VectorCAST ...");
       // If the Env is embedded in a project, we want to open the whole project
       const enviroPath = enviroNode.id.split("vcast:")[1];
@@ -573,6 +574,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.openVCASTFromVce  ////////////////////////////////////////////////////////
   let openVCASTFromVce = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCASTFromVce",
+    async (arg: any) => {
     async (arg: any) => {
       vectorMessage("Starting VectorCAST ...");
       const dotIndex = arg.fsPath.lastIndexOf(".");
