@@ -1,7 +1,6 @@
 // Test/specs/vcast.test.ts
 import {
   EditorView,
-  TreeItem,
   type BottomBarPanel,
   type Workbench,
 } from "wdio-vscode-service";
@@ -18,18 +17,14 @@ import {
   getNodeText,
   getTexts,
   findTreeNodeAtLevel,
+  TIMEOUT,
 } from "../test_utils/vcast_utils";
-import { TIMEOUT } from "../test_utils/vcast_utils";
-import { checkForServerRunnability } from "../../../../unit/getToolversion";
 import path from "node:path";
-import * as fs from "fs";
-import { execSync } from "child_process";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  let useDataServer: boolean = true;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -37,10 +32,6 @@ describe("vTypeCheck VS Code Extension", () => {
     editorView = workbench.getEditorView();
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
-    let releaseIsSuitableForServer = await checkForServerRunnability();
-    if (process.env.VCAST_USE_PYTHON || !releaseIsSuitableForServer) {
-      useDataServer = false;
-    }
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -80,11 +71,6 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
-    // await browser.waitUntil(async () =>
-    //   (await outputView.getChannelNames())
-    //     .toString()
-    //     .includes("VectorCAST Test Explorer")
-    // );
     await outputView.selectChannel("VectorCAST Test Explorer");
     console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
@@ -126,9 +112,9 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Available section titles:", sectionTitles);
 
     // The only section is "Test Explorer"
-    const testExplorerSection = sections.find(async (section) => {
-      return (await section.getTitle()).trim() === "Test Explorer";
-    });
+    const testExplorerSection = sections.find(
+      async (section) => (await section.getTitle()).trim() === "Test Explorer"
+    );
     if (!testExplorerSection) {
       throw new Error(
         "Test Explorer section not found. Available sections: " +
@@ -148,7 +134,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Children of Test Explorer:", explorerChildTexts);
 
     // Find the "Test.vcm" node.
-    let testVcmNode: any = undefined;
+    let testVcmNode: any;
     for (const child of explorerChildren) {
       const text = (await child.elem.getText()).trim();
       if (text === "Test.vcm") {
@@ -172,10 +158,16 @@ describe("vTypeCheck VS Code Extension", () => {
       (text) => text === "GNU_Native_Automatic_C++"
     );
     console.log("Level 0 texts:", level0Texts);
-    expect(level0Texts.sort()).toEqual(nodeTreeLevelList[0].sort());
+
+    // Sort the actual and expected arrays using localeCompare (sonar wants it that way)
+    const sortedLevel0 = level0Texts.sort((a, b) => a.localeCompare(b));
+    const expectedLevel0 = [...nodeTreeLevelList[0]].sort((a, b) =>
+      a.localeCompare(b)
+    );
+    expect(sortedLevel0).toEqual(expectedLevel0);
 
     // Find the "GNU_Native_Automatic_C++" node.
-    let rootNode: any = undefined;
+    let rootNode: any;
     for (const node of level0Nodes) {
       if ((await getNodeText(node)) === "GNU_Native_Automatic_C++") {
         rootNode = node;
@@ -193,12 +185,17 @@ describe("vTypeCheck VS Code Extension", () => {
     const level1Nodes = await rootNode.getChildren();
     const level1Texts = await getTexts(level1Nodes);
     console.log("Level 1 texts:", level1Texts);
-    expect(level1Texts.sort()).toEqual(nodeTreeLevelList[1].sort());
+
+    const sortedLevel1 = level1Texts.sort((a, b) => a.localeCompare(b));
+    const expectedLevel1 = [...nodeTreeLevelList[1]].sort((a, b) =>
+      a.localeCompare(b)
+    );
+    expect(sortedLevel1).toEqual(expectedLevel1);
 
     // Level 2: Check each level1 node individually.
     for (const node of level1Nodes) {
       const label = await getNodeText(node);
-      if (label === "Testsuite") {
+      if (label === "TestSuite") {
         // For "Testsuite", we do not expect any children.
         const children = await node.getChildren();
         expect(children.length).toBe(0);
@@ -209,8 +206,12 @@ describe("vTypeCheck VS Code Extension", () => {
         const children = await node.getChildren();
         const childTexts = await getTexts(children);
         console.log(`Children under ${label}:`, childTexts);
-        // Expect exactly ["BAR", "FOO", "QUACK"] (order does not matter)
-        expect(childTexts.sort()).toEqual(nodeTreeLevelList[2].sort());
+
+        const sortedChildren = childTexts.sort((a, b) => a.localeCompare(b));
+        const expectedChildren = [...nodeTreeLevelList[2]].sort((a, b) =>
+          a.localeCompare(b)
+        );
+        expect(sortedChildren).toEqual(expectedChildren);
       }
     }
   });
@@ -641,7 +642,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing creating an Env from Source Files", async () => {
     await updateTestID();
-    // await browser.pause(5000);
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
@@ -694,7 +694,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Checking if Env node DATABASE-MANAGER is in Tree");
     // Need to wait because there are more than one "Processing environment data for" messages
     await browser.pause(3000);
-    const TestingView = await activityBar.getViewControl("Testing");
+    await activityBar.getViewControl("Testing");
     const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
     expect(testsuiteNode).toBeDefined();
 

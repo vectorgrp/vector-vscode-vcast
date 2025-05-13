@@ -10,8 +10,6 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  findTreeNodeAtLevel,
-  executeContextMenuAction,
   generateAndValidateAllTestsFor,
   testGenMethod,
 } from "../test_utils/vcast_utils";

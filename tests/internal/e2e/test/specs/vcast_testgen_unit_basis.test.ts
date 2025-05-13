@@ -9,8 +9,6 @@ import {
   testGenMethod,
   generateAllTestsForUnit,
   validateGeneratedTestsForUnit,
-  findTreeNodeAtLevel,
-  executeContextMenuAction,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 

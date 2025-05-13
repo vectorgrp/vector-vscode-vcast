@@ -1180,7 +1180,7 @@ async function installPreActivationEventHandlers(
   const importEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importEnviroToProject",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
-      const manageWebviewSrcDir = await resolveWebviewBase(context);
+      const manageWebviewSrcDir = resolveWebviewBase(context);
       const panel = vscode.window.createWebviewPanel(
         "importEnviroToProject",
         "Import Environment to Project",

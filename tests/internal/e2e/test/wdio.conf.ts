@@ -709,7 +709,6 @@ ENVIRO.END
      * @returns {Promise<void>} - A promise that resolves when all directory operations are complete.
      */
     async function setupTestEnvironment(initialWorkdir: string): Promise<void> {
-      const logDir = path.join(initialWorkdir, "test", "log");
       const testInputManage = path.join(initialWorkdir, "test", "manage");
       // In case the tests failed onWorkerEnd is not called and we need to delete the Manage folders and files here
       if (process.env.MANAGE_TEST) {
@@ -1077,7 +1076,6 @@ ENVIRO.END
    */
   async onWorkerEnd(cid, exitCode, specs, retries) {
     const path = require("node:path");
-    const fs = require("node:fs");
     const { promisify } = require("node:util");
     const { exec } = require("node:child_process");
 
