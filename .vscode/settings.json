@@ -25,7 +25,5 @@
   ],
   "python.analysis.extraPaths": [
     "${workspaceFolder}/python",
-    "c:/RDS/vector-vscode-vcast/python",
-    "c:/RDS/VectorCAST-Source/python"
   ],
 }
