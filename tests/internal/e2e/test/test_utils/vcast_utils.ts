@@ -11,7 +11,6 @@ import {
   ContentAssist,
   ContentAssistItem,
   BottomBarPanel,
-  WebView,
 } from "wdio-vscode-service";
 import * as fs from "fs";
 import { Key } from "webdriverio";
@@ -1717,7 +1716,7 @@ export async function insertStringToInput(
 ) {
   // Get the workbench and open the webview
   const workbench = await browser.getWorkbench();
-  const editorView = workbench.getEditorView();
+  workbench.getEditorView();
 
   // Retrieve all webviews and check the number of webviews open
   const webviews = await workbench.getAllWebviews();

@@ -15,7 +15,6 @@ import {
 } from "../test_utils/vcast_utils";
 
 import { TIMEOUT } from "../test_utils/vcast_utils";
-import { getToolVersion } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", async () => {
   let bottomBar: BottomBarPanel;
