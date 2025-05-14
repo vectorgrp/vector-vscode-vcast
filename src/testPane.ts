@@ -83,7 +83,7 @@ import {
   ensureTestsuiteNodes,
   generateAndLoadATGTests,
   generateAndLoadBasisPathTests,
-  getWebveiwComboboxItems,
+  getWebviewComboboxItems,
   testStatus,
 } from "./vcastUtilities";
 
@@ -513,7 +513,7 @@ export async function buildProjectDataCache(baseDirectory: string) {
       // we turn this into a typescript object and then store in a map
       globalProjectDataCache.set(projectFile, enviroListAsMap);
 
-      const comboBoxList = getWebveiwComboboxItems(projectFile);
+      const comboBoxList = getWebviewComboboxItems(projectFile);
       globalProjectWebviewComboboxItems.set(projectFile, comboBoxList);
     } else {
       vectorMessage("Error getting project data for: " + projectFile);

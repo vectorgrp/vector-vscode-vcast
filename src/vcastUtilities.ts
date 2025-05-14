@@ -496,7 +496,7 @@ export function getRebuildOptionsString(): string {
  * @param projectFile Path to Project File
  * @returns 2 Lists containing the project compilers and testsuites
  */
-export function getWebveiwComboboxItems(projectFile: string) {
+export function getWebviewComboboxItems(projectFile: string) {
   let comboBoxList: { compilers: string[]; testsuites: string[] } = {
     compilers: [],
     testsuites: [],

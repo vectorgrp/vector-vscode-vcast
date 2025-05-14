@@ -656,19 +656,19 @@ async function getProjectDataFromServer(
   // transmitResponse.returnData is an object with exitCode and data properties
   // for getProjectData we might have a version miss-match if the enviro is newer
   // than the version of vcast we are using, so handle that here
-  if (transmitResponse.success) {
-    const returnData = transmitResponse.returnData;
-    if (returnData.exitCode == 0) {
-      return returnData.data;
-    } else {
-      vectorMessage(returnData.data.text.join("\n"));
-      return undefined;
-    }
-  } else {
+  if (!transmitResponse.success) {
     await vectorMessage(transmitResponse.statusText);
     openMessagePane();
     return undefined;
   }
+
+  const returnData = transmitResponse.returnData;
+  if (returnData.exitCode === 0) {
+    return returnData.data;
+  }
+
+  vectorMessage(returnData.data.text.join("\n"));
+  return undefined;
 }
 
 // Get Environment Data ---------------------------------------------------------------
