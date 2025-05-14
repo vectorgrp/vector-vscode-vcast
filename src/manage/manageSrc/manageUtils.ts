@@ -2,7 +2,9 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 
-import { globalController } from "../../testPane";
+import { globalController, globalProjectDataCache } from "../../testPane";
+import { vectorMessage } from "../../messagePane";
+import { normalizePath } from "../../utilities";
 
 /**
  * Searches the entire globalController for a test item with the specified id.
@@ -108,6 +110,33 @@ export function resolveWebviewBase(context: vscode.ExtensionContext): string {
         : "") +
       `Please ensure that 'src/manage/webviews' exists either under the extension path or under the repo root.`
   );
+}
+
+/**
+ * Adds environments that are part of a managed project (from globalProjectDataCache).
+ * @param globalProjectDataCache A Map containing project data.
+ * @param projectPathDirList A list to hold project directory paths.
+ * @param environmentList A list to push environment data.
+ * @param workspaceRoot The workspace root directory path.
+ */
+export function addManagedEnvironments(
+  projectPathDirList: string[],
+  environmentList: any[],
+  workspaceRoot: string
+): void {
+  for (const [projectPath, projectData] of globalProjectDataCache) {
+    vectorMessage(`Processing project: ${projectPath} ...`);
+    projectPathDirList.push(projectPath.split(".vcm")[0]);
+    for (const [buildDirectory, enviroData] of projectData) {
+      environmentList.push({
+        projectPath: normalizePath(projectPath),
+        buildDirectory: normalizePath(buildDirectory),
+        isBuilt: enviroData.isBuilt,
+        displayName: enviroData.displayName, // e.g. "GNU/BlackBox/ENV"
+        workspaceRoot: normalizePath(workspaceRoot),
+      });
+    }
+  }
 }
 
 // Simple list with ignored projects in case something goes wrong but we can still continue with other projects

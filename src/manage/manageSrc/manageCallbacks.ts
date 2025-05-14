@@ -69,8 +69,10 @@ export async function addEnvToProjectCallback(
       fs.unlinkSync(enviroPath + ".vce");
       // Don't want to remove the .env, because leaving it allows the
       // user to edit and then right click to try a re-build
-    } catch {
-      // ignore errors
+    } catch (error: any) {
+      vectorMessage(
+        `Error while adding ${enviroPath} to project: ${error.message}`
+      );
     }
   }
 }
@@ -99,8 +101,10 @@ export async function buildEnvironmentIncrementalCallback(
         fs.unlinkSync(enviroPath + ".vce");
         // Don't want to remove the .env, because leaving it allows the
         // user to edit and then right click to try a re-build
-      } catch {
-        // ignore errors
+      } catch (error: any) {
+        vectorMessage(
+          `Error while cleaning up environment at ${enviroPath}: ${error.message}`
+        );
       }
     }
   }

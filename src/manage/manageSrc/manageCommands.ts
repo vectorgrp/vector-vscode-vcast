@@ -48,7 +48,7 @@ const path = require("path");
 // ------------------------------------------------------------------------------------
 
 // Build Project Environment - no server logic needed ---------------------------------
-export function buildProjectEnvironment(
+export async function buildProjectEnvironment(
   projectFilePath: string,
   levelString: string,
   enviroPath: string
@@ -65,7 +65,7 @@ export function buildProjectEnvironment(
 
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
   openMessagePane();
-  executeWithRealTimeEchoWithProgress(
+  await executeWithRealTimeEchoWithProgress(
     manageCommandToUse,
     manageArgs,
     projectLocation,
@@ -184,7 +184,7 @@ export async function removeTestsuiteFromProject(
       }
     }
   }
-  executeWithRealTimeEchoWithProgress(
+  await executeWithRealTimeEchoWithProgress(
     manageCommandToUse,
     manageArgs,
     projectLocation,

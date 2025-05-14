@@ -96,7 +96,10 @@ import {
   closeConnection,
   globalEnviroDataServerActive,
 } from "../src-common/vcastServer";
-import { ignoreEnvsInProject } from "./manage/manageSrc/manageUtils";
+import {
+  addManagedEnvironments,
+  ignoreEnvsInProject,
+} from "./manage/manageSrc/manageUtils";
 
 const fs = require("fs");
 const path = require("path");
@@ -520,6 +523,52 @@ export async function buildProjectDataCache(baseDirectory: string) {
 }
 
 /**
+ * Adds free (non-managed) environments to the environment list.
+ * @param workspaceRoot The workspace root directory path.
+ * @param projectPathDirList A list of project directory paths.
+ * @param ignoreEnvsInProject A list of ignored environments due to project issues.
+ * @param environmentList A list to push environment data.
+ */
+export function addFreeEnvironments(
+  workspaceRoot: string,
+  projectPathDirList: string[],
+  ignoreEnvsInProject: string[],
+  environmentList: any[]
+): void {
+  for (const environment of getEnvironmentList(workspaceRoot)) {
+    let enviroIsNotManaged = true;
+    let ignoreEnvDueToProjectIssue = false;
+    const normalizedPath = normalizePath(environment);
+
+    // Check if the environment is part of a managed project
+    for (let path of projectPathDirList) {
+      if (normalizedPath.includes(path)) {
+        enviroIsNotManaged = false;
+      }
+
+      // Check if there was an issue with the project
+      for (let path of ignoreEnvsInProject) {
+        const projectDir = path.split(".vcm")[0];
+        if (normalizedPath.includes(projectDir)) {
+          ignoreEnvDueToProjectIssue = true;
+        }
+      }
+    }
+
+    if (enviroIsNotManaged && !ignoreEnvDueToProjectIssue) {
+      const displayName = path.relative(workspaceRoot, normalizedPath);
+      environmentList.push({
+        projectPath: "",
+        buildDirectory: normalizedPath,
+        isBuilt: true,
+        displayName: displayName,
+        workspaceRoot: workspaceRoot,
+      });
+    }
+  }
+}
+
+/**
  * Checks if the given path is an environment of interest.
  * @param candidatePath - The path to check
  * @returns True if the path is an environment of interest, false otherwise
@@ -755,7 +804,7 @@ async function loadAllVCTests(
   clearGlobalCompilersAndTestsuites();
 
   let cancelled: boolean = false;
-  let environmentList: environmentNodeDataType[] = [];
+  const environmentList: environmentNodeDataType[] = [];
   let projectPathDirList: string[] = [];
 
   if (vscode.workspace.workspaceFolders) {
@@ -764,58 +813,21 @@ async function loadAllVCTests(
       // Build the project cache for this workspace.
       await buildProjectDataCache(workspaceRoot);
 
-      // Add environments that are part of a managed project.
-      for (const [projectPath, projectData] of globalProjectDataCache) {
-        vectorMessage(`Processing project: ${projectPath} ...`);
-        projectPathDirList.push(projectPath.split(".vcm")[0]);
-        for (const [buildDirectory, enviroData] of projectData) {
-          environmentList.push({
-            projectPath: normalizePath(projectPath),
-            buildDirectory: normalizePath(buildDirectory),
-            isBuilt: enviroData.isBuilt,
-            displayName: enviroData.displayName, // e.g. "GNU/BlackBox/ENV"
-            workspaceRoot: normalizePath(workspaceRoot),
-          });
-        }
-      }
+      // Add environments from managed projects
+      addManagedEnvironments(
+        projectPathDirList,
+        environmentList,
+        workspaceRoot
+      );
 
-      // Add free (non-managed) environments.
-      for (const environment of getEnvironmentList(workspaceRoot)) {
-        let enviroIsNotManaged = true;
-        let ignoreEnvDueToProjectIssue = false;
-        const normalizedPath = normalizePath(environment);
-        // An Environment can be also in the environmentList when the Compiler or the Testsuite is disabled.
-        // Without this check, the env would be recognized as "Free Environment" and would appear as a seperate node
-        // We check here if the build path includes the project path and if so, we ignore the env.
-        for (let path of projectPathDirList) {
-          if (normalizedPath.includes(path)) {
-            enviroIsNotManaged = false;
-          }
-
-          // Now we need to check if there was in issue with project, in which the env is embedded. If so,
-          // The env is also put into the EnvironmnetList, but we need to ignore it.
-          // For example, if the project is locked by another process (e.g. opened in VectorCAST, ...).
-          for (let path of ignoreEnvsInProject) {
-            // We save the path of the .vcm file so we need to split the .vcm at the end
-            const projectDir = path.split(".vcm")[0];
-            if (normalizedPath.includes(projectDir)) {
-              ignoreEnvDueToProjectIssue = true;
-            }
-          }
-        }
-
-        if (enviroIsNotManaged && !ignoreEnvDueToProjectIssue) {
-          const displayName = path.relative(workspaceRoot, normalizedPath);
-          environmentList.push({
-            projectPath: "",
-            buildDirectory: normalizedPath,
-            isBuilt: true,
-            displayName: displayName,
-            workspaceRoot: workspaceRoot,
-          });
-        }
-      }
-    } // end for workspace folders
+      // Add free environments
+      addFreeEnvironments(
+        workspaceRoot,
+        projectPathDirList,
+        ignoreEnvsInProject,
+        environmentList
+      );
+    }
 
     if (environmentList.length > 0) vcastEnvironmentsFound = true;
     const increment = (1 / environmentList.length) * 100;
@@ -1633,6 +1645,7 @@ export let globalController: vscode.TestController;
 // this is needed to allow us to save and later lookup
 // the parent node for any environment that is part of a project
 export const globalProjectMap: Map<string, vcastTestItem> = new Map();
+
 /**
  * Given an environment’s data, this function builds (if needed) and returns
  * the parent node for the environment. It uses the environment’s displayName,
@@ -1645,46 +1658,65 @@ function getParentNodeForEnvironment(
 ): vcastTestItem | null {
   const pathParts = enviroData.displayName.split("/");
 
-  if (enviroData.projectPath && enviroData.projectPath.length > 0) {
-    // Managed project branch.
-    let projectNode = globalProjectMap.get(enviroData.projectPath);
-    if (!projectNode) {
-      const projectDisplayName = path.basename(enviroData.projectPath);
-      projectNode = globalController.createTestItem(
-        enviroData.projectPath,
-        projectDisplayName
-      ) as vcastTestItem;
-      projectNode.nodeKind = nodeKind.project;
-      globalController.items.add(projectNode);
-      globalProjectMap.set(enviroData.projectPath, projectNode);
-    }
-    let currentParent = projectNode;
-    // Create the hierarchy: compiler -> testsuite (all segments except last).
-    for (let i = 0; i < pathParts.length - 1; i++) {
-      const part = pathParts[i];
-      const childId = `${currentParent.id}/${part}`;
-      let childNode = currentParent.children.get(childId) as vcastTestItem;
-      if (!childNode) {
-        childNode = globalController.createTestItem(
-          childId,
-          part
-        ) as vcastTestItem;
-        if (i === 0) {
-          childNode.nodeKind = nodeKind.compiler;
-        } else if (i === 1) {
-          childNode.nodeKind = nodeKind.testsuite;
-        } else {
-          childNode.nodeKind = nodeKind.testsuite;
-        }
-        currentParent.children.add(childNode);
-      }
-      currentParent = childNode;
-    }
-    return currentParent;
-  } else {
-    // Free environment: do not create a wrapping node.
+  // Free environment: do not create a wrapping node.
+  if (!enviroData.projectPath || enviroData.projectPath.length === 0) {
     return null;
   }
+
+  // Managed project branch.
+  let projectNode = globalProjectMap.get(enviroData.projectPath);
+  if (!projectNode) {
+    // If project node doesn't exist, create a new one.
+    const projectDisplayName = path.basename(enviroData.projectPath);
+    projectNode = globalController.createTestItem(
+      enviroData.projectPath,
+      projectDisplayName
+    ) as vcastTestItem;
+    projectNode.nodeKind = nodeKind.project;
+    globalController.items.add(projectNode);
+    globalProjectMap.set(enviroData.projectPath, projectNode);
+  }
+
+  let currentParent = createHierarchy(pathParts, projectNode);
+
+  return currentParent;
+}
+
+/**
+ * Creates the hierarchy of nodes (compiler -> testsuite).
+ * @param pathParts The segments to create the hierarchy for.
+ * @param currentParent The current parent node in the hierarchy.
+ */
+function createHierarchy(
+  pathParts: string[],
+  currentParent: vcastTestItem
+): vcastTestItem {
+  // Create the hierarchy: compiler -> testsuite (all segments except last).
+  for (let i = 0; i < pathParts.length - 1; i++) {
+    const part = pathParts[i];
+    const childId = `${currentParent.id}/${part}`;
+    let childNode = currentParent.children.get(childId) as vcastTestItem;
+
+    if (!childNode) {
+      childNode = globalController.createTestItem(
+        childId,
+        part
+      ) as vcastTestItem;
+
+      // Set the nodeKind based on the position
+      if (i === 0) {
+        childNode.nodeKind = nodeKind.compiler;
+      } else {
+        childNode.nodeKind = nodeKind.testsuite;
+      }
+
+      currentParent.children.add(childNode);
+    }
+
+    currentParent = childNode;
+  }
+
+  return currentParent;
 }
 
 export async function activateTestPane(context: vscode.ExtensionContext) {

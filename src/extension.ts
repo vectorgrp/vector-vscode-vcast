@@ -825,14 +825,18 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
   let buildProjectEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.buildProjectEnviro",
-    (enviroNode: any) => {
+    async (enviroNode: any) => {
       // displayName is the what will be passed as the --level arg value
       const enviroPath = enviroNode.id.split("vcast:")[1];
       const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
       const displayName = enviroData.displayName;
       console.log("Building project environment: " + displayName);
 
-      buildProjectEnvironment(enviroData.projectPath, displayName, enviroPath);
+      await buildProjectEnvironment(
+        enviroData.projectPath,
+        displayName,
+        enviroPath
+      );
     }
   );
   context.subscriptions.push(buildProjectEnviro);
@@ -897,7 +901,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.removeTestsuite  ////////////////////////////////////////////////////////
   let removeTestsuite = vscode.commands.registerCommand(
     "vectorcastTestExplorer.removeTestsuite",
-    (enviroNode: any) => {
+    async (enviroNode: any) => {
       // this returns the full path to the environment directory
       let enviroPath = getEnviroPathFromID(enviroNode.id);
       // In case the env is not built, it will be not present in the cache
@@ -915,7 +919,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           return;
         }
       }
-      removeTestsuiteFromProject(enviroPath, enviroNode.id);
+      await removeTestsuiteFromProject(enviroPath, enviroNode.id);
     }
   );
   context.subscriptions.push(removeTestsuite);
