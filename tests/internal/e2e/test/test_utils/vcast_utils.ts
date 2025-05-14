@@ -1622,7 +1622,7 @@ export async function executeContextMenuAction(
   contextMenuItemName: string
 ): Promise<void> {
   // Find the target tree node.
-  const targetNode = await retryFindTreeNode(level, nodeName);
+  const targetNode: TreeItem = await retryFindTreeNode(level, nodeName);
   if (!targetNode) {
     throw new Error(`Node "${nodeName}" not found at level ${level}`);
   }
@@ -1643,7 +1643,7 @@ async function retryFindTreeNode(
   nodeName: string,
   retries = 3,
   delayMs = 500
-): Promise<any | undefined> {
+): Promise<TreeItem | undefined> {
   for (let attempt = 0; attempt < retries; attempt++) {
     const node = await findTreeNodeAtLevel(level, nodeName);
     if (node) return node;
@@ -1664,7 +1664,7 @@ export async function findTreeNodeAtLevel(
   level: number,
   nodeName: string,
   nodes?: any[]
-): Promise<any | undefined> {
+): Promise<TreeItem | undefined> {
   // Step 1: bootstrap from the Test Explorer
   if (!nodes) {
     const view = await getViewContent("Testing");
