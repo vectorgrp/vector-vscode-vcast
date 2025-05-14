@@ -109,3 +109,6 @@ export function resolveWebviewBase(context: vscode.ExtensionContext): string {
       `Please ensure that 'src/manage/webviews' exists either under the extension path or under the repo root.`
   );
 }
+
+// Simple list with ignored projects in case something goes wrong but we can still continue with other projects
+export const ignoreEnvsInProject: string[] = [];

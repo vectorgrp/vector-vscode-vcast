@@ -96,6 +96,7 @@ import {
   closeConnection,
   globalEnviroDataServerActive,
 } from "../src-common/vcastServer";
+import { ignoreEnvsInProject } from "./manage/manageSrc/manageUtils";
 
 const fs = require("fs");
 const path = require("path");
@@ -486,29 +487,35 @@ export async function buildProjectDataCache(baseDirectory: string) {
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
     // See python function vTestInterface.py:getProjectData()
     const projectData = await getDataForProject(projectFile);
-    const enviroList = projectData.projectEnvData;
 
-    // This includes all unused and empty testsuites and compilers because
-    // they are not in the enviroList as they do not include any envs
-    globalUnusedTestsuiteList.length = 0;
-    globalUnusedTestsuiteList.push(...projectData.projectTestsuiteData);
+    if (projectData) {
+      const enviroList = projectData.projectEnvData;
 
-    projectData.projectCompilerData.forEach(
-      (item: { projectFile: string | undefined }) => {
-        item.projectFile = forceLowerCaseDriveLetter(item.projectFile);
-      }
-    );
-    globalUnusedCompilerList.length = 0;
-    globalUnusedCompilerList.push(...projectData.projectCompilerData);
+      // This includes all unused and empty testsuites and compilers because
+      // they are not in the enviroList as they do not include any envs
+      globalUnusedTestsuiteList.length = 0;
+      globalUnusedTestsuiteList.push(...projectData.projectTestsuiteData);
 
-    // convert the raw json data into a map for the cache
-    const enviroListAsMap = await convertProjectDataToMap(enviroList);
+      projectData.projectCompilerData.forEach(
+        (item: { projectFile: string | undefined }) => {
+          item.projectFile = forceLowerCaseDriveLetter(item.projectFile);
+        }
+      );
+      globalUnusedCompilerList.length = 0;
+      globalUnusedCompilerList.push(...projectData.projectCompilerData);
 
-    // we turn this into a typescript object and then store in a map
-    globalProjectDataCache.set(projectFile, enviroListAsMap);
+      // convert the raw json data into a map for the cache
+      const enviroListAsMap = await convertProjectDataToMap(enviroList);
 
-    const comboBoxList = getWebveiwComboboxItems(projectFile);
-    globalProjectWebviewComboboxItems.set(projectFile, comboBoxList);
+      // we turn this into a typescript object and then store in a map
+      globalProjectDataCache.set(projectFile, enviroListAsMap);
+
+      const comboBoxList = getWebveiwComboboxItems(projectFile);
+      globalProjectWebviewComboboxItems.set(projectFile, comboBoxList);
+    } else {
+      vectorMessage("Error getting project data for: " + projectFile);
+      ignoreEnvsInProject.push(projectFile);
+    }
   }
 }
 
@@ -738,6 +745,7 @@ async function loadAllVCTests(
   });
 
   // Reset caches and environment lists.
+  ignoreEnvsInProject.length = 0;
   vcastEnviroList = [];
   vcastUnbuiltEnviroList = [];
   clearEnviroDataCache();
@@ -774,6 +782,7 @@ async function loadAllVCTests(
       // Add free (non-managed) environments.
       for (const environment of getEnvironmentList(workspaceRoot)) {
         let enviroIsNotManaged = true;
+        let ignoreEnvDueToProjectIssue = false;
         const normalizedPath = normalizePath(environment);
         // An Environment can be also in the environmentList when the Compiler or the Testsuite is disabled.
         // Without this check, the env would be recognized as "Free Environment" and would appear as a seperate node
@@ -782,8 +791,20 @@ async function loadAllVCTests(
           if (normalizedPath.includes(path)) {
             enviroIsNotManaged = false;
           }
+
+          // Now we need to check if there was in issue with project, in which the env is embedded. If so,
+          // The env is also put into the EnvironmnetList, but we need to ignore it.
+          // For example, if the project is locked by another process (e.g. opened in VectorCAST, ...).
+          for (let path of ignoreEnvsInProject) {
+            // We save the path of the .vcm file so we need to split the .vcm at the end
+            const projectDir = path.split(".vcm")[0];
+            if (normalizedPath.includes(projectDir)) {
+              ignoreEnvDueToProjectIssue = true;
+            }
+          }
         }
-        if (enviroIsNotManaged) {
+
+        if (enviroIsNotManaged && !ignoreEnvDueToProjectIssue) {
           const displayName = path.relative(workspaceRoot, normalizedPath);
           environmentList.push({
             projectPath: "",
