@@ -1793,27 +1793,22 @@ export async function getTexts(nodes: any[]): Promise<string[]> {
  */
 export async function waitForEnvSuffix(
   outputView: OutputView,
-  suffix: string,
+  env: string,
   timeout = TIMEOUT,
   interval = 500
 ) {
   await browser.waitUntil(
     async () => {
-      // getText() can return a single string or an array of strings
-      const raw = await outputView.getText();
-      let lines: string[];
-
-      // Look for one line that has the prefix *and* ends with "/suffix"
-      return lines.some(
-        (line) =>
-          line.includes("Processing environment data for:") &&
-          line.trim().endsWith(`/${suffix}`)
+      const outputText = (await outputView.getText()).toString();
+      return (
+        outputText.includes("Processing environment data for:") &&
+        outputText.includes(env)
       );
     },
     {
       timeout,
       interval,
-      timeoutMsg: `Timed out waiting for "Processing environment data for:" and "/${suffix}"`,
+      timeoutMsg: `Timed out waiting for "Processing environment data for:" and "/${env}"`,
     }
   );
 }
