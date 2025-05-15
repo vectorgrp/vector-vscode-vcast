@@ -54,6 +54,16 @@ on:
         description: 'The no_proxy extension to add (comma separated list)'
         required: false
         default: '10.180.44.4'
+      batched-mode:
+        type: boolean
+        description: 'Enable batched mode for the evaluation'
+        required: false
+        default: true
+      individual-decomposition:
+        type: boolean
+        description: 'Enable individual decomposition for the evaluation'
+        required: false
+        default: false
 env:
   NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
   REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
@@ -73,6 +83,8 @@ jobs:
       REQ2TESTS_MODEL: ${{ github.event.inputs.model-config }}
       REQ2TESTS_REASONING_MODEL: ${{ github.event.inputs.reasoning-model-config }}
       REQ2TESTS_MODELS_PATH: /llm_configs
+      BATCHED_MODE: ${{ github.event.inputs.batched-mode }}
+      INDIVIDUAL_DECOMPOSITION: ${{ github.event.inputs.individual-decomposition }}
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
@@ -170,6 +182,8 @@ jobs:
           echo "**Model parameters override:** ${{ github.event.inputs.model-params-override }}" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning model config name:** ${{ env.REQ2TESTS_REASONING_MODEL }}" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning model parameters override:** ${{ github.event.inputs.reasoning-model-params-override }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Batched mode:** ${{ env.BATCHED_MODE }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Individual decomposition:** ${{ env.INDIVIDUAL_DECOMPOSITION }}" >> $GITHUB_STEP_SUMMARY
           
           CODE=0
           source $VCAST_USER_HOME/.venv/bin/activate

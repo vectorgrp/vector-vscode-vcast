@@ -26,14 +26,24 @@ if [[ -z "$ENV_SET_URL" ]]; then
 fi
 echo "Running evaluation for $ENV_SET_NAME"
 
-MAX_COST_CHECK=$(echo $MAX_COST | python3.10 -c "import sys;exec('try:obj=float(str(sys.stdin.read().strip()))\nexcept:obj=-1');print(obj > 0)")
-if [[ "$MAX_COST_CHECK" == "False" ]]; then
-  MAX_COST_STR=""
-  echo "No max-cost set"
-else
-  echo "Max cost set to $MAX_COST"
-  MAX_COST_STR="--max-cost $MAX_COST"
-fi
+
+EXTRA_ARGS=()
+get_extra_args() {
+  max_cost_check=$(echo $MAX_COST | python3.10 -c "import sys;exec('try:obj=float(str(sys.stdin.read().strip()))\nexcept:obj=-1');print(obj > 0)")
+  if [[ "$max_cost_check" != "False" ]]; then
+    echo "Max cost set to $MAX_COST"
+    EXTRA_ARGS+=("--max-cost" "$MAX_COST")
+  fi
+
+  if [[ "$BATCHED_MODE" == "true" ]]; then
+    echo "Batched mode enabled"
+    EXTRA_ARGS+=("--batched")
+  fi
+  if [[ "$INDIVIDUAL_DECOMPOSITION" == "true" ]]; then
+    echo "Individual decomposition enabled"
+    EXTRA_ARGS+=("--individual-decomposition")
+  fi
+}
 
 process_url() {
   local url="$1"
@@ -67,8 +77,11 @@ main () {
 
   cd $VCAST_USER_HOME/.envs
   source $VCAST_USER_HOME/.venv/bin/activate
- 
-  python $REPO_DIR/autoreq/evaluate_reqs2tests.py @$BENCH_ENVS_DIR/bench_envs.txt --batched --allow-partial --timeout 30 $MAX_COST_STR r2t_eval_results
+
+  get_extra_args
+  cmd="python $REPO_DIR/autoreq/evaluate_reqs2tests.py @$BENCH_ENVS_DIR/bench_envs.txt --allow-partial --timeout 30 ${EXTRA_ARGS[*]} r2t_eval_results"
+  echo "Running command: $cmd"
+  eval $cmd
   deactivate
   if [[ -d "r2t_eval_results" ]]; then
     echo "Results folder exists at: $(realpath r2t_eval_results)"

@@ -904,6 +904,9 @@ async def main():
         action='store_true',
         help='Do not use test examples from the environment for test generation.',
     )
+    parser.add_argument(
+        '--individual-decomposition', action='store_true', help=argparse.SUPPRESS
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -980,8 +983,12 @@ async def main():
                 x = {
                     req_id: rm.get_description(req_id) for req_id in rm.requirement_ids
                 }
-
-                decomposed = await decompose_requirements(list(x.values()), k=5, threshold_frequency=0.2)
+                decomposed = await decompose_requirements(
+                    list(x.values()),
+                    individual=args.individual_decomposition,
+                    k=5,
+                    threshold_frequency=0.2,
+                )
                 decomposed_req_map = {
                     req_id: reqs for req_id, reqs in zip(rm.requirement_ids, decomposed)
                 }
