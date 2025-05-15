@@ -447,6 +447,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await waitForEnvSuffix(outputView, "BAR");
     await waitForEnvSuffix(outputView, "QUACK");
 
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.pause(2000);
+
     console.log("Checking if Testsuite node GreyBox is in tree");
     const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
     expect(testsuiteNode).toBeDefined();
