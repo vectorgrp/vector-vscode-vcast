@@ -510,7 +510,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
-        await generateTestsFromRequirements(enviroPath, testNode.functionName || null);
+        await generateTestsFromRequirements(enviroPath, testNode.functionName || testNode.unitName || null);
       }
     }
   );
@@ -1317,7 +1317,7 @@ async function parseRequirementsFromFile(filePath: string): Promise<any[]> {
   }
 }
 
-async function generateTestsFromRequirements(enviroPath: string, functionName: string | null) {
+async function generateTestsFromRequirements(enviroPath: string, unitOrFunctionName: string | null) {
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
   const envName = `${lowestDirname}.env`;
@@ -1349,7 +1349,7 @@ async function generateTestsFromRequirements(enviroPath: string, functionName: s
   const commandArgs = [
     envPath,
     reqsFile, // use the chosen requirements file
-    ...(functionName ? [functionName] : []),
+    ...(unitOrFunctionName ? [unitOrFunctionName] : []),
     "--export-tst",
     tstPath,
     "--retries",
