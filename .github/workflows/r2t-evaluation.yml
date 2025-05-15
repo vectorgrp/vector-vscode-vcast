@@ -4,13 +4,56 @@ on:
   workflow_dispatch:
     inputs:
       env-set:
-        description: 'Select the environment set to run the tests (`sanity`, `piinnovo`, `atg-customer`)'
+        type: choice
+        options:
+          - sanity
+          - piinnovo
+          - atg-customer
+        description: 'Select the environment set to run the tests'
         required: false
         default: 'sanity'
       max-cost:
         description: 'Maximum cost of the tests (positive float, 0 for unlimited)'
         required: false
         default: '0'
+      model-config:
+        description: 'The config name of the model to use for the evaluation'
+        required: false
+        default: 'gpt-4o-azure'
+        type: choice
+        options:
+          - claude-3-7-sonnet
+          - gpt-4.1-mini
+          - gpt-4o-azure
+          - gpt-o3mini-azure
+          - o3-mini
+          - o4-mini
+          - qwen3-30b
+          - qwq
+      reasoning-model-config:
+        description: 'The config name of the reasoning model to use for the evaluation'
+        required: false
+        default: 'gpt-o3mini-azure'
+        type: choice
+        options:
+          - claude-3-7-sonnet
+          - gpt-4.1-mini
+          - gpt-4o-azure
+          - gpt-o3mini-azure
+          - o3-mini
+          - o4-mini
+          - qwen3-30b
+          - qwq
+      model-params-override:
+        description: 'The model parameters to override (param1=value1;param2=value2;...)'
+        required: false
+      reasoning-model-params-override:
+        description: 'The reasoning model parameters to override (param1=value1;param2=value2;...)'
+        required: false
+      no-proxy-extension:
+        description: 'The no_proxy extension to add (comma separated list)'
+        required: false
+        default: '10.180.44.4'
 env:
   NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
   REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
@@ -27,8 +70,8 @@ jobs:
       PIINNOVO_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-source.tar.gz"
       HALLA_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/halla-modmgr4a-source.tar.gz"
       AUTOREQ_MLFLOW_SERVER: ${{ vars.AUTOREQ_MLFLOW_SERVER }}
-      REQ2TESTS_MODEL: "gpt-4o-azure"
-      REQ2TESTS_REASONING_MODEL: "gpt-o3mini-azure"
+      REQ2TESTS_MODEL: ${{ github.event.inputs.model-config }}
+      REQ2TESTS_REASONING_MODEL: ${{ github.event.inputs.reasoning-model-config }}
       REQ2TESTS_MODELS_PATH: /llm_configs
 
     container:
@@ -36,6 +79,41 @@ jobs:
       options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast --mount type=bind,source=${{ vars.LLM_CONFIGS_PATH }},target=/llm_configs
 
     steps:
+      - name: Environment setup
+        shell: bash
+        run: |
+          function parse_and_set_env_vars() {
+            local model_name=$1
+            local params_string=$2
+            
+            if [[ -n "$params_string" ]]; then
+              IFS=';' read -ra PARAMS <<< "$params_string"
+              for param in "${PARAMS[@]}"; do
+                if [[ "$param" == *"="* ]]; then
+                  KEY=$(echo "$param" | cut -d'=' -f1)
+                  VALUE=$(echo "$param" | cut -d'=' -f2-)
+                  echo "Overriding parameter $KEY with value $VALUE for $model_name"
+                  ENV_VAR="${model_name^^}_${KEY}"
+                  echo "$ENV_VAR=$VALUE" >> $GITHUB_ENV
+                fi
+              done
+            fi
+          }
+          
+          declare -A model_configs=(
+            ["${REQ2TESTS_MODEL}"]="${{ github.event.inputs.model-params-override }}"
+            ["${REQ2TESTS_REASONING_MODEL}"]="${{ github.event.inputs.reasoning-model-params-override }}"
+          )
+          
+          for model_name in "${!model_configs[@]}"; do
+            parse_and_set_env_vars "$model_name" "${model_configs[$model_name]}"
+          done
+          
+          # adjusting no-proxy
+          no_proxy_extension="${{ github.event.inputs.no-proxy-extension }}"
+          if [[ -n "$no_proxy_extension" ]]; then
+            echo "no_proxy=$no_proxy,$no_proxy_extension" >> $GITHUB_ENV
+          fi
       - name: Check out repository
         id: checkout
         uses: actions/checkout@v4
