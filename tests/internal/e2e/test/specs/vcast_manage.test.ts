@@ -1,6 +1,7 @@
 // Test/specs/vcast.test.ts
 import {
   EditorView,
+  TreeItem,
   type BottomBarPanel,
   type Workbench,
 } from "wdio-vscode-service";
@@ -100,9 +101,6 @@ describe("vTypeCheck VS Code Extension", () => {
     ];
 
     const vcastTestingViewContent = await getViewContent("Testing");
-
-    // Wait briefly to allow the view to load.
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const sections = await vcastTestingViewContent.getSections();
     // Log available section titles for debugging.
@@ -443,16 +441,51 @@ describe("vTypeCheck VS Code Extension", () => {
         (await outputView.getText()).toString().includes("Processing project:"),
       { timeout: TIMEOUT }
     );
+
     await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Processing environment data for:"),
-      { timeout: TIMEOUT }
+      async () => {
+        const txt = await outputView.getText();
+        return (
+          txt.includes("Processing environment data for:") &&
+          txt.includes("/FOO")
+        );
+      },
+      {
+        timeout: TIMEOUT,
+        timeoutMsg:
+          'Timed out waiting for "Processing environment data for:" and "/FOO"',
+      }
     );
 
-    // Need to wait because there are more than one "Processing environment data for" messages
-    await browser.pause(2000);
+    await browser.waitUntil(
+      async () => {
+        const txt = await outputView.getText();
+        return (
+          txt.includes("Processing environment data for:") &&
+          txt.includes("/BAR")
+        );
+      },
+      {
+        timeout: TIMEOUT,
+        timeoutMsg:
+          'Timed out waiting for "Processing environment data for:" and "/BAR"',
+      }
+    );
+
+    await browser.waitUntil(
+      async () => {
+        const txt = await outputView.getText();
+        return (
+          txt.includes("Processing environment data for:") &&
+          txt.includes("/QUACK")
+        );
+      },
+      {
+        timeout: TIMEOUT,
+        timeoutMsg:
+          'Timed out waiting for "Processing environment data for:" and "/QUACK"',
+      }
+    );
 
     console.log("Checking if Testsuite node GreyBox is in tree");
     const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
@@ -481,7 +514,19 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
-    await browser.pause(2000);
+    await browser.waitUntil(
+      async () => {
+        const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
+        return testsuiteNode === undefined;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 500,
+        timeoutMsg:
+          'Expected Testsuite node "GreyBox" to be removed from the tree within timeout',
+      }
+    );
+
     console.log("Checking if Testsuite node GreyBox is not in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
     expect(testsuiteNode).toBeUndefined();
@@ -517,7 +562,17 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Env node BAR is still in the Tree");
-    await browser.pause(2000);
+    await browser.waitUntil(
+      async () => {
+        const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
+        return testsuiteNode !== undefined;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 500,
+        timeoutMsg: 'Expected Env node "BAR" to be in the tree within timeout',
+      }
+    );
     const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
     expect(testsuiteNode).toBeDefined();
   });
@@ -551,7 +606,17 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     // Need to wait because there are more than one "Processing environment data for" messages
-    await browser.pause(4000);
+    await browser.waitUntil(
+      async () => {
+        const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
+        return testsuiteNode !== undefined;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 500,
+        timeoutMsg: 'Expected Env node "BAR" to be in the tree within timeout',
+      }
+    );
 
     console.log("Checking if Env node is in Tree");
     const testsuiteNode = await findTreeNodeAtLevel(3, "BAR");
@@ -584,7 +649,23 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Env node FREE-BAR is not in Tree");
-    await browser.pause(2000);
+
+    // Poll every 500 ms for up to 5 seconds
+    await browser.waitUntil(
+      async () => {
+        const node: TreeItem | undefined = await findTreeNodeAtLevel(
+          3,
+          "FREE-BAR"
+        );
+        return node === undefined;
+      },
+      {
+        timeout: 5_000,
+        interval: 500,
+        timeoutMsg:
+          'Expected Env node "FREE-BAR" to be removed from the tree within 5s',
+      }
+    );
     const testsuiteNode = await findTreeNodeAtLevel(3, "FREE-BAR");
     expect(testsuiteNode).toBeUndefined();
   });
@@ -634,10 +715,20 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Env node QUACK is not in Tree");
-    await browser.pause(2000);
+    await browser.waitUntil(
+      async () => {
+        const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
+        return testsuiteNode === undefined;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 500,
+        timeoutMsg:
+          'Expected Env node "QUACK" to be not in the tree within timeout',
+      }
+    );
     const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
     expect(testsuiteNode).toBeUndefined();
-    await browser.pause(3000);
   });
 
   it("testing creating an Env from Source Files", async () => {
@@ -692,9 +783,20 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking if Env node DATABASE-MANAGER is in Tree");
-    // Need to wait because there are more than one "Processing environment data for" messages
-    await browser.pause(3000);
+
     await activityBar.getViewControl("Testing");
+    await browser.waitUntil(
+      async () => {
+        const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+        return testsuiteNode !== undefined;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 500,
+        timeoutMsg:
+          'Expected Env node "DATABASE-MANAGER" to be in the tree within timeout',
+      }
+    );
     const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
     expect(testsuiteNode).toBeDefined();
 
