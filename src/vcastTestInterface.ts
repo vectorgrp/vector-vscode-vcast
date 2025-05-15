@@ -752,7 +752,7 @@ async function configureWorkspaceAndBuildEnviro(
   // If we have project params, we want to create an env within a project
   if (projectEnvParameters) {
     // Create the environment using the provided file list
-    commonNewEnvironmentStuff(fileList, envLocation, false);
+    commonEnvironmentSetup(fileList, envLocation, false);
 
     const envName = createEnvNameFromFiles(fileList);
     const envFilePath = path.join(envLocation, `${envName}.env`);
@@ -787,7 +787,7 @@ async function configureWorkspaceAndBuildEnviro(
     }
   } else if (fs.existsSync(envLocation)) {
     // If no project params but the folder already exists, just do the common setup
-    commonNewEnvironmentStuff(fileList, envLocation);
+    commonEnvironmentSetup(fileList, envLocation);
   } else {
     // Otherwise prompt the user to create it
     const message =
@@ -806,7 +806,7 @@ async function configureWorkspaceAndBuildEnviro(
     if (answer === "Yes") {
       try {
         fs.mkdirSync(envLocation, { recursive: true });
-        commonNewEnvironmentStuff(fileList, envLocation);
+        commonEnvironmentSetup(fileList, envLocation);
       } catch (error: any) {
         vscode.window.showErrorMessage(
           `Error creating directory: ${envLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
@@ -841,49 +841,50 @@ export function createEnvNameFromFiles(fileList: string[]) {
   }
 }
 
-function commonNewEnvironmentStuff(
+async function commonEnvironmentSetup(
   fileList: string[],
   envLocation: string,
   shouldBuildEnviro: boolean = true
 ) {
-  if (fileList.length > 0) {
-    let enviroName = createEnvNameFromFiles(fileList);
-    let enviroPath = path.join(envLocation, enviroName);
+  // Nothing to do if no files selected
+  if (fileList.length === 0) {
+    vectorMessage("No C/C++ source files found in selection ...");
+    return;
+  }
 
-    if (fs.existsSync(enviroPath)) {
-      vscode.window
-        .showInputBox({
-          prompt: `Directory: "${enviroName}" already exists, please choose an alternate name ...`,
-          title: "Choose VectorCAST Environment Name",
-          value: enviroName,
-          ignoreFocusOut: true,
-        })
-        .then((response) => {
-          if (response) {
-            enviroName = response.toUpperCase();
-            enviroPath = path.join(envLocation, response);
-            if (fs.existsSync(enviroPath))
-              vscode.window.showErrorMessage(
-                `Environment name: ${enviroName}, already in use, aborting`
-              );
-            else
-              buildEnvironmentVCAST(
-                fileList,
-                envLocation,
-                response.toUpperCase(),
-                shouldBuildEnviro
-              );
-          }
-        });
-    } else {
-      buildEnvironmentVCAST(
-        fileList,
-        envLocation,
-        enviroName.toUpperCase(),
-        shouldBuildEnviro
-      );
+  // Derive the environment name and path
+  let enviroName = createEnvNameFromFiles(fileList)!.toUpperCase();
+  let enviroPath = path.join(envLocation, enviroName);
+
+  // If the directory already exists, prompt for a new name
+  if (fs.existsSync(enviroPath)) {
+    const response = await vscode.window.showInputBox({
+      prompt: `Directory: "${enviroName}" already exists, please choose an alternate name ...`,
+      title: "Choose VectorCAST Environment Name",
+      value: enviroName,
+      ignoreFocusOut: true,
+    });
+
+    // If user cancelled, abort
+    if (!response) {
+      return;
     }
-  } else vectorMessage("No C/C++ source files found in selection ...");
+
+    // Update name and path based on user input
+    enviroName = response.toUpperCase();
+    enviroPath = path.join(envLocation, response);
+
+    // If the new name also exists, show error and abort
+    if (fs.existsSync(enviroPath)) {
+      vscode.window.showErrorMessage(
+        `Environment name: ${enviroName}, already in use, aborting`
+      );
+      return;
+    }
+  }
+
+  // Build the environment with the valid name
+  buildEnvironmentVCAST(fileList, envLocation, enviroName, shouldBuildEnviro);
 }
 
 // Improvement needed: get the language extensions automatically, don't hard-code
