@@ -132,28 +132,40 @@ function whereToStartServer(): string {
   return whatToReturn;
 }
 
-async function startServer() {
+async function startServer(): Promise<void> {
   // This does the actual work of server startup
+  // We wrap the whole spawn + stdout‐watch in a Promise so that
+  // our callers can truly await “server is listening on its port.”
 
-  // we use spawn directly to control the detached and shell args
-  const vpythonArgs: string[] = [getGlobalEnviroDataServerPath()];
-  const serverCWD = whereToStartServer();
-  serverProcessObject = spawn(vPythonCommandToUse, vpythonArgs, {
-    shell: true,
-    cwd: serverCWD,
-  });
+  return new Promise((resolve, reject) => {
+    // we use spawn directly to control the detached and shell args
+    const vpythonArgs: string[] = [getGlobalEnviroDataServerPath()];
+    const serverCWD = whereToStartServer();
 
-  serverProcessObject.stdout.on("data", function (data: any) {
-    const rawString = data.toString();
-    const lineArray = rawString.split(/[\n\r?]/);
-    for (const line of lineArray) {
-      // listen to the stdout to retrieve the port number
-      if (line.length > 0) {
+    serverProcessObject = spawn(vPythonCommandToUse, vpythonArgs, {
+      shell: true,
+      cwd: serverCWD,
+    });
+
+    // If the spawn itself fails (e.g. binary not found, permissions),
+    // reject immediately so callers see the failure.
+    serverProcessObject.on("error", (err: any) => {
+      //propagate spawn errors through the Promise
+      reject(err);
+    });
+
+    serverProcessObject.stdout.on("data", async (data: Buffer) => {
+      const rawString = data.toString();
+      const lineArray = rawString.split(/[\n\r?]+/);
+
+      for (const line of lineArray) {
+        // listen to the stdout to retrieve the port number
         // Note: this must match what is in vcastDataServer.py -> main()
+
         if (line.startsWith(" * vcastDataServer is starting on")) {
           const portString = line.split(":")[1];
-          const portNumber = parseInt(portString);
-          completeServerStartup(serverCWD, portNumber);
+          const portNumber = parseInt(portString, 10);
+          await completeServerStartup(serverCWD, portNumber);
         } else if (line.startsWith(" * Server log file path:")) {
           serverLogFilePath = line.split("path:")[1].trim();
           // this call controls the availability of the "openLogFile" command
@@ -164,22 +176,22 @@ async function startServer() {
           );
         }
       }
-    }
-  });
 
-  serverProcessObject.on("exit", function (exitCode: any) {
-    serverProcessObject = undefined;
-    if (exitCode == 0) {
-      vectorMessage(`VectorCAST Data Server exited successfully`);
-    } else {
-      vectorMessage(
-        `VectorCAST Data Server exited unexpectedly with code: ${exitCode}`
+      // New: now that we’ve seen the “server is starting on” line,
+      // we know the server is up—resolve the Promise so all awaits unblock.
+      resolve();
+      return;
+    });
+
+    // New: if the process exits before we ever saw the “starting” line,
+    // reject so initializeVcastDataServer doesn’t hang forever.
+    serverProcessObject.on("exit", (code: any, signal: any) => {
+      reject(
+        new Error(
+          `Data server exited prematurely (code=${code}, signal=${signal})`
+        )
       );
-    }
-    enviroDataServerProcessState = serverStateType.stopped;
-    serverStatusBarObject.text = "vDataServer Off";
-    setServerPort(0);
-    setGLobalServerState(false);
+    });
   });
 }
 

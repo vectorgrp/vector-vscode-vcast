@@ -22,7 +22,7 @@ import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 const path = require("path");
 
 export interface commandStatusType {
-  errorCode: number;
+  errorCode: number | string;
   stdout: string;
 }
 
@@ -78,7 +78,7 @@ export function getJsonDataFromTestInterface(
 ): any {
   let returnData = undefined;
 
-  let jsonText = executeVPythonScript(commandToRun, enviroPath, false).stdout;
+  let jsonText = executeVPythonScript(commandToRun, enviroPath, true).stdout;
   try {
     returnData = JSON.parse(jsonText);
   } catch {
@@ -93,21 +93,78 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-  // see detailed comment with the function definition
-  let stdoutString: string = cleanVectorcastOutput(error.stdout.toString());
-  let commandStatus = { errorCode: error.status, stdout: stdoutString };
+  // Safely access stdout and clean it if available
+  let rawStdout = "";
+  if (error && error.stdout) {
+    rawStdout = error.stdout.toString();
+  }
 
-  if (error.status == pythonErrorCodes.testInterfaceError) {
+  let stdoutString = "";
+  if (rawStdout) {
+    stdoutString = cleanVectorcastOutput(rawStdout);
+  }
+
+  // Determine the most meaningful error message
+  let errorMessage = "Unknown error";
+  if (error) {
+    if (typeof error.message === "string") {
+      errorMessage = error.message;
+    } else if (typeof error.code === "string") {
+      errorMessage = error.code;
+    }
+  }
+
+  // Determine the error code: use status if available, fallback to error.code (like "EACCES")
+  let errorCode: number | string = 1;
+  if (error) {
+    if (typeof error.status === "number") {
+      errorCode = error.status;
+    } else if (typeof error.code === "string") {
+      errorCode = error.code; // Like "EACCES"
+    }
+  }
+
+  let commandStatus = {
+    errorCode: errorCode,
+    stdout: stdoutString,
+  };
+
+  if (error && error.status === pythonErrorCodes.testInterfaceError) {
     // Improvement needed: we should document this
     commandStatus.errorCode = 0;
     vectorMessage("Exception while executing python interface");
-    vectorMessage(stdoutString, errorLevel.info, indentString);
+
+    // Access Errors do not have an stdout
+    if (stdoutString) {
+      // Log the cleaned stdout from the Python interface
+      vectorMessage(stdoutString, errorLevel.info, indentString);
+    } else {
+      // Provide fallback logging when stdout is empty but we still have an error message
+      vectorMessage(
+        `Python interface failed: ${errorMessage}`,
+        errorLevel.warn,
+        indentString
+      );
+    }
   } else {
-    commandStatus.errorCode = error.status;
+    commandStatus.errorCode = errorCode;
+
     if (printErrorDetails) {
       vectorMessage("Exception while executing VectorCAST command");
       vectorMessage(command, errorLevel.trace, indentString);
-      vectorMessage(stdoutString, errorLevel.info, indentString);
+
+      if (stdoutString) {
+        // Log standard output if available
+        vectorMessage(stdoutString, errorLevel.info, indentString);
+      } else {
+        // Log system-level or command-level error when stdout is missing
+        // This helps identify cases like permission denied, missing files, etc.
+        vectorMessage(
+          `Command failed: ${errorMessage}`,
+          errorLevel.info,
+          indentString
+        );
+      }
     }
   }
 
