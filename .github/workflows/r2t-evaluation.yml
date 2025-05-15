@@ -163,6 +163,12 @@ jobs:
       - name: Upload reports and show summary
         if: always()
         run: |
+          echo "### Info" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment set:** ${{ env.ENV_SET_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Max cost:** ${{ env.MAX_COST }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model name: ${{ env.REQ2TESTS_MODEL }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reasoning model name:** ${{ env.REQ2TESTS_REASONING_MODEL }}" >> $GITHUB_STEP_SUMMARY
+          
           CODE=0
           source $VCAST_USER_HOME/.venv/bin/activate
           python evaluation/create_report.py --input ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --output ${{ env.VCAST_USER_HOME }}/.envs/report.html
