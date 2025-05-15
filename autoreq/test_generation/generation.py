@@ -1,13 +1,17 @@
 from autoreq.test_generation.identifier_type_gen import create_identifier_type
 import random
 import asyncio
+from functools import cached_property, lru_cache
 from aiostream.stream import merge
 import json
 import re
 from typing import List, Any, ClassVar, Callable, Union, Tuple
+from async_lru import alru_cache
 from pydantic import BaseModel, Field, create_model
 from dotenv import load_dotenv
 import logging
+
+from autoreq.util import get_relevant_statement_groups
 
 from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 from autoreq.test_generation.atg_context_builder import ATGContextBuilder
@@ -330,14 +334,25 @@ def _derive_completion_schema(
 
 
 class TestGenerator:
-    def __init__(self, requirements_manager, environment, use_extended_reasoning=False):
+    def __init__(
+        self,
+        requirements_manager,
+        environment,
+        use_extended_reasoning=False,
+        min_prune_lines=500,
+        use_test_examples=True,
+    ):
         self.requirements_manager = requirements_manager
         self.environment = environment
-        self.context_builder = VcastContextBuilder(self.environment)
-        self.atg_context_builder = ATGContextBuilder(self.environment)
         self.llm_client = LLMClient()
+        self.atg_context_builder = ATGContextBuilder(self.environment)
+        self.context_builder = VcastContextBuilder(
+            self.environment, llm_client=self.llm_client
+        )
         self.info_logger = InfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
+        self.min_prune_lines = min_prune_lines
+        self.use_test_examples = use_test_examples
 
     def _group_requirements_into_batches(self, requirement_ids, batch_size):
         """Group requirements by function and split into batches of specified size."""
@@ -357,11 +372,11 @@ class TestGenerator:
 
         return batches
 
-    def _get_allowed_identifiers_for_function(self, function_name):
+    def _get_allowed_identifiers_for_function(self, function_name, focus_lines=None):
         """Helper method to get allowed identifiers for a function with logging."""
         allowed_identifiers, used_fallback = (
             self.environment.get_allowed_identifiers_for_function(
-                function_name, return_used_atg_fallback=True
+                function_name, return_used_atg_fallback=True, focus_lines=focus_lines
             )
         )
         logging.debug(
@@ -436,9 +451,31 @@ class TestGenerator:
                 yield test_case
             return
 
+        # Extract basic function info
         function_name = functions.pop()
-        allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(
+        func_body = self.environment.tu_codebase.find_definitions_by_name(
             function_name
+        )[0]
+        num_lines = len(func_body.split('\n'))
+
+        # Extract relevant function lines
+        if num_lines >= self.min_prune_lines:
+            requirement_relevant_lines_map = (
+                await self._relevant_lines_for_all_func_requirements(function_name)
+            )
+            relevant_lines = tuple(
+                set(
+                    line
+                    for req_id in requirement_ids
+                    for line in requirement_relevant_lines_map[req_id]
+                )
+            )
+        else:
+            relevant_lines = None
+
+        # Build allowed identifiers
+        allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(
+            function_name, focus_lines=relevant_lines
         )
         for req_id in requirement_ids:
             self.info_logger.set_found_no_allowed_identifiers(
@@ -453,13 +490,17 @@ class TestGenerator:
             ]
         )
 
-        # Build context similar to single test case generation
+        # Build code context
         context, used_fallback = await self.context_builder.build_code_context(
-            function_name, include_unit_name=True, return_used_fallback=True
+            function_name,
+            include_unit_name=True,
+            return_used_fallback=True,
+            focus_lines=relevant_lines,
         )
         for req_id in requirement_ids:
             self.info_logger.set_used_code_context_fallback(req_id, used_fallback)
 
+        # Build ATG context
         context_lines = len(context.strip().split('\n'))
         if context_lines < 200:
             num_examples = 1
@@ -474,8 +515,27 @@ class TestGenerator:
         for req_id in requirement_ids:
             self.info_logger.set_no_atg_examples(req_id, len(atg_examples) == 0)
 
+        if num_examples > 0 and self.use_test_examples and relevant_lines is None:
+            example_test_cases_section = f"""
+Example Test Cases:
+```json
+{atg_examples}
+```
+"""
+        else:
+            example_test_cases_section = ''
+
         with open(TEST_FRAMEWORK_REFERENCE_PATH, 'r') as f:
             test_framework_reference = f.read()
+
+        # If we prune, we can also give identifiers
+        if len(allowed_identifiers) > 0 and relevant_lines is not None:
+            identifier_section = f"""
+You must set a value for each of the following identifiers. An expected value is not required for all identifiers, but a value is required for all identifiers:
+{chr(10).join('- ' + i for i in allowed_identifiers if 'USER_GLOBALS_VCAST' not in i)}
+"""
+        else:
+            identifier_section = ''
 
         messages = [
             {
@@ -494,12 +554,7 @@ Relevant Code:
 ```cpp
 {context}
 ```
-
-Example Test Cases:
-```json
-{atg_examples}
-```
-
+{example_test_cases_section}
 Requirements:
 {requirements_text}
 
@@ -512,15 +567,13 @@ For each requirement in order...
     1. Come up with descriptive (unique) name for the test case and describe in natural language how this test exercises the requirement
     2. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
     3. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
-
+{identifier_section}
 Notes:
 - You are NOT allowed to invent any syntax that is not specified in the syntax reference. Stick to the syntax provided.
 - You are NOT allowed to invent any units or functions that are not present in the provided code.
 - This is a highly critical task, please ensure that the test cases are correct and complete and do not contain any logical or syntactical errors.
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
 - Generate exactly one test case per requirement.
-- For each test case, make sure to set an input value for all arguments, global variables and stubs used in the function.
-- For each test case, make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
 - In case the requirement and the code differ, the requirement is what you should test, i.e., it is the source of truth.
 
 Return your answer in the following format:
@@ -647,24 +700,6 @@ Return your answer in the following format:
 
             self.info_logger.set_individual_test_generation_needed(requirement_id)
 
-            function_name = self.requirements_manager.get_function(requirement_id)
-            allowed_identifiers, used_fallback = (
-                self._get_allowed_identifiers_for_function(function_name)
-            )
-            self.info_logger.set_found_no_allowed_identifiers(
-                requirement_id, len(allowed_identifiers) == 0
-            )
-            self.info_logger.set_used_atg_identifier_fallback(
-                requirement_id, used_fallback
-            )
-
-            schema, used_fallback = _derive_completion_schema(
-                False,
-                allowed_identifiers=allowed_identifiers,
-                return_size_fallback=True,
-            )
-            self.info_logger.set_schema_exceeded_size(requirement_id, used_fallback)
-
             first_try = True
             for i in range(max_retries):
                 self.info_logger.increment_retries_used(requirement_id)
@@ -677,7 +712,6 @@ Return your answer in the following format:
                     temperature=temperature,
                     extended_reasoning=extended_reasoning,
                     allow_partial=allow_partial,
-                    schema=schema,
                     reword_requirement=not first_try,
                 )
                 if result:
@@ -701,8 +735,7 @@ Return your answer in the following format:
         temperature=0,
         extended_reasoning=False,
         allow_partial=False,
-        schema=None,
-        reword_requirement=False,
+        reword_requirement=None,
     ):
         # Remove allowed_identifiers parameter since schema is passed directly
         requirement_text = self.requirements_manager.get_description(requirement_id)
@@ -737,12 +770,67 @@ Return your answer in the following format:
             logging.warning(f'Function not found for requirement {requirement_id}.')
             return None
 
-        # Build code context using the environment
+        # Extract basic function info
+        function_name = self.requirements_manager.get_function(requirement_id)
+        func_body = self.environment.tu_codebase.find_definitions_by_name(
+            function_name
+        )[0]
+        num_lines = len(func_body.split('\n'))
+
+        # Extract relevant lines
+        # TODO: Maybe have this lower than for batch
+        if num_lines >= self.min_prune_lines:
+            requirement_relevant_lines_map = (
+                await self._relevant_lines_for_all_func_requirements(function_name)
+            )
+            relevant_lines = requirement_relevant_lines_map[requirement_id]
+        else:
+            relevant_lines = None
+
+        # Build allowed identifiers and schema
+        allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(
+            function_name, focus_lines=relevant_lines
+        )
+        self.info_logger.set_found_no_allowed_identifiers(
+            requirement_id, len(allowed_identifiers) == 0
+        )
+        self.info_logger.set_used_atg_identifier_fallback(requirement_id, used_fallback)
+
+        # If we prune, we can also give identifiers
+        if len(allowed_identifiers) > 0 and relevant_lines is not None:
+            identifier_section = f"""
+You must set a value for each of the following identifiers. An expected value is not required for all identifiers, but a value is required for all identifiers:
+{chr(10).join('- ' + i for i in allowed_identifiers if 'USER_GLOBALS_VCAST' not in i)}
+"""
+        else:
+            identifier_section = ''
+
+        schema, used_fallback = _derive_completion_schema(
+            False, allowed_identifiers=allowed_identifiers, return_size_fallback=True
+        )
+        self.info_logger.set_schema_exceeded_size(requirement_id, used_fallback)
+
+        # Build code context
         context, used_fallback = await self.context_builder.build_code_context(
-            function_name, include_unit_name=True, return_used_fallback=True
+            function_name,
+            include_unit_name=True,
+            return_used_fallback=True,
+            focus_lines=relevant_lines,
         )
         self.info_logger.set_used_code_context_fallback(requirement_id, used_fallback)
         logging.debug('Generated code context: %s', context)
+
+        """
+        func_code = self.environment.tu_codebase.find_definitions_by_name(function_name)[0]
+        relevant_groups = await get_relevant_statement_groups(func_code, requirement_text)
+
+        prettified_groups = []
+        for i, part in enumerate(relevant_groups):
+            index_prefix = f"{i+1}. "
+            prettified_groups.append(index_prefix + str(part))
+
+        groups_text = "\n".join(prettified_groups)
+        """
 
         # Determine number of example test cases based on context length
         context_lines = len(context.strip().split('\n'))
@@ -764,14 +852,15 @@ Return your answer in the following format:
         with open(TEST_FRAMEWORK_REFERENCE_PATH, 'r') as f:
             test_framework_reference = f.read()
 
-        example_test_cases_section = ''
-        if num_examples > 0:
+        if num_examples > 0 and self.use_test_examples and relevant_lines is None:
             example_test_cases_section = f"""
 Example Test Cases:
 ```json
 {atg_examples}
 ```
 """
+        else:
+            example_test_cases_section = ''
 
         messages = [
             {
@@ -805,25 +894,18 @@ Solve the problem using the following steps:
     a. Come up with a descriptive (unique) name for the test case and describe in natural language how this test exercises the requirement
     b. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
     c. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
-
+{identifier_section}
 Notes:
 - You are NOT allowed to invent any syntax that is not specified in the syntax reference. Stick to the syntax provided.
 - You are NOT allowed to invent any units or functions that are not present in the provided code.
 - This is a highly critical task, please ensure that the test case is correct and complete and does not contain any logical or syntactical errors.
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
-- Make sure to set an input value for all arguments, global variables and stubs used in the function.
-- Make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
 - In case the requirement and the code differ, the requirement is what you should test, i.e., it is the source of truth.
 - Watch out for off-by-one errors
 """,
             },
         ]
 
-        # with open("input_messages.txt", "w") as f:
-        #    for message in messages:
-        #        f.write(f"{message['role']}: {message['content']}\n\n")
-
-        # Use provided schema instead of creating a new one
         try:
             test_generation_result = await self.llm_client.call_model(
                 messages,
@@ -858,6 +940,31 @@ Notes:
             return None
 
         return test_generation_result.test_case
+
+    @alru_cache(maxsize=4096)
+    async def _relevant_lines_for_all_func_requirements(self, function_name):
+        func_requirements = {
+            req: self.requirements_manager.get_description(req)
+            for req in self.requirements_manager.get_requirements_for_function(
+                function_name
+            )
+        }
+        func_body = self.environment.tu_codebase.find_definitions_by_name(
+            function_name
+        )[0]
+
+        relevant_semantic_parts = await get_relevant_statement_groups(
+            func_body, func_requirements.values(), llm_client=self.llm_client
+        )
+
+        result = {}
+        for req, parts in zip(func_requirements, relevant_semantic_parts):
+            relevant_line_numbers = tuple(
+                set(line for group in parts for line in group.line_numbers)
+            )
+            result[req] = relevant_line_numbers
+
+        return result
 
     async def _iterative_error_correction(
         self,

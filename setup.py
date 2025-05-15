@@ -23,6 +23,7 @@ base_requirements = [
     'requests==2.32.3',
     'cryptography==44.0.1',
     'appdirs==1.4.4',
+    'async-lru==2.0.5',
     'seaborn==0.13.2',
     'markdownify==1.1.0',
     'PyYAML==6.0.2',

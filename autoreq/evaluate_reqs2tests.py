@@ -459,6 +459,8 @@ async def evaluate_environment(
     max_retries: int = 2,
     allow_batch_partial: bool = False,
     max_generation_time: float = None,
+    min_pruning_lines: int = 500,
+    use_test_examples: bool = True,
 ) -> EvaluationResult:
     start_time = time.perf_counter()
     env = Environment(env_path)
@@ -468,7 +470,13 @@ async def evaluate_environment(
     if not requirement_ids:
         requirement_ids = rm.requirement_ids
 
-    test_generator = TestGenerator(rm, env, use_extended_reasoning=extended_reasoning)
+    test_generator = TestGenerator(
+        rm, 
+        env, 
+        use_extended_reasoning=extended_reasoning,
+        min_prune_lines=min_pruning_lines,
+        use_test_examples=use_test_examples
+    )
     test_verifier = TestVerifier(
         rm, env, allow_partial=allow_partial or allow_batch_partial
     )
@@ -844,7 +852,7 @@ async def main():
         '--allow-partial', action='store_true', help='Allow partial test generation.'
     )
     parser.add_argument(
-        '--batch-size', type=int, default=8, help='Batch size for test generation.'
+        '--batch-size', type=int, default=4, help='Batch size for test generation.'
     )
     parser.add_argument(
         '--batched', action='store_true', help='Enable batched processing.'
@@ -881,9 +889,20 @@ async def main():
     )
     parser.add_argument('--filter', nargs='*', help='Filter requirements by tags.')
     parser.add_argument(
-        '--decompose',
+        '--no-decomposition',
         action='store_true',
-        help='Decompose requirements into atomic parts.',
+        help='Do not decompose requirements into atomic parts.',
+    )
+    parser.add_argument(
+        '--min-pruning-lines',
+        type=int,
+        default=500,
+        help='Minimum number of lines to trigger code context pruning.',
+    )
+    parser.add_argument(
+        '--no-test-examples',
+        action='store_true',
+        help='Do not use test examples from the environment for test generation.',
     )
     args = parser.parse_args()
 
@@ -956,7 +975,7 @@ async def main():
         # Load environment-specific requirements
         env = Environment(env_path)
         try:
-            if args.decompose:
+            if not args.no_decomposition:
                 rm = RequirementsManager(req_path)
                 x = {
                     req_id: rm.get_description(req_id) for req_id in rm.requirement_ids
@@ -1013,6 +1032,8 @@ async def main():
             args.retries,
             args.allow_batch_partial,
             args.timeout * 60,  # Convert from minutes to seconds
+            args.min_pruning_lines,
+            not args.no_test_examples,
         )
 
         write_env_result(result, output_dir)

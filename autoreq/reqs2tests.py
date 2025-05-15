@@ -53,7 +53,7 @@ async def main():
     parser.add_argument(
         '--batch-size',
         type=int,
-        default=8,
+        default=4,
         help='Maximum number of requirements to process in one batch.',
     )
     parser.add_argument(
@@ -86,6 +86,17 @@ async def main():
         '--no-requirement-keys',
         action='store_true',
         help='Do not use requirement keys for test generation. Store a reference to the requirement in the notes instead',
+    )
+    parser.add_argument(
+        '--min-pruning-lines',
+        type=int,
+        default=500,
+        help=argparse.SUPPRESS
+    )
+    parser.add_argument(
+        '--no-test-examples',
+        action='store_true',
+        help='Use test examples from the environment for test generation.',
     )
     args = parser.parse_args()
 
@@ -180,6 +191,8 @@ async def main():
         rm,  # Pass the RequirementsManager instead of raw requirements
         environment=environment,
         use_extended_reasoning=args.extended_reasoning,
+        min_prune_lines=args.min_pruning_lines,
+        use_test_examples=not args.no_test_examples
     )
 
     vectorcast_test_cases = []

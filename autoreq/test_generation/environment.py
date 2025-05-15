@@ -12,6 +12,8 @@ import logging
 import charset_normalizer
 import platform
 
+from autoreq.util import prune_code
+
 from autoreq.constants import TEST_COVERAGE_SCRIPT_PATH
 
 from typing import Union
@@ -340,52 +342,57 @@ class Environment:
             # No need to delete here, will be cleaned up by cleanup() method
 
             # Extract identifiers from SCRIPT.VALUE and SCRIPT.EXPECTED lines
-            identifiers = set()
+            identifiers = []
             lines = content.splitlines()
             for line in lines:
                 if line.startswith('TEST.VALUE') or line.startswith('TEST.EXPECTED'):
                     identifier = line.split(':', 1)[1].rsplit(':', 1)[0]
-                    identifiers.add(identifier)
+                    if identifier not in identifiers:
+                        identifiers.append(identifier)
 
             if len(identifiers) > 0:
-                return list(identifiers)
+                return identifiers
 
         logging.warning('Failed to generate test script template')
         logging.warning('Falling back to scraping from ATG')
         self._used_atg_identifier_fallback = True
 
-        used_identifiers = set()
+        used_identifiers = []
         for test in self.atg_tests:
             for value in test.input_values + test.expected_values:
-                used_identifiers.add(value.identifier)
+                if value.identifier not in used_identifiers:
+                    used_identifiers.append(value.identifier)
 
-        return list(used_identifiers)
+        return used_identifiers
 
     def get_allowed_identifiers_for_function(
-        self, function_name, return_used_atg_fallback=False
+        self, function_name, return_used_atg_fallback=False, focus_lines=None
     ):
         all_identifiers = self.allowed_identifiers
-        relevant_definitions = self.tu_codebase.find_definitions_by_name(function_name)
+        definition = self.tu_codebase.find_definitions_by_name(function_name)[0]
 
-        relevant_identifiers = set()
+        if focus_lines:
+            definition = prune_code(definition, focus_lines)
+
+        relevant_identifiers = []
         for identifier in all_identifiers:
             try:
                 try:
                     unit, subprogram, entity = identifier.split('.')[:3]
                 except:
                     logging.warning(f'Invalid identifier format: {identifier}')
-                    relevant_identifiers.add(identifier)
+                    relevant_identifiers.append(identifier)
                     continue
 
                 subprogram = subprogram.split('::')[-1]  # Remove namespace if present
                 entity = entity.split('[', 1)[0]  # Remove array index if present
 
                 if unit == 'USER_GLOBALS_VCAST':
-                    relevant_identifiers.add(identifier)
+                    relevant_identifiers.append(identifier)
                     continue
 
                 if entity == '(cl)':
-                    relevant_identifiers.add(identifier)
+                    relevant_identifiers.append(identifier)
                     continue
 
                 if subprogram == '<<GLOBAL>>':
@@ -393,8 +400,8 @@ class Environment:
                 else:
                     search_term = subprogram
 
-                if any(search_term in defn for defn in relevant_definitions):
-                    relevant_identifiers.add(identifier)
+                if search_term in definition:
+                    relevant_identifiers.append(identifier)
             except IndexError:
                 logging.warning(f'Invalid identifier format: {identifier}')
                 continue
@@ -403,10 +410,16 @@ class Environment:
             f'Found {len(relevant_identifiers)} relevant identifiers for function {function_name}'
         )
 
-        if return_used_atg_fallback:
-            return list(relevant_identifiers), self._used_atg_identifier_fallback
+        if not relevant_identifiers and focus_lines:
+            logging.warning(
+                f'No relevant identifiers found for pruned function {function_name}. Using identifiers for unpruned function.'
+            )
+            relevant_identifiers = self.get_allowed_identifiers_for_function(function_name, return_used_atg_fallback=return_used_atg_fallback, focus_lines=None)
 
-        return list(relevant_identifiers)
+        if return_used_atg_fallback:
+            return relevant_identifiers, self._used_atg_identifier_fallback
+
+        return relevant_identifiers
 
     @cached_property
     def source_files(self) -> List[str]:
@@ -506,7 +519,7 @@ class Environment:
                 timeout=60,
             )
         except subprocess.TimeoutExpired:
-            logging.error(f'ATG coverage command timed out after 30 seconds')
+            logging.error('ATG coverage command timed out after 30 seconds')
             return None
 
         if result.returncode != 0:

@@ -13,11 +13,11 @@ class SearchOutput(BaseModel):
 
 
 class SearchEngine:
-    def __init__(self, reference):
+    def __init__(self, reference, llm_client=None):
         self.reference = reference
-        self.llm_client = LLMClient()  # Use LLMClient instead of OpenAI client
+        self.llm_client = llm_client or LLMClient()
 
-    async def search(self, query: str) -> List[TextRange]:
+    async def search(self, query: str, return_ranges=False):
         # Add line numbers to the text
         numbered_text = '\n'.join(
             f'{i + 1}: {line}' for i, line in enumerate(self.reference.splitlines())
@@ -92,5 +92,8 @@ Notes:
 
         # Merge the parts into a single string
         relevant_text = '\n\n...\n\n'.join(relevant_text_parts)
+
+        if return_ranges:
+            return relevant_text, merged_ranges
 
         return relevant_text

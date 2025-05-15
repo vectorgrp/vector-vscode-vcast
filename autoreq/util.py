@@ -3,7 +3,11 @@ import glob
 import os
 import tempfile
 import shutil
-from typing import Callable, Optional
+from typing import Any, Callable, List, Optional
+
+from pydantic import BaseModel, create_model
+
+from autoreq.llm_client import LLMClient
 from collections import Counter
 
 
@@ -210,3 +214,433 @@ def average_set(sets, threshold_frequency=0.5):
     n = len(sets)
     cnt = Counter(x for s in sets for x in s)
     return {x for x, c in cnt.items() if c / n >= threshold_frequency}
+
+
+def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
+    """
+    Prunes code by keeping only nodes that contain lines specified in line_numbers_to_keep.
+
+    Args:
+        code: Source code to prune
+        line_numbers_to_keep: List of 0-based line numbers to preserve
+
+    Returns:
+        Pruned source code as string
+    """
+    import tree_sitter_cpp as ts_cpp
+    from tree_sitter import Parser, Language
+
+    PROTECTED_CHILDREN = {
+        'if_statement': ['condition'],
+        'for_statement': ['initializer', 'condition', 'update'],
+        'while_statement': ['condition'],
+        'switch_statement': ['condition'],
+        'case_statement': ['value', 'break_statement'],
+        'do_statement': ['condition'],
+        'function_definition': ['type', 'declarator', 'parameters'],
+        'else_clause': ['condition'],
+        'expression_statement': '*',
+        'return_statement': '*',
+        'throw_statement': '*',
+        'break_statement': '*',
+        'continue_statement': '*',
+        'comment': '*',
+    }  # TODO: Make sure these are the actual field names
+
+    PROTECTED_LEAFS = [
+        ':',
+        ',',
+        ';',
+        '{',
+        '}',
+        '(',
+        ')',
+        'if',
+        'else',
+        'for',
+        'while',
+        'do',
+        'switch',
+        'case',
+        'default',
+    ]  # TODO: make sure these are the actual types
+
+    def node_contains_line(node, line_number):
+        return node.start_point[0] <= line_number <= node.end_point[0]
+
+    def node_contains_any_line(node):
+        return any(node_contains_line(node, ln) for ln in line_numbers_to_keep)
+
+    def is_protected(node, parent):
+        protected_roles = PROTECTED_CHILDREN.get(parent.type, [])
+
+        if protected_roles == '*':
+            return True
+
+        return any(
+            parent.child_by_field_name(role) == node or node.type == role
+            for role in protected_roles
+        )
+
+    def removable_ranges(node):
+        if node.type == 'for_statement':
+            # print(node.sexp())
+            pass
+
+        # Just pass through compount statements in case we would remove something here
+        if node.type == 'compound_statement':
+            return [r for child in node.children for r in removable_ranges(child)]
+
+        if not node_contains_any_line(node) and node.type not in PROTECTED_LEAFS:
+            # print("Removed:", node.text, node.start_point, node.end_point, node.type)
+            return [(node.start_point, node.end_point)]
+
+        # Process children
+        ranges = []
+        for child in node.children:
+            if is_protected(child, node):
+                # print("Protected:", child.text)
+                continue
+
+            ranges.extend(removable_ranges(child))
+
+        return ranges
+
+    def merge_ranges(ranges):
+        merged = []
+        for start, end in sorted(ranges):
+            if not merged:
+                merged.append((start, end))
+                continue
+
+            previous_start, previous_end = merged[-1]
+
+            if start > previous_end:
+                merged.append((start, end))
+                continue
+
+            merged[-1] = (previous_start, max(previous_end, end))
+
+        return merged
+
+    def to_str_position(string, line, column):
+        lines = string.split('\n')
+        line_start_index = sum(len(l) + 1 for l in lines[:line])
+
+        return line_start_index + column
+
+    def prune_code(code, ranges):
+        for range in reversed(sorted(ranges)):
+            start, end = range
+            start_pos = to_str_position(code, start[0], start[1])
+            end_pos = to_str_position(code, end[0], end[1])
+            code = code[:start_pos] + code[end_pos:]
+
+        code = re.sub(r'(\n\s*)+\n', '\n', code)
+
+        return code
+
+    parser = Parser()
+    CPP_LANGUAGE = Language(ts_cpp.language(), 'cpp')
+    parser.set_language(CPP_LANGUAGE)
+
+    code_bytes = code.encode('utf-8')
+    tree = parser.parse(code_bytes)
+
+    ranges = merge_ranges(removable_ranges(tree.root_node))
+    return prune_code(code, ranges)
+
+
+def get_executable_statement_groups(code: str) -> List[List[int]]:
+    """
+    Extract executable statement groups from code using tree-sitter.
+    Returns a list of lists, where each inner list contains line numbers of statements
+    that belong to the same execution path.
+    """
+    root_node = parse_code(code)
+
+    # print(root_node.sexp())
+
+    COLLECTED_NODE_TYPES = [
+        'expression_statement',
+        'return_statement',
+        'throw_statement',
+        'break_statement',
+        'continue_statement',
+        'comment',
+    ]
+
+    PATH_NODE_CHILD_PATH_LABELS = {
+        'if_statement': {
+            'consequence': 'IF {} ==> TRUE',
+            'alternative': 'IF {} ==> FALSE',
+        },
+        'while_statement': {'body': 'WHILE {} ==> TRUE'},
+        'for_statement': {'body': 'FOR ({}) ==> TRUE'},
+        'do_statement': {'body': 'DO-WHILE {} ==> TRUE'},
+        'switch_statement': {'body': 'SWITCH {} ==> ENTERED'},
+        'case_statement': {'*': 'CASE {} ==> ENTERED'},
+        #'try_statement': {
+        #    'body': 'ENTERED'
+        # },
+        #'catch_clause': {
+        #    'body': 'ENTERED'
+        # },
+        # TODO: Deal with condition stuff for try and catch
+    }
+
+    PATH_NODE_CHILD_PATH_CONDITION = {
+        'if_statement': 'condition',
+        'while_statement': 'condition',
+        'for_statement': 'condition',
+        'do_statement': 'condition',
+        'switch_statement': 'condition',
+        'case_statement': 'value',
+    }
+
+    class CollectedNode(BaseModel):
+        line_number: int
+        path: List[str]
+        symbols: List[str]
+
+    class StatementGroup(BaseModel):
+        line_numbers: List[int]
+        path: List[str]
+        symbols: List[str]
+
+        @property
+        def lines(self):
+            lines = code.split('\n')
+            return [lines[i] for i in self.line_numbers]
+
+        def __str__(self):
+            # First, construct the path
+            path_str = '\n -> '.join(self.path)
+
+            # Then, construct the lines. For non-adajcent lines, add ...
+            lines_str = ''
+            for i, line in enumerate(self.lines):
+                if i > 0 and self.line_numbers[i] != self.line_numbers[i - 1] + 1:
+                    lines_str += '...\n'
+                lines_str += f'{line}\n'
+
+            return f'Path: {path_str}\nLines:\n{lines_str}'
+
+        @staticmethod
+        def from_collected_nodes(collected_nodes):
+            return StatementGroup(
+                line_numbers=[node.line_number for node in collected_nodes],
+                path=collected_nodes[0].path,
+                symbols=list(
+                    set(symbol for node in collected_nodes for symbol in node.symbols)
+                ),
+            )
+
+    # Function to collect statements by execution path
+    def collect_statements(node, curr_path):
+        curr_path = curr_path.copy()
+        """
+        if node.type in ('comment', 'preprocessor_directive', 'string_literal'):
+            return None
+        """
+
+        # Check if this is a statement that should be collected
+        if node.type in COLLECTED_NODE_TYPES:
+            # Add the line number to the current group
+            line_number = node.start_point[0]
+            symbols = set()
+
+            def visit_node(node):
+                if node.type in ('identifier', 'type_identifier', 'field_identifier'):
+                    symbols.add(node.text.decode('utf-8'))
+                for child in node.children:
+                    visit_node(child)
+
+            visit_node(node)
+            return CollectedNode(
+                line_number=line_number, path=curr_path, symbols=list(symbols)
+            )
+
+        if node.type in PATH_NODE_CHILD_PATH_LABELS:
+            condition = node.child_by_field_name(
+                PATH_NODE_CHILD_PATH_CONDITION[node.type]
+            )
+            if not condition and node.type == 'case_statement':
+                path_labels = {
+                    field: re.sub(r'\s{2,}', ' ', 'DEFAULT ==> ENTERED')
+                    for field in PATH_NODE_CHILD_PATH_LABELS[node.type]
+                }
+            else:
+                condition_text = condition.text.decode('utf-8') if condition else 'None'
+                path_labels = {
+                    field: re.sub(
+                        r'\s{2,}',
+                        ' ',
+                        PATH_NODE_CHILD_PATH_LABELS[node.type][field].format(
+                            condition_text.replace('\n', '')
+                        ),
+                    )
+                    for field in PATH_NODE_CHILD_PATH_LABELS[node.type]
+                }
+        else:
+            path_labels = {}
+
+        groups = []
+        # Recursively process other nodes
+        for child in node.children:
+            # Check if this child is a condition part
+            field_name = next(
+                (
+                    field
+                    for field in PATH_NODE_CHILD_PATH_LABELS.get(node.type, {})
+                    if node.child_by_field_name(field) == child
+                ),
+                None,
+            )
+            path_label = path_labels.get(field_name, None) or path_labels.get('*', None)
+
+            if path_label:
+                new_path = [*curr_path, path_label]
+            else:
+                new_path = curr_path
+
+            groups.append(collect_statements(child, new_path))
+
+        return groups
+
+    # Start processing from the root
+    executable_groups = collect_statements(root_node, [])
+
+    def to_flat_groups(nested_groups):
+        groups = []
+        last_was_list = False
+        for item in nested_groups:
+            if item is None:
+                continue
+            elif isinstance(item, list):
+                groups.extend(to_flat_groups(item))
+                last_was_list = True
+            else:
+                if len(groups) == 0 or last_was_list:
+                    groups.append([])
+
+                groups[-1].append(item)
+                last_was_list = False
+
+        return groups
+
+    flat_groups = to_flat_groups(executable_groups)
+    executable_groups = [
+        StatementGroup.from_collected_nodes(group) for group in flat_groups
+    ]
+
+    return executable_groups
+
+
+async def get_relevant_statement_groups(
+    function_body: str,
+    requirements: List[str],
+    llm_client: LLMClient = None,
+    add_related=True,
+):
+    requirements = list(requirements)
+    # Split requirements into chunks
+    if len(requirements) > 100:
+        results_first100 = await get_relevant_statement_groups(
+            function_body, requirements[:100], llm_client
+        )
+        results_rest = await get_relevant_statement_groups(
+            function_body, requirements[100:], llm_client
+        )
+        return results_first100 + results_rest
+
+    if llm_client is None:
+        llm_client = LLMClient()
+
+    result_keys = {
+        f'group_indices_for_requirement_{i + 1}': (List[int], ...)
+        for i in range(len(requirements))
+    }
+    schema = create_model('GenerationResult', **result_keys)
+
+    requirements_text = '\n'.join([f'{i + 1}. {r}' for i, r in enumerate(requirements)])
+
+    all_groups = get_executable_statement_groups(function_body)
+
+    prettified_groups = []
+    for i, part in enumerate(all_groups):
+        index_prefix = f'{i + 1}. '
+        prettified_groups.append(index_prefix + str(part))
+
+    groups_text = '\n'.join(prettified_groups)
+
+    messages = [
+        {
+            'role': 'system',
+            'content': 'You are a world-class software engineer specializing in requirements engineering.',
+        },
+        {
+            'role': 'user',
+            'content': f"""
+Given the following code and a list of semantic parts of the code, identify the relevant parts of the code that are necessary to test the following requiremens. Return a list of indices of the relevant parts of the code for each requirement.
+
+Code:
+```c
+{function_body}
+```
+
+Semantic parts:
+{groups_text}
+
+Requirements:
+{requirements_text}
+
+Answer in the following format:
+```
+{{
+    "group_indices_for_requirement1": [1, 3, ...] # 1-indexed list of relevant statement groups,
+    "group_indices_for_requirement2": [2, 4, ...] # 1-indexed list of relevant statement groups,
+    ...
+}}
+```
+
+""",
+        },
+    ]
+
+    result = await llm_client.call_model(messages, schema)
+    # return [groups[i-1] for i in result.group_indices if 1 <= i <= len(groups)]
+
+    relevant_groups_batch = []
+    for i, group_indices in enumerate(result.dict().values()):
+        relevant_groups = [
+            all_groups[i - 1] for i in group_indices if 1 <= i <= len(all_groups)
+        ]
+        if add_related:
+            for other_group in all_groups:
+                if other_group in relevant_groups:
+                    continue
+
+                related = not any(
+                    s in other_group.symbols and is_prefix(other_group.path, group.path)
+                    for group in relevant_groups
+                    for s in group.symbols
+                )
+
+                if related:
+                    continue
+
+                relevant_groups.append(other_group)
+
+        # Now sort by line numbers
+        relevant_groups = sorted(relevant_groups, key=lambda g: g.line_numbers[0])
+
+        relevant_groups_batch.append(relevant_groups)
+
+    return relevant_groups_batch
+
+
+def is_prefix(prefix, lst):
+    return len(prefix) <= len(lst) and all(
+        prefix[i] == lst[i] for i in range(len(prefix))
+    )

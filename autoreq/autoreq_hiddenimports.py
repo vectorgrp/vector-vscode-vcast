@@ -8,6 +8,8 @@ hiddenimports = [
     'appdirs',
     'appdirs.user_cache_dir',
     'argparse',
+    'async_lru',
+    'async_lru.alru_cache',
     'asyncio',
     'atg_context_builder',
     'atg_context_builder.ATGContextBuilder',
