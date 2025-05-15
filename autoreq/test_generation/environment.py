@@ -366,7 +366,13 @@ class Environment:
         return used_identifiers
 
     def get_allowed_identifiers_for_function(
-        self, function_name, return_used_atg_fallback=False, focus_lines=None
+        self,
+        function_name,
+        return_used_atg_fallback=False,
+        focus_lines=None,
+        max_array_index=None,
+        remove_surely_stubbed_returns=False,
+        remove_surely_stubbed_inputs=False,
     ):
         all_identifiers = self.allowed_identifiers
         definition = self.tu_codebase.find_definitions_by_name(function_name)[0]
@@ -385,7 +391,20 @@ class Environment:
                     continue
 
                 subprogram = subprogram.split('::')[-1]  # Remove namespace if present
-                entity = entity.split('[', 1)[0]  # Remove array index if present
+
+                entity_match = re.match(r'.*?\[(\d+)\]', entity)
+
+                if entity_match:
+                    array_index = int(entity_match.group(1))
+                    if max_array_index is not None and array_index > max_array_index:
+                        continue
+                    entity = entity[
+                        : entity.index('[')
+                    ]  # Remove array index if present
+                else:
+                    entity = entity.split('[', 1)[
+                        0
+                    ]  # Remove array index if present (should not be)
 
                 if unit == 'USER_GLOBALS_VCAST':
                     relevant_identifiers.append(identifier)
@@ -394,6 +413,15 @@ class Environment:
                 if entity == '(cl)':
                     relevant_identifiers.append(identifier)
                     continue
+
+                if unit == 'uut_prototype_stubs':
+                    is_return_value = '.return' in identifier
+
+                    if remove_surely_stubbed_returns and is_return_value:
+                        continue
+
+                    if remove_surely_stubbed_inputs and not is_return_value:
+                        continue
 
                 if subprogram == '<<GLOBAL>>':
                     search_term = entity

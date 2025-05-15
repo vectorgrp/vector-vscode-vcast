@@ -16,321 +16,18 @@ from autoreq.util import get_relevant_statement_groups
 from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 from autoreq.test_generation.atg_context_builder import ATGContextBuilder
 from autoreq.test_generation.info_logger import InfoLogger
+from autoreq.test_generation.schema_builder import SchemaBuilder
+from autoreq.test_generation.generic_models import (
+    GenericValueMapping,
+    GenericTestCase,
+    GenericTestGenerationResult,
+)
+from autoreq.util import validate_openai_structured_output_schema
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
 from ..llm_client import LLMClient
 
 # Load environment variables from .env file
 load_dotenv()
-
-
-# Base classes that Cython can handle
-class GenericValueMapping(BaseModel):
-    """Base class for value mappings with dynamic identifier typing"""
-
-    model_config = {
-        'arbitrary_types_allowed': True,
-        'ignored_types': (
-            Callable,
-            property,
-        ),  # Tell Pydantic to ignore methods and properties
-    }
-    identifier: Any  # Will be specialized at runtime
-    value: str
-
-    # Mark methods with ClassVar to tell cython they're not fields
-    to_vectorcast: ClassVar[Callable]
-
-    def to_vectorcast(
-        self, is_expected=False, no_pointer=False, return_was_pointer=False
-    ) -> Union[str, Tuple[str, bool]]:
-        patched_identifier = re.sub(r'(\w+)->', r'*\1.', self.identifier)
-        patched_identifier = re.sub(r'\*(\w+)\.', r'*\1[0].', patched_identifier)
-
-        prefix = 'TEST.EXPECTED' if is_expected else 'TEST.VALUE'
-
-        pointer_match = re.match(r'<<pointer (.+?)>>', self.value)
-        if pointer_match:
-            patched_value = pointer_match.group(1)
-
-            if not no_pointer:
-                if return_was_pointer:
-                    return (
-                        f'TEST.VALUE:USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1:{patched_value}\n{prefix}:{patched_identifier}:VECTORCAST_STR1\n',
-                        True,
-                    )
-
-                return f'TEST.VALUE:USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1:{patched_value}\n{prefix}:{patched_identifier}:VECTORCAST_STR1\n'
-            else:
-                if return_was_pointer:
-                    return f'{prefix}:{patched_identifier}:VECTORCAST_STR1\n', False
-                return f'{prefix}:{patched_identifier}:VECTORCAST_STR1\n'
-
-        if return_was_pointer:
-            return f'{prefix}:{patched_identifier}:{self.value}\n', False
-        return f'{prefix}:{patched_identifier}:{self.value}\n'
-
-    # handling cython issues with properties
-    needed_stub_as_input: ClassVar[property]
-
-    @property
-    def needed_stub_as_input(self):
-        return_match = re.match(
-            r'([^\.]+\.[^\.]+).*\.return', self.identifier, re.IGNORECASE
-        )
-
-        if return_match:
-            return return_match.group(1)
-        else:
-            return None
-
-    # handling cython issues with properties
-    needed_stub_as_expected: ClassVar[property]
-
-    @property
-    def needed_stub_as_expected(self):
-        match = re.match(r'([^\.]+\.[^\.]+)', self.identifier)
-
-        if match:
-            return match.group(1)
-        else:
-            return None
-
-
-class GenericTestCase(BaseModel):
-    """Base class for test cases with dynamic value mapping types"""
-
-    model_config = {
-        'arbitrary_types_allowed': True,
-        'ignored_types': (
-            Callable,
-            property,
-        ),  # Tell Pydantic to ignore methods and properties
-    }
-    test_name: str
-    test_description: str
-    requirement_id: str
-    unit_name: str
-    subprogram_name: str
-    input_values: List[Any]  # Will be specialized at runtime
-    expected_values: List[Any]  # Will be specialized at runtime
-
-    unit_names: ClassVar[property]
-    as_partial: ClassVar[property]
-    to_vectorcast: ClassVar[Callable]
-    _get_needed_stubs: ClassVar[Callable]
-
-    @property
-    def unit_names(self):
-        return [self.unit_name]
-
-    @property
-    def as_partial(self):
-        return self.__class__(
-            test_name=self.test_name + '-PARTIAL',
-            test_description=self.test_description,
-            requirement_id=self.requirement_id,
-            unit_name=self.unit_name,
-            subprogram_name=self.subprogram_name,
-            input_values=self.input_values,
-            # expected_values=[]
-            expected_values=self.expected_values,
-        )
-
-    def to_vectorcast(self, use_requirement_key=True, add_uuid=False) -> str:
-        test_case_str = f'TEST.UNIT:{self.unit_name}\n'
-        test_case_str += f'TEST.SUBPROGRAM:{self.subprogram_name}\n'
-        test_case_str += 'TEST.NEW\n'
-
-        name = (
-            self.test_name
-            if not add_uuid
-            else f'{self.test_name}-{random.randint(0, 100000)}'
-        )
-
-        # Prevent names with spaces in the name
-        name = name.replace(' ', '_')
-        test_case_str += f'TEST.NAME:{name}-REVIEW-NEEDED\n'
-
-        if use_requirement_key:
-            test_case_str += f'TEST.REQUIREMENT_KEY:{self.requirement_id}\n'
-
-        test_case_str += 'TEST.NOTES:\n'
-        test_case_str += 'WARNING: This test case was generated by an AI-based system. Please review it carefully.\n\n'
-
-        if not use_requirement_key:
-            test_case_str += f'Tested Requirement ID: {self.requirement_id}\n\n'
-
-        for line in self.test_description.split('\n'):
-            test_case_str += f'{line}\n'
-        test_case_str += 'TEST.END_NOTES:\n'
-
-        for stub in self._get_needed_stubs():
-            test_case_str += f'TEST.STUB:{stub}\n'
-
-        # Sometimes the LLM duplicates assignments. Deduplicating them is a free win
-        seen_inputs = set()
-        seen_pointer = False
-        for input_value in self.input_values:
-            vectorcast_input, was_pointer = input_value.to_vectorcast(
-                no_pointer=seen_pointer, return_was_pointer=True
-            )
-            seen_pointer = was_pointer or seen_pointer
-
-            if vectorcast_input in seen_inputs:
-                continue
-
-            test_case_str += vectorcast_input
-            seen_inputs.add(vectorcast_input)
-
-        seen_expected = set()
-        for expected_value in self.expected_values:
-            vectorcast_expected = expected_value.to_vectorcast(is_expected=True)
-
-            if vectorcast_expected in seen_expected:
-                continue
-
-            test_case_str += vectorcast_expected
-            seen_expected.add(vectorcast_expected)
-
-        test_case_str += 'TEST.END\n'
-        return test_case_str
-
-    def _get_needed_stubs(self):
-        needed_stubs = set()
-        for input_value in self.input_values:
-            stub = input_value.needed_stub_as_input
-
-            if not stub:
-                continue
-
-            unit_name, subprogram_name = stub.split('.', 1)
-
-            if self.subprogram_name.startswith(subprogram_name):
-                continue
-
-            if subprogram_name == '<<GLOBAL>>':
-                continue
-
-            needed_stubs.add(stub)
-
-        for expected_value in self.expected_values:
-            stub = expected_value.needed_stub_as_expected
-
-            if not stub:
-                continue
-
-            unit_name, subprogram_name = stub.split('.', 1)
-
-            if self.subprogram_name.startswith(subprogram_name):
-                continue
-
-            if subprogram_name == '<<GLOBAL>>':
-                continue
-
-            needed_stubs.add(stub)
-
-        return needed_stubs
-
-
-class GenericTestGenerationResult(BaseModel):
-    test_description: str
-    test_mapping_analysis: str
-    test_case: Any  # type: ignore
-    test_cases: ClassVar[property]
-
-    @property
-    def test_cases(self):
-        return [self.test_case]
-
-
-def _derive_test_case_schema(allowed_identifiers=None):
-    """Create dynamic schema using the non-cythonized create_identifier_type function"""
-    # We use the imported function from identifier_type_gen
-    Identifier = create_identifier_type(allowed_identifiers)
-
-    # Create a unique type name with timestamp
-    import time
-
-    unique_suffix = int(time.time() * 1000)
-
-    # Create ValueMapping class with a unique global name
-    ValueMappingName = f'ValueMapping_{unique_suffix}'
-    ValueMappingGlobal = type(
-        ValueMappingName,
-        (GenericValueMapping,),
-        {'__annotations__': {'identifier': Identifier}},
-    )
-
-    # Create TestCase class with unique global name
-    TestCaseName = f'TestCase_{unique_suffix}'
-    TestCaseGlobal = type(
-        TestCaseName,
-        (GenericTestCase,),
-        {
-            '__annotations__': {
-                'input_values': List[ValueMappingGlobal],
-                'expected_values': List[ValueMappingGlobal],
-            },
-            'input_values': Field(default_factory=list),
-            'expected_values': Field(default_factory=list),
-        },
-    )
-
-    return TestCaseGlobal
-
-
-def _derive_completion_schema(
-    batched, allowed_identifiers=None, batch_size=None, return_size_fallback=False
-):
-    if allowed_identifiers:
-        logging.info(
-            f'Creating schema with {len(allowed_identifiers)} allowed identifiers'
-        )
-
-    TestCaseClass = _derive_test_case_schema(allowed_identifiers=allowed_identifiers)
-
-    if not batched:
-        # Create the model directly using create_model
-        TestGenerationResultClass = create_model(
-            'TestGenerationResult',
-            test_case=(TestCaseClass, ...),
-            __base__=GenericTestGenerationResult,
-        )
-        schema = TestGenerationResultClass
-    else:
-        assert batch_size is not None
-        # Create field dict explicitly without dict comprehension
-        result_keys = {}
-        for i in range(batch_size):
-            field_name = f'test_case_for_requirement_{i + 1}'
-            result_keys[field_name] = (TestCaseClass, ...)
-
-        schema = create_model('TestGenerationResult', **result_keys)
-
-    schema_json = json.dumps(schema.model_json_schema())
-    logging.info(f'Generated schema size: {len(schema_json)} chars')
-
-    if len(schema_json) > 15000:
-        logging.warning(
-            f'Schema size is too large ({len(schema_json)} chars). Ignoring allowed identifiers.'
-        )
-        if return_size_fallback:
-            result, flag = _derive_completion_schema(
-                batched,
-                allowed_identifiers=None,
-                batch_size=batch_size,
-                return_size_fallback=True,
-            )
-            return result, flag
-
-        return _derive_completion_schema(
-            batched, allowed_identifiers=None, batch_size=batch_size
-        )
-
-    if return_size_fallback:
-        return schema, False
-
-    return schema, False  # Consistent return type
 
 
 class TestGenerator:
@@ -351,6 +48,7 @@ class TestGenerator:
         )
         self.info_logger = InfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
+        self.schema_builder = SchemaBuilder(self.environment)
         self.min_prune_lines = min_prune_lines
         self.use_test_examples = use_test_examples
 
@@ -371,20 +69,6 @@ class TestGenerator:
                 batches.append(func_reqs[i : i + batch_size])
 
         return batches
-
-    def _get_allowed_identifiers_for_function(self, function_name, focus_lines=None):
-        """Helper method to get allowed identifiers for a function with logging."""
-        allowed_identifiers, used_fallback = (
-            self.environment.get_allowed_identifiers_for_function(
-                function_name, return_used_atg_fallback=True, focus_lines=focus_lines
-            )
-        )
-        logging.debug(
-            f'Retrieved {len(allowed_identifiers)} allowed identifiers for function {function_name}'
-        )
-
-        # When this is called for a specific requirement, we'll update the info logger afterward
-        return allowed_identifiers, used_fallback
 
     async def generate_test_cases(
         self,
@@ -473,16 +157,6 @@ class TestGenerator:
         else:
             relevant_lines = None
 
-        # Build allowed identifiers
-        allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(
-            function_name, focus_lines=relevant_lines
-        )
-        for req_id in requirement_ids:
-            self.info_logger.set_found_no_allowed_identifiers(
-                req_id, len(allowed_identifiers) == 0
-            )
-            self.info_logger.set_used_atg_identifier_fallback(req_id, used_fallback)
-
         requirements_text = '\n'.join(
             [
                 f'{i + 1}. {req_id}: {self.requirements_manager.get_description(req_id)}'
@@ -528,11 +202,43 @@ Example Test Cases:
         with open(TEST_FRAMEWORK_REFERENCE_PATH, 'r') as f:
             test_framework_reference = f.read()
 
+        schema, gen_info = self.schema_builder.derive_completion_schema(
+            function_name=function_name,
+            batched=True,
+            batch_size=len(requirement_ids),
+            focus_lines=relevant_lines,
+            return_schema_gen_info=True,
+        )
+
+        for req_id in requirement_ids:
+            self.info_logger.set_schema_exceeded_size(
+                req_id, gen_info.too_many_identifiers
+            )
+            self.info_logger.set_found_no_allowed_identifiers(
+                req_id, gen_info.no_identifiers_found
+            )
+            self.info_logger.set_used_atg_identifier_fallback(
+                req_id, gen_info.used_atg_identifiers
+            )
+
         # If we prune, we can also give identifiers
-        if len(allowed_identifiers) > 0 and relevant_lines is not None:
+        input_identifiers = gen_info.input_identifiers
+        expected_identifiers = gen_info.expected_identifiers
+        shown_input_identifiers = [
+            ident for ident in input_identifiers if 'USER_GLOBALS_VCAST' not in ident
+        ]
+        shown_expected_identifiers = [
+            ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
+        ]
+        if len(shown_input_identifiers) > 0 and relevant_lines is not None:
+            rendered_input_identifiers = '\n'.join('- ' + i for i in shown_input_identifiers if 'USER_GLOBALS_VCAST' not in i)
+            rendered_expected_identifiers = '\n'.join('- ' + i for i in shown_expected_identifiers if 'USER_GLOBALS_VCAST' not in i)
             identifier_section = f"""
-You must set a value for each of the following identifiers. An expected value is not required for all identifiers, but a value is required for all identifiers:
-{chr(10).join('- ' + i for i in allowed_identifiers if 'USER_GLOBALS_VCAST' not in i)}
+You must set an input value for each of the following identifiers:
+{rendered_input_identifiers}
+
+An expected value is not required for all identifiers. These are the ones you can set:
+{rendered_expected_identifiers}
 """
         else:
             identifier_section = ''
@@ -588,21 +294,11 @@ Return your answer in the following format:
             },
         ]
 
-        schema, used_fallback = _derive_completion_schema(
-            True,
-            allowed_identifiers=allowed_identifiers,
-            batch_size=len(requirement_ids),
-            return_size_fallback=True,
-        )
-
-        for req_id in requirement_ids:
-            self.info_logger.set_schema_exceeded_size(req_id, used_fallback)
-
         try:
             test_generation_result = await self.llm_client.call_model(
                 messages,
                 schema,
-                temperature=0.0,
+                temperature=0.7,
                 extended_reasoning=self.use_extended_reasoning,
                 max_tokens=8192,
             )
@@ -704,7 +400,7 @@ Return your answer in the following format:
             for i in range(max_retries):
                 self.info_logger.increment_retries_used(requirement_id)
                 # temperature = 0.0 if first_try else 1.0
-                temperature = 0.0
+                temperature = 0.7
                 # extended_reasoning = self.use_extended_reasoning and not first_try
                 extended_reasoning = self.use_extended_reasoning
                 result = await self._generate_test_case_no_retries(
@@ -719,7 +415,7 @@ Return your answer in the following format:
                     return result
                 else:
                     first_try = False
-        except Exception as e:
+        except Exception:
             import traceback
 
             self.info_logger.add_exception(requirement_id, traceback.format_exc())
@@ -732,12 +428,11 @@ Return your answer in the following format:
     async def _generate_test_case_no_retries(
         self,
         requirement_id,
-        temperature=0,
+        temperature=0.7,
         extended_reasoning=False,
         allow_partial=False,
         reword_requirement=None,
     ):
-        # Remove allowed_identifiers parameter since schema is passed directly
         requirement_text = self.requirements_manager.get_description(requirement_id)
         if not requirement_text:
             logging.warning(f'Requirement {requirement_id} not found.')
@@ -787,28 +482,45 @@ Return your answer in the following format:
         else:
             relevant_lines = None
 
-        # Build allowed identifiers and schema
-        allowed_identifiers, used_fallback = self._get_allowed_identifiers_for_function(
-            function_name, focus_lines=relevant_lines
+        # Build schema
+        schema, gen_info = self.schema_builder.derive_completion_schema(
+            function_name=function_name,
+            batched=False,
+            focus_lines=relevant_lines,
+            return_schema_gen_info=True,
+        )
+
+        self.info_logger.set_schema_exceeded_size(
+            requirement_id, gen_info.too_many_identifiers
         )
         self.info_logger.set_found_no_allowed_identifiers(
-            requirement_id, len(allowed_identifiers) == 0
+            requirement_id, gen_info.no_identifiers_found
         )
-        self.info_logger.set_used_atg_identifier_fallback(requirement_id, used_fallback)
+        self.info_logger.set_used_atg_identifier_fallback(
+            requirement_id, gen_info.used_atg_identifiers
+        )
 
         # If we prune, we can also give identifiers
-        if len(allowed_identifiers) > 0 and relevant_lines is not None:
+        input_identifiers = gen_info.input_identifiers
+        expected_identifiers = gen_info.expected_identifiers
+        shown_input_identifiers = [
+            ident for ident in input_identifiers if 'USER_GLOBALS_VCAST' not in ident
+        ]
+        shown_expected_identifiers = [
+            ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
+        ]
+        if len(shown_input_identifiers) > 0 and relevant_lines is not None:
+            rendered_input_identifiers = '\n'.join('- ' + i for i in shown_input_identifiers if 'USER_GLOBALS_VCAST' not in i)
+            rendered_expected_identifiers = '\n'.join('- ' + i for i in shown_expected_identifiers if 'USER_GLOBALS_VCAST' not in i)
             identifier_section = f"""
-You must set a value for each of the following identifiers. An expected value is not required for all identifiers, but a value is required for all identifiers:
-{chr(10).join('- ' + i for i in allowed_identifiers if 'USER_GLOBALS_VCAST' not in i)}
+You must set an input value for each of the following identifiers:
+{rendered_input_identifiers}
+
+An expected value is not required for all identifiers. These are the ones you can set:
+{rendered_expected_identifiers}
 """
         else:
             identifier_section = ''
-
-        schema, used_fallback = _derive_completion_schema(
-            False, allowed_identifiers=allowed_identifiers, return_size_fallback=True
-        )
-        self.info_logger.set_schema_exceeded_size(requirement_id, used_fallback)
 
         # Build code context
         context, used_fallback = await self.context_builder.build_code_context(
@@ -900,6 +612,8 @@ Notes:
 - You are NOT allowed to invent any units or functions that are not present in the provided code.
 - This is a highly critical task, please ensure that the test case is correct and complete and does not contain any logical or syntactical errors.
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
+- For each test case, make sure to set an input value for all arguments, global variables and stubs used in the function.
+- For each test case, make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
 - In case the requirement and the code differ, the requirement is what you should test, i.e., it is the source of truth.
 - Watch out for off-by-one errors
 """,
@@ -972,7 +686,7 @@ Notes:
         test_generation_result,
         messages,
         schema,
-        temperature=0.0,
+        temperature=0.7,
         extended_reasoning=False,
         max_iterations=3,
         allow_partial=False,

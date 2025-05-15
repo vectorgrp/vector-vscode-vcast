@@ -3,12 +3,16 @@ import glob
 import os
 import tempfile
 import shutil
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Type, List
+from tree_sitter import Language, Parser
+import tree_sitter_cpp as ts_cpp
+
 
 from pydantic import BaseModel, create_model
 
 from autoreq.llm_client import LLMClient
 from collections import Counter
+from pydantic import BaseModel
 
 
 def paths_to_files(paths, file_extensions=['c']):
@@ -197,9 +201,6 @@ ENV_STORE = EnvStore()
 
 
 def parse_code(code):
-    from tree_sitter import Language, Parser
-    import tree_sitter_cpp as ts_cpp
-
     parser = Parser()
     CPP_LANGUAGE = Language(ts_cpp.language(), 'cpp')
     parser.set_language(CPP_LANGUAGE)
@@ -216,6 +217,67 @@ def average_set(sets, threshold_frequency=0.5):
     return {x for x, c in cnt.items() if c / n >= threshold_frequency}
 
 
+def validate_openai_structured_output_schema(schema) -> List[str]:
+    """
+    Validate a pydantic model schema against nesting, size, enum, and additionalProperties rules.
+    Based on the OpenAI API schema validation rules here: https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat
+    """
+    errors: List[str] = []
+    total_props = 0
+    total_string_len = 0
+    total_enum_vals = 0
+
+    def traverse(node: dict, depth: int):
+        nonlocal total_props, total_string_len, total_enum_vals
+        if depth > 5:
+            errors.append(f'Exceeded max nesting depth: {depth} > 5')
+        # object checks
+        if node.get('type') == 'object':
+            props = node.get('properties', {})
+            total_props += len(props)
+            if len(props) and total_props > 100:
+                errors.append(f'Total properties {total_props} exceeds limit of 100')
+            # TODO: Ideally we would check for additionalProperties here, but it is not actually present in pydantic generated schemas (and yet it still somehow works)
+            # if node.get('additionalProperties', True) is not False:
+            #    errors.append("'additionalProperties' must be false on all objects")
+            for name, subs in props.items():
+                total_string_len += len(name)
+                traverse(subs, depth + 1)
+        # enum checks
+        if node.get('type') == 'string' and 'enum' in node:
+            vals = node['enum']
+            count = len(vals)
+            total_enum_vals += count
+            enum_len = sum(len(str(v)) for v in vals)
+            total_string_len += enum_len
+            if count > 250 and enum_len > 7500:
+                errors.append(
+                    f'Enum property has {count} values and total length {enum_len} exceeds 7500'
+                )
+        # const check
+        if 'const' in node:
+            total_string_len += len(str(node['const']))
+        # definitions and combinators
+        for key in ('$defs', 'definitions', 'allOf', 'anyOf', 'oneOf'):
+            items = node.get(key, {})
+            if isinstance(items, dict):
+                iterable = items.values()
+            else:
+                iterable = items
+            for child in iterable:
+                traverse(child, depth)
+
+    traverse(schema, 1)
+    if total_string_len > 15000:
+        errors.append(
+            f'Total string length {total_string_len} exceeds limit of 15000 characters'
+        )
+    if total_enum_vals > 500:
+        errors.append(f'Total enum values {total_enum_vals} exceeds limit of 500')
+
+    return errors
+
+
 def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
     """
     Prunes code by keeping only nodes that contain lines specified in line_numbers_to_keep.
@@ -227,9 +289,6 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
     Returns:
         Pruned source code as string
     """
-    import tree_sitter_cpp as ts_cpp
-    from tree_sitter import Parser, Language
-
     PROTECTED_CHILDREN = {
         'if_statement': ['condition'],
         'for_statement': ['initializer', 'condition', 'update'],
@@ -245,7 +304,7 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
         'break_statement': '*',
         'continue_statement': '*',
         'comment': '*',
-    }  # TODO: Make sure these are the actual field names
+    }
 
     PROTECTED_LEAFS = [
         ':',
@@ -263,7 +322,7 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
         'switch',
         'case',
         'default',
-    ]  # TODO: make sure these are the actual types
+    ]
 
     def node_contains_line(node, line_number):
         return node.start_point[0] <= line_number <= node.end_point[0]

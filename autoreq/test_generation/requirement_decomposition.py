@@ -81,9 +81,14 @@ Remember:
 
     decomposed_requirements = []
     for i, unprocessed_requirement in enumerate(requirements):
-        decomposed_requirements.append(
-            req_mapping.get(i + 1, [unprocessed_requirement])
-        )
+        potential_decomposition = req_mapping.get(i + 1, [unprocessed_requirement])
+
+        # If potential_decomposition is an empty list (e.g., LLM returned [] for atomic_requirements),
+        # fall back to the original requirement. Otherwise, use the LLM's output.
+        if not potential_decomposition:  # An empty list is falsy
+            decomposed_requirements.append([unprocessed_requirement])
+        else:
+            decomposed_requirements.append(potential_decomposition)
 
     return decomposed_requirements
 
