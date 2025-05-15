@@ -211,6 +211,7 @@ class Codebase:
         self,
         identifier: str,
         collapse_function_body: bool = False,
+        filepath: Optional[str] = None,
         return_raw: bool = False,
     ) -> List[str]:
         """Find all definitions of an identifier by name, returns the actual definition text"""
@@ -224,6 +225,14 @@ class Codebase:
 
         if return_raw:
             return definitions
+
+        if filepath:
+            abs_filepath = self._make_absolute(filepath)
+            definitions = [
+                d
+                for d in definitions
+                if Path(self._make_absolute(d['file'])) == Path(abs_filepath)
+            ]
 
         return [d['definition'] for d in definitions]
 

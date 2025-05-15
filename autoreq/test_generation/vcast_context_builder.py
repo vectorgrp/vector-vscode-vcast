@@ -1,8 +1,9 @@
 from collections import defaultdict
 import asyncio
 import logging
+from async_lru import alru_cache
 
-from autoreq.util import get_relevant_statement_groups, prune_code  # Add asyncio import
+from autoreq.util import prune_code
 from ..search import SearchEngine
 
 
@@ -12,7 +13,7 @@ class VcastContextBuilder:
         self.reduce_context = reduce_context
         self.llm_client = llm_client
         self.cache = {}
-        self.locks = {}
+        self.locks = defaultdict(asyncio.Lock)
 
     async def build_code_context(
         self,
@@ -21,14 +22,16 @@ class VcastContextBuilder:
         include_unit_name=False,
         return_used_fallback=False,
     ):
+        unit_name = self._get_function_unit(function_name)
+
+        if unit_name is None:
+            raise ValueError(f"Function '{function_name}' not found in any unit.")
+
         context, used_fallback = await self._build_raw_code_context(
-            function_name, focus_lines
+            function_name, unit_name, focus_lines
         )
 
         if include_unit_name:
-            assert len(self.environment.units) == 1
-            unit_name = self.environment.units[0]
-
             context = f'// Unit: {unit_name}\n\n{context}'
 
         if return_used_fallback:
@@ -36,38 +39,39 @@ class VcastContextBuilder:
 
         return context
 
-    async def _build_raw_code_context(self, function_name, focus_text):
-        cache_key = (function_name, focus_text)
-        if cache_key in self.cache:
-            return self.cache[cache_key]
+    @alru_cache(maxsize=None)
+    async def _build_raw_code_context(self, function_name, unit_name, focus_lines=None):
+        ast_context = await self._reduce_context_ast(
+            function_name, unit_name, focus_lines
+        )
+        if ast_context:
+            return ast_context, False
 
-        if cache_key not in self.locks:
-            self.locks[cache_key] = asyncio.Lock()
+        llm_context = await self._reduce_context_llm(
+            function_name, unit_name, focus_lines
+        )
+        if llm_context:
+            return llm_context, True
 
-        async with self.locks[cache_key]:
-            if cache_key in self.cache:
-                return self.cache[cache_key]
+        fallback_content = self.environment.get_tu_content(
+            unit_name=unit_name, reduction_level='high'
+        )
+        return fallback_content, True
 
-            ast_context = await self._reduce_context_ast(function_name, focus_text)
-            if ast_context:
-                self.cache[cache_key] = (ast_context, False)
-                return ast_context, False
-
-            llm_context = await self._reduce_context_llm(function_name, focus_text)
-            if llm_context:
-                self.cache[cache_key] = (llm_context, True)
-                return llm_context, True
-
-            return self.environment.get_tu_content(reduction_level='high'), True
-
-    async def _reduce_context_llm(self, function_name):
-        context = self.environment.get_tu_content(reduction_level='medium')
+    async def _reduce_context_llm(
+        self, function_name, unit_name, focus_lines
+    ):  # Added unit_name
+        context = self.environment.get_tu_content(
+            unit_name=unit_name, reduction_level='medium'
+        )  # Pass unit_name
         if len(context) > 1000000 or len(context.split('\n')) > 1000:
-            context = self.environment.get_tu_content(reduction_level='high')
+            context = self.environment.get_tu_content(
+                unit_name=unit_name, reduction_level='high'
+            )  # Pass unit_name
 
         search_engine = SearchEngine(context, llm_client=self.llm_client)
         reduced_context = await search_engine.search(
-            f'Give me only the relevant code to test this function: {function_name}. '
+            f'Give me only the relevant code to test this function: {function_name} (in unit {unit_name}). '
             'Include all necessary transitive dependencies in terms of type definitions, '
             'called functions, etc. but not anything else. Also include the name of '
             'the file where the code is located.'
@@ -75,30 +79,40 @@ class VcastContextBuilder:
 
         return reduced_context
 
-    async def _reduce_context_ast(self, function_name, focus_lines):
+    async def _reduce_context_ast(
+        self, function_name, unit_name, focus_lines
+    ):
         codebase = self.environment.tu_codebase
-        relevant_definitions = codebase.get_definitions_for_symbol(
-            function_name, collapse_function_body=False, return_dict=True, depth=3
-        )
 
+        temp_tu_path = self._get_unit_temp_tu_path(unit_name)
+        if temp_tu_path is None:
+            return None
+
+        relevant_definitions = codebase.get_definitions_for_symbol(
+            function_name,
+            filepath=temp_tu_path,
+            collapse_function_body=False,
+            return_dict=True,
+            depth=3,
+        )
         if not relevant_definitions:
             return None
 
         definition_groups = defaultdict(list)
-        for symbol, definition in relevant_definitions.items():
+        for symbol, definition_text in relevant_definitions.items():
             if symbol == function_name:
                 continue
-            definition_groups[definition].append(symbol)
+            definition_groups[definition_text].append(symbol)
 
-        reduced_context = []
-
-        reduced_context.append(
+        reduced_context = [
             '// Definitions of types, called functions and data structures:'
-        )
-        for definition, _ in definition_groups.items():
-            reduced_context.append(f'\n{definition}')
+        ]
+        for definition_text in definition_groups:  # Iterate over keys directly
+            reduced_context.append(f'\n{definition_text}')
 
-        func_code = codebase.find_definitions_by_name(function_name)[0]
+        func_code = codebase.find_definitions_by_name(
+            function_name, filepath=temp_tu_path
+        )[0]
 
         if focus_lines:
             if len(focus_lines) == 0:
@@ -112,3 +126,29 @@ class VcastContextBuilder:
         reduced_context.append(f'\n// Code for {function_name}:\n{func_code}')
 
         return '\n'.join(reduced_context)
+
+    def _get_function_unit(self, function_name):
+        all_testable_functions = self.environment.testable_functions
+
+        return next(
+            (
+                info['unit_name']
+                for info in all_testable_functions
+                if info['name'] == function_name
+            ),
+            None,
+        )
+
+    def _get_unit_temp_tu_path(self, unit_name):
+        if unit_name not in self.environment.units:
+            return None
+
+        unit_index = self.environment.units.index(unit_name)
+
+        tu_codebase_paths = self.environment.tu_codebase_paths
+        if not isinstance(tu_codebase_paths, list) or unit_index >= len(
+            tu_codebase_paths
+        ):
+            return None
+
+        return tu_codebase_paths[unit_index]

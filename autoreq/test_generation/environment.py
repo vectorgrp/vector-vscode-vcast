@@ -94,7 +94,7 @@ class Environment:
             shutil.copytree(env_dir, self.env_dir, dirs_exist_ok=True)
         else:
             self.env_dir = env_dir
-        self._tu_codebase_path = None
+        self._tu_codebase_paths = None
         self._used_atg_identifier_fallback = False
         self._used_atg_testable_functions_fallback = False
 
@@ -594,39 +594,33 @@ class Environment:
 
     @cached_property
     def tu_codebase(self):
-        content, encoding = self.get_tu_content(
-            reduction_level='medium', return_encoding=True
-        )
-        lines = content.splitlines()
+        if self._tu_codebase_paths is None:
+            self._tu_codebase_paths = []
 
-        # CCLS cannot process files with more than 65535 lines, so split the file into chunks if necessary
-        # This is a bit hacky but mostly fine for our needs. A more prinicpled approach would be a forked version of CCLS.
-        # See: https://github.com/MaskRay/ccls/issues/366
-
-        # Right now we use clangd, so this should be fine
-        if True:
-            temp_file_path = self._get_temporary_file_path(
-                f'tu_code_{self.env_name}.cpp'
+        for unit_name in self.units:
+            content, encoding = self.get_tu_content(
+                unit_name=unit_name, reduction_level='medium', return_encoding=True
             )
+
+            # Sanitize unit_name for filename to avoid issues with special characters.
+            safe_unit_name = re.sub(r'[^\w\-_\.]', '_', unit_name)
+            temp_file_path = self._get_temporary_file_path(
+                f'tu_code_{safe_unit_name}_{self.env_name}.cpp'
+            )
+
             with open(temp_file_path, 'w', encoding=encoding) as temp_file:
                 temp_file.write(content)
                 temp_file.flush()
-                self._tu_codebase_path = temp_file_path
-                return Codebase([temp_file_path])
-        else:
-            chunk_size = 65535
-            chunk_files = []
-            for i in range(0, len(lines), chunk_size):
-                chunk_content = '\n'.join(lines[i : i + chunk_size])
-                chunk_file_path = self._get_temporary_file_path(
-                    f'tu_code_chunk_{i}_{self.env_name}.cpp'
-                )
-                with open(chunk_file_path, 'w', encoding='utf-8') as temp_file:
-                    temp_file.write(chunk_content)
-                    temp_file.flush()
-                    chunk_files.append(chunk_file_path)
-            self._tu_codebase_path = chunk_files
-            return Codebase(chunk_files)
+
+            self._tu_codebase_paths.append(temp_file_path)
+
+        return Codebase(self._tu_codebase_paths)
+
+    @cached_property
+    def tu_codebase_paths(self):
+        if self._tu_codebase_paths is None:
+            self.tu_codebase
+        return self._tu_codebase_paths
 
     @cached_property
     def source_codebase(self):
@@ -634,40 +628,92 @@ class Environment:
 
     @cached_property
     def testable_functions(self):
-        functions = self.tu_codebase.get_all_functions()
+        all_functions_from_tus = self.tu_codebase.get_all_functions()
 
-        reduced_content = self.get_tu_content(reduction_level='high')
+        assert len(self._tu_codebase_paths) == len(self.units), (
+            'Mismatch in number of TUs and units.'
+        )
+
+        temp_path_to_info_map = {}
+        for i, temp_abs_path in enumerate(self._tu_codebase_paths):
+            unit_name = self.units[i]
+            original_source_file = self.source_files[i]
+            temp_path_to_info_map[temp_abs_path] = {
+                'unit_name': unit_name,
+                'original_source_file': original_source_file,
+            }
 
         testable_functions = []
-        for function in functions:
-            if function['definition'] in reduced_content:
-                testable_functions.append(function)
+        for function in all_functions_from_tus:
+            abs_temp_tu_file_path = function['file']
+            info = temp_path_to_info_map.get(abs_temp_tu_file_path)
+
+            if info:
+                unit_name = info['unit_name']
+                original_source_file = info['original_source_file']
+
+                reduced_content = self.get_tu_content(
+                    unit_name=unit_name, reduction_level='high'
+                )
+                if function['definition'] in reduced_content:
+                    func_copy = function.copy()
+                    func_copy['file'] = original_source_file
+                    func_copy['unit_name'] = unit_name
+                    testable_functions.append(func_copy)
 
         if testable_functions:
             return testable_functions
 
-        logging.warning('No testable functions found in the translation unit')
-        logging.warning('Falling back to scraping from ATG')
+        logging.warning(
+            'No testable functions found in the translation units using primary method.'
+        )
+        logging.warning('Falling back to scraping from ATG tests.')
         self._used_atg_testable_functions_fallback = True
 
-        assert len(self.source_files) == 1
+        # Fallback logic:
+        # Map unit names to their source files
+        unit_to_source_file_map = {
+            unit: src_file for unit, src_file in zip(self.units, self.source_files)
+        }
 
-        tested_subprograms = {test.subprogram_name for test in self.atg_tests}
+        atg_derived_functions = []
+        # Keep track of added subprograms per unit to avoid duplicates
+        added_subprograms = set()
 
-        return [
-            {'name': subprogram, 'file': self.source_files[0]}
-            for subprogram in tested_subprograms
-        ]
+        for test_case in self.atg_tests:
+            unit_name = test_case.unit_name
+            subprogram_name = test_case.subprogram_name
+
+            if (unit_name, subprogram_name) not in added_subprograms:
+                original_source_file = unit_to_source_file_map.get(unit_name)
+                if original_source_file:
+                    # Structure matches what the primary method would produce if it only had name and file.
+                    atg_derived_functions.append(
+                        {
+                            'name': subprogram_name,
+                            'file': original_source_file,
+                            'unit_name': unit_name,
+                        }
+                    )
+                    added_subprograms.add((unit_name, subprogram_name))
+                else:
+                    logging.warning(
+                        f"ATG test case for unit '{unit_name}' but unit not found in environment's source files."
+                    )
+
+        return atg_derived_functions
 
     @property
-    def module(self) -> str:
-        # TODO this needs to be adapted to support multiple units and return multiple modules
-        return self.units[0]
+    def modules(self) -> str:
+        return self.units
 
-    def get_tu_content(self, reduction_level='medium', return_encoding=False):
-        """Get the content of the translation unit file.
+    def get_tu_content(
+        self, unit_name=None, reduction_level='medium', return_encoding=False
+    ):
+        """Get the content of the translation unit file.for the specified unit name.
 
         Args:
+            unit_name (str, optional): The name of the unit, if not specified and there are multiple units, an error will be raised. If there is only one unit, it will be used.
             reduction_level (str, optional): The level of reduction to apply to the translation unit content.
                 The levels are:
                 - low: The entire translation unit content is returned.
@@ -681,11 +727,19 @@ class Environment:
         Returns:
             str: The content of the translation unit file.
         """
-        assert len(self.units) == len(self.source_files)
-        assert len(self.units) == 1
+        if unit_name is None and len(self.units) > 1:
+            raise ValueError('Multiple units found. Please specify a unit name.')
 
-        unit_name = self.units[0]
-        unit_path = self.source_files[0]
+        if unit_name is None:
+            unit_name = self.units[0]
+            unit_path = self.source_files[0]
+        else:
+            unit_index = self.units.index(unit_name)
+
+            if unit_index == -1:
+                raise ValueError(f'Unit name {unit_name} not found in the environment.')
+
+            unit_path = self.source_files[unit_index]
 
         tu_path_c = os.path.join(self.env_dir, self.env_name, f'{unit_name}.tu.c')
         tu_path_cpp = os.path.join(self.env_dir, self.env_name, f'{unit_name}.tu.cpp')
@@ -838,13 +892,10 @@ class Environment:
     def cleanup(self):
         """Clean up all temporary files and directories."""
         # Clean up translation unit files
-        if self._tu_codebase_path:
-            if isinstance(self._tu_codebase_path, list):
-                for path in self._tu_codebase_path:
-                    if os.path.exists(path):
-                        os.remove(path)
-            elif os.path.exists(self._tu_codebase_path):
-                os.remove(self._tu_codebase_path)
+        if self._tu_codebase_paths:
+            for path in self._tu_codebase_paths:
+                if os.path.exists(path):
+                    os.remove(path)
 
         # Clean up the temporary files directory
         if os.path.exists(self.temp_files_dir):

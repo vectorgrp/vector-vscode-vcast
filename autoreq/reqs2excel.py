@@ -128,18 +128,22 @@ def format_env_requirements(
     formatted_requirements: t.List[t.Dict],
     environment: Environment,
 ):
-    # only one module per environment is supported for now
-    related_module_name = f'{environment.env_name}.{environment.module.title()}'
     for req in requirements_info:
         req_id = req['id']
         related_function_name = ''
         if reqs2code_mapping:
             related_function_name = reqs2code_mapping[req['description']]
 
-        if not related_function_name or (
-            related_function_name
-            not in [func['name'] for func in environment.testable_functions]
-        ):
+        func_info = next(
+            (
+                func
+                for func in environment.testable_functions
+                if func['name'] == related_function_name
+            ),
+            None,
+        )
+
+        if not func_info:
             logging.info(
                 'No function found for requirement %s, assigning None',
                 req['description'],
@@ -151,7 +155,7 @@ def format_env_requirements(
             'ID': req_id,
             'Title': req['title'],
             'Description': req['description'],
-            'Module': related_module_name,
+            'Module': func_info['unit_name'],
             'Function': related_function_name,
         }
         formatted_requirements.append(requirement)

@@ -73,6 +73,10 @@ class RequirementsManager:
         req = self._requirements_by_id.get(requirement_id)
         return req['Function'] if req else None
 
+    def get_module(self, requirement_id):
+        req = self._requirements_by_id.get(requirement_id)
+        return req['Module'] if req else None
+
     def get_description(self, requirement_id):
         req = self._requirements_by_id.get(requirement_id)
         return req['Description'] if req else None

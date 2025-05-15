@@ -51,8 +51,7 @@ def save_requirements_to_excel(requirements, source_envs, output_file):
     funcs = {}
     for env in source_envs:
         for f in env.testable_functions:
-            # TODO right now only one module per environment is supported
-            key = f'{env.env_name}.{env.module.title()}'
+            key = f['unit_name']
             funcs.setdefault(key, [])
             funcs[key].append(f['name'])
 
@@ -264,7 +263,7 @@ async def main(
     async def generate_requirements(func):
         nonlocal processed_functions
         func_name = func['name']
-        func_file = func['file']
+        func_unit = func['unit_name']
         result = await generator.generate(func_name)
         processed_functions += 1
         progress = processed_functions / total_functions
@@ -273,18 +272,12 @@ async def main(
             print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
 
         if result:
-            module = (
-                os.path.basename(func_file)
-                .replace('.cpp', '')
-                .replace('.c', '')
-                .title()
-            )
             for i, req in enumerate(result):
                 req_id = f'{func_name}.{i + 1}'
                 requirement = {
                     'Key': req_id,
                     'ID': req_id,
-                    'Module': environment.module,
+                    'Module': func_unit,
                     'Title': req,
                     'Description': req,
                     'Function': func_name,

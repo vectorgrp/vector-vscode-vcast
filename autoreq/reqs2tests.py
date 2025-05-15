@@ -117,11 +117,6 @@ async def main():
             logging.info('Environment is not built. Building it now...')
             environment.build()
 
-    # Check if the environment has more than one unit, this is not supported for now
-    if len(environment.units) > 1:
-        logging.error('Multiple units in the environment are not supported.')
-        return
-
     # Instantiate the requirements manager
     if not args.no_decomposition:
         rm = RequirementsManager(args.requirements_file)
@@ -183,6 +178,7 @@ async def main():
                     if req_id == rid
                     or req_id.startswith(rid)
                     or rm.get_function(req_id) == rid
+                    or rm.get_module(req_id) == rid
                 ]
             )
         requirement_ids = matched_ids
