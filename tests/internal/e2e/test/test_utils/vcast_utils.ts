@@ -11,6 +11,7 @@ import {
   ContentAssist,
   ContentAssistItem,
   BottomBarPanel,
+  OutputView,
 } from "wdio-vscode-service";
 import * as fs from "fs";
 import { Key } from "webdriverio";
@@ -1784,4 +1785,35 @@ export async function getTexts(nodes: any[]): Promise<string[]> {
     texts.push(await getNodeText(node));
   }
   return texts;
+}
+
+/**
+ * Waits until there is at least one line in the outputView
+ * that both contains `prefix` and ends with `/${suffix}`.
+ */
+export async function waitForEnvSuffix(
+  outputView: OutputView,
+  suffix: string,
+  timeout = TIMEOUT,
+  interval = 500
+) {
+  await browser.waitUntil(
+    async () => {
+      // getText() can return a single string or an array of strings
+      const raw = await outputView.getText();
+      let lines: string[];
+
+      // Look for one line that has the prefix *and* ends with "/suffix"
+      return lines.some(
+        (line) =>
+          line.includes("Processing environment data for:") &&
+          line.trim().endsWith(`/${suffix}`)
+      );
+    },
+    {
+      timeout,
+      interval,
+      timeoutMsg: `Timed out waiting for "Processing environment data for:" and "/${suffix}"`,
+    }
+  );
 }

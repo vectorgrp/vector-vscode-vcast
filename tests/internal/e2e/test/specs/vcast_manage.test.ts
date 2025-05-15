@@ -19,6 +19,7 @@ import {
   getTexts,
   findTreeNodeAtLevel,
   TIMEOUT,
+  waitForEnvSuffix,
 } from "../test_utils/vcast_utils";
 import path from "node:path";
 
@@ -442,50 +443,9 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
-    await browser.waitUntil(
-      async () => {
-        const txt = await outputView.getText();
-        return (
-          txt.includes("Processing environment data for:") &&
-          txt.includes("/FOO")
-        );
-      },
-      {
-        timeout: TIMEOUT,
-        timeoutMsg:
-          'Timed out waiting for "Processing environment data for:" and "/FOO"',
-      }
-    );
-
-    await browser.waitUntil(
-      async () => {
-        const txt = await outputView.getText();
-        return (
-          txt.includes("Processing environment data for:") &&
-          txt.includes("/BAR")
-        );
-      },
-      {
-        timeout: TIMEOUT,
-        timeoutMsg:
-          'Timed out waiting for "Processing environment data for:" and "/BAR"',
-      }
-    );
-
-    await browser.waitUntil(
-      async () => {
-        const txt = await outputView.getText();
-        return (
-          txt.includes("Processing environment data for:") &&
-          txt.includes("/QUACK")
-        );
-      },
-      {
-        timeout: TIMEOUT,
-        timeoutMsg:
-          'Timed out waiting for "Processing environment data for:" and "/QUACK"',
-      }
-    );
+    await waitForEnvSuffix(outputView, "FOO");
+    await waitForEnvSuffix(outputView, "BAR");
+    await waitForEnvSuffix(outputView, "QUACK");
 
     console.log("Checking if Testsuite node GreyBox is in tree");
     const testsuiteNode = await findTreeNodeAtLevel(2, "GreyBox");
