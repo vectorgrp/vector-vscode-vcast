@@ -576,7 +576,7 @@ export function checkIfAnyProjectsAreOpened() {
  */
 export function getVcmRoot(fullPath: string) {
   // pre-compile the regex once
-  const vcmRe = /(.*\/)([^\/]+\.vcm)(?:\/.*)?$/;
+  const vcmRe = /(.*\/)([^/]+\.vcm)(?:\/.*)?$/;
 
   // use exec() instead of match() (sonarcloud)
   const match = vcmRe.exec(fullPath);

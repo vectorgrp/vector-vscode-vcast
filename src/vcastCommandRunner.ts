@@ -95,11 +95,11 @@ function processExceptionFromExecuteCommand(
 ): commandStatusType {
   // Safely access stdout and clean it if available
   let rawStdout = "";
-  if (error && error.stdout) {
-    rawStdout = error.stdout.toString();
-  }
-
   let stdoutString = "";
+
+  // Check if error has a stdout property and convert it to string
+  rawStdout = error?.stdout?.toString();
+
   if (rawStdout) {
     stdoutString = cleanVectorcastOutput(rawStdout);
   }
@@ -432,7 +432,7 @@ export function executeWithRealTimeEchoWithProgressSequential(
             }
 
             if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
-              messageFragment = lineArray.pop() || "";
+              messageFragment = lineArray.pop() ?? "";
             }
 
             for (const line of lineArray) {

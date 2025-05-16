@@ -1848,9 +1848,9 @@ async function addCodedTestfileToCache(
   // we also need to add this Coded Test file to the enviro cache
   let enviroCacheData: Set<string> | undefined =
     enviroToCBTfilesCache.get(enviroNodeID);
-  if (!enviroCacheData) {
-    enviroCacheData = new Set();
-  }
+
+  enviroCacheData ??= new Set();
+
   enviroCacheData.add(functionNodeForCache.testFile);
   enviroToCBTfilesCache.set(enviroNodeID, enviroCacheData);
 }

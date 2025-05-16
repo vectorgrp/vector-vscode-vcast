@@ -16,9 +16,7 @@ export function findTestItemInController(
 ): vscode.TestItem | undefined {
   let found: vscode.TestItem | undefined;
   globalController.items.forEach((item) => {
-    if (!found) {
-      found = findTestItemRecursively(item, targetId);
-    }
+    found ??= findTestItemRecursively(item, targetId);
   });
   return found;
 }
@@ -38,9 +36,7 @@ function findTestItemRecursively(
   }
   let found: vscode.TestItem | undefined;
   item.children.forEach((child) => {
-    if (!found) {
-      found = findTestItemRecursively(child, targetId);
-    }
+    found ??= findTestItemRecursively(item, targetId);
   });
   return found;
 }
