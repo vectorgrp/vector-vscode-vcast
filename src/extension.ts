@@ -149,9 +149,9 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2excel").fsPath;
     REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2rgw").fsPath;
     
-    CODE2REQS_EXECUTABLE_PATH = "/home/thiscakeisalie/programming/reqs-to-tests/.venv/bin/code2reqs";
-    REQS2TESTS_EXECUTABLE_PATH = "/home/thiscakeisalie/programming/reqs-to-tests/.venv/bin/reqs2tests";
-    REQS2EXCEL_EXECUTABLE_PATH = "/home/thiscakeisalie/programming/reqs-to-tests/.venv/bin/reqs2excel";
+    //CODE2REQS_EXECUTABLE_PATH = "code2reqs";
+    //REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
+    //REQS2EXCEL_EXECUTABLE_PATH = "reqs2excel";
 }
 
 function setHardcodedEnvVars() {
