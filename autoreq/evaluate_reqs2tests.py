@@ -873,8 +873,8 @@ async def main():
     parser.add_argument(
         '--timeout',
         type=float,
-        default=30.0,
-        help='Maximum time in minutes to wait for environment evaluation (default: 30)',
+        default=60.0,
+        help='Maximum time in minutes to wait for environment evaluation (default: 60)',
     )
     parser.add_argument(
         '--no-skip-existing',
