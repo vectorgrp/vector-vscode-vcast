@@ -9,8 +9,20 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
     branches:
       - main
+      - autoreq
   release:
   workflow_dispatch:
+    inputs:
+      r2t-release-url-linux:
+        description: 'Linux release URL to be used for the bundle'
+        required: false
+      r2t-release-url-win:
+        description: 'Windows release URL to be used for the bundle'
+        required: false
+      r2t-release-branch:
+        description: 'Release branch to be used for the bundle'
+        required: false
+        default: "demo_release"
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -18,11 +30,14 @@ jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
     env:
       ENABLE_ATG_FEATURE: TRUE
       LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      R2T_RELEASE_BRANCH: ${{ github.event.inputs.r2t-release-branch }}
+      R2T_RELEASE_URL_LIN: ${{ github.event.inputs.r2t-release-url-linux || '' }}
+      R2T_RELEASE_URL_WIN: ${{ github.event.inputs.r2t-release-url-win || '' }}
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting

@@ -1,0 +1,146 @@
+name: Reqs2tests release test - Windows
+run-name: ${{ github.ref_name }} is testing release
+on:
+  push:
+    branches:
+      - main
+      - autoreq
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches:
+      - main
+      - autoreq
+  release:
+  workflow_dispatch:
+    inputs:
+      r2t-release-url-win:
+        description: 'Windows release URL to be used for the bundle'
+        required: false
+      r2t-release-branch:
+        description: 'Release branch to be used for the bundle'
+        required: false
+        default: "demo_release"
+      r2t-model:
+        description: 'Model name to use for the test'
+        required: false
+      r2t-reasoning-model:
+        description: 'Reasoning model name to use for the test'
+        required: false
+env:
+  NODE_EXTRA_CA_CERTS: C:\\ca_bundle.crt
+  REQUESTS_CA_BUNDLE: C:\\ca_bundle.crt
+  DOCKER_CONFIG: C:\\.docker_config.json
+  HTTP_PROXY: http://gateway.zscloud.net:9480
+  HTTPS_PROXY: http://gateway.zscloud.net:9480
+  NO_PROXY: "*.docker.internal,localhost,127.0.0.1,github1.vg.vector.int,.vi.vector.int,.dmz.vector.int,.vector.int,.vector.com,.azure.vector.com,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.vectors.com"
+jobs:
+  release-test-win:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [self-hosted, vscode-vcast, Windows]
+    env:
+      LM_LICENSE_FILE: c:\vcast\vector-license.lic
+      VECTOR_LICENSE_FILE: c:\vcast\vector-license.lic
+      VECTORCAST_DIR: c:\vcast\${{ vars.VCAST_VERSION_RELEASE_TEST_WIN }}
+      R2T_RELEASE_BRANCH: ${{ github.event.inputs.r2t-release-branch || 'demo_release' }}
+      R2T_RELEASE_URL_WIN: ${{ github.event.inputs.r2t-release-url-win || '' }}
+      R2T_MODEL: ${{ github.event.inputs.r2t-model || '' }}
+      R2T_REASONING_MODEL: ${{ github.event.inputs.r2t-reasoning-model || '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          set-safe-directory: false
+
+      - name: Start container
+        id: run_container
+        run: |
+          docker pull rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest
+          $CONTAINER_ID = docker run -d `
+             -v "${env:GITHUB_WORKSPACE}:c:\r2t" `
+             -v "${{ vars.VCAST_RELEASES_PATH_WIN }}:c:\vcast" `
+             -e LM_LICENSE_FILE="c:\vcast\vector-license.lic" `
+             -e VECTOR_LICENSE_FILE="c:\vcast\vector-license.lic" `
+             -e VECTORCAST_DIR="c:\vcast\${{ vars.VCAST_VERSION_RELEASE_TEST_WIN }}" `
+             -e R2T_RELEASE_BRANCH="$env:R2T_RELEASE_BRANCH" `
+             -e R2T_RELEASE_URL_WIN="$env:R2T_RELEASE_URL_WIN" `
+             -e R2T_MODEL="$env:R2T_MODEL" `
+             -e R2T_REASONING_MODEL="$env:R2T_REASONING_MODEL" `
+             -e RELEASE_DIR="c:\r2t\distribution" `
+             rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_win_ci:latest
+
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $env:GITHUB_ENV
+        shell: powershell
+
+      - name: Pull latest reqs2tests release
+        run: |
+          docker exec ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\pull_r2t_release.bat"
+          if (-not (Test-Path "distribution")) {
+              Write-Error "Error: distribution folder not found after release pull"
+              exit 1
+          }
+        shell: powershell
+
+      - name: Run tests
+        shell: powershell
+        run: docker exec ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\r2t_test.bat"
+
+      - name: Check test results
+        if: always()
+        shell: powershell
+        run: |
+          cd ${{ github.workspace }}
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Info"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("**Release branch:** " + $env:R2T_RELEASE_BRANCH)          
+          if ([string]::IsNullOrEmpty($env:R2T_RELEASE_URL_WIN)) {
+            $releaseUrl = "None"
+          }
+          else {
+            $releaseUrl = $env:R2T_RELEASE_URL_WIN
+          }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("**Release URL:** " + $releaseUrl)
+          if ([string]::IsNullOrEmpty($env:R2T_MODEL)) {
+            $modelText = "None"
+          }
+          else {
+            $modelText = $env:R2T_MODEL
+          }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("**Model:** " + $modelText)
+          if ([string]::IsNullOrEmpty($env:R2T_REASONING_MODEL)) {
+            $reasoningModel = "None"
+          }
+          else {
+            $reasoningModel = $env:R2T_REASONING_MODEL
+          }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("**Reasoning model:** " + $reasoningModel)
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## .tst file"
+          if ((-not (Test-Path "out.tst")) -or ((Get-Item "out.tst").Length -eq 0)) {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ".tst file not found."
+            exit 1
+          }
+          $CURRENT_DATE = Get-Date -Format "yyyyMMddHHmmss"
+          $ARTIFACTORY_URL = "https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/r2t-release-test-win"
+          $TST_FILE = "$CURRENT_DATE.tst"
+          Rename-Item -Path "out.tst" -NewName $TST_FILE
+          $URL = "$ARTIFACTORY_URL/$TST_FILE"
+          Invoke-RestMethod -Uri $URL -Method Put -Headers @{ "X-JFrog-Art-Api" = "${{ secrets.ARTIFACTORY_TOKEN }}" } -InFile $TST_FILE
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("[.tst file](" + $URL + ")")
+          docker exec -e TST_FILE="$TST_FILE" ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\tst_file_check.bat"
+          $CODE = 0
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Failures"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+          if (Test-Path "tst_file_check_errors.txt") {
+            Get-Content "tst_file_check_errors.txt" | ForEach-Object { Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $_ }
+            $CODE = 1
+          }
+          else {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "No errors found"
+          }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+          exit $CODE
+
+      - name: Stop and remove Docker container
+        if: always()
+        run: docker rm -f ${{ env.CONTAINER_ID }}
+        shell: cmd
