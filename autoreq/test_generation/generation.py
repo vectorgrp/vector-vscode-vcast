@@ -298,7 +298,7 @@ Return your answer in the following format:
             test_generation_result = await self.llm_client.call_model(
                 messages,
                 schema,
-                temperature=0.7,
+                temperature=0.0,
                 extended_reasoning=self.use_extended_reasoning,
                 max_tokens=8192,
             )
@@ -400,7 +400,7 @@ Return your answer in the following format:
             for i in range(max_retries):
                 self.info_logger.increment_retries_used(requirement_id)
                 # temperature = 0.0 if first_try else 1.0
-                temperature = 0.7
+                temperature = 0.0
                 # extended_reasoning = self.use_extended_reasoning and not first_try
                 extended_reasoning = self.use_extended_reasoning
                 result = await self._generate_test_case_no_retries(
@@ -428,7 +428,7 @@ Return your answer in the following format:
     async def _generate_test_case_no_retries(
         self,
         requirement_id,
-        temperature=0.7,
+        temperature=0.0,
         extended_reasoning=False,
         allow_partial=False,
         reword_requirement=None,
@@ -686,7 +686,7 @@ Notes:
         test_generation_result,
         messages,
         schema,
-        temperature=0.7,
+        temperature=0.0,
         extended_reasoning=False,
         max_iterations=3,
         allow_partial=False,
