@@ -19,6 +19,7 @@ load_dotenv()
 # TODO: Ensure we have json schemas for how providers need to be configured, perhaps using pydantic
 
 RATE_LIMIT = AsyncLimiter(30, 60)
+TIMEOUT = 600
 SUPPORTED_PROVIDERS = ('azure_openai', 'ollama', 'anthropic')
 OPENAI_COMPATIBLE_PROVIDERS = ('ollama', 'openai')
 
@@ -155,6 +156,7 @@ class LLMClient:
                 api_version=config.API_VERSION,
                 azure_endpoint=config.BASE_URL,
                 azure_deployment=config.DEPLOYMENT,
+                timeout=TIMEOUT,
             )
         elif self._is_openai_compatible(provider):
             return AsyncOpenAI(
@@ -162,11 +164,13 @@ class LLMClient:
                 if (hasattr(config, 'API_KEY') and config.API_KEY)
                 else 'none',
                 base_url=config.BASE_URL,
+                timeout=TIMEOUT,
             )
         elif provider == 'anthropic':
             return instructor.from_anthropic(
                 anthropic.AsyncAnthropic(
                     api_key=config.API_KEY,
+                    timeout=TIMEOUT
                 )
             )
         else:
@@ -181,7 +185,7 @@ class LLMClient:
         openai.APIConnectionError,
     )
 
-    @backoff.on_exception(backoff.expo, exceptions, max_time=120)
+    @backoff.on_exception(backoff.expo, exceptions, max_time=TIMEOUT)
     async def call_model(
         self,
         messages: t.List[t.Dict[str, str]],
