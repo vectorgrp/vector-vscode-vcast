@@ -34,8 +34,8 @@ class EvaluationResult(BaseModel):
     verification_results: List[Dict[str, Any]] = Field(default_factory=list)
 
     # Coverage data
-    atg_coverage: Dict[str, Any]
-    coverage: Dict[str, Any]
+    atg_coverage: Optional[Dict[str, Any]]
+    coverage: Optional[Dict[str, Any]]
 
     # Token usage data
     token_usage: Dict[str, Dict[str, int]]
