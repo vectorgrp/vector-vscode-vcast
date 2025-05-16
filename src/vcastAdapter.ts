@@ -662,13 +662,14 @@ async function getProjectDataFromServer(
     return undefined;
   }
 
-  const returnData = transmitResponse.returnData;
-  if (returnData.exitCode === 0) {
-    return returnData.data;
+  const { exitCode, data } = transmitResponse.returnData;
+
+  if (exitCode !== 0) {
+    vectorMessage(data.text.join("\n"));
+    return;
   }
 
-  vectorMessage(returnData.data.text.join("\n"));
-  return undefined;
+  return data;
 }
 
 // Get Environment Data ---------------------------------------------------------------
