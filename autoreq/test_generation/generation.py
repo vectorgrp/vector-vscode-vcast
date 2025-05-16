@@ -230,7 +230,7 @@ Example Test Cases:
         shown_expected_identifiers = [
             ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
         ]
-        if len(shown_input_identifiers) > 0 and relevant_lines is not None:
+        if len(shown_input_identifiers) > 0:
             rendered_input_identifiers = '\n'.join('- ' + i for i in shown_input_identifiers if 'USER_GLOBALS_VCAST' not in i)
             rendered_expected_identifiers = '\n'.join('- ' + i for i in shown_expected_identifiers if 'USER_GLOBALS_VCAST' not in i)
             identifier_section = f"""
@@ -509,7 +509,7 @@ Return your answer in the following format:
         shown_expected_identifiers = [
             ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
         ]
-        if len(shown_input_identifiers) > 0 and relevant_lines is not None:
+        if len(shown_input_identifiers) > 0:
             rendered_input_identifiers = '\n'.join('- ' + i for i in shown_input_identifiers if 'USER_GLOBALS_VCAST' not in i)
             rendered_expected_identifiers = '\n'.join('- ' + i for i in shown_expected_identifiers if 'USER_GLOBALS_VCAST' not in i)
             identifier_section = f"""
