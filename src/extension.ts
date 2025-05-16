@@ -757,23 +757,36 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       panel.webview.html = await getTestsuiteWebviewContent(context, panel);
 
-      panel.webview.onDidReceiveMessage((message) => {
-        if (message.command === "submit") {
-          const testsuiteName = message.testsuiteName;
-          if (!testsuiteName) {
-            vscode.window.showErrorMessage("Testsuite name is required.");
-            return;
-          }
-          const projectPath = path.dirname(node.id);
-          const compilerName = path.basename(node.id);
-          createTestsuiteInCompiler(projectPath, compilerName, testsuiteName);
-          panel.dispose();
-        } else if (message.command === "cancel") {
-          panel.dispose();
+      // --- Dispatch Table ---
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
+        undefined,
+        context.subscriptions
+      );
+
+      // --- Handlers ---
+      function handleSubmit(message: { testsuiteName?: string }): void {
+        const { testsuiteName } = message;
+
+        if (!testsuiteName) {
+          vscode.window.showErrorMessage("Testsuite name is required.");
+          return;
         }
-      });
+
+        const projectPath = path.dirname(node.id);
+        const compilerName = path.basename(node.id);
+
+        createTestsuiteInCompiler(projectPath, compilerName, testsuiteName);
+        panel.dispose();
+      }
     }
   );
+
   context.subscriptions.push(addTestsuiteToCompiler);
 
   // Webview HTML content.
@@ -1180,7 +1193,6 @@ async function installPreActivationEventHandlers(
   );
   context.subscriptions.push(newEnviroVCASTCommand);
 
-  // Command: vectorcastTestExplorer.importEnviroToProject ////////////////////////////////////////////////////////
   const importEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importEnviroToProject",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
@@ -1202,59 +1214,71 @@ async function installPreActivationEventHandlers(
         argList
       );
 
-      panel.webview.onDidReceiveMessage(
-        async (message) => {
-          switch (message.command) {
-            case "importEnvFile": {
-              const files = await vscode.window.showOpenDialog({
-                canSelectMany: false,
-                filters: { "Env Files": ["env"] },
-                openLabel: "Select Env File",
-              });
-              if (files?.length) {
-                panel.webview.postMessage({
-                  command: "envFileSelected",
-                  envFile: files[0].fsPath,
-                });
-              }
-              break;
-            }
-            case "submit": {
-              const { projectPath, envFiles, testsuiteArgs } = message;
-              if (!projectPath || !envFiles?.length || !testsuiteArgs?.length) {
-                vscode.window.showErrorMessage(
-                  "Project Path, Env Files, and Testsuite are required."
-                );
-                return;
-              }
-              for (const file of envFiles) {
-                // Should not happen as we right click on the env file, but to be sure
-                if (!fs.existsSync(file)) {
-                  vscode.window.showInformationMessage(
-                    `Environment file ${file} does not exist.`
-                  );
-                  return;
-                }
+      // --- Dispatch Table ---
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        importEnvFile: handleImportEnvFile,
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
 
-                vectorMessage(`Env File: ${file}`);
-                await importEnvToTestsuite(projectPath, testsuiteArgs, file);
-              }
-              panel.dispose();
-              break;
-            }
-            case "cancel":
-              panel.dispose();
-              break;
-          }
-        },
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
         undefined,
         context.subscriptions
       );
+
+      // --- Handlers ---
+      async function handleImportEnvFile(): Promise<void> {
+        const files = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { "Env Files": ["env"] },
+          openLabel: "Select Env File",
+        });
+
+        if (files?.length) {
+          panel.webview.postMessage({
+            command: "envFileSelected",
+            envFile: files[0].fsPath,
+          });
+        }
+      }
+
+      async function handleSubmit(message: {
+        projectPath?: string;
+        envFiles?: string[];
+        testsuiteArgs?: string[];
+      }): Promise<void> {
+        const { projectPath, envFiles = [], testsuiteArgs = [] } = message;
+
+        if (!projectPath || !envFiles.length || !testsuiteArgs.length) {
+          vscode.window.showErrorMessage(
+            "Project Path, Env Files, and Testsuite are required."
+          );
+          return;
+        }
+
+        for (const file of envFiles) {
+          if (!fs.existsSync(file)) {
+            vscode.window.showInformationMessage(
+              `Environment file ${file} does not exist.`
+            );
+            return;
+          }
+
+          for (const level of testsuiteArgs) {
+            vectorMessage(`Env File: ${file}`);
+            await importEnvToTestsuite(projectPath, level, file);
+          }
+        }
+
+        panel.dispose();
+      }
     }
   );
+
   context.subscriptions.push(importEnviroToProject);
 
-  // Command: vectorcastTestExplorer.addEnviroToProject ////////////////////////////////////////////////////////
+  // Command: vectorcastTestExplorer.addEnviroToProject
   const addEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addEnviroToProject",
     async (_projectNode: any) => {
@@ -1270,70 +1294,85 @@ async function installPreActivationEventHandlers(
         }
       );
 
-      // no initial env files
       panel.webview.html = await getImportEnvWebviewContent(context, panel, []);
 
+      // --- Command dispatch table ---
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        importEnvFile: handleImportEnvFile,
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      // --- Message handler ---
       panel.webview.onDidReceiveMessage(
-        async (message) => {
-          switch (message.command) {
-            case "importEnvFile": {
-              const uri = await vscode.window.showOpenDialog({
-                canSelectMany: false,
-                filters: { "Environment Files": ["env"] },
-                openLabel: "Select Environment File",
-              });
-              if (uri?.length) {
-                panel.webview.postMessage({
-                  command: "envFileSelected",
-                  envFile: uri[0].fsPath,
-                });
-              }
-              break;
-            }
-            case "submit": {
-              const { projectPath, envFiles, testsuiteArgs } = message;
-              if (!projectPath || !envFiles?.length || !testsuiteArgs?.length) {
-                vscode.window.showErrorMessage(
-                  "Project Path, Env Files, and Testsuite are required."
-                );
-                return;
-              }
-              // This should not happen, but just in case
-              if (envFiles.length > 1) {
-                vscode.window.showInformationMessage(
-                  "Multiple Env Files selected. Only the first one will be used."
-                );
-              }
-              const file = envFiles[0];
-              for (let level of testsuiteArgs) {
-                // Making sure the file exists
-                if (!fs.existsSync(file)) {
-                  vscode.window.showInformationMessage(
-                    `Environment file ${file} does not exist.`
-                  );
-                  return;
-                }
-                vectorMessage(`Env File: ${file}`);
-                if (level == testsuiteArgs[0]) {
-                  await importEnvToTestsuite(projectPath, level, file);
-                } else {
-                  const enviroName = path.basename(file).split(".")[0];
-                  await addEnvToTestsuite(projectPath, level, enviroName);
-                }
-              }
-              panel.dispose();
-              break;
-            }
-            case "cancel":
-              panel.dispose();
-              break;
-          }
-        },
+        (message) => dispatch[message.command]?.(message),
         undefined,
         context.subscriptions
       );
+
+      // --- Handlers ---
+      async function handleImportEnvFile() {
+        const [uri] =
+          (await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            filters: { "Environment Files": ["env"] },
+            openLabel: "Select Environment File",
+          })) ?? [];
+
+        if (uri) {
+          panel.webview.postMessage({
+            command: "envFileSelected",
+            envFile: uri.fsPath,
+          });
+        }
+      }
+
+      async function handleSubmit(message: {
+        projectPath?: string;
+        envFiles?: string[];
+        testsuiteArgs?: string[];
+      }): Promise<void> {
+        const { projectPath, envFiles = [], testsuiteArgs = [] } = message;
+
+        if (!projectPath || !envFiles.length || !testsuiteArgs.length) {
+          vscode.window.showErrorMessage(
+            "Project Path, Env Files, and Testsuite are required."
+          );
+          return;
+        }
+
+        if (envFiles.length > 1) {
+          vscode.window.showInformationMessage(
+            "Multiple Env Files selected. Only the first one will be used."
+          );
+        }
+
+        const envFile = envFiles[0];
+
+        // this should not happen as we click on the envs, but in case the user manually changes something
+        if (!fs.existsSync(envFile)) {
+          vscode.window.showInformationMessage(
+            `Environment file ${envFile} does not exist.`
+          );
+          return;
+        }
+
+        for (const [index, level] of testsuiteArgs.entries()) {
+          vectorMessage(`Env File: ${envFile}`);
+
+          if (index === 0) {
+            await importEnvToTestsuite(projectPath, level, envFile);
+          } else {
+            const envName = path.basename(envFile, ".env");
+            await addEnvToTestsuite(projectPath, level, envName);
+          }
+        }
+
+        panel.dispose();
+      }
     }
   );
+
   context.subscriptions.push(addEnviroToProject);
 
   /**
@@ -1421,45 +1460,61 @@ async function installPreActivationEventHandlers(
         argList
       );
 
-      panel.webview.onDidReceiveMessage(
-        async (message) => {
-          if (message.command === "submit") {
-            const { projectPath, sourceFiles, testsuiteArgs } = message;
-            if (!projectPath || !testsuiteArgs?.length) {
-              vscode.window.showErrorMessage(
-                "Compiler Name and Testsuite Name are required."
-              );
-              return;
-            }
-            const params: ProjectEnvParameters = {
-              path: projectPath,
-              sourceFiles,
-              testsuiteArgs,
-            };
+      // --- Dispatch Table ---
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
 
-            // Checking if the files really exists.
-            for (const file of sourceFiles) {
-              if (!fs.existsSync(file)) {
-                vscode.window.showInformationMessage(
-                  `Source file ${file} does not exist.`
-                );
-                return;
-              }
-            }
-            vscode.window.showInformationMessage(
-              `Creating environment in ${projectPath} with ${testsuiteArgs.join(", ")} and sources ${sourceFiles.join(", ")}`
-            );
-            await newEnvironment(argList, params);
-            panel.dispose();
-          } else if (message.command === "cancel") {
-            panel.dispose();
-          }
-        },
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
         undefined,
         context.subscriptions
       );
+
+      // --- Handlers ---
+      async function handleSubmit(message: {
+        projectPath?: string;
+        sourceFiles?: string[];
+        testsuiteArgs?: string[];
+      }): Promise<void> {
+        const { projectPath, sourceFiles = [], testsuiteArgs = [] } = message;
+
+        if (!projectPath || !testsuiteArgs.length) {
+          vscode.window.showErrorMessage(
+            "Compiler Name and Testsuite Name are required."
+          );
+          return;
+        }
+
+        // Validate file existence
+        for (const file of sourceFiles) {
+          if (!fs.existsSync(file)) {
+            vscode.window.showInformationMessage(
+              `Source file ${file} does not exist.`
+            );
+            return;
+          }
+        }
+
+        const params: ProjectEnvParameters = {
+          path: projectPath,
+          sourceFiles,
+          testsuiteArgs,
+        };
+
+        vscode.window.showInformationMessage(
+          `Creating environment in ${projectPath} with ${testsuiteArgs.join(
+            ", "
+          )} and sources ${sourceFiles.join(", ")}`
+        );
+
+        await newEnvironment(argList, params);
+        panel.dispose();
+      }
     }
   );
+
   context.subscriptions.push(newEnviroInProjectVCASTCommand);
 
   async function getNewEnvWebviewContent(
