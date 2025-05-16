@@ -1,0 +1,119 @@
+name: Reqs2tests release test - Linux
+run-name: ${{ github.ref_name }} is testing release
+on:
+  push:
+    branches:
+      - main
+      - autoreq
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches:
+      - main
+      - autoreq
+  release:
+  workflow_dispatch:
+    inputs:
+      r2t-release-url-linux:
+        description: 'Linux release URL to be used for the bundle'
+        required: false
+      r2t-release-branch:
+        description: 'Release branch to be used for the bundle'
+        required: false
+        default: "demo_release"
+      r2t-model:
+        description: 'Model name to use for the test'
+        required: false
+      r2t-reasoning-model:
+        description: 'Reasoning model name to use for the test'
+        required: false
+jobs:
+  release-test-linux:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [self-hosted, vscode-vcast, Linux]
+    env:
+      LM_LICENSE_FILE: /vcast/vector-license.lic
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION_RELEASE_TEST }}
+      R2T_RELEASE_BRANCH: ${{ github.event.inputs.r2t-release-branch || 'demo_release' }}
+      R2T_RELEASE_URL_LIN: ${{ github.event.inputs.r2t-release-url-linux || '' }}
+      R2T_MODEL: ${{ github.event.inputs.r2t-model || '' }}
+      R2T_REASONING_MODEL: ${{ github.event.inputs.r2t-reasoning-model || '' }}
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast --mount type=bind,source=${{ vars.LLM_CONFIGS_PATH }},target=/llm_configs
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Pull latest reqs2tests release
+        shell: bash
+        run: |
+          python3 ./ci/get_most_recent_reqs2tests_distribution.py
+          if [ ! -f "autoreq-linux.tar.gz" ]; then
+            echo "Error: autoreq-linux.tar.gz not found."
+            exit 1
+          fi
+          tar -xf autoreq-linux.tar.gz
+          rm *.tar.gz
+          echo "RELEASE_DIR=$PWD/distribution" >> $GITHUB_ENV
+
+      - name: Run tests
+        shell: bash
+        run: |
+          wget "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/demo-data/TUTORIAL_C.zip"
+          unzip TUTORIAL_C.zip && rm TUTORIAL_C.zip
+          export USE_CLICAST_SERVER=0
+          ${{ env.RELEASE_DIR }}/reqs2tests TUTORIAL_C/TUTORIAL_C.env TUTORIAL_C/reqs.xlsx --batched --no-requirement-keys --export-tst out.tst
+
+      - name: Check test results
+        shell: bash
+        run: |
+          echo "### Info" >> $GITHUB_STEP_SUMMARY
+          echo "**Release branch:** ${{ env.R2T_RELEASE_BRANCH }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Release URL:** ${{ env.R2T_RELEASE_URL_LIN || 'None' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** ${{ env.R2T_MODEL || 'None' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reasoning model:** ${{ env.R2T_REASONING_MODEL || 'None' }}" >> $GITHUB_STEP_SUMMARY
+          
+          echo '## .tst file' >> $GITHUB_STEP_SUMMARY
+          if [ ! -f "out.tst" ] || [ ! -s "out.tst" ]; then
+            echo '.tst file not found.' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          CURRENT_DATE=$(date +%Y%m%d%H%M%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/r2t-release-test"
+          TST_FILE=$CURRENT_DATE.tst
+          mv out.tst $TST_FILE
+          URL=$ARTIFACTORY_URL/$TST_FILE
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T $TST_FILE
+          echo "[.tst file]($URL)" >> $GITHUB_STEP_SUMMARY
+          
+          python3 ./ci/tst_file_check.py $TST_FILE
+          CODE=0
+          echo '## Failures' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [[ -f tst_file_check_errors.txt ]] ; then
+            cat tst_file_check_errors.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            CODE=1
+          else
+            echo 'No errors found' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          exit $CODE
