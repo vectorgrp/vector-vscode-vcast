@@ -1,0 +1,40 @@
+--  QuickParse File Version: QP_ALL_DEFINED_ENTITIES  --
+HOME_DIRECTORY /home/denis/ManageSupport/Demo/demo_build/tutorial
+BEGIN_RECORD database.cpp
+CHECKSUM  2141809555
+BLACKLIST FALSE
+DEFINED_OBJECTS
+   _ZN8DataBase12DeleteRecordEj
+   _ZN8DataBase14GetTableRecordEjP13TableDataType
+   _ZN8DataBase17UpdateTableRecordEjP13TableDataType
+   _ZN8DataBaseC1Ev
+   _ZN8DataBaseD1Ev
+CALLED_OBJECTS
+STATIC_MEMBERS_DECLARED
+STATIC_MEMBERS_NEEDED
+GLOBAL_OBJECTS_NEEDED
+GLOBAL_OBJECTS_DEFINED
+   TableData
+END_RECORD database.cpp
+BEGIN_RECORD manager.cpp
+CHECKSUM  1935531156
+BLACKLIST FALSE
+DEFINED_OBJECTS
+   _ZN7Manager10ClearTableEj
+   _ZN7Manager10PlaceOrderEjj9OrderType
+   _ZN7Manager13GetCheckTotalEj
+   _ZN7Manager18AddIncludedDessertEP9OrderType
+   _ZN7Manager21AddPartyToWaitingListEPc
+   _ZN7Manager22GetNextPartyToBeSeatedEv
+   _ZN7ManagerC1Ev
+CALLED_OBJECTS
+   _ZN8DataBase12DeleteRecordEj
+   _ZN8DataBase14GetTableRecordEjP13TableDataType
+   _ZN8DataBase17UpdateTableRecordEjP13TableDataType
+   _ZN8DataBaseC1Ev
+   _ZN8DataBaseD1Ev
+STATIC_MEMBERS_DECLARED
+STATIC_MEMBERS_NEEDED
+GLOBAL_OBJECTS_NEEDED
+GLOBAL_OBJECTS_DEFINED
+END_RECORD manager.cpp

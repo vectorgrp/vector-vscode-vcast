@@ -158,14 +158,12 @@ describe("vTypeCheck VS Code Extension", () => {
       currentLine,
       "TEST.EXPECTED:database.DataBase::UpdateTableRecord.Data[0].CheckTotal:14"
     );
-    await tab.save();
+
     await bottomBar.toggle(true);
     // This produces invalid locator error somehow
     // await tab.openContextMenu()
     // Loading test script directly for now
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
+    await tab.save();
   });
 
   it("should run mySecondTest and check its report", async () => {

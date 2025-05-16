@@ -164,7 +164,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should rebuild from test explorer  ", async () => {
     const workbench = await browser.getWorkbench();
     const vcastTestingViewContent = await getViewContent("Testing");
-    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    const envName = "DATABASE-MANAGER";
 
     console.log("Re-Building Environment from Test Explorer");
     // Flask --> Right-click on env --> Re-Build environment
@@ -192,7 +192,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Setting Up Statement Coverage"),
+          .includes("Setting Up Statement+MC/DC Coverage"),
       { timeout: TIMEOUT }
     );
     await bottomBar.restore();

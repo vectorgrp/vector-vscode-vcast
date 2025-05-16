@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Import Environment to Project</title>
+
+  <!-- replaced at runtime -->
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal">
+    <h2>Import Environment to Project</h2>
+
+    <!-- Project Path -->
+    <label for="projectPath">Project Path:</label>
+    <div class="single-input-container">
+      <select id="projectPath" aria-label="Project Path"></select>
+    </div>
+
+    <!-- Env File -->
+    <label for="envFileInput">Env File:</label>
+    <div class="single-input-container">
+      <input
+        type="text"
+        id="envFileInput"
+        placeholder="Select Env File"
+        aria-label="Environment File Path"
+      />
+      <button
+        type="button"
+        class="select-button"
+        id="btnSelectEnv"
+        aria-label="Select Environment File"
+      >Select</button>
+    </div>
+
+    <!-- Compiler/Testsuite Labels -->
+    <div class="label-row" aria-label="Compiler and Testsuite Labels">
+      <div>Select Compiler</div>
+      <div>Select Testsuite</div>
+      <div></div>
+    </div>
+
+    <!-- Compiler/Testsuite Rows -->
+    <div id="compilerContainer" aria-label="Compiler and Testsuite Container"></div>
+    <div class="double-add-row">
+      <button
+        type="button"
+        class="add-button"
+        id="btnAddRow"
+        aria-label="Add Compiler and Testsuite Row"
+      >➕</button>
+    </div>
+
+    <!-- OK / Cancel -->
+    <div class="button-container">
+      <button
+        type="button"
+        class="cancel-button"
+        id="btnCancel"
+        aria-label="Cancel"
+      >Cancel</button>
+      <button
+        type="button"
+        class="primary-button"
+        id="btnSubmit"
+        aria-label="OK"
+      >OK</button>
+    </div>
+  </div>
+
+  <!-- replaced at runtime with a nonce attribute -->
+  <script src="{{ scriptUri }}"></script>
+</body>
+</html>

@@ -151,7 +151,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.setTextAtLine(currentLine, "TEST.SUBPROGRAM");
 
     await tab.typeTextAt(currentLine, "TEST.SUBPROGRAM".length + 1, ":");
-    await tab.save();
 
     // Really important to wait until content assist appears
     await browser.waitUntil(
@@ -163,7 +162,6 @@ describe("vTypeCheck VS Code Extension", () => {
       "TEST.SUBPROGRAM:".length + 1,
       "coded_tests_driver"
     );
-    await tab.save();
 
     //########################################################################################
 
