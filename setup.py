@@ -60,6 +60,7 @@ ext_modules = (
             'autoreq/test_generation/vcast_context_builder.py',
             'autoreq/test_generation/atg_context_builder.py',
             'autoreq/test_generation/info_logger.py',
+            'autoreq/test_generation/schema_builder.py',
             'autoreq/test_generation/generation.py',
             'autoreq/reqs2tests.py',
             'autoreq/code2reqs.py',
