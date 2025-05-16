@@ -24,6 +24,7 @@ OPENAI_COMPATIBLE_PROVIDERS = ('ollama', 'openai')
 
 INCOMPATIBLE_ARGS = {
     'o3-mini': ['temperature', 'max_completion_tokens'],
+    'o4-mini': ['temperature', 'max_completion_tokens'],
 }
 
 EXAMPLE_CONFIGS = {
