@@ -442,7 +442,11 @@ class Environment:
             logging.warning(
                 f'No relevant identifiers found for pruned function {function_name}. Using identifiers for unpruned function.'
             )
-            relevant_identifiers = self.get_allowed_identifiers_for_function(function_name, return_used_atg_fallback=return_used_atg_fallback, focus_lines=None)
+            relevant_identifiers = self.get_allowed_identifiers_for_function(
+                function_name,
+                return_used_atg_fallback=return_used_atg_fallback,
+                focus_lines=None,
+            )
 
         if return_used_atg_fallback:
             return relevant_identifiers, self._used_atg_identifier_fallback

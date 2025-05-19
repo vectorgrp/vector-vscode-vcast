@@ -168,10 +168,7 @@ class LLMClient:
             )
         elif provider == 'anthropic':
             return instructor.from_anthropic(
-                anthropic.AsyncAnthropic(
-                    api_key=config.API_KEY,
-                    timeout=TIMEOUT
-                )
+                anthropic.AsyncAnthropic(api_key=config.API_KEY, timeout=TIMEOUT)
             )
         else:
             raise NotImplementedError(f'Provider {provider} is not supported')

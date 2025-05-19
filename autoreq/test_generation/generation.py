@@ -231,8 +231,16 @@ Example Test Cases:
             ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
         ]
         if len(shown_input_identifiers) > 0:
-            rendered_input_identifiers = '\n'.join('- ' + i for i in shown_input_identifiers if 'USER_GLOBALS_VCAST' not in i)
-            rendered_expected_identifiers = '\n'.join('- ' + i for i in shown_expected_identifiers if 'USER_GLOBALS_VCAST' not in i)
+            rendered_input_identifiers = '\n'.join(
+                '- ' + i
+                for i in shown_input_identifiers
+                if 'USER_GLOBALS_VCAST' not in i
+            )
+            rendered_expected_identifiers = '\n'.join(
+                '- ' + i
+                for i in shown_expected_identifiers
+                if 'USER_GLOBALS_VCAST' not in i
+            )
             identifier_section = f"""
 You must set an input value for each of the following identifiers:
 {rendered_input_identifiers}
@@ -510,8 +518,16 @@ Return your answer in the following format:
             ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
         ]
         if len(shown_input_identifiers) > 0:
-            rendered_input_identifiers = '\n'.join('- ' + i for i in shown_input_identifiers if 'USER_GLOBALS_VCAST' not in i)
-            rendered_expected_identifiers = '\n'.join('- ' + i for i in shown_expected_identifiers if 'USER_GLOBALS_VCAST' not in i)
+            rendered_input_identifiers = '\n'.join(
+                '- ' + i
+                for i in shown_input_identifiers
+                if 'USER_GLOBALS_VCAST' not in i
+            )
+            rendered_expected_identifiers = '\n'.join(
+                '- ' + i
+                for i in shown_expected_identifiers
+                if 'USER_GLOBALS_VCAST' not in i
+            )
             identifier_section = f"""
 You must set an input value for each of the following identifiers:
 {rendered_input_identifiers}

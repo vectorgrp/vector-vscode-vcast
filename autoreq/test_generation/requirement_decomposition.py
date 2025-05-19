@@ -247,6 +247,7 @@ def _merge_decompositions(decompositions, threshold_frequency=0.5):
 
     return merged_result
 
+
 @lru_cache
 def _get_default_llm_client():
     return LLMClient()

@@ -471,11 +471,11 @@ async def evaluate_environment(
         requirement_ids = rm.requirement_ids
 
     test_generator = TestGenerator(
-        rm, 
-        env, 
+        rm,
+        env,
         use_extended_reasoning=extended_reasoning,
         min_prune_lines=min_pruning_lines,
-        use_test_examples=use_test_examples
+        use_test_examples=use_test_examples,
     )
     test_verifier = TestVerifier(
         rm, env, allow_partial=allow_partial or allow_batch_partial
