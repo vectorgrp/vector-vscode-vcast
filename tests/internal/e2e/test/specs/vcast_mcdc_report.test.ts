@@ -171,7 +171,10 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
     await browser.waitUntil(
@@ -208,7 +211,10 @@ describe("vTypeCheck VS Code Extension", () => {
       true
     );
     await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
     await browser.waitUntil(
@@ -254,7 +260,10 @@ describe("vTypeCheck VS Code Extension", () => {
       true
     );
     await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
     await browser.waitUntil(
@@ -380,13 +389,13 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log(
         "Deleting one BASIS-PATHS test for more individual coverage icons."
       );
+      await outputView.clearText();
       await deleteGeneratedTest(
         "manager",
         "Manager::AddIncludedDessert",
         "BASIS-PATH-002",
         4
       );
-
       console.log("Checking for coverage icons.");
       let listToIterate = [];
 
@@ -415,6 +424,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
 
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
@@ -428,15 +439,12 @@ describe("vTypeCheck VS Code Extension", () => {
     await fooCpp.openContextMenu();
     await (await $("aria/Create VectorCAST Environment")).click();
 
-    // Making sure notifications are shown
-    await (await $("aria/Notifications")).click();
-
     console.log(
       "Waiting for clicast and waiting for environment to get processed"
     );
     await browser.waitUntil(
       async () =>
-        (await (await bottomBar.openOutputView()).getText())
+        (await outputView.getText())
           .toString()
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT }
@@ -447,10 +455,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.saveScreenshot(
       "info_finished_creating_vcast_environment.png"
     );
-    // Clearing all notifications
-    await (await $(".codicon-notifications-clear-all")).click();
-
-    const outputView = await bottomBar.openOutputView();
 
     // Red MCDC Gutter icon
     await checkForGutterAndGenerateReport(
@@ -461,7 +465,10 @@ describe("vTypeCheck VS Code Extension", () => {
       true
     );
     await browser.waitUntil(
-      async () => (await outputView.getText()).toString().includes("REPORT:"),
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
     await browser.waitUntil(

@@ -1,4 +1,34 @@
-import { quote } from "./utilities";
+import { normalizePath, quote } from "./utilities";
+
+export interface environmentNodeDataType {
+  projectPath: string;
+  buildDirectory: string;
+  isBuilt: boolean;
+  displayName: string;
+  workspaceRoot: string;
+}
+
+// This is a lookup table for all environment nodes
+// in the test case tree.  The key is the environmentPath
+// and the data is an environmentDataType
+export const environmentDataCache = new Map();
+
+export function saveEnviroNodeData(
+  enviroPath: string,
+  data: environmentNodeDataType
+) {
+  // normalize the path since we use it as a key
+  environmentDataCache.set(normalizePath(enviroPath), data);
+}
+
+export function getEnviroNodeData(enviroPath: string): environmentNodeDataType {
+  // normalize the path since we use it as a key
+  return environmentDataCache.get(normalizePath(enviroPath));
+}
+
+export function clearEnviroDataCache() {
+  environmentDataCache.clear();
+}
 
 export const compoundOnlyString = " [compound only]";
 
@@ -15,8 +45,11 @@ export interface testNodeType {
 }
 // this is a lookup table for the nodes in the test tree
 // the key is the nodeID, the data is an testNodeType
-let testNodeCache = new Map();
+export const testNodeCache = new Map();
 
+// This function is used to create the top-level environment
+// node in the cache, all the other nodes will inherit from
+// this one and add their own data
 export function createTestNodeInCache(
   enviroNodeID: string,
   enviroPath: string,
@@ -75,7 +108,9 @@ export function getEnviroNodeIDFromID(nodeID: string): string {
 }
 
 export function getEnviroPathFromID(nodeID: string): string {
-  return testNodeCache.get(nodeID).enviroPath;
+  // Need to check first if the nodeID is in the cache, otherwise .get will throw an error
+  const node = testNodeCache.get(nodeID);
+  return node?.enviroPath;
 }
 
 export function getEnviroNameFromID(nodeID: string): string {

@@ -160,7 +160,6 @@ describe("vTypeCheck VS Code Extension", () => {
       currentLine,
       "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats"
     );
-    await tab.save();
 
     await tab.moveCursor(
       currentLine,
@@ -171,7 +170,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     currentLine = await tab.getLineOfText("TEST.VALUE");
     await tab.typeTextAt(currentLine, "TEST.VALUE".length + 1, ":");
-    await tab.save();
 
     // Really important to wait until content assist appears
     await browser.waitUntil(
@@ -220,9 +218,5 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.setTextAtLine(currentLine, "");
 
     await tab.save();
-
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
   });
 });

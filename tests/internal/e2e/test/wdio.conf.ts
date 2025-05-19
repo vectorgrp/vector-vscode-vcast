@@ -334,6 +334,7 @@ export const config: Options.Testrunner = {
         "IMPORT_CODED_TEST_IN_TST",
         async () => await buildEnvsWithSpecificReleases(initialWorkdir),
       ],
+      ["MANAGE_TEST", async () => await testManage(initialWorkdir)],
     ]);
 
     // Determine the environment key
@@ -390,6 +391,28 @@ export const config: Options.Testrunner = {
      *                           INDIVIDUAL ENVIRONMENT SETUPS
      * ================================================================================================
      */
+
+    async function testManage(initialWorkdir: string) {
+      const testInputManage = path.join(initialWorkdir, "test", "manage");
+      const build_demo = `cd ${testInputManage} && ./demo_build.sh`;
+      await executeCommand(build_demo);
+      await checkVPython();
+      clicastExecutablePath = await checkClicast();
+      process.env.CLICAST_PATH = clicastExecutablePath;
+
+      await prepareConfig(initialWorkdir, clicastExecutablePath);
+      await executeRGWCommands(testInputManage);
+      const destFolder = path.join(initialWorkdir, "test", "vcastTutorial");
+      if (process.platform === "win32") {
+        await executeCommand(
+          `xcopy /s /i /y ${testInputManage} ${destFolder} > NUL 2> NUL`
+        );
+      } else {
+        await executeCommand(
+          `cp -r ${path.join(testInputManage, "*")} ${destFolder}`
+        );
+      }
+    }
 
     /**
      * Builds one env based on VECTORCAST_DIR.
@@ -686,6 +709,42 @@ ENVIRO.END
      * @returns {Promise<void>} - A promise that resolves when all directory operations are complete.
      */
     async function setupTestEnvironment(initialWorkdir: string): Promise<void> {
+      const testInputManage = path.join(initialWorkdir, "test", "manage");
+      // In case the tests failed onWorkerEnd is not called and we need to delete the Manage folders and files here
+      if (process.env.MANAGE_TEST) {
+        if (process.platform == "win32") {
+          // Delete folders Test and input
+          await promisifiedExec(
+            `rmdir /s /q "${path.join(testInputManage, "Test")}"`
+          );
+          await promisifiedExec(
+            `rmdir /s /q "${path.join(testInputManage, "input")}"`
+          );
+          // Delete files Test.vcm and CCAST_.CFG
+          await promisifiedExec(
+            `del /q "${path.join(testInputManage, "Test.vcm")}"`
+          );
+          await promisifiedExec(
+            `del /q "${path.join(testInputManage, "CCAST_.CFG")}"`
+          );
+          await promisifiedExec("taskkill -f -im code* > NUL 2> NUL");
+        } else {
+          // Delete folders Test and input
+          await promisifiedExec(
+            `rm -rf "${path.join(testInputManage, "Test")}"`
+          );
+          await promisifiedExec(
+            `rm -rf "${path.join(testInputManage, "input")}"`
+          );
+          // Delete files Test.vcm and CCAST_.CFG
+          await promisifiedExec(
+            `rm -f "${path.join(testInputManage, "Test.vcm")}"`
+          );
+          await promisifiedExec(
+            `rm -f "${path.join(testInputManage, "CCAST_.CFG")}"`
+          );
+        }
+      }
       const vcastTutorialPath = path.join(
         initialWorkdir,
         "test",
@@ -1017,9 +1076,13 @@ ENVIRO.END
    */
   async onWorkerEnd(cid, exitCode, specs, retries) {
     const path = require("node:path");
+    const { promisify } = require("node:util");
+    const { exec } = require("node:child_process");
+
     const promisifiedExec = promisify(exec);
     const initialWorkdir = process.env.INIT_CWD;
     const logDir = path.join(initialWorkdir, "test", "log");
+    const testInputManage = path.join(initialWorkdir, "test", "manage");
 
     if (process.platform == "win32") {
       await promisifiedExec(
@@ -1029,11 +1092,41 @@ ENVIRO.END
           "vcastTutorial"
         )} ${path.join(logDir, "vcastTutorial")} > NUL 2> NUL`
       );
+      if (process.env.MANAGE_TEST) {
+        // Delete folders Test and input
+        await promisifiedExec(
+          `rmdir /s /q "${path.join(testInputManage, "Test")}"`
+        );
+        await promisifiedExec(
+          `rmdir /s /q "${path.join(testInputManage, "input")}"`
+        );
+        // Delete files Test.vcm and CCAST_.CFG
+        await promisifiedExec(
+          `del /q "${path.join(testInputManage, "Test.vcm")}"`
+        );
+        await promisifiedExec(
+          `del /q "${path.join(testInputManage, "CCAST_.CFG")}"`
+        );
+      }
       await promisifiedExec("taskkill -f -im code* > NUL 2> NUL");
     } else {
       await promisifiedExec(
         `cp -r ${path.join(initialWorkdir, "test", "vcastTutorial")} ${logDir}`
       );
+      if (process.env.MANAGE_TEST) {
+        // Delete folders Test and input
+        await promisifiedExec(`rm -rf "${path.join(testInputManage, "Test")}"`);
+        await promisifiedExec(
+          `rm -rf "${path.join(testInputManage, "input")}"`
+        );
+        // Delete files Test.vcm and CCAST_.CFG
+        await promisifiedExec(
+          `rm -f "${path.join(testInputManage, "Test.vcm")}"`
+        );
+        await promisifiedExec(
+          `rm -f "${path.join(testInputManage, "CCAST_.CFG")}"`
+        );
+      }
       await promisifiedExec("pkill code");
     }
   },

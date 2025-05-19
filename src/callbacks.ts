@@ -1,11 +1,6 @@
 import * as vscode from "vscode";
 
 // some functions that are used across functional areas of the extensions
-
-import { updateDisplayedCoverage } from "./coverage";
-import { updateTestDecorator } from "./editorDecorator";
-
-import { updateExploreDecorations } from "./fileDecorator";
 import {
   errorLevel,
   indentString,
@@ -15,26 +10,42 @@ import {
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
+  buildTestPaneContents,
+  refreshAllExtensionData,
   removeCBTfilesCacheForEnviro,
-  removeEnvironmentFromTestPane,
+  removeNodeFromTestPane,
   updateDataForEnvironment,
-  updateTestPane,
+  vcastUnbuiltEnviroList,
 } from "./testPane";
 
 import { removeFilePattern } from "./utilities";
 import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
 import { removeCoverageDataForEnviro } from "./vcastTestInterface";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../src-common/vcastServer";
 
 const fs = require("fs");
 const path = require("path");
 
-export function buildEnvironmentCallback(enviroPath: string, code: number) {
-  // This function gets called after the newEnviroVCAST command
-  // We check the return code and cleanup on failure
+/**
+ * Callback function when we build a single (Project-) Environment
+ * @param enviroPath Path to env
+ * @param code Exit code of the process
+ */
+export async function buildEnvironmentCallback(
+  enviroPath: string,
+  code: number
+) {
+  // This function gets called after we build an environment
+  // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
-    updateDataForEnvironment(enviroPath);
+    await buildTestPaneContents();
+    await updateDataForEnvironment(enviroPath);
+    await refreshAllExtensionData();
   } else {
     try {
       // remove the environment directory, as well as the .vce file
@@ -49,6 +60,11 @@ export function buildEnvironmentCallback(enviroPath: string, code: number) {
   }
 }
 
+/**
+ * Callback function when we re-build a single (Project-) Environment
+ * @param enviroPath Path to env
+ * @param code Exit code of the process
+ */
 export async function rebuildEnvironmentCallback(
   enviroPath: string,
   code: number
@@ -72,20 +88,40 @@ export async function rebuildEnvironmentCallback(
   }
 }
 
-export function deleteEnvironmentCallback(enviroNodeID: string, code: number) {
+/**
+ * Callback function when we delete a single Environment
+ * @param enviroPath Path to env
+ * @param code Exit code of the process
+ */
+export async function deleteEnvironmentCallback(
+  enviroNodeID: string,
+  code: number
+) {
   // this function gets called after the clicast env delete completes
 
   // if the delete succeeded then we need to remove the environment from the test pane
   if (code == 0) {
-    removeEnvironmentFromTestPane(enviroNodeID);
+    removeNodeFromTestPane(enviroNodeID);
     removeCBTfilesCacheForEnviro(enviroNodeID);
 
-    const enviroPath = getEnviroPathFromID(enviroNodeID);
-    removeCoverageDataForEnviro(enviroPath);
-    updateDisplayedCoverage();
-    updateExploreDecorations();
-    updateTestDecorator();
+    let enviroPath = getEnviroPathFromID(enviroNodeID);
+    if (!enviroPath) {
+      // We check if it is present in the unbuilt list
+      // If so, we take the id and split it after "vcast:" to get the path
+      // In case that is not possible, we throw an error message
+      if (vcastUnbuiltEnviroList.includes(enviroNodeID)) {
+        const parts = enviroNodeID.split(":");
+        enviroPath = parts.slice(1).join(":");
+      } else {
+        vscode.window.showErrorMessage(
+          `Unable to determine environment path from node: ${enviroNodeID}`
+        );
+        return;
+      }
+    }
 
+    removeCoverageDataForEnviro(enviroPath);
+    await refreshAllExtensionData();
     removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
@@ -108,8 +144,10 @@ export async function loadScriptCallBack(
     await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
-    updateTestPane(enviroPath);
+    await refreshAllExtensionData();
+    if (globalEnviroDataServerActive) await closeConnection(enviroPath);
     fs.unlinkSync(scriptPath);
   } else {
     vscode.window.showInformationMessage(

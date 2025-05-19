@@ -312,7 +312,7 @@ export function createCoverageStatusBar() {
   return coverageStatusBarObject;
 }
 
-export function toggleCoverageAction() {
+export async function toggleCoverageAction() {
   // This function gets called when the user does toggle on/off coverage
   // using either ctrl-shift-c or the vectorcastTestExplorer.coverage command
 
@@ -324,10 +324,10 @@ export function toggleCoverageAction() {
     coverageOn = true;
     if (fileDecorator)
       fileDecorator.updateCoverageDecorations(getListOfFilesWithCoverage());
-    updateCOVdecorations();
+    await updateCOVdecorations();
   }
 }
 
-export function updateDisplayedCoverage() {
-  if (coverageOn) updateCOVdecorations();
+export async function updateDisplayedCoverage() {
+  if (coverageOn) await updateCOVdecorations();
 }
