@@ -1189,7 +1189,7 @@ async function generateRequirements(enviroPath: string) {
     repositoryDir,
     "--json-events",
     "--combine-related-requirements",
-    "--extended-reasoning"
+    //"--extended-reasoning"
   ];
   
   // Log the command being executed
