@@ -79,9 +79,7 @@ class VcastContextBuilder:
 
         return reduced_context
 
-    async def _reduce_context_ast(
-        self, function_name, unit_name, focus_lines
-    ):
+    async def _reduce_context_ast(self, function_name, unit_name, focus_lines):
         codebase = self.environment.tu_codebase
 
         temp_tu_path = self._get_unit_temp_tu_path(unit_name)
