@@ -406,6 +406,11 @@ class Environment:
                         0
                     ]  # Remove array index if present (should not be)
 
+                if '.str.' in identifier:
+                    # Skip string identifiers
+                    # TODO: Investigate why they exist
+                    continue
+
                 if unit == 'USER_GLOBALS_VCAST':
                     relevant_identifiers.append(identifier)
                     continue
