@@ -360,10 +360,6 @@ Right‑click any node in the Test Explorer tree (or in the Explorer pane) and c
    To perform any command: **Right-Click on a Node → VectorCAST → Command**  
 
 
-With this integration, you get the best of both worlds: the centralized control and robust CI integrations of Manage, plus the productivity and extensibility of VS Code.
-
-
-
 ### VectorCAST Data Server
 
 #### Introduction

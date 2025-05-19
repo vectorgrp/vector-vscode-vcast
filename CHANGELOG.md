@@ -153,6 +153,20 @@ This option is new for VectorCAST 23 sp2
 - Fixed wrong Test Results message log (#248)
 
 ## [1.0.16] - 2024-05-08
-- Implemented Manage support (#253)
+- Implemented Manage support (#253), including:
+    - **Environment Management**:  
+        - Add existing environments to projects.  
+        - Delete environments from a project.  
+        - Create environments from source files.  
+        - Build individual environments in isolation. 
+        - Build / Execute Environments 
+    - **Compiler Integration**:  
+        - Create compiler instances from CFG configuration files.  
+        - Remove compiler instances from the project.    
+    - **Testsuite Handling**:  
+        - Create and delete testsuites.  
+        - Link and unlink environments to/from testsuites.  
+        
+- Implemented ability to load Test Scripts by saving the .tst file
 
 
