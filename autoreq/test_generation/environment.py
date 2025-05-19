@@ -1,4 +1,4 @@
-from functools import cached_property
+from functools import cached_property, lru_cache
 from dataclasses import dataclass
 import json
 import os
@@ -707,6 +707,7 @@ class Environment:
     def modules(self) -> str:
         return self.units
 
+    @lru_cache(maxsize=128)
     def get_tu_content(
         self, unit_name=None, reduction_level='medium', return_encoding=False
     ):
