@@ -70,6 +70,7 @@ env:
   VCAST_USER_HOME: /home/vcast_user
 jobs:
   reqs2tests_eval:
+    timeout-minutes: 1440
     permissions: write-all
     runs-on: [self-hosted, reqs2tests, Linux]
     env:
