@@ -6,7 +6,7 @@ from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
 from pathlib import Path
 import os
 import tree_sitter_cpp as ts_cpp
-from tree_sitter import Parser, Language
+from tree_sitter import Parser, Language, Tree
 from copy import deepcopy
 
 BLACKLISTED_DIRS = ['.ccls-cache']
@@ -69,6 +69,9 @@ class Codebase:
         self._definition_index: Dict[str, List[Dict]] = {}
         self._build_definition_index()
 
+        # Cache for file contents
+        self._file_content_cache = {}
+
     def _is_blacklisted(self, filepath: str) -> bool:
         """Check if the filepath contains any blacklisted directory"""
         path = Path(filepath)
@@ -92,6 +95,7 @@ class Codebase:
                     abs_file = self._make_absolute(str(file))
                     with open(abs_file, 'r', encoding='utf-8', errors='ignore') as f:
                         file_content = f.read()
+                        lines = file_content.splitlines()
 
                     symbols = self.lsp.request_document_symbols(abs_file)
                     if symbols and isinstance(symbols, tuple):
@@ -104,9 +108,7 @@ class Codebase:
                             end_line = symbol['range']['end']['line']
 
                             # Extract the actual definition text
-                            definition_lines = file_content.splitlines()[
-                                start_line : end_line + 1
-                            ]
+                            definition_lines = lines[start_line : end_line + 1]
                             definition_text = '\n'.join(definition_lines)
 
                             if name not in self._definition_index:
@@ -269,11 +271,17 @@ class Codebase:
 
         return None
 
+    @lru_cache(maxsize=32)  # Cache for parsed trees
+    def _get_parsed_tree(self, code_bytes: bytes) -> Tree:
+        """Parses code bytes and returns the Tree-sitter tree, cached."""
+        return self.ts_parser.parse(code_bytes)
+
+    @lru_cache(maxsize=32)  # Cache for symbol extraction from a window of a parsed tree
     def _get_symbol_references_in_window(
         self, code_bytes: bytes, start_line: int, end_line: int
     ) -> Set[str]:
         """Extract all potential symbol references in a given window of code using tree-sitter"""
-        tree = self.ts_parser.parse(code_bytes)
+        tree = self._get_parsed_tree(code_bytes)  # Use cached tree
         root_node = tree.root_node
         symbols = set()
 
@@ -288,6 +296,12 @@ class Codebase:
         visit_node(root_node)
         return symbols
 
+    @lru_cache(maxsize=32)  # Cache for file contents
+    def _read_file_bytes(self, filepath: str) -> bytes:
+        """Reads and caches file content in bytes."""
+        with open(filepath, 'rb') as f:
+            return f.read()
+
     def get_definitions_for_window(
         self,
         filepath: str,
@@ -300,9 +314,8 @@ class Codebase:
         """Get definitions for all symbols referenced in a window of code"""
         abs_path = self._make_absolute(filepath)
 
-        # Read the file content
-        with open(abs_path, 'rb') as f:
-            code_bytes = f.read()
+        # Read the file content using the cached method
+        code_bytes = self._read_file_bytes(abs_path)
 
         definitions = self._get_definitions_for_window(
             code_bytes, start_line, end_line, collapse_function_body, depth
