@@ -22,7 +22,7 @@ class RequirementsManager:
 
         filtered_requirements = []
         for req in self._requirements:
-            if req['Function'] == 'None':
+            if 'Function' not in req or req['Function'] == 'None':
                 logging.warning(
                     f'Requirement {req["ID"]} has no function assigned. Discarding.'
                 )

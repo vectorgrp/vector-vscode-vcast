@@ -155,7 +155,7 @@ def format_env_requirements(
             'ID': req_id,
             'Title': req['title'],
             'Description': req['description'],
-            'Module': func_info['unit_name'],
+            'Module': func_info['unit_name'] if func_info else 'None',
             'Function': related_function_name,
         }
         formatted_requirements.append(requirement)
