@@ -38,7 +38,7 @@ class TestGenerator:
         use_extended_reasoning=False,
         min_prune_lines=500,
         use_test_examples=True,
-        schema_type='unified', # TODO: Change this to input_expected for improved results on C but worse results on C++
+        schema_type='input_expected',
         add_prompt_identifiers_when_unpruned=False, # TODO: Change this to True for improved results on C but worse results on C++
     ):
         self.requirements_manager = requirements_manager
@@ -210,6 +210,7 @@ Example Test Cases:
             batched=True,
             batch_size=len(requirement_ids),
             focus_lines=relevant_lines,
+            identifier_type='input_expected' if num_lines >= self.min_prune_lines else 'unified', # TODO: Change this to input_expected only for improved results on C but worse results on C++
             return_schema_gen_info=True,
         )
 
@@ -498,6 +499,7 @@ Return your answer in the following format:
             function_name=function_name,
             batched=False,
             focus_lines=relevant_lines,
+            identifier_type='input_expected' if num_lines >= self.min_prune_lines else 'unified', # TODO: Change this to input_expected only for improved results on C but worse results on C++
             return_schema_gen_info=True,
         )
 
