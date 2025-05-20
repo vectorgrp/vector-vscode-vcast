@@ -415,10 +415,6 @@ class Environment:
                     relevant_identifiers.append(identifier)
                     continue
 
-                if entity == '(cl)':
-                    relevant_identifiers.append(identifier)
-                    continue
-
                 if unit == 'uut_prototype_stubs':
                     is_return_value = '.return' in identifier
 
@@ -426,6 +422,16 @@ class Environment:
                         continue
 
                     if remove_surely_stubbed_inputs and not is_return_value:
+                        continue
+
+                if entity == '(cl)':
+                    if len(identifier.split('.')) < 6:
+                        continue
+                    
+                    class_name, constructor, entity = identifier.split('.')[3:6]
+
+                    if entity == '<<constructor>>':
+                        relevant_identifiers.append(identifier)
                         continue
 
                 if subprogram == '<<GLOBAL>>':

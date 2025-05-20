@@ -27,9 +27,10 @@ class SchemaGenerationInfo(BaseModel):
 
 
 class SchemaBuilder:
-    def __init__(self, environment, max_identifier_array_index: int = 32):
+    def __init__(self, environment, max_identifier_array_index: int = 32, default_schema_identifier_type=None):
         self.environment = environment
         self.max_identifier_array_index = max_identifier_array_index
+        self.default_schema_identifier_type = default_schema_identifier_type
 
     def _derive_test_case_schema(
         self,
@@ -77,7 +78,7 @@ class SchemaBuilder:
         batch_size: int = None,
         focus_lines: List[int] = None,
         verify_schema: bool = True,
-        identifier_type: str = 'input_expected',
+        identifier_type: str = None,
         return_schema_gen_info: bool = False,
     ) -> Tuple[type, SchemaGenerationInfo]:
         schema_gen_info = SchemaGenerationInfo(
@@ -87,6 +88,9 @@ class SchemaBuilder:
             input_identifiers=[],
             expected_identifiers=[],
         )
+
+        if identifier_type is None:
+            identifier_type = self.default_schema_identifier_type or 'input_expected'
 
         if identifier_type == 'input_expected':
             allowed_input_identifiers, used_atg_identifiers_input = (
