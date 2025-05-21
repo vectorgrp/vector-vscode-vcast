@@ -346,50 +346,6 @@
             "description": "Enables coded testing when building a new environment"
           }
         }
-      },
-      {
-        "id": "ai",
-        "title": "AI Models",
-        "order": 3,
-        "properties": {
-          "vectorcastTestExplorer.aI.modelProvider": {
-            "type": "string",
-            "enum": [
-              "Anthropic",
-              "AzureOpenAI",
-              "Google",
-              "Ollama",
-              "OpenAI"
-            ],
-            "order": 1,
-            "default": "AzureOpenAI",
-            "description": "Select the AI model provider for requirements and test generation"
-          },
-          "vectorcastTestExplorer.aI.azure.apiKey": {
-            "type": "string",
-            "order": 4,
-            "default": "AZURE_API_KEY",
-            "description": "Name of environment variable containing the API Key for AzureOpenAI"
-          },
-          "vectorcastTestExplorer.aI.azure.baseUrl": {
-            "type": "string",
-            "order": 5,
-            "default": "",
-            "description": "Base URL for AzureOpenAI (e.g., https://your-resource.openai.azure.com/)"
-          },
-          "vectorcastTestExplorer.aI.azure.deployment": {
-            "type": "string",
-            "order": 6,
-            "default": "",
-            "description": "Deployment name for AzureOpenAI"
-          },
-          "vectorcastTestExplorer.aI.azure.modelName": {
-            "type": "string",
-            "order": 7,
-            "default": "",
-            "description": "Model name for AzureOpenAI"
-          }
-        }
       }
     ],
     "menus": {
