@@ -1,65 +1,139 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_dynamic_libs
 from autoreq.autoreq_hiddenimports import hiddenimports
+import re
+
+excluded_binaries = ['libreadline*']
+excluded_modules = [
+    'autoreq.test_verification', 
+    'autoreq.requirement_verification',
+    'autoreq.summary',            
+    'autoreq.manage_env',
+    'pytest',
+    'pytest-mock',
+    'pyinstaller',
+    'Cython',
+    'ruff',
+    'pre_commit',
+    'pipdeptree',
+    'seaborn',
+    'markdownify',
+    'pandas',
+    'matplotlib',
+    'pillow',
+    'pillow.libs',
+    'PIL',
+    'numpy',
+    'readline'
+]
+
+def filter_binaries(binaries):
+    filtered = []
+    for binary in binaries:
+        if not any(re.search(pattern, binary[0]) for pattern in excluded_binaries):
+            filtered.append(binary)
+    return filtered
 
 
 reqs2tests_a = Analysis(
     ['reqs2tests.py'],
-    binaries=collect_dynamic_libs(
-        package="autoreq", search_patterns=["*.dll", "*.dylib", "*.so","*.pyd"]
+    binaries=filter_binaries(
+        collect_dynamic_libs(
+            package='autoreq', search_patterns=['*.dll', '*.dylib', '*.so', '*.pyd']
+        )
     ),
     datas=[
-        ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
-        ('monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
-        ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
-        ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['runtime_hook_fix_exit.py'],
-    excludes=[],
+    excludes=excluded_modules,
     noarchive=False,
     optimize=0,
 )
 
 code2reqs_a = Analysis(
     ['code2reqs.py'],
-    binaries=collect_dynamic_libs(
-        package="autoreq", search_patterns=["*.dll", "*.dylib", "*.so","*.pyd"]
+    binaries=filter_binaries(
+        collect_dynamic_libs(
+            package='autoreq', search_patterns=['*.dll', '*.dylib', '*.so', '*.pyd']
+        )
     ),
     datas=[
-        ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
-        ('monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
-        ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
-        ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['runtime_hook_fix_exit.py'],
-    excludes=[],
+    excludes=excluded_modules,
     noarchive=False,
     optimize=0,
 )
 
 reqs2excel_a = Analysis(
     ['reqs2excel.py'],
-    binaries=collect_dynamic_libs(
-        package="autoreq", search_patterns=["*.dll", "*.dylib", "*.so","*.pyd"]
+    binaries=filter_binaries(
+        collect_dynamic_libs(
+            package='autoreq', search_patterns=['*.dll', '*.dylib', '*.so', '*.pyd']
+        )
     ),
     datas=[
         ('autoreq/resources', 'autoreq/resources'),
-        ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
-        ('monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
-        ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
-        ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['runtime_hook_fix_exit.py'],
-    excludes=[],
+    excludes=excluded_modules,
     noarchive=False,
     optimize=0,
 )
@@ -67,21 +141,35 @@ reqs2excel_a = Analysis(
 reqs2rgw_a = Analysis(
     ['reqs2rgw.py'],
     pathex=[],
-    binaries=collect_dynamic_libs(
-        package="autoreq", search_patterns=["*.dll", "*.dylib", "*.so","*.pyd"]
+    binaries=filter_binaries(
+        collect_dynamic_libs(
+            package='autoreq', search_patterns=['*.dll', '*.dylib', '*.so', '*.pyd']
+        )
     ),
     datas=[
         ('autoreq/resources', 'autoreq/resources'),
-        ('monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
-        ('monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/ccls_language'),
-        ('monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json', 'monitors4codegen/multilspy/language_servers/clangd_language'),
-        ('monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json', 'monitors4codegen/multilspy/language_servers/clangd_language')
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['runtime_hook_fix_exit.py'],
-    excludes=[],
+    excludes=excluded_modules,
     noarchive=False,
     optimize=0,
 )

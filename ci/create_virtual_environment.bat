@@ -1,4 +1,4 @@
 cd c:\r2t
 python -m venv venv
-.\venv\Scripts\pip install --no-cache --upgrade pip
-.\venv\Scripts\pip install --no-cache -e .[dev]
+c:\r2t\venv\Scripts\python.exe -m pip install --upgrade pip
+c:\r2t\venv\Scripts\python.exe -m pip install --no-cache -e .[dev]

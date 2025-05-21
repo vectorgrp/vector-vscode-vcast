@@ -24,8 +24,6 @@ base_requirements = [
     'cryptography==44.0.1',
     'appdirs==1.4.4',
     'async-lru==2.0.5',
-    'seaborn==0.13.2',
-    'markdownify==1.1.0',
     'PyYAML==6.0.2',
     'openpyxl==3.1.5',
     'httpx==0.27.2',
@@ -39,6 +37,9 @@ dev_requirements = [
     'Cython==3.0.12',
     'ruff==0.11.7',
     'pre_commit==4.2.0',
+    'pipdeptree==2.26.1',
+    'seaborn==0.13.2',
+    'markdownify==1.1.0',
 ]
 
 
