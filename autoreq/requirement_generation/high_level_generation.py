@@ -36,7 +36,9 @@ class HighLevelRequirementsGenerator:
         self.low_level_requirements = low_level_requirements
         self.extended_reasoning = extended_reasoning
 
-    async def generate(self, unit_name: str, return_raw: bool = False) -> List[AbstractRequirement]:
+    async def generate(
+        self, unit_name: str, return_raw: bool = False
+    ) -> List[AbstractRequirement]:
         """Generate high-level requirements for a given unit/module."""
 
         module_input_data = {}
@@ -45,19 +47,23 @@ class HighLevelRequirementsGenerator:
         unit_specific_reqs = {}
         req_count = 0
         for req_data in all_low_level_reqs_list:
-            if req_data.get('Module') == unit_name and req_data.get('ID') and req_data.get('Description'):
-                if req_data.get('Function') != 'None': 
+            if (
+                req_data.get('Module') == unit_name
+                and req_data.get('ID')
+                and req_data.get('Description')
+            ):
+                if req_data.get('Function') != 'None':
                     unit_specific_reqs[req_data['ID']] = req_data['Description']
                     req_count += 1
-        
+
         if not unit_specific_reqs:
             return []
 
         module_input_data[unit_name] = {
-            "count": req_count,
-            "requirements": unit_specific_reqs
+            'count': req_count,
+            'requirements': unit_specific_reqs,
         }
-        
+
         system_prompt_content = """
 You are a senior software–requirements engineer and editor.
 Your sole task is to transform many fine-grained “Atomic” requirements into a shorter set of higher-level “Abstract” requirements.
@@ -192,10 +198,10 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
 
         user_prompt_content = (
             f"In the following, I provided you with the low level requirements for module '{unit_name}' "
-            "that have to be abstracted into higher level requirements:\n"
-            "```json\n"
-            f"{json.dumps(module_input_data, indent=2)}\n"
-            "```\n"
+            'that have to be abstracted into higher level requirements:\n'
+            '```json\n'
+            f'{json.dumps(module_input_data, indent=2)}\n'
+            '```\n'
         )
 
         source_code_content = None
@@ -205,17 +211,19 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
         if source_code_content:
             user_prompt_content += (
                 f"\nAnd here is the corresponding code file for module '{unit_name}':\n"
-                "```c\n" 
-                f"{source_code_content}\n"
-                "```\n"
+                '```c\n'
+                f'{source_code_content}\n'
+                '```\n'
             )
         else:
-            logging.warning(f"Could not retrieve valid source code for unit {unit_name} for HLR generation. Content: '{source_code_content}'")
+            logging.warning(
+                f"Could not retrieve valid source code for unit {unit_name} for HLR generation. Content: '{source_code_content}'"
+            )
             source_code_content = None
 
         messages = [
             {'role': 'system', 'content': system_prompt_content},
-            {'role': 'user', 'content': user_prompt_content}
+            {'role': 'user', 'content': user_prompt_content},
         ]
 
         response_model = await self.llm_client.call_model(
@@ -227,6 +235,10 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
         )
 
         if response_model and response_model.requirements:
-            return [req if return_raw else req.text for req in response_model.requirements if req.module_name == unit_name]
-        
+            return [
+                req if return_raw else req.text
+                for req in response_model.requirements
+                if req.module_name == unit_name
+            ]
+
         return []
