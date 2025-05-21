@@ -37,10 +37,12 @@ class ATGContextBuilder:
             )
 
             # Filter test cases by function name prefix and convert to dict
+            # Also handles overloaded subprogram names by removing the overloading+template part
+            # TODO: We might just want to improve the naming of testable_functions instead
             matching_tests_nopartial = [
                 test.to_dict()
                 for test in test_cases
-                if test.subprogram_name.endswith(function_name)
+                if test.subprogram_name.split('<', 1)[0].split('(', 1)[0].endswith(function_name)
                 and all(
                     keyword not in test.test_name
                     for keyword in ['PARTIAL', 'INCOMPLETE', 'TEMPLATE']
@@ -50,7 +52,7 @@ class ATGContextBuilder:
             matching_tests_partial = [
                 test.to_dict()
                 for test in test_cases
-                if test.subprogram_name.endswith(function_name)
+                if test.subprogram_name.split('<', 1)[0].split('(', 1)[0].endswith(function_name)
                 and any(
                     keyword in test.test_name
                     for keyword in ['PARTIAL', 'INCOMPLETE', 'TEMPLATE']

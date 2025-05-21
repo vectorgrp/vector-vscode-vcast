@@ -387,9 +387,10 @@ class Environment:
                     unit, subprogram, entity = identifier.split('.')[:3]
                 except:
                     logging.warning(f'Invalid identifier format: {identifier}')
-                    relevant_identifiers.append(identifier)
                     continue
 
+                subprogram = subprogram.split('<')[0]  # Remove template if present
+                subprogram = subprogram.split('(')[0]  # Remove input types if present
                 subprogram = subprogram.split('::')[-1]  # Remove namespace if present
 
                 entity_match = re.match(r'.*?\[(\d+)\]', entity)
