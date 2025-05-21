@@ -46,7 +46,7 @@ jobs:
       R2T_RELEASE_URL_WIN: ${{ github.event.inputs.r2t-release-url-win || '' }}
       R2T_MODEL: ${{ github.event.inputs.r2t-model || '' }}
       R2T_REASONING_MODEL: ${{ github.event.inputs.r2t-reasoning-model || '' }}
-      REQS2X_PCT_RELEASE: true
+      REQS2X_PCT_RELEASE: 1
 
     steps:
       - name: Checkout
