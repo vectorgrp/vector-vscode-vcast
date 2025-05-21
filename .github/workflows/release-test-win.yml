@@ -27,6 +27,7 @@ on:
         description: 'Reasoning model name to use for the test'
         required: false
 env:
+  REQS2X_PCT_RELEASE: True
   NODE_EXTRA_CA_CERTS: C:\\ca_bundle.crt
   REQUESTS_CA_BUNDLE: C:\\ca_bundle.crt
   DOCKER_CONFIG: C:\\.docker_config.json
@@ -46,7 +47,7 @@ jobs:
       R2T_RELEASE_URL_WIN: ${{ github.event.inputs.r2t-release-url-win || '' }}
       R2T_MODEL: ${{ github.event.inputs.r2t-model || '' }}
       R2T_REASONING_MODEL: ${{ github.event.inputs.r2t-reasoning-model || '' }}
-      REQS2X_PCT_RELEASE: 1
+      REQS2X_PCT_RELEASE: True
 
     steps:
       - name: Checkout
