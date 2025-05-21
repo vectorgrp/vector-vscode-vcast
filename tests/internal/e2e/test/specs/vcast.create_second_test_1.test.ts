@@ -15,12 +15,13 @@ import {
   editTestScriptFor,
   updateTestID,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
+import { getToolVersion } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -139,9 +140,12 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(requestTooltipText).toContain(
       "Clearing a table resets orders for all seats"
     );
-    expect(requestTooltipText).toContain(
-      "Clearing a table clears the orders for all seats of the table within the table database."
-    );
+    const toolVersion = await getToolVersion();
+    if (toolVersion !== 21) {
+      expect(requestTooltipText).toContain(
+        "Clearing a table clears the orders for all seats of the table within the table database."
+      );
+    }
 
     const findWidget = await tab.openFindWidget();
     await findWidget.setSearchText("TEST.NAME:myFirstTest");
@@ -156,7 +160,7 @@ describe("vTypeCheck VS Code Extension", () => {
     currentLine = await tab.getLineOfText(lastValueLineInPreviousTest);
     await tab.moveCursor(currentLine, lastValueLineInPreviousTest.length + 1);
     await browser.keys(Key.Enter);
-    await tab.save();
+
     currentLine += 1;
     // Not evaluating LSE, so setting text is sufficent and faster than typing
     await tab.setTextAtLine(
@@ -175,13 +179,10 @@ describe("vTypeCheck VS Code Extension", () => {
       "TEST.STUB:database.DataBase::UpdateTableRecord"
     );
 
-    await tab.save();
     await bottomBar.toggle(true);
     // This produces invalid locator error somehow
     // await tab.openContextMenu()
     // Loading test script directly for now
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
+    await tab.save();
   });
 });

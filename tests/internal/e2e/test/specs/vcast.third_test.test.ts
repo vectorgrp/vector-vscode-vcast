@@ -14,13 +14,14 @@ import {
   findSubprogramMethod,
   editTestScriptFor,
   updateTestID,
+  checkElementExistsInHTML,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -148,14 +149,11 @@ describe("vTypeCheck VS Code Extension", () => {
       startingLineNumber,
       "TEST.EXPECTED:database.DataBase::UpdateTableRecord.Data[0].CheckTotal:28"
     );
-    await tab.save();
 
     // This produces invalid locator error somehow
     // await tab.openContextMenu()
     // Loading test script directly for now
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
+    await tab.save();
     await bottomBar.toggle(true);
     await bottomBar.openOutputView();
   });
@@ -180,10 +178,9 @@ describe("vTypeCheck VS Code Extension", () => {
     const startingLineNumber = await tab.getLineOfText("TEST.NOTES:");
     await tab.setTextAtLine(startingLineNumber, " ");
     await tab.setTextAtLine(startingLineNumber + 1, " ");
-    await tab.save();
 
     await tab.typeTextAt(startingLineNumber, 1, "TEST.NOTES:");
-    await tab.save();
+
     // TEST.END_NOTES: should appear automatically
     const endNotesLineNumber = await tab.getLineOfText("TEST.END_NOTES:");
     // Line number is -1 if TEST.END_NOTES: is not found
@@ -263,8 +260,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (PASS)")).toHaveText(
-      "Execution Results (PASS)"
+    expect(await checkElementExistsInHTML("Execution Results (PASS)")).toBe(
+      true
     );
     await expect($(".event*=Event 1")).toHaveText(
       "Event 1 - Calling Manager::PlaceOrder"
@@ -310,21 +307,6 @@ describe("vTypeCheck VS Code Extension", () => {
       )
     ).toBe(true);
     expect(
-      outputViewText.includes(
-        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.myThirdTest"
-      )
-    ).toBe(true);
-    expect(
-      outputViewText.includes("test explorer  [info]  Status: passed")
-    ).toBe(true);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Execution Time:");
-      })
-    ).not.toBe(undefined);
-
-    expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Processing environment data for:");
       })
@@ -335,7 +317,6 @@ describe("vTypeCheck VS Code Extension", () => {
         return line.includes("Viewing results, result report path");
       })
     ).not.toBe(undefined);
-
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Creating web view panel");

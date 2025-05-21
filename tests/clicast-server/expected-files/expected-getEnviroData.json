@@ -1,0 +1,213 @@
+{
+    "data": {
+      "enviro": {
+        "mockingSupport": true
+      },
+      "testData": [
+        {
+          "name": "Compound Tests",
+          "tests": []
+        },
+        {
+          "name": "Initialization Tests",
+          "tests": []
+        },
+        {
+          "functions": [
+            {
+              "name": "coded_tests_driver",
+              "parameterizedName": "coded_tests_driver",
+              "tests": []
+            },
+            {
+              "name": "DataBase::DataBase",
+              "parameterizedName": "DataBase::DataBase",
+              "tests": []
+            },
+            {
+              "name": "DataBase::~DataBase",
+              "parameterizedName": "DataBase::~DataBase",
+              "tests": []
+            },
+            {
+              "name": "DataBase::GetTableRecord",
+              "parameterizedName": "DataBase::GetTableRecord",
+              "tests": []
+            },
+            {
+              "name": "DataBase::UpdateTableRecord",
+              "parameterizedName": "DataBase::UpdateTableRecord",
+              "tests": []
+            },
+            {
+              "name": "DataBase::DeleteRecord",
+              "parameterizedName": "DataBase::DeleteRecord",
+              "tests": []
+            },
+            {
+              "name": "DataBase::DeleteTableRecord",
+              "parameterizedName": "DataBase::DeleteTableRecord",
+              "tests": []
+            },
+            {
+              "name": "DataBase::DeleteOneRecord",
+              "parameterizedName": "DataBase::DeleteOneRecord",
+              "tests": []
+            },
+            {
+              "name": "DataBase::DeleteAllRecords",
+              "parameterizedName": "DataBase::DeleteAllRecords",
+              "tests": []
+            }
+          ],
+          "name": "database",
+          "path": "database.cpp"
+        },
+        {
+          "functions": [
+            {
+              "name": "coded_tests_driver",
+              "parameterizedName": "coded_tests_driver",
+              "tests": []
+            },
+            {
+              "name": "Manager::Manager",
+              "parameterizedName": "Manager::Manager",
+              "tests": []
+            },
+            {
+              "name": "Manager::AddIncludedDessert",
+              "parameterizedName": "Manager::AddIncludedDessert",
+              "tests": []
+            },
+            {
+              "name": "Manager::PlaceOrder",
+              "parameterizedName": "Manager::PlaceOrder",
+              "tests": []
+            },
+            {
+              "name": "Manager::ClearTable",
+              "parameterizedName": "Manager::ClearTable",
+              "tests": []
+            },
+            {
+              "name": "Manager::GetCheckTotal",
+              "parameterizedName": "Manager::GetCheckTotal",
+              "tests": []
+            },
+            {
+              "name": "Manager::AddPartyToWaitingList",
+              "parameterizedName": "Manager::AddPartyToWaitingList",
+              "tests": []
+            },
+            {
+              "name": "Manager::GetNextPartyToBeSeated",
+              "parameterizedName": "Manager::GetNextPartyToBeSeated",
+              "tests": []
+            }
+          ],
+          "name": "manager",
+          "path": "manager.cpp"
+        }
+      ],
+      "unitData": [
+        {
+          "cmcChecksum": "985285885",
+          "covered": "",
+          "functionList": [
+            {
+              "isTestable": true,
+              "name": "coded_tests_driver",
+              "startLine": 0
+            },
+            {
+              "isTestable": true,
+              "name": "DataBase::DataBase",
+              "startLine": 5
+            },
+            {
+              "isTestable": true,
+              "name": "DataBase::~DataBase",
+              "startLine": 7
+            },
+            {
+              "isTestable": true,
+              "name": "DataBase::GetTableRecord",
+              "startLine": 10
+            },
+            {
+              "isTestable": true,
+              "name": "DataBase::UpdateTableRecord",
+              "startLine": 15
+            },
+            {
+              "isTestable": true,
+              "name": "DataBase::DeleteRecord",
+              "startLine": 20
+            }
+          ],
+          "partiallyCovered": "",
+          "path": "database.cpp",
+          "uncovered": "5,7,11,16,21"
+        },
+        {
+          "cmcChecksum": "0",
+          "covered": "",
+          "functionList": [],
+          "partiallyCovered": "",
+          "path": "database.h",
+          "uncovered": ""
+        },
+        {
+          "cmcChecksum": "2182848266",
+          "covered": "",
+          "functionList": [
+            {
+              "isTestable": true,
+              "name": "coded_tests_driver",
+              "startLine": 0
+            },
+            {
+              "isTestable": true,
+              "name": "Manager::Manager",
+              "startLine": 9
+            },
+            {
+              "isTestable": true,
+              "name": "Manager::AddIncludedDessert",
+              "startLine": 18
+            },
+            {
+              "isTestable": true,
+              "name": "Manager::PlaceOrder",
+              "startLine": 37
+            },
+            {
+              "isTestable": true,
+              "name": "Manager::ClearTable",
+              "startLine": 69
+            },
+            {
+              "isTestable": true,
+              "name": "Manager::GetCheckTotal",
+              "startLine": 74
+            },
+            {
+              "isTestable": true,
+              "name": "Manager::AddPartyToWaitingList",
+              "startLine": 82
+            },
+            {
+              "isTestable": true,
+              "name": "Manager::GetNextPartyToBeSeated",
+              "startLine": 95
+            }
+          ],
+          "partiallyCovered": "",
+          "path": "manager.cpp",
+          "uncovered": "10,11,19,20,22,26,28,32,38,39,40,42,43,44,47,49,51,52,54,55,57,58,60,61,63,65,70,75,76,77,78,83,84,85,87,88,89,91,96,97,98"
+        }
+      ]
+    },
+    "exitCode": 0
+  }

@@ -6,18 +6,25 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
+  checkIfRequestInLogs,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
+import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120_000;
+  let useDataServer: boolean = true;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
+    let releaseIsSuitableForServer = await checkForServerRunnability();
+    if (process.env.VCAST_USE_PYTHON || !releaseIsSuitableForServer) {
+      useDataServer = false;
+    }
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -93,6 +100,26 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as VectorCAST Configuration File")).click();
   });
 
+  it("should check for server starting logs if in server mode", async () => {
+    const outputView = await bottomBar.openOutputView();
+
+    // Check if server started
+    if (useDataServer) {
+      // Check message pane for expected message
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Started VectorCAST Data Server"),
+        { timeout: TIMEOUT }
+      );
+
+      // Check server logs
+      const logs = await checkIfRequestInLogs(3, ["port:", "clicast"]);
+      expect(logs).toBe(true);
+    }
+  });
+
   it("should create VectorCAST environment", async () => {
     await updateTestID();
 
@@ -118,7 +145,6 @@ describe("vTypeCheck VS Code Extension", () => {
     // Making sure notifications are shown
     await (await $("aria/Notifications")).click();
 
-    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
     const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );

@@ -3,6 +3,8 @@
 import * as path from "path";
 import { ExtensionContext } from "vscode";
 
+import { globalEnviroDataServerActive } from "../src-common/vcastServer";
+
 import {
   LanguageClient,
   LanguageClientOptions,
@@ -31,19 +33,27 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   let serverOptions: ServerOptions = {
     run: {
       module: serverModule,
-      args: [context.asAbsolutePath("."), vpythonPath],
+      args: [
+        context.asAbsolutePath("."),
+        vpythonPath,
+        globalEnviroDataServerActive.toString(),
+      ],
       transport: TransportKind.ipc,
     },
     debug: {
       module: serverModule,
-      args: [context.asAbsolutePath("."), vpythonPath],
+      args: [
+        context.asAbsolutePath("."),
+        vpythonPath,
+        globalEnviroDataServerActive.toString(),
+      ],
       transport: TransportKind.ipc,
       options: debugOptions,
     },
   };
 
   // Options to control the language client
-  // we register for .tsts and c|cpp files, and do the right thing in the callback
+  // we register for .tst and c|cpp files, and do the right thing in the callback
   // depending on the extension of the file
   let clientOptions: LanguageClientOptions = {
     documentSelector: [
@@ -155,6 +165,31 @@ export function sendVPythonCommandToServer(vPythonCommand: string) {
     client.onReady().then(() => {
       client.sendNotification("vcasttesteditor/updateVPythonCommand", {
         vPythonCommand,
+      });
+    });
+  }
+}
+
+// This function is used to send the VectorCAST Data Server
+// port number to the language server
+
+export function sendPortNumberToLanguageServer(portNumber: number) {
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/updateServerPort", {
+        portNumber,
+      });
+    });
+  }
+}
+
+// This function is used to send an updated state of the
+// VectorCAST Data Server to the language server
+export function sendServerStateToLanguageServer(useServer: boolean) {
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/updateServerState", {
+        useServer,
       });
     });
   }

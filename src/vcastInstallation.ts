@@ -20,8 +20,16 @@ const fs = require("fs");
 const path = require("path");
 const which = require("which");
 
+export let vcastInstallationDirectory: string = "";
+export let vcastInstallationVersion: toolVersionType = {
+  version: 0,
+  servicePack: 0,
+};
+
 export const clicastName = "clicast";
 export let clicastCommandToUse: string;
+export const manageName = "manage";
+export let manageCommandToUse: string;
 
 const vPythonName = "vpython";
 const vpythonFromPath = which.sync(vPythonName, { nothrow: true });
@@ -30,24 +38,36 @@ export let vPythonCommandToUse: string;
 const vcastqtName = "vcastqt";
 export let vcastCommandToUse: string;
 
-let globalCheckSumCommand: string | undefined = undefined;
+export let checksumCommandToUse: string | undefined = undefined;
 let crc32Name = "crc32-win32.exe";
 if (process.platform == "linux") {
   crc32Name = "crc32-linux";
 }
 
 export let globalTestInterfacePath: string | undefined = undefined;
+export let globalMCDCReportPath: string | undefined = undefined;
+let globalEnviroDataServerPath: string;
+
+export function getGlobalEnviroDataServerPath() {
+  return globalEnviroDataServerPath;
+}
+
 let globalCrc32Path: string | undefined = undefined;
 
 export let globalPathToSupportFiles: string;
-
-let globalCodedTestingAvailable: boolean = false;
 
 export let globalIncludePath: string | undefined = undefined;
 
 const atgName = "atg";
 export let atgCommandToUse: string | undefined = undefined;
 export let atgAvailable: boolean = false;
+
+// this is set to true if the clicast version supports server mode
+let enviroDataServerAvailable: boolean = false;
+
+export function isEnviroDataServerAvailable() {
+  return enviroDataServerAvailable;
+}
 
 export const configurationFile = "c_cpp_properties.json";
 export const launchFile = "launch.json";
@@ -58,9 +78,23 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
   const pathToTestInterface = context.asAbsolutePath(
     "./python/vTestInterface.py"
   );
+  const pathToMCDCReport = context.asAbsolutePath("./python/mcdcReport.py");
   if (fs.existsSync(pathToTestInterface)) {
     vectorMessage("Found vTestInterface here: " + pathToTestInterface);
     globalTestInterfacePath = `${pathToTestInterface}`;
+  }
+
+  if (fs.existsSync(pathToMCDCReport)) {
+    vectorMessage("Found mcdcReport here: " + pathToMCDCReport);
+    globalMCDCReportPath = `${pathToMCDCReport}`;
+  }
+
+  const pathToEnviroDataServer = context.asAbsolutePath(
+    "./python/vcastDataServer.py"
+  );
+  if (fs.existsSync(pathToEnviroDataServer)) {
+    vectorMessage("Found vcastDataServer here: " + pathToEnviroDataServer);
+    globalEnviroDataServerPath = `${pathToEnviroDataServer}`;
   }
 
   const crc32Path = context.asAbsolutePath("./python/crc32.py");
@@ -76,50 +110,94 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
   }
 }
 
-function vcastVersionGreaterThan(
-  vcastInstallationPath: string,
-  version: number,
-  servicePack: number
-): boolean {
-  // A general purpose version checker, will be needed for Coded Tests, etc.
+export interface toolVersionType {
+  version: number;
+  servicePack: number;
+}
 
-  let returnValue = false;
+export function getToolVersionFromPath(
+  installationPath: string
+): toolVersionType {
+  // This function takes a path to a VectorCAST installation
+  // and returns the version string from the tool version file
+  //
+  // Example version strings
+  //    Normal releases:    23.sp2 (07/19/23)
+  //    Development builds: 24 revision 37f59ce (08/20/24)
+  //
+  // To make is possible to work with development builds
+  // we set the service pack to 99.
+
   const toolVersionPath = path.join(
-    vcastInstallationPath,
+    installationPath,
     "DATA",
     "tool_version.txt"
   );
 
-  const toolVersion = fs.readFileSync(toolVersionPath).toString().trim();
-  // extract version and service pack from toolVersion (23.sp2 date)
-  const matched = toolVersion.match(/(\d+)\.sp(\d+).*/);
-  if (matched) {
-    const tooVersion = parseInt(matched[1]);
-    const toolServicePack = parseInt(matched[2]);
-    if (
-      tooVersion > version ||
-      (tooVersion == version && toolServicePack >= servicePack)
-    )
-      returnValue = true;
+  const toolVersionString = fs.readFileSync(toolVersionPath).toString().trim();
+
+  let whatToReturn: toolVersionType = { version: 0, servicePack: 0 };
+  // if this is a development build
+  if (toolVersionString.includes(" revision ")) {
+    const version = parseInt(toolVersionString.split(" ")[0]);
+    whatToReturn = { version: version, servicePack: 99 };
+  } else {
+    // extract version and service pack from toolVersion
+    // The string can be in two foramts: "21 date" or "23.sp2 date"
+    // first theck for "24.sp2 date" format ...
+    const matched = toolVersionString.match(/(\d+)\.sp(\d+).*/);
+    if (matched) {
+      // if the format matches, return the values as numbers
+      whatToReturn = {
+        version: parseInt(matched[1]),
+        servicePack: parseInt(matched[2]),
+      };
+    } else {
+      // if the format does not match, split on the first space
+      // and return that (if it's an int) and sp 0
+      const version = toolVersionString.split(" ")[0];
+      if (version.match(/\d+/g) != null) {
+        whatToReturn.version = parseInt(version);
+      }
+    }
   }
-  // this allows us to work with development builds for internal testing
-  else if (toolVersion.includes(" revision ")) {
-    returnValue = true;
-  }
+  return whatToReturn;
+}
+
+function vcastVersionGreaterThan(versionToCheck: toolVersionType): boolean {
+  // A general purpose version checker ...
+
+  // check if the version the user has asked us to check is
+  // "smaller" than the version we found on the installationPath
+  let returnValue: boolean =
+    vcastInstallationVersion.version > versionToCheck.version ||
+    (vcastInstallationVersion.version == versionToCheck.version &&
+      vcastInstallationVersion.servicePack >= versionToCheck.servicePack);
+
   return returnValue;
+}
+
+function initializeServerMode(vcastInstallationPath: string) {
+  // The clicast server mode is only available in vc24sp2 and later
+  enviroDataServerAvailable = vcastVersionGreaterThan({
+    version: 24,
+    servicePack: 5,
+  });
+  if (enviroDataServerAvailable) {
+    vectorMessage(`   clicast server is available in this release`);
+  }
 }
 
 function vectorCASTSupportsVMock(vcastInstallationPath: string): boolean {
   // The vmock features is only available in vc24sp2 and later
-  return vcastVersionGreaterThan(vcastInstallationPath, 24, 3);
+  return vcastVersionGreaterThan({ version: 24, servicePack: 4 });
 }
 
 function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
   // Versions of VectorCAST between 23sp0 and 23sp4 had ATG but since
   // we changed the ATG command line interface with 23sp5, we have decided
   // to only support versions greater than that.
-
-  return vcastVersionGreaterThan(vcastInstallationPath, 23, 5);
+  return vcastVersionGreaterThan({ version: 23, servicePack: 5 });
 }
 
 function checkForATG(vcastInstallationPath: string) {
@@ -201,8 +279,10 @@ function findVcastTools(): boolean {
       );
     } else {
       vectorMessage(
-        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
+        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}`
+      );
+      vectorMessage(
+        "   use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
@@ -219,8 +299,10 @@ function findVcastTools(): boolean {
       );
     } else {
       vectorMessage(
-        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}, ` +
-          "use the extension options to provide a valid VectorCAST installation directory."
+        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}`
+      );
+      vectorMessage(
+        "   use the extension options to provide a valid VectorCAST installation directory."
       );
       showSettings();
     }
@@ -235,8 +317,10 @@ function findVcastTools(): boolean {
     );
   } else {
     vectorMessage(
-      `   command: '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set, ` +
-        "use the extension options to provide a valid VectorCAST installation directory."
+      `   '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set`
+    );
+    vectorMessage(
+      "   use the extension options to provide a valid VectorCAST Installation Location."
     );
     showSettings();
   }
@@ -244,59 +328,73 @@ function findVcastTools(): boolean {
   // if we found a vpython somewhere ...
   // we assume the other executables are there too,  but we check anyway :)
   if (vcastInstallationPath) {
-    // do all of the setup required to use clicast
-    foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
+    // first check if vcast is newer than 21 - minium version for this extension
+    const toolVersion: toolVersionType = getToolVersionFromPath(
+      vcastInstallationPath
+    );
+    if (toolVersion.version >= 21) {
+      // do all of the setup required to use clicast
+      foundAllvcastTools = initializeVcastUtilities(vcastInstallationPath);
 
-    // setup coded-test stuff (new for vc24)
-    initializeCodedTestSupport(vcastInstallationPath);
+      // check if we have access to a valid crc32 command - this is not fatal
+      // must be called after initializeInstallerFiles()
 
-    // check if we have access to a valid crc32 command - this is not fatal
-    // must be called after initializeInstallerFiles()
-
-    if (!initializeChecksumCommand(vcastInstallationPath)) {
-      vscode.window.showWarningMessage(
-        "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
-          "so the code coverage feature will not be available.  For details on how to resolve " +
-          "this issue, please refer to the 'Prerequisites' section of the README.md file."
+      if (!initializeChecksumCommand(vcastInstallationPath)) {
+        vscode.window.showWarningMessage(
+          "The VectorCAST Test Explorer could not find the required VectorCAST CRC-32 module, " +
+            "so the code coverage feature will not be available.  For details on how to resolve " +
+            "this issue, please refer to the 'Prerequisites' section of the README.md file."
+        );
+      }
+    } else {
+      // we show also show this in the message pane for completeness
+      vectorMessage(
+        "   VectorCAST version is too old, minimum supported version is: 21"
       );
+      const messageText =
+        "The VectorCAST Test Explorer requires a VectorCAST version >= 21, " +
+        "use the extension options to provide a valid VectorCAST Installation Location.";
+      vscode.window.showWarningMessage(messageText);
+      showSettings();
     }
   }
 
   return foundAllvcastTools;
 }
 
-export function checkIfInstallationIsOK() {
+export async function checkIfInstallationIsOK() {
   // Check if the installation is ok by verifying that:
   //   - we can find vpython and clicast
   //   - we have a valid license
 
   // default this to false, it only gets to true if we find
   // vpython and clicast and we have a license
-  let returnValue = false;
+  let installationIsOK = false;
 
+  vectorMessage("-".repeat(100));
   vectorMessage("Checking that a VectorCAST installation is available ... ");
 
   if (findVcastTools()) {
     // check if we have a valid license
-
     if (vcastLicenseOK()) {
       vectorMessage("   VectorCAST license is available ...");
-      returnValue = true;
+      installationIsOK = true;
     } else {
       vectorMessage("   no VectorCAST license is available");
-      returnValue = false;
+      installationIsOK = false;
     }
   }
 
   vectorMessage("-".repeat(100) + "\n");
 
-  if (!returnValue) {
+  if (!installationIsOK) {
     vectorMessage(
       "Please refer to the installation and configuration instructions for details on resolving these issues"
     );
+    enviroDataServerAvailable = false;
     openMessagePane();
   }
-  return returnValue;
+  return installationIsOK;
 }
 
 function initializeVcastUtilities(vcastInstallationPath: string) {
@@ -312,21 +410,40 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
       vcastInstallationPath,
       exeFilename(vcastqtName)
     );
+
+    manageCommandToUse = path.join(
+      vcastInstallationPath,
+      exeFilename(manageName)
+    );
+
+    // compute the installation version once ...
+    vcastInstallationDirectory = vcastInstallationPath;
+    vcastInstallationVersion = getToolVersionFromPath(vcastInstallationPath);
+
     if (fs.existsSync(vcastCommandToUse)) {
       vectorMessage(`   found '${vcastqtName}' here: ${vcastInstallationPath}`);
 
       // we only set toolsFound if we find clicast AND vcastqt
       toolsFound = true;
 
-      // atg existing or being licensed does NOT affect toolsFound
+      // check if atg is available and licensed
       checkForATG(vcastInstallationPath);
 
+      // check if coded tests are available ...
+      initializeCodedTestSupport(vcastInstallationPath);
+
+      // check if the server mode is available ...
+      initializeServerMode(vcastInstallationPath);
+
+      // check if coded mocks are available ...
       // vMock available affects how we do completions in the language server
+      // and allows us to issue nice error messages when the user tries to use vMock
       const vMockAvailable = vectorCASTSupportsVMock(vcastInstallationPath);
       if (vMockAvailable) {
         vectorMessage(`   vMock is available in this release`);
       }
       updateVMockStatus(vMockAvailable);
+      //
     } else {
       vectorMessage(
         `   could NOT find '${vcastqtName}' here: ${vcastInstallationPath}`
@@ -378,17 +495,13 @@ function initializeChecksumCommand(
 ): string | undefined {
   // checks if this vcast distro has python checksum support built-in
   if (globalCrc32Path && pyCrc32IsAvailable()) {
-    globalCheckSumCommand = `${vPythonCommandToUse} ${globalCrc32Path}`;
+    checksumCommandToUse = `${vPythonCommandToUse} ${globalCrc32Path}`;
   } else {
     // check if the user has patched the distro with the crc32 utility
-    globalCheckSumCommand = getCRCutilityPath(vcastInstallationPath);
+    checksumCommandToUse = getCRCutilityPath(vcastInstallationPath);
   }
 
-  return globalCheckSumCommand;
-}
-
-export function getChecksumCommand() {
-  return globalCheckSumCommand;
+  return checksumCommandToUse;
 }
 
 export const vUnitIncludeSuffix = "/vunit/include";
@@ -475,9 +588,10 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
   // swap backslashes to make paths consistent for windows users and
   globalIncludePath = candidatePath.replace(/\\/g, "/");
 
+  let codedTestingAvailable: boolean = false;
   if (fs.existsSync(candidatePath)) {
     vectorMessage(`   found coded-test support, initializing ...`);
-    globalCodedTestingAvailable = true;
+    codedTestingAvailable = true;
     if (!includePathExistsInWorkspace()) {
       vscode.window.showInformationMessage(
         "The include path for VectorCAST Coded Testing was not found in your workspace, you should add the " +
@@ -485,13 +599,11 @@ function initializeCodedTestSupport(vcastInstallationPath: string) {
           "and choosing 'VectorCAST: Add Coded Test Include Path`  "
       );
     }
-  } else {
-    globalCodedTestingAvailable = false;
   }
-  // this controls the availability of the Add Coded Test Include Path context menu item
+
   vscode.commands.executeCommand(
     "setContext",
     "vectorcastTestExplorer.codedTestingAvailable",
-    globalCodedTestingAvailable
+    codedTestingAvailable
   );
 }

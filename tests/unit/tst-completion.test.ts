@@ -1,13 +1,16 @@
 import path from "node:path";
 import process from "node:process";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { TextDocument, TextDocuments } from "vscode-languageserver";
 import URI from "vscode-uri";
+import { checkClicastOption } from "../../langServer/tstCompletion";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
   storeNewDocument,
+  runCommand,
 } from "./utils";
+import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
 
@@ -123,7 +126,7 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
-const globalValueTst = `
+const globalValueTst = `    vi.mocked(promisify).mockReturnValue(execAsyncMock);
 TEST.NEW
 TEST.NAME:fieldValTest
 TEST.VALUE:unit.<<GLOBAL>>.
@@ -147,7 +150,33 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
+const subprogramWithoutCodedTestsDriver = `-- Environment: @TEST
+TEST.UNIT:
+TEST.SUBPROGRAM:bar
+TEST.NEW
+TEST.CODED_TEST_FILE:
+TEST.NAME:
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
+const codedTestFileTst = `
+TEST.UNIT:
+TEST.SUBPROGRAM:coded_tests_driver
+TEST.
+TEST.NEW
+TEST.NAME:
+TEST.VALUE:
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
 describe("Text Completion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test(
     "validate tst completion for TEST.SUBPROGRAM:",
     async () => {
@@ -159,7 +188,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -167,22 +196,28 @@ describe("Text Completion", () => {
 
       expect(generatedCompletionData).toEqual([
         {
-          label: "<<INIT>>",
-          kind: 3,
-          detail: "",
           data: 0,
-        },
-        {
-          label: "<<COMPOUND>>",
-          kind: 3,
           detail: "",
-          data: 1,
-        },
-        {
+          kind: 3,
           label: "bar",
-          kind: 3,
+        },
+        {
+          data: 1,
           detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
           data: 2,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -200,7 +235,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -241,7 +276,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -361,7 +396,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -492,7 +527,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -522,7 +557,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -688,7 +723,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -722,7 +757,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -756,7 +791,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -796,7 +831,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -836,7 +871,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -867,7 +902,7 @@ describe("Text Completion", () => {
       completionPosition.character = 1;
       const triggerCharacter = "\n";
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -914,7 +949,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -962,7 +997,7 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -970,9 +1005,56 @@ describe("Text Completion", () => {
       expect(generatedCompletionData).toEqual([
         {
           label: "<test-name>",
-          kind: 1,
+          kind: 14,
           detail: "",
           data: 0,
+        },
+      ]);
+    },
+    timeout
+  );
+
+  test(
+    'validate "no document" case',
+    async () => {
+      const tstText = initialTst;
+      const lineToComplete = "TEST.SUBPROGRAM:";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const generatedCompletionData = await generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter,
+        { lineSoFar: "vcast" }
+      );
+      expect(generatedCompletionData).toEqual([
+        {
+          data: 0,
+          detail: "",
+          kind: 3,
+          label: "bar",
+        },
+        {
+          data: 1,
+          detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
+          data: 2,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
         },
       ]);
     },
@@ -1006,13 +1088,38 @@ describe("Text Completion", () => {
       );
       const triggerCharacter = lineToComplete.at(-1);
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter,
         { envName: "fake_vcast" }
       );
-      expect(generatedCompletionData).toEqual([]);
+      expect(generatedCompletionData).toEqual([
+        {
+          data: 0,
+          detail: "",
+          kind: 3,
+          label: "bar",
+        },
+        {
+          data: 1,
+          detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
+          data: 2,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
+        },
+      ]);
     },
     timeout
   );
@@ -1027,12 +1134,37 @@ describe("Text Completion", () => {
         tstText
       );
       const triggerCharacter = undefined;
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
       );
-      expect(generatedCompletionData).toEqual([]);
+      expect(generatedCompletionData).toEqual([
+        {
+          data: 0,
+          detail: "",
+          kind: 3,
+          label: "bar",
+        },
+        {
+          data: 1,
+          detail: "",
+          kind: 3,
+          label: "<<INIT>>",
+        },
+        {
+          data: 2,
+          detail: "",
+          kind: 3,
+          label: "<<COMPOUND>>",
+        },
+        {
+          data: 3,
+          detail: "",
+          kind: 3,
+          label: "coded_tests_driver",
+        },
+      ]);
     },
     timeout
   );
@@ -1050,7 +1182,7 @@ describe("Text Completion", () => {
       completionPosition.character = 1;
       const triggerCharacter = "CR";
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -1092,7 +1224,7 @@ describe("Text Completion", () => {
       completionPosition.character = 1;
       const triggerCharacter = "\n";
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -1150,7 +1282,7 @@ describe("Text Completion", () => {
       completionPosition.character = 1;
       const triggerCharacter = "CR";
 
-      const generatedCompletionData = generateCompletionData(
+      const generatedCompletionData = await generateCompletionData(
         tstText,
         completionPosition,
         triggerCharacter
@@ -1185,4 +1317,118 @@ describe("Text Completion", () => {
     },
     timeout
   );
+
+  test(
+    "validate that TEST.CODED_TEST_FILE has no autocompletion.",
+    async () => {
+      const tstText = subprogramWithoutCodedTestsDriver;
+      const lineToComplete = "TEST.CODED_TEST_FILE:";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const generatedCompletionData = await generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter
+      );
+      expect(generatedCompletionData).toEqual([]);
+    },
+    timeout
+  );
+
+  test(
+    "validate completion for TEST.CODED_TEST_FILE with codedTestsEnabled and codedTestsDriverInSubprogram",
+    async () => {
+      const testEnvPath = path.join(
+        process.env.PACKAGE_PATH as string,
+        "tests",
+        "unit",
+        "vcast",
+        "TEST"
+      );
+      const clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
+      const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
+
+      // Coded tests support only for >= vc24
+      // We are setting Coded test support to be true in order to get the TEST.CODED_TEST_FILE completion
+      if (toolVersion >= 24) {
+        const setCoded = `cd ${testEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await runCommand(setCoded);
+
+        const tstText = codedTestFileTst;
+
+        const lineToComplete = "TEST.";
+        const completionPosition = getCompletionPositionForLine(
+          lineToComplete,
+          tstText
+        );
+        const triggerCharacter = ".";
+
+        const generatedCompletionData = await generateCompletionData(
+          tstText,
+          completionPosition,
+          triggerCharacter
+        );
+
+        const expectedCompletionData = [
+          { data: 0, detail: "", kind: 14, label: "SCRIPT_FEATURE" },
+          { data: 1, detail: "", kind: 14, label: "UNIT" },
+          { data: 2, detail: "", kind: 14, label: "SUBPROGRAM" },
+          { data: 3, detail: "", kind: 14, label: "NEW" },
+          { data: 4, detail: "", kind: 14, label: "REPLACE" },
+          { data: 5, detail: "", kind: 14, label: "ADD" },
+          { data: 6, detail: "", kind: 14, label: "END" },
+          { data: 7, detail: "", kind: 14, label: "NAME" },
+          { data: 8, detail: "", kind: 14, label: "CODED_TEST_FILE" },
+          { data: 9, detail: "", kind: 14, label: "NOTES" },
+          { data: 10, detail: "", kind: 14, label: "END_NOTES" },
+          { data: 11, detail: "", kind: 14, label: "FLOW" },
+          { data: 12, detail: "", kind: 14, label: "END_FLOW" },
+          { data: 13, detail: "", kind: 14, label: "SLOT" },
+          { data: 14, detail: "", kind: 14, label: "STUB" },
+          { data: 15, detail: "", kind: 14, label: "REQUIREMENT_KEY" },
+          { data: 16, detail: "", kind: 14, label: "VALUE_USER_CODE" },
+          { data: 17, detail: "", kind: 14, label: "END_VALUE_USER_CODE" },
+          { data: 18, detail: "", kind: 14, label: "EXPECTED_USER_CODE" },
+          { data: 19, detail: "", kind: 14, label: "END_EXPECTED_USER_CODE" },
+          { data: 20, detail: "", kind: 14, label: "IMPORT_FAILURES" },
+          { data: 21, detail: "", kind: 14, label: "END_IMPORT_FAILURES" },
+          { data: 22, detail: "", kind: 14, label: "COMPOUND_ONLY" },
+        ];
+
+        expect(generatedCompletionData).toEqual(expectedCompletionData);
+      }
+    },
+    timeout
+  );
+
+  test("should test the error catch of checkClicastOption", async () => {
+    // Mock execAsync to throw an error
+    const execAsyncMock = vi.fn();
+    execAsyncMock.mockRejectedValue(new Error("Command failed"));
+
+    // Just log something, xo does not like empty functions
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation((message?: any, ...optionalParameters: any[]) => {
+        console.log(message, ...optionalParameters);
+      });
+
+    const result = await checkClicastOption(
+      "/some/path",
+      "someOption",
+      "someValue"
+    );
+
+    // If an error is thrown --> false should be returned
+    expect(result).toBe(false);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Error executing command: spawn /bin/sh ENOENT"
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
 });

@@ -1,0 +1,79 @@
+html,
+body {
+  height: 100%;
+  overflow: auto;
+}
+
+body {
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  overflow: initial !important;
+}
+
+.test-action-header,
+pre {
+  background-color: var(--vscode-editorGroup-border);
+}
+
+.bs-callout.bs-callout-danger,
+.bs-callout.bs-callout-success,
+.bs-callout.bs-callout-warning {
+  border-left-width: 3px;
+}
+
+.bs-callout.bs-callout-warning {
+  font-weight: bold;
+}
+
+tr:hover {
+  background-color: var(--vscode-editor-background) !important;
+}
+
+.report-block,
+#page {
+  height: 100%;
+  width: 100%;
+  overflow: initial !important;
+}
+
+.danger,
+.bg-danger,
+.success,
+.bg-success,
+.warning,
+.bg-warning {
+  color: black;
+  font-weight: bold;
+}
+
+.danger,
+.danger:hover,
+.bg-danger,
+.bg-danger:hover {
+  background-color: var(--vscode-minimap-errorHighlight) !important;
+}
+
+.success,
+.success:hover,
+.bg-success,
+.bg-success:hover {
+  background-color: var(--vscode-testing-iconPassed) !important;
+}
+
+.warning,
+.warning:hover,
+.bg-warning,
+.bg-warning:hover {
+  background-color: var(--vscode-testing-iconQueued) !important;
+}
+
+#main-scroller,
+.testcase_section {
+  display: none;
+}
+
+h3 {
+  font-size: 1.25em;
+  font-weight: bold;
+  margin: 1em 0;
+}

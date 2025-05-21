@@ -11,12 +11,12 @@ import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 120_000;
   const QUOTES_EXAMPLE_UNIT = "quotes_example";
   before(async () => {
     workbench = await browser.getWorkbench();
@@ -141,6 +141,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Notifications")).click();
 
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    await browser.pause(4000);
     const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );

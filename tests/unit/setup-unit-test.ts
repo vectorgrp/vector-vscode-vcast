@@ -3,16 +3,16 @@ import process from "node:process";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { rm, mkdir, copyFile } from "node:fs/promises";
-import { getToolVersion } from "./utils";
+import { getToolVersion } from "./getToolversion";
 
 module.exports = async () => {
   const promisifiedExec = promisify(exec);
 
   const tstFilename = "firstTest.tst";
 
-  process.env.PACKAGE_PATH = process.env.INIT_CWD;
+  // If PACKAGE_PATH is already defined by vscode launch.json (debugger) --> Don't override it
+  process.env.PACKAGE_PATH ??= process.env.INIT_CWD;
   process.env.TST_FILENAME = tstFilename;
-  process.env.VECTORCAST_DIR = "";
 
   const checkVpython: string =
     process.platform === "win32" ? "where vpython" : "which vpython";
@@ -91,7 +91,7 @@ module.exports = async () => {
   const toolVersion = await getToolVersion();
 
   // Activate coded tests support only for version 24
-  if (!toolVersion.startsWith("23")) {
+  if (toolVersion > 23) {
     const clicastOptionCommand = `cd ${vcastEnvPath} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
     const { stdout: stdoutClicastOption, stderr: stderrClicastOption } =
       await promisifiedExec(clicastOptionCommand);

@@ -19,6 +19,7 @@ import {
   updateTestID,
   selectItem,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 // Define the normalized version of the expected content
 export const normalizedExpectedFunctionOutput = `
@@ -40,7 +41,6 @@ describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let statusBar: StatusBar;
-  const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -253,6 +253,9 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    const outputView = await bottomBar.openOutputView();
+    await bottomBar.openOutputView();
+    await outputView.clearText();
     let contextMenu = await subprogramMethod.openContextMenu();
     console.log("Generating template test");
     await contextMenu.select("VectorCAST");
@@ -265,8 +268,20 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     await browser.keys(Key.Enter);
-
-    await bottomBar.openOutputView();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Adding coded test file"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
     console.log("Checking that tests got generated");
     let testHandle = await getTestHandle(
       subprogram,

@@ -1,0 +1,20 @@
+{
+    "data": {
+        "text": [
+            "STATUS:passed",
+            "REPORT: report.html",
+            "PASSFAIL:3/3 (100.00%)",
+            "TIME: 00:00:00",
+            "=== Running command: clicast -eDEMO1 execute run ",
+            "    [  PASS  ] manager.Manager::PlaceOrder - Test1",
+            "    TEST RESULT: pass",
+            "=== Running command: clicast -eDEMO1  report custom actual report.html",
+            "    The HTML  report was saved to report.html",
+            "=== Running command: clicast -eDEMO1 option VCAST_CUSTOM_REPORT_FORMAT TEXT ",
+            "=== Running command: clicast -eDEMO1  report custom actual report.html",
+            "    The TEXT  report was saved to report.html",
+            "=== Running command: clicast -eDEMO1 option VCAST_CUSTOM_REPORT_FORMAT HTML"
+        ]
+    },
+    "exitCode": "0"
+}

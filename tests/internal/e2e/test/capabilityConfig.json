@@ -1,7 +1,7 @@
 {
   "maxInstances": 1,
   "browserName": "vscode",
-  "browserVersion": "1.78.0",
+  "browserVersion": "1.79.0",
   "acceptInsecureCerts": true,
   "wdio:vscodeOptions": {
     "vscodeArgs": {

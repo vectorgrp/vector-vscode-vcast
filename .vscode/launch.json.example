@@ -64,7 +64,7 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "runTest",
+      "name": "executeTest",
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/vTestInterface.py",
@@ -80,6 +80,70 @@
         "--test=\"FOO|foo.coded_tests_driver.fooTests.simple\""
       ],
       "console": "integratedTerminal"
-    }
+    },
+     {
+      "name": "vcastDataServer",
+      "type": "python",
+      "console": "integratedTerminal",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/vcastDataServer.py",
+      "cwd": "C:/RDS/VectorCAST/FOO",
+      "env": {
+          "NO_PROXY": "localhost",
+          "PYTHONPATH": "${env:VECTORCAST_DIR}/python;"
+      }
+    },
+    {
+        "name": "vcastDataServer-client",
+        "type": "python",
+        "console": "integratedTerminal",
+        "request": "launch",
+        "program": "${workspaceFolder}/tests/clicast-server/client.py",
+        "cwd": "C:/RDS/VectorCAST/FOO",
+        "env": {
+            "NO_PROXY": "localhost",
+            "PYTHONPATH": "${env:VECTORCAST_DIR}/python"        
+        },
+        "args":[
+            "--test=full",
+            "--port=50819",
+            "--nobuild"
+        ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug VectorCAST Unit Test",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${fileBasenameNoExtension}"],
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "test",
+        "PACKAGE_PATH": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Single Selected VectorCAST Unit Test",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": [
+        "run",
+        "${fileBasenameNoExtension}",
+        "--testNamePattern",
+        "${selectedText}"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "test",
+        "PACKAGE_PATH": "${workspaceFolder}"
+      }
+    },
   ]
 }

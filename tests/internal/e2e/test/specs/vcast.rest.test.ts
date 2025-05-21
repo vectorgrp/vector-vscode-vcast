@@ -15,12 +15,12 @@ import {
   openTestScriptFor,
   updateTestID,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -138,13 +138,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await (await testHandle.getActionButton("Run Test")).elem).click();
 
     await bottomBar.maximize();
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText()).includes(
-          "test explorer  [info]  Status: passed"
-        ),
-      { timeout: TIMEOUT }
-    );
     await bottomBar.restore();
 
     const webviews = await workbench.getAllWebviews();
@@ -208,22 +201,16 @@ describe("vTypeCheck VS Code Extension", () => {
       "TEST.SLOT:1,manager,Manager::PlaceOrder,1,myFirstTest"
     );
     await browser.keys(Key.Enter);
-    await tab.save();
 
     currentLine += 1;
     await tab.setTextAtLine(
       currentLine,
       "TEST.SLOT:2,manager,Manager::PlaceOrder,1,mySecondTest"
     );
-    await tab.save();
 
     await browser.keys(Key.Enter);
-    await tab.save();
     currentLine += 1;
     await tab.setTextAtLine(currentLine, "TEST.END");
     await tab.save();
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
   });
 });

@@ -21,15 +21,21 @@ export enum errorLevel {
 
 function formattedLine(
   prefix: string,
-  line: string,
-  level: errorLevel
+  level: errorLevel,
+  indent: string,
+  line: string
 ): string {
   let returnString: string = "";
-  returnString = prefix.padEnd(15) + level.padEnd(8) + line;
+  returnString = prefix.padEnd(15) + level.padEnd(8) + indent + line;
   return returnString;
 }
 
-async function displayMessage(prefix: string, msg: string, level: errorLevel) {
+async function displayMessage(
+  prefix: string,
+  level: errorLevel,
+  indent: string,
+  msg: string
+) {
   const messagePane = getMessagePane();
   let stringList = msg.split("\n");
   // for errorLevel.error, we show the first line of the msg in a popup
@@ -37,28 +43,28 @@ async function displayMessage(prefix: string, msg: string, level: errorLevel) {
     vscode.window.showErrorMessage(stringList[0]);
   }
   for (let line of stringList) {
-    messagePane.appendLine(formattedLine(prefix, line, level));
+    messagePane.appendLine(formattedLine(prefix, level, indent, line));
   }
 }
 
-// duplicated from VTC ////////////////////////
-
 // Note that this is an aysnc function so to if you are using to display
 // a message before a long-running process, use await in the caller.
+export const indentString = "   "; // for consistency
 export async function vectorMessage(
   msg: string,
-  level: errorLevel = errorLevel.info
+  level: errorLevel = errorLevel.info,
+  indent: string = ""
 ) {
   if (
     level != errorLevel.trace ||
     (level == errorLevel.trace && globalVerboseOn)
   ) {
-    displayMessage("test explorer", msg, level);
+    displayMessage("test explorer", level, indent, msg);
   }
 }
 
 export function vcastMessage(msg: string, level: errorLevel = errorLevel.info) {
-  if (globalVerboseOn) displayMessage("vectorcast", msg, level);
+  if (globalVerboseOn) displayMessage("vectorcast", level, "", msg);
 }
 
 let globalVerboseOn: boolean = false;

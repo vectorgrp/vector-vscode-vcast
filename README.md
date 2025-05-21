@@ -6,9 +6,12 @@ as a gutter decoration in C/C++ source editors.
 
 ## Prerequisites
 
-You must have VectorCAST installed and licensed, and the installation directory
-must be on the **system PATH**, set using the VECTORCAST_DIR environment variable
-or set using the extension option: **Vectorcast Installation Location**.
+You must have a VectorCAST version 21 or newer installed and licensed, 
+and the installation directory must be:
+  - on the **system PATH**, 
+  - set using the VECTORCAST_DIR environment variable
+  - set using the extension option: **Vectorcast Installation Location**.
+  
 During extension activation, the prerequisites will be checked, and any errors
 reported in the VectorCAST Test Explorer output panel.
 
@@ -282,6 +285,143 @@ start of the function being tested.
 
 You then simply need to set a breakpoint and use F5 to start the debugger.
 
+
+### MCDC Report
+
+The extension supports generating MC/DC reports for specific lines with MC/DC coverage. Follow the steps below to enable and generate these reports.
+
+#### Steps to Generate MC/DC Reports
+
+1. Configure Coverage Type
+    - Open the settings:
+      - Press `Ctrl + P` and select **Open Settings**.
+    - Navigate to:  
+    **VectorCAST Test Explorer > Environment Build > Coverage Kind**.
+    - Select the desired coverage type:
+      - **MCDC** or **STATEMENT+MCDC**.
+
+2. Rebuild the Environment: 
+    - After setting the coverage type, the environment(s) will rebuild automatically.
+
+3. Open an Instrumented File
+    - Open any C/C++ file that is instrumented in one of your environments.
+
+4. View Coverage Icons
+    - Check the **coverage gutter** (the area left of the line numbers).
+    - For MC/DC-specific lines, coverage icons with arrows will appear:
+      - **Green**: Fully covered.  
+      - **Yellow**: Partially covered.  
+      - **Red**: Not covered.
+
+5. Generate an MC/DC Report
+    - Right-click on a coverage icon.
+    - Select **VectorCAST MC/DC Report**.
+    - The report will open in a separate window on the right.
+
+
+### Manage Support
+
+The VectorCAST VS Code extension integrates seamlessly with VectorCAST/Manage without forcing you to switch back to the VectorCAST GUI.
+
+#### Goals
+
+1. **Seamless VS Code Experience**  
+   Leverage your existing Manage project without duplicating configurations in both VS Code and the VectorCAST GUI.
+
+2. **Minimize Context Switching**  
+   Perform everyday tasks—build, test, view reports—directly in VS Code. No need to jump back to the Manage GUI unless you’re doing advanced configuration work.
+
+#### Accessing Manage Commands
+
+Right‑click any node in the Test Explorer tree (or in the Explorer pane) and choose **VectorCAST →** to reveal the full set of Manage‑aware commands. These include:
+
+| Command                                 | Description                                                              |
+|-----------------------------------------|--------------------------------------------------------------------------|
+| **Add Existing Environment**            | Link an existing Manage environment into your VS Code project node.     |
+| **Delete Project Environment**          | Remove the environment from both the tree and disk.                      |
+| **Build/Execute Incremental**           | Run an incremental build & test based on the changed code/tests.         |
+| **Create Compiler from CFG File**       | Generate or validate a compiler configuration from a Manage CFG.         |
+| **Delete Compiler**                     | Remove a compiler entry from the current Manage project.                 |
+| **Create Testsuite**                    | Add a new testsuite under your Manage project.                           |
+| **Delete Testsuite**                    | Remove an existing testsuite from the project.                           |
+| **Build Single Project Environment**    | Build just one environment without affecting others.                     |
+| **Remove Environment from Testsuite**   | Unlink an environment from a specific testsuite.                         |
+| **Create Environment from Source Files**| Generate a new environment directly from your source code.               |
+
+#### Typical Workflow
+
+1. **Open a Manage Project**  
+   Open your workspace folder that contains a `Manage` project or a VectorCAST project directory.
+
+2. **Discover Environments**  
+   The Test Explorer will automatically list all environments defined in Manage in the Testing pane.
+
+3. **Right‑Click & Execute**  
+   To perform any command: **Right-Click on a Node → VectorCAST → Command**  
+
+
+### VectorCAST Data Server
+
+#### Introduction
+
+Much of the functionality of the extension requires issuing commands to the VectorCAST
+command line interface (clicast) or requesting data from the VectorCAST data API via 
+the Vector Python Interpreter (vpython).  To alleviate the "startup cost" for these interactions
+the extension includes an optional data server that responds to TCP requests and executes
+the required command or returns the needed data, without incurring the overhead of application 
+initialization and license checkout. 
+
+#### Initialization Processing
+
+The use of the data server is controlled by the "Use Data Server" setting which is defaulted to "On".
+When the extension starts, and the setting is on, it will check if the VectorCAST installation supports 
+"server mode" (vc24sp5 and higher), start a data server if it does, and display a "vDataServer On" button
+in the status bar.  If the setting value is "Off", or if the VectorCAST installation does not support
+"server mode" then no status button will be displayed.
+
+#### Activation and Deactivation after Initialization
+
+There are several actions that will cause the Data Server to be stopped or started 
+after extension startup, based on the following user actions:
+
+- Changing the VectorCAST Installation Location setting
+  - If the Data Server is running, it will be shutdown and restarted with the new installation.  
+  - If the Data Server is running, and the new installation does not support server mode, it will be stopped
+  - If the Data Server is not running, and the new installation supports server mode it will be started
+- Changing the Use Data Server setting
+  - If the Data Server is running, and the setting is turned off, the server will be stopped
+  - If the Data Server is not running, and the setting is turned on, the server will be started
+- Clicking on the vDataSever Status Bar button
+  - If the Data Server is running, it will be stopped
+  - If the Data Server is not running, it will be started
+- Closing the workspace
+  - If the Data Server is running, it will be stopped
+
+#### Long running commands
+Because VectorCAST does not support multiple processes accessing a single environment, the underlying
+data server is single threaded.  This means that in the case of a long running process, like a test 
+execution, other server requests will be queued and not executed until the long running process has completed.
+
+The only user impact of this occurs if you start the execution of a long-running test, and before
+it finishes, attempt to use the IntelliSense features for test script or coded test editing.  
+The auto-complete features will not be available while the server is "busy".
+
+If this is a nuisance, you can simply disable the server in this case.
+
+
+#### Error Handling and Reporting
+
+If the Data Server encounters a networking or internal error, the extension will stop the Data Server
+and fall back to non-server mode.  The vDataServer Status Bar button will display "vDataServer Off"
+and can be used to re-start the Data Server.
+
+#### Server Log
+
+When the Data Server starts, it will create a log file in the workspace to log each command it receives.
+You can open this log file by using the "VectorCAST Test Explorer: Open Data Server log" command in 
+the Command Palette.
+
+
 ### Miscellaneous Features
 
 If you would like to exclude the VectorCAST internal files from your file explorer view, you can
@@ -293,17 +433,19 @@ To open and close the extension-specific message panel, use ctrl-shift-v
 
 ## Extension Commands
 
-This extension contributes the following settings:
+This extension contributes the following commands:
 
 - "VectorCAST Test Explorer: View message panel" opens the VectorCAST Test Explorer output panel
 - "VectorCAST Test Explorer: Refresh tests" re-scans the workspace for Vector tests
 - "VectorCAST Test Explorer: Toggle coverage annotations" toggles the coverage annotations on/off (ctrl-shift-c)
+- "VectorCAST Test Explorer: Open Data Server Log" opens the server log which shows each command processed
 
 ## Extension Settings
 
 This extension contributes the following general settings:
 
 - "VectorCAST Installation Location" provides the path to the VectorCAST installation
+- "Use Data Server" - provides faster interaction with VectorCAST environments
 - "Unit Test Location" controls where the extension stores unit test new unit test artifacts.
 - "Configuration Location" control where the extension looks for the VectorCAST CCAST_.CFG file
 - "Show Report on Execute" will show the HTML test report in after each VectorCAST test run.

@@ -10,11 +10,11 @@ import { TextDocuments, CompletionParams } from "vscode-languageserver";
 
 import {
   choiceKindType,
-  getChoiceDataFromPython,
+  getChoiceData,
   getHoverStringForRequirement,
 } from "./pythonUtilities";
 
-export function getHoverString(
+export async function getHoverString(
   documents: TextDocuments,
   completionData: CompletionParams
 ) {
@@ -33,7 +33,7 @@ export function getHoverString(
 
       // generate a list of pieces ...
       // this regex creates a set of delimiters that are either . or : but NOT ::
-      let pieces = fullLine.split(/(?<!:)[:\.](?!:)/);
+      let pieces = fullLine.split(/(?<!:)[:.](?!:)/);
 
       const upperCaseLine: string = fullLine.toUpperCase();
 
@@ -51,7 +51,7 @@ export function getHoverString(
             key = pieces[2].trim();
           }
           // now find the title for this key, via a python call
-          hoverString = getHoverStringForRequirement(enviroPath, key);
+          hoverString = await getHoverStringForRequirement(enviroPath, key);
           console.log(hoverString);
         }
       } else if (
@@ -76,14 +76,14 @@ export function getHoverString(
 
           // call python to get the list for this field, and then ...
           // match up that piece to find the "extra stuff" to display
-          const choiceData = getChoiceDataFromPython(
+          const choiceData = await getChoiceData(
             choiceKindType.choiceListTST,
             enviroPath,
             lineSoFar
           );
           const valueList = choiceData.choiceList;
-          for (var index = 0; index < valueList.length; index++) {
-            const valuePieces = valueList[index].split("@");
+          for (const valueItem of valueList) {
+            const valuePieces = valueItem.split("@");
             if (valuePieces[0] == fieldObject.text) {
               hoverString = valuePieces[1];
               break;
@@ -94,10 +94,6 @@ export function getHoverString(
         // just to remind users of the format :)
         hoverString =
           "format: slot-number, unit-name, function-name, iteration-count, test-name";
-      else {
-        // invalid enviroName
-        hoverString = "";
-      }
     }
   }
 

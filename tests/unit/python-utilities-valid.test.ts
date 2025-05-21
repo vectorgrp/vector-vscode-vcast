@@ -1,79 +1,43 @@
-import fs from "node:fs";
 import process from "node:process";
+import path from "node:path";
+import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
+import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import {
-  describe,
-  expect,
-  test,
-  vi,
-  beforeEach,
-  afterEach,
-  type SpyInstance,
-} from "vitest";
-import {
-  runPythonScript,
   updateVPythonCommand,
   getVPythonCommand,
-} from "../../server/pythonUtilities";
+  generateDiagnosticForTest,
+} from "../../langServer/pythonUtilities";
+import { setupDiagnosticTest } from "./utils";
 
 const timeout = 30_000; // 30 seconds
 
-let consoleLogSpy: SpyInstance;
-let existsSyncSpy: SpyInstance;
+// We import it this way to mock only the types and functions we NEED to mock,
+// while everything else is imported normally.
+/* eslint-disable @typescript-eslint/consistent-type-imports */
+vi.mock("child_process", async () => {
+  // Import the actual module so that other functions are not mocked
+  const actual =
+    await vi.importActual<typeof import("child_process")>("child_process");
 
-// Mocking execSync before importing the module that uses it
-vi.mock("child_process", () => ({
-  execSync: vi
-    .fn()
-    .mockImplementation(
-      () => 'some stuff to be stripped\n\n  ACTUAL-DATA\n   {"some":"stuff"}'
-    ),
-}));
+  return {
+    ...actual,
+    execSync: vi
+      .fn()
+      .mockImplementation(
+        () => 'some stuff to be stripped\n\n  ACTUAL-DATA\n   {"some":"stuff"}'
+      ),
+  };
+});
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 
 describe("Testing pythonUtilities (valid)", () => {
   beforeEach(() => {
-    // Spy on console.log
-    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
-      /* No-op */
-    });
-
-    updateVPythonCommand("");
-
-    // Mock existsSync since path does not exist
-    existsSyncSpy = vi.spyOn(fs, "existsSync").mockImplementation(() => true);
+    updateVPythonCommand(path.join(`${process.env.VECTORCAST_DIR}`, "vpython"));
   });
 
   afterEach(() => {
-    // Clear all mocks
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
-
-  test(
-    "validate that testEditorInterface.py was found",
-    async () => {
-      // Mock process.argv (important for path.join)
-      process.argv = [
-        "node",
-        "someScript.js",
-        "some/valid/path",
-        "/some/command",
-      ];
-
-      // Call the function
-      runPythonScript("some/valid/path", "someAction", "somePayload");
-
-      const validPathToTestEditorInterface =
-        "some/valid/path/python/testEditorInterface.py";
-      const expectedMessagePart = `testEditorInterface was found here: ${validPathToTestEditorInterface}`;
-
-      expect(existsSyncSpy).toHaveBeenCalled();
-
-      // Check if console.log was called with a message containing the expected part
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining(expectedMessagePart)
-      );
-    },
-    timeout
-  );
 
   test(
     "validate updateVPythonCommand",
@@ -84,4 +48,33 @@ describe("Testing pythonUtilities (valid)", () => {
     },
     timeout
   );
+
+  test("should create and send a diagnostic object for tst", () => {
+    const diagnostic: Diagnostic = {
+      severity: DiagnosticSeverity.Warning,
+      range: {
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 1000 },
+      },
+      message: "Test message",
+      source: "VectorCAST Test Explorer",
+    };
+
+    // Use the utility function to mock and set up the test
+    const { connection, mockSendDiagnostics } = setupDiagnosticTest(diagnostic);
+
+    // Function under test
+    generateDiagnosticForTest(
+      connection,
+      "Test message",
+      "file:///path/to/document",
+      1
+    );
+
+    // Verify sendDiagnostics was called with correct arguments
+    expect(mockSendDiagnostics).toHaveBeenCalledWith({
+      uri: "file:///path/to/document",
+      diagnostics: [diagnostic],
+    });
+  });
 });

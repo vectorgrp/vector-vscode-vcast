@@ -8,17 +8,29 @@ import {
   TextDocument,
   TextDocuments,
 } from "vscode-languageserver";
+
 import { Hover } from "vscode-languageserver-types";
 
-import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver-types";
-
 import { enviroDataType } from "../src-common/commonUtilities";
+import { setGLobalServerState, setServerPort } from "../src-common/vcastServer";
+
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
-import { updateVPythonCommand } from "./pythonUtilities";
-import { getLineFragment } from "./serverUtilities";
-import { getDiagnosticObject, validateTextDocument } from "./tstValidation";
+
+import {
+  generateDiagnosticForTest,
+  initializePaths,
+  updateVPythonCommand,
+} from "./pythonUtilities";
+
+import {
+  buildCompletionList,
+  convertKind,
+  getLineFragment,
+} from "./serverUtilities";
+
 import { getTstCompletionData } from "./tstCompletion";
 import { getHoverString } from "./tstHover";
+import { validateTextDocument } from "./tstValidation";
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -36,7 +48,14 @@ let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
 
 connection.onInitialize((params: InitializeParams) => {
-  // initializePython(); - this was called with if(false) inside
+  // reads the params passed to the server
+  // and initializes globals for vpyton path etc.
+  initializePaths(
+    process.argv[2], // extensionRoot
+    process.argv[3], // vpythonPath
+    process.argv[4].toLowerCase() === "true" // useServer
+  );
+
   return {
     capabilities: {
       textDocumentSync: textDocumentManager.syncKind,
@@ -101,6 +120,20 @@ connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
   );
 });
 
+connection.onNotification("vcasttesteditor/updateServerPort", (data) => {
+  setServerPort(data.portNumber);
+  connection.console.log(
+    "Notification received: vectorcast data server port: " + data.portNumber
+  );
+});
+
+connection.onNotification("vcasttesteditor/updateServerState", (data) => {
+  setGLobalServerState(data.useServer);
+  connection.console.log(
+    "Notification received: use vectorcast data server: " + data.useServer
+  );
+});
+
 connection.onDidChangeWatchedFiles((_change) => {
   // Monitored files have change in VSCode
   connection.console.log("Notification received: file change event");
@@ -123,22 +156,6 @@ textDocumentManager.onDidChangeContent((change) => {
 
 import url = require("url");
 
-function generateCodedTestDiagnostic(documentUri: string, lineNumber: number) {
-  // When we have a coded test file for an environment that does
-  // not have mock support, we give the user a helpful diagnostic message
-  let diagnostic: Diagnostic = getDiagnosticObject(
-    lineNumber,
-    0,
-    1000,
-    "This environment does not support mocks, no auto-completion is available.\nRebuild the environment to use mocks   ",
-    DiagnosticSeverity.Warning
-  );
-  connection.sendDiagnostics({
-    uri: documentUri,
-    diagnostics: [diagnostic],
-  });
-}
-
 function clearCodedTestDiagnostics(documentUri: string) {
   connection.sendDiagnostics({
     uri: documentUri,
@@ -146,59 +163,108 @@ function clearCodedTestDiagnostics(documentUri: string) {
   });
 }
 
-function performCompletionProcessing(
+async function performCompletionProcessing(
   currentDocument: TextDocument,
   completionData: CompletionParams
-): CompletionItem[] {
+): Promise<CompletionItem[]> {
   // Test Script Editor
   if (completionData.textDocument.uri.endsWith(".tst")) {
-    return getTstCompletionData(currentDocument, completionData);
+    const returnData = await getTstCompletionData(
+      currentDocument,
+      completionData
+    );
+    if (
+      returnData.extraText == "migration-error" ||
+      returnData.extraText == "server-error"
+    ) {
+      // If we get a migration or server error, we let the user
+      // know by generating a diagnostic message in the editor
+      generateDiagnosticForTest(
+        connection,
+        returnData.messages[0],
+        completionData.textDocument.uri,
+        completionData.position.line
+      );
+    }
 
-    // Coded Test Editor
-  } else if (globalVMockAvailable) {
+    return buildCompletionList(
+      returnData.choiceList,
+      convertKind(returnData.choiceKind)
+    );
+  } else {
+    // not a test script file check if its coded test file
     const filePath = url.fileURLToPath(completionData.textDocument.uri);
     const enviroData: enviroDataType | undefined =
       testFileToEnviroMap.get(filePath);
 
     // if this file is a coded test file associated with an environment
     if (enviroData && enviroData.enviroPath) {
+      //
+      // clear any left over diagnostics.
+      // We don't need to keep these on every line where the user
+      // types // vmock, so this will clear the previous message
+      // when the user types anything else.
+      clearCodedTestDiagnostics(completionData.textDocument.uri);
+
+      // check what the user has typed
       const lineSoFar: string = getLineFragment(
         currentDocument,
         completionData.position
       ).trimEnd();
 
-      if (enviroData.hasMockSupport) {
-        return getCodedTestCompletionData(
-          lineSoFar,
-          completionData,
-          enviroData.enviroPath
-        );
-      } else if (vmockStubRegex.test(lineSoFar)) {
-        // else the environment does not support mocks, and the user
-        // typed a "// vmock" comment, so we help out with a diagnostic
-        generateCodedTestDiagnostic(
-          completionData.textDocument.uri,
-          completionData.position.line
-        );
+      // The only auto-complete we do is for when the user has
+      // typed on a line that starts with "// vmock" comment ...
+      if (vmockStubRegex.test(lineSoFar)) {
+        // we have a line that we would normally process
+        // if our VectorCAST version supports mocks ...
+        if (globalVMockAvailable) {
+          if (enviroData.hasMockSupport) {
+            return getCodedTestCompletionData(
+              connection,
+              lineSoFar,
+              completionData,
+              enviroData.enviroPath
+            );
+          } else {
+            // else the environment does not support mocks
+            // help out with a diagnostic message in the editor
+            generateDiagnosticForTest(
+              connection,
+              "This environment does not support mocks, no auto-completion is available.\nRebuild the environment to use mocks    ",
+              completionData.textDocument.uri,
+              completionData.position.line
+            );
+            return [];
+          }
+        } else {
+          // else the VectorCAST version does not support mocks
+          // help out with a diagnostic message in the editor
+          generateDiagnosticForTest(
+            connection,
+            "This currently configured version of VectorCAST does not support mocks.\nUpdate to version 24-SP4 or later to use mocks",
+            completionData.textDocument.uri,
+            completionData.position.line
+          );
+          return [];
+        }
       } else {
-        // clear any left over diagnostics.
-        // We don't need to keep these on every line where the user
-        // types // vmock, so this will clear the previous message
-        // when the user types anything else.
-        clearCodedTestDiagnostics(completionData.textDocument.uri);
-      } // coded test file for enviro without mock support
-    } // not a coded test file
-  } // vcast does not support mocking
-  return [];
+        // not a line we care about
+        return [];
+      }
+    } else {
+      // not a coded test file, so we do nothing
+      return [];
+    }
+  }
 }
 
 connection.onCompletion(
-  (completionData: CompletionParams): CompletionItem[] => {
+  async (completionData: CompletionParams): Promise<CompletionItem[]> => {
     const currentDocument = textDocumentManager.get(
       completionData.textDocument.uri
     );
     if (currentDocument) {
-      return performCompletionProcessing(currentDocument, completionData);
+      return await performCompletionProcessing(currentDocument, completionData);
     } else {
       // no text document, do nothing
       return [];
@@ -213,16 +279,21 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
 
-connection.onHover((completionData: CompletionParams): Hover | undefined => {
-  // This function gets called when the user hovers over a line section
-  if (completionData.textDocument.uri.endsWith(".tst")) {
-    const hoverString = getHoverString(textDocumentManager, completionData);
-    var hover: Hover = { contents: hoverString };
-    return hover;
-  } else {
-    return undefined;
+connection.onHover(
+  async (completionData: CompletionParams): Promise<Hover | undefined> => {
+    // This function gets called when the user hovers over a line section
+    if (completionData.textDocument.uri.endsWith(".tst")) {
+      const hoverString = await getHoverString(
+        textDocumentManager,
+        completionData
+      );
+      const hover: Hover = { contents: hoverString };
+      return hover;
+    } else {
+      return undefined;
+    }
   }
-});
+);
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

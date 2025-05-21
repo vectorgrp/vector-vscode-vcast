@@ -10,11 +10,11 @@ import {
   generateAllTestsForFunction,
   validateGeneratedTestsForFunction,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -119,6 +119,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Notifications")).click();
 
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    await browser.pause(4000);
     const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );
@@ -136,6 +137,17 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Processing environment data for"),
+      { timeout: TIMEOUT }
+    );
+
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.pause(4000);
+
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
     await browser.saveScreenshot(
@@ -148,7 +160,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should correctly generate all ATG tests for function", async () => {
     await updateTestID();
 
-    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    const envName = "DATABASE-MANAGER";
 
     console.log(
       "Generating all ATG tests for function DataBase::GetTableRecord"

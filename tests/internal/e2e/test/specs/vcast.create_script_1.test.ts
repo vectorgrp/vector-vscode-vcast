@@ -12,18 +12,25 @@ import {
   findSubprogramMethod,
   openTestScriptFor,
   updateTestID,
+  checkIfRequestInLogs,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
+import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 20_000;
+  let useDataServer: boolean = true;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
+    let releaseIsSuitableForServer = await checkForServerRunnability();
+    if (process.env.VCAST_USE_PYTHON || !releaseIsSuitableForServer) {
+      useDataServer = false;
+    }
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -153,7 +160,6 @@ describe("vTypeCheck VS Code Extension", () => {
       currentLine,
       "TEST.REQUIREMENT_KEY:FR20 | Clearing a table resets orders for all seats"
     );
-    await tab.save();
 
     await tab.moveCursor(
       currentLine,
@@ -164,12 +170,21 @@ describe("vTypeCheck VS Code Extension", () => {
 
     currentLine = await tab.getLineOfText("TEST.VALUE");
     await tab.typeTextAt(currentLine, "TEST.VALUE".length + 1, ":");
-    await tab.save();
 
     // Really important to wait until content assist appears
     await browser.waitUntil(
       async () => (await contentAssist.getItems()).length === 4
     );
+
+    // Check in server log for autocompletion logs
+    if (useDataServer) {
+      const expectedLogArray = [
+        "received client request: choiceList-tst",
+        "line received: 'TEST.VALUE:'",
+      ];
+      const autocompleteLog = await checkIfRequestInLogs(8, expectedLogArray);
+      expect(autocompleteLog).toBe(true);
+    }
 
     console.log("validating content assist (LSE features) for TEST.VALUE:");
     expect(await contentAssist.hasItem("database")).toBe(true);
@@ -203,9 +218,5 @@ describe("vTypeCheck VS Code Extension", () => {
     await tab.setTextAtLine(currentLine, "");
 
     await tab.save();
-
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
   });
 });

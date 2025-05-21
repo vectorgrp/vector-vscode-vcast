@@ -14,10 +14,11 @@ import {
   getTestHandle,
 } from "../test_utils/vcast_utils";
 
-describe("vTypeCheck VS Code Extension", () => {
+import { TIMEOUT } from "../test_utils/vcast_utils";
+
+describe("vTypeCheck VS Code Extension", async () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -85,7 +86,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should set default config file", async () => {
     await updateTestID();
-
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
@@ -101,7 +101,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should enable coded test", async () => {
     await updateTestID();
-
     const workbench = await browser.getWorkbench();
     const settingsEditor = await workbench.openSettings();
     console.log("Looking for coded tests settings");
@@ -116,7 +115,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should check for vmock code completion", async () => {
     await updateTestID();
-
     console.log("Opening Testing View");
     const vcastTestingViewContent = await getViewContent("Testing");
 

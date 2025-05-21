@@ -1,4 +1,34 @@
-import { quote } from "./utilities";
+import { normalizePath, quote } from "./utilities";
+
+export interface environmentNodeDataType {
+  projectPath: string;
+  buildDirectory: string;
+  isBuilt: boolean;
+  displayName: string;
+  workspaceRoot: string;
+}
+
+// This is a lookup table for all environment nodes
+// in the test case tree.  The key is the environmentPath
+// and the data is an environmentDataType
+export const environmentDataCache = new Map();
+
+export function saveEnviroNodeData(
+  enviroPath: string,
+  data: environmentNodeDataType
+) {
+  // normalize the path since we use it as a key
+  environmentDataCache.set(normalizePath(enviroPath), data);
+}
+
+export function getEnviroNodeData(enviroPath: string): environmentNodeDataType {
+  // normalize the path since we use it as a key
+  return environmentDataCache.get(normalizePath(enviroPath));
+}
+
+export function clearEnviroDataCache() {
+  environmentDataCache.clear();
+}
 
 export const compoundOnlyString = " [compound only]";
 
@@ -15,8 +45,11 @@ export interface testNodeType {
 }
 // this is a lookup table for the nodes in the test tree
 // the key is the nodeID, the data is an testNodeType
-let testNodeCache = new Map();
+export const testNodeCache = new Map();
 
+// This function is used to create the top-level environment
+// node in the cache, all the other nodes will inherit from
+// this one and add their own data
 export function createTestNodeInCache(
   enviroNodeID: string,
   enviroPath: string,
@@ -75,7 +108,9 @@ export function getEnviroNodeIDFromID(nodeID: string): string {
 }
 
 export function getEnviroPathFromID(nodeID: string): string {
-  return testNodeCache.get(nodeID).enviroPath;
+  // Need to check first if the nodeID is in the cache, otherwise .get will throw an error
+  const node = testNodeCache.get(nodeID);
+  return node?.enviroPath;
 }
 
 export function getEnviroNameFromID(nodeID: string): string {
@@ -95,8 +130,28 @@ export function getTestNameFromID(nodeID: string): string {
   return testName.replace(compoundOnlyString, "");
 }
 
+function getArgumentString(argString: string, usingServer: boolean) {
+  // This function will either quote or not quote the argument string
+  // based on whether the command is being run using the vcast data server
+  // For normal calls to clicast, we need to quote the subprogram and test strings, to
+  // "protect" special characters [ e.g. <,>,(,) ] from the shell.
+  // However, when the server is running we cannot do this as the server
+  // will interpret the quotes as part of the string.
+  //
+  // It is up to the caller to set the "usingServer" flag correctly, because
+  // even when the server is running, we sometimes call clicast directly
+  // for things like generate basis path etc.
+
+  if (usingServer) {
+    return argString;
+  } else {
+    return quote(argString);
+  }
+}
+
 export function getClicastArgsFromTestNodeAsList(
-  testNode: testNodeType
+  testNode: testNodeType,
+  usingServer: boolean = false
 ): string[] {
   // this function will create the enviro, unit, subprogram, and test
   // arguments as a list, since spawn for example requires an arg list.
@@ -108,19 +163,24 @@ export function getClicastArgsFromTestNodeAsList(
 
   // we need the quotes on the names to handle <<COMPOUND>>/<<INIT>>/parenthesis
   if (testNode.functionName.length > 0)
-    returnList.push(`-s${quote(testNode.functionName)}`);
+    returnList.push(
+      `-s${getArgumentString(testNode.functionName, usingServer)}`
+    );
   if (testNode.testName.length > 0) {
     const nameToUse = testNode.testName.replace(compoundOnlyString, "");
-    returnList.push(`-t${quote(nameToUse)}`);
+    returnList.push(`-t${getArgumentString(nameToUse, usingServer)}`);
   }
 
   return returnList;
 }
 
-export function getClicastArgsFromTestNode(testNode: testNodeType) {
+export function getClicastArgsFromTestNode(
+  testNode: testNodeType,
+  usingServer: boolean = false
+): string {
   // this function will create the enviro, unit, subprogram,
   // and test arg string for clicast calls that need a arg string
 
-  const argList = getClicastArgsFromTestNodeAsList(testNode);
+  const argList = getClicastArgsFromTestNodeAsList(testNode, usingServer);
   return argList.join(" ");
 }

@@ -8,14 +8,13 @@ import {
   validateGeneratedTestsForFunction,
   deleteAllTestsForFunction,
   validateTestDeletionForFunction,
-  cleanup,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120_000;
-  const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE";
+  const QUOTES_ENV = "QUOTES_EXAMPLE";
   const QUOTES_EXAMPLE_UNIT = "quotes_example";
   const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)";
   before(async () => {
@@ -152,10 +151,5 @@ describe("vTypeCheck VS Code Extension", () => {
     } else {
       console.log("Skipping ATG tests");
     }
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

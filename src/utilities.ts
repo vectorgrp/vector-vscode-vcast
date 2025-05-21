@@ -6,6 +6,9 @@ import * as jsonc from "jsonc-parser";
 import { Uri } from "vscode";
 
 import { errorLevel, vectorMessage } from "./messagePane";
+import { getGlobalCoverageData } from "./vcastTestInterface";
+import { rebuildEnvironment } from "./vcastAdapter";
+import { rebuildEnvironmentCallback } from "./callbacks";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -35,6 +38,27 @@ export interface jsonDataType {
   jsonDataAsString: string;
 }
 
+/**
+ * Retrieves the environment path associated with a given file path.
+ *
+ * @param {string} filePath - The file path for which the environment path is needed.
+ * @returns {string | null} The environment path if found, otherwise null.
+ */
+export function getEnvPathForFilePath(filePath: string): string | null {
+  const globalCoverageMap = getGlobalCoverageData();
+  const fileData = globalCoverageMap.get(filePath);
+
+  if (fileData?.enviroList) {
+    // Retrieve the first environment key, if it exists
+    const envKey = Array.from(fileData.enviroList.keys())[0];
+    if (envKey) {
+      // Return the full environment key (entire path)
+      return envKey;
+    }
+  }
+  return null;
+}
+
 export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
   // this function takes the path to a launch.json
   // and returns the contents, or an empty list of configurations
@@ -61,7 +85,7 @@ export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
 
 export function addLaunchConfiguration(
   fileUri: Uri,
-  pathToSupportfiles: string
+  pathToSupportFiles: string
 ) {
   // This function adds the VectorCAST Harness Debug configuration to any
   // launch.json file that the user right clicks on
@@ -70,7 +94,7 @@ export function addLaunchConfiguration(
   const existingLaunchData: jsonDataType | undefined = loadLaunchFile(jsonPath);
 
   const vectorJSON = JSON.parse(
-    fs.readFileSync(path.join(pathToSupportfiles, "vcastLaunchTemplate.json"))
+    fs.readFileSync(path.join(pathToSupportFiles, "vcastLaunchTemplate.json"))
   );
 
   // if we have a well formatted launch file with an array of configurations ...
@@ -237,8 +261,28 @@ export function forceLowerCaseDriveLetter(path?: string): string {
   } else return "";
 }
 
+export function normalizePath(path: string): string {
+  // This function is used to fix the drive letter AS WELL AS
+  // replace any backslashes with forward slashes
+
+  let returnPath = path;
+  if (os.platform() == "win32") {
+    returnPath = forceLowerCaseDriveLetter(path).replace(/\\/g, "/");
+  }
+  return returnPath;
+}
+
+/**
+ * this function returns a single line range DecorationOption
+ * @param lineIndex line index to be used for the range
+ * @returns DecorationOptions for the line
+ */
 export function getRangeOption(lineIndex: number): vscode.DecorationOptions {
-  // this function returns a single line range DecorationOption
+  // If we start the extension with a cpp file opened and in focus, lineIndex is -1 because the cursor is not
+  // on a line. We need to set it to 0 in that case
+  if (lineIndex < 0) {
+    lineIndex = 0;
+  }
   const startPos = new vscode.Position(lineIndex, 0);
   const endPos = new vscode.Position(lineIndex, 0);
   return { range: new vscode.Range(startPos, endPos) };
@@ -303,5 +347,55 @@ export function removeFilePattern(enviroPath: string, pattern: string) {
   let fileList = glob.sync(`${path.basename(enviroPath)}${pattern}`, options);
   for (let filePath of fileList) {
     fs.unlinkSync(filePath);
+  }
+}
+
+/**
+ * Cleans the message we want to show in the output. The Test Results pane handles logs differently.
+ * @param testResultString Test result we want to clean
+ * @returns Cleaned message, ready for the Test Results pane
+ */
+export function cleanTestResultsPaneMessage(testResultString: string) {
+  let cleanedOutput = testResultString.split("\n");
+
+  // Determine the leading spaces in the second line
+  // We want that the first line is left-aligned, and all subsequent lines are aligned to the second line
+  let secondLine = cleanedOutput[1] || "";
+  let secondLinePadding = secondLine.match(/^(\s*)/)?.[0] || "";
+
+  // Align all lines after the first one to match the second line's padding
+  let alignedOutput = cleanedOutput
+    .map((line, index) => {
+      // First line stays unmodified
+      if (index === 0) {
+        return line.trim();
+      }
+      // Apply second line padding to subsequent lines
+      return secondLinePadding + line.trim();
+    })
+    .join("\r\n");
+
+  return alignedOutput;
+}
+
+/**
+ * Updates the env file with the new settings from the VSCode settings
+ */
+export async function updateCoverageAndRebuildEnv() {
+  const globalCoverageMap = getGlobalCoverageData();
+  const mapValues = [...globalCoverageMap.values()];
+  let envArray: string[] = [];
+
+  for (let envValues of mapValues) {
+    for (let enviroPath of envValues["enviroList"].keys()) {
+      // If multiple units are in the env, the env is there multiple times
+      if (!envArray.includes(enviroPath)) {
+        envArray.push(enviroPath);
+      }
+    }
+  }
+  // Now rebuild every env so that the coverage is updated
+  for (let enviroPath of envArray) {
+    await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
   }
 }

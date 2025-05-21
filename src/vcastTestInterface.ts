@@ -2,7 +2,8 @@ import { EOL } from "os";
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { cleanVcastOutput } from "../src-common/commonUtilities";
+import { cleanVectorcastOutput } from "../src-common/commonUtilities";
+import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 import {
   configFilename,
   getUnitTestLocationForPath,
@@ -11,19 +12,27 @@ import {
 
 import { updateFunctionDataForFile } from "./editorDecorator";
 
+import { fileDecorator } from "./fileDecorator";
+
 import {
   openMessagePane,
+  indentString,
   vectorMessage,
-  vcastMessage,
   errorLevel,
 } from "./messagePane";
 
 import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 
-import { updateTestPane } from "./testPane";
+import {
+  enviroListAsMapType,
+  globalProjectDataCache,
+  refreshAllExtensionData,
+  updateTestPane,
+} from "./testPane";
 
 import {
   forceLowerCaseDriveLetter,
+  normalizePath,
   openFileWithLineSelected,
   showSettings,
 } from "./utilities";
@@ -32,36 +41,53 @@ import {
   addCodedTestToEnvironment,
   buildEnvironmentFromScript,
   codedTestAction,
+  executeTest,
+  getMCDCReport,
+  getTestExecutionReport,
   setCodedTestOption,
 } from "./vcastAdapter";
+
+import {
+  importEnvToTestsuite,
+  updateProjectData,
+  addEnvToTestsuite,
+  createNewTestsuiteInProject,
+} from "./manage/manageSrc/manageCommands";
 
 import {
   commandStatusType,
   executeCommandSync,
   executeVPythonScript,
-  getJsonDataFromTestInterface,
 } from "./vcastCommandRunner";
 
-import { getChecksumCommand } from "./vcastInstallation";
+import { checksumCommandToUse } from "./vcastInstallation";
 
 import {
   closeAnyOpenErrorFiles,
   openTestFileAndErrors,
-  testInterfaceCommand,
   testStatus,
 } from "./vcastUtilities";
-
-import { fileDecorator } from "./fileDecorator";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../src-common/vcastServer";
 
 const fs = require("fs");
 const path = require("path");
 
 export const vcastEnviroFile = "UNITDATA.VCD";
 
+// Define the interface for project environment parameters.
+export interface ProjectEnvParameters {
+  path: string;
+  sourceFiles: string[];
+  testsuiteArgs: string[];
+}
+
 // Creating a cache for the checksums so we don't constantly re-run the command
 interface ChecksumCacheType {
   checksum: number;
-  modificationtime: string;
+  modificationTime: string;
 }
 let checksumCache = new Map<string, ChecksumCacheType>();
 
@@ -74,14 +100,14 @@ function getChecksum(filePath: string) {
   let cacheValue = checksumCache.get(filePath);
   if (cacheValue) {
     const currentMtime = fs.statSync(filePath).mtime.toISOString();
-    if (currentMtime == cacheValue.modificationtime) {
+    if (currentMtime == cacheValue.modificationTime) {
       return cacheValue.checksum;
     }
   }
 
   // if we did not return the cached value, compute the cksum
   let returnValue = 0;
-  const checksumCommand = getChecksumCommand();
+  const checksumCommand = checksumCommandToUse;
   if (checksumCommand) {
     let commandOutputString: string;
     if (checksumCommand.endsWith(".py"))
@@ -98,12 +124,13 @@ function getChecksum(filePath: string) {
     // convert the to a number and return
     // this will throw if something is wrong with the result
     try {
-      commandOutputString = cleanVcastOutput(commandOutputString);
+      // see detailed comment with the function definition
+      commandOutputString = cleanVectorcastOutput(commandOutputString);
       returnValue = Number(commandOutputString);
       // only save into the cache if we get a valid checksum
       const cacheValue: ChecksumCacheType = {
         checksum: returnValue,
-        modificationtime: fs.statSync(filePath).mtime.toISOString(),
+        modificationTime: fs.statSync(filePath).mtime.toISOString(),
       };
       checksumCache.set(filePath, cacheValue);
     } catch {
@@ -111,26 +138,6 @@ function getChecksum(filePath: string) {
     }
   }
   return returnValue;
-}
-
-// Get the Environment Data using the dataAPI
-export function getEnviroDataFromPython(enviroPath: string): any {
-  // This function will return the environment data for a single directory
-
-  let jsonData = undefined;
-
-  // what we get back is a JSON formatted string (if the command works)
-  // that has two sub-fields: testData, and unitData
-  vectorMessage("Processing environment data for: " + enviroPath);
-
-  const commandToRun = testInterfaceCommand("getEnviroData", enviroPath);
-  jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
-
-  if (jsonData) {
-    updateGlobalDataForFile(enviroPath, jsonData.unitData);
-  }
-
-  return jsonData;
 }
 
 // we save the some key data, indexed into by test.id
@@ -151,13 +158,28 @@ export interface testDataType {
 export interface testStatusArrayType {
   [id: string]: testDataType;
 }
+
 export var globalTestStatusArray = <testStatusArrayType>{};
+
+export function getGlobalCoverageData() {
+  return globalCoverageData;
+}
 
 export function addTestDataToStatusArray(
   testID: string,
   testData: testDataType
 ): void {
   globalTestStatusArray[testID] = testData;
+}
+
+export function addResultFileToStatusArray(
+  testID: string,
+  resultFilePath: string
+) {
+  // the testID should always me in the map but just to make sure ...
+  if (testID in globalTestStatusArray) {
+    globalTestStatusArray[testID].resultFilePath = resultFilePath;
+  }
 }
 
 export function clearTestDataFromStatusArray(): void {
@@ -169,6 +191,7 @@ interface coverageDataType {
   crc32Checksum: number;
   covered: number[];
   uncovered: number[];
+  partiallyCovered: number[];
 }
 
 interface fileCoverageType {
@@ -186,9 +209,11 @@ export function resetCoverageData() {
 }
 
 interface coverageSummaryType {
+  hasCoverageData: boolean;
   statusString: string;
   covered: number[];
   uncovered: number[];
+  partiallyCovered: number[];
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -205,34 +230,48 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   // .statusString will be "out-of-date" if NO enviro checksums match this file
 
   let returnData: coverageSummaryType = {
-    statusString: "No Coverage Data",
+    hasCoverageData: false,
+    statusString: "",
     covered: [],
     uncovered: [],
+    partiallyCovered: [],
   };
 
   const dataForThisFile = globalCoverageData.get(filePath);
-  if (
-    dataForThisFile &&
-    dataForThisFile.hasCoverage &&
-    dataForThisFile.enviroList.size > 0
-  ) {
-    const checksum: number = getChecksum(filePath);
-    let coveredList: number[] = [];
-    let uncoveredList: number[] = [];
-    for (const enviroData of dataForThisFile.enviroList.values()) {
-      if (enviroData.crc32Checksum == checksum) {
-        coveredList = coveredList.concat(enviroData.covered);
-        uncoveredList = uncoveredList.concat(enviroData.uncovered);
+  // if we have data for this file it means that it is part of
+  // an environment but not necessarily that it has coverage data
+  if (dataForThisFile) {
+    // if there is coverage data, create the x/y status bar message
+    if (dataForThisFile.hasCoverage && dataForThisFile.enviroList.size > 0) {
+      const checksum: number = getChecksum(filePath);
+      let coveredList: number[] = [];
+      let uncoveredList: number[] = [];
+      let partiallyCoveredList: number[] = [];
+      for (const enviroData of dataForThisFile.enviroList.values()) {
+        if (enviroData.crc32Checksum == checksum) {
+          coveredList = coveredList.concat(enviroData.covered);
+          uncoveredList = uncoveredList.concat(enviroData.uncovered);
+          partiallyCoveredList = partiallyCoveredList.concat(
+            enviroData.partiallyCovered
+          );
+        }
       }
-    }
 
-    if (coveredList.length == 0 && uncoveredList.length == 0) {
-      returnData.statusString = "Coverage Out of Date";
+      if (coveredList.length == 0 && uncoveredList.length == 0) {
+        // This status is for files that have changed since
+        // they were last instrumented
+        returnData.statusString = "Coverage Out of Date";
+      } else {
+        returnData.hasCoverageData = true;
+        // remove duplicates
+        returnData.covered = [...new Set(coveredList)];
+        returnData.uncovered = [...new Set(uncoveredList)];
+        returnData.partiallyCovered = [...new Set(partiallyCoveredList)];
+      }
     } else {
-      returnData.statusString = "";
-      // remove duplicates
-      returnData.covered = [...new Set(coveredList)];
-      returnData.uncovered = [...new Set(uncoveredList)];
+      // This status is for files that are part of
+      // and environment but not instrumented
+      returnData.statusString = "No Coverage Data";
     }
   }
 
@@ -277,7 +316,7 @@ export function getListOfFilesWithCoverage(): string[] {
 // key is enviroPath, value is a list of filePaths
 let enviroFileList: Map<string, string[]> = new Map();
 
-function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
+export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
   let filePathList: string[] = [];
 
   for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
@@ -292,11 +331,18 @@ function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     if (fileList[fileIndex].uncovered.length > 0)
       uncoveredList = fileList[fileIndex].uncovered.split(",").map(Number);
 
+    let partiallyCoveredList: number[] = [];
+    if (fileList[fileIndex].partiallyCovered.length > 0)
+      partiallyCoveredList = fileList[fileIndex].partiallyCovered
+        .split(",")
+        .map(Number);
+
     const checksum = fileList[fileIndex].cmcChecksum;
     let coverageData: coverageDataType = {
       crc32Checksum: checksum,
       covered: coveredList,
       uncovered: uncoveredList,
+      partiallyCovered: partiallyCoveredList,
     };
 
     let fileData: fileCoverageType | undefined =
@@ -311,7 +357,8 @@ function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     fileData.hasCoverage =
       fileData.hasCoverage ||
       coverageData.covered.length > 0 ||
-      coverageData.uncovered.length > 0;
+      coverageData.uncovered.length > 0 ||
+      coverageData.partiallyCovered.length > 0;
     fileData.enviroList.set(enviroPath, coverageData);
 
     // if we are displaying the file decoration in the explorer view
@@ -348,150 +395,178 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
   }
 }
 
-export function getResultFileForTest(testID: string) {
+export async function getResultFileForTest(testID: string) {
   // This function will return the path to the result file if it is already saved
   // in the globalTestStatus array, otherwise it will ask Python to generate the report
   let resultFile: string = globalTestStatusArray[testID].resultFilePath;
+
+  // Check if the file already exists
   if (!fs.existsSync(resultFile)) {
-    let cwd = getEnviroPathFromID(testID);
+    // Generate the environment path and request the test report from Python
+    const enviroPath = getEnviroPathFromID(testID);
+    const commandStatus = await getTestExecutionReport(enviroPath, testID);
 
-    const commandToRun = testInterfaceCommand("report", cwd, testID);
-    const commandStatus: commandStatusType = executeVPythonScript(
-      commandToRun,
-      cwd
-    );
+    // Check if report generation was successful
+    if (commandStatus.errorCode === 0) {
+      const firstLineOfOutput: string = commandStatus.stdout
+        .split("\n", 1)[0]
+        .trim();
 
-    if (commandStatus.errorCode == 0) {
-      const firstLineOfOutput: string = commandStatus.stdout.split(EOL, 1)[0];
-      resultFile = firstLineOfOutput.replace("REPORT:", "");
-
-      if (!fs.existsSync(resultFile)) {
-        vscode.window.showWarningMessage(
-          `Results report: '${resultFile}' does not exist`
-        );
-        vectorMessage(`Results report: '${resultFile}' does not exist`);
-        vectorMessage(commandToRun);
-        vectorMessage(commandStatus.stdout);
+      // Handle the case where the output contains "REPORT"
+      if (firstLineOfOutput.includes("REPORT:")) {
+        // This is the normal case --> delete the REPORT to only have the file name
+        resultFile = firstLineOfOutput.replace("REPORT:", "");
+        // Check if the file exists
+        if (!fs.existsSync(resultFile)) {
+          const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
+          vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
+          vectorMessage(`${reportNotExistentErrorMessage}`);
+        }
       }
 
-      globalTestStatusArray[testID].resultFilePath = resultFile;
+      // If the first line of output contains "Error" --> Test result generation failed
+      else if (firstLineOfOutput.includes("Error:")) {
+        const errorDetails = firstLineOfOutput.split("Error:")[1].trim();
+        const reportGenerationErrorMessage = `Execution report was not successfully generated. Error details: \n${errorDetails}`;
+        vscode.window.showWarningMessage(`${reportGenerationErrorMessage}`);
+        vectorMessage(`${reportGenerationErrorMessage}`);
+      }
+
+      // Handle other unexpected cases (After successfull test generation, but without the "REPORT:" string)
+      else {
+        const unexpectedErrorMessage = `Unexpected Error: \n${commandStatus.stdout}`;
+        vscode.window.showWarningMessage(`${unexpectedErrorMessage}`);
+        vectorMessage(`${unexpectedErrorMessage}`);
+      }
     }
+    // Handle command failure
+    else {
+      vectorMessage(
+        `Retrieving test report was not successful. Command Status: ${commandStatus.errorCode}`
+      );
+    }
+
+    // Update the global test status with the result file path
+    globalTestStatusArray[testID].resultFilePath = resultFile;
   }
 
   return resultFile;
 }
 
-function processExecutionOutput(
-  currentTestData: testDataType,
-  commandOutput: string
-) {
-  const outputLineList: string[] = commandOutput.split(EOL);
-  let doneProcessingHeader = false;
-  for (let lineIndex = 0; lineIndex < outputLineList.length; lineIndex++) {
-    const line: string = outputLineList[lineIndex];
+interface executeOutputType {
+  status: string;
+  resultsFilePath: string;
+  time: string;
+  passfail: string;
+  stdOut: string;
+}
+const nullExecutionStatus: executeOutputType = {
+  status: "",
+  resultsFilePath: "",
+  time: "",
+  passfail: "",
+  stdOut: "",
+};
+
+function processExecutionOutput(commandOutput: string): executeOutputType {
+  let returnData: executeOutputType = {
+    status: "failed",
+    stdOut: "",
+    resultsFilePath: "",
+    time: "",
+    passfail: "",
+  };
+  const outputLineList: string[] = commandOutput.split("\n");
+
+  for (let line of outputLineList) {
     console.log(`LINE IS: ${line}`);
     if (line.startsWith("STATUS:"))
-      currentTestData.status = line.replace("STATUS:", "");
+      returnData.status = line.replace("STATUS:", "").trim();
     else if (line.startsWith("REPORT:"))
-      currentTestData.resultFilePath = line.replace("REPORT:", "");
+      returnData.resultsFilePath = line.replace("REPORT:", "").trim();
     else if (line.startsWith("PASSFAIL:"))
-      currentTestData.passfail = line.replace("PASSFAIL:", "");
-    else if (line.startsWith("TIME:")) {
-      currentTestData.time = line.replace("TIME:", "");
-      doneProcessingHeader = true;
-    } else if (doneProcessingHeader) {
-      // save the rest of the output lines as the stdout
-      currentTestData.stdout = outputLineList
-        .slice(lineIndex, outputLineList.length)
-        .join("\n");
-      break;
-    }
+      returnData.passfail = line.replace("PASSFAIL:", "").trim();
+    else if (line.startsWith("TIME:"))
+      returnData.time = line.replace("TIME:", "").trim();
+    else returnData.stdOut += line + EOL;
   }
+
+  return returnData;
 }
 
-// with the old test case interface we could have a hover-over
-// for each test, and we inserted this info there.
-// I could not figure out how to do this with the native API
-// so for now, I am logging this to the message pane.
-function logTestResults(
-  testID: string,
-  rawOutput: string,
-  testData: testDataType
-) {
-  vcastMessage("-".repeat(100));
-  vcastMessage("stdout for: " + testID);
-  vcastMessage(rawOutput);
+function testExecutionFailed(commandStatus: commandStatusType): boolean {
+  // There are lots of ways that a test run can end badly,
+  // this function will check for these cases to simplify
+  // the process in runVCTest
 
-  vectorMessage("-".repeat(100));
-  vectorMessage("Test summary for: " + testID);
-  vectorMessage(
-    testData.status.length > 0 ? "Status: " + testData.status : "Status:"
-  );
-  vectorMessage(
-    testData.passfail.length > 0 ? "Values: " + testData.passfail : "Values:"
-  );
-  vectorMessage(
-    testData.time.length
-      ? "Execution Time: " + testData.time
-      : "Execution Time:"
-  );
-  vectorMessage("-".repeat(100));
+  let commandOutputText: string = commandStatus.stdout;
+  let returnValue: boolean = false;
+
+  if (commandOutputText.startsWith("FATAL")) {
+    // comes from clicast, something bad happened
+    returnValue = true;
+  } else if (commandOutputText.includes("Resolve Errors")) {
+    // handles things like compile errors
+    returnValue = true;
+  } else if (commandStatus.errorCode == 1) {
+    // usage error with interface
+    returnValue = true;
+  }
+
+  return returnValue;
 }
-
-const { performance } = require("perf_hooks");
 
 export async function runVCTest(enviroPath: string, nodeID: string) {
-  // Initially, I called clicast directly here, but I switched to the python binding to give
-  // more flexibility for things like: running, and generating the execution report in one action
-
-  // commandOutput is a buffer: (Uint8Array)
-  // RUN mode is a single shot mode where we run the python
-  // script and communicate with stdin/stdout
-
+  // what gets returned
   let returnStatus: testStatus = testStatus.didNotRun;
-  let commandToRun: string = "";
-  commandToRun = testInterfaceCommand("executeTest", enviroPath, nodeID);
 
-  const startTime: number = performance.now();
-  const commandStatus = executeVPythonScript(commandToRun, enviroPath);
+  // execute, or execute and generate report
+  const commandStatus: commandStatusType = await executeTest(
+    enviroPath,
+    nodeID
+  );
 
-  // added this timing info to help with performance tuning - interesting to leave in
-  const endTime: number = performance.now();
-  const deltaString: string = ((endTime - startTime) / 1000).toFixed(2);
-  vectorMessage(`Execution via vPython took: ${deltaString} seconds`);
+  let commandOutputText: string = commandStatus.stdout;
+  let executionDetails: executeOutputType = nullExecutionStatus;
 
-  const commandOutputText = commandStatus.stdout;
-
-  // errorCode 98 is for a compile error for the coded test source file
-  // this is hard-coded in runTestCommand() in the python interface
-  if (commandStatus.errorCode == 98) {
+  if (commandStatus.errorCode == pythonErrorCodes.codedTestCompileError) {
     const testNode = getTestNode(nodeID);
     returnStatus = openTestFileAndErrors(testNode);
-  } else {
+  } else if (testExecutionFailed(commandStatus)) {
+    // lots of different things can go wrong
+    vectorMessage("Could not complete test execution ...");
     if (commandOutputText.startsWith("FATAL")) {
-      vectorMessage(commandOutputText.replace("FATAL", ""));
-      openMessagePane();
-      returnStatus = testStatus.didNotRun;
-    } else if (commandOutputText.includes("Resolve Errors")) {
-      vectorMessage(commandOutputText);
-      openMessagePane();
-      returnStatus = testStatus.didNotRun;
-    } else {
-      let currentTestData = globalTestStatusArray[nodeID];
-      // update the test data with the results of the test
-      processExecutionOutput(currentTestData, commandOutputText);
-      logTestResults(nodeID, commandOutputText, currentTestData);
+      commandOutputText = commandOutputText.replace("FATAL", "");
+    }
+    vectorMessage(commandOutputText, errorLevel.info, indentString);
+    openMessagePane();
+    returnStatus = testStatus.didNotRun;
+  } else if (commandStatus.errorCode != 0 && commandStatus.errorCode != 28) {
+    // 0 means test pass, 28 means test failed, everything else is an error
+    // however the printing of the error message is done where the command is run
+    // so we don't have to do it here
+    returnStatus = testStatus.didNotRun;
+  } else {
+    // successful execution
+    executionDetails = processExecutionOutput(commandOutputText);
 
-      globalTestStatusArray[nodeID] = currentTestData;
+    let updatedStatusItem = globalTestStatusArray[nodeID];
 
-      if (currentTestData.status == "passed") {
+    if (updatedStatusItem) {
+      updatedStatusItem.status = executionDetails.status;
+      updatedStatusItem.resultFilePath = executionDetails.resultsFilePath;
+      globalTestStatusArray[nodeID] = updatedStatusItem;
+
+      if (updatedStatusItem.status == "passed") {
         returnStatus = testStatus.passed;
       } else {
         returnStatus = testStatus.failed;
       }
+    } else {
+      returnStatus = testStatus.didNotRun;
     }
   }
-  return returnStatus;
+  return { status: returnStatus, details: executionDetails };
 }
 
 function addSearchPathsFromConfigurationFile(
@@ -581,7 +656,8 @@ function createVcastEnvironmentScript(
 function buildEnvironmentVCAST(
   fileList: string[],
   unitTestLocation: string,
-  enviroName: string
+  enviroName: string,
+  shouldBuildEnviro: boolean = true
 ) {
   // enviroName is the name of the enviro without the .env
 
@@ -599,7 +675,10 @@ function buildEnvironmentVCAST(
   // It is important that this call be done before the creation of the .env
   // Check that we have a valid configuration file, and create one if we don't
   // This function will return True if there is a CFG when it is done.
-  if (initializeConfigurationFile(unitTestLocation)) {
+  if (!shouldBuildEnviro) {
+    setCodedTestOption(unitTestLocation);
+    createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
+  } else if (initializeConfigurationFile(unitTestLocation)) {
     setCodedTestOption(unitTestLocation);
 
     createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
@@ -608,49 +687,143 @@ function buildEnvironmentVCAST(
   }
 }
 
-function configureWorkspaceAndBuildEnviro(
-  fileList: string[],
-  unitTestLocation: string
+/**
+ * Processes the import of an environment to a project and the creation of the first testsuite
+ * @param projectPath Path to Project file
+ * @param testSuite Testsuite string containing Compiler/TestSuite/Group
+ * @param envFilePath Path to env file
+ */
+async function processFirstTestSuite(
+  projectPath: string,
+  testSuite: string,
+  envFilePath: string
 ) {
+  // Need to extract the group from the testsuite string
+  const parts = testSuite.split("/");
+  const baseDisplayName = parts.slice(0, 2).join("/");
+  await importEnvToTestsuite(projectPath, baseDisplayName, envFilePath);
+}
+
+/**
+ * Processes the creation of additional testsuites in a project and the addition of the environment to the testsuite
+ * @param projectPath Path to Project file
+ * @param testSuite Testsuite string containing Compiler/TestSuite/Group
+ * @param envName Name of the environment (The Env needs to be already imported to use this function).
+ * @param projectEnvData Data of the project environments
+ */
+async function processAdditionalTestSuite(
+  projectPath: string,
+  testSuite: string,
+  envName: string,
+  projectEnvData: enviroListAsMapType
+) {
+  // Need to extract the group from the testsuite string
+  const parts = testSuite.split("/");
+  const baseDisplayName = parts.slice(0, 2).join("/");
+
+  // Check if the testsuite already exists in the project data
+  let existsInProject = false;
+  if (projectEnvData) {
+    for (const envData of projectEnvData.values()) {
+      const existingBaseName = envData.displayName
+        .split("/")
+        .slice(0, 2)
+        .join("/");
+      if (existingBaseName === baseDisplayName) {
+        existsInProject = true;
+        break;
+      }
+    }
+  }
+  if (!existsInProject) {
+    await createNewTestsuiteInProject(projectPath, baseDisplayName);
+  }
+  await addEnvToTestsuite(projectPath, baseDisplayName, envName);
+}
+
+async function configureWorkspaceAndBuildEnviro(
+  fileList: string[],
+  envLocation: string,
+  projectEnvParameters?: ProjectEnvParameters
+): Promise<void> {
   // This function will check if unit test directory exists
   // and if not ask the user if we should auto-create it or not
 
-  if (fs.existsSync(unitTestLocation)) {
-    commonNewEnvironmentStuff(fileList, unitTestLocation);
+  // If we have project params, we want to create an env within a project
+  if (projectEnvParameters) {
+    // Create the environment using the provided file list
+    commonEnvironmentSetup(fileList, envLocation, false);
+
+    const envName = createEnvNameFromFiles(fileList);
+    const envFilePath = path.join(envLocation, `${envName}.env`);
+    const testSuites = projectEnvParameters.testsuiteArgs;
+    const projectPath = projectEnvParameters.path;
+
+    // First we need to import the Env and therefore process the first testsuite separately
+    await processFirstTestSuite(projectPath, testSuites[0], envFilePath);
+
+    // Process each additional testsuite
+    const projectEnvData = globalProjectDataCache.get(projectPath);
+    if (projectEnvData) {
+      for (let i = 1; i < testSuites.length; i++) {
+        await processAdditionalTestSuite(
+          projectPath,
+          testSuites[i],
+          envName,
+          projectEnvData
+        );
+      }
+    }
+
+    // Delete the temporary folder and its contents
+    try {
+      if (fs.existsSync(envLocation)) {
+        fs.rmdirSync(envLocation, { recursive: true });
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Error deleting temporary folder: ${error}`
+      );
+    }
+  } else if (fs.existsSync(envLocation)) {
+    // If no project params but the folder already exists, just do the common setup
+    commonEnvironmentSetup(fileList, envLocation);
   } else {
+    // Otherwise prompt the user to create it
     const message =
       "Unit test location: '" +
-      unitTestLocation +
-      " does not exist.\n" +
+      envLocation +
+      "' does not exist.\n" +
       "Do you want to create and initialize this directory?";
-    vscode.window
-      .showInformationMessage(message, "Yes", "No")
-      .then((answer) => {
-        if (answer === "Yes") {
-          try {
-            fs.mkdirSync(unitTestLocation, { recursive: true });
-            commonNewEnvironmentStuff(fileList, unitTestLocation);
-          } catch (error: any) {
-            vscode.window.showErrorMessage(
-              `Error creating directory: ${unitTestLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
-            );
-            vectorMessage("Error creating directory: " + unitTestLocation);
-            showSettings();
-          }
-        } else {
-          vscode.window.showWarningMessage(
-            `Please create the unit test directory: '${unitTestLocation}', or update the 'Unit Test Location' option`
-          );
-          showSettings();
-        }
-      });
+
+    // await the user's choice instead of using .then()
+    const answer = await vscode.window.showInformationMessage(
+      message,
+      "Yes",
+      "No"
+    );
+
+    if (answer === "Yes") {
+      try {
+        fs.mkdirSync(envLocation, { recursive: true });
+        commonEnvironmentSetup(fileList, envLocation);
+      } catch (error: any) {
+        vscode.window.showErrorMessage(
+          `Error creating directory: ${envLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
+        );
+        vectorMessage("Error creating directory: " + envLocation);
+        showSettings();
+      }
+    } else {
+      vscode.window.showWarningMessage(
+        `Please create the unit test directory: '${envLocation}', or update the 'Unit Test Location' option`
+      );
+      showSettings();
+    }
   }
 }
 
-function commonNewEnvironmentStuff(
-  fileList: string[],
-  unitTestLocation: string
-) {
+export function createEnvNameFromFiles(fileList: string[]) {
   if (fileList.length > 0) {
     const firstFile = fileList[0];
     const filename = path.basename(firstFile);
@@ -664,46 +837,63 @@ function commonNewEnvironmentStuff(
         .toUpperCase()}`;
     }
 
-    let enviroPath = path.join(unitTestLocation, enviroName);
+    return enviroName;
+  }
+}
 
-    if (fs.existsSync(enviroPath)) {
-      vscode.window
-        .showInputBox({
-          prompt: `Directory: "${enviroName}" already exists, please choose an alternate name ...`,
-          title: "Choose VectorCAST Environment Name",
-          value: enviroName,
-          ignoreFocusOut: true,
-        })
-        .then((response) => {
-          if (response) {
-            enviroName = response.toUpperCase();
-            enviroPath = path.join(unitTestLocation, response);
-            if (fs.existsSync(enviroPath))
-              vscode.window.showErrorMessage(
-                `Environment name: ${enviroName}, already in use, aborting`
-              );
-            else
-              buildEnvironmentVCAST(
-                fileList,
-                unitTestLocation,
-                response.toUpperCase()
-              );
-          }
-        });
-    } else {
-      buildEnvironmentVCAST(
-        fileList,
-        unitTestLocation,
-        enviroName.toUpperCase()
-      );
+async function commonEnvironmentSetup(
+  fileList: string[],
+  envLocation: string,
+  shouldBuildEnviro: boolean = true
+) {
+  // Nothing to do if no files selected
+  if (fileList.length === 0) {
+    vectorMessage("No C/C++ source files found in selection ...");
+    return;
+  }
+
+  // Derive the environment name and path
+  let enviroName = createEnvNameFromFiles(fileList)!.toUpperCase();
+  let enviroPath = path.join(envLocation, enviroName);
+
+  // If the directory already exists, prompt for a new name
+  if (fs.existsSync(enviroPath)) {
+    const response = await vscode.window.showInputBox({
+      prompt: `Directory: "${enviroName}" already exists, please choose an alternate name ...`,
+      title: "Choose VectorCAST Environment Name",
+      value: enviroName,
+      ignoreFocusOut: true,
+    });
+
+    // If user cancelled, abort
+    if (!response) {
+      return;
     }
-  } else vectorMessage("No C/C++ source files found in selection ...");
+
+    // Update name and path based on user input
+    enviroName = response.toUpperCase();
+    enviroPath = path.join(envLocation, response);
+
+    // If the new name also exists, show error and abort
+    if (fs.existsSync(enviroPath)) {
+      vscode.window.showErrorMessage(
+        `Environment name: ${enviroName}, already in use, aborting`
+      );
+      return;
+    }
+  }
+
+  // Build the environment with the valid name
+  buildEnvironmentVCAST(fileList, envLocation, enviroName, shouldBuildEnviro);
 }
 
 // Improvement needed: get the language extensions automatically, don't hard-code
 const extensionsOfInterest = ["c", "cpp", "cc", "cxx"];
 
-export function newEnvironment(URIlist: Uri[]) {
+export async function newEnvironment(
+  URIlist: Uri[],
+  projectEnvParameters?: ProjectEnvParameters
+) {
   // This is called from the right click in the file explorer tree
   // Based on the package.json, we know tha that at least one
   // file in the list will be a C/C++ file but we need to filter
@@ -719,10 +909,38 @@ export function newEnvironment(URIlist: Uri[]) {
     }
   }
   if (fileList.length > 0) {
-    let unitTestLocation = getUnitTestLocationForPath(
-      path.dirname(fileList[0])
-    );
-    configureWorkspaceAndBuildEnviro(fileList, unitTestLocation);
+    if (projectEnvParameters) {
+      // Get the workspace root folder.
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("No workspace folder is open.");
+        return;
+      }
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+      //Create a new folder "tempEnv" under the workspace root.
+      const tempEnvPath = path.join(workspaceRoot, "tempEnv");
+      try {
+        if (!fs.existsSync(tempEnvPath)) {
+          fs.mkdirSync(tempEnvPath);
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Failed to create tempEnv folder: ${error}`
+        );
+        return;
+      }
+      await configureWorkspaceAndBuildEnviro(
+        fileList,
+        tempEnvPath,
+        projectEnvParameters
+      );
+    } else {
+      let unitTestLocation = getUnitTestLocationForPath(
+        path.dirname(fileList[0])
+      );
+      await configureWorkspaceAndBuildEnviro(fileList, unitTestLocation);
+    }
   } else {
     vscode.window.showWarningMessage(
       "Create environment may only be run for source files [" +
@@ -730,6 +948,7 @@ export function newEnvironment(URIlist: Uri[]) {
         "]"
     );
   }
+  await refreshAllExtensionData();
 }
 
 function valueOrDefault(name: string): string {
@@ -829,27 +1048,30 @@ async function commonCodedTestProcessing(
 ) {
   let testNode: testNodeType = getTestNode(testID);
   const enviroPath = getEnviroPathFromID(testID);
+  const enviroName = path.basename(enviroPath);
 
   await vectorMessage(
     `Adding coded test file: ${userFilePath} for environment: ${enviroPath}`
   );
 
   // call clicast to create new coded test
-  const commandStatus: commandStatusType = addCodedTestToEnvironment(
+  const commandStatus: commandStatusType = await addCodedTestToEnvironment(
     enviroPath,
     testNode,
     action,
-    userFilePath
+    normalizePath(userFilePath)
   );
 
-  updateTestPane(enviroPath);
-  if (commandStatus.errorCode == 0) {
+  await updateTestPane(enviroPath);
+
+  if (commandStatus.errorCode == 0 && enviroName) {
+    // update project data after the script is loaded
+    await updateProjectData(enviroPath);
     vscode.window.showInformationMessage(`Coded Tests added successfully`);
   } else {
-    // need to re-read to get the test file name
-    testNode = getTestNode(testID);
     openTestFileAndErrors(testNode);
   }
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 }
 
 export async function addExistingCodedTestFile(testID: string) {
@@ -867,7 +1089,7 @@ export async function addExistingCodedTestFile(testID: string) {
       title: "Select Coded Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showOpenDialog(option).then(async (fileUri) => {
+    vscode.window.showOpenDialog(option).then((fileUri) => {
       if (fileUri) {
         commonCodedTestProcessing(
           fileUri[0].fsPath,
@@ -892,7 +1114,7 @@ export async function generateNewCodedTestFile(testID: string) {
       title: "Save Code Test File",
       filters: { "Coded Test Files": ["cpp", "cc", "cxx"] },
     };
-    vscode.window.showSaveDialog(option).then(async (fileUri) => {
+    vscode.window.showSaveDialog(option).then((fileUri) => {
       if (fileUri) {
         commonCodedTestProcessing(fileUri.fsPath, testID, codedTestAction.new);
       }
@@ -908,4 +1130,61 @@ export async function openCodedTest(testNode: testNodeType) {
   if (fs.existsSync(testNode.testFile)) {
     openFileWithLineSelected(testNode.testFile, testNode.testStartLine - 1);
   }
+}
+
+/**
+ * Generates and retrieves the MCDC html result file.
+ *
+ * @param {string} enviroPath - The path to the environment or directory.
+ * @param {string} unit - The unit which includes the line.
+ * @param {number} lineNumber - The line number for which the report is generated.
+ * @returns {Promise<string>} A promise that resolves to the path of the result file if successful, or an empty string on failure.
+ */
+export async function getMCDCResultFile(
+  enviroPath: string,
+  unit: string,
+  lineNumber: number
+) {
+  // Generate the environment path and request the test report from Python
+  const commandStatus = await getMCDCReport(enviroPath, unit, lineNumber);
+  let resultFile: string = "";
+
+  // Check if report generation was successful
+  if (commandStatus.errorCode === 0) {
+    const firstLineOfOutput: string = commandStatus.stdout
+      .split("\n", 1)[0]
+      .trim();
+
+    resultFile = firstLineOfOutput.split("REPORT:")[1].trim();
+    // Handle the case where the output contains "REPORT"
+    if (firstLineOfOutput.includes("REPORT:")) {
+      // Verify if the generated report file actually exists
+      if (!fs.existsSync(resultFile)) {
+        const reportNotExistentErrorMessage = `The Report: ${resultFile} does not exist.`;
+        vscode.window.showWarningMessage(`${reportNotExistentErrorMessage}`);
+        vectorMessage(`${reportNotExistentErrorMessage}`);
+      }
+    }
+
+    // If the first line of output contains "Error" --> Test result generation failed
+    else if (firstLineOfOutput.includes("Error:")) {
+      const errorDetails = firstLineOfOutput.split("Error:")[1].trim();
+      const reportGenerationErrorMessage = `Execution report was not successfully generated. Error details: \n${errorDetails}`;
+      vscode.window.showWarningMessage(`${reportGenerationErrorMessage}`);
+      vectorMessage(`${reportGenerationErrorMessage}`);
+    }
+
+    // Handle other unexpected cases (After successfull test generation, but without the "REPORT:" string)
+    else {
+      const unexpectedErrorMessage = `Unexpected Error: \n${commandStatus.stdout}`;
+      vscode.window.showWarningMessage(`${unexpectedErrorMessage}`);
+      vectorMessage(`${unexpectedErrorMessage}`);
+    }
+  } else {
+    const commandErrorString = `Error generating MCDC report. Error Code: ${commandStatus.errorCode}`;
+    vscode.window.showWarningMessage(`${commandErrorString}`);
+    vectorMessage(`${commandErrorString}`);
+  }
+
+  return resultFile;
 }

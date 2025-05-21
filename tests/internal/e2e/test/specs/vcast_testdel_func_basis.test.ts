@@ -6,13 +6,12 @@ import {
   testGenMethod,
   deleteAllTestsForFunction,
   assertTestsDeleted,
-  cleanup,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const TIMEOUT = 120_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -96,26 +95,21 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await browser.waitUntil(
       async () => (await outputView.getText()).at(-1) != undefined,
-      { timeout: 30_000, interval: 1000 }
+      { timeout: TIMEOUT, interval: 1000 }
     );
 
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
-          .at(-1)
           .toString()
-          .includes("Processing environment data for:"),
-      { timeout: 30_000, interval: 1000 }
+          .includes("Processing environment data"),
+      { timeout: TIMEOUT }
     );
+
     await browser.pause(10_000);
 
     await assertTestsDeleted("DATABASE-MANAGER");
     await browser.takeScreenshot();
     await browser.saveScreenshot("info_deleted_func_basis_tests.png");
-  });
-
-  it("should clean up", async () => {
-    await updateTestID();
-    await cleanup();
   });
 });

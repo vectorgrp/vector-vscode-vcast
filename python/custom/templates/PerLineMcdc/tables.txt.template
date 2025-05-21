@@ -1,0 +1,48 @@
+{#- Macro definitions -#}
+{#- Macro to MC/DC Conditions list -#}
+{%- macro write_mcdc_conditions(mcdc_coverage) -%}
+{%- for cond in mcdc_coverage.conditions %}
+{%- if cond.cond_index > 0 %}
+  {{ _("Condition \"%(cond)s\" (C%(cond)s) is")|format(cond=cond.cond_variable) }}: {{cond.cond_expr}}
+{%- endif %}
+{%- endfor -%}
+{%- endmacro -%}
+{#- Macro for MC/DC Table -#}
+{%- macro write_mcdc_table(mcdc_table_data) %}
+  {{ mcdc_table_data["lengths"]|table_sep_row }}
+  {{ mcdc_table_data["header_row"]|table_row(mcdc_table_data["lengths"],'|') }}
+  {{ mcdc_table_data["lengths"]|table_sep_row }}
+{%- for row in mcdc_table_data["rows"] %}
+  {{ row|table_row(mcdc_table_data["lengths"],'|') }}
+  {{ mcdc_table_data["lengths"]|table_sep_row }}
+{%- endfor %}
+{%- endmacro -%}
+{#- Macro for pairs satisfied -#}
+{%- macro write_pairs_satisfied(pairs_data) -%}
+{%- for condition in pairs_data["conditions"] -%}
+{%- if condition["covered_pair"] == "" %}
+  P{{condition["cond_variable"]}} => {% trans %}no pair was satisfied{% endtrans %}
+{%- if condition["all_pairs"] -%}
+{% for row in condition["all_pairs"]|wrap_array(66, 8)%}
+{{row}}
+{%- endfor %}
+{%- else -%}
+{{"\n"}}
+{%- endif %}
+{%- else %}
+{%- if condition["annotated"] %}
+  P{{condition["cond_variable"]}} => {{ _("a pair was satisfied by analysis (%(covered)s)")|format(covered=condition["covered_pair"]) }}
+{%- else %}
+  P{{condition["cond_variable"]}} => {{ _("a pair was satisfied (%(covered)s)")|format(covered=condition["covered_pair"]) }}
+{%- endif %}
+{%- if condition["all_pairs"] -%}
+{% for row in condition["all_pairs"]|wrap_array(66, 8)%}
+{{row}}
+{%- endfor %}
+{%- else -%}
+{{"\n"}}
+{%- endif %}
+{%- endif -%}
+{%- endfor %}
+  {{ _("Pairs satisfied: %(satisfied)s of %(num_pairs)s ( %(pct)s%% )")|format(satisfied=pairs_data["pairs_satisfied"],num_pairs=pairs_data["num_pairs"],pct=pairs_data["pairs_percent"]) }}
+{%- endmacro -%}

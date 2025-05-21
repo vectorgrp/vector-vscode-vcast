@@ -66,8 +66,8 @@ function addSpecialChoices(returnList: CompletionItem[]) {
 }
 
 // this function will take a js array and create a completion array
-export function completionList(
-  inputList: string[],
+export function buildCompletionList(
+  choiceList: string[],
   choiceKind: CompletionItemKind
 ): CompletionItem[] {
   // the format of what comes in here looks like a list of strings
@@ -75,8 +75,8 @@ export function completionList(
 
   let i;
   let returnList: CompletionItem[] = [];
-  for (i = 0; i < inputList.length; i++) {
-    const rawData = inputList[i];
+  for (i = 0; i < choiceList.length; i++) {
+    const rawData = choiceList[i];
     const pieces = rawData.split("@");
     let details = pieces.length > 1 ? pieces[1] : "";
     const labelValue = pieces[0];
@@ -152,9 +152,6 @@ export function getEnviroNameFromTestScript(testScriptPath: string) {
   // if we found a valid environment name, create a full path for it
   if (enviroName) {
     const enviroPath = path.join(path.dirname(testScriptPath), enviroName);
-    console.log(
-      "Environment path for script: " + testScriptPath + " is: " + enviroPath
-    );
     whatToReturn = enviroPath;
   } else {
     console.log(
@@ -175,7 +172,7 @@ export function getNearest(
   for (lineIndex = 0; lineIndex < currentLine; lineIndex++) {
     const fullLine = getLineText(document, lineIndex);
     if (fullLine.toUpperCase().startsWith(`TEST.${command}:`)) {
-      var pieces = fullLine.split(":");
+      const pieces = fullLine.split(":");
       unitName = pieces[1];
     }
   }
@@ -267,6 +264,7 @@ export const testCommandList = [
   "END",
   // test scope
   "NAME",
+  "CODED_TEST_FILE",
   "NOTES",
   "END_NOTES",
   "FLOW",

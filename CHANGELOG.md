@@ -102,7 +102,7 @@ This option is new for VectorCAST 23 sp2
 - Improved color scheme for stdout/stderr from driver in execution reports
 - Rearranged the extension options into General, and Build Environment section
 - Added a new extension option for Coverage Kind to the Build Options
-- Added support for environment variables in the uUnit include path #96
+- Added support for environment variables in the Unit include path #96
 - Forced Coded Tests entry in the test tree to be the first item in the function list
 
 ### Code Maintenance
@@ -119,5 +119,54 @@ This option is new for VectorCAST 23 sp2
 - Added support for relative paths to the coded test file in test script #106
 - Fixed issue with unrecoverable link error after a coded test compile error #128
 
+## [1.0.12] - 2024-09-25
+- Added support for coded mocks.  See README section: "Editing a Coded Test" for usage details.
+- Enforced a minium VectorCAST version: 21, and added notification to user for older versions
+
+### Bug Fixes
+- Removed an instance where the VectorCAST version mismatch error was displayed in the output pane #143.
+- Fixed issue with the Test Pane not populating properly in some cases #149.
+- The extension now ignores environment directories that are opened directly #173.
+- Fixed an unnecessary update occurring during the insertion of ATG tests
+
+## [1.0.13] - 2024-11-15
+- Added support for utilising VectorCAST in server mode. See README section: "VectorCAST Data Server" for usage details.
+
+### Bug Fixes
+- Improved coverage status bar messages (#211)
+- Execution reports no longer generate text reports (#220) and now use a custom report (#231)
+
+### Code Maintenance
+- `vsce` is now installed locally (from vector-vscode-vcast's `package.json`) and not globally (#196)
+
+## [1.0.14] - 2024-11-19
+
+### Bug Fixes
+- Fix hover colours execution reports (#236)
+- Fix View Test Results context menu (#237)
+
+## [1.0.15] - 2024-12-20
+- Implemented MCDC and MCDC+Statement Coverage (#243)
+- Added ability to generate MCDC reports 
+
+### Bug Fixes
+- Fixed wrong Test Results message log (#248)
+
+## [1.0.16] - 2024-05-08
+- Implemented Manage support (#253), including:
+    - **Environment Management**:  
+        - Add existing environments to projects.  
+        - Delete environments from a project.  
+        - Create environments from source files.  
+        - Build individual environments in isolation. 
+        - Build / Execute Environments 
+    - **Compiler Integration**:  
+        - Create compiler instances from CFG configuration files.  
+        - Remove compiler instances from the project.    
+    - **Testsuite Handling**:  
+        - Create and delete testsuites.  
+        - Link and unlink environments to/from testsuites.  
+        
+- Implemented ability to load Test Scripts by saving the .tst file
 
 

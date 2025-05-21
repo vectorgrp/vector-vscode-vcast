@@ -2,7 +2,7 @@
 // if running on vistr server
 import path from "node:path";
 import { URL } from "node:url";
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import {
@@ -18,7 +18,11 @@ import {
 import { bootstrap } from "global-agent";
 import type { Options } from "@wdio/types";
 import capabilitiesJson from "./capabilityConfig.json";
-import { getSpecs } from "./specs_config.ts";
+import { getSpecs } from "./specs_config";
+import {
+  checkForServerRunnability,
+  getToolVersion,
+} from "../../../unit/getToolversion";
 
 const noProxyRules = (process.env.no_proxy ?? "")
   .split(",")
@@ -242,7 +246,7 @@ export const config: Options.Testrunner = {
   //
   // Default timeout in milliseconds for request
   // if browser driver or grid doesn"t send response
-  connectionRetryTimeout: 22_000,
+  connectionRetryTimeout: 40_000,
   //
   // Default request retries count
   connectionRetryCount: 2,
@@ -323,9 +327,14 @@ export const config: Options.Testrunner = {
     const envActions = new Map([
       ["BUILD_MULTIPLE_ENVS", async () => await setupMultipleEnvironments()],
       [
-        "IMPORT_CODED_TEST_IN_TST",
-        async () => await setupSingleEnvAndImportCT(initialWorkdir),
+        "SWITCH_ENV_AT_THE_END",
+        async () => await buildEnvsWithSpecificReleases(initialWorkdir),
       ],
+      [
+        "IMPORT_CODED_TEST_IN_TST",
+        async () => await buildEnvsWithSpecificReleases(initialWorkdir),
+      ],
+      ["MANAGE_TEST", async () => await testManage(initialWorkdir)],
     ]);
 
     // Determine the environment key
@@ -383,6 +392,28 @@ export const config: Options.Testrunner = {
      * ================================================================================================
      */
 
+    async function testManage(initialWorkdir: string) {
+      const testInputManage = path.join(initialWorkdir, "test", "manage");
+      const build_demo = `cd ${testInputManage} && ./demo_build.sh`;
+      await executeCommand(build_demo);
+      await checkVPython();
+      clicastExecutablePath = await checkClicast();
+      process.env.CLICAST_PATH = clicastExecutablePath;
+
+      await prepareConfig(initialWorkdir, clicastExecutablePath);
+      await executeRGWCommands(testInputManage);
+      const destFolder = path.join(initialWorkdir, "test", "vcastTutorial");
+      if (process.platform === "win32") {
+        await executeCommand(
+          `xcopy /s /i /y ${testInputManage} ${destFolder} > NUL 2> NUL`
+        );
+      } else {
+        await executeCommand(
+          `cp -r ${path.join(testInputManage, "*")} ${destFolder}`
+        );
+      }
+    }
+
     /**
      * Builds one env based on VECTORCAST_DIR.
      * Standard env build and used by most Spec groups.
@@ -395,13 +426,13 @@ export const config: Options.Testrunner = {
         "vcastTutorial"
       );
 
+      // Standard setup when VECTORCAST_DIR is available
       if (process.env.VECTORCAST_DIR) {
-        // Standard setup when VECTORCAST_DIR is available
         await checkVPython();
         clicastExecutablePath = await checkClicast();
         process.env.CLICAST_PATH = clicastExecutablePath;
 
-        await prepareConfig(initialWorkdir);
+        await prepareConfig(initialWorkdir, clicastExecutablePath);
         const createCFG = `cd ${testInputVcastTutorial} && clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
       } else {
@@ -411,11 +442,12 @@ export const config: Options.Testrunner = {
           process.env.VECTORCAST_DIR_TEST_DUPLICATE || "",
           "vpython"
         );
+
         process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
         clicastExecutablePath = `${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast`;
         process.env.CLICAST_PATH = clicastExecutablePath;
 
-        await prepareConfig(initialWorkdir);
+        await prepareConfig(initialWorkdir, clicastExecutablePath);
         const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR_TEST_DUPLICATE}/clicast -lc template GNU_CPP_X`;
         await executeCommand(createCFG);
       }
@@ -423,17 +455,26 @@ export const config: Options.Testrunner = {
       // Execute RGW commands and copy necessary files
       await executeRGWCommands(testInputVcastTutorial);
       await copyPathsToTestLocation(testInputVcastTutorial);
+
+      const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
+
+      // Coded tests support only for >= vc24
+      if (toolVersion >= 24) {
+        const setCoded = `cd ${testInputVcastTutorial} && ${clicastExecutablePath.trimEnd()} -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
+        await executeCommand(setCoded);
+      }
     }
 
     /**
-     * Builds one env with 2024sp3 and switches to vc24 at the end.
-     * TARGET SPEC GROUP: coded_mock_different_env
+     * Builds VectorCAST environments using specific releases, then switches to the latest release.
+     * Tests behavior when environments created with various releases are opened
+     * using the newest release.
+     * TARGET SPEC GROUP: coded_mock_different_env && import_coded_test
      */
-    async function setupSingleEnvAndImportCT(initialWorkdir: string) {
+    async function buildEnvsWithSpecificReleases(initialWorkdir: string) {
       // Setup environment with clicast and vpython
       await checkVPython();
-      clicastExecutablePath = await checkClicast();
-      process.env.CLICAST_PATH = clicastExecutablePath;
+      let clicastExecutablePath: string;
 
       const workspacePath = path.join(__dirname, "vcastTutorial");
       const testInputVcastTutorial = path.join(
@@ -444,11 +485,34 @@ export const config: Options.Testrunner = {
       );
 
       let vcastRoot = await getVcastRoot();
-      const newVersion = "release24";
+      const toolVersion = await getToolVersion();
+      let coded_mock_different_env_version: string;
+      if (toolVersion == 25) {
+        coded_mock_different_env_version = "2025sp0";
+      } else {
+        coded_mock_different_env_version = "2024sp1";
+      }
 
-      // Set up environment directory
-      process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
-      await prepareConfig(initialWorkdir);
+      // Look up what testing group called this function (coded_mock_different_env or import_coded_test) and
+      // and set the required releases accordingly
+      if (process.env.SWITCH_ENV_AT_THE_END) {
+        process.env.VECTORCAST_DIR = path.join(
+          vcastRoot,
+          coded_mock_different_env_version
+        );
+
+        // Because we remove release from path in the setup --> Add the old version to PATH
+        const currentPath = process.env.PATH || "";
+        const newPath = path.join(process.env.VECTORCAST_DIR || "", "vpython");
+        process.env.PATH = `${newPath}${path.delimiter}${currentPath}`;
+        clicastExecutablePath = `${process.env.VECTORCAST_DIR}/clicast`;
+        process.env.CLICAST_PATH = clicastExecutablePath;
+      } else {
+        clicastExecutablePath = await checkClicast();
+        process.env.CLICAST_PATH = clicastExecutablePath;
+      }
+
+      await prepareConfig(initialWorkdir, clicastExecutablePath);
 
       // Execute environment configuration and run RGW commands
       const createCFG = `cd ${testInputVcastTutorial} && ${process.env.VECTORCAST_DIR}/clicast -lc template GNU_CPP_X`;
@@ -521,13 +585,21 @@ TEST.END`;
       await writeFile(testsFile, testsCPP);
       await writeFile(testENVFile, testENVContent);
 
+      const deleteTESTEnv = `cd ${workspacePath} && rm -rf TEST`;
       const setCoded = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -lc option VCAST_CODED_TESTS_SUPPORT TRUE`;
       const setEnviro = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/enviroedg TEST.env`;
       const runTest = `cd ${workspacePath} && ${process.env.VECTORCAST_DIR}/clicast -e TEST test script run template.tst`;
 
+      await executeCommand(deleteTESTEnv);
       await executeCommand(setCoded);
       await executeCommand(setEnviro);
       await executeCommand(runTest);
+
+      if (toolVersion == 25) {
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, "2025sp1");
+      } else {
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
+      }
     }
 
     /**
@@ -535,10 +607,9 @@ TEST.END`;
      * TARGET SPEC GROUP: build_different_envs
      */
     async function setupMultipleEnvironments() {
-      let vcastRoot = await getVcastRoot();
+      const vcastRoot = await getVcastRoot();
 
-      const oldVersion = "release23";
-      const newVersion = "release24";
+      const oldVersion = "2023sp0";
 
       // Total amount of envs to be build
       const totalEnvCount = 4;
@@ -602,7 +673,7 @@ ENVIRO.END
         let envName: string;
         // Switch VectorCAST version based on iteration (build 1,3 --> release 23, 2,4 --> release 24)
         if (i % 2 === 0) {
-          process.env.VECTORCAST_DIR = path.join(vcastRoot, newVersion);
+          process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
           envName = `ENV_24_${i.toString().padStart(2, "0")}`;
           console.log(`Building ${envName} with ${process.env.VECTORCAST_DIR}`);
         } else {
@@ -638,6 +709,42 @@ ENVIRO.END
      * @returns {Promise<void>} - A promise that resolves when all directory operations are complete.
      */
     async function setupTestEnvironment(initialWorkdir: string): Promise<void> {
+      const testInputManage = path.join(initialWorkdir, "test", "manage");
+      // In case the tests failed onWorkerEnd is not called and we need to delete the Manage folders and files here
+      if (process.env.MANAGE_TEST) {
+        if (process.platform == "win32") {
+          // Delete folders Test and input
+          await promisifiedExec(
+            `rmdir /s /q "${path.join(testInputManage, "Test")}"`
+          );
+          await promisifiedExec(
+            `rmdir /s /q "${path.join(testInputManage, "input")}"`
+          );
+          // Delete files Test.vcm and CCAST_.CFG
+          await promisifiedExec(
+            `del /q "${path.join(testInputManage, "Test.vcm")}"`
+          );
+          await promisifiedExec(
+            `del /q "${path.join(testInputManage, "CCAST_.CFG")}"`
+          );
+          await promisifiedExec("taskkill -f -im code* > NUL 2> NUL");
+        } else {
+          // Delete folders Test and input
+          await promisifiedExec(
+            `rm -rf "${path.join(testInputManage, "Test")}"`
+          );
+          await promisifiedExec(
+            `rm -rf "${path.join(testInputManage, "input")}"`
+          );
+          // Delete files Test.vcm and CCAST_.CFG
+          await promisifiedExec(
+            `rm -f "${path.join(testInputManage, "Test.vcm")}"`
+          );
+          await promisifiedExec(
+            `rm -f "${path.join(testInputManage, "CCAST_.CFG")}"`
+          );
+        }
+      }
       const vcastTutorialPath = path.join(
         initialWorkdir,
         "test",
@@ -665,7 +772,10 @@ ENVIRO.END
      * @param initialWorkdir - Path of the initial work dir.
      * @returns {Promise<void>} - A promise that resolves when all preparation operations are complete.
      */
-    async function prepareConfig(initialWorkdir: string): Promise<void> {
+    async function prepareConfig(
+      initialWorkdir: string,
+      clicastExecutablePath: string
+    ): Promise<void> {
       // Set vectorcast directory based on CLICAST_PATH
       vectorcastDir = path.dirname(process.env.CLICAST_PATH);
       process.env.VC_DIR = vectorcastDir;
@@ -699,6 +809,9 @@ ENVIRO.END
           ? `copy /b NUL ${launchJsonPath}`
           : `touch ${launchJsonPath}`;
       await executeCommand(createLaunchJson);
+
+      // Create settings.json
+      await createVscodeSettings(vscodeSettingsPath, clicastExecutablePath);
 
       const pathTovUnitInclude = path.join(vectorcastDir, "vunit", "include");
       const c_cpp_properties = {
@@ -753,6 +866,40 @@ ENVIRO.END
       } catch (error) {
         console.error(`Error executing command "${command}":`, error);
       }
+    }
+
+    /**
+     * Creates a settings.json for the vscode extension based on our needs for the tests
+     * @param vscodeSettingsPath Path to settings.json
+     */
+    async function createVscodeSettings(
+      vscodeSettingsPath: string,
+      clicastExecutablePath: string
+    ) {
+      // Create a settings.json file for VSCode with "vectorcastTestExplorer.verboseLogging" set to true
+      const settingsJsonPath = path.join(vscodeSettingsPath, "settings.json");
+
+      const isServerRunnable = await checkForServerRunnability(
+        clicastExecutablePath
+      );
+
+      // Check if VCAST_USE_PYTHON is defined and if the server is runnable
+      // If the version is < 24sp4 ... we set the useDataServer false either way.
+      const useDataServer = `"vectorcastTestExplorer.useDataServer": ${isServerRunnable && !process.env.VCAST_USE_PYTHON}`;
+
+      // Build the content of settings.json based on the environment
+      let settingsContent = `{ "vectorcastTestExplorer.verboseLogging": true, ${useDataServer} }`;
+
+      console.log("Vscode extension settings content:");
+      console.log(settingsContent);
+
+      // Create the settings.json file
+      const createSettingsJson =
+        process.platform == "win32"
+          ? `echo ${JSON.stringify(settingsContent)} > ${settingsJsonPath}`
+          : `echo '${settingsContent}' > ${settingsJsonPath}`;
+
+      await executeCommand(createSettingsJson);
     }
 
     /**
@@ -854,7 +1001,7 @@ ENVIRO.END
      * @throws {Error} - If `vpython` is not found or there is a command error.
      */
     async function checkVPython(): Promise<void> {
-      let checkVPython =
+      const checkVPython =
         process.platform == "win32" ? "where vpython" : "which vpython";
 
       {
@@ -875,7 +1022,7 @@ ENVIRO.END
      * @throws {Error} - If `clicast` is not found or there is a command error.
      */
     async function checkClicast(): Promise<string> {
-      let checkClicast =
+      const checkClicast =
         process.platform == "win32" ? "where clicast" : "which clicast";
 
       {
@@ -906,6 +1053,7 @@ ENVIRO.END
         // Assuming that locally release is on this path.
         vcastRoot = path.join(process.env.HOME, "vcast");
       }
+
       return vcastRoot;
     }
   },
@@ -928,9 +1076,13 @@ ENVIRO.END
    */
   async onWorkerEnd(cid, exitCode, specs, retries) {
     const path = require("node:path");
+    const { promisify } = require("node:util");
+    const { exec } = require("node:child_process");
+
     const promisifiedExec = promisify(exec);
     const initialWorkdir = process.env.INIT_CWD;
     const logDir = path.join(initialWorkdir, "test", "log");
+    const testInputManage = path.join(initialWorkdir, "test", "manage");
 
     if (process.platform == "win32") {
       await promisifiedExec(
@@ -940,11 +1092,41 @@ ENVIRO.END
           "vcastTutorial"
         )} ${path.join(logDir, "vcastTutorial")} > NUL 2> NUL`
       );
+      if (process.env.MANAGE_TEST) {
+        // Delete folders Test and input
+        await promisifiedExec(
+          `rmdir /s /q "${path.join(testInputManage, "Test")}"`
+        );
+        await promisifiedExec(
+          `rmdir /s /q "${path.join(testInputManage, "input")}"`
+        );
+        // Delete files Test.vcm and CCAST_.CFG
+        await promisifiedExec(
+          `del /q "${path.join(testInputManage, "Test.vcm")}"`
+        );
+        await promisifiedExec(
+          `del /q "${path.join(testInputManage, "CCAST_.CFG")}"`
+        );
+      }
       await promisifiedExec("taskkill -f -im code* > NUL 2> NUL");
     } else {
       await promisifiedExec(
         `cp -r ${path.join(initialWorkdir, "test", "vcastTutorial")} ${logDir}`
       );
+      if (process.env.MANAGE_TEST) {
+        // Delete folders Test and input
+        await promisifiedExec(`rm -rf "${path.join(testInputManage, "Test")}"`);
+        await promisifiedExec(
+          `rm -rf "${path.join(testInputManage, "input")}"`
+        );
+        // Delete files Test.vcm and CCAST_.CFG
+        await promisifiedExec(
+          `rm -f "${path.join(testInputManage, "Test.vcm")}"`
+        );
+        await promisifiedExec(
+          `rm -f "${path.join(testInputManage, "CCAST_.CFG")}"`
+        );
+      }
       await promisifiedExec("pkill code");
     }
   },
@@ -1009,7 +1191,13 @@ ENVIRO.END
    * @param {Boolean} result.passed    true if test has passed, otherwise false
    * @param {Object}  result.retries   informations to spec related retries, e.g. `{ attempts: 0, limit: 0 }`
    */
-  afterTest(test, context, { error, result, duration, passed, retries }) {
+  async afterTest(test, context, { error, result, duration, passed, retries }) {
+    // In some cases, a delay of a few seconds is needed; otherwise, VSCode closes too quickly.
+    // In server mode, if there is no active communication, the server gets terminated.
+    if (process.env.WAIT_AFTER_TESTS_FINISHED) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
     // Take a screenshot anytime a test fails and throws an error
     if (error) {
       browser.takeScreenshot();

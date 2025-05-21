@@ -14,13 +14,14 @@ import {
   findSubprogramMethod,
   editTestScriptFor,
   updateTestID,
+  checkElementExistsInHTML,
 } from "../test_utils/vcast_utils";
+import { TIMEOUT } from "../test_utils/vcast_utils";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: EditorView;
-  const TIMEOUT = 20_000;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -157,14 +158,12 @@ describe("vTypeCheck VS Code Extension", () => {
       currentLine,
       "TEST.EXPECTED:database.DataBase::UpdateTableRecord.Data[0].CheckTotal:14"
     );
-    await tab.save();
+
     await bottomBar.toggle(true);
     // This produces invalid locator error somehow
     // await tab.openContextMenu()
     // Loading test script directly for now
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
+    await tab.save();
   });
 
   it("should run mySecondTest and check its report", async () => {
@@ -213,9 +212,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await webview.open();
 
-    await expect($("h4*=Execution Results (FAIL)")).toHaveText(
-      "Execution Results (FAIL)"
-    );
+    await expect(
+      await checkElementExistsInHTML("Execution Results (FAIL)")
+    ).toBe(true);
+
     await expect($(".event*=Event 1")).toHaveText(
       "Event 1 - Calling Manager::PlaceOrder"
     );
@@ -262,21 +262,6 @@ describe("vTypeCheck VS Code Extension", () => {
       )
     ).toBe(true);
     expect(
-      outputViewText.includes(
-        "test explorer  [info]  Test summary for: vcast:cpp/unitTests/DATABASE-MANAGER|manager.Manager::PlaceOrder.mySecondTest"
-      )
-    ).toBe(true);
-    expect(
-      outputViewText.includes("test explorer  [info]  Status: failed")
-    ).toBe(true);
-
-    expect(
-      outputViewText.find(function (line): boolean {
-        return line.includes("Execution Time:");
-      })
-    ).not.toBe(undefined);
-
-    expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Processing environment data for:");
       })
@@ -287,7 +272,6 @@ describe("vTypeCheck VS Code Extension", () => {
         return line.includes("Viewing results, result report path");
       })
     ).not.toBe(undefined);
-
     expect(
       outputViewText.find(function (line): boolean {
         return line.includes("Creating web view panel");
