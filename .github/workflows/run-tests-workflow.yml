@@ -263,7 +263,7 @@ jobs:
   generate-e2e-matrix:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -303,7 +303,7 @@ jobs:
     needs: generate-e2e-matrix
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -447,7 +447,7 @@ jobs:
   black:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -498,7 +498,7 @@ jobs:
   prettier:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -550,7 +550,7 @@ jobs:
   xo:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
