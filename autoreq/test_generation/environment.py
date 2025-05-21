@@ -427,7 +427,7 @@ class Environment:
                 if entity == '(cl)':
                     if len(identifier.split('.')) < 6:
                         continue
-                    
+
                     class_name, constructor, entity = identifier.split('.')[3:6]
 
                     if entity == '<<constructor>>':

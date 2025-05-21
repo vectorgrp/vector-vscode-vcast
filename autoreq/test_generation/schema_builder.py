@@ -27,7 +27,12 @@ class SchemaGenerationInfo(BaseModel):
 
 
 class SchemaBuilder:
-    def __init__(self, environment, max_identifier_array_index: int = 32, default_schema_identifier_type=None):
+    def __init__(
+        self,
+        environment,
+        max_identifier_array_index: int = 32,
+        default_schema_identifier_type=None,
+    ):
         self.environment = environment
         self.max_identifier_array_index = max_identifier_array_index
         self.default_schema_identifier_type = default_schema_identifier_type

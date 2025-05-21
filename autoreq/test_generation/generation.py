@@ -39,7 +39,7 @@ class TestGenerator:
         min_prune_lines=500,
         use_test_examples=True,
         schema_type='input_expected',
-        add_prompt_identifiers_when_unpruned=False, # TODO: Change this to True for improved results on C but worse results on C++
+        add_prompt_identifiers_when_unpruned=False,  # TODO: Change this to True for improved results on C but worse results on C++
     ):
         self.requirements_manager = requirements_manager
         self.environment = environment
@@ -50,7 +50,9 @@ class TestGenerator:
         )
         self.info_logger = InfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
-        self.schema_builder = SchemaBuilder(self.environment, default_schema_identifier_type=schema_type)
+        self.schema_builder = SchemaBuilder(
+            self.environment, default_schema_identifier_type=schema_type
+        )
         self.min_prune_lines = min_prune_lines
         self.use_test_examples = use_test_examples
         self.add_prompt_identifiers_when_unpruned = add_prompt_identifiers_when_unpruned
@@ -210,7 +212,9 @@ Example Test Cases:
             batched=True,
             batch_size=len(requirement_ids),
             focus_lines=relevant_lines,
-            identifier_type='input_expected' if num_lines >= self.min_prune_lines else 'unified', # TODO: Change this to input_expected only for improved results on C but worse results on C++
+            identifier_type='input_expected'
+            if num_lines >= self.min_prune_lines
+            else 'unified',  # TODO: Change this to input_expected only for improved results on C but worse results on C++
             return_schema_gen_info=True,
         )
 
@@ -234,7 +238,10 @@ Example Test Cases:
         shown_expected_identifiers = [
             ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
         ]
-        if len(shown_input_identifiers) > 0 and (self.add_prompt_identifiers_when_unpruned or num_lines >= self.min_prune_lines):
+        if len(shown_input_identifiers) > 0 and (
+            self.add_prompt_identifiers_when_unpruned
+            or num_lines >= self.min_prune_lines
+        ):
             rendered_input_identifiers = '\n'.join(
                 '- ' + i
                 for i in shown_input_identifiers
@@ -499,7 +506,9 @@ Return your answer in the following format:
             function_name=function_name,
             batched=False,
             focus_lines=relevant_lines,
-            identifier_type='input_expected' if num_lines >= self.min_prune_lines else 'unified', # TODO: Change this to input_expected only for improved results on C but worse results on C++
+            identifier_type='input_expected'
+            if num_lines >= self.min_prune_lines
+            else 'unified',  # TODO: Change this to input_expected only for improved results on C but worse results on C++
             return_schema_gen_info=True,
         )
 
@@ -522,7 +531,10 @@ Return your answer in the following format:
         shown_expected_identifiers = [
             ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
         ]
-        if len(shown_input_identifiers) > 0 and (self.add_prompt_identifiers_when_unpruned or num_lines >= self.min_prune_lines):
+        if len(shown_input_identifiers) > 0 and (
+            self.add_prompt_identifiers_when_unpruned
+            or num_lines >= self.min_prune_lines
+        ):
             rendered_input_identifiers = '\n'.join(
                 '- ' + i
                 for i in shown_input_identifiers
