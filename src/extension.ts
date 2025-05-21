@@ -1181,6 +1181,9 @@ async function generateRequirements(enviroPath: string) {
     }
   }
 
+  const config = vscode.workspace.getConfiguration('vectorcastTestExplorer');
+  const generateHighLevelRequirements = config.get<boolean>('generateHighLevelRequirements', false);
+
   const commandArgs = [
     envPath,
     "--export-excel",
@@ -1191,6 +1194,10 @@ async function generateRequirements(enviroPath: string) {
     "--combine-related-requirements",
     //"--extended-reasoning"
   ];
+
+  if (generateHighLevelRequirements) {
+    commandArgs.push("--generate-high-level-requirements");
+  }
   
   // Log the command being executed
   const commandString = `${CODE2REQS_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;

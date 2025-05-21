@@ -309,6 +309,12 @@
             "order": 8,
             "default": true,
             "description": "Decompose requirements when generating tests"
+          },
+          "vectorcastTestExplorer.generateHighLevelRequirements": {
+            "type": "boolean",
+            "order": 9,
+            "default": false,
+            "description": "Generate high-level requirements in addition to low-level requirements."
           }
         }
       },
