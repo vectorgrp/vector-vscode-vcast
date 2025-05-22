@@ -1,0 +1,220 @@
+[
+    {
+        "Key": "Get_Check_Total.1",
+        "ID": "Get_Check_Total.1",
+        "Module": "manager",
+        "Title": "The system shall retrieve the check total for a specified table index by accessing the table record associated with that index.",
+        "Description": "The system shall retrieve the check total for a specified table index by accessing the table record associated with that index.",
+        "Function": "Get_Check_Total",
+        "line_numbers": [
+            3,
+            4
+        ]
+    },
+    {
+        "Key": "Get_Next_Party_To_Be_Seated.1",
+        "ID": "Get_Next_Party_To_Be_Seated.1",
+        "Module": "manager",
+        "Title": "The system shall reset the WaitingListIndex to 0 when it exceeds 9.",
+        "Description": "The system shall reset the WaitingListIndex to 0 when it exceeds 9.",
+        "Function": "Get_Next_Party_To_Be_Seated",
+        "line_numbers": [
+            3
+        ]
+    },
+    {
+        "Key": "Get_Next_Party_To_Be_Seated.2",
+        "ID": "Get_Next_Party_To_Be_Seated.2",
+        "Module": "manager",
+        "Title": "The system shall return the name of the next party to be seated and increment the WaitingListIndex.",
+        "Description": "The system shall return the name of the next party to be seated and increment the WaitingListIndex.",
+        "Function": "Get_Next_Party_To_Be_Seated",
+        "line_numbers": [
+            4
+        ]
+    },
+    {
+        "Key": "Add_Included_Dessert.1",
+        "ID": "Add_Included_Dessert.1",
+        "Module": "manager",
+        "Title": "The system shall add PIE as the dessert when the order includes STEAK as the entree, CAESAR as the salad, and MIXED_DRINK as the beverage.",
+        "Description": "The system shall add PIE as the dessert when the order includes STEAK as the entree, CAESAR as the salad, and MIXED_DRINK as the beverage.",
+        "Function": "Add_Included_Dessert",
+        "line_numbers": [
+            6
+        ]
+    },
+    {
+        "Key": "Add_Included_Dessert.2",
+        "ID": "Add_Included_Dessert.2",
+        "Module": "manager",
+        "Title": "The system shall add CAKE as the dessert when the order includes LOBSTER as the entree, GREEN as the salad, and WINE as the beverage.",
+        "Description": "The system shall add CAKE as the dessert when the order includes LOBSTER as the entree, GREEN as the salad, and WINE as the beverage.",
+        "Function": "Add_Included_Dessert",
+        "line_numbers": [
+            12
+        ]
+    },
+    {
+        "Key": "Add_Party_To_Waiting_List.1",
+        "ID": "Add_Party_To_Waiting_List.1",
+        "Module": "manager",
+        "Title": "The system shall reset the waiting list size to zero when it exceeds nine entries.",
+        "Description": "The system shall reset the waiting list size to zero when it exceeds nine entries.",
+        "Function": "Add_Party_To_Waiting_List",
+        "line_numbers": [
+            4
+        ]
+    },
+    {
+        "Key": "Add_Party_To_Waiting_List.2",
+        "ID": "Add_Party_To_Waiting_List.2",
+        "Module": "manager",
+        "Title": "The system shall add each character of a non-null name string to the waiting list until the end of the string is reached.",
+        "Description": "The system shall add each character of a non-null name string to the waiting list until the end of the string is reached.",
+        "Function": "Add_Party_To_Waiting_List",
+        "line_numbers": [
+            7,
+            8
+        ]
+    },
+    {
+        "Key": "Add_Party_To_Waiting_List.3",
+        "ID": "Add_Party_To_Waiting_List.3",
+        "Module": "manager",
+        "Title": "The system shall append a null character to the end of the name string in the waiting list to ensure proper termination.",
+        "Description": "The system shall append a null character to the end of the name string in the waiting list to ensure proper termination.",
+        "Function": "Add_Party_To_Waiting_List",
+        "line_numbers": [
+            10
+        ]
+    },
+    {
+        "Key": "Clear_Table.1",
+        "ID": "Clear_Table.1",
+        "Module": "manager",
+        "Title": "The system shall mark the table as unoccupied and set the number in party to 1 when clearing a table record.",
+        "Description": "The system shall mark the table as unoccupied and set the number in party to 1 when clearing a table record.",
+        "Function": "Clear_Table",
+        "line_numbers": [
+            4,
+            5,
+            6
+        ]
+    },
+    {
+        "Key": "Clear_Table.2",
+        "ID": "Clear_Table.2",
+        "Module": "manager",
+        "Title": "The system shall reset all orders for each seat to no soup, no salad, no entree, no dessert, and no beverage when clearing a table record.",
+        "Description": "The system shall reset all orders for each seat to no soup, no salad, no entree, no dessert, and no beverage when clearing a table record.",
+        "Function": "Clear_Table",
+        "line_numbers": [
+            9,
+            10,
+            11,
+            12,
+            13
+        ]
+    },
+    {
+        "Key": "Clear_Table.3",
+        "ID": "Clear_Table.3",
+        "Module": "manager",
+        "Title": "The system shall reset the check total to zero and update the table record, returning a success indicator when clearing a table record.",
+        "Description": "The system shall reset the check total to zero and update the table record, returning a success indicator when clearing a table record.",
+        "Function": "Clear_Table",
+        "line_numbers": [
+            16,
+            18,
+            19
+        ]
+    },
+    {
+        "Key": "Place_Order.1",
+        "ID": "Place_Order.1",
+        "Module": "manager",
+        "Title": "The system shall mark the table as occupied, increment the number in party, record the order, and add a free dessert when applicable.",
+        "Description": "The system shall mark the table as occupied, increment the number in party, record the order, and add a free dessert when applicable.",
+        "Function": "Place_Order",
+        "line_numbers": [
+            6,
+            8,
+            9,
+            10,
+            12,
+            13
+        ]
+    },
+    {
+        "Key": "Place_Order.2",
+        "ID": "Place_Order.2",
+        "Module": "manager",
+        "Title": "The system shall not alter the check total when the entree is not ordered.",
+        "Description": "The system shall not alter the check total when the entree is not ordered.",
+        "Function": "Place_Order",
+        "line_numbers": [
+            18
+        ]
+    },
+    {
+        "Key": "Place_Order.3",
+        "ID": "Place_Order.3",
+        "Module": "manager",
+        "Title": "The system shall increase the check total by $14.0 when the steak entree is ordered.",
+        "Description": "The system shall increase the check total by $14.0 when the steak entree is ordered.",
+        "Function": "Place_Order",
+        "line_numbers": [
+            20,
+            21
+        ]
+    },
+    {
+        "Key": "Place_Order.4",
+        "ID": "Place_Order.4",
+        "Module": "manager",
+        "Title": "The system shall increase the check total by $10.0 when the chicken entree is ordered.",
+        "Description": "The system shall increase the check total by $10.0 when the chicken entree is ordered.",
+        "Function": "Place_Order",
+        "line_numbers": [
+            23,
+            24
+        ]
+    },
+    {
+        "Key": "Place_Order.5",
+        "ID": "Place_Order.5",
+        "Module": "manager",
+        "Title": "The system shall increase the check total by $18.0 when the lobster entree is ordered.",
+        "Description": "The system shall increase the check total by $18.0 when the lobster entree is ordered.",
+        "Function": "Place_Order",
+        "line_numbers": [
+            26,
+            27
+        ]
+    },
+    {
+        "Key": "Place_Order.6",
+        "ID": "Place_Order.6",
+        "Module": "manager",
+        "Title": "The system shall increase the check total by $12.0 when the pasta entree is ordered.",
+        "Description": "The system shall increase the check total by $12.0 when the pasta entree is ordered.",
+        "Function": "Place_Order",
+        "line_numbers": [
+            29,
+            30
+        ]
+    },
+    {
+        "Key": "Place_Order.7",
+        "ID": "Place_Order.7",
+        "Module": "manager",
+        "Title": "The system shall update the table record with the new order details and return a success indicator.",
+        "Description": "The system shall update the table record with the new order details and return a success indicator.",
+        "Function": "Place_Order",
+        "line_numbers": [
+            33,
+            34
+        ]
+    }
+]

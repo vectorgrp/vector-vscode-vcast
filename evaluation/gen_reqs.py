@@ -27,8 +27,11 @@ async def gen_requirements(env_path, allow_existing=False):
     reqs_html_path = env_file_folder_path / 'reqs.html'
 
     try:
-        total_cost = await gen_reqs(
-            env_path, export_csv=reqs_csv_path, export_html=reqs_html_path
+        total_cost, _ = await gen_reqs(
+            env_path,
+            export_csv=reqs_csv_path,
+            export_html=reqs_html_path,
+            export_line_number=True,
         )
     except:
         import traceback

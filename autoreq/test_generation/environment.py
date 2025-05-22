@@ -193,7 +193,9 @@ class Environment:
             logging.error(f'Failed to parse coverage data: {e}')
             return None
 
-    def run_test_script(self, tst_file_path: str, with_coverage=False) -> Optional[str]:
+    def run_test_script(
+        self, tst_file_path: str, with_coverage=False, post_run_callback=None
+    ) -> Optional[str]:
         tst_file_path = os.path.abspath(tst_file_path)
 
         with open(tst_file_path, 'r') as f:
@@ -278,6 +280,12 @@ class Environment:
         if with_coverage:
             coverage_data = self._get_coverage_info(tests)
             output = (output, coverage_data)
+
+        if post_run_callback and callable(post_run_callback):
+            try:
+                post_run_callback()
+            except Exception as e:
+                logging.error(f'Error during post_run_callback: {e}')
 
         # Remove the test cases
         for cmd in removal_commands:
@@ -725,7 +733,11 @@ class Environment:
 
     @lru_cache(maxsize=128)
     def get_tu_content(
-        self, unit_name=None, reduction_level='medium', return_encoding=False
+        self,
+        unit_name=None,
+        reduction_level='medium',
+        return_encoding=False,
+        return_mapping=False,
     ):
         """Get the content of the translation unit file.for the specified unit name.
 
@@ -782,7 +794,9 @@ class Environment:
         in_relevant_context = False
         marker_pattern = re.compile(r'^#\s+\d+\s+"(.+)"')
 
-        for line in lines:
+        original_line_mapping = []
+
+        for i, line in enumerate(lines):
             stripped_line = line.strip()
             match = marker_pattern.match(stripped_line)
             if match:
@@ -800,11 +814,15 @@ class Environment:
                     in_relevant_context = False
             elif in_relevant_context:
                 relevant_lines.append(line)
+                original_line_mapping.append(i + 1)
 
         relevant_content = '\n'.join(relevant_lines)
 
         if return_encoding:
             return relevant_content, encoding
+
+        if return_mapping:
+            return relevant_content, original_line_mapping
 
         return relevant_content
 

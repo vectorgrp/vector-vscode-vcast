@@ -1,3 +1,4 @@
+from ast import literal_eval
 import logging
 import re
 import typing as t
@@ -72,6 +73,13 @@ class RequirementsManager:
     def get_function(self, requirement_id):
         req = self._requirements_by_id.get(requirement_id)
         return req['Function'] if req else None
+
+    def get_lines(self, requirement_id):
+        req = self._requirements_by_id.get(requirement_id)
+        if req and 'Lines' in req:
+            return literal_eval(req['Lines'])
+        else:
+            return None
 
     def get_module(self, requirement_id):
         req = self._requirements_by_id.get(requirement_id)

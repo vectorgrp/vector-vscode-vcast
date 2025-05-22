@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import List, Dict, Any, Set, Tuple
 from pydantic import BaseModel, create_model
@@ -137,8 +138,18 @@ Notes:
 
         return response.reworked_requirements
 
-    async def generate(self, function_name: str):
+    async def generate(
+        self,
+        function_name: str,
+        post_process_requirements=True,
+        return_covered_semantic_parts=False,
+    ):
         """Generate requirements based on function name."""
+
+        if post_process_requirements and return_covered_semantic_parts:
+            logging.warning(
+                'Semantic parts will not correspond to the requirements if you ask for them to be post-processed.'
+            )
 
         # Get the full context using context builder
         function_context = await self.context_builder.build_code_context(function_name)
@@ -299,9 +310,17 @@ The success of this task is critical. If you do not generate exactly one test ca
                 for i in range(num_parts)
             ]
 
-        return await self._postprocess_requirements(
-            function_name, requirements, allow_merge=self.combine_related_requirements
-        )
+        if post_process_requirements:
+            requirements = await self._postprocess_requirements(
+                function_name,
+                requirements,
+                allow_merge=self.combine_related_requirements,
+            )
+
+        if return_covered_semantic_parts:
+            return requirements, semantic_parts
+
+        return requirements
 
 
 # TODO: Potentially do not split groups at lists

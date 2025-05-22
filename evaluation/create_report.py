@@ -75,6 +75,20 @@ def calculate_aggregated_metrics(results: List[EvaluationResult]) -> Dict[str, A
         'median_f1_score': np.median([result.f1_score for result in valid_results])
         if valid_results
         else 0,
+        # Requirement Coverage
+        'requirement_coverage': [
+            result.requirement_coverage for result in valid_results if result.requirement_coverage_results
+        ],
+        'avg_requirement_coverage': np.mean([
+            result.requirement_coverage for result in valid_results if result.requirement_coverage_results
+        ]) if any(result.requirement_coverage_results for result in valid_results) else 0,
+        'median_requirement_coverage': np.median([
+            result.requirement_coverage for result in valid_results if result.requirement_coverage_results
+        ]) if any(result.requirement_coverage_results for result in valid_results) else 0,
+        # Requirement Coverage (Micro-average)
+        'micro_requirement_coverage': np.mean([
+            1 if req_result['fully_covered'] else 0 for result in valid_results for req_result in result.requirement_coverage_results
+        ]),
         # Coverage metrics
         'statement_coverage': [
             result.coverage.get('statements', {}).get('percentage', 0)
@@ -437,6 +451,19 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
             <h2>Summary</h2>
             <p>Processed {metrics['total_environments']} environments with {metrics['failed_environments']} failed environments. 
                Summary metrics below are calculated from {metrics['valid_environments']} successful environments with a total of {metrics['total_requirements']} requirements.</p>
+
+            <div class="metric-section">
+                <div class="summary-cards">
+                     <div class="summary-card">
+                        <h3>Requirement Coverage (Macro Avg.)</h3>
+                        <div class="value">{format_percentage(metrics['avg_requirement_coverage'])}</div>
+                    </div>
+                     <div class="summary-card">
+                        <h3>Requirement Coverage (Micro Avg.)</h3>
+                        <div class="value">{format_percentage(metrics['micro_requirement_coverage'])}</div>
+                    </div>
+                </div>
+            </div>
             
             <div class="summary-cards">
                 <div class="summary-card">
@@ -516,6 +543,7 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
                     <div class="value">{metrics['failed_environments']}</div>
                 </div>
             </div>
+
         </div>
     """
 
@@ -552,6 +580,15 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
     """
     main_metrics_section += create_histogram(
         metrics['f1_score'], 'F1 Score Distribution', 'F1 Score'
+    )
+    main_metrics_section += """
+                </div>
+
+                <div class="histogram">
+                    <h4>Requirement Coverage Distribution</h4>
+    """
+    main_metrics_section += create_histogram(
+        metrics['requirement_coverage'], 'Requirement Coverage Distribution', 'Requirement Coverage'
     )
     main_metrics_section += """
                 </div>
@@ -769,6 +806,13 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
                         </div>
                     </div>
                     
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <h3>Requirement Coverage</h3>
+                            <div class="value">{format_percentage(result.requirement_coverage)}</div>
+                        </div>
+                    </div>
+
                     <h4>Coverage Information</h4>
         """
 

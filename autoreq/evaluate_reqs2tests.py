@@ -3,7 +3,6 @@ import os
 import argparse
 import asyncio
 import logging
-import csv
 import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
@@ -21,7 +20,7 @@ from autoreq.requirements_manager import (
 from autoreq.test_generation.generation import TestGenerator
 from autoreq.test_generation.environment import Environment
 from autoreq.test_verification.verification import TestVerifier
-from autoreq.summary import SummaryEngine
+from autoreq.coverage_extraction.requirement_coverage import RequirementCoverage
 
 
 class EvaluationResult(BaseModel):
@@ -36,6 +35,9 @@ class EvaluationResult(BaseModel):
     # Coverage data
     atg_coverage: Optional[Dict[str, Any]]
     coverage: Optional[Dict[str, Any]]
+
+    # Requirement coverage data
+    requirement_coverage_results: List[Dict[str, Any]] = Field(default_factory=list)
 
     # Token usage data
     token_usage: Dict[str, Dict[str, int]]
@@ -88,6 +90,18 @@ class EvaluationResult(BaseModel):
         if (self.precision + self.recall) > 0:
             return 2 * (self.precision * self.recall) / (self.precision + self.recall)
         return 0
+
+    @computed_field
+    def requirement_coverage(self) -> float:
+        fully_covered = sum(
+            1 if res['fully_covered'] else 0
+            for res in self.requirement_coverage_results
+        )
+        return (
+            fully_covered / self.total_requirements
+            if self.requirement_coverage_results
+            else 0
+        )
 
     @computed_field
     def failed_generation_reqs(self) -> List[str]:
@@ -332,6 +346,17 @@ class EvaluationResult(BaseModel):
                 )
         else:
             lines.append('  No coverage data available for generated tests')
+
+        # Requirement coverage
+        if self.requirement_coverage_results:
+            lines.append(f'\nRequirement Coverage: {self.requirement_coverage:.2%}')
+            uncovered_reqs = [
+                req['requirement_id']
+                for req in self.requirement_coverage_results
+                if not req['fully_covered']
+            ]
+            if uncovered_reqs:
+                lines.append(f'Uncovered Requirements: {", ".join(uncovered_reqs)}')
 
         # Verification information
         lines.append('\nVerification Information:')
@@ -609,6 +634,19 @@ async def evaluate_environment(
             logging.error(f'Error getting coverage for generated tests: {str(e)}')
             generated_tests_coverage = {'error': str(e)}
 
+    # Calculate requirement coverage
+    rc = RequirementCoverage(env, rm)
+    requirement_coverage_results = []
+    for test_case in tqdm(test_cases, desc='Calculating requirement coverage'):
+        if test_case is None:
+            continue
+        result = rc.check_requirement_coverage(
+            test_case.requirement_id, [test_case.to_vectorcast(add_uuid=True)]
+        )
+
+        if result:
+            requirement_coverage_results.append(result.model_dump())
+
     # Export verification results
     verification_results_data = [
         {
@@ -638,6 +676,8 @@ async def evaluate_environment(
         # Coverage data
         atg_coverage=atg_coverage,
         coverage=generated_tests_coverage,
+        # Requirement coverage data
+        requirement_coverage_results=requirement_coverage_results,
         # Token usage data
         token_usage=token_usage,
         total_generation_cost=generation_total_cost,

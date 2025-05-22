@@ -22,16 +22,25 @@ from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
 from .requirement_generation.high_level_generation import HighLevelRequirementsGenerator
 
-
-def save_requirements_to_json(requirements, output_file):
-    with open(output_file, 'w') as f:
-        json.dump(requirements, f, indent=4)
+_ORDERED_FIELDNAMES = [
+    'Key',
+    'ID',
+    'Module',
+    'Title',
+    'Description',
+    'Function',
+    'Lines',
+]
 
 
 def save_requirements_to_csv(requirements, output_file):
-    fieldnames = ['Key', 'ID', 'Module', 'Title', 'Description', 'Function']
+    field_names = [
+        name
+        for name in _ORDERED_FIELDNAMES
+        if name in (requirements[0] if requirements else {})
+    ]
     with open(output_file, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=field_names)
         writer.writeheader()
         for req in requirements:
             writer.writerow(req)
@@ -231,11 +240,17 @@ async def main(
     combine_related_requirements=False,
     extended_reasoning=False,
     no_automatic_build=False,
+    export_line_number=False,
     generate_high_level_requirements=False,
 ):
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level)
+
+    if export_line_number:
+        logging.warning(
+            'Disabling post-processing of requirements to allow accurate export of covered line numbers'
+        )
 
     environment = Environment(env_path, use_sandbox=False)
 
@@ -267,7 +282,11 @@ async def main(
         nonlocal processed_functions
         func_name = func['name']
         func_unit = func['unit_name']
-        result = await generator.generate(func_name)
+        result, semantics = await generator.generate(
+            func_name,
+            post_process_requirements=not export_line_number,
+            return_covered_semantic_parts=True,
+        )
         processed_functions += 1
         progress = processed_functions / total_functions
 
@@ -285,6 +304,9 @@ async def main(
                     'Description': req,
                     'Function': func_name,
                 }
+                if export_line_number:
+                    requirement['Lines'] = repr(semantics[i].line_numbers)
+
                 requirements.append(requirement)
 
     await tqdm_asyncio.gather(*[generate_requirements(func) for func in functions])
@@ -384,6 +406,11 @@ def cli():
         help='If the environment is not built, do not build it automatically.',
     )
     parser.add_argument(
+        '--export-covered-lines',
+        action='store_true',
+        help=argparse.SUPPRESS,  # Controls if lines covered by the requirement are exported
+    )
+    parser.add_argument(
         '--generate-high-level-requirements',
         action='store_true',
         help='Also generate high-level requirements.',
@@ -401,6 +428,7 @@ def cli():
             json_events=args.json_events,
             extended_reasoning=args.extended_reasoning,
             no_automatic_build=args.no_automatic_build,
+            export_line_number=args.export_covered_lines,
             generate_high_level_requirements=args.generate_high_level_requirements,
         )
     )
