@@ -13,7 +13,6 @@ from autoreq.test_generation.generic_models import (
 from ..util import validate_openai_structured_output_schema
 
 
-
 # Define the new Pydantic model for schema generation information
 class SchemaGenerationInfo(BaseModel):
     """
@@ -191,35 +190,47 @@ def create_schema_instance_mock(instance_data: Dict[str, Any]) -> BaseModel:
         ValueError: If the schema type cannot be determined or data is malformed.
     """
     if not isinstance(instance_data, dict):
-        raise ValueError("Input data must be a dictionary.")
+        raise ValueError('Input data must be a dictionary.')
 
     # Try to infer if it's a single TestGenerationResult (contains 'test_case')
     if 'test_case' in instance_data:
         test_case_content = instance_data.get('test_case')
         if not isinstance(test_case_content, dict):
-            raise ValueError("'test_case' value must be a dictionary for a single TestGenerationResult.")
-        
+            raise ValueError(
+                "'test_case' value must be a dictionary for a single TestGenerationResult."
+            )
+
         TestCaseModel = _construct_test_case_schema(None, None)
-        FinalModel = _construct_completion_schema(TestCaseModel, batched=False, batch_size=None)
+        FinalModel = _construct_completion_schema(
+            TestCaseModel, batched=False, batch_size=None
+        )
         return FinalModel.model_validate(instance_data)
 
     # Try to infer if it's a batched TestGenerationResult
     elif any(k.startswith('test_case_for_requirement_') for k in instance_data):
-        batch_items = {k: v for k, v in instance_data.items() if k.startswith('test_case_for_requirement_')}
+        batch_items = {
+            k: v
+            for k, v in instance_data.items()
+            if k.startswith('test_case_for_requirement_')
+        }
 
         TestCaseModel = _construct_test_case_schema(None, None)
-        FinalModel = _construct_completion_schema(TestCaseModel, batched=True, batch_size=len(batch_items))
+        FinalModel = _construct_completion_schema(
+            TestCaseModel, batched=True, batch_size=len(batch_items)
+        )
         return FinalModel.model_validate(instance_data)
 
     # Try to infer if it's a direct TestCase (has 'input_values' or 'expected_values' but not 'test_case' or batch keys)
     elif 'input_values' in instance_data or 'expected_values' in instance_data:
         TestCaseModel = _construct_test_case_schema(None, None)
         return TestCaseModel.model_validate(instance_data)
-        
+
     else:
-        raise ValueError("Could not determine the schema type from the provided data structure. "
-                         "Expected keys like 'test_case', 'test_case_for_requirement_X', "
-                         "or 'input_values'/'expected_values'.")
+        raise ValueError(
+            'Could not determine the schema type from the provided data structure. '
+            "Expected keys like 'test_case', 'test_case_for_requirement_X', "
+            "or 'input_values'/'expected_values'."
+        )
 
 
 def _construct_test_case_schema(
@@ -261,9 +272,7 @@ def _construct_test_case_schema(
     return TestCaseGlobal
 
 
-def _construct_completion_schema(
-    TestCaseClass: type, batched: bool, batch_size: int
-):
+def _construct_completion_schema(TestCaseClass: type, batched: bool, batch_size: int):
     if not batched:
         TestGenerationResultClass = create_model(
             'TestGenerationResult',
