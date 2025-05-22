@@ -156,8 +156,19 @@ export function validateTextDocument(textDocument: TextDocument) {
               )
             );
           }
-          // TBD: we should validate in python
-        } else if (command == "NAME") {
+          // For all unknown commands within the Test block
+        } else if (testCommandList.indexOf(command) < 0) {
+          diagnosticList.push(
+            getDiagnosticObject(
+              lineIndex,
+              0,
+              1000,
+              `Invalid command "${command}", type TEST. to see all command values`
+            )
+          );
+        }
+        // TBD: we should validate in python
+        else if (command == "NAME") {
         } else if (command == "NOTES") {
           withinNotes = true;
         } else if (command == "FLOW") {
@@ -222,7 +233,7 @@ export function validateTextDocument(textDocument: TextDocument) {
                 lineIndex,
                 0,
                 1000,
-                "TEST.NEW | REPLACE is required but missing"
+                "TEST.NEW | TEST.REPLACE | TEST.ADD is required but missing"
               )
             );
           }

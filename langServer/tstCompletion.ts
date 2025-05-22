@@ -192,16 +192,62 @@ export async function getTstCompletionData(
       }
       returnData.choiceKind = choiceKind;
       returnData.choiceList = choiceArray;
-    } else if (
-      // this handles the everything else
+    } //  else if (trigger === "COLON" && upperCaseLine.startsWith("TEST.VALUE:")) {
+    //   // Break the line into pieces around single colons
+    //   // e.g. ["TEST.VALUE", "uut_prototype_stubs.stub.return", ...]
+    //   const parts = lineSoFar.split(/:/);
+
+    //   // If we've already got +3 colons, stop offering value completions
+    //   if ((parts.length - 1) >= 3) {
+    //     return returnData;
+    //   }
+
+    //   // Look at the parameter name (the part after TEST.VALUE:)
+    //   const paramName = parts[1] || "";
+
+    //   // If that string contains a ".", we know we’re still on a struct, so we don’t want to complete on :
+    //   if (paramName.includes(".")) {
+    //     return returnData;
+    //   }
+
+    //   // Otherwise it's scalar, offer normal getChoiceData list
+    //   returnData = await getChoiceData(
+    //     choiceKindType.choiceListTST,
+    //     enviroPath,
+    //     lineSoFar
+    //   );
+    // }
+    else if (
       upperCaseLine.startsWith("TEST.SLOT:") ||
       upperCaseLine.startsWith("TEST.EXPECTED:") ||
-      upperCaseLine.startsWith("TEST.VALUE:") ||
       upperCaseLine.startsWith("TEST.VALUE_USER_CODE:") ||
       upperCaseLine.startsWith("TEST.EXPECTED_USER_CODE:") ||
+      // upperCaseLine.startsWith("TEST.VALUE:") ||
       upperCaseLine.startsWith("TEST.STUB:")
     ) {
-      // the current level, and returns the appropriate list for the next level.
+      // everything else behaves as before
+      returnData = await getChoiceData(
+        choiceKindType.choiceListTST,
+        enviroPath,
+        lineSoFar
+      );
+    }
+
+    // // Handle TEST.VALUE separately so we can suppress extra colons after two
+    else if (upperCaseLine.startsWith("TEST.VALUE:")) {
+      // count how many ":" are already in the line
+      const colonCount = (lineSoFar.match(/:/g) || []).length;
+      // 5 for:
+      // 1st is after TEST.VALUE":"
+      // 2nd & 3rd is TEST.VALUE:Manager"::"PlaceOrder
+      // 4th is TEST.VALUE:Manager::PlaceOrder...Entree":"Chicken
+      // After the 5th colon, we don't want to offer any more completions
+      if (colonCount >= 5) {
+        // Already have TEST.VALUE:<u.s.p>:<value>,
+        // so do NOT offer any more colon/value completions
+        return returnData;
+      }
+      // Otherwise, offer the normal completions for TEST.VALUE
       returnData = await getChoiceData(
         choiceKindType.choiceListTST,
         enviroPath,
