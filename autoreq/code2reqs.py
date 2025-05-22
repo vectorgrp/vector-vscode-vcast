@@ -14,11 +14,13 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
+from autoreq.requirements_manager import RequirementsManager
 from autoreq.util import ensure_env
 from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 
 from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
+from .requirement_generation.high_level_generation import HighLevelRequirementsGenerator
 
 
 def save_requirements_to_json(requirements, output_file):
@@ -229,6 +231,7 @@ async def main(
     combine_related_requirements=False,
     extended_reasoning=False,
     no_automatic_build=False,
+    generate_high_level_requirements=False,
 ):
     log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
@@ -285,6 +288,33 @@ async def main(
                 requirements.append(requirement)
 
     await tqdm_asyncio.gather(*[generate_requirements(func) for func in functions])
+
+    if generate_high_level_requirements:
+        high_level_generator = HighLevelRequirementsGenerator(
+            environment,
+            low_level_requirements=RequirementsManager(requirements),
+            extended_reasoning=extended_reasoning,
+        )
+
+        async def generate_high_level_requirements(unit):
+            unit_high_level_reqs = await high_level_generator.generate(unit)
+
+            if unit_high_level_reqs:
+                for i, req_text in enumerate(unit_high_level_reqs):
+                    req_id = f'{unit}_HL.{i + 1}'  # Distinguish high-level req IDs
+                    requirement = {
+                        'Key': req_id,
+                        'ID': req_id,
+                        'Module': unit,
+                        'Title': req_text,
+                        'Description': req_text,
+                        'Function': 'None',  # High-level requirements are not tied to a specific function
+                    }
+                    requirements.append(requirement)
+
+        await tqdm_asyncio.gather(
+            *[generate_high_level_requirements(unit) for unit in environment.units]
+        )
 
     environment.cleanup()
 
@@ -353,6 +383,11 @@ def cli():
         action='store_true',
         help='If the environment is not built, do not build it automatically.',
     )
+    parser.add_argument(
+        '--generate-high-level-requirements',
+        action='store_true',
+        help='Also generate high-level requirements.',
+    )
 
     args = parser.parse_args()
 
@@ -366,6 +401,7 @@ def cli():
             json_events=args.json_events,
             extended_reasoning=args.extended_reasoning,
             no_automatic_build=args.no_automatic_build,
+            generate_high_level_requirements=args.generate_high_level_requirements,
         )
     )
 
