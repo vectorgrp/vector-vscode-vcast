@@ -192,32 +192,30 @@ export async function getTstCompletionData(
       }
       returnData.choiceKind = choiceKind;
       returnData.choiceList = choiceArray;
-    } //  else if (trigger === "COLON" && upperCaseLine.startsWith("TEST.VALUE:")) {
-    //   // Break the line into pieces around single colons
-    //   // e.g. ["TEST.VALUE", "uut_prototype_stubs.stub.return", ...]
-    //   const parts = lineSoFar.split(/:/);
+    } else if (trigger === "COLON" && upperCaseLine.startsWith("TEST.VALUE:")) {
+      // Break the line into pieces around single colons
+      const parts = lineSoFar.split(/:/);
 
-    //   // If we've already got +3 colons, stop offering value completions
-    //   if ((parts.length - 1) >= 3) {
-    //     return returnData;
-    //   }
+      // If we've already got +5 colons, stop offering value completions
+      if (parts.length - 1 >= 5) {
+        return returnData;
+      }
 
-    //   // Look at the parameter name (the part after TEST.VALUE:)
-    //   const paramName = parts[1] || "";
+      // Look at the parameter name (the part after TEST.VALUE:)
+      const paramName = parts[1] || "";
 
-    //   // If that string contains a ".", we know we’re still on a struct, so we don’t want to complete on :
-    //   if (paramName.includes(".")) {
-    //     return returnData;
-    //   }
+      // If that string contains a ".", we know we’re still on a struct, so we don’t want to complete on :
+      if (paramName.includes(".")) {
+        return returnData;
+      }
 
-    //   // Otherwise it's scalar, offer normal getChoiceData list
-    //   returnData = await getChoiceData(
-    //     choiceKindType.choiceListTST,
-    //     enviroPath,
-    //     lineSoFar
-    //   );
-    // }
-    else if (
+      // Otherwise it's scalar, offer normal getChoiceData list
+      returnData = await getChoiceData(
+        choiceKindType.choiceListTST,
+        enviroPath,
+        lineSoFar
+      );
+    } else if (
       upperCaseLine.startsWith("TEST.SLOT:") ||
       upperCaseLine.startsWith("TEST.EXPECTED:") ||
       upperCaseLine.startsWith("TEST.VALUE_USER_CODE:") ||
@@ -236,13 +234,21 @@ export async function getTstCompletionData(
     // // Handle TEST.VALUE separately so we can suppress extra colons after two
     else if (upperCaseLine.startsWith("TEST.VALUE:")) {
       // count how many ":" are already in the line
+      let checkingCount = 5;
+      const lineContainsGlobalsOrStubs =
+        lineSoFar.includes("USER_GLOBALS_VCAST") ||
+        lineSoFar.includes("uut_prototype_stubs");
+      // If that is the case, we have 2 colons less (e.g. no Manager::PlaceOrder)
+      if (lineContainsGlobalsOrStubs) {
+        checkingCount = 3;
+      }
       const colonCount = (lineSoFar.match(/:/g) || []).length;
       // 5 for:
       // 1st is after TEST.VALUE":"
       // 2nd & 3rd is TEST.VALUE:Manager"::"PlaceOrder
       // 4th is TEST.VALUE:Manager::PlaceOrder...Entree":"Chicken
       // After the 5th colon, we don't want to offer any more completions
-      if (colonCount >= 5) {
+      if (colonCount >= checkingCount) {
         // Already have TEST.VALUE:<u.s.p>:<value>,
         // so do NOT offer any more colon/value completions
         return returnData;
@@ -276,6 +282,13 @@ export async function getTstCompletionData(
       returnData.choiceList = [];
     }
   } // enviroPath is valid
+
+  // FILTER OUT C_###_###-style global instances (for C++ <<GLOBAL>> cases)
+  if (Array.isArray(returnData.choiceList)) {
+    returnData.choiceList = returnData.choiceList.filter(
+      (item) => !/C_\d+_\d+/.test(item)
+    );
+  }
 
   return returnData;
 }
