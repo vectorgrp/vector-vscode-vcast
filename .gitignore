@@ -22,6 +22,7 @@ venv/
 *.egg-info/
 monitors4codegen/multilspy/language_servers/clangd_language/clangd
 *.csv
+!tests/*.csv
 *.html
 tests/envs_for_tests/piinnovo-envs
 *.so
@@ -31,3 +32,4 @@ autoreq/*.c
 *.zip
 *.tar.gz
 *.xlsx
+!tests/*.xlsx

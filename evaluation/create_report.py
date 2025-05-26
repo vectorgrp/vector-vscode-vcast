@@ -77,18 +77,36 @@ def calculate_aggregated_metrics(results: List[EvaluationResult]) -> Dict[str, A
         else 0,
         # Requirement Coverage
         'requirement_coverage': [
-            result.requirement_coverage for result in valid_results if result.requirement_coverage_results
+            result.requirement_coverage
+            for result in valid_results
+            if result.requirement_coverage_results
         ],
-        'avg_requirement_coverage': np.mean([
-            result.requirement_coverage for result in valid_results if result.requirement_coverage_results
-        ]) if any(result.requirement_coverage_results for result in valid_results) else 0,
-        'median_requirement_coverage': np.median([
-            result.requirement_coverage for result in valid_results if result.requirement_coverage_results
-        ]) if any(result.requirement_coverage_results for result in valid_results) else 0,
+        'avg_requirement_coverage': np.mean(
+            [
+                result.requirement_coverage
+                for result in valid_results
+                if result.requirement_coverage_results
+            ]
+        )
+        if any(result.requirement_coverage_results for result in valid_results)
+        else 0,
+        'median_requirement_coverage': np.median(
+            [
+                result.requirement_coverage
+                for result in valid_results
+                if result.requirement_coverage_results
+            ]
+        )
+        if any(result.requirement_coverage_results for result in valid_results)
+        else 0,
         # Requirement Coverage (Micro-average)
-        'micro_requirement_coverage': np.mean([
-            1 if req_result['fully_covered'] else 0 for result in valid_results for req_result in result.requirement_coverage_results
-        ]),
+        'micro_requirement_coverage': np.mean(
+            [
+                1 if req_result['fully_covered'] else 0
+                for result in valid_results
+                for req_result in result.requirement_coverage_results
+            ]
+        ),
         # Coverage metrics
         'statement_coverage': [
             result.coverage.get('statements', {}).get('percentage', 0)
@@ -588,7 +606,9 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
                     <h4>Requirement Coverage Distribution</h4>
     """
     main_metrics_section += create_histogram(
-        metrics['requirement_coverage'], 'Requirement Coverage Distribution', 'Requirement Coverage'
+        metrics['requirement_coverage'],
+        'Requirement Coverage Distribution',
+        'Requirement Coverage',
     )
     main_metrics_section += """
                 </div>

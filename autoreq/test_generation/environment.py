@@ -206,7 +206,7 @@ class Environment:
                 'The MIXED_CASE_NAMES script feature is not enabled in your script, watch out when trying to run tests with mixed case names'
             )
 
-        tests = self._parse_test_script(tst_file_path)
+        tests = self.parse_test_script(tst_file_path)
 
         commands = [
             _get_vectorcast_cmd(
@@ -552,7 +552,7 @@ class Environment:
             logging.error('ATG file not generated')
             return []
 
-        return self._parse_test_script(atg_file)
+        return self.parse_test_script(atg_file)
 
     @cached_property
     def atg_coverage(self):
@@ -614,7 +614,7 @@ class Environment:
             logging.error('Basis path file not generated')
             return []
 
-        return self._parse_test_script(basis_test_file)
+        return self.parse_test_script(basis_test_file)
 
     @cached_property
     def tu_codebase(self):
@@ -826,7 +826,8 @@ class Environment:
 
         return relevant_content
 
-    def _parse_test_script(self, tst_file_path: Union[str, os.PathLike]) -> List[str]:
+    @staticmethod
+    def parse_test_script(tst_file_path: Union[str, os.PathLike]) -> List[str]:
         # with open(tst_file_path, 'r') as f:
         #    content = f.readlines()
         content = str(charset_normalizer.from_path(tst_file_path).best()).splitlines()

@@ -1,12 +1,6 @@
 name: Reqs2tests distribution - Linux
 run-name: ${{ github.ref_name }} is generating distribution for Linux
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
   workflow_dispatch:
 env:
   NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt

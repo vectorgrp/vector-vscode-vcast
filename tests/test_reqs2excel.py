@@ -1,7 +1,6 @@
 import os
 import json
 import uuid
-import shutil
 import tempfile
 from pathlib import Path
 
@@ -10,6 +9,7 @@ import openpyxl
 from unittest.mock import patch
 
 from autoreq.reqs2excel import load_requirements_from_gateway, cli
+from .utils import copy_folder
 
 
 REQUIREMENTS_EXAMPLE = {
@@ -61,15 +61,6 @@ MOCK_REQ2FUN_MAPPING = {
     'The system will provide a means of obtaining the name of the party at the head of the waiting list.': 'unknown',
     'Placing certain orders will qualify the seat for free dessert, according to the following schedule:\n\nSteak with caesar salad and a mixed drink qualifies a seat for pie.\nLobster with green salad and wine qualifies a seat for cake.': 'None',
 }
-
-
-def _copy_folder(src, dst):
-    for item in src.iterdir():
-        target = dst / item.name
-        if item.is_dir():
-            shutil.copytree(item, target)
-        else:
-            shutil.copy2(item, target)
 
 
 def check_excel_file_integrity(file_path: Path):
@@ -127,33 +118,12 @@ def check_excel_file_contents(file_path: Path, requirements: list[dict]):
 
 
 @pytest.fixture
-def envs_dir():
-    return Path(__file__).parent / 'envs_for_tests'
-
-
-@pytest.fixture
 def fake_requirements_dir(tmp_path):
     reqs_dir = tmp_path / 'requirements_gateway'
     reqs_dir.mkdir()
     with open(reqs_dir / 'requirements.json', 'w') as f:
         json.dump(REQUIREMENTS_EXAMPLE, f)
     return reqs_dir
-
-
-@pytest.fixture
-def real_requirements_dir(envs_dir):
-    return envs_dir / 'requirements_gateway'
-
-
-@pytest.fixture
-def vectorcast_dir():
-    _vectorcast_dir = os.getenv('VECTORCAST_DIR')
-    assert _vectorcast_dir
-    _vectorcast_dir = Path(_vectorcast_dir)
-    assert _vectorcast_dir.is_dir(), (
-        'VectorCast directory should be set in VECTORCAST_DIR environment variable.'
-    )
-    return _vectorcast_dir
 
 
 def test_load_requirements_from_gateway(fake_requirements_dir):
@@ -185,7 +155,7 @@ def test_main_pre_existing_requirements(monkeypatch, envs_dir, real_requirements
     with tempfile.TemporaryDirectory() as tmp_folder:
         out_folder = Path(tmp_folder)
         os.chdir(out_folder)
-        _copy_folder(envs_dir, out_folder)
+        copy_folder(envs_dir, out_folder)
 
         reqs_dir = out_folder / str(uuid.uuid4())
         reqs_dir.mkdir()
@@ -222,7 +192,7 @@ def test_main_with_rgw_init(monkeypatch, envs_dir, vectorcast_dir):
     current_workdir = os.getcwd()
     with tempfile.TemporaryDirectory() as out_folder:
         os.chdir(out_folder)
-        _copy_folder(envs_dir, Path(out_folder))
+        copy_folder(envs_dir, Path(out_folder))
         test_args = [
             'reqs2excel',
             '@batch.txt',
@@ -231,6 +201,7 @@ def test_main_with_rgw_init(monkeypatch, envs_dir, vectorcast_dir):
             f'{vectorcast_dir}/examples/RequirementsGW/CSV_Requirements_For_Tutorial.csv',
             '--output-file',
             f'output.xlsx',
+            '--automatic-traceability',
         ]
         monkeypatch.setattr('sys.argv', test_args)
 

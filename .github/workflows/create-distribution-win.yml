@@ -1,12 +1,6 @@
 name: Reqs2tests distribution - Windows
 run-name: ${{ github.ref_name }} is generating distribution for Windows
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
   workflow_dispatch:
 env:
   NODE_EXTRA_CA_CERTS: C:\\ca_bundle.crt

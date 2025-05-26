@@ -11,12 +11,14 @@ import csv
 from pydantic import BaseModel
 from typing import List
 
+
 class RequirementCoverageInfo(BaseModel):
     function: str
     requirement_id: str
     required_lines: List[int]
     covered_lines: List[int]
     fully_covered: bool
+
 
 class RequirementCoverage:
     def __init__(self, environment, requirements_manager):
@@ -26,19 +28,28 @@ class RequirementCoverage:
     @lru_cache(maxsize=None)
     def _get_function_header_info(self, tu_file):
         """Extracts the neccessary function header information from the tu file"""
-        cb = Codebase([os.path.join(self.environment.env_dir, self.environment.env_name)])
+        cb = Codebase(
+            [os.path.join(self.environment.env_dir, self.environment.env_name)]
+        )
         function_lines = {}
-        
+
         all_functions = cb.get_functions_in_file(tu_file)
 
         for function in all_functions:
-            function_lines[function["name"]] = {}
-            function_lines[function["name"]]["start_line"] = function["start_line"] + 1
-            function_lines[function["name"]]["end_line"] = function["end_line"] + 1
+            function_lines[function['name']] = {}
+            function_lines[function['name']]['start_line'] = function['start_line'] + 1
+            function_lines[function['name']]['end_line'] = function['end_line'] + 1
 
         return function_lines
 
-    def _source_to_cleaned_tu(self, source_lines, tu_file_path, tu_function_start_line, tu_function_end_line, source_function_start_line):
+    def _source_to_cleaned_tu(
+        self,
+        source_lines,
+        tu_file_path,
+        tu_function_start_line,
+        tu_function_end_line,
+        source_function_start_line,
+    ):
         """Maps the lines of code from the given source file to the lines of code from the cleaned tu file"""
         with open(tu_file_path) as f:
             trans_content = f.readlines()
@@ -48,14 +59,14 @@ class RequirementCoverage:
         # this creates more dictionary keys than necessary, but its a good estimator, that always over estimates
         for i, _ in enumerate(range(tu_function_start_line, tu_function_end_line + 1)):
             raw_mapping[i + source_function_start_line] = []
-        
+
         source_idx = source_function_start_line
         i = tu_function_start_line - 1
-        for tu_line in trans_content[tu_function_start_line - 1:]:
+        for tu_line in trans_content[tu_function_start_line - 1 :]:
             if i >= tu_function_end_line - 1:
                 break
 
-            m = re.match(r"#\s(\d+)\s(\".*\")(\s\d)*", tu_line.strip())
+            m = re.match(r'#\s(\d+)\s(\".*\")(\s\d)*', tu_line.strip())
             if m:
                 source_idx = int(m.group(1))
                 i += 1
@@ -65,7 +76,9 @@ class RequirementCoverage:
             source_idx += 1
             i += 1
 
-        cleaned_trans_content, orig = self.environment.get_tu_content(return_mapping=True)
+        cleaned_trans_content, orig = self.environment.get_tu_content(
+            return_mapping=True
+        )
 
         line_mapping = {}
         for i, _ in enumerate(cleaned_trans_content.splitlines()):
@@ -75,41 +88,54 @@ class RequirementCoverage:
 
         final_mapping = {}
         for line in source_lines:
-            final_mapping[line] = [line_mapping[rline] - mapped_func_header_line for rline in raw_mapping[line]]
-            #final_mapping[line] = [line_mapping[rline] for rline in raw_mapping[line]]
+            final_mapping[line] = [
+                line_mapping[rline] - mapped_func_header_line
+                for rline in raw_mapping[line]
+            ]
+            # final_mapping[line] = [line_mapping[rline] for rline in raw_mapping[line]]
 
         return final_mapping
-            
+
     def _requirement_coverage_info(self, coverage_dict, requirement_id):
         func = self.requirements_manager.get_function(requirement_id)
         required_lines = self.requirements_manager.get_lines(requirement_id)
 
         if required_lines is None:
             return None
-        
-        covered_lines = set(coverage_dict[func].get("lines", []))
-        is_covered = any([required_line in covered_lines for required_line in required_lines])
-        
+
+        covered_lines = set(coverage_dict[func].get('lines', []))
+        is_covered = any(
+            [required_line in covered_lines for required_line in required_lines]
+        )
+
         return RequirementCoverageInfo(
             function=func,
             requirement_id=requirement_id,
             required_lines=sorted(list(required_lines)),
             covered_lines=sorted(list(covered_lines)),
-            fully_covered=is_covered
+            fully_covered=is_covered,
         )
 
     def _get_tu_file_paths(self):
         tu_file_paths = []
         for unit_name in self.environment.units:
-            tu_path_c = os.path.join(self.environment.env_dir, self.environment.env_name, f'{unit_name}.tu.c')
-            tu_path_cpp = os.path.join(self.environment.env_dir, self.environment.env_name, f'{unit_name}.tu.cpp')
+            tu_path_c = os.path.join(
+                self.environment.env_dir, self.environment.env_name, f'{unit_name}.tu.c'
+            )
+            tu_path_cpp = os.path.join(
+                self.environment.env_dir,
+                self.environment.env_name,
+                f'{unit_name}.tu.cpp',
+            )
 
             if os.path.exists(tu_path_c):
                 tu_path = tu_path_c
             elif os.path.exists(tu_path_cpp):
                 tu_path = tu_path_cpp
             else:
-                raise FileNotFoundError(f'Translation unit file not found for {unit_name}')
+                raise FileNotFoundError(
+                    f'Translation unit file not found for {unit_name}'
+                )
 
             tu_file_paths.append(tu_path)
 
@@ -118,13 +144,15 @@ class RequirementCoverage:
     def _extract_covered_vcast_lines(self, function_header_info):
         # Prepare input for subprocess
         input_data = {
-            "environment_path": os.path.join(self.environment.env_dir, self.environment.env_name),
-            "function_header_info": function_header_info
+            'environment_path': os.path.join(
+                self.environment.env_dir, self.environment.env_name
+            ),
+            'function_header_info': function_header_info,
         }
 
         # Call subprocess
         proc = subprocess.Popen(
-            ["vpython", Path(__file__).with_name("extract_coverage_subprocess.py")],
+            ['vpython', Path(__file__).with_name('extract_coverage_subprocess.py')],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -133,7 +161,7 @@ class RequirementCoverage:
         stdout, stderr = proc.communicate(json.dumps(input_data))
         if proc.returncode != 0:
             raise stderr
-        
+
         # Result: list of lists
         result = json.loads(stdout)
         return result
@@ -143,6 +171,7 @@ class RequirementCoverage:
         function_header_info = self._get_function_header_info(tu_file_paths[0])
 
         result = None
+
         def callback():
             nonlocal result
             result = self._extract_covered_vcast_lines(function_header_info)
@@ -155,27 +184,31 @@ class RequirementCoverage:
         for function in function_header_info:
             if function not in result:
                 continue
-            
+
             covered_tu_mapping = self._source_to_cleaned_tu(
-                result[function]["lines"],
-                tu_file_paths[0], 
-                function_header_info[function]["start_line"], 
-                function_header_info[function]["end_line"],
-                result[function]["source_start_line"] - result[function]["offset"],
+                result[function]['lines'],
+                tu_file_paths[0],
+                function_header_info[function]['start_line'],
+                function_header_info[function]['end_line'],
+                result[function]['source_start_line'] - result[function]['offset'],
             )
             covered_lines[function] = {}
-            covered_lines[function]["lines"] = [line for orig_line in covered_tu_mapping.values() for line in orig_line]
+            covered_lines[function]['lines'] = [
+                line for orig_line in covered_tu_mapping.values() for line in orig_line
+            ]
 
         coverage_info = self._requirement_coverage_info(covered_lines, requirement_id)
         return coverage_info
 
+
 def export_json(dic: RequirementCoverageInfo, output_json_path):
     try:
-        with open(output_json_path, "w") as json_file:
+        with open(output_json_path, 'w') as json_file:
             json.dump(dic.model_dump(), json_file, indent=4)
-        print(f"Data successfully exported to {output_json_path}")
+        print(f'Data successfully exported to {output_json_path}')
     except Exception as e:
-        print(f"Failed to export data: {e}")
+        print(f'Failed to export data: {e}')
+
 
 def export_csv(dic: List[RequirementCoverageInfo], output_csv_path):
     """
@@ -189,11 +222,17 @@ def export_csv(dic: List[RequirementCoverageInfo], output_csv_path):
         None
     """
     # Define the CSV headers based on the keys in the `results` dictionary
-    headers = ["requirement", "function", "required_lines", "covered_lines", "fully_covered"]
+    headers = [
+        'requirement',
+        'function',
+        'required_lines',
+        'covered_lines',
+        'fully_covered',
+    ]
 
     try:
         # Open the output file in write mode
-        with open(output_csv_path, mode="w", newline="") as csv_file:
+        with open(output_csv_path, mode='w', newline='') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=headers)
 
             # Write the header row
@@ -204,50 +243,57 @@ def export_csv(dic: List[RequirementCoverageInfo], output_csv_path):
                 # Convert Pydantic model to a dictionary for CSV writing
                 result_dict = result_model.model_dump()
                 # Convert `required_lines` and `covered_lines` to strings for CSV output
-                result_dict["required_lines"] = ", ".join(map(str, result_dict["required_lines"]))
-                result_dict["covered_lines"] = ", ".join(map(str, result_dict["covered_lines"]))
-                
+                result_dict['required_lines'] = ', '.join(
+                    map(str, result_dict['required_lines'])
+                )
+                result_dict['covered_lines'] = ', '.join(
+                    map(str, result_dict['covered_lines'])
+                )
+
                 # Create a row dictionary that matches the headers
                 row_to_write = {
-                    "requirement_id": result_model.requirement_id,
-                    "function": result_model.function,
-                    "required_lines": ", ".join(map(str, result_model.required_lines)),
-                    "covered_lines": ", ".join(map(str, result_model.covered_lines)),
-                    "fully_covered": result_model.fully_covered
+                    'requirement_id': result_model.requirement_id,
+                    'function': result_model.function,
+                    'required_lines': ', '.join(map(str, result_model.required_lines)),
+                    'covered_lines': ', '.join(map(str, result_model.covered_lines)),
+                    'fully_covered': result_model.fully_covered,
                 }
                 writer.writerow(row_to_write)
 
-        print(f"Data successfully exported to {output_csv_path}")
+        print(f'Data successfully exported to {output_csv_path}')
     except Exception as e:
-        print(f"Error writing CSV: {e}")
+        print(f'Error writing CSV: {e}')
+
 
 def cli():
-# TODO: Fix the cli
+    # TODO: Fix the cli
     from sys import exit
+
     exit(1)
     parser = argparse.ArgumentParser(
-        prog="check-requirement-coverage",
-        description="Match executed lines inside a VectorCAST environment against "
-        "a requirements.json file.",
+        prog='check-requirement-coverage',
+        description='Match executed lines inside a VectorCAST environment against '
+        'a requirements.json file.',
     )
     parser.add_argument(
-        "environment_path", help="Directory containing the VectorCAST environment"
+        'environment_path', help='Directory containing the VectorCAST environment'
     )
     parser.add_argument(
-        "requirement_file_path", help="Path to requirements.json describing needed coverage"
+        'requirement_file_path',
+        help='Path to requirements.json describing needed coverage',
     )
     parser.add_argument(
-        "--export-json",
-        help="Write JSON report to a file instead of stdout",
+        '--export-json',
+        help='Write JSON report to a file instead of stdout',
     )
     parser.add_argument(
-        "--export-csv",
-        help="Write CSV report to a file instead of stdout",
+        '--export-csv',
+        help='Write CSV report to a file instead of stdout',
     )
     parser.add_argument(
-        "--silent",
+        '--silent',
         action='store_true',
-        help="Silent output, without any extractions. Usually for debugging"
+        help='Silent output, without any extractions. Usually for debugging',
     )
 
     args = parser.parse_args()
@@ -255,14 +301,13 @@ def cli():
     rc = RequirementCoverage(args.environment_path, args.requirement_file_path)
     coverage_agreement = rc.check_requirement_coverage()
 
-
     if args.silent:
         return
 
     if args.export_json:
         export_json(coverage_agreement, args.export_json)
         return
-    
+
     if args.export_csv:
         export_csv(coverage_agreement, args.export_csv)
         return

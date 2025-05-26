@@ -3,7 +3,8 @@ import os
 import logging
 import typing as t
 from pathlib import Path
-
+import json
+import hashlib
 import yaml
 import backoff
 from aiolimiter import AsyncLimiter
@@ -49,6 +50,23 @@ EXAMPLE_CONFIGS = {
         'MODEL_NAME': 'claude-3-7-sonnet-20250219',
     },
 }
+
+
+def _get_cache_key(inputs):
+    input_str = json.dumps(inputs, sort_keys=True)
+    return hashlib.sha256(input_str.encode()).hexdigest()
+
+
+def _save_cache(cache_key, result):
+    cache_dir = Path.home() / '.req2tests-data' / 'llm_cache'
+    os.makedirs(cache_dir, exist_ok=True)
+    with open(cache_dir / f'{cache_key}.json', 'w') as f:
+        obj = {
+            'schema_class': f'{result.__class__.__module__}.{result.__class__.__name__}',
+            'schema': result.__class__.model_json_schema(),
+            'result': result.json(),
+        }
+        json.dump(obj, f, indent=4)
 
 
 class Config:
@@ -191,7 +209,6 @@ class LLMClient:
         max_tokens=5000,
         seed=42,
         extended_reasoning=False,
-        return_raw_completion=False,
         **kwargs,
     ):
         async with RATE_LIMIT:
@@ -263,10 +280,21 @@ class LLMClient:
                     )
                 raise e
 
-            if return_raw_completion:
-                return result, completion
-            else:
-                return result
+            if os.getenv('COLLECT_LLM_CACHE', 'false').lower() in ('true', '1'):
+                cache_key = _get_cache_key(
+                    {
+                        'messages': messages,
+                        'schema': str(schema),
+                        'temperature': temperature,
+                        'max_tokens': max_tokens,
+                        'seed': seed,
+                        'extended_reasoning': extended_reasoning,
+                        'additional_args': kwargs,
+                    }
+                )
+                _save_cache(cache_key, result)
+
+            return result
 
     def get_token_usage(self):
         return self.token_usage

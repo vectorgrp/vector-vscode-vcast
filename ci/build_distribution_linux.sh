@@ -4,7 +4,7 @@ set -e
 
 source $VCAST_USER_HOME/.venv/bin/activate
 python setup.py build_ext --inplace -j 6
-python collect_imports.py  
+python collect_imports.py
 pyinstaller autoreq.spec
 deactivate
 cd dist

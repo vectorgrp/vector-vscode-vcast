@@ -2,6 +2,12 @@ name: Reqs2tests unit tests
 run-name: ${{ github.ref_name }} is unit-testing reqs2tests
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 env:
   NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
   REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt

@@ -1,3 +1,0 @@
-./stubbing_c_lib/C_LIB_STUB.env
-./csv_example/CSV_BASED_TESTING.env
-./void_star/VOID_STAR.env
