@@ -231,28 +231,18 @@ export async function getTstCompletionData(
       );
     }
 
-    // // Handle TEST.VALUE separately so we can suppress extra colons after two
+    // Handle TEST.VALUE separately so we can suppress extra colons after two
     else if (upperCaseLine.startsWith("TEST.VALUE:")) {
-      // count how many ":" are already in the line
-      let checkingCount = 5;
-      const lineContainsGlobalsOrStubs =
-        lineSoFar.includes("USER_GLOBALS_VCAST") ||
-        lineSoFar.includes("uut_prototype_stubs");
-      // If that is the case, we have 2 colons less (e.g. no Manager::PlaceOrder)
-      if (lineContainsGlobalsOrStubs) {
-        checkingCount = 3;
-      }
-      const colonCount = (lineSoFar.match(/:/g) || []).length;
-      // 5 for:
-      // 1st is after TEST.VALUE":"
-      // 2nd & 3rd is TEST.VALUE:Manager"::"PlaceOrder
-      // 4th is TEST.VALUE:Manager::PlaceOrder...Entree":"Chicken
-      // After the 5th colon, we don't want to offer any more completions
-      if (colonCount >= checkingCount) {
-        // Already have TEST.VALUE:<u.s.p>:<value>,
-        // so do NOT offer any more colon/value completions
+      // Count only the single-colons (ignore any "::")
+      const singleColonCount = (lineSoFar.match(/(?<!:):(?!:)/g) || []).length;
+
+      // First single-colon is the one after TEST.VALUE
+      // Second is the one after unit.sub.param
+      // If we're at or past the third single-colon --> No Completion
+      if (singleColonCount > 2) {
         return returnData;
       }
+
       // Otherwise, offer the normal completions for TEST.VALUE
       returnData = await getChoiceData(
         choiceKindType.choiceListTST,
