@@ -33,6 +33,8 @@ base_requirements = [
 dev_requirements = [
     'pytest==8.3.5',
     'pytest-mock==3.14.0',
+    'pytest-cov==6.1.1',
+    'pytest-html ==4.1.1',
     'pyinstaller==6.12.0',
     'Cython==3.0.12',
     'ruff==0.11.7',

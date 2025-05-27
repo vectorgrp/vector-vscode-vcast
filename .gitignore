@@ -24,7 +24,8 @@ monitors4codegen/multilspy/language_servers/clangd_language/clangd
 *.csv
 !tests/*.csv
 *.html
-tests/envs_for_tests/piinnovo-envs
+tests/envs_for_tests
+tests/llm_cache
 *.so
 distribution
 autoreq/**/*.c
@@ -33,3 +34,4 @@ autoreq/*.c
 *.tar.gz
 *.xlsx
 !tests/*.xlsx
+*.log
