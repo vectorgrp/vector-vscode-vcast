@@ -1,5 +1,6 @@
 import json
 import logging
+from types import SimpleNamespace
 from typing import List, Tuple, Dict, Union, Any  # Added Dict, Union, Any
 from pydantic import Field, create_model, BaseModel
 import time
@@ -10,7 +11,6 @@ from autoreq.test_generation.generic_models import (
     GenericTestCase,
     GenericTestGenerationResult,
 )
-from ..util import validate_openai_structured_output_schema
 
 
 # Define the new Pydantic model for schema generation information
@@ -41,9 +41,10 @@ class SchemaBuilder:
         self,
         allowed_input_identifiers: List[str],
         allowed_expected_identifiers: List[str],
+        relaxed: bool = False,
     ):
         return _construct_test_case_schema(
-            allowed_input_identifiers, allowed_expected_identifiers
+            allowed_input_identifiers, allowed_expected_identifiers, relaxed=relaxed
         )
 
     def derive_completion_schema(
@@ -54,6 +55,7 @@ class SchemaBuilder:
         focus_lines: List[int] = None,
         verify_schema: bool = True,
         identifier_type: str = None,
+        relaxed_schema: bool = False,
         return_schema_gen_info: bool = False,
     ) -> Tuple[type, SchemaGenerationInfo]:
         schema_gen_info = SchemaGenerationInfo(
@@ -131,7 +133,9 @@ class SchemaBuilder:
         schema_gen_info.expected_identifiers = allowed_expected_identifiers or []
 
         TestCaseClass = self._derive_test_case_schema(
-            allowed_input_identifiers, allowed_expected_identifiers
+            allowed_input_identifiers,
+            allowed_expected_identifiers,
+            relaxed=relaxed_schema,
         )
 
         schema = _construct_completion_schema(TestCaseClass, batched, batch_size)
@@ -140,7 +144,7 @@ class SchemaBuilder:
         logging.info(f'Generated schema size: {len(schema_json)} chars')
 
         if verify_schema:
-            schema_issues = validate_openai_structured_output_schema(
+            schema_issues = _validate_openai_structured_output_schema(
                 schema.model_json_schema()
             )
         else:
@@ -224,21 +228,23 @@ def create_schema_instance_mock(instance_data: Dict[str, Any]) -> BaseModel:
     elif 'input_values' in instance_data or 'expected_values' in instance_data:
         TestCaseModel = _construct_test_case_schema(None, None)
         return TestCaseModel.model_validate(instance_data)
-
     else:
-        raise ValueError(
-            'Could not determine the schema type from the provided data structure. '
-            "Expected keys like 'test_case', 'test_case_for_requirement_X', "
-            "or 'input_values'/'expected_values'."
-        )
+        return json.loads(
+            json.dumps(instance_data), object_hook=lambda x: SimpleNamespace(**x)
+        )  # Fallback to a simple namespace
 
 
 def _construct_test_case_schema(
     allowed_input_identifiers: List[str],
     allowed_expected_identifiers: List[str],
+    relaxed: bool = False,
 ):
-    InputIdentifier = create_identifier_type(allowed_input_identifiers)
-    ExpectedIdentifier = create_identifier_type(allowed_expected_identifiers)
+    if relaxed:
+        InputIdentifier = str
+        ExpectedIdentifier = str
+    else:
+        InputIdentifier = create_identifier_type(allowed_input_identifiers)
+        ExpectedIdentifier = create_identifier_type(allowed_expected_identifiers)
 
     unique_suffix = int(time.time() * 1000)
 
@@ -290,3 +296,64 @@ def _construct_completion_schema(TestCaseClass: type, batched: bool, batch_size:
         # but is a dynamic model holding multiple TestCaseClass instances.
         schema = create_model('TestGenerationResult', **result_keys)
     return schema
+
+
+def _validate_openai_structured_output_schema(schema) -> List[str]:
+    """
+    Validate a pydantic model schema against nesting, size, enum, and additionalProperties rules.
+    Based on the OpenAI API schema validation rules here: https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat
+    """
+    errors: List[str] = []
+    total_props = 0
+    total_string_len = 0
+    total_enum_vals = 0
+
+    def traverse(node: dict, depth: int):
+        nonlocal total_props, total_string_len, total_enum_vals
+        if depth > 5:
+            errors.append(f'Exceeded max nesting depth: {depth} > 5')
+        # object checks
+        if node.get('type') == 'object':
+            props = node.get('properties', {})
+            total_props += len(props)
+            if len(props) and total_props > 100:
+                errors.append(f'Total properties {total_props} exceeds limit of 100')
+            # TODO: Ideally we would check for additionalProperties here, but it is not actually present in pydantic generated schemas (and yet it still somehow works)
+            # if node.get('additionalProperties', True) is not False:
+            #    errors.append("'additionalProperties' must be false on all objects")
+            for name, subs in props.items():
+                total_string_len += len(name)
+                traverse(subs, depth + 1)
+        # enum checks
+        if node.get('type') == 'string' and 'enum' in node:
+            vals = node['enum']
+            count = len(vals)
+            total_enum_vals += count
+            enum_len = sum(len(str(v)) for v in vals)
+            total_string_len += enum_len
+            if count > 250 and enum_len > 7500:
+                errors.append(
+                    f'Enum property has {count} values and total length {enum_len} exceeds 7500'
+                )
+        # const check
+        if 'const' in node:
+            total_string_len += len(str(node['const']))
+        # definitions and combinators
+        for key in ('$defs', 'definitions', 'allOf', 'anyOf', 'oneOf'):
+            items = node.get(key, {})
+            if isinstance(items, dict):
+                iterable = items.values()
+            else:
+                iterable = items
+            for child in iterable:
+                traverse(child, depth)
+
+    traverse(schema, 1)
+    if total_string_len > 15000:
+        errors.append(
+            f'Total string length {total_string_len} exceeds limit of 15000 characters'
+        )
+    if total_enum_vals > 500:
+        errors.append(f'Total enum values {total_enum_vals} exceeds limit of 500')
+
+    return errors

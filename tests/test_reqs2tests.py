@@ -1,70 +1,17 @@
 import os
 import json
-import hashlib
 import tempfile
-import traceback
-import typing as t
 from pathlib import Path
 from unittest.mock import patch, AsyncMock
-from pydantic import create_model
 
 from autoreq.reqs2tests import cli
 from autoreq.test_generation.environment import Environment
-from autoreq.test_generation.schema_builder import SchemaBuilder
+from autoreq.replay import RequestReplay
 from .utils import copy_folder
 
 
-def _prop_to_type(prop: t.Dict, tc_model: t.Type) -> t.Type:
-    if '$ref' in prop:
-        return tc_model
-
-    ty = prop.get('type')
-    if ty == 'string':
-        return str
-    if ty == 'integer':
-        return int
-    if ty == 'number':
-        return float
-    if ty == 'boolean':
-        return bool
-    if ty == 'array':
-        items = prop.get('items', {})
-        item_py = _prop_to_type(items, tc_model)
-        return t.List[item_py]
-    raise ValueError(f'Unknown type {ty}')
-
-
-def load_pydantic_from_saved(cache_data):
-    schema_class, schema, result = (
-        cache_data['schema_class'],
-        cache_data['schema'],
-        cache_data['result'],
-    )
-    result_data = json.loads(result)
-
-    if schema_class == 'autoreq.test_generation.schema_builder.TestGenerationResult':
-        sb = SchemaBuilder(None)
-        tc = sb._derive_test_case_schema(None, None)
-        model_fields = {
-            name: (_prop_to_type(prop, tc), ...)
-            for name, prop in schema['properties'].items()
-        }
-        TestGenerationResult = create_model('TestGenerationResult', **model_fields)
-        return TestGenerationResult.model_validate(result_data)
-    elif (
-        schema_class
-        == 'autoreq.test_generation.requirement_decomposition.RequirementDescription'
-    ):
-        from autoreq.test_generation.requirement_decomposition import (
-            RequirementDescription,
-        )
-
-        return RequirementDescription.model_validate(result_data)
-
-    raise NotImplementedError
-
-
-def mock_call_model(
+def mock_call_model_with_replay(
+    replay_instance,
     messages,
     schema,
     temperature=0.0,
@@ -73,11 +20,10 @@ def mock_call_model(
     extended_reasoning=False,
     **kwargs,
 ):
-    llm_cache_dir = kwargs.pop('llm_cache_dir')
-
+    # Create inputs signature for replay
     inputs = {
         'messages': messages,
-        'schema': str(schema),
+        'schema': schema,
         'temperature': temperature,
         'max_tokens': max_tokens,
         'seed': seed,
@@ -85,22 +31,13 @@ def mock_call_model(
         'additional_args': kwargs,
     }
 
-    input_str = json.dumps(inputs, sort_keys=True)
-    cache_key = hashlib.sha256(input_str.encode()).hexdigest()
-    cache_file = llm_cache_dir / f'{cache_key}.json'
+    # Use the shared RequestReplay instance to get cached response
+    result = replay_instance.replay(inputs)
 
-    if not cache_file.exists():
-        raise FileNotFoundError(f'Cache file {cache_file} not found.')
+    if result is None:
+        raise FileNotFoundError('No cached response found for inputs')
 
-    with open(cache_file, 'r') as f:
-        cache_data = json.load(f)
-
-    try:
-        ret = load_pydantic_from_saved(cache_data)
-    except Exception as e:
-        traceback.print_exc()
-        raise e
-    return ret
+    return result
 
 
 def llm_init_side_effect(self, *args, **kwargs):
@@ -156,9 +93,12 @@ def test_batched_mode_no_reqs_keys(
         ]
         monkeypatch.setattr('sys.argv', test_args)
 
+        # Create a single RequestReplay instance to preserve state
+        replay_instance = RequestReplay(llm_cache_dir)
+
         fake_call_model = AsyncMock(
-            side_effect=lambda *args, **kwargs: mock_call_model(
-                *args, **kwargs, llm_cache_dir=llm_cache_dir
+            side_effect=lambda *args, **kwargs: mock_call_model_with_replay(
+                replay_instance, *args, **kwargs
             )
         )
         with (
@@ -195,9 +135,13 @@ def test_no_decomposition_no_reqs_keys(
             '1',
         ]
         monkeypatch.setattr('sys.argv', test_args)
+
+        # Create a single RequestReplay instance to preserve state
+        replay_instance = RequestReplay(llm_cache_dir)
+
         fake_call_model = AsyncMock(
-            side_effect=lambda *args, **kwargs: mock_call_model(
-                *args, **kwargs, llm_cache_dir=llm_cache_dir
+            side_effect=lambda *args, **kwargs: mock_call_model_with_replay(
+                replay_instance, *args, **kwargs
             )
         )
         with (

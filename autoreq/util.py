@@ -10,7 +10,6 @@ import tree_sitter_cpp as ts_cpp
 
 from pydantic import BaseModel, create_model
 
-from autoreq.llm_client import LLMClient
 from collections import Counter
 from pydantic import BaseModel
 
@@ -215,67 +214,6 @@ def average_set(sets, threshold_frequency=0.5):
     n = len(sets)
     cnt = Counter(x for s in sets for x in s)
     return {x for x, c in cnt.items() if c / n >= threshold_frequency}
-
-
-def validate_openai_structured_output_schema(schema) -> List[str]:
-    """
-    Validate a pydantic model schema against nesting, size, enum, and additionalProperties rules.
-    Based on the OpenAI API schema validation rules here: https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat
-    """
-    errors: List[str] = []
-    total_props = 0
-    total_string_len = 0
-    total_enum_vals = 0
-
-    def traverse(node: dict, depth: int):
-        nonlocal total_props, total_string_len, total_enum_vals
-        if depth > 5:
-            errors.append(f'Exceeded max nesting depth: {depth} > 5')
-        # object checks
-        if node.get('type') == 'object':
-            props = node.get('properties', {})
-            total_props += len(props)
-            if len(props) and total_props > 100:
-                errors.append(f'Total properties {total_props} exceeds limit of 100')
-            # TODO: Ideally we would check for additionalProperties here, but it is not actually present in pydantic generated schemas (and yet it still somehow works)
-            # if node.get('additionalProperties', True) is not False:
-            #    errors.append("'additionalProperties' must be false on all objects")
-            for name, subs in props.items():
-                total_string_len += len(name)
-                traverse(subs, depth + 1)
-        # enum checks
-        if node.get('type') == 'string' and 'enum' in node:
-            vals = node['enum']
-            count = len(vals)
-            total_enum_vals += count
-            enum_len = sum(len(str(v)) for v in vals)
-            total_string_len += enum_len
-            if count > 250 and enum_len > 7500:
-                errors.append(
-                    f'Enum property has {count} values and total length {enum_len} exceeds 7500'
-                )
-        # const check
-        if 'const' in node:
-            total_string_len += len(str(node['const']))
-        # definitions and combinators
-        for key in ('$defs', 'definitions', 'allOf', 'anyOf', 'oneOf'):
-            items = node.get(key, {})
-            if isinstance(items, dict):
-                iterable = items.values()
-            else:
-                iterable = items
-            for child in iterable:
-                traverse(child, depth)
-
-    traverse(schema, 1)
-    if total_string_len > 15000:
-        errors.append(
-            f'Total string length {total_string_len} exceeds limit of 15000 characters'
-        )
-    if total_enum_vals > 500:
-        errors.append(f'Total enum values {total_enum_vals} exceeds limit of 500')
-
-    return errors
 
 
 def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
@@ -599,7 +537,7 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
 async def get_relevant_statement_groups(
     function_body: str,
     requirements: List[str],
-    llm_client: LLMClient = None,
+    llm_client: 'LLMClient',
     add_related=True,
 ):
     requirements = list(requirements)
@@ -612,9 +550,6 @@ async def get_relevant_statement_groups(
             function_body, requirements[100:], llm_client
         )
         return results_first100 + results_rest
-
-    if llm_client is None:
-        llm_client = LLMClient()
 
     result_keys = {
         f'group_indices_for_requirement_{i + 1}': (List[int], ...)
@@ -703,3 +638,24 @@ def is_prefix(prefix, lst):
     return len(prefix) <= len(lst) and all(
         prefix[i] == lst[i] for i in range(len(prefix))
     )
+
+
+def sanitize_subprogram_name(subprogram_name: str) -> str:
+    """
+    Sanitize a subprogram name by removing any template or overloading parts.
+    """
+
+    last_name = ''
+    while last_name != subprogram_name:
+        last_name = subprogram_name
+
+        sanitized_name = re.sub(r'<[^<>]*?>', '', subprogram_name)
+
+        subprogram_name = sanitized_name
+
+    # Now remove overloading parts
+    subprogram_name = subprogram_name.split('(')[
+        0
+    ]  # Remove everything after the first '('
+
+    return subprogram_name.strip()

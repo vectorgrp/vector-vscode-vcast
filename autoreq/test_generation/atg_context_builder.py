@@ -3,6 +3,8 @@ import asyncio
 import random
 import json
 
+from ..util import sanitize_subprogram_name
+
 
 class PathSelection(BaseModel):
     analysis: str
@@ -42,9 +44,9 @@ class ATGContextBuilder:
             matching_tests_nopartial = [
                 test.to_dict()
                 for test in test_cases
-                if test.subprogram_name.split('<', 1)[0]
-                .split('(', 1)[0]
-                .endswith(function_name)
+                if sanitize_subprogram_name(test.subprogram_name).endswith(
+                    function_name
+                )
                 and all(
                     keyword not in test.test_name
                     for keyword in ['PARTIAL', 'INCOMPLETE', 'TEMPLATE']
@@ -54,9 +56,9 @@ class ATGContextBuilder:
             matching_tests_partial = [
                 test.to_dict()
                 for test in test_cases
-                if test.subprogram_name.split('<', 1)[0]
-                .split('(', 1)[0]
-                .endswith(function_name)
+                if sanitize_subprogram_name(test.subprogram_name).endswith(
+                    function_name
+                )
                 and any(
                     keyword in test.test_name
                     for keyword in ['PARTIAL', 'INCOMPLETE', 'TEMPLATE']

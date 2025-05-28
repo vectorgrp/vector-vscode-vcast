@@ -88,7 +88,7 @@ async def main():
         help='Do not use requirement keys for test generation. Store a reference to the requirement in the notes instead',
     )
     parser.add_argument(
-        '--min-pruning-lines', type=int, default=500, help=argparse.SUPPRESS
+        '--min-pruning-lines', type=int, default=1000, help=argparse.SUPPRESS
     )
     parser.add_argument(
         '--no-test-examples',

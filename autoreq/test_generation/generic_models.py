@@ -1,7 +1,9 @@
 from typing import List, Any, ClassVar, Callable, Union, Tuple
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 import re
 import random
+
+from autoreq.util import sanitize_subprogram_name
 
 
 # Base classes that Cython can handle
@@ -186,10 +188,11 @@ class GenericTestCase(BaseModel):
 
             unit_name, subprogram_name = stub.split('.', 1)
 
-            if self.subprogram_name.startswith(subprogram_name):
+            if subprogram_name == '<<GLOBAL>>':
                 continue
 
-            if subprogram_name == '<<GLOBAL>>':
+            subprogram_name = sanitize_subprogram_name(subprogram_name)
+            if subprogram_name.endswith(self.subprogram_name):
                 continue
 
             needed_stubs.add(stub)
@@ -202,10 +205,11 @@ class GenericTestCase(BaseModel):
 
             unit_name, subprogram_name = stub.split('.', 1)
 
-            if self.subprogram_name.startswith(subprogram_name):
+            if subprogram_name == '<<GLOBAL>>':
                 continue
 
-            if subprogram_name == '<<GLOBAL>>':
+            subprogram_name = sanitize_subprogram_name(subprogram_name)
+            if subprogram_name.endswith(self.subprogram_name):
                 continue
 
             needed_stubs.add(stub)

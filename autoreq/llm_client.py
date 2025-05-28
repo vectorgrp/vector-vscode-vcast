@@ -1,10 +1,9 @@
 from functools import cached_property
 import os
+import pickle
 import logging
 import typing as t
 from pathlib import Path
-import json
-import hashlib
 import yaml
 import backoff
 from aiolimiter import AsyncLimiter
@@ -14,6 +13,7 @@ import anthropic
 import instructor
 from dotenv import load_dotenv
 from sys import exit
+from autoreq.replay import RequestReplay
 
 load_dotenv()
 
@@ -50,23 +50,6 @@ EXAMPLE_CONFIGS = {
         'MODEL_NAME': 'claude-3-7-sonnet-20250219',
     },
 }
-
-
-def _get_cache_key(inputs):
-    input_str = json.dumps(inputs, sort_keys=True)
-    return hashlib.sha256(input_str.encode()).hexdigest()
-
-
-def _save_cache(cache_key, result):
-    cache_dir = Path.home() / '.req2tests-data' / 'llm_cache'
-    os.makedirs(cache_dir, exist_ok=True)
-    with open(cache_dir / f'{cache_key}.json', 'w') as f:
-        obj = {
-            'schema_class': f'{result.__class__.__module__}.{result.__class__.__name__}',
-            'schema': result.__class__.model_json_schema(),
-            'result': result.json(),
-        }
-        json.dump(obj, f, indent=4)
 
 
 class Config:
@@ -174,7 +157,6 @@ class LLMClient:
                 api_version=config.API_VERSION,
                 azure_endpoint=config.BASE_URL,
                 azure_deployment=config.DEPLOYMENT,
-                timeout=TIMEOUT,
             )
         elif self._is_openai_compatible(provider):
             return AsyncOpenAI(
@@ -182,7 +164,6 @@ class LLMClient:
                 if (hasattr(config, 'API_KEY') and config.API_KEY)
                 else 'none',
                 base_url=config.BASE_URL,
-                timeout=TIMEOUT,
             )
         elif provider == 'anthropic':
             return instructor.from_anthropic(
@@ -200,7 +181,34 @@ class LLMClient:
         openai.APIConnectionError,
     )
 
-    @backoff.on_exception(backoff.expo, exceptions, max_time=TIMEOUT)
+    @cached_property
+    def request_replayer(self):
+        """Initialize request replay cache if enabled."""
+        store_dir = os.getenv('REQ2TESTS_STORE_REQUESTS_DIR', None)
+        replay_dir = os.getenv('REQ2TESTS_REPLAY_REQUESTS_DIR', None)
+
+        if store_dir and replay_dir:
+            raise ValueError(
+                'Both REQ2TESTS_STORE_REQUESTS_DIR and REQ2TESTS_REPLAY_REQUESTS_DIR are set. '
+                'Please set only one of them.'
+            )
+
+        if store_dir or replay_dir:
+            return RequestReplay(store_dir or replay_dir)
+
+        return None
+
+    @property
+    def request_replay_enabled(self):
+        """Check if request replay is enabled."""
+        return os.getenv('REQ2TESTS_REPLAY_REQUESTS_DIR') is not None
+
+    @property
+    def request_store_enabled(self):
+        """Check if request storing is enabled."""
+        return os.getenv('REQ2TESTS_STORE_REQUESTS_DIR') is not None
+
+    @backoff.on_exception(backoff.expo, exceptions, max_time=120)
     async def call_model(
         self,
         messages: t.List[t.Dict[str, str]],
@@ -211,6 +219,29 @@ class LLMClient:
         extended_reasoning=False,
         **kwargs,
     ):
+        original_kwargs = kwargs.copy()
+
+        # Create input signature for caching/replay
+        inputs = {
+            'messages': messages,
+            'schema': schema,
+            'temperature': temperature,
+            'max_tokens': max_tokens,
+            'seed': seed,
+            'extended_reasoning': extended_reasoning,
+            'additional_args': original_kwargs,
+        }
+
+        if self.request_replay_enabled:
+            replayed_result = self.request_replayer.replay(inputs)
+            if replayed_result is not None:
+                return replayed_result
+            else:
+                raise ValueError(
+                    'No cached response found for the given inputs. '
+                    'Ensure that the request has been stored previously.'
+                )
+
         async with RATE_LIMIT:
             try:
                 call_config = (
@@ -222,7 +253,6 @@ class LLMClient:
                 call_type = 'generation' if not extended_reasoning else 'reasoning'
 
                 if call_config.PROVIDER == 'anthropic':
-                    # Handle Anthropic differently
                     completion = await call_client.chat.completions.create(
                         model=call_config.MODEL_NAME,
                         max_tokens=max_tokens,
@@ -232,8 +262,6 @@ class LLMClient:
                     )
 
                     # Estimate token usage for Anthropic
-                    # This is an approximation as Anthropic doesn't return token counts the same way
-                    # You might want to implement a better token counting mechanism
                     input_tokens = sum(len(m.get('content', '')) for m in messages) // 4
                     output_tokens = len(str(completion)) // 4
 
@@ -242,7 +270,6 @@ class LLMClient:
 
                     result = completion
                 else:
-                    # Use the existing OpenAI-compatible flow
                     kwargs.update(
                         {
                             'model': call_config.MODEL_NAME,
@@ -280,19 +307,8 @@ class LLMClient:
                     )
                 raise e
 
-            if os.getenv('COLLECT_LLM_CACHE', 'false').lower() in ('true', '1'):
-                cache_key = _get_cache_key(
-                    {
-                        'messages': messages,
-                        'schema': str(schema),
-                        'temperature': temperature,
-                        'max_tokens': max_tokens,
-                        'seed': seed,
-                        'extended_reasoning': extended_reasoning,
-                        'additional_args': kwargs,
-                    }
-                )
-                _save_cache(cache_key, result)
+            if self.request_store_enabled:
+                self.request_replayer.store(inputs, result)
 
             return result
 

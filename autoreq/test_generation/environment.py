@@ -12,7 +12,7 @@ import logging
 import charset_normalizer
 import platform
 
-from autoreq.util import prune_code
+from autoreq.util import prune_code, sanitize_subprogram_name
 
 from autoreq.constants import TEST_COVERAGE_SCRIPT_PATH
 
@@ -223,7 +223,7 @@ class Environment:
                         '-u',
                         test.unit_name,
                         '-s',
-                        test.subprogram_name,
+                        sanitize_subprogram_name(test.subprogram_name),
                         '-t',
                         test.test_name,
                         'Execute',
@@ -244,7 +244,7 @@ class Environment:
                     '-u',
                     test.unit_name,
                     '-s',
-                    test.subprogram_name,
+                    sanitize_subprogram_name(test.subprogram_name),
                     '-t',
                     test.test_name,
                     'Test',
@@ -270,11 +270,11 @@ class Environment:
                 )
             except subprocess.TimeoutExpired:
                 logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
-                return None
 
             logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
             logging.debug('Command: %s Return code: %s', cmd, result.returncode)
 
+            # TODO: Maybe add special output if timed out?
             output += result.stdout
 
         if with_coverage:
@@ -301,7 +301,6 @@ class Environment:
                 )
             except subprocess.TimeoutExpired:
                 logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
-                return None
 
             logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
             logging.debug('Command: %s Return code: %s', cmd, result.returncode)
@@ -397,9 +396,23 @@ class Environment:
                     logging.warning(f'Invalid identifier format: {identifier}')
                     continue
 
-                subprogram = subprogram.split('<')[0]  # Remove template if present
-                subprogram = subprogram.split('(')[0]  # Remove input types if present
-                subprogram = subprogram.split('::')[-1]  # Remove namespace if present
+                if subprogram != '<<GLOBAL>>':
+                    subprogram = sanitize_subprogram_name(
+                        subprogram
+                    )  # Remove templates and overloading information
+                    subprogram = subprogram.split('::')[
+                        -1
+                    ]  # Remove namespace if present
+
+                if entity == '(cl)':
+                    if len(identifier.split('.')) < 6:
+                        continue
+
+                    class_name, constructor, entity = identifier.split('.')[3:6]
+
+                    if entity == '<<constructor>>':
+                        relevant_identifiers.append(identifier)
+                        continue
 
                 entity_match = re.match(r'.*?\[(\d+)\]', entity)
 
@@ -433,16 +446,6 @@ class Environment:
                     if remove_surely_stubbed_inputs and not is_return_value:
                         continue
 
-                if entity == '(cl)':
-                    if len(identifier.split('.')) < 6:
-                        continue
-
-                    class_name, constructor, entity = identifier.split('.')[3:6]
-
-                    if entity == '<<constructor>>':
-                        relevant_identifiers.append(identifier)
-                        continue
-
                 if subprogram == '<<GLOBAL>>':
                     search_term = entity
                 else:
@@ -450,6 +453,7 @@ class Environment:
 
                 if search_term in definition:
                     relevant_identifiers.append(identifier)
+
             except IndexError:
                 logging.warning(f'Invalid identifier format: {identifier}')
                 continue

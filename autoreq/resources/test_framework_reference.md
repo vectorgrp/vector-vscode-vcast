@@ -55,12 +55,12 @@ The following sections describe the syntax for specifying the `identifier` and `
   - Example:
     { "identifier": "unit.subprogram.array_param[]", "value": "<<malloc 2>>" }
     { "identifier": "unit.subprogram.array_param[1]", "value": "3" }
-- For pointers, use the dereference operator.
+- For pointers, use index 0 to access it
   - Example:
-    { "identifier": "unit.subprogram.*ptr_param[0]", "value": "12" }
+    { "identifier": "unit.subprogram.ptr_param[0]", "value": "12" }
 - If you want to make something null then use `<<null>>`.
   - Example:
-    { "identifier": "unit.subprogram.pointer_param", "value": "<<null>>" }
+    { "identifier": "unit.subprogram.pointer_param[0]", "value": "<<null>>" }
 
 #### Function Return Parameters
 - Use the keyword `return` for function return values.
@@ -151,3 +151,190 @@ The following sections describe the syntax for specifying the `identifier` and `
 - In particular, to access methods of a class and set values it is imperative to first instantiate the class using a constructor. For all classes a default object is ready to be initialized if needed using the respective constructor.
 - Do not set an identifier multiple times, it just results in overriding of the previous value
 - It is currently hard/impossible to test values written to pointers. If you encounter them, fall back to testing simpler partial things like return values (or just specifying no expected values)
+
+## Examples
+
+Let's consider a more complex C++ code snippet in a file named `data_processor.cpp`:
+
+```cpp
+// File: data_processor.cpp
+// Unit: data_processor
+
+typedef struct {
+    int id;
+    float value;
+    char status;
+} DataRecord;
+
+typedef enum {
+    MODE_NORMAL = 0,
+    MODE_DEBUG = 1,
+    MODE_ERROR = 2
+} ProcessingMode;
+
+// External function declarations
+extern int validate_record(DataRecord* record);
+extern void log_error(const char* message);
+extern DataRecord* allocate_buffer(int size);
+
+ProcessingMode current_mode = MODE_NORMAL;
+
+int process_data_array(DataRecord* input_array, int array_size, DataRecord** output_array) {
+    if (input_array == NULL || array_size <= 0) {
+        if (current_mode == MODE_DEBUG) {
+            log_error("Invalid input parameters");
+        }
+        return -1;
+    }
+    
+    // Allocate output buffer
+    *output_array = allocate_buffer(array_size);
+    if (*output_array == NULL) {
+        log_error("Memory allocation failed");
+        return -2;
+    }
+    
+    int processed_count = 0;
+    for (int i = 0; i < array_size; i++) {
+        // Validate each record using external function
+        int validation_result = validate_record(&input_array[i]);
+        
+        if (validation_result > 0) {
+            // Copy valid record to output with modified value
+            (*output_array)[processed_count].id = input_array[i].id;
+            (*output_array)[processed_count].value = input_array[i].value * 1.5f;
+            (*output_array)[processed_count].status = 'V'; // Valid
+            processed_count++;
+        } else if (current_mode == MODE_ERROR) {
+            // In error mode, stop processing on first invalid record
+            log_error("Invalid record encountered in error mode");
+            return processed_count;
+        }
+        // In normal mode, skip invalid records and continue
+    }
+    
+    return processed_count;
+}
+```
+
+### Example 1: Testing Null Input Handling with Branching
+
+**Requirement REQ-DP-001:** The `process_data_array` function shall return -1 when input_array is NULL and log an error message if in DEBUG mode.
+
+```json
+{
+  "test_name": "Test_Null_Input_Debug_Mode",
+  "test_description": "Tests process_data_array with NULL input in DEBUG mode to ensure it returns -1 and calls log_error.",
+  "requirement_id": "REQ-DP-001",
+  "unit_name": "data_processor",
+  "subprogram_name": "process_data_array",
+  "input_values": [
+    { "identifier": "data_processor.<<GLOBAL>>.current_mode", "value": "MODE_DEBUG" },
+    { "identifier": "data_processor.process_data_array.input_array", "value": "<<null>>" },
+    { "identifier": "data_processor.process_data_array.array_size", "value": "5" },
+  ],
+  "expected_values": [
+    { "identifier": "uut_prototype_stubs.log_error.message", "value": "\"Invalid input parameters\"" },
+    { "identifier": "data_processor.process_data_array.return", "value": "-1" }
+  ]
+}
+```
+
+### Example 2: Testing Memory Allocation with Stubbing
+
+**Requirement REQ-DP-002:** The `process_data_array` function shall return -2 and log an error when memory allocation fails.
+
+```json
+{
+  "test_name": "Test_Memory_Allocation_Failure",
+  "test_description": "Tests process_data_array when allocate_buffer returns NULL to ensure proper error handling.",
+  "requirement_id": "REQ-DP-002",
+  "unit_name": "data_processor",
+  "subprogram_name": "process_data_array",
+  "input_values": [
+    { "identifier": "data_processor.<<GLOBAL>>.current_mode", "value": "MODE_NORMAL" },
+    { "identifier": "data_processor.process_data_array.input_array", "value": "<<malloc 1>>" },
+    { "identifier": "data_processor.process_data_array.input_array[0].id", "value": "1" },
+    { "identifier": "data_processor.process_data_array.input_array[0].value", "value": "10.5" },
+    { "identifier": "data_processor.process_data_array.input_array[0].status", "value": "'A'" },
+    { "identifier": "data_processor.process_data_array.array_size", "value": "2" },
+    { "identifier": "uut_prototype_stubs.allocate_buffer.return", "value": "<<null>>" },
+  ],
+  "expected_values": [
+    { "identifier": "uut_prototype_stubs.log_error.message", "value": "\"Memory allocation failed\"" },
+    { "identifier": "data_processor.process_data_array.return", "value": "-2" }
+  ]
+}
+```
+
+### Example 3: Testing Complex Processing with Multiple Stubs
+
+**Requirement REQ-DP-003:** The `process_data_array` function shall process valid records by multiplying their values by 1.5 and setting status to 'V'.
+
+```json
+{
+  "test_name": "Test_Valid_Record_Processing",
+  "test_description": "Tests process_data_array with mixed valid/invalid records to ensure proper processing and output.",
+  "requirement_id": "REQ-DP-003",
+  "unit_name": "data_processor",
+  "subprogram_name": "process_data_array",
+  "input_values": [
+    { "identifier": "data_processor.<<GLOBAL>>.current_mode", "value": "MODE_NORMAL" },
+    { "identifier": "data_processor.process_data_array.input_array", "value": "<<malloc 3>>" },
+    { "identifier": "data_processor.process_data_array.input_array[0].id", "value": "100" },
+    { "identifier": "data_processor.process_data_array.input_array[0].value", "value": "20.0" },
+    { "identifier": "data_processor.process_data_array.input_array[0].status", "value": "'A'" },
+    { "identifier": "data_processor.process_data_array.input_array[1].id", "value": "200" },
+    { "identifier": "data_processor.process_data_array.input_array[1].value", "value": "30.0" },
+    { "identifier": "data_processor.process_data_array.input_array[1].status", "value": "'B'" },
+    { "identifier": "data_processor.process_data_array.input_array[2].id", "value": "300" },
+    { "identifier": "data_processor.process_data_array.input_array[2].value", "value": "40.0" },
+    { "identifier": "data_processor.process_data_array.input_array[2].status", "value": "'C'" },
+    { "identifier": "data_processor.process_data_array.array_size", "value": "3" },
+    { "identifier": "data_processor.process_data_array.output_array[0]", "value": "<<malloc 3>>" },
+    { "identifier": "uut_prototype_stubs.validate_record.return", "value": "1,0,1" }
+  ],
+  "expected_values": [
+    { "identifier": "data_processor.process_data_array.return", "value": "2" },
+    { "identifier": "data_processor.process_data_array.output_array[0][0].id", "value": "100" },
+    { "identifier": "data_processor.process_data_array.output_array[0][0].value", "value": "30.0" },
+    { "identifier": "data_processor.process_data_array.output_array[0][0].status", "value": "'V'" },
+    { "identifier": "data_processor.process_data_array.output_array[0][1].id", "value": "300" },
+    { "identifier": "data_processor.process_data_array.output_array[0][1].value", "value": "60.0" },
+    { "identifier": "data_processor.process_data_array.output_array[0][1].status", "value": "'V'" }
+  ]
+}
+```
+
+### Example 4: Testing Error Mode with Early Termination
+
+**Requirement REQ-DP-004:** The `process_data_array` function shall stop processing and return the current count when an invalid record is encountered in ERROR mode.
+
+```json
+{
+  "test_name": "Test_Error_Mode_Early_Termination",
+  "test_description": "Tests process_data_array in ERROR mode to ensure it stops processing on first invalid record.",
+  "requirement_id": "REQ-DP-004",
+  "unit_name": "data_processor",
+  "subprogram_name": "process_data_array",
+  "input_values": [
+    { "identifier": "data_processor.<<GLOBAL>>.current_mode", "value": "MODE_ERROR" },
+    { "identifier": "data_processor.process_data_array.input_array", "value": "<<malloc 3>>" },
+    { "identifier": "data_processor.process_data_array.input_array[0].id", "value": "100" },
+    { "identifier": "data_processor.process_data_array.input_array[0].value", "value": "20.0" },
+    { "identifier": "data_processor.process_data_array.input_array[1].id", "value": "200" },
+    { "identifier": "data_processor.process_data_array.input_array[1].value", "value": "30.0" },
+    { "identifier": "data_processor.process_data_array.array_size", "value": "3" },
+    { "identifier": "data_processor.process_data_array.output_array[0]", "value": "<<malloc 3>>" },
+    { "identifier": "uut_prototype_stubs.allocate_buffer.size", "value": "3" },
+    { "identifier": "uut_prototype_stubs.validate_record.return", "value": "1,-1" },
+  ],
+  "expected_values": [
+    { "identifier": "uut_prototype_stubs.log_error.message", "value": "\"Invalid record encountered in error mode\"" },
+    { "identifier": "data_processor.process_data_array.return", "value": "1" },
+    { "identifier": "data_processor.process_data_array.output_array[0][0].id", "value": "100" },
+    { "identifier": "data_processor.process_data_array.output_array[0][0].value", "value": "30.0" },
+    { "identifier": "data_processor.process_data_array.output_array[0][0].status", "value": "'V'" }
+  ]
+}
+```

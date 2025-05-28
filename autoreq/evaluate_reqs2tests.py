@@ -484,7 +484,7 @@ async def evaluate_environment(
     max_retries: int = 2,
     allow_batch_partial: bool = False,
     max_generation_time: float = None,
-    min_pruning_lines: int = 500,
+    min_pruning_lines: int = 1000,
     use_test_examples: bool = True,
 ) -> EvaluationResult:
     start_time = time.perf_counter()
@@ -936,7 +936,7 @@ async def main():
     parser.add_argument(
         '--min-pruning-lines',
         type=int,
-        default=500,
+        default=1000,
         help='Minimum number of lines to trigger code context pruning.',
     )
     parser.add_argument(

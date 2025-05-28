@@ -1,13 +1,9 @@
-from autoreq.test_generation.identifier_type_gen import create_identifier_type
-import random
+from collections import defaultdict
 import asyncio
-from functools import cached_property, lru_cache
 from aiostream.stream import merge
-import json
 import re
-from typing import List, Any, ClassVar, Callable, Union, Tuple
 from async_lru import alru_cache
-from pydantic import BaseModel, Field, create_model
+from pydantic import create_model
 from dotenv import load_dotenv
 import logging
 
@@ -17,12 +13,6 @@ from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 from autoreq.test_generation.atg_context_builder import ATGContextBuilder
 from autoreq.test_generation.info_logger import InfoLogger
 from autoreq.test_generation.schema_builder import SchemaBuilder
-from autoreq.test_generation.generic_models import (
-    GenericValueMapping,
-    GenericTestCase,
-    GenericTestGenerationResult,
-)
-from autoreq.util import validate_openai_structured_output_schema
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
 from ..llm_client import LLMClient
 
@@ -36,10 +26,10 @@ class TestGenerator:
         requirements_manager,
         environment,
         use_extended_reasoning=False,
-        min_prune_lines=500,
-        use_test_examples=True,
-        schema_type='input_expected',
-        add_prompt_identifiers_when_unpruned=False,  # TODO: Change this to True for improved results on C but worse results on C++
+        min_prune_lines=1000,
+        use_test_examples=True,  # TODO: This can probably be disabled soon, some C++ features would need to be represented in the test framework examples though
+        schema_type='unified',  # TODO: input_expected could work a bit better for some C code when pruning, so keep that in mind for the future
+        add_prompt_identifiers_when_unpruned=True,
     ):
         self.requirements_manager = requirements_manager
         self.environment = environment
@@ -56,6 +46,7 @@ class TestGenerator:
         self.min_prune_lines = min_prune_lines
         self.use_test_examples = use_test_examples
         self.add_prompt_identifiers_when_unpruned = add_prompt_identifiers_when_unpruned
+        self.schema_type = schema_type
 
     def _group_requirements_into_batches(self, requirement_ids, batch_size):
         """Group requirements by function and split into batches of specified size."""
@@ -194,7 +185,7 @@ class TestGenerator:
         for req_id in requirement_ids:
             self.info_logger.set_no_atg_examples(req_id, len(atg_examples) == 0)
 
-        if num_examples > 0 and self.use_test_examples and relevant_lines is None:
+        if num_examples > 0 and self.use_test_examples:
             example_test_cases_section = f"""
 Example Test Cases:
 ```json
@@ -212,9 +203,6 @@ Example Test Cases:
             batched=True,
             batch_size=len(requirement_ids),
             focus_lines=relevant_lines,
-            identifier_type='input_expected'
-            if num_lines >= self.min_prune_lines
-            else 'unified',  # TODO: Change this to input_expected only for improved results on C but worse results on C++
             return_schema_gen_info=True,
         )
 
@@ -230,37 +218,9 @@ Example Test Cases:
             )
 
         # If we prune, we can also give identifiers
-        input_identifiers = gen_info.input_identifiers
-        expected_identifiers = gen_info.expected_identifiers
-        shown_input_identifiers = [
-            ident for ident in input_identifiers if 'USER_GLOBALS_VCAST' not in ident
-        ]
-        shown_expected_identifiers = [
-            ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
-        ]
-        if len(shown_input_identifiers) > 0 and (
-            self.add_prompt_identifiers_when_unpruned
-            or num_lines >= self.min_prune_lines
-        ):
-            rendered_input_identifiers = '\n'.join(
-                '- ' + i
-                for i in shown_input_identifiers
-                if 'USER_GLOBALS_VCAST' not in i
-            )
-            rendered_expected_identifiers = '\n'.join(
-                '- ' + i
-                for i in shown_expected_identifiers
-                if 'USER_GLOBALS_VCAST' not in i
-            )
-            identifier_section = f"""
-You must set an input value for each of the following identifiers:
-{rendered_input_identifiers}
-
-An expected value is not required for all identifiers. These are the ones you can set:
-{rendered_expected_identifiers}
-"""
-        else:
-            identifier_section = ''
+        identifier_section = self._build_identifier_section(
+            gen_info.input_identifiers, gen_info.expected_identifiers, num_lines
+        )
 
         messages = [
             {
@@ -428,6 +388,7 @@ Return your answer in the following format:
                     extended_reasoning=extended_reasoning,
                     allow_partial=allow_partial,
                     reword_requirement=not first_try,
+                    relax_schema=not first_try,
                 )
                 if result:
                     self.info_logger.set_test_generated(requirement_id)
@@ -451,6 +412,7 @@ Return your answer in the following format:
         extended_reasoning=False,
         allow_partial=False,
         reword_requirement=None,
+        relax_schema=False,
     ):
         requirement_text = self.requirements_manager.get_description(requirement_id)
         if not requirement_text:
@@ -506,10 +468,8 @@ Return your answer in the following format:
             function_name=function_name,
             batched=False,
             focus_lines=relevant_lines,
-            identifier_type='input_expected'
-            if num_lines >= self.min_prune_lines
-            else 'unified',  # TODO: Change this to input_expected only for improved results on C but worse results on C++
             return_schema_gen_info=True,
+            relaxed_schema=relax_schema,
         )
 
         self.info_logger.set_schema_exceeded_size(
@@ -523,37 +483,9 @@ Return your answer in the following format:
         )
 
         # If we prune, we can also give identifiers
-        input_identifiers = gen_info.input_identifiers
-        expected_identifiers = gen_info.expected_identifiers
-        shown_input_identifiers = [
-            ident for ident in input_identifiers if 'USER_GLOBALS_VCAST' not in ident
-        ]
-        shown_expected_identifiers = [
-            ident for ident in expected_identifiers if 'USER_GLOBALS_VCAST' not in ident
-        ]
-        if len(shown_input_identifiers) > 0 and (
-            self.add_prompt_identifiers_when_unpruned
-            or num_lines >= self.min_prune_lines
-        ):
-            rendered_input_identifiers = '\n'.join(
-                '- ' + i
-                for i in shown_input_identifiers
-                if 'USER_GLOBALS_VCAST' not in i
-            )
-            rendered_expected_identifiers = '\n'.join(
-                '- ' + i
-                for i in shown_expected_identifiers
-                if 'USER_GLOBALS_VCAST' not in i
-            )
-            identifier_section = f"""
-You must set an input value for each of the following identifiers:
-{rendered_input_identifiers}
-
-An expected value is not required for all identifiers. These are the ones you can set:
-{rendered_expected_identifiers}
-"""
-        else:
-            identifier_section = ''
+        identifier_section = self._build_identifier_section(
+            gen_info.input_identifiers, gen_info.expected_identifiers, num_lines
+        )
 
         # Build code context
         context, used_fallback = await self.context_builder.build_code_context(
@@ -597,7 +529,7 @@ An expected value is not required for all identifiers. These are the ones you ca
         with open(TEST_FRAMEWORK_REFERENCE_PATH, 'r') as f:
             test_framework_reference = f.read()
 
-        if num_examples > 0 and self.use_test_examples and relevant_lines is None:
+        if num_examples > 0 and self.use_test_examples:
             example_test_cases_section = f"""
 Example Test Cases:
 ```json
@@ -712,6 +644,118 @@ Notes:
             result[req] = relevant_line_numbers
 
         return result
+
+    def _build_identifier_section(
+        self, input_identifiers, expected_identifiers, num_lines
+    ):
+        shown_input_identifiers = self._prune_identifier_list_for_display(
+            input_identifiers
+        )
+        shown_expected_identifiers = self._prune_identifier_list_for_display(
+            expected_identifiers
+        )
+        if len(shown_input_identifiers) > 0 and (
+            self.add_prompt_identifiers_when_unpruned
+            or num_lines >= self.min_prune_lines
+        ):
+            rendered_input_identifiers = '\n'.join(
+                '- ' + i
+                for i in shown_input_identifiers
+                if 'USER_GLOBALS_VCAST' not in i
+            )
+            rendered_expected_identifiers = '\n'.join(
+                '- ' + i
+                for i in shown_expected_identifiers
+                if 'USER_GLOBALS_VCAST' not in i
+            )
+            if self.schema_type == 'input_expected':
+                identifier_section = f"""
+You are allowed to use the following identifiers in your test case:
+You must set an input value for each of the following identifiers:
+{rendered_input_identifiers}
+
+An expected value is not required for all identifiers. These are the ones you can set:
+{rendered_expected_identifiers}
+"""
+            elif self.schema_type == 'unified':
+                identifier_section = f"""
+You are allowed to use the following identifiers in your test case:
+{rendered_input_identifiers}
+
+You MUST set an input value for all input to the functions, used globals and called stubs.
+If you do not ensure this, it can happen that your test does not cover the correct path corresponding to the requirement.
+An expected value is not required for all identifiers. Only for those relevant to the requirement.
+"""
+        else:
+            identifier_section = ''
+
+        return identifier_section
+
+    def _prune_identifier_list_for_display(self, identifiers):
+        # Remove USER_GLOBALS_VCAST identifiers
+        identifiers = [
+            ident for ident in identifiers if 'USER_GLOBALS_VCAST' not in ident
+        ]
+
+        INDEX_VARIABLE_NAMES = 'ijklmnopqrstuvwxyz'
+
+        similar_identifiers = defaultdict(list)
+        original_identifiers = {}
+        for ident in identifiers:
+            array_indices = []
+
+            def arrayrepl(match):
+                nonlocal array_indices
+                array_indices.append(match.group(1))
+                var_name = INDEX_VARIABLE_NAMES[len(array_indices) - 1]
+                return f'!!ARRAY_INDEX_PLACEHOLDER_{var_name}!!'
+
+            normalized_ident = re.sub(r'\[([^\[\]]*?)\]', arrayrepl, ident)
+            similar_identifiers[normalized_ident].append(array_indices)
+            original_identifiers[normalized_ident] = ident
+
+        # Now combine similar identifiers
+        combined_identifiers = []
+        for ident, indices_list in similar_identifiers.items():
+            if len(indices_list) == 1:
+                combined_identifiers.append(original_identifiers[ident])
+                continue
+
+            index_minima = {}
+            index_maxima = {}
+            for indices in indices_list:
+                for i, index in enumerate(indices):
+                    i = INDEX_VARIABLE_NAMES[i]
+                    if i not in index_minima:
+                        index_minima[i] = index
+                        index_maxima[i] = index
+                    else:
+                        index_minima[i] = min(index_minima[i], index)
+                        index_maxima[i] = max(index_maxima[i], index)
+
+            used_var_names = [
+                var for var in INDEX_VARIABLE_NAMES if var in index_minima
+            ]
+            index_description = '(for all:'
+            processed_ident = ident
+            for i in used_var_names:
+                if index_minima[i] == index_maxima[i]:
+                    processed_ident = processed_ident.replace(
+                        f'!!ARRAY_INDEX_PLACEHOLDER_{i}!!', f'[{index_minima[i]}]'
+                    )
+                else:
+                    index_description += (
+                        f' {i} in {index_minima[i]}..{index_maxima[i]},'
+                    )
+
+                    processed_ident = processed_ident.replace(
+                        f'!!ARRAY_INDEX_PLACEHOLDER_{i}!!', f'[{i}]'
+                    )
+
+            index_description = index_description[:-1] + ')'
+            combined_identifiers.append(f'{processed_ident} {index_description}')
+
+        return combined_identifiers
 
     async def _iterative_error_correction(
         self,
