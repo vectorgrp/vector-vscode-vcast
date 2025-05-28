@@ -5,8 +5,15 @@ import {
   Position,
 } from "vscode-languageserver";
 
-import { testCommandList, scriptFeatureList } from "./serverUtilities";
+import {
+  testCommandList,
+  scriptFeatureList,
+  getEnviroNameFromTestScript,
+} from "./serverUtilities";
 import { checkForKeywordInLine } from "./tstCompletion";
+import url = require("url");
+import fs = require("fs");
+import path from "path";
 
 export function getDiagnosticObject(
   line: number,
@@ -28,6 +35,68 @@ export function getDiagnosticObject(
     source: "VectorCAST Test Explorer",
   };
   return diagnostic;
+}
+
+/**
+ * Validates whether the given enviroPath meets the following criteria:
+ * 1) Its parent directory contains a file named CCAST_.CFG
+ * 2) That file contains a line starting with "VCAST_REPOSITORY: " followed by a path
+ * 3) That path contains a file at requirements_gateway/requirements.json
+ *
+ * @param enviroPath - Path to the environment directory (test script parent)
+ * @returns true if all checks pass, false otherwise
+ */
+export function requirementsGatewayIsExistent(enviroPath: string): boolean {
+  try {
+    // Find CCAST_.CFG one level up
+    const parentDir = path.resolve(enviroPath, "..");
+    const cfgPath = path.join(parentDir, "CCAST_.CFG");
+    if (!fs.existsSync(cfgPath)) {
+      console.log(`Configuration file not found: ${cfgPath}`);
+      return false;
+    }
+
+    // Read the CFG file and look for VCAST_REPOSITORY
+    const contents = fs.readFileSync(cfgPath, "utf8");
+    const lines = contents.split(/\r?\n/);
+    const repoLine = lines.find((line) => line.startsWith("VCAST_REPOSITORY:"));
+    if (!repoLine) {
+      console.log(`VCAST_REPOSITORY option not found in ${cfgPath}`);
+      return false;
+    }
+
+    // Extract repository path
+    const parts = repoLine.split(":");
+    if (parts.length < 2) {
+      console.log("Malformed VCAST_REPOSITORY line in CCAST_.CFG");
+      return false;
+    }
+    const repoPath = parts.slice(1).join(":").trim();
+    if (!repoPath) {
+      console.log("VCAST_REPOSITORY path is empty");
+      return false;
+    }
+
+    // Check for requirements.json under requirements_gateway
+    const reqJsonPath = path.join(
+      repoPath,
+      "requirements_gateway",
+      "requirements.json"
+    );
+    if (!fs.existsSync(reqJsonPath)) {
+      console.log(`requirements.json not found in: ${reqJsonPath}`);
+      return false;
+    }
+
+    // All checks passed
+    return true;
+  } catch (error) {
+    // In case of unexpected errors, show message and treat as failure
+    console.log(
+      `Error validating requirements gateway: ${error instanceof Error ? error.message : error}`
+    );
+    return false;
+  }
 }
 
 const specialSubprogramNames = ["<<INIT>>", "<<COMPOUND>>"];
@@ -137,13 +206,26 @@ export function validateTextDocument(textDocument: TextDocument) {
           } else {
             // Handle general VALUE or EXPECTED validation
           }
+        } else if (command == "REQUIREMENT_KEY") {
+          const testScriptPath = url.fileURLToPath(textDocument.uri);
+          const enviroPath = getEnviroNameFromTestScript(testScriptPath);
+          let reqGatewayExistent = false;
+          if (enviroPath) {
+            reqGatewayExistent = requirementsGatewayIsExistent(enviroPath);
+          }
+          if (!reqGatewayExistent) {
+            diagnosticList.push(
+              getDiagnosticObject(
+                lineIndex,
+                0,
+                1000,
+                "TEST.REQUIREMENT_KEY is not valid when the requirements gateway is not present in the environment"
+              )
+            );
+          }
         }
         // Other commands (TBD: validate in Python)
-        else if (
-          command == "STUB" ||
-          command == "SLOT" ||
-          command == "REQUIREMENT_KEY"
-        ) {
+        else if (command == "STUB" || command == "SLOT") {
           // When TEST.SUBPROGRAM is set to coded_tests_driver, TEST.CODED_TEST_FILE should throw an error
         } else if (command == "CODED_TEST_FILE") {
           if (!codedTestsDriverInSubprogram) {
