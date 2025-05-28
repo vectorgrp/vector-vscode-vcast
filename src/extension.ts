@@ -88,6 +88,7 @@ import {
   launchFile,
   globalPathToSupportFiles,
   initializeInstallerFiles,
+  vcastInstallationDirectory,
 } from "./vcastInstallation";
 
 import {
@@ -106,7 +107,7 @@ import {
 
 import fs = require("fs");
 const path = require("path");
-import { spawn } from "child_process";
+import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import { parse as csvParse } from 'csv-parse/sync';
 const excelToJson = require('convert-excel-to-json');
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
@@ -144,14 +145,14 @@ let REQS2EXCEL_EXECUTABLE_PATH: string;
 let REQS2RGW_EXECUTABLE_PATH: string;
 
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
-    CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "code2reqs").fsPath;
-    REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2tests").fsPath;
-    REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2excel").fsPath;
-    REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2rgw").fsPath;
-    
-    //CODE2REQS_EXECUTABLE_PATH = "code2reqs";
-    //REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
-    //REQS2EXCEL_EXECUTABLE_PATH = "reqs2excel";
+  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "code2reqs").fsPath;
+  REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2tests").fsPath;
+  REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2excel").fsPath;
+  REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2rgw").fsPath;
+
+  //CODE2REQS_EXECUTABLE_PATH = "code2reqs";
+  //REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
+  //REQS2EXCEL_EXECUTABLE_PATH = "reqs2excel";
 }
 
 function setHardcodedEnvVars() {
@@ -238,7 +239,7 @@ async function getEnvironmentListIncludingUnbuilt(workspacePath: string): Promis
         reject(err);
         return;
       }
-      
+
       // Convert each .env file to its corresponding environment path
       const envPaths = envFiles.map(envFile => {
         const fullPath = path.join(workspacePath, envFile);
@@ -246,7 +247,7 @@ async function getEnvironmentListIncludingUnbuilt(workspacePath: string): Promis
         const baseName = path.basename(envFile, '.env');
         return path.join(dirPath, baseName);
       });
-      
+
       resolve(envPaths);
     });
   });
@@ -293,7 +294,7 @@ function setupRequirementsFileWatchers(context: vscode.ExtensionContext) {
     // Create a file watcher that watches for requirements files changes
     // using a glob pattern to match all reqs.csv and reqs.xlsx files in the workspace
     requirementsFileWatcher = workspace.createFileSystemWatcher('**/reqs.{csv,xlsx}');
-    
+
     // When a requirements file is created
     requirementsFileWatcher.onDidCreate(async (uri) => {
       logCliOperation(`Requirements file created: ${uri.fsPath}`);
@@ -304,7 +305,7 @@ function setupRequirementsFileWatchers(context: vscode.ExtensionContext) {
         updateRequirementsAvailability(envPath);
       }
     }, null, context.subscriptions);
-    
+
     // When a requirements file is deleted
     requirementsFileWatcher.onDidDelete(async (uri) => {
       logCliOperation(`Requirements file deleted: ${uri.fsPath}`);
@@ -315,7 +316,7 @@ function setupRequirementsFileWatchers(context: vscode.ExtensionContext) {
         updateRequirementsAvailability(envPath);
       }
     }, null, context.subscriptions);
-    
+
     // Register the watcher to be disposed when the extension deactivates
     context.subscriptions.push(requirementsFileWatcher);
   }
@@ -861,7 +862,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         const parentDir = path.dirname(enviroPath);
         const csvPath = path.join(parentDir, 'reqs.csv');
         const xlsxPath = path.join(parentDir, 'reqs.xlsx');
-        
+
         let filePath = "";
         let fileType = "";
         if (fs.existsSync(xlsxPath)) {
@@ -882,7 +883,7 @@ function configureExtension(context: vscode.ExtensionContext) {
             vscode.ViewColumn.One,
             { enableScripts: true }
           );
-          
+
           panel.webview.html = `<html><body><h1>Loading ${fileType} requirements...</h1></body></html>`;
           const requirements = await parseRequirementsFromFile(filePath);
           const htmlContent = generateRequirementsHtml(requirements);
@@ -901,10 +902,10 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
-        
+
         const message = "This will remove all generated requirements files. This action cannot be undone.";
         const choice = await vscode.window.showWarningMessage(message, "Remove", "Cancel");
-        
+
         if (choice === "Remove") {
           const parentDir = path.dirname(enviroPath);
           const filesToRemove = [
@@ -933,7 +934,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           if (fs.existsSync(generatedRepositoryPath) && path.relative(generatedRepositoryPath, actualRepositoryPath) === '') {
             const repoMessage = "Would you also like to remove the auto-generated requirements gateway too?";
             const repoChoice = await vscode.window.showWarningMessage(repoMessage, "Yes", "No");
-            
+
             if (repoChoice === "Yes") {
               try {
                 fs.rmdirSync(generatedRepositoryPath, { recursive: true });
@@ -1107,7 +1108,7 @@ export async function deactivate() {
   if (requirementsFileWatcher) {
     requirementsFileWatcher.dispose();
   }
-  
+
   await serverProcessController(serverStateType.stopped);
   // delete the server log if it exists
   await deleteServerLog();
@@ -1123,21 +1124,21 @@ export async function deactivate() {
 function findRelevantRequirementGateway(enviroPath: string): string | null {
   const parentDir = path.dirname(enviroPath);
   const configPath = path.join(parentDir, 'CCAST_.CFG');
-  
+
   const configContent = fs.readFileSync(configPath, 'utf-8');
-  
+
   // Check if the config file contains a requirements gateway
   const gatewayMatch = configContent.match(/VCAST_REPOSITORY:\s*(.+)\s*/)
 
   if (gatewayMatch == null) {
     return null;
   }
-  
+
   const gatewayPath = gatewayMatch[1].trim();
 
   if (!fs.existsSync(gatewayPath)) {
     return null;
-    }
+  }
 
   return gatewayPath;
 }
@@ -1161,7 +1162,7 @@ async function generateRequirements(enviroPath: string) {
       "Continue",
       "Cancel"
     );
-    
+
     if (choice !== "Continue") {
       return;
     }
@@ -1175,7 +1176,7 @@ async function generateRequirements(enviroPath: string) {
       "Overwrite",
       "Cancel"
     );
-    
+
     if (choice !== "Overwrite") {
       return;
     }
@@ -1198,7 +1199,7 @@ async function generateRequirements(enviroPath: string) {
   if (generateHighLevelRequirements) {
     commandArgs.push("--generate-high-level-requirements");
   }
-  
+
   // Log the command being executed
   const commandString = `${CODE2REQS_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
   logCliOperation(`Executing command: ${commandString}`);
@@ -1218,7 +1219,7 @@ async function generateRequirements(enviroPath: string) {
     }, 1000);
 
     return await new Promise<void>((resolve, reject) => {
-      const process = spawn(CODE2REQS_EXECUTABLE_PATH, commandArgs);
+      const process = spawnWithVcastEnv(CODE2REQS_EXECUTABLE_PATH, commandArgs);
 
       cancellationToken.onCancellationRequested(() => {
         process.kill();
@@ -1230,7 +1231,7 @@ async function generateRequirements(enviroPath: string) {
       process.stdout.on("data", (data) => {
         if (cancellationToken.isCancellationRequested) return;
         const output = data.toString();
-        
+
         const lines = output.split("\n");
         for (const line of lines) {
           try {
@@ -1263,7 +1264,7 @@ async function generateRequirements(enviroPath: string) {
       process.on("close", async (code) => {
         clearInterval(simulatedProgressInterval);
         if (cancellationToken.isCancellationRequested) return;
-        
+
         if (code === 0) {
           logCliOperation(`code2reqs completed successfully with code ${code}`);
           await refreshAllExtensionData();
@@ -1367,7 +1368,7 @@ async function generateTestsFromRequirements(enviroPath: string, unitOrFunctionN
     "--no-automatic-build",
     ...(enableRequirementKeys ? [] : ["--no-requirement-keys"])
   ];
-  
+
   // Log the command being executed
   const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
   logCliOperation(`Executing command: ${commandString}`);
@@ -1387,7 +1388,7 @@ async function generateTestsFromRequirements(enviroPath: string, unitOrFunctionN
     }, 2000);
 
     return new Promise<void>((resolve, reject) => {
-      const process = spawn(REQS2TESTS_EXECUTABLE_PATH, commandArgs);
+      const process = spawnWithVcastEnv(REQS2TESTS_EXECUTABLE_PATH, commandArgs);
       console.log(`reqs2tests ${commandArgs.join(' ')}`);
 
       cancellationToken.onCancellationRequested(() => {
@@ -1400,7 +1401,7 @@ async function generateTestsFromRequirements(enviroPath: string, unitOrFunctionN
       process.stdout.on("data", (data) => {
         if (cancellationToken.isCancellationRequested) return;
         const output = data.toString();
-        
+
         const lines = output.split("\n");
         for (const line of lines) {
           try {
@@ -1475,34 +1476,34 @@ async function importRequirementsFromGateway(enviroPath: string) {
 
   const csvPath = path.join(parentDir, 'reqs.csv');
   const xlsxPath = path.join(parentDir, 'reqs.xlsx');
-  
+
   // Check if requirements files already exist
   const xlsxExists = fs.existsSync(xlsxPath);
   const csvExists = fs.existsSync(csvPath);
-  
+
   if (xlsxExists || csvExists) {
     let warningMessage = "Warning: ";
     if (xlsxExists) {
       warningMessage += "An existing Excel requirements file (reqs.xlsx) will be overwritten.";
-    } 
+    }
     if (csvExists) {
       if (xlsxExists) {
         warningMessage += " Additionally, ";
       }
       warningMessage += "An existing CSV requirements file (reqs.csv) will be ignored as the new Excel file takes precedence.";
     }
-    
+
     const choice = await vscode.window.showWarningMessage(
       warningMessage,
       "Continue",
       "Cancel"
     );
-    
+
     if (choice !== "Continue") {
       return;
     }
   }
-  
+
   const choice = await vscode.window.showInformationMessage("Would you like our system to automatically try to add traceability to the requirements?", "Yes", "No");
 
   const addTraceability = choice === "Yes";
@@ -1513,7 +1514,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
     ...(addTraceability ? ['--automatic-traceability'] : []),
     envPath
   ];
-  
+
   // Log the command being executed
   const commandString = `${REQS2EXCEL_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
   logCliOperation(`Executing command: ${commandString}`);
@@ -1532,7 +1533,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
     }, 500);
 
     return new Promise<void>((resolve, reject) => {
-      const process = spawn(REQS2EXCEL_EXECUTABLE_PATH, commandArgs);
+      const process = spawnWithVcastEnv(REQS2EXCEL_EXECUTABLE_PATH, commandArgs);
 
       cancellationToken.onCancellationRequested(() => {
         process.kill();
@@ -1557,14 +1558,14 @@ async function importRequirementsFromGateway(enviroPath: string) {
 
         if (code === 0) {
           logCliOperation(`reqs2excel completed successfully with code ${code}`);
-          
+
           // Update the requirements availability
           await refreshAllExtensionData();
           updateRequirementsAvailability(enviroPath);
-          
+
           // Show the imported requirements
           vscode.commands.executeCommand('vectorcastTestExplorer.showRequirements', { id: enviroPath });
-          
+
           vscode.window.showInformationMessage("Successfully imported requirements from gateway");
           resolve();
         } else {
@@ -1584,7 +1585,7 @@ async function populateRequirementsGateway(enviroPath: string) {
   const envPath = path.join(parentDir, `${envName}.env`);
   const csvPath = path.join(parentDir, 'reqs.csv');
   const xlsxPath = path.join(parentDir, 'reqs.xlsx');
-  
+
   // Check which requirements file exists
   let requirementsFile = "";
   if (fs.existsSync(xlsxPath)) {
@@ -1605,14 +1606,14 @@ async function populateRequirementsGateway(enviroPath: string) {
       "Continue",
       "Cancel"
     );
-    
+
     if (choice !== "Continue") {
       return;
     }
   }
 
   const exportRepository = path.join(parentDir, 'generated_requirement_repository');
-  
+
   // Run reqs2rgw with appropriate parameters
   const commandArgs = [
     envPath,
@@ -1620,32 +1621,32 @@ async function populateRequirementsGateway(enviroPath: string) {
     '--gateway-path',
     exportRepository
   ];
-  
+
   // Log the command being executed
   const commandString = `${REQS2RGW_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
   logCliOperation(`Executing command: ${commandString}`);
-    
+
   return new Promise<void>((resolve, reject) => {
-    const process = spawn(REQS2RGW_EXECUTABLE_PATH, commandArgs);
-    
+    const process = spawnWithVcastEnv(REQS2RGW_EXECUTABLE_PATH, commandArgs);
+
     process.stdout.on("data", (data) => {
       const output = data.toString().trim();
       logCliOperation(`reqs2rgw: ${output}`);
     });
-    
+
     process.stderr.on("data", (data) => {
       const errorOutput = data.toString().trim();
       logCliError(`reqs2rgw: ${errorOutput}`);
     });
-    
+
     process.on("close", async (code) => {
       if (code === 0) {
         logCliOperation(`reqs2rgw completed successfully with code ${code}`);
-        
+
         try {
           // Refresh environment data
           await refreshAllExtensionData();
-          
+
           vscode.window.showInformationMessage(
             `Successfully populated requirements gateway at ${exportRepository}`
           );
@@ -1684,16 +1685,16 @@ function updateRequirementsAvailability(enviroPath: string) {
   }
   const enviroNodeID: string = "vcast:" + enviroDisplayName;
 
-    // the vcast: prefix to allow package.json nodes to control
-    // when the VectorCAST context menu should be shown
-  
+  // the vcast: prefix to allow package.json nodes to control
+  // when the VectorCAST context menu should be shown
+
   // Check if this environment has requirements
   const parentDir = path.dirname(enviroPath);
   const csvPath = path.join(parentDir, 'reqs.csv');
   const xlsxPath = path.join(parentDir, 'reqs.xlsx');
 
   const hasRequirementsFiles = fs.existsSync(csvPath) || fs.existsSync(xlsxPath);
-  
+
   if (hasRequirementsFiles) {
     // Add this environment to the list if not already present
     if (!existingEnvs.includes(enviroNodeID)) {
@@ -1729,7 +1730,7 @@ function generateRequirementsHtml(requirements: any[]): string {
     <body>
         <h1>Requirements</h1>
   `;
-  
+
   // Group requirements by function
   const requirementsByFunction: Record<string, any[]> = {};
   for (const req of requirements) {
@@ -1739,7 +1740,7 @@ function generateRequirementsHtml(requirements: any[]): string {
     }
     requirementsByFunction[funcName].push(req);
   }
-  
+
   // Generate HTML content for each function
   for (const [funcName, reqs] of Object.entries(requirementsByFunction)) {
     htmlContent += `<h2>${funcName}</h2>`;
@@ -1752,8 +1753,29 @@ function generateRequirementsHtml(requirements: any[]): string {
       `;
     }
   }
-  
+
   htmlContent += '</body></html>';
   return htmlContent;
+}
+
+function createProcessEnvironment(vcastInstallDir?: string): NodeJS.ProcessEnv {
+  vcastInstallDir = vcastInstallDir || vcastInstallationDirectory;
+
+  const processEnv = { ...process.env };
+  if (vcastInstallDir) {
+    processEnv.VSCODE_VECTORCAST_DIR = vcastInstallDir;
+  }
+
+  return processEnv;
+}
+
+function spawnWithVcastEnv(
+  command: string,
+  args: string[],
+  vcastInstallDir?: string,
+  options: any = {}
+): ChildProcessWithoutNullStreams {
+  const env = createProcessEnvironment(vcastInstallDir);
+  return spawn(command, args, { ...options, env });
 }
 
