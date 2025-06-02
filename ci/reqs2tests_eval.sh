@@ -7,8 +7,10 @@ export PATH=$VECTORCAST_DIR:$PATH
 SANITY_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity.tar.gz"
 PIINNOVO_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-real-reqs.tar.gz"
 HALLA_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/atg-customer-fixed.tar.gz"
+SANITY_RC_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity-rc.tar.gz"
+ATG_CUSTOMER_RC_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/atg-customer-rc.tar.gz"
 
-ENVS=("sanity" "piinnovo" "atg-customer")
+ENVS=("sanity" "piinnovo" "atg-customer" "sanity-rc" "atg-customer-rc")
 if [[ "$ENV_SET_NAME" == "sanity" ]]; then
   ENV_SET_URL=$SANITY_ENVS
   BENCH_ENVS_DIR="sanity"
@@ -18,6 +20,12 @@ elif [[ "$ENV_SET_NAME" == "piinnovo" ]]; then
 elif [[ "$ENV_SET_NAME" == "atg-customer" ]]; then
   ENV_SET_URL=$HALLA_ENVS
   BENCH_ENVS_DIR="atg-customer"
+elif [[ "$ENV_SET_NAME" == "sanity-rc" ]]; then
+  ENV_SET_URL=$SANITY_RC_ENVS
+  BENCH_ENVS_DIR="sanity-rc"
+elif [[ "$ENV_SET_NAME" == "atg-customer-rc" ]]; then
+  ENV_SET_URL=$ATG_CUSTOMER_RC_ENVS
+  BENCH_ENVS_DIR="atg-customer-rc"
 fi
 
 if [[ -z "$ENV_SET_URL" ]]; then

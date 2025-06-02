@@ -9,6 +9,8 @@ on:
           - sanity
           - piinnovo
           - atg-customer
+          - sanity-rc
+          - atg-customer-rc
         description: 'Select the environment set to run the tests'
         required: false
         default: 'sanity'
