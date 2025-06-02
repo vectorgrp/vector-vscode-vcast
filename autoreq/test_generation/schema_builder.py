@@ -1,7 +1,7 @@
 import json
 import logging
 from types import SimpleNamespace
-from typing import List, Tuple, Dict, Union, Any  # Added Dict, Union, Any
+from typing import List, Optional, Tuple, Dict, Union, Any  # Added Dict, Union, Any
 from pydantic import Field, create_model, BaseModel
 import time
 
@@ -278,7 +278,9 @@ def _construct_test_case_schema(
     return TestCaseGlobal
 
 
-def _construct_completion_schema(TestCaseClass: Any, batched: bool, batch_size: int):
+def _construct_completion_schema(
+    TestCaseClass: Any, batched: Optional[bool], batch_size: Optional[int]
+):
     if not batched:
         TestGenerationResultClass = create_model(
             'TestGenerationResult',
