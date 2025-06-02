@@ -147,7 +147,7 @@ class GenericTestCase(BaseModel):
             test_case_str += f'{line}\n'
         test_case_str += 'TEST.END_NOTES:\n'
 
-        for stub in self._get_needed_stubs():
+        for stub in sorted(list(self._get_needed_stubs())):
             test_case_str += f'TEST.STUB:{stub}\n'
 
         # Sometimes the LLM duplicates assignments. Deduplicating them is a free win
