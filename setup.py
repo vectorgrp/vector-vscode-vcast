@@ -51,6 +51,8 @@ ext_modules = (
         # need to make sure the dependencies get cythonated first
         # before being imported by other modules
         [
+            'autoreq/cache.py',
+            'autoreq/replay.py',
             'autoreq/llm_client.py',
             'autoreq/requirements_manager.py',
             'autoreq/search.py',
