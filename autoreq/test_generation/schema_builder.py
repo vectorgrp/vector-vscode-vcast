@@ -278,7 +278,7 @@ def _construct_test_case_schema(
     return TestCaseGlobal
 
 
-def _construct_completion_schema(TestCaseClass: type, batched: bool, batch_size: int):
+def _construct_completion_schema(TestCaseClass: Any, batched: bool, batch_size: int):
     if not batched:
         TestGenerationResultClass = create_model(
             'TestGenerationResult',
