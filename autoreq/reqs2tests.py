@@ -139,9 +139,10 @@ async def main():
                 decomposed_req['ID'] = f'{req["ID"]}.{i + 1}'
                 decomposed_req['Description'] = decomposed_req_description
                 decomposed_reqs.append(decomposed_req)
-            logging.info('Original Requirement:', req['Description'])
+            logging.info('Original Requirement: ' + req['Description'])
             logging.info(
-                'Decomposed Requirement:', [r['Description'] for r in decomposed_reqs]
+                'Decomposed Requirement: '
+                + str([r['Description'] for r in decomposed_reqs])
             )
 
             if len(decomposed_reqs) > 1:

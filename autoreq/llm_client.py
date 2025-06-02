@@ -36,13 +36,21 @@ EXAMPLE_CONFIGS = {
         'BASE_URL': 'http://localhost:11434/v1/',
         'MODEL_NAME': 'mistral',
     },
-    'gpt-4o-azure': {
+    'gpt-4.1-azure': {
         'PROVIDER': 'azure_openai',
         'API_KEY': 'none',
         'API_VERSION': '2024-12-01-preview',
         'BASE_URL': 'https://rg-example.openai.azure.com',
-        'DEPLOYMENT': 'gpt-4o-example',
-        'MODEL_NAME': 'gpt-4o',
+        'DEPLOYMENT': 'gpt-4.1-example',
+        'MODEL_NAME': 'gpt-4.1',
+    },
+    'gpt-o4mini-azure': {
+        'PROVIDER': 'azure_openai',
+        'API_KEY': 'none',
+        'API_VERSION': '2024-12-01-preview',
+        'BASE_URL': 'https://rg-example.openai.azure.com',
+        'DEPLOYMENT': 'o4-mini-example',
+        'MODEL_NAME': 'o4-mini',
     },
     'claude-3-7-sonnet': {
         'PROVIDER': 'anthropic',
@@ -119,9 +127,9 @@ class Config:
 class LLMClient:
     def __init__(
         self,
-        model_name: str = os.getenv('REQ2TESTS_MODEL', 'gpt-4o-azure'),
+        model_name: str = os.getenv('REQ2TESTS_MODEL', 'gpt-4.1-azure'),
         reasoning_model_name: str = os.getenv(
-            'REQ2TESTS_REASONING_MODEL', 'gpt-o3mini-azure'
+            'REQ2TESTS_REASONING_MODEL', 'gpt-o4mini-azure'
         ),
     ):
         self.config = Config(model_name)

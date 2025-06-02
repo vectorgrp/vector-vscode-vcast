@@ -1,0 +1,417 @@
+interactions:
+- request:
+    body: '{"max_completion_tokens": 4096, "messages": [{"content": "You are an AI
+      assistant that generates test code for given requirements.", "role": "system"},
+      {"content": "\nBased on the following requirement, references, code and example
+      test cases, generate unit tests that exercise the requirement.\n\nTest framework
+      reference:\n## Test Case Format\nThe format of a test case is as follows:\n{\n    \"test_name\":
+      <some descriptive test name>,\n    \"test_description\": <more details about
+      the test>\n    \"requirement_id\": <requirement being tested by this test> (optional)\n    \"unit_name\":
+      <unit_name>,\n    \"subprogram_name\": <subprogram_name>,\n    \"input_values\":
+      [\n        { \"identifier\": <identifier>, \"value\": <value> },\n        ...\n    ],\n    \"expected_values\":
+      [\n        { \"identifier\": <identifier>, \"value\": <value> },\n        ...\n    ]\n}\n\n###
+      Identifier and Value Syntax\nThe following sections describe the syntax for
+      specifying the `identifier` and `value` fields in the test case format. `unit_name`
+      and `subprogram_name` refer to file names of C/C++ files (without extension)
+      and function names in these files respectively (to refer to methods in classes
+      use `<class name>::<method name>`). It is only possible to include identifiers
+      from different units and other subprograms if they are called/used in the subprogram
+      being tested.\n\n#### Numeric Types\n- Assign the number directly.\n  - Example:\n    {
+      \"identifier\": \"unit.subprogram.parameter\", \"value\": \"42\" }\n    { \"identifier\":
+      \"unit.subprogram.parameter\", \"value\": \"84\" }\n\n#### Structure Types\n-
+      Use the standard C syntax to refer to fields within structures.\n  - Example:\n    {
+      \"identifier\": \"unit.subprogram.struct_param.field\", \"value\": \"CAESAR\"
+      }\n    { \"identifier\": \"unit.subprogram.struct_param.field\", \"value\":
+      \"STEAK\" }\n- In case you are accessing the field of a structure pointer, dereference
+      it using `*`. The `->` operator is NEVER valid syntax.\n  - Example:\n    {
+      \"identifier\": \"unit.subprogram.*struct_pointer.field\", \"value\": \"''b''\"
+      }\n    instead of\n    { \"identifier\": \"unit.subprogram.struct_pointer->field\",
+      \"value\": \"''b''\" }\n\n#### Enumeration Types\n- Use the enumeral value directly.\n  -
+      Example:\n    { \"identifier\": \"unit.subprogram.enum_param\", \"value\": \"ENUM_VALUE\"
+      }\n\n#### Character and String Types\n- Use standard C delimiters for characters
+      and strings.\n  - Example:\n    { \"identifier\": \"unit.subprogram.char_param\",
+      \"value\": \"''a''\" }\n    { \"identifier\": \"unit.subprogram.string_param\",
+      \"value\": \"\\\"Hello, World\\\"\" }\n\n#### Pointer and Array Types\n- For
+      constrained arrays, specify the index and value.\n  - Example:\n    { \"identifier\":
+      \"unit.subprogram.array_param[2]\", \"value\": \"42\" }\n- For unconstrained
+      arrays, use `<<malloc [amount as integer]>>` to allocate memory.\n  - Example:\n    {
+      \"identifier\": \"unit.subprogram.array_param[]\", \"value\": \"<<malloc 2>>\"
+      }\n    { \"identifier\": \"unit.subprogram.array_param[1]\", \"value\": \"3\"
+      }\n- For pointers, use index 0 to access it\n  - Example:\n    { \"identifier\":
+      \"unit.subprogram.ptr_param[0]\", \"value\": \"12\" }\n- If you want to make
+      something null then use `<<null>>`.\n  - Example:\n    { \"identifier\": \"unit.subprogram.pointer_param[0]\",
+      \"value\": \"<<null>>\" }\n\n#### Function Return Parameters\n- Use the keyword
+      `return` for function return values.\n  - Example:\n    { \"identifier\": \"unit.subprogram.return\",
+      \"value\": \"23.0\" }\n\n#### Global Objects\n- Use the syntax `UNIT.<<GLOBAL>>.OBJECT`
+      to set values for global objects.\n  - Example:\n    { \"identifier\": \"unit.<<GLOBAL>>.global_object.field\",
+      \"value\": \"VALUE\" }\n- Note: `UNIT.OBJECT` is NEVER valid syntax\n\n#####
+      Classes\n- To set and expect values of methods in a class (unlike standalone
+      subprograms), it is necessary to first instantiate a base object using a constructor\n-
+      Use the syntax `UNIT.<<GLOBAL>>.(cl).CLASS_NAME.SUBCLASS_NAME.<<constructor>>.<<call>>`
+      to call the constructor of `SUBCLASS` to instantiate a `CLASS` object\n  - Example:\n    {
+      \"identifier\": \"unit.<<GLOBAL>>.(cl).class_name.class_name.<<constructor>>.<<call>>\",
+      \"value\": \"0\" }\n  - Note: The value in this case is irrelevant and always
+      set to 0.\n- To set and expect member variables of a constructed object use
+      the syntax `UNIT.<<GLOBAL>>.(cl).CLASS_NAME.SUBCLASS_NAME.MEMBER_NAME`\n  -
+      Example:\n    { \"identifier\": \"unit.<<GLOBAL>>.(cl).class_name.class_name.member\",
+      \"value\": \"test\" }\n  - Note: If the member is a structured entity like a
+      struct or a class instance you can access the subfields like described in the
+      `Structure Types` section.\n- To set and expect arguments and return values
+      of methods in a class use the name do so like you would for regular subprograms
+      except that you prefix the name with the class name and `::`\n  - Example:\n    {
+      \"identifier\": \"unit.class_name::member_method.parameter\", \"value\": \"2\"
+      }\n  - Note: If you use this ALWAYS first call the class constructor!\n\n####
+      Range of Values for Input Data\n- Use range expressions to test a range of values.\n  -
+      Example:\n    { \"identifier\": \"unit.subprogram.parameter\", \"value\": \"vary
+      from: 0.0 to: 90.0 by: 0.1\" }\n\n#### Range of Values for Expected Results\n-
+      Use the syntax `<min> .. <max>` for expected value ranges.\n  - Example:\n    {
+      \"identifier\": \"unit.subprogram.parameter\", \"value\": \"257.1 .. 259.9\"
+      }\n\n#### List of Values\n- Use a comma-separated list for multiple values.\n  -
+      Example:\n    { \"identifier\": \"unit.subprogram.parameter\", \"value\": \"1,2,4\"
+      }\n- Use parentheses for repeated values.\n  - Example:\n    { \"identifier\":
+      \"unit.subprogram.parameter\", \"value\": \"1,(4)2,4\" }\n- Note: This is used
+      in case something needs to be set multiple times (like for a stub return) during
+      one call, NOT to specify values in an array. To do so, use the regular index
+      syntax as outlined above instead.\n\n#### Working with Overloaded Subprograms\n-
+      Append the parameter type list to the subprogram name.\n  - Example:\n    {
+      \"identifier\": \"unit.subprogram(int).parameter\", \"value\": \"3\" }\n    {
+      \"identifier\": \"unit.subprogram(char).parameter\", \"value\": \"''d''\" }\n\n####
+      Boolean Values\n- Use `1` for `true` and `0` for `false`.\n  - Example:\n    {
+      \"identifier\": \"unit.subprogram.boolean_param\", \"value\": \"1\" }\n    {
+      \"identifier\": \"unit.subprogram.boolean_param\", \"value\": \"0\" }\n\n####
+      Accessing Subprograms Outside the Unit\n- Use `uut_prototype_stubs` as the unit
+      for subprograms defined outside of the unit of the test case.\n  - Example:\n    {
+      \"identifier\": \"uut_prototype_stubs.name_of_external_subprogram.parameter\",
+      \"value\": \"42\" }\n\n#### Emulating stubbed pointer manipulating functions\n-
+      Normally it is easy to emulate a stubbed function returning some value (by setting
+      the return value of the stubbed function)\n- This is not possible if the stubbed
+      function works with pointers as only values can be specified (so only ever the
+      contents of a pointer), e.g., functions like memcpy\n- Therefore, in these cases
+      you can emulate the stubbed function setting the contents of the pointer using
+      <<pointer value_to_set>>\n  - For example assume we have a pointer input variable
+      *float x that is modified by a stubbed called to foo(*float pointer_to_modify),
+      i.e., foo(x). Then you can change the value, i.e., *x to 10 like so:\n    {
+      \"identifier\": \"uut_prototype_stubs.foo.pointer_to_modify\", \"value\": \"<<pointer
+      10>>\" }\n  - The other input values of the function of course do not need to
+      be specified explicitly (unless you also want to see the values of those input
+      pointers)\n- You can only set one variable like this per test case due to technical
+      reasons so choose wisely (if you use this feature)\n\n#### Emulating multiple
+      function calls\n- Use the multiple value syntax, one value will be read everytime
+      the stubbed function is called\n  - Example (foo is called twice, and should
+      return 2 the first time and 3 the second):\n    { \"identifier\": \"uut_prototype_stubs.foo.return\",
+      \"value\": \"2,3\" }\n\n## Test Case Execution\n1. The test framework will call
+      the specified subprogram/function\n2. When a value of a variable would be read,
+      if it is specified as a test value, it is set to that value instead\n3. After
+      the subprogram finishes, the expected values are checked against the actual
+      values at that point\n\n- All tests are executed in isolation. The execution
+      of one test does not influence the execution of others.\n- Unless a function
+      is called inside the checked subprogram their identifiers are not updated and
+      should not be used as expected values.\n- All function calls from external files,
+      i.e, those referenced with `uut_prototype_stubs` are stubbed and do not implement
+      any behaviour. Setting their input values has no effect on their output values
+      (instead default values are output unless you specify values for them).\n- If
+      the return value of a called function is set as an input, the function will
+      be stubbed during execution and not implement any behaviour. In this case it
+      is forbidden to also expect the return value to equal something (it won''t as
+      the function will be stubbed). If necessary for pointer-related work: Look for
+      global variables to access what you need instead\n- In general any value not
+      set (input of course), will fall back to a default value. However this should
+      be avoided to prevent undefined behaviour. This means all input variables (and
+      outputs of stubbed values) should be exhaustively described.\n- In particular,
+      to access methods of a class and set values it is imperative to first instantiate
+      the class using a constructor. For all classes a default object is ready to
+      be initialized if needed using the respective constructor.\n- Do not set an
+      identifier multiple times, it just results in overriding of the previous value\n-
+      It is currently hard/impossible to test values written to pointers. If you encounter
+      them, fall back to testing simpler partial things like return values (or just
+      specifying no expected values)\n\n## Examples\n\nLet''s consider a more complex
+      C++ code snippet in a file named `data_processor.cpp`:\n\n```cpp\n// File: data_processor.cpp\n//
+      Unit: data_processor\n\ntypedef struct {\n    int id;\n    float value;\n    char
+      status;\n} DataRecord;\n\ntypedef enum {\n    MODE_NORMAL = 0,\n    MODE_DEBUG
+      = 1,\n    MODE_ERROR = 2\n} ProcessingMode;\n\n// External function declarations\nextern
+      int validate_record(DataRecord* record);\nextern void log_error(const char*
+      message);\nextern DataRecord* allocate_buffer(int size);\n\nProcessingMode current_mode
+      = MODE_NORMAL;\n\nint process_data_array(DataRecord* input_array, int array_size,
+      DataRecord** output_array) {\n    if (input_array == NULL || array_size <= 0)
+      {\n        if (current_mode == MODE_DEBUG) {\n            log_error(\"Invalid
+      input parameters\");\n        }\n        return -1;\n    }\n    \n    // Allocate
+      output buffer\n    *output_array = allocate_buffer(array_size);\n    if (*output_array
+      == NULL) {\n        log_error(\"Memory allocation failed\");\n        return
+      -2;\n    }\n    \n    int processed_count = 0;\n    for (int i = 0; i < array_size;
+      i++) {\n        // Validate each record using external function\n        int
+      validation_result = validate_record(&input_array[i]);\n        \n        if
+      (validation_result > 0) {\n            // Copy valid record to output with modified
+      value\n            (*output_array)[processed_count].id = input_array[i].id;\n            (*output_array)[processed_count].value
+      = input_array[i].value * 1.5f;\n            (*output_array)[processed_count].status
+      = ''V''; // Valid\n            processed_count++;\n        } else if (current_mode
+      == MODE_ERROR) {\n            // In error mode, stop processing on first invalid
+      record\n            log_error(\"Invalid record encountered in error mode\");\n            return
+      processed_count;\n        }\n        // In normal mode, skip invalid records
+      and continue\n    }\n    \n    return processed_count;\n}\n```\n\n### Example
+      1: Testing Null Input Handling with Branching\n\n**Requirement REQ-DP-001:**
+      The `process_data_array` function shall return -1 when input_array is NULL and
+      log an error message if in DEBUG mode.\n\n```json\n{\n  \"test_name\": \"Test_Null_Input_Debug_Mode\",\n  \"test_description\":
+      \"Tests process_data_array with NULL input in DEBUG mode to ensure it returns
+      -1 and calls log_error.\",\n  \"requirement_id\": \"REQ-DP-001\",\n  \"unit_name\":
+      \"data_processor\",\n  \"subprogram_name\": \"process_data_array\",\n  \"input_values\":
+      [\n    { \"identifier\": \"data_processor.<<GLOBAL>>.current_mode\", \"value\":
+      \"MODE_DEBUG\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array\",
+      \"value\": \"<<null>>\" },\n    { \"identifier\": \"data_processor.process_data_array.array_size\",
+      \"value\": \"5\" },\n  ],\n  \"expected_values\": [\n    { \"identifier\": \"uut_prototype_stubs.log_error.message\",
+      \"value\": \"\\\"Invalid input parameters\\\"\" },\n    { \"identifier\": \"data_processor.process_data_array.return\",
+      \"value\": \"-1\" }\n  ]\n}\n```\n\n### Example 2: Testing Memory Allocation
+      with Stubbing\n\n**Requirement REQ-DP-002:** The `process_data_array` function
+      shall return -2 and log an error when memory allocation fails.\n\n```json\n{\n  \"test_name\":
+      \"Test_Memory_Allocation_Failure\",\n  \"test_description\": \"Tests process_data_array
+      when allocate_buffer returns NULL to ensure proper error handling.\",\n  \"requirement_id\":
+      \"REQ-DP-002\",\n  \"unit_name\": \"data_processor\",\n  \"subprogram_name\":
+      \"process_data_array\",\n  \"input_values\": [\n    { \"identifier\": \"data_processor.<<GLOBAL>>.current_mode\",
+      \"value\": \"MODE_NORMAL\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array\",
+      \"value\": \"<<malloc 1>>\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[0].id\",
+      \"value\": \"1\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[0].value\",
+      \"value\": \"10.5\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[0].status\",
+      \"value\": \"''A''\" },\n    { \"identifier\": \"data_processor.process_data_array.array_size\",
+      \"value\": \"2\" },\n    { \"identifier\": \"uut_prototype_stubs.allocate_buffer.return\",
+      \"value\": \"<<null>>\" },\n  ],\n  \"expected_values\": [\n    { \"identifier\":
+      \"uut_prototype_stubs.log_error.message\", \"value\": \"\\\"Memory allocation
+      failed\\\"\" },\n    { \"identifier\": \"data_processor.process_data_array.return\",
+      \"value\": \"-2\" }\n  ]\n}\n```\n\n### Example 3: Testing Complex Processing
+      with Multiple Stubs\n\n**Requirement REQ-DP-003:** The `process_data_array`
+      function shall process valid records by multiplying their values by 1.5 and
+      setting status to ''V''.\n\n```json\n{\n  \"test_name\": \"Test_Valid_Record_Processing\",\n  \"test_description\":
+      \"Tests process_data_array with mixed valid/invalid records to ensure proper
+      processing and output.\",\n  \"requirement_id\": \"REQ-DP-003\",\n  \"unit_name\":
+      \"data_processor\",\n  \"subprogram_name\": \"process_data_array\",\n  \"input_values\":
+      [\n    { \"identifier\": \"data_processor.<<GLOBAL>>.current_mode\", \"value\":
+      \"MODE_NORMAL\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array\",
+      \"value\": \"<<malloc 3>>\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[0].id\",
+      \"value\": \"100\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[0].value\",
+      \"value\": \"20.0\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[0].status\",
+      \"value\": \"''A''\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[1].id\",
+      \"value\": \"200\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[1].value\",
+      \"value\": \"30.0\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[1].status\",
+      \"value\": \"''B''\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[2].id\",
+      \"value\": \"300\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[2].value\",
+      \"value\": \"40.0\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[2].status\",
+      \"value\": \"''C''\" },\n    { \"identifier\": \"data_processor.process_data_array.array_size\",
+      \"value\": \"3\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0]\",
+      \"value\": \"<<malloc 3>>\" },\n    { \"identifier\": \"uut_prototype_stubs.validate_record.return\",
+      \"value\": \"1,0,1\" }\n  ],\n  \"expected_values\": [\n    { \"identifier\":
+      \"data_processor.process_data_array.return\", \"value\": \"2\" },\n    { \"identifier\":
+      \"data_processor.process_data_array.output_array[0][0].id\", \"value\": \"100\"
+      },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0][0].value\",
+      \"value\": \"30.0\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0][0].status\",
+      \"value\": \"''V''\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0][1].id\",
+      \"value\": \"300\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0][1].value\",
+      \"value\": \"60.0\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0][1].status\",
+      \"value\": \"''V''\" }\n  ]\n}\n```\n\n### Example 4: Testing Error Mode with
+      Early Termination\n\n**Requirement REQ-DP-004:** The `process_data_array` function
+      shall stop processing and return the current count when an invalid record is
+      encountered in ERROR mode.\n\n```json\n{\n  \"test_name\": \"Test_Error_Mode_Early_Termination\",\n  \"test_description\":
+      \"Tests process_data_array in ERROR mode to ensure it stops processing on first
+      invalid record.\",\n  \"requirement_id\": \"REQ-DP-004\",\n  \"unit_name\":
+      \"data_processor\",\n  \"subprogram_name\": \"process_data_array\",\n  \"input_values\":
+      [\n    { \"identifier\": \"data_processor.<<GLOBAL>>.current_mode\", \"value\":
+      \"MODE_ERROR\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array\",
+      \"value\": \"<<malloc 3>>\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[0].id\",
+      \"value\": \"100\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[0].value\",
+      \"value\": \"20.0\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[1].id\",
+      \"value\": \"200\" },\n    { \"identifier\": \"data_processor.process_data_array.input_array[1].value\",
+      \"value\": \"30.0\" },\n    { \"identifier\": \"data_processor.process_data_array.array_size\",
+      \"value\": \"3\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0]\",
+      \"value\": \"<<malloc 3>>\" },\n    { \"identifier\": \"uut_prototype_stubs.allocate_buffer.size\",
+      \"value\": \"3\" },\n    { \"identifier\": \"uut_prototype_stubs.validate_record.return\",
+      \"value\": \"1,-1\" },\n  ],\n  \"expected_values\": [\n    { \"identifier\":
+      \"uut_prototype_stubs.log_error.message\", \"value\": \"\\\"Invalid record encountered
+      in error mode\\\"\" },\n    { \"identifier\": \"data_processor.process_data_array.return\",
+      \"value\": \"1\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0][0].id\",
+      \"value\": \"100\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0][0].value\",
+      \"value\": \"30.0\" },\n    { \"identifier\": \"data_processor.process_data_array.output_array[0][0].status\",
+      \"value\": \"''V''\" }\n  ]\n}\n```\n\nRelevant Code:\n```cpp\n// Unit: manager\n\n//
+      Definitions of types, called functions and data structures:\n\nenum soups {
+      NO_SOUP, ONION, CHOWDER };\n\nenum salads { NO_SALAD, CAESAR, GREEN };\n\nenum
+      entrees { NO_ENTREE, STEAK, CHICKEN, LOBSTER, PASTA };\n\nenum desserts { NO_DESSERT,
+      CAKE, PIE, FRUIT };\n\nenum beverages { NO_BEVERAGE, WINE, BEER, MIXED_DRINK,
+      SODA };\n\nstruct order_type\n{\n  enum soups Soup;\n  enum salads Salad;\n  enum
+      entrees Entree;\n  enum desserts Dessert;\n  enum beverages Beverage;\n};\n\n//
+      Code for Add_Included_Dessert:\nvoid Add_Included_Dessert(struct order_type*
+      Order)\n{\n  if(Order->Entree == STEAK &&\n     Order->Salad == CAESAR &&\n     Order->Beverage
+      == MIXED_DRINK) {\n\n    Order->Dessert = PIE;\n\n  } else if(Order->Entree
+      == LOBSTER &&\n            Order->Salad == GREEN &&\n            Order->Beverage
+      == WINE) {\n\n    Order->Dessert = CAKE;\n  }\n}\n```\n\nExample Test Cases:\n```json\n[\n  {\n    \"test_name\":
+      \"ATG-TEST-3\",\n    \"test_description\": \"This is an automatically generated
+      test case.\\nTest Path 3\\n(1) if ((Order->Entree == (STEAK) && Order->Salad
+      == (CAESAR)) && Order->Beverage == (MIXED_DRINK)) ==> TRUE\\n#  Order->Dessert
+      := PIE\\nTest Case Generation Notes:\\nATG constructed a complete test-case.\",\n    \"unit_name\":
+      \"manager\",\n    \"subprogram_name\": \"Add_Included_Dessert\",\n    \"input_values\":
+      [\n      {\n        \"identifier\": \"manager.Add_Included_Dessert.Order\",\n        \"value\":
+      \"<<malloc 1>>\"\n      },\n      {\n        \"identifier\": \"manager.Add_Included_Dessert.Order[0].Salad\",\n        \"value\":
+      \"CAESAR\"\n      },\n      {\n        \"identifier\": \"manager.Add_Included_Dessert.Order[0].Entree\",\n        \"value\":
+      \"STEAK\"\n      },\n      {\n        \"identifier\": \"manager.Add_Included_Dessert.Order[0].Dessert\",\n        \"value\":
+      \"NO_DESSERT\"\n      },\n      {\n        \"identifier\": \"manager.Add_Included_Dessert.Order[0].Beverage\",\n        \"value\":
+      \"MIXED_DRINK\"\n      }\n    ],\n    \"expected_values\": [\n      {\n        \"identifier\":
+      \"manager.Add_Included_Dessert.Order[0].Salad\",\n        \"value\": \"CAESAR\"\n      },\n      {\n        \"identifier\":
+      \"manager.Add_Included_Dessert.Order[0].Entree\",\n        \"value\": \"STEAK\"\n      },\n      {\n        \"identifier\":
+      \"manager.Add_Included_Dessert.Order[0].Dessert\",\n        \"value\": \"PIE\"\n      },\n      {\n        \"identifier\":
+      \"manager.Add_Included_Dessert.Order[0].Beverage\",\n        \"value\": \"MIXED_DRINK\"\n      }\n    ],\n    \"requirement_id\":
+      null\n  }\n]\n```\n\nRequirement ID: Add_Included_Dessert.2\nRequirement Text:
+      The system shall include CAKE as the dessert when the order consists of LOBSTER
+      as the entree, GREEN as the salad, and WINE as the beverage.\n\nDetailed task
+      description:\nBased on the above requirement and code, generate a unit test
+      that exercises the requirement.\nMake sure the generated test case clearly test
+      the provided requirement.\n\nSolve the problem using the following steps:\n1.
+      Give a description in natural language of how the requirement should be tested.\n2.
+      Think about which values need to be set to what and what we expect to happen
+      in the actual code, i.e., how do we translate from natural language descripion
+      to implementation?\n3. Generate a test case in the syntax provided above.\n    a.
+      Come up with a descriptive (unique) name for the test case and describe in natural
+      language how this test exercises the requirement\n    b. Provide the name of
+      the unit being tested (base file name without extension) and the name of the
+      subprogram being tested (function name)\n    c. Provide the input and expected
+      values by providing the correct identifier and value in the syntax outlined
+      above.\n\nYou are allowed to use the following identifiers in your test case:\n-
+      manager.Add_Included_Dessert.Order\n- manager.Add_Included_Dessert.Order[0].Soup\n-
+      manager.Add_Included_Dessert.Order[0].Salad\n- manager.Add_Included_Dessert.Order[0].Entree\n-
+      manager.Add_Included_Dessert.Order[0].Dessert\n- manager.Add_Included_Dessert.Order[0].Beverage\n\nYou
+      MUST set an input value for all input to the functions, used globals and called
+      stubs.\nIf you do not ensure this, it can happen that your test does not cover
+      the correct path corresponding to the requirement.\nAn expected value is not
+      required for all identifiers. Only for those relevant to the requirement.\n\nNotes:\n-
+      You are NOT allowed to invent any syntax that is not specified in the syntax
+      reference. Stick to the syntax provided.\n- You are NOT allowed to invent any
+      units or functions that are not present in the provided code.\n- This is a highly
+      critical task, please ensure that the test case is correct and complete and
+      does not contain any logical or syntactical errors.\n- Test cases are independent
+      of each other, i.e., they should not rely on one being run before the other
+      (or environment being modified by one).\n- For each test case, make sure to
+      set an input value for all arguments, global variables and stubs used in the
+      function.\n- For each test case, make sure to only set expected values precisely
+      for what the requirement specifies. Nothing more, nothing less.\n- In case the
+      requirement and the code differ, the requirement is what you should test, i.e.,
+      it is the source of truth.\n- Watch out for off-by-one errors\n", "role": "user"}],
+      "model": "gpt-4.1", "response_format": {"json_schema": {"name": "TestGenerationResult",
+      "schema": {"$defs": {"ExpectedValueMapping": {"additionalProperties": false,
+      "properties": {"identifier": {"$ref": "#/$defs/Identifier"}, "value": {"title":
+      "Value", "type": "string"}}, "required": ["identifier", "value"], "title": "ExpectedValueMapping",
+      "type": "object"}, "Identifier": {"enum": ["USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_INT1",
+      "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_INT2", "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_INT3",
+      "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_FLT1", "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1",
+      "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_BUFFER[0..3]", "manager.Add_Included_Dessert.Order",
+      "manager.Add_Included_Dessert.Order[0].Soup", "manager.Add_Included_Dessert.Order[0].Salad",
+      "manager.Add_Included_Dessert.Order[0].Entree", "manager.Add_Included_Dessert.Order[0].Dessert",
+      "manager.Add_Included_Dessert.Order[0].Beverage"], "title": "Identifier", "type":
+      "string"}, "InputValueMapping": {"additionalProperties": false, "properties":
+      {"identifier": {"$ref": "#/$defs/Identifier"}, "value": {"title": "Value", "type":
+      "string"}}, "required": ["identifier", "value"], "title": "InputValueMapping",
+      "type": "object"}, "TestCase": {"additionalProperties": false, "properties":
+      {"expected_values": {"items": {"$ref": "#/$defs/ExpectedValueMapping"}, "title":
+      "Expected Values", "type": "array"}, "input_values": {"items": {"$ref": "#/$defs/InputValueMapping"},
+      "title": "Input Values", "type": "array"}, "requirement_id": {"title": "Requirement
+      Id", "type": "string"}, "subprogram_name": {"title": "Subprogram Name", "type":
+      "string"}, "test_description": {"title": "Test Description", "type": "string"},
+      "test_name": {"title": "Test Name", "type": "string"}, "unit_name": {"title":
+      "Unit Name", "type": "string"}}, "required": ["test_name", "test_description",
+      "requirement_id", "unit_name", "subprogram_name", "input_values", "expected_values"],
+      "title": "TestCase", "type": "object"}}, "additionalProperties": false, "properties":
+      {"test_case": {"$ref": "#/$defs/TestCase"}, "test_description": {"title": "Test
+      Description", "type": "string"}, "test_mapping_analysis": {"title": "Test Mapping
+      Analysis", "type": "string"}}, "required": ["test_description", "test_mapping_analysis",
+      "test_case"], "title": "TestGenerationResult", "type": "object"}, "strict":
+      true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature": 0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      api-key:
+      - REDACTED
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '27703'
+      content-type:
+      - application/json
+      host:
+      - REDACTED
+      user-agent:
+      - AsyncAzureOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-helper-method:
+      - beta.chat.completions.parse
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.12
+    method: POST
+    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
+  response:
+    body:
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_description\":\"To
+        test the requirement that CAKE is included as the dessert when the order consists
+        of LOBSTER as the entree, GREEN as the salad, and WINE as the beverage, we
+        need to set up an order with these specific values. The function should then
+        set the Dessert field to CAKE. We will allocate an order, set Entree to LOBSTER,
+        Salad to GREEN, Beverage to WINE, and Dessert to NO_DESSERT (to ensure it
+        is changed by the function). After calling the function, we expect Dessert
+        to be set to CAKE. Other fields are not relevant to the requirement and can
+        be left at their default or unspecified values.\",\"test_mapping_analysis\":\"The
+        requirement is directly mapped to the second conditional branch in the Add_Included_Dessert
+        function. By setting Entree to LOBSTER, Salad to GREEN, and Beverage to WINE,
+        we ensure the condition is true and the Dessert field should be set to CAKE.
+        The test sets all required input fields and checks only the Dessert field
+        as per the requirement.\",\"test_case\":{\"test_name\":\"Test_Lobster_Green_Wine_Results_In_Cake_Dessert\",\"test_description\":\"Tests
+        that Add_Included_Dessert sets Dessert to CAKE when Entree is LOBSTER, Salad
+        is GREEN, and Beverage is WINE, as required.\",\"requirement_id\":\"Add_Included_Dessert.2\",\"unit_name\":\"manager\",\"subprogram_name\":\"Add_Included_Dessert\",\"input_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order\",\"value\":\"\u003c\u003cmalloc
+        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1748605517,"id":"chatcmpl-BcsSjeglDV4tcgbjj2XPIUVdQhnQH","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":443,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":6347,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":6790}}
+
+        '
+    headers:
+      Content-Length:
+      - '3142'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 30 May 2025 11:45:21 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      apim-request-id:
+      - e1ce2e0f-f3ea-4a15-97cb-01239b428744
+      azureml-model-session:
+      - d051-20250528072517
+      cmp-upstream-response-duration:
+      - '10728'
+      x-accel-buffering:
+      - 'no'
+      x-content-type-options:
+      - nosniff
+      x-ms-deployment-name:
+      - gpt-4.1
+      x-ms-region:
+      - Sweden Central
+      x-ratelimit-limit-requests:
+      - '1006'
+      x-ratelimit-limit-tokens:
+      - '1006000'
+      x-ratelimit-remaining-requests:
+      - '996'
+      x-ratelimit-remaining-tokens:
+      - '924280'
+      x-request-id:
+      - 0f87ce6a-1567-47b3-a6c9-937ad2fbbad3
+    status:
+      code: 200
+      message: OK
+version: 1

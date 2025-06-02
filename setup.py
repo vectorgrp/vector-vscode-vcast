@@ -35,6 +35,7 @@ dev_requirements = [
     'pytest-mock==3.14.0',
     'pytest-cov==6.1.1',
     'pytest-html ==4.1.1',
+    'pytest-recording==0.13.4',
     'pyinstaller==6.12.0',
     'Cython==3.0.12',
     'ruff==0.11.7',
