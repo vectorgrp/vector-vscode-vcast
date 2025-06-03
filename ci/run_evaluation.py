@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import argparse
 
@@ -63,7 +64,6 @@ def _extract_result(key: str, results: dict):
 def check_results(run_results_path):
     errors = []
 
-    global assertions
     run_results_path = Path(run_results_path)
     env_set_name = os.getenv('ENV_SET_NAME')
 
@@ -118,7 +118,7 @@ def main(run_results_path):
                     f.write(error + '\n')
     except Exception as e:
         print(f'Requirement check failed: {e}')
-        exit(1)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

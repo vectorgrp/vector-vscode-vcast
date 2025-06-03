@@ -10,7 +10,6 @@ import tempfile
 import sqlite3
 import logging
 import charset_normalizer
-import platform
 
 from autoreq.util import prune_code, sanitize_subprogram_name, get_vectorcast_cmd
 
@@ -112,6 +111,7 @@ class Environment:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=30,
+                check=False,
             )
         except subprocess.TimeoutExpired:
             logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
@@ -167,6 +167,7 @@ class Environment:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=30,
+                check=False,
             )
         except subprocess.TimeoutExpired:
             logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
@@ -256,6 +257,7 @@ class Environment:
                     stderr=subprocess.PIPE,
                     text=True,
                     timeout=30,
+                    check=False,
                 )
             except subprocess.TimeoutExpired:
                 logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
@@ -287,6 +289,7 @@ class Environment:
                     stderr=subprocess.PIPE,
                     text=True,
                     timeout=30,
+                    check=False,
                 )
             except subprocess.TimeoutExpired:
                 logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
@@ -322,6 +325,7 @@ class Environment:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=30,
+                check=False,
             )
         except subprocess.TimeoutExpired:
             logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
@@ -381,7 +385,7 @@ class Environment:
             try:
                 try:
                     unit, subprogram, entity = identifier.split('.')[:3]
-                except:
+                except Exception:
                     logging.warning(f'Invalid identifier format: {identifier}')
                     continue
 
@@ -394,7 +398,8 @@ class Environment:
                     ]  # Remove namespace if present
 
                 if entity == '(cl)':
-                    if len(identifier.split('.')) < 6:
+                    identifier_min_length = 6
+                    if len(identifier.split('.')) < identifier_min_length:
                         continue
 
                     class_name, constructor, entity = identifier.split('.')[3:6]
@@ -518,6 +523,7 @@ class Environment:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=60,
+                check=False,
             )
         except subprocess.TimeoutExpired:
             logging.warning('ATG with baselining timed out, trying without baselining')
@@ -532,6 +538,7 @@ class Environment:
                     stderr=subprocess.PIPE,
                     text=True,
                     timeout=30,
+                    check=False,
                 )
             except subprocess.TimeoutExpired:
                 logging.error('ATG command without baselining also timed out')
@@ -562,6 +569,7 @@ class Environment:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=60,
+                check=False,
             )
         except subprocess.TimeoutExpired:
             logging.error('ATG coverage command timed out after 30 seconds')
@@ -594,6 +602,7 @@ class Environment:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=60,
+                check=False,
             )
         except subprocess.TimeoutExpired:
             logging.error(f"Command '{' '.join(cmd)}' timed out after 60 seconds")
@@ -832,8 +841,8 @@ class Environment:
         description_lines = []
         continue_reading = False
 
-        for line in content:
-            line = line.strip()
+        for _line in content:
+            line = _line.strip()
 
             # Skip empty lines and comments that don't start with TEST
             if not line or (line.startswith('--') and not line.startswith('TEST')):
@@ -912,6 +921,7 @@ class Environment:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=timeout,
+                check=False,
             )
             return True
         except subprocess.TimeoutExpired:

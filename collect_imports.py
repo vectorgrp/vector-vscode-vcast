@@ -42,34 +42,36 @@ def find_project_modules(base_package_name):
 
         # Process Python files
         for file in files:
-            if file.endswith('.py'):
-                # Convert file path to module path
-                rel_path = os.path.relpath(
-                    os.path.join(root, file), os.path.dirname(base_dir)
-                )
-                if file == '__init__.py':
-                    # For __init__.py files, use directory name
-                    module_path = os.path.dirname(rel_path).replace(os.sep, '.')
-                else:
-                    # For regular files, remove .py extension
-                    module_path = rel_path.replace(os.sep, '.').replace('.py', '')
+            if not file.endswith('.py'):
+                continue
 
-                # Ensure it starts with the base package name
-                if not module_path.startswith(base_package_name):
-                    module_path = f'{base_package_name}.{module_path}'
+            # Convert file path to module path
+            rel_path = os.path.relpath(
+                os.path.join(root, file), os.path.dirname(base_dir)
+            )
+            if file == '__init__.py':
+                # For __init__.py files, use directory name
+                module_path = os.path.dirname(rel_path).replace(os.sep, '.')
+            else:
+                # For regular files, remove .py extension
+                module_path = rel_path.replace(os.sep, '.').replace('.py', '')
 
-                # Remove any empty package references
+            # Ensure it starts with the base package name
+            if not module_path.startswith(base_package_name):
+                module_path = f'{base_package_name}.{module_path}'
+
+            # Remove any empty package references
+            module_path = module_path.replace('..', '.')
+            while '..' in module_path:
                 module_path = module_path.replace('..', '.')
-                while '..' in module_path:
-                    module_path = module_path.replace('..', '.')
 
-                modules.add(module_path)
+            modules.add(module_path)
 
-                # Try to import the module to ensure it's valid
-                try:
-                    importlib.import_module(module_path)
-                except Exception as e:
-                    print(f'Warning: Could not import {module_path}: {e}')
+            # Try to import the module to ensure it's valid
+            try:
+                importlib.import_module(module_path)
+            except Exception as e:
+                print(f'Warning: Could not import {module_path}: {e}')
 
     return modules
 

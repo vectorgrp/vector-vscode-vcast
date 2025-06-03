@@ -1,15 +1,8 @@
 import glob
-import json
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-from io import BytesIO
-import base64
 from autoreq.evaluate_reqs2tests import EvaluationResult
 from pathlib import Path
 import numpy as np
-from typing import List, Dict, Any, Tuple
-from pathlib import Path
+from typing import List
 import shutil
 import os
 from evaluation.create_report import create_report
@@ -35,9 +28,9 @@ def load_results(folder_path: str) -> List[EvaluationResult]:
 results = load_results(RESULT_FOLDER)
 
 
-def is_big(result: EvaluationResult) -> bool:
+def is_big(result: EvaluationResult, max_size=100) -> bool:
     """Determine if the environment is big"""
-    return result.atg_coverage['branches']['total'] > 100
+    return result.atg_coverage['branches']['total'] > max_size
 
 
 big_results = [result for result in results if is_big(result)]
@@ -68,12 +61,12 @@ uses_fallback_results = [result for result in results if uses_fallback(result)]
 no_fallback_results = [result for result in results if not uses_fallback(result)]
 
 
-def has_large_disparity(result: EvaluationResult) -> bool:
+def has_large_disparity(result: EvaluationResult, max_disparity=0.5) -> bool:
     """Determine if the environment has a large disparity in ATG coverage and our coverage"""
     return (
         result.atg_coverage['branches']['percentage']
         - result.coverage['branches']['percentage']
-    ) > 0.5
+    ) > max_disparity
 
 
 large_disparity_results = [result for result in results if has_large_disparity(result)]
@@ -128,7 +121,7 @@ def copy_results_to_derived_folder(result_list: List[EvaluationResult], subfolde
                     break
 
         if not found:
-            print(f'Warning: Source file for a result not found.')
+            print('Warning: Source file for a result not found.')
 
     # Return the created folder path
     return target_folder

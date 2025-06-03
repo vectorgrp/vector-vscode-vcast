@@ -2,8 +2,7 @@ import asyncio
 from enum import Enum
 from pydantic import BaseModel
 import logging
-from typing import List, Optional, Tuple
-import math
+from typing import List, Optional
 
 from ..llm_client import LLMClient
 from ..test_generation.vcast_context_builder import VcastContextBuilder

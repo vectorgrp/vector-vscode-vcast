@@ -4,7 +4,6 @@ import argparse
 import json
 import numpy as np
 import glob
-from pathlib import Path
 from tqdm import tqdm
 from dotenv import load_dotenv
 
@@ -80,9 +79,9 @@ def find_usable_environments(
     if get_coverage:
         print('Analyzing coverage...')
         coverage_data = {}
-        for env_file in tqdm(usable_envs):
-            coverage = get_atg_coverage(env_file)
-            coverage_data[env_file] = coverage
+        for _env_file in tqdm(usable_envs):
+            coverage = get_atg_coverage(_env_file)
+            coverage_data[_env_file] = coverage
 
         # Save coverage data
         coverage_path = os.path.join(output_dir, 'coverage_data.json')

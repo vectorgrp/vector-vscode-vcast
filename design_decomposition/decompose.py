@@ -1,5 +1,4 @@
-from typing import List, Tuple
-from dcheck.processing.code_extraction import FunctionDef
+from typing import List
 from pydantic import BaseModel
 from enum import Enum
 

@@ -1,7 +1,7 @@
 import json
 import logging
 from types import SimpleNamespace
-from typing import List, Optional, Tuple, Dict, Union, Any  # Added Dict, Union, Any
+from typing import List, Optional, Tuple, Dict, Any
 from pydantic import Field, create_model, BaseModel
 import time
 
@@ -312,13 +312,15 @@ def _validate_openai_structured_output_schema(schema) -> List[str]:
 
     def traverse(node: dict, depth: int):
         nonlocal total_props, total_string_len, total_enum_vals
-        if depth > 5:
+        max_nesting = 5
+        max_total_props = 100
+        if depth > max_nesting:
             errors.append(f'Exceeded max nesting depth: {depth} > 5')
         # object checks
         if node.get('type') == 'object':
             props = node.get('properties', {})
             total_props += len(props)
-            if len(props) and total_props > 100:
+            if len(props) and total_props > max_total_props:
                 errors.append(f'Total properties {total_props} exceeds limit of 100')
             # TODO: Ideally we would check for additionalProperties here, but it is not actually present in pydantic generated schemas (and yet it still somehow works)
             # if node.get('additionalProperties', True) is not False:
@@ -327,13 +329,15 @@ def _validate_openai_structured_output_schema(schema) -> List[str]:
                 total_string_len += len(name)
                 traverse(subs, depth + 1)
         # enum checks
+        max_vals = 250
+        max_enum_len = 7500
         if node.get('type') == 'string' and 'enum' in node:
             vals = node['enum']
             count = len(vals)
             total_enum_vals += count
             enum_len = sum(len(str(v)) for v in vals)
             total_string_len += enum_len
-            if count > 250 and enum_len > 7500:
+            if count > max_vals and enum_len > max_enum_len:
                 errors.append(
                     f'Enum property has {count} values and total length {enum_len} exceeds 7500'
                 )
@@ -351,11 +355,13 @@ def _validate_openai_structured_output_schema(schema) -> List[str]:
                 traverse(child, depth)
 
     traverse(schema, 1)
-    if total_string_len > 15000:
+    max_string_len = 15000
+    if total_string_len > max_string_len:
         errors.append(
             f'Total string length {total_string_len} exceeds limit of 15000 characters'
         )
-    if total_enum_vals > 500:
+    max_enum_vals = 500
+    if total_enum_vals > max_enum_vals:
         errors.append(f'Total enum values {total_enum_vals} exceeds limit of 500')
 
     return errors

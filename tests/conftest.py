@@ -3,7 +3,7 @@ import os
 import tarfile
 import requests
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 
 import pytest
 

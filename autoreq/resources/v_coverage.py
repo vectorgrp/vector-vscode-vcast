@@ -1,4 +1,3 @@
-import os
 import json
 import argparse
 from sys import exit

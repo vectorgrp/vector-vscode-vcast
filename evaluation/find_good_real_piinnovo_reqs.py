@@ -1,6 +1,5 @@
 import os
 import asyncio
-from pydantic import BaseModel
 import tqdm.asyncio
 from autoreq.requirement_verification.verification import RequirementsVerifier
 from autoreq.requirements_manager import RequirementsManager
@@ -61,7 +60,8 @@ async def calculate_req_scores(env_paths):
 
 scores = asyncio.run(calculate_req_scores(envs_with_real_reqs))
 
-good_envs = [env for env, score in scores.items() if score >= 0.8]
+min_score = 0.8
+good_envs = [env for env, score in scores.items() if score >= min_score]
 
 good_envs_with_real_req_paths = [
     env_path + ':' + os.path.join(os.path.dirname(env_path), 'real_reqs.csv')
