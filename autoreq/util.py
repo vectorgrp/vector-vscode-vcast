@@ -364,6 +364,9 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
         'throw_statement',
         'break_statement',
         'continue_statement',
+    ]
+
+    IGNORED_NODE_TYPES = [
         'comment',
     ]
 
@@ -414,12 +417,14 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
             # First, construct the path
             path_str = '\n -> '.join(self.path)
 
-            # Then, construct the lines. For non-adajcent lines, add ...
-            lines_str = ''
-            for i, line in enumerate(self.lines):
-                if i > 0 and self.line_numbers[i] != self.line_numbers[i - 1] + 1:
-                    lines_str += '...\n'
-                lines_str += f'{line}\n'
+            code_lines = code.split('\n')
+
+            start_line = min(self.line_numbers)
+            end_line = max(self.line_numbers)
+
+            lines_str = '\n'.join(
+                code_lines[i] for i in range(start_line, end_line + 1)
+            )
 
             return f'Path: {path_str}\nLines:\n{lines_str}'
 
@@ -436,10 +441,8 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
     # Function to collect statements by execution path
     def collect_statements(node, curr_path):
         curr_path = curr_path.copy()
-        """
-        if node.type in ('comment', 'preprocessor_directive', 'string_literal'):
+        if node.type in IGNORED_NODE_TYPES:
             return None
-        """
 
         # Check if this is a statement that should be collected
         if node.type in COLLECTED_NODE_TYPES:
