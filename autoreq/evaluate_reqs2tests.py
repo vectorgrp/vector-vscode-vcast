@@ -4,14 +4,19 @@ import argparse
 import asyncio
 import logging
 import time
+import shutil
+import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field, computed_field
 from tqdm import tqdm
 import traceback
-from datetime import datetime
+import tempfile
+
+from bs4 import BeautifulSoup
 
 from autoreq.test_generation.requirement_decomposition import decompose_requirements
+from autoreq.codebase import Codebase
 
 from autoreq.requirements_manager import (
     DecomposingRequirementsManager,
@@ -21,6 +26,15 @@ from autoreq.test_generation.generation import TestGenerator
 from autoreq.test_generation.environment import Environment
 from autoreq.test_verification.verification import TestVerifier
 from autoreq.coverage_extraction.requirement_coverage import RequirementCoverage
+from autoreq.util import (
+    expand_environment_args,
+    setup_mlflow_params,
+    setup_mlflow,
+    get_processed_environments,
+    write_env_result,
+    format_time,
+    get_vectorcast_cmd,
+)
 
 
 class EvaluationResult(BaseModel):
@@ -287,6 +301,27 @@ class EvaluationResult(BaseModel):
         return self.total_generation_cost + self.total_verification_cost
 
     def __str__(self) -> str:
+        def get_branches_and_statements(object, nothing_found_msg: str):
+            if object and isinstance(object, dict):
+                this_lines = []
+                if 'statements' in object:
+                    stmts = object['statements']
+                    this_lines.append(
+                        f'  Statements: {stmts["covered"]}/{stmts["total"]} ({stmts["percentage"]:.2%})'
+                    )
+                if 'branches' in object:
+                    branches = object['branches']
+                    this_lines.append(
+                        f'  Branches:   {branches["covered"]}/{branches["total"]} ({branches["percentage"]:.2%})'
+                    )
+                return this_lines
+            return [nothing_found_msg]
+
+        def get_error_message(object, message):
+            nonlocal lines
+            if object:
+                lines.append(message.format(arg=', '.join(object)))
+
         """Format the evaluation result as a human-readable string"""
         lines = []
 
@@ -296,7 +331,7 @@ class EvaluationResult(BaseModel):
         lines.append(f'{"=" * 50}')
 
         # Execution Information
-        lines.append(f'\nExecution Information:')
+        lines.append('\nExecution Information:')
         lines.append(f'Execution Time: {format_time(self.execution_time)}')
         if self.timed_out:
             lines.append(
@@ -304,13 +339,13 @@ class EvaluationResult(BaseModel):
             )
 
         # Core metrics
-        lines.append(f'\nCore Metrics:')
+        lines.append('\nCore Metrics:')
         lines.append(f'Total Requirements: {self.total_requirements}')
         lines.append(f'Generated Tests: {self.generated_tests}')
         lines.append(f'Verified Tests: {self.verified_tests}')
 
         # Performance metrics
-        lines.append(f'\nPerformance Metrics:')
+        lines.append('\nPerformance Metrics:')
         lines.append(f'Precision: {self.precision:.2f}')
         lines.append(f'Recall: {self.recall:.2f}')
         lines.append(f'F1 Score: {self.f1_score:.2f}')
@@ -318,34 +353,18 @@ class EvaluationResult(BaseModel):
         # Coverage information
         lines.append('\nCoverage Information:')
         lines.append('ATG Coverage:')
-        if self.atg_coverage and isinstance(self.atg_coverage, dict):
-            if 'statements' in self.atg_coverage:
-                stmts = self.atg_coverage['statements']
-                lines.append(
-                    f'  Statements: {stmts["covered"]}/{stmts["total"]} ({stmts["percentage"]:.2%})'
-                )
-            if 'branches' in self.atg_coverage:
-                branches = self.atg_coverage['branches']
-                lines.append(
-                    f'  Branches:   {branches["covered"]}/{branches["total"]} ({branches["percentage"]:.2%})'
-                )
-        else:
-            lines.append('  No ATG coverage data available')
+        lines.extend(
+            get_branches_and_statements(
+                self.atg_coverage, '  No ATG coverage data available'
+            )
+        )
 
         lines.append('Generated Tests Coverage:')
-        if self.coverage and isinstance(self.coverage, dict):
-            if 'statements' in self.coverage:
-                stmts = self.coverage['statements']
-                lines.append(
-                    f'  Statements: {stmts["covered"]}/{stmts["total"]} ({stmts["percentage"]:.2%})'
-                )
-            if 'branches' in self.coverage:
-                branches = self.coverage['branches']
-                lines.append(
-                    f'  Branches:   {branches["covered"]}/{branches["total"]} ({branches["percentage"]:.2%})'
-                )
-        else:
-            lines.append('  No coverage data available for generated tests')
+        lines.extend(
+            get_branches_and_statements(
+                self.coverage, '  No coverage data available for generated tests'
+            )
+        )
 
         # Requirement coverage
         if self.requirement_coverage_results:
@@ -361,99 +380,95 @@ class EvaluationResult(BaseModel):
         # Verification information
         lines.append('\nVerification Information:')
         lines.append(f'Verified Tests: {self.verified_tests}/{self.generated_tests}')
-        if self.unverified_requirements:
-            lines.append(
-                f'Unverified Requirements: {", ".join(self.unverified_requirements)}'
-            )
+        get_error_message(
+            self.unverified_requirements, 'Unverified Requirements: {arg}'
+        )
 
         # Generation statistics
         lines.append('\nGeneration Statistics:')
 
         # Success/failure
-        lines.append(f'\n  Success/Failure:')
+        lines.append('\n  Success/Failure:')
         lines.append(f'  Failed Generation Rate: {self.failed_generation_rate:.2%}')
-        if self.failed_generation_reqs:
-            lines.append(
-                f'  Failed Requirements: {", ".join(self.failed_generation_reqs)}'
-            )
+        get_error_message(self.failed_generation_reqs, '  Failed Requirements: {arg}')
 
         # Feedback and correction
-        lines.append(f'\n  Fallback rates:')
+        lines.append('\n  Fallback rates:')
         lines.append(
             f'  Test Failure Feedback Rate: {self.test_failure_feedback_rate:.2%}'
         )
-        if self.test_failure_feedback_reqs:
-            lines.append(
-                f'  Test Failure Requirements: {", ".join(self.test_failure_feedback_reqs)}'
-            )
+        get_error_message(
+            self.test_failure_feedback_reqs,
+            '  Test Failure Requirements: {arg}',
+        )
 
         lines.append(
             f'  Error Correction Needed Rate: {self.error_correction_needed_rate:.2%}'
         )
-        if self.error_correction_needed_reqs:
-            lines.append(
-                f'  Error Correction Requirements: {", ".join(self.error_correction_needed_reqs)}'
-            )
+        get_error_message(
+            self.error_correction_needed_reqs,
+            '  Error Correction Requirements: {arg}',
+        )
 
         lines.append(f'  Partial Test Rate: {self.partial_test_rate:.2%}')
-        if self.partial_test_reqs:
-            lines.append(
-                f'  Partial Test Requirements: {", ".join(self.partial_test_reqs)}'
-            )
+        get_error_message(
+            self.partial_test_reqs,
+            '  Partial Test Requirements: {arg}',
+        )
 
         lines.append(
             f'  Individual Generation Rate: {self.individual_generation_rate:.2%}'
         )
-        if self.individual_generation_reqs:
-            lines.append(
-                f'  Individual Generation Requirements: {", ".join(self.individual_generation_reqs)}'
-            )
+        get_error_message(
+            self.individual_generation_reqs,
+            '  Individual Generation Requirements: {arg}',
+        )
 
         lines.append(
             f'  Found No Allowed Identifiers Rate: {self.found_no_allowed_identifiers_rate:.2%}'
         )
-        if self.found_no_allowed_identifiers_reqs:
-            lines.append(
-                f'  Found No Allowed Identifiers Requirements: {", ".join(self.found_no_allowed_identifiers_reqs)}'
-            )
+        get_error_message(
+            self.found_no_allowed_identifiers_reqs,
+            '  Found No Allowed Identifiers Requirements: {arg}',
+        )
 
         lines.append(
             f'  Schema Exceeded Size Rate: {self.schema_exceeded_size_rate:.2%}'
         )
-        if self.schema_exceeded_size_reqs:
-            lines.append(
-                f'  Schema Exceeded Size Requirements: {", ".join(self.schema_exceeded_size_reqs)}'
-            )
+        get_error_message(
+            self.schema_exceeded_size_reqs,
+            '  Schema Exceeded Size Requirements: {arg}',
+        )
 
         lines.append(f'  No ATG Examples Rate: {self.no_atg_examples_rate:.2%}')
-        if self.no_atg_examples_reqs:
-            lines.append(
-                f'  No ATG Examples Requirements: {", ".join(self.no_atg_examples_reqs)}'
-            )
+        get_error_message(
+            self.no_atg_examples_reqs,
+            '  No ATG Examples Requirements: {arg}',
+        )
 
         lines.append(
             f'  Used Code Context Fallback Rate: {self.used_code_context_fallback_rate:.2%}'
         )
-        if self.used_code_context_fallback_reqs:
-            lines.append(
-                f'  Used Code Context Fallback Requirements: {", ".join(self.used_code_context_fallback_reqs)}'
-            )
+        get_error_message(
+            self.used_code_context_fallback_reqs,
+            '  Used Code Context Fallback Requirements: {arg}',
+        )
 
         lines.append(
             f'  Used ATG Identifier Fallback Rate: {self.used_atg_identifier_fallback_rate:.2%}'
         )
-        if self.used_atg_identifier_fallback_reqs:
-            lines.append(
-                f'  Used ATG Identifier Fallback Requirements: {", ".join(self.used_atg_identifier_fallback_reqs)}'
-            )
+        get_error_message(
+            self.used_atg_identifier_fallback_reqs,
+            '  Used ATG Identifier Fallback Requirements: {arg}',
+        )
 
         # Exception information
-        lines.append(f'\n  Exception Information:')
+        lines.append('\n  Exception Information:')
         lines.append(f'  Requirements with Exceptions Rate: {self.exception_rate:.2%}')
-        if self.reqs_with_exceptions:
-            lines.append(
-                f'  Requirements with Exceptions: {", ".join(self.reqs_with_exceptions)}'
-            )
+        get_error_message(
+            self.reqs_with_exceptions,
+            '  Requirements with Exceptions: {arg}',
+        )
 
         # Cost information
         lines.append('\nCost Information:')
@@ -470,6 +485,81 @@ class EvaluationResult(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+def generate_custom_coverage_reports(
+    env: Environment,
+    original_coverage_report: Path,
+    requirement_coverage_results,
+    output_dir: Path,
+) -> None:
+    """
+    Generates custom coverage reports, modifying an existing coverage report generated with clicast and
+    integrating requirement coverage results into the report. Processes the coverage data to highlight
+    the specified lines of code based on coverage results and produces individual HTML files for each
+    specified requirement where total coverage was not achieved.
+    Source content comes from the TU content of the environment, which is the same content used to
+    generate the requirements.
+    """
+    tu_content = env.get_tu_content(reduction_level='high')
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(Path(tmpdir) / 'tu.c', 'w') as f:
+            f.write(tu_content)
+        # Create a temporary codebase to extract functions information
+        codebase = Codebase([tmpdir])
+        all_funcs = {f['name']: f for f in codebase.get_all_functions()}
+
+    with open(original_coverage_report, 'r') as f:
+        cov_html = BeautifulSoup(f, 'html.parser')
+
+    # Remove the Metrics section from the coverage report's bottom
+    metrics_link = cov_html.find('a', href='#Metrics')
+    if metrics_link:
+        metrics_li = metrics_link.find_parent('li')
+        if metrics_li:
+            metrics_li.decompose()
+    metrics_section = cov_html.find('a', id='Metrics')
+    if metrics_section:
+        report_block = metrics_section.find_parent('div', class_='report-block')
+        if report_block:
+            report_block.decompose()
+
+    # pre_elem is the pre element that contains the source code
+    pre_elem = cov_html.find('pre', class_='aggregate-coverage')
+    for sibling in pre_elem.find_next_siblings():
+        sibling.decompose()
+
+    for rcr in requirement_coverage_results:
+        if rcr['fully_covered']:
+            continue
+        pre_elem.clear()
+        all_html_lines = []  # List to hold all HTML lines for source code
+        for i, line in enumerate(tu_content.split('\n')):
+            span = cov_html.new_tag(
+                'span', attrs={'class': 'na-cvg'}
+            )  # html element containing the line
+            strong = cov_html.new_tag('strong')
+            strong.string = str(i + 1)
+            strong.append(cov_html.new_string(' ' * (8 - (len(str(i + 1))))))
+            span.append(strong)
+            span.append(cov_html.new_string(line))
+            pre_elem.append(span)
+            pre_elem.append(cov_html.new_string('\n'))
+            all_html_lines.append(span)
+
+        req_id = rcr['requirement_id']
+        func_info = all_funcs[rcr['function']]
+        start_line = func_info['start_line']
+        for line in rcr['required_lines']:
+            c = (
+                'full-cvg success-marker'
+                if line in rcr['covered_lines']
+                else 'no-cvg fail-marker'
+            )
+            all_html_lines[start_line + line]['class'] = c
+
+        with open(output_dir / f'{req_id}_coverage.html', 'w') as f:
+            f.write(str(cov_html))
 
 
 async def evaluate_environment(
@@ -623,11 +713,52 @@ async def evaluate_environment(
                 if tc:
                     f.write(tc.to_vectorcast() + '\n')
 
+        def generate_html_coverage_report():
+            cmds = [
+                get_vectorcast_cmd(
+                    'clicast',
+                    [
+                        '-lc',
+                        'option',
+                        'VCAST_CUSTOM_REPORT_FORMAT',
+                        'HTML',
+                    ],
+                ),
+                get_vectorcast_cmd(
+                    'clicast',
+                    [
+                        '-lc',
+                        '-e',
+                        env.env_name,
+                        'REports',
+                        'Custom',
+                        'Coverage',
+                        'coverage.html',
+                    ],
+                ),
+            ]
+            for cmd in cmds:
+                subprocess.run(
+                    cmd,
+                    shell=False,
+                    check=False,
+                    cwd=env.env_dir,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            coverage_file = Path(env.env_dir, 'coverage.html')
+            if not coverage_file.exists():
+                logging.warning(f'Coverage report generation failed for {env.env_name}')
+                return
+            shutil.copyfile(coverage_file, env_output_dir / 'coverage.html')
+
         # Run tests to get coverage
         tst_file_path = env_output_dir / 'test_cases.tst'
         try:
             output, coverage = env.run_test_script(
-                str(tst_file_path), with_coverage=True
+                str(tst_file_path),
+                with_coverage=True,
+                post_run_callback=generate_html_coverage_report,
             )
             generated_tests_coverage = coverage
         except Exception as e:
@@ -646,6 +777,21 @@ async def evaluate_environment(
 
         if result:
             requirement_coverage_results.append(result.model_dump())
+
+    original_coverage_report = env_output_dir / 'coverage.html'
+    try:
+        coverage_reports_out = env_output_dir / 'coverage_reports'
+        coverage_reports_out.mkdir()
+        generate_custom_coverage_reports(
+            env,
+            original_coverage_report,
+            requirement_coverage_results,
+            coverage_reports_out,
+        )
+    except Exception as e:
+        logging.error(f'Error generating custom coverage report: {str(e)}')
+    finally:
+        original_coverage_report.unlink(missing_ok=True)
 
     # Export verification results
     verification_results_data = [
@@ -692,7 +838,7 @@ async def evaluate_environment(
     )
 
 
-def parse_env_req_pair(pair: str) -> tuple[str, str]:
+def parse_env_req_pair(pair: str) -> Tuple[str, str]:
     """Parse environment:requirements pair, defaulting to reqs.csv in env directory."""
     if ':' in pair:
         env_path, req_path = pair.split(':', 1)
@@ -701,93 +847,6 @@ def parse_env_req_pair(pair: str) -> tuple[str, str]:
         env_path = pair
         env_dir = str(Path(env_path).parent)
         return env_path, str(Path(env_dir) / 'reqs.csv')
-
-
-def read_environments_from_file(filepath: str) -> List[str]:
-    """Read environment paths from a file, one per line."""
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f'Environment list file not found: {filepath}')
-
-    with open(filepath, 'r') as f:
-        # Read all lines and strip whitespace, skipping empty lines and comments
-        return [
-            line.strip()
-            for line in f.readlines()
-            if line.strip() and not line.strip().startswith('#')
-        ]
-
-
-def expand_environment_args(env_args: List[str]) -> List[str]:
-    """
-    Expand environment arguments, replacing @filepath references with the contents
-    of those files.
-    """
-    expanded_args = []
-    for arg in env_args:
-        if arg.startswith('@'):
-            filepath = arg[1:]  # Remove the @ prefix
-            try:
-                file_envs = read_environments_from_file(filepath)
-                expanded_args.extend(file_envs)
-            except Exception as e:
-                print(f'Error reading environments from file {filepath}: {e}')
-        else:
-            expanded_args.append(arg)
-    return expanded_args
-
-
-def write_env_result(result: EvaluationResult, output_dir: Path) -> None:
-    """Write individual environment results to a JSON file."""
-    env_name = Path(result.environment_path).stem
-    result_path = output_dir / f'{env_name}_result.json'
-    with open(result_path, 'w') as f:
-        json.dump(result.model_dump(by_alias=True), f, indent=2)
-
-
-def get_processed_environments(output_dir: Path) -> set:
-    """Get set of environment names that have already been processed."""
-    return {p.stem.replace('_result', '') for p in output_dir.glob('*_result.json')}
-
-
-def setup_mlflow(mlflow_arg: Tuple[str, str]) -> Optional[Any]:
-    """
-    Set up MLflow tracking for the evaluation.
-
-    Args:
-        mlflow_arg: A tuple of (experiment_name, run_name)
-
-    Returns:
-        The MLflow module if successful, None otherwise
-    """
-    try:
-        import mlflow
-    except ImportError:
-        print('Warning: mlflow is not installed. MLflow tracking is disabled.')
-        return None
-
-    # Set longer timeout for artifact uploads
-    os.environ['MLFLOW_ARTIFACT_UPLOAD_DOWNLOAD_TIMEOUT'] = '1800'
-
-    mlflow_server = os.environ.get('AUTOREQ_MLFLOW_SERVER')
-    # Use server from config if available
-    if mlflow_server:
-        mlflow.set_tracking_uri(mlflow_server)
-
-    experiment_name, run_name = mlflow_arg
-    run_name += f' {datetime.now().strftime("%Y-%m-%d-%H:%M:%S")}'
-
-    # Get or create the experiment
-    experiment = mlflow.get_experiment_by_name(experiment_name)
-    if not experiment:
-        experiment_id = mlflow.create_experiment(experiment_name)
-    else:
-        experiment_id = experiment.experiment_id
-
-    mlflow.set_experiment(experiment_name)
-    mlflow.start_run(run_name=run_name)
-    mlflow.set_tag('mlflow.runName', run_name)
-
-    return mlflow
 
 
 def log_result_to_mlflow(mlflow, result: EvaluationResult, env_name: str) -> None:
@@ -870,115 +929,12 @@ def log_result_to_mlflow(mlflow, result: EvaluationResult, env_name: str) -> Non
     mlflow.log_dict(result.model_dump(by_alias=True), f'{env_artifact_dir}/result.json')
 
 
-async def main():
-    parser = argparse.ArgumentParser(
-        description='Evaluate test generation and verification for given environments.'
-    )
-    parser.add_argument(
-        'env_req_pairs',
-        nargs='+',
-        help='Paths to VectorCAST environment files, optionally followed by :path/to/reqs.csv. '
-        'If no requirements path is specified, looks for reqs.csv in the environment directory. '
-        'You can also use @filepath to include environments listed in a file, one per line.',
-    )
-    parser.add_argument('output_dir', help='Directory to store evaluation results.')
-    parser.add_argument(
-        '--requirement-ids', nargs='*', help='Specific requirement IDs to evaluate.'
-    )
-    parser.add_argument(
-        '--extended-reasoning', action='store_true', help='Use extended reasoning.'
-    )
-    parser.add_argument(
-        '--allow-partial', action='store_true', help='Allow partial test generation.'
-    )
-    parser.add_argument(
-        '--batch-size', type=int, default=4, help='Batch size for test generation.'
-    )
-    parser.add_argument(
-        '--batched', action='store_true', help='Enable batched processing.'
-    )
-    parser.add_argument(
-        '--retries', type=int, default=2, help='Number of retries for test generation.'
-    )
-    parser.add_argument(
-        '--allow-batch-partial',
-        action='store_true',
-        help='Allow partial test generation during batch processing.',
-    )
-    parser.add_argument(
-        '--max-cost',
-        type=float,
-        help='Maximum cost limit in dollar. Processing stops if exceeded.',
-    )
-    parser.add_argument(
-        '--timeout',
-        type=float,
-        default=60.0,
-        help='Maximum time in minutes to wait for environment evaluation (default: 60)',
-    )
-    parser.add_argument(
-        '--no-skip-existing',
-        action='store_true',
-        help='Re-process environments even if they have already been evaluated.',
-    )
-    parser.add_argument(
-        '--mlflow',
-        nargs=2,
-        metavar=('EXPERIMENT_NAME', 'RUN_NAME'),
-        help='Enable MLflow tracking with specified experiment and run name',
-    )
-    parser.add_argument('--filter', nargs='*', help='Filter requirements by tags.')
-    parser.add_argument(
-        '--no-decomposition',
-        action='store_true',
-        help='Do not decompose requirements into atomic parts.',
-    )
-    parser.add_argument(
-        '--min-pruning-lines',
-        type=int,
-        default=1000,
-        help='Minimum number of lines to trigger code context pruning.',
-    )
-    parser.add_argument(
-        '--no-test-examples',
-        action='store_true',
-        help='Do not use test examples from the environment for test generation.',
-    )
-    parser.add_argument(
-        '--individual-decomposition', action='store_true', help=argparse.SUPPRESS
-    )
-    args = parser.parse_args()
-
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Expand environment arguments
-    expanded_env_req_pairs = expand_environment_args(args.env_req_pairs)
-
-    # Set up MLflow if requested
-    mlflow = None
-    if args.mlflow:
-        mlflow = setup_mlflow(args.mlflow)
-        if mlflow:
-            # Log parameters - expanded to include all CLI args
-            params = {k: v for k, v in vars(args).items() if k != 'mlflow'}
-            # Convert lists and other non-string types to strings for MLflow
-            for k, v in params.items():
-                if isinstance(v, list):
-                    params[k] = ','.join(map(str, v))
-                elif not isinstance(v, (str, int, float, bool)):
-                    params[k] = str(v)
-            mlflow.log_params(params)
-
-            # Log information about the environments being processed
-            mlflow.log_param(
-                'environments',
-                ','.join(
-                    [Path(pair.split(':')[0]).stem for pair in expanded_env_req_pairs]
-                ),
-            )
-            mlflow.log_param('num_environments', len(expanded_env_req_pairs))
-
+async def process_envs(
+    output_dir: Path,
+    expanded_env_req_pairs: List[str],
+    args: argparse.Namespace,
+    mlflow,
+):
     # Get already processed environments
     processed_envs = get_processed_environments(output_dir)
 
@@ -1099,6 +1055,105 @@ async def main():
             print(f'WARNING: Evaluation timed out after {args.timeout} minutes')
         env.cleanup()
 
+    return all_results, total_generation_cost, total_cost
+
+
+async def main():
+    parser = argparse.ArgumentParser(
+        description='Evaluate test generation and verification for given environments.'
+    )
+    parser.add_argument(
+        'env_req_pairs',
+        nargs='+',
+        help='Paths to VectorCAST environment files, optionally followed by :path/to/reqs.csv. '
+        'If no requirements path is specified, looks for reqs.csv in the environment directory. '
+        'You can also use @filepath to include environments listed in a file, one per line.',
+    )
+    parser.add_argument('output_dir', help='Directory to store evaluation results.')
+    parser.add_argument(
+        '--requirement-ids', nargs='*', help='Specific requirement IDs to evaluate.'
+    )
+    parser.add_argument(
+        '--extended-reasoning', action='store_true', help='Use extended reasoning.'
+    )
+    parser.add_argument(
+        '--allow-partial', action='store_true', help='Allow partial test generation.'
+    )
+    parser.add_argument(
+        '--batch-size', type=int, default=4, help='Batch size for test generation.'
+    )
+    parser.add_argument(
+        '--batched', action='store_true', help='Enable batched processing.'
+    )
+    parser.add_argument(
+        '--retries', type=int, default=2, help='Number of retries for test generation.'
+    )
+    parser.add_argument(
+        '--allow-batch-partial',
+        action='store_true',
+        help='Allow partial test generation during batch processing.',
+    )
+    parser.add_argument(
+        '--max-cost',
+        type=float,
+        help='Maximum cost limit in dollar. Processing stops if exceeded.',
+    )
+    parser.add_argument(
+        '--timeout',
+        type=float,
+        default=60.0,
+        help='Maximum time in minutes to wait for environment evaluation (default: 60)',
+    )
+    parser.add_argument(
+        '--no-skip-existing',
+        action='store_true',
+        help='Re-process environments even if they have already been evaluated.',
+    )
+    parser.add_argument(
+        '--mlflow',
+        nargs=2,
+        metavar=('EXPERIMENT_NAME', 'RUN_NAME'),
+        help='Enable MLflow tracking with specified experiment and run name',
+    )
+    parser.add_argument('--filter', nargs='*', help='Filter requirements by tags.')
+    parser.add_argument(
+        '--no-decomposition',
+        action='store_true',
+        help='Do not decompose requirements into atomic parts.',
+    )
+    parser.add_argument(
+        '--min-pruning-lines',
+        type=int,
+        default=1000,
+        help='Minimum number of lines to trigger code context pruning.',
+    )
+    parser.add_argument(
+        '--no-test-examples',
+        action='store_true',
+        help='Do not use test examples from the environment for test generation.',
+    )
+    parser.add_argument(
+        '--individual-decomposition', action='store_true', help=argparse.SUPPRESS
+    )
+    args = parser.parse_args()
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Expand environment arguments
+    expanded_env_req_pairs = expand_environment_args(args.env_req_pairs)
+
+    # Set up MLflow if requested
+    mlflow = setup_mlflow(args.mlflow) if args.mlflow else None
+    if mlflow:
+        # Log parameters - expanded to include all CLI args
+        params = {k: v for k, v in vars(args).items() if k != 'mlflow'}
+        setup_mlflow_params(mlflow, params, expanded_env_req_pairs)
+
+    all_results, total_generation_cost, total_cost = await process_envs(
+        output_dir, expanded_env_req_pairs, args, mlflow
+    )
+
     # Log summary metrics to MLflow if enabled
     if mlflow:
         mlflow.log_metric('total_generation_cost', total_generation_cost)
@@ -1110,18 +1165,6 @@ async def main():
     print(f'Total cost: ${total_cost:.2f}')
     for result in all_results:
         print(result)
-
-
-def format_time(seconds):
-    """Format seconds into human-readable time format"""
-    if seconds < 60:
-        return f'{seconds:.2f} seconds'
-    elif seconds < 3600:
-        minutes = seconds / 60
-        return f'{minutes:.2f} minutes'
-    else:
-        hours = seconds / 3600
-        return f'{hours:.2f} hours'
 
 
 def cli():

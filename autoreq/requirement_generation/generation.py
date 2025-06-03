@@ -1,6 +1,5 @@
 import logging
-import re
-from typing import List, Dict, Any, Set, Tuple
+from typing import List, Dict, Any
 from pydantic import BaseModel, create_model
 
 from autoreq.util import get_executable_statement_groups
@@ -268,8 +267,8 @@ The success of this task is critical. If you do not generate exactly one test ca
 """,
             },
         ]
-
-        if num_parts > 50:
+        max_parts = 50
+        if num_parts > max_parts:
             all_requirements = []
             for batch in _batch_items(semantic_parts):
                 current_num_parts = len(batch)

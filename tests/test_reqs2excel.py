@@ -128,7 +128,8 @@ def fake_requirements_dir(tmp_path):
 
 def test_load_requirements_from_gateway(fake_requirements_dir):
     reqs = load_requirements_from_gateway(fake_requirements_dir)
-    assert isinstance(reqs, list) and len(reqs) == 4, (
+    expected_list_length = 4
+    assert isinstance(reqs, list) and len(reqs) == expected_list_length, (
         'load_requirements_from_gateway should return a list of requirements.'
     )
     for req in reqs:
@@ -141,9 +142,9 @@ def test_main_pre_existing_requirements(monkeypatch, envs_dir, real_requirements
     current_workdir = os.getcwd()
     env = next(
         (
-            Path(l.strip())
-            for l in Path(envs_dir, 'batch.txt').read_text().splitlines()
-            if l.strip()
+            Path(_l.strip())
+            for _l in Path(envs_dir, 'batch.txt').read_text().splitlines()
+            if _l.strip()
         )
     )  # no need to test for all envs
 
@@ -168,7 +169,7 @@ def test_main_pre_existing_requirements(monkeypatch, envs_dir, real_requirements
             '--requirements-gateway-path',
             str(reqs_dir.absolute()),
             '--output-file',
-            f'output.xlsx',
+            'output.xlsx',
         ]
         monkeypatch.setattr('sys.argv', test_args)
 
@@ -200,7 +201,7 @@ def test_main_with_rgw_init(monkeypatch, envs_dir, vectorcast_dir):
             '--csv-template',
             f'{vectorcast_dir}/examples/RequirementsGW/CSV_Requirements_For_Tutorial.csv',
             '--output-file',
-            f'output.xlsx',
+            'output.xlsx',
             '--automatic-traceability',
         ]
         monkeypatch.setattr('sys.argv', test_args)
@@ -215,9 +216,9 @@ def test_main_with_rgw_init(monkeypatch, envs_dir, vectorcast_dir):
         check_excel_file_integrity(out_file)
 
         env_dirs = [
-            Path(l.strip()).parent
-            for l in Path('batch.txt').read_text().splitlines()
-            if l.strip()
+            Path(_l.strip()).parent
+            for _l in Path('batch.txt').read_text().splitlines()
+            if _l.strip()
         ]
         requirements = []
         for ed in env_dirs:

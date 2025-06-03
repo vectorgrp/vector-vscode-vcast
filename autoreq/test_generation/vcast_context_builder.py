@@ -64,7 +64,9 @@ class VcastContextBuilder:
         context = self.environment.get_tu_content(
             unit_name=unit_name, reduction_level='medium'
         )  # Pass unit_name
-        if len(context) > 1000000 or len(context.split('\n')) > 1000:
+        max_context = 1000000
+        max_context_lines = 1000
+        if len(context) > max_context or len(context.split('\n')) > max_context_lines:
             context = self.environment.get_tu_content(
                 unit_name=unit_name, reduction_level='high'
             )  # Pass unit_name

@@ -1,17 +1,32 @@
+from __future__ import annotations
+import typing as t
 import re
 import glob
 import os
-import tempfile
-import shutil
-from typing import Any, Callable, List, Optional, Type, List
+from typing import List
+import platform
 from tree_sitter import Language, Parser
 import tree_sitter_cpp as ts_cpp
 
-
-from pydantic import BaseModel, create_model
-
 from collections import Counter
-from pydantic import BaseModel
+import logging
+import shutil
+from pydantic import BaseModel, create_model
+from datetime import datetime
+import json
+import base64
+from typing import Callable, Dict, Optional
+from pathlib import Path
+
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from appdirs import user_cache_dir
+
+from autoreq.constants import APP_NAME
+
+if t.TYPE_CHECKING:
+    from autoreq.llm_client import LLMClient
 
 
 def paths_to_files(paths, file_extensions=['c']):
@@ -44,7 +59,7 @@ def paths_to_files(paths, file_extensions=['c']):
 
 class TempCopy:
     def __init__(
-        self, source_path: str, transform: Optional[Callable[[str], str]] = None
+        self, source_path: str, transform: t.Optional[t.Callable[[str], str]] = None
     ):
         """
         Context manager that creates a temporary copy of a file with optional content transformation.
@@ -100,22 +115,7 @@ def replace_func_and_var(code: str):
     return code
 
 
-import os
-import json
-from typing import Callable, Dict, Optional
-from functools import lru_cache
-from pathlib import Path
-from autoreq.constants import APP_NAME
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import base64
-from appdirs import user_cache_dir
-
-
 def ensure_env(required_keys, fallback, force_fallback=False):
-    global ENV_STORE
-
     result = {}
     for key in required_keys:
         result[key] = ENV_STORE.load(
@@ -152,7 +152,7 @@ class EnvStore:
             try:
                 decrypted = self._fernet.decrypt(encrypted)
                 self._cache = json.loads(decrypted)
-            except:
+            except Exception:
                 self._cache = {}
 
     def _save_cache(self) -> None:
@@ -208,6 +208,119 @@ def parse_code(code):
     root_node = tree.root_node
 
     return root_node
+
+
+def setup_mlflow(mlflow_arg: t.Tuple[str, str]) -> t.Optional[t.Any]:
+    """
+    Set up MLflow tracking for the evaluation.
+
+    Args:
+        mlflow_arg: A tuple of (experiment_name, run_name)
+
+    Returns:
+        The MLflow module if successful, None otherwise
+    """
+    try:
+        import mlflow
+    except ImportError:
+        print('Warning: mlflow is not installed. MLflow tracking is disabled.')
+        return None
+
+    # Set longer timeout for artifact uploads
+    os.environ['MLFLOW_ARTIFACT_UPLOAD_DOWNLOAD_TIMEOUT'] = '1800'
+
+    mlflow_server = os.environ.get('AUTOREQ_MLFLOW_SERVER')
+    # Use server from config if available
+    if mlflow_server:
+        mlflow.set_tracking_uri(mlflow_server)
+
+    experiment_name, run_name = mlflow_arg
+    run_name += f' {datetime.now().strftime("%Y-%m-%d-%H:%M:%S")}'
+
+    mlflow.set_experiment(experiment_name)
+    mlflow.start_run(run_name=run_name)
+    mlflow.set_tag('mlflow.runName', run_name)
+
+    return mlflow
+
+
+def setup_mlflow_params(
+    mlflow, params: t.Dict[str, t.Any], expanded_env_req_pairs
+) -> None:
+    # Convert lists and other non-string types to strings for MLflow
+    for k, v in params.items():
+        if isinstance(v, list):
+            params[k] = ','.join(map(str, v))
+        elif not isinstance(v, (str, int, float, bool)):
+            params[k] = str(v)
+    mlflow.log_params(params)
+
+    # Log information about the environments being processed
+    mlflow.log_param(
+        'environments',
+        ','.join([Path(pair.split(':')[0]).stem for pair in expanded_env_req_pairs]),
+    )
+    mlflow.log_param('num_environments', len(expanded_env_req_pairs))
+
+
+def expand_environment_args(env_args: t.List[str]) -> t.List[str]:
+    """
+    Expand environment arguments, replacing @filepath references with the contents
+    of those files.
+    """
+    expanded_args = []
+    for arg in env_args:
+        if arg.startswith('@'):
+            filepath = arg[1:]  # Remove the @ prefix
+            try:
+                file_envs = read_environments_from_file(filepath)
+                expanded_args.extend(file_envs)
+            except Exception as e:
+                print(f'Error reading environments from file {filepath}: {e}')
+        else:
+            expanded_args.append(arg)
+    return expanded_args
+
+
+def read_environments_from_file(filepath: str) -> t.List[str]:
+    """Read environment paths from a file, one per line."""
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f'Environment list file not found: {filepath}')
+
+    with open(filepath, 'r') as f:
+        # Read all lines and strip whitespace, skipping empty lines and comments
+        return [
+            line.strip()
+            for line in f.readlines()
+            if line.strip() and not line.strip().startswith('#')
+        ]
+
+
+def write_env_result(result, output_dir: Path) -> None:
+    """Write individual environment results to a JSON file."""
+    env_name = Path(result.environment_path).stem
+    result_path = output_dir / f'{env_name}_result.json'
+    with open(result_path, 'w') as f:
+        json.dump(result.model_dump(by_alias=True), f, indent=2)
+
+
+def get_processed_environments(output_dir: Path) -> set:
+    """Get set of environment names that have already been processed."""
+    return {p.stem.replace('_result', '') for p in output_dir.glob('*_result.json')}
+
+
+def format_time(seconds):
+    """Format seconds into human-readable time format"""
+    one_minute = 60
+    one_hour = 3600
+    if seconds < one_minute:
+        return f'{seconds:.2f} seconds'
+    elif seconds < one_hour:
+        minutes = seconds / one_minute
+        return f'{minutes:.2f} minutes'
+    else:
+        hours = seconds / one_hour
+        return f'{hours:.2f} hours'
 
 
 def average_set(sets, threshold_frequency=0.5):
@@ -322,7 +435,7 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
 
     def to_str_position(string, line, column):
         lines = string.split('\n')
-        line_start_index = sum(len(l) + 1 for l in lines[:line])
+        line_start_index = sum(len(_l) + 1 for _l in lines[:line])
 
         return line_start_index + column
 
@@ -540,17 +653,18 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
 async def get_relevant_statement_groups(
     function_body: str,
     requirements: List[str],
-    llm_client: 'LLMClient',
+    llm_client: LLMClient,
     add_related=True,
 ):
     requirements = list(requirements)
     # Split requirements into chunks
-    if len(requirements) > 100:
+    max_requirements_len = 100
+    if len(requirements) > max_requirements_len:
         results_first100 = await get_relevant_statement_groups(
-            function_body, requirements[:100], llm_client
+            function_body, requirements[:max_requirements_len], llm_client
         )
         results_rest = await get_relevant_statement_groups(
-            function_body, requirements[100:], llm_client
+            function_body, requirements[max_requirements_len:], llm_client
         )
         return results_first100 + results_rest
 
@@ -641,6 +755,45 @@ def is_prefix(prefix, lst):
     return len(prefix) <= len(lst) and all(
         prefix[i] == lst[i] for i in range(len(prefix))
     )
+
+
+def get_vectorcast_cmd(executable: str, args: List[str] = None) -> List[str]:
+    """Generate a properly formatted VectorCAST command based on the OS."""
+    is_windows = platform.system() == 'Windows'
+    exe_ext = '.exe' if is_windows else ''
+    exe_name = f'{executable}{exe_ext}'
+
+    # Priority 1: Check VSCODE_VECTORCAST_DIR
+    vscode_vectorcast_dir = os.environ.get('VSCODE_VECTORCAST_DIR')
+    if vscode_vectorcast_dir:
+        exe_path = os.path.join(vscode_vectorcast_dir, exe_name)
+        if os.path.exists(exe_path):
+            logging.debug(
+                f'Using VectorCAST {exe_name} from VSCODE_VECTORCAST_DIR: {exe_path}'
+            )
+            return [exe_path] + (args or [])
+
+    # Priority 2: Check VECTORCAST_DIR
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR')
+    if vectorcast_dir:
+        exe_path = os.path.join(vectorcast_dir, exe_name)
+        if os.path.exists(exe_path):
+            logging.debug(
+                f'Using VectorCAST {exe_name} from VECTORCAST_DIR: {exe_path}'
+            )
+            return [exe_path] + (args or [])
+
+    # Priority 3: Check if executable is available on PATH
+    path_exe = shutil.which(exe_name)
+    if path_exe:
+        logging.debug(f'Using VectorCAST {exe_name} from PATH: {path_exe}')
+        return [path_exe] + (args or [])
+
+    # Fallback: Return VECTORCAST_DIR path even if it doesn't exist
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
+    exe_path = os.path.join(vectorcast_dir, exe_name)
+    logging.debug(f'Falling back to VECTORCAST_DIR (may not exist): {exe_path}')
+    return [exe_path] + (args or [])
 
 
 def sanitize_subprogram_name(subprogram_name: str) -> str:

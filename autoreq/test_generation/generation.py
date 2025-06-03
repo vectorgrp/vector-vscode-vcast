@@ -172,12 +172,11 @@ class TestGenerator:
 
         # Build ATG context
         context_lines = len(context.strip().split('\n'))
-        if context_lines < 200:
+        max_context_lines = 200
+        basis_path = True
+        num_examples = 3
+        if context_lines < max_context_lines:
             num_examples = 1
-            basis_path = True
-        else:
-            num_examples = 3
-            basis_path = True
 
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(
             function_name, k=num_examples, basis_path=basis_path
@@ -511,7 +510,8 @@ Return your answer in the following format:
 
         # Determine number of example test cases based on context length
         context_lines = len(context.strip().split('\n'))
-        if context_lines < 200:
+        max_context_lines = 200
+        if context_lines < max_context_lines:
             num_examples = 1
             basis_path = False
         else:
@@ -724,8 +724,8 @@ An expected value is not required for all identifiers. Only for those relevant t
             index_minima = {}
             index_maxima = {}
             for indices in indices_list:
-                for i, index in enumerate(indices):
-                    i = INDEX_VARIABLE_NAMES[i]
+                for _i, index in enumerate(indices):
+                    i = INDEX_VARIABLE_NAMES[_i]
                     if i not in index_minima:
                         index_minima[i] = index
                         index_maxima[i] = index
@@ -896,10 +896,10 @@ Tip:
                 collecting_error = True
                 continue
             if collecting_error:
+                collecting_error = False
                 if line.startswith('    ') or line.strip() == '':
                     error_lines.append(line)
-                else:
-                    collecting_error = False
+                    collecting_error = True
 
         # Check for compile errors
         compile_error_index = output.find('Compile Failed')

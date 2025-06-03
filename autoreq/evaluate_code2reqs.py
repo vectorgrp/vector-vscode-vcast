@@ -1,27 +1,29 @@
-import json
 import os
 import argparse
 import asyncio
 import logging
-import csv
 import time
+import json
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Any, Dict, Optional, Tuple
 from pydantic import BaseModel, Field, computed_field
 from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
 import traceback
-from datetime import datetime
 
 from autoreq.requirement_generation.generation import RequirementsGenerator
 from autoreq.requirement_verification.verification import RequirementsVerifier
-from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 
 from .requirements_manager import RequirementsManager
-from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment
-from .test_verification.verification import TestVerifier
-from .summary import SummaryEngine
+from .util import (
+    expand_environment_args,
+    setup_mlflow_params,
+    setup_mlflow,
+    get_processed_environments,
+    write_env_result,
+    format_time,
+)
 
 
 class EvaluationResult(BaseModel):
@@ -70,7 +72,7 @@ class EvaluationResult(BaseModel):
         lines.append(f'Average Score: {self.average_score:.4f}')
 
         # Execution Information
-        lines.append(f'\nExecution Information:')
+        lines.append('\nExecution Information:')
         lines.append(f'Execution Time: {format_time(self.execution_time)}')
         if self.timed_out:
             lines.append(
@@ -254,93 +256,6 @@ def parse_env_req_pair(pair: str) -> tuple[str, str]:
         return env_path, str(Path(env_dir) / 'reqs.csv')
 
 
-def read_environments_from_file(filepath: str) -> List[str]:
-    """Read environment paths from a file, one per line."""
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f'Environment list file not found: {filepath}')
-
-    with open(filepath, 'r') as f:
-        # Read all lines and strip whitespace, skipping empty lines and comments
-        return [
-            line.strip()
-            for line in f.readlines()
-            if line.strip() and not line.strip().startswith('#')
-        ]
-
-
-def expand_environment_args(env_args: List[str]) -> List[str]:
-    """
-    Expand environment arguments, replacing @filepath references with the contents
-    of those files.
-    """
-    expanded_args = []
-    for arg in env_args:
-        if arg.startswith('@'):
-            filepath = arg[1:]  # Remove the @ prefix
-            try:
-                file_envs = read_environments_from_file(filepath)
-                expanded_args.extend(file_envs)
-            except Exception as e:
-                print(f'Error reading environments from file {filepath}: {e}')
-        else:
-            expanded_args.append(arg)
-    return expanded_args
-
-
-def write_env_result(result: EvaluationResult, output_dir: Path) -> None:
-    """Write individual environment results to a JSON file."""
-    env_name = Path(result.environment_path).stem
-    result_path = output_dir / f'{env_name}_result.json'
-    with open(result_path, 'w') as f:
-        json.dump(result.model_dump(by_alias=True), f, indent=2)
-
-
-def get_processed_environments(output_dir: Path) -> set:
-    """Get set of environment names that have already been processed."""
-    return {p.stem.replace('_result', '') for p in output_dir.glob('*_result.json')}
-
-
-def setup_mlflow(mlflow_arg: Tuple[str, str]) -> Optional[Any]:
-    """
-    Set up MLflow tracking for the evaluation.
-
-    Args:
-        mlflow_arg: A tuple of (experiment_name, run_name)
-
-    Returns:
-        The MLflow module if successful, None otherwise
-    """
-    try:
-        import mlflow
-    except ImportError:
-        print('Warning: mlflow is not installed. MLflow tracking is disabled.')
-        return None
-
-    # Set longer timeout for artifact uploads
-    os.environ['MLFLOW_ARTIFACT_UPLOAD_DOWNLOAD_TIMEOUT'] = '1800'
-
-    mlflow_server = os.environ.get('AUTOREQ_MLFLOW_SERVER')
-    # Use server from config if available
-    if mlflow_server:
-        mlflow.set_tracking_uri(mlflow_server)
-
-    experiment_name, run_name = mlflow_arg
-    run_name += f' {datetime.now().strftime("%Y-%m-%d-%H:%M:%S")}'
-
-    # Get or create the experiment
-    experiment = mlflow.get_experiment_by_name(experiment_name)
-    if not experiment:
-        experiment_id = mlflow.create_experiment(experiment_name)
-    else:
-        experiment_id = experiment.experiment_id
-
-    mlflow.set_experiment(experiment_name)
-    mlflow.start_run(run_name=run_name)
-    mlflow.set_tag('mlflow.runName', run_name)
-
-    return mlflow
-
-
 def log_result_to_mlflow(mlflow, result: EvaluationResult, env_name: str) -> None:
     """Log environment evaluation results to MLflow."""
     if not mlflow:
@@ -368,89 +283,22 @@ def log_result_to_mlflow(mlflow, result: EvaluationResult, env_name: str) -> Non
     mlflow.log_dict(result.model_dump(by_alias=True), f'{env_artifact_dir}/result.json')
 
 
-async def main():
-    parser = argparse.ArgumentParser(
-        description='Evaluate test generation and verification for given environments.'
-    )
-    parser.add_argument(
-        'env_req_pairs',
-        nargs='+',
-        help='Paths to VectorCAST environment files, optionally followed by :path/to/reqs.csv. '
-        'If no requirements path is specified, looks for reqs.csv in the environment directory. '
-        'You can also use @filepath to include environments listed in a file, one per line.',
-    )
-    parser.add_argument('output_dir', help='Directory to store evaluation results.')
-    parser.add_argument(
-        '--extended-reasoning', action='store_true', help='Use extended reasoning.'
-    )
-    parser.add_argument(
-        '--combine-related-requirements',
-        action='store_true',
-        help='Combine related requirements into a single requirement after initial generation.',
-    )
-    parser.add_argument(
-        '--max-cost',
-        type=float,
-        help='Maximum cost limit in dollar. Processing stops if exceeded.',
-    )
-    parser.add_argument(
-        '--timeout',
-        type=float,
-        default=30.0,
-        help='Maximum time in minutes to wait for environment evaluation (default: 30)',
-    )
-    parser.add_argument(
-        '--no-skip-existing',
-        action='store_true',
-        help='Re-process environments even if they have already been evaluated.',
-    )
-    parser.add_argument(
-        '--mlflow',
-        nargs=2,
-        metavar=('EXPERIMENT_NAME', 'RUN_NAME'),
-        help='Enable MLflow tracking with specified experiment and run name',
-    )
-    args = parser.parse_args()
-
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Expand environment arguments
-    expanded_env_req_pairs = expand_environment_args(args.env_req_pairs)
-
-    # Set up MLflow if requested
-    mlflow = None
-    if args.mlflow:
-        mlflow = setup_mlflow(args.mlflow)
-        if mlflow:
-            # Log parameters - expanded to include all CLI args
-            params = {k: v for k, v in vars(args).items() if k != 'mlflow'}
-            # Convert lists and other non-string types to strings for MLflow
-            for k, v in params.items():
-                if isinstance(v, list):
-                    params[k] = ','.join(map(str, v))
-                elif not isinstance(v, (str, int, float, bool)):
-                    params[k] = str(v)
-            mlflow.log_params(params)
-
-            # Log information about the environments being processed
-            mlflow.log_param(
-                'environments',
-                ','.join(
-                    [Path(pair.split(':')[0]).stem for pair in expanded_env_req_pairs]
-                ),
-            )
-            mlflow.log_param('num_environments', len(expanded_env_req_pairs))
-
+async def process_envs(
+    output_dir: Path,
+    expanded_env_req_pairs: List[str],
+    args: argparse.Namespace,
+    mlflow,
+) -> Tuple[List[EvaluationResult], float, float]:
     # Get already processed environments
     processed_envs = get_processed_environments(output_dir)
 
     all_results = []
     total_generation_cost = 0.0
     total_cost = 0.0
+
     env_pbar = tqdm(expanded_env_req_pairs, desc='Processing environments')
     for pair in env_pbar:
-        if args.max_cost and total_cost >= args.max_cost:
+        if total_cost >= args.max_cost:
             print(
                 f'\nStopping: Cost limit of ${args.max_cost:.2f} reached (current: ${total_cost:.2f})'
             )
@@ -511,6 +359,75 @@ async def main():
             print(f'WARNING: Evaluation timed out after {args.timeout} minutes')
         env.cleanup()
 
+    return all_results, total_generation_cost, total_cost
+
+
+async def main():
+    parser = argparse.ArgumentParser(
+        description='Evaluate test generation and verification for given environments.'
+    )
+    parser.add_argument(
+        'env_req_pairs',
+        nargs='+',
+        help='Paths to VectorCAST environment files, optionally followed by :path/to/reqs.csv. '
+        'If no requirements path is specified, looks for reqs.csv in the environment directory. '
+        'You can also use @filepath to include environments listed in a file, one per line.',
+    )
+    parser.add_argument('output_dir', help='Directory to store evaluation results.')
+    parser.add_argument(
+        '--extended-reasoning', action='store_true', help='Use extended reasoning.'
+    )
+    parser.add_argument(
+        '--combine-related-requirements',
+        action='store_true',
+        help='Combine related requirements into a single requirement after initial generation.',
+    )
+    parser.add_argument(
+        '--max-cost',
+        type=float,
+        help='Maximum cost limit in dollar. Processing stops if exceeded.',
+        default=float('inf'),
+    )
+    parser.add_argument(
+        '--timeout',
+        type=float,
+        default=30.0,
+        help='Maximum time in minutes to wait for environment evaluation (default: 30)',
+    )
+    parser.add_argument(
+        '--no-skip-existing',
+        action='store_true',
+        help='Re-process environments even if they have already been evaluated.',
+    )
+    parser.add_argument(
+        '--mlflow',
+        nargs=2,
+        metavar=('EXPERIMENT_NAME', 'RUN_NAME'),
+        help='Enable MLflow tracking with specified experiment and run name',
+    )
+    args = parser.parse_args()
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Expand environment arguments
+    expanded_env_req_pairs = expand_environment_args(args.env_req_pairs)
+
+    # Set up MLflow if requested
+    mlflow = setup_mlflow(args.mlflow) if args.mlflow else None
+    if mlflow:
+        # Log parameters - expanded to include all CLI args
+        params = {k: v for k, v in vars(args).items() if k != 'mlflow'}
+        setup_mlflow_params(mlflow, params, expanded_env_req_pairs)
+
+    # Process environments
+    all_results, total_generation_cost, total_cost = await process_envs(
+        output_dir,
+        expanded_env_req_pairs,
+        args,
+        mlflow,
+    )
+
     # Log summary metrics to MLflow if enabled
     if mlflow:
         mlflow.log_metric('total_generation_cost', total_generation_cost)
@@ -522,18 +439,6 @@ async def main():
     print(f'Total cost: ${total_cost:.2f}')
     for result in all_results:
         print(result)
-
-
-def format_time(seconds):
-    """Format seconds into human-readable time format"""
-    if seconds < 60:
-        return f'{seconds:.2f} seconds'
-    elif seconds < 3600:
-        minutes = seconds / 60
-        return f'{minutes:.2f} minutes'
-    else:
-        hours = seconds / 3600
-        return f'{hours:.2f} hours'
 
 
 def cli():

@@ -221,11 +221,11 @@ def _merge_decompositions(decompositions, threshold_frequency=0.5):
         for req_idx, atomic_reqs in enumerate(decomposition_attempt):
             if len(atomic_reqs) > 1:
                 # This requirement was decomposed into multiple atomic requirements
-                non_trivial_decompositions[req_idx] = decomposition_attempt[req_idx]
+                non_trivial_decompositions[req_idx] = atomic_reqs
                 decomposed_requirements_by_attempt[attempt_idx].append(req_idx)
             else:
                 # This requirement was kept as-is
-                trivial_decompositions[req_idx] = decomposition_attempt[req_idx]
+                trivial_decompositions[req_idx] = atomic_reqs
 
     # Step 2: Find requirements that were frequently decomposed across multiple attempts
     # (using the specified threshold frequency)

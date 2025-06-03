@@ -52,32 +52,6 @@ class GenericValueMapping(BaseModel):
             return f'{prefix}:{patched_identifier}:{self.value}\n', False
         return f'{prefix}:{patched_identifier}:{self.value}\n'
 
-    # handling cython issues with properties
-    needed_stub_as_input: ClassVar[property]
-
-    @property
-    def needed_stub_as_input(self):
-        return_match = re.match(
-            r'([^\.]+\.[^\.]+).*\.return', self.identifier, re.IGNORECASE
-        )
-
-        if return_match:
-            return return_match.group(1)
-        else:
-            return None
-
-    # handling cython issues with properties
-    needed_stub_as_expected: ClassVar[property]
-
-    @property
-    def needed_stub_as_expected(self):
-        match = re.match(r'([^\.]+\.[^\.]+)', self.identifier)
-
-        if match:
-            return match.group(1)
-        else:
-            return None
-
 
 class GenericTestCase(BaseModel):
     """Base class for test cases with dynamic value mapping types"""
@@ -179,38 +153,26 @@ class GenericTestCase(BaseModel):
         return test_case_str
 
     def _get_needed_stubs(self):
+        self_sanitized_name = sanitize_subprogram_name(self.subprogram_name)
+        self_sanitized_name = self_sanitized_name.split('::')[-1]
+
         needed_stubs = set()
-        for input_value in self.input_values:
-            stub = input_value.needed_stub_as_input
+        for value in self.input_values + self.expected_values:
+            unit_name, subprogram_name = value.identifier.split('.')[:2]
 
-            if not stub:
-                continue
-
-            unit_name, subprogram_name = stub.split('.', 1)
+            if unit_name == 'uut_prototype_stubs':
+                pass  # Add stubs for these functions too for now (could technically be removed)
 
             if subprogram_name == '<<GLOBAL>>':
                 continue
 
-            subprogram_name = sanitize_subprogram_name(subprogram_name)
-            if subprogram_name.endswith(self.subprogram_name):
+            sanitized_subprogram_name = sanitize_subprogram_name(subprogram_name)
+            sanitized_subprogram_name = sanitized_subprogram_name.split('::')[-1]
+
+            if sanitized_subprogram_name == self_sanitized_name:
                 continue
 
-            needed_stubs.add(stub)
-
-        for expected_value in self.expected_values:
-            stub = expected_value.needed_stub_as_expected
-
-            if not stub:
-                continue
-
-            unit_name, subprogram_name = stub.split('.', 1)
-
-            if subprogram_name == '<<GLOBAL>>':
-                continue
-
-            subprogram_name = sanitize_subprogram_name(subprogram_name)
-            if subprogram_name.endswith(self.subprogram_name):
-                continue
+            stub = f'{unit_name}.{subprogram_name}'
 
             needed_stubs.add(stub)
 

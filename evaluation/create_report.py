@@ -1,15 +1,17 @@
 import glob
-import json
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
-from autoreq.evaluate_reqs2tests import EvaluationResult
 from pathlib import Path
-import numpy as np
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 import argparse
+
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from autoreq.evaluate_reqs2tests import EvaluationResult
+from autoreq.util import format_time
+
 
 # Default paths when running as main script
 DEFAULT_RESULT_FOLDER = 'results/piinnovo'
@@ -205,17 +207,19 @@ def create_histogram(data: List[float], title: str, xlabel: str, figsize=(6, 4))
     return f'<img src="data:image/png;base64,{img_str}" alt="{title}" />'
 
 
-def format_metric(value: Any) -> str:
+def format_metric(
+    value: Any, min_decimal_metric=0.01, max_decimal_metric=1, max_metrics=5
+) -> str:
     """Format a metric value for display"""
     if isinstance(value, float):
-        if value < 0.01:
+        if value < min_decimal_metric:
             return f'{value:.6f}'
-        elif value < 1:
+        elif value < max_decimal_metric:
             return f'{value:.4f}'
         else:
             return f'{value:.2f}'
     elif isinstance(value, list):
-        return f'[{", ".join([format_metric(v) for v in value[:5]])}{"..." if len(value) > 5 else ""}]'
+        return f'[{", ".join([format_metric(v) for v in value[:max_metrics]])}{"..." if len(value) > max_metrics else ""}]'
     else:
         return str(value)
 
@@ -1055,18 +1059,6 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
         + js_section
         + html_footer
     )
-
-
-def format_time(seconds):
-    """Format seconds into human-readable time format"""
-    if seconds < 60:
-        return f'{seconds:.2f} seconds'
-    elif seconds < 3600:
-        minutes = seconds / 60
-        return f'{minutes:.2f} minutes'
-    else:
-        hours = seconds / 3600
-        return f'{hours:.2f} hours'
 
 
 def create_report(result_folder: str, report_path: str):

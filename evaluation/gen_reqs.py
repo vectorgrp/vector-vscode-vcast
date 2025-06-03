@@ -9,7 +9,6 @@ from tqdm import tqdm
 
 from dotenv import load_dotenv
 
-from autoreq.test_generation.environment import Environment
 from autoreq.code2reqs import main as gen_reqs
 
 load_dotenv()
@@ -33,7 +32,7 @@ async def gen_requirements(env_path, allow_existing=False):
             export_html=reqs_html_path,
             export_line_number=True,
         )
-    except:
+    except Exception:
         import traceback
 
         traceback.print_exc()

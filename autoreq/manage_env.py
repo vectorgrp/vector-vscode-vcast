@@ -1,3 +1,4 @@
+import sys
 import argparse
 import json
 from autoreq.util import ENV_STORE
@@ -36,14 +37,14 @@ def cli():
             print(value)
         except KeyError:
             print(f'No value found for {args.key}')
-            exit(1)
+            sys.exit(1)
 
     elif args.command == 'list':
         try:
             print(json.dumps(ENV_STORE._cache, indent=2))
         except Exception as e:
             print(json.dumps({'error': str(e)}))
-            exit(1)
+            sys.exit(1)
 
     elif args.command == 'clear':
         ENV_STORE.clear()

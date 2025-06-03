@@ -8,15 +8,12 @@ import subprocess
 import tempfile
 import asyncio
 import logging
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
+from openpyxl import Workbook
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
 from autoreq.requirements_manager import RequirementsManager
-from autoreq.util import ensure_env
-from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 
 from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
@@ -169,7 +166,8 @@ def execute_command(command_list):
             command_list,
             capture_output=True,
             text=True,
-            shell=False,  # More secure
+            shell=False,
+            check=False,  # More secure
         )
         if result.returncode != 0:
             logging.error(f'Error executing command: {" ".join(command_list)}')

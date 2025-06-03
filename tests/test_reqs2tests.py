@@ -1,14 +1,10 @@
 import os
-import json
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, AsyncMock
 
 import pytest
 
 from autoreq.reqs2tests import cli
-from autoreq.test_generation.environment import Environment
-from autoreq.replay import RequestReplay
 from .utils import copy_folder
 
 

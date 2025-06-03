@@ -1,7 +1,7 @@
 import json
 import logging
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List
 
 from ..llm_client import LLMClient
 from ..test_generation.environment import Environment

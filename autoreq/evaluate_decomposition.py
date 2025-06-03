@@ -87,16 +87,16 @@ async def evaluate_decomposition(rm, true_labels, iter=10, **kwargs):
     )
 
     # Aggregate results (and calculate stddev+confidence intervals)
-    aggregated_results = {
+    _aggregated_results = {
         'precision': sum(result['precision'] for result in results) / iter,
         'recall': sum(result['recall'] for result in results) / iter,
         'f1_score': sum(result['f1_score'] for result in results) / iter,
         'accuracy': sum(result['accuracy'] for result in results) / iter,
     }
+    aggregated_results = {}
 
     # Calculate standard deviation for each metric
-    for key in aggregated_results:
-        mean = aggregated_results[key]
+    for key, mean in _aggregated_results.items():
         variance = sum((result[key] - mean) ** 2 for result in results) / iter
         stddev = variance**0.5
         confidence_interval = 1.96 * (stddev / (iter**0.5))

@@ -3,10 +3,6 @@ import typing as t
 from pathlib import Path
 import json
 
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
-from openpyxl.worksheet.datavalidation import DataValidation
-from openpyxl.utils import get_column_letter
 
 from .code2reqs import execute_rgw_commands, save_requirements_to_excel
 from .test_generation.environment import Environment
@@ -106,10 +102,10 @@ def requirements_to_xlsx(
             )
             pass
 
-        for env_file_path, requirements_info in requirements_info.items():
+        for env_file_path, _requirements_info in requirements_info.items():
             environment: Environment = env_path_to_env[env_file_path]
             format_env_requirements(
-                requirements_info,
+                _requirements_info,
                 reqs2code_mapping[env_file_path],
                 formatted_requirements,
                 environment,

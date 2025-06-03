@@ -46,16 +46,16 @@ class Reqs2CodeMapper:
         # rough estimate, as Patrick had some issues with tiktoken and pyinstaller
 
         estimated_num_tokens = len(task_prompt) // 4
-        if estimated_num_tokens > 14000:
+        max_num_tokens = 14000
+        if estimated_num_tokens > max_num_tokens:
             final_instruction_text = """ This task is critical, make sure to give the best possible answer.
         Format your output according to the following pydantic model
         class CorrespondingFunction(BaseModel):
             reasoning: str
             corresponding_function: str
         """
-            task_prompt = task_prompt[: 14000 * 4] + final_instruction_text
+            task_prompt = task_prompt[: max_num_tokens * 4] + final_instruction_text
 
-        corresponding_function = ''
         try:
             message: CorrespondingFunction = await self.current_llm_client.call_model(
                 messages=[
