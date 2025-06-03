@@ -28,6 +28,7 @@ base_requirements = [
     'openpyxl==3.1.5',
     'httpx==0.27.2',
     'instructor==1.7.0',
+    'beautifulsoup4==4.13.4',
 ]
 
 dev_requirements = [

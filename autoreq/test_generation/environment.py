@@ -12,7 +12,7 @@ import logging
 import charset_normalizer
 import platform
 
-from autoreq.util import prune_code, sanitize_subprogram_name
+from autoreq.util import prune_code, sanitize_subprogram_name, get_vectorcast_cmd
 
 from autoreq.constants import TEST_COVERAGE_SCRIPT_PATH
 
@@ -65,17 +65,6 @@ class TestCase:
         return f'{self.unit_name}.{self.subprogram_name}.{self.test_name}'
 
 
-def _get_vectorcast_cmd(executable: str, args: List[str] = None) -> List[str]:
-    """Generate a properly formatted VectorCAST command based on the OS."""
-    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
-    is_windows = platform.system() == 'Windows'
-    sep = '\\' if is_windows else '/'
-    exe_ext = '.exe' if is_windows else ''
-
-    exe_path = f'{vectorcast_dir}{sep}{executable}{exe_ext}'
-    return [exe_path] + (args or [])
-
-
 class Environment:
     def __init__(self, env_file_path: str, use_sandbox: bool = True):
         env_file_path = os.path.abspath(env_file_path)
@@ -109,7 +98,7 @@ class Environment:
 
     def build(self):
         env_name = self.env_name
-        cmd = _get_vectorcast_cmd('enviroedg', [f'{env_name}.env'])
+        cmd = get_vectorcast_cmd('enviroedg', [f'{env_name}.env'])
 
         env_vars = os.environ.copy()
         env_vars['VCAST_FORCE_OVERWRITE_ENV_DIR'] = '1'
@@ -160,7 +149,7 @@ class Environment:
             return output
 
     def _get_coverage_info(self, tests: TestCase) -> Optional[dict]:
-        cmd = _get_vectorcast_cmd(
+        cmd = get_vectorcast_cmd(
             'vpython',
             [
                 str(TEST_COVERAGE_SCRIPT_PATH),
@@ -209,12 +198,12 @@ class Environment:
         tests = self.parse_test_script(tst_file_path)
 
         commands = [
-            _get_vectorcast_cmd(
+            get_vectorcast_cmd(
                 'clicast',
                 ['-lc', '-e', self.env_name, 'Test', 'Script', 'Run', tst_file_path],
             ),
             *[
-                _get_vectorcast_cmd(
+                get_vectorcast_cmd(
                     'clicast',
                     [
                         '-lc',
@@ -235,7 +224,7 @@ class Environment:
         ]
 
         removal_commands = [
-            _get_vectorcast_cmd(
+            get_vectorcast_cmd(
                 'clicast',
                 [
                     '-lc',
@@ -319,7 +308,7 @@ class Environment:
         # Run the command to generate the test script template
         env_vars = os.environ.copy()
 
-        cmd = _get_vectorcast_cmd(
+        cmd = get_vectorcast_cmd(
             'clicast', ['-e', env_name, 'test', 'script', 'template', tst_file_path]
         )
 
@@ -517,7 +506,7 @@ class Environment:
         env_name = self.env_name
         # First try with baselining
         atg_file = self._get_temporary_file_path('atg_for_regular_use.tst')
-        cmd = _get_vectorcast_cmd('atg', ['-e', env_name, '--baselining', atg_file])
+        cmd = get_vectorcast_cmd('atg', ['-e', env_name, '--baselining', atg_file])
         env_vars = os.environ.copy()
 
         try:
@@ -533,7 +522,7 @@ class Environment:
         except subprocess.TimeoutExpired:
             logging.warning('ATG with baselining timed out, trying without baselining')
             # Retry without baselining
-            cmd = _get_vectorcast_cmd('atg', ['-e', env_name, atg_file])
+            cmd = get_vectorcast_cmd('atg', ['-e', env_name, atg_file])
             try:
                 result = subprocess.run(
                     cmd,
@@ -563,7 +552,7 @@ class Environment:
         # Generate atg file if not already generated
         atg_file = self._get_temporary_file_path('atg_for_coverage.tst')
 
-        cmd = _get_vectorcast_cmd('atg', ['-e', self.env_name, atg_file])
+        cmd = get_vectorcast_cmd('atg', ['-e', self.env_name, atg_file])
         try:
             result = subprocess.run(
                 cmd,
@@ -591,7 +580,7 @@ class Environment:
     def basis_path_tests(self) -> List[str]:
         env_name = self.env_name
         basis_test_file = self._get_temporary_file_path('basis.tst')
-        cmd = _get_vectorcast_cmd(
+        cmd = get_vectorcast_cmd(
             'clicast', ['-e', env_name, 'tool', 'auto_test', basis_test_file]
         )
         env_vars = os.environ.copy()

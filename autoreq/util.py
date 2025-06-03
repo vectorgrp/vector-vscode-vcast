@@ -3,6 +3,7 @@ import glob
 import os
 import tempfile
 import shutil
+import platform
 from typing import Any, Callable, List, Optional, Type, List
 from tree_sitter import Language, Parser
 import tree_sitter_cpp as ts_cpp
@@ -638,6 +639,17 @@ def is_prefix(prefix, lst):
     return len(prefix) <= len(lst) and all(
         prefix[i] == lst[i] for i in range(len(prefix))
     )
+
+
+def get_vectorcast_cmd(executable: str, args: List[str] = None) -> List[str]:
+    """Generate a properly formatted VectorCAST command based on the OS."""
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
+    is_windows = platform.system() == 'Windows'
+    sep = '\\' if is_windows else '/'
+    exe_ext = '.exe' if is_windows else ''
+
+    exe_path = f'{vectorcast_dir}{sep}{executable}{exe_ext}'
+    return [exe_path] + (args or [])
 
 
 def sanitize_subprogram_name(subprogram_name: str) -> str:
