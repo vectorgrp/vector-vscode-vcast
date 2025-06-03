@@ -9,6 +9,8 @@ from tree_sitter import Language, Parser
 import tree_sitter_cpp as ts_cpp
 
 from collections import Counter
+import logging
+import shutil
 from pydantic import BaseModel, create_model
 from datetime import datetime
 import json
@@ -754,12 +756,40 @@ def is_prefix(prefix, lst):
 
 def get_vectorcast_cmd(executable: str, args: List[str] = None) -> List[str]:
     """Generate a properly formatted VectorCAST command based on the OS."""
-    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
     is_windows = platform.system() == 'Windows'
-    sep = '\\' if is_windows else '/'
     exe_ext = '.exe' if is_windows else ''
+    exe_name = f'{executable}{exe_ext}'
 
-    exe_path = f'{vectorcast_dir}{sep}{executable}{exe_ext}'
+    # Priority 1: Check VSCODE_VECTORCAST_DIR
+    vscode_vectorcast_dir = os.environ.get('VSCODE_VECTORCAST_DIR')
+    if vscode_vectorcast_dir:
+        exe_path = os.path.join(vscode_vectorcast_dir, exe_name)
+        if os.path.exists(exe_path):
+            logging.debug(
+                f'Using VectorCAST {exe_name} from VSCODE_VECTORCAST_DIR: {exe_path}'
+            )
+            return [exe_path] + (args or [])
+
+    # Priority 2: Check VECTORCAST_DIR
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR')
+    if vectorcast_dir:
+        exe_path = os.path.join(vectorcast_dir, exe_name)
+        if os.path.exists(exe_path):
+            logging.debug(
+                f'Using VectorCAST {exe_name} from VECTORCAST_DIR: {exe_path}'
+            )
+            return [exe_path] + (args or [])
+
+    # Priority 3: Check if executable is available on PATH
+    path_exe = shutil.which(exe_name)
+    if path_exe:
+        logging.debug(f'Using VectorCAST {exe_name} from PATH: {path_exe}')
+        return [path_exe] + (args or [])
+
+    # Fallback: Return VECTORCAST_DIR path even if it doesn't exist
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
+    exe_path = os.path.join(vectorcast_dir, exe_name)
+    logging.debug(f'Falling back to VECTORCAST_DIR (may not exist): {exe_path}')
     return [exe_path] + (args or [])
 
 

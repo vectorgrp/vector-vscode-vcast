@@ -246,56 +246,63 @@ class Environment:
 
         output = ''
         env_vars = os.environ.copy()
-        # Execute the commands using subprocess and capture the outputs
-        for cmd in commands:
-            try:
-                result = subprocess.run(
-                    cmd,
-                    cwd=self.env_dir,
-                    env=env_vars,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=30,
-                    check=False,
-                )
-            except subprocess.TimeoutExpired:
-                logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
 
-            logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
-            logging.debug('Command: %s Return code: %s', cmd, result.returncode)
+        try:
+            # Execute the commands using subprocess and capture the outputs
+            for cmd in commands:
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        cwd=self.env_dir,
+                        env=env_vars,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        timeout=30,
+                        check=False,
+                    )
+                except subprocess.TimeoutExpired:
+                    logging.error(
+                        f"Command '{' '.join(cmd)}' timed out after 30 seconds"
+                    )
+
+                logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
+                logging.debug('Command: %s Return code: %s', cmd, result.returncode)
 
             # TODO: Maybe add special output if timed out?
             output += result.stdout
 
-        if with_coverage:
-            coverage_data = self._get_coverage_info(tests)
-            output = (output, coverage_data)
+            if with_coverage:
+                coverage_data = self._get_coverage_info(tests)
+                output = (output, coverage_data)
 
-        if post_run_callback and callable(post_run_callback):
-            try:
-                post_run_callback()
-            except Exception as e:
-                logging.error(f'Error during post_run_callback: {e}')
+            if post_run_callback and callable(post_run_callback):
+                try:
+                    post_run_callback()
+                except Exception as e:
+                    logging.error(f'Error during post_run_callback: {e}')
 
-        # Remove the test cases
-        for cmd in removal_commands:
-            try:
-                result = subprocess.run(
-                    cmd,
-                    cwd=self.env_dir,
-                    env=env_vars,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=30,
-                    check=False,
-                )
-            except subprocess.TimeoutExpired:
-                logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
+        finally:
+            # Remove the test cases - this will always execute
+            for cmd in removal_commands:
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        cwd=self.env_dir,
+                        env=env_vars,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        timeout=30,
+                        check=False,
+                    )
+                except subprocess.TimeoutExpired:
+                    logging.error(
+                        f"Command '{' '.join(cmd)}' timed out after 30 seconds"
+                    )
 
-            logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
-            logging.debug('Command: %s Return code: %s', cmd, result.returncode)
+                logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
+                logging.debug('Command: %s Return code: %s', cmd, result.returncode)
 
         return output
 
