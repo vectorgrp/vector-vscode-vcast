@@ -814,7 +814,7 @@ class Environment:
                 # This is a bit less robust if there are files with the same name in different directories
                 # (compared to checking the entire path)
                 # However it gets around issues of moving environments around without forcing the user to rebuild
-                if Path(file_path_in_marker).stem == Path(unit_path).stem:
+                if Path(file_path_in_marker).name == Path(unit_path).name:
                     in_relevant_context = True
                 elif (
                     match.group(1).startswith('vcast_preprocess')

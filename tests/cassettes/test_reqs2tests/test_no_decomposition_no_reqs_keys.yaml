@@ -107,33 +107,34 @@ interactions:
       of one test does not influence the execution of others.\n- Unless a function
       is called inside the checked subprogram their identifiers are not updated and
       should not be used as expected values.\n- All function calls from external files,
-      i.e, those referenced with `uut_prototype_stubs` are stubbed and do not implement
-      any behaviour. Setting their input values has no effect on their output values
-      (instead default values are output unless you specify values for them).\n- If
-      the return value of a called function is set as an input, the function will
-      be stubbed during execution and not implement any behaviour. In this case it
-      is forbidden to also expect the return value to equal something (it won''t as
-      the function will be stubbed). If necessary for pointer-related work: Look for
-      global variables to access what you need instead\n- In general any value not
-      set (input of course), will fall back to a default value. However this should
-      be avoided to prevent undefined behaviour. This means all input variables (and
-      outputs of stubbed values) should be exhaustively described.\n- In particular,
-      to access methods of a class and set values it is imperative to first instantiate
-      the class using a constructor. For all classes a default object is ready to
-      be initialized if needed using the respective constructor.\n- Do not set an
-      identifier multiple times, it just results in overriding of the previous value\n-
-      It is currently hard/impossible to test values written to pointers. If you encounter
-      them, fall back to testing simpler partial things like return values (or just
-      specifying no expected values)\n\n## Examples\n\nLet''s consider a more complex
-      C++ code snippet in a file named `data_processor.cpp`:\n\n```cpp\n// File: data_processor.cpp\n//
-      Unit: data_processor\n\ntypedef struct {\n    int id;\n    float value;\n    char
-      status;\n} DataRecord;\n\ntypedef enum {\n    MODE_NORMAL = 0,\n    MODE_DEBUG
-      = 1,\n    MODE_ERROR = 2\n} ProcessingMode;\n\n// External function declarations\nextern
-      int validate_record(DataRecord* record);\nextern void log_error(const char*
-      message);\nextern DataRecord* allocate_buffer(int size);\n\nProcessingMode current_mode
-      = MODE_NORMAL;\n\nint process_data_array(DataRecord* input_array, int array_size,
-      DataRecord** output_array) {\n    if (input_array == NULL || array_size <= 0)
-      {\n        if (current_mode == MODE_DEBUG) {\n            log_error(\"Invalid
+      i.e, those referenced with `uut_prototype_stubs` are stubbed automatically and
+      do not implement any behaviour. Setting their input values has no effect on
+      their output values (instead default values are output unless you specify values
+      for them).\n- If any of the parameters or return value of a called function
+      (which is not automatically stubbed as outlined above) are set or expected to
+      be some value using an identifier, the function will be stubbed during execution
+      and not implement any behaviour. In this case it is forbidden to also expect
+      the return value to equal something (it won''t as the function will be stubbed).
+      If necessary for pointer-related work: Look for global variables to access what
+      you need instead\n- In general any value not set (input of course), will fall
+      back to a default value. However this should be avoided to prevent undefined
+      behaviour. This means all input variables (and outputs of stubbed values) should
+      be exhaustively described.\n- In particular, to access methods of a class and
+      set values it is imperative to first instantiate the class using a constructor.
+      For all classes a default object is ready to be initialized if needed using
+      the respective constructor.\n- Do not set an identifier multiple times, it just
+      results in overriding of the previous value\n- It is currently hard/impossible
+      to test values written to pointers. If you encounter them, fall back to testing
+      simpler partial things like return values (or just specifying no expected values)\n\n##
+      Examples\n\nLet''s consider a more complex C++ code snippet in a file named
+      `data_processor.cpp`:\n\n```cpp\n// File: data_processor.cpp\n// Unit: data_processor\n\ntypedef
+      struct {\n    int id;\n    float value;\n    char status;\n} DataRecord;\n\ntypedef
+      enum {\n    MODE_NORMAL = 0,\n    MODE_DEBUG = 1,\n    MODE_ERROR = 2\n} ProcessingMode;\n\n//
+      External function declarations\nextern int validate_record(DataRecord* record);\nextern
+      void log_error(const char* message);\nextern DataRecord* allocate_buffer(int
+      size);\n\nProcessingMode current_mode = MODE_NORMAL;\n\nint process_data_array(DataRecord*
+      input_array, int array_size, DataRecord** output_array) {\n    if (input_array
+      == NULL || array_size <= 0) {\n        if (current_mode == MODE_DEBUG) {\n            log_error(\"Invalid
       input parameters\");\n        }\n        return -1;\n    }\n    \n    // Allocate
       output buffer\n    *output_array = allocate_buffer(array_size);\n    if (*output_array
       == NULL) {\n        log_error(\"Memory allocation failed\");\n        return
@@ -330,7 +331,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '27703'
+      - '27831'
       content-type:
       - application/json
       host:
@@ -362,37 +363,35 @@ interactions:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_description\":\"To
         test the requirement that CAKE is included as the dessert when the order consists
         of LOBSTER as the entree, GREEN as the salad, and WINE as the beverage, we
-        need to set up an order with these specific values. The function should then
+        need to create an order with these specific values. The function should then
         set the Dessert field to CAKE. We will allocate an order, set Entree to LOBSTER,
         Salad to GREEN, Beverage to WINE, and Dessert to NO_DESSERT (to ensure it
         is changed by the function). After calling the function, we expect Dessert
-        to be set to CAKE. Other fields are not relevant to the requirement and can
-        be left at their default or unspecified values.\",\"test_mapping_analysis\":\"The
-        requirement is directly mapped to the second conditional branch in the Add_Included_Dessert
-        function. By setting Entree to LOBSTER, Salad to GREEN, and Beverage to WINE,
-        we ensure the condition is true and the Dessert field should be set to CAKE.
-        The test sets all required input fields and checks only the Dessert field
-        as per the requirement.\",\"test_case\":{\"test_name\":\"Test_Lobster_Green_Wine_Results_In_Cake_Dessert\",\"test_description\":\"Tests
+        to be set to CAKE. Other fields are not relevant for this requirement.\",\"test_mapping_analysis\":\"The
+        requirement maps directly to the second branch in the Add_Included_Dessert
+        function: if Entree is LOBSTER, Salad is GREEN, and Beverage is WINE, then
+        Dessert is set to CAKE. By setting these values and checking the Dessert field,
+        we directly exercise the requirement.\",\"test_case\":{\"test_name\":\"Test_Lobster_Green_Wine_Results_In_Cake_Dessert\",\"test_description\":\"Verifies
         that Add_Included_Dessert sets Dessert to CAKE when Entree is LOBSTER, Salad
         is GREEN, and Beverage is WINE, as required.\",\"requirement_id\":\"Add_Included_Dessert.2\",\"unit_name\":\"manager\",\"subprogram_name\":\"Add_Included_Dessert\",\"input_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order\",\"value\":\"\u003c\u003cmalloc
-        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1748605517,"id":"chatcmpl-BcsSjeglDV4tcgbjj2XPIUVdQhnQH","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":443,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":6347,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":6790}}
+        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1748954429,"id":"chatcmpl-BeLEL3OGQ8CtORJbeEJhxzynFMmOA","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":419,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":6369,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":6788}}
 
         '
     headers:
       Content-Length:
-      - '3142'
+      - '3015'
       Content-Type:
       - application/json
       Date:
-      - Fri, 30 May 2025 11:45:21 GMT
+      - Tue, 03 Jun 2025 12:40:42 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - e1ce2e0f-f3ea-4a15-97cb-01239b428744
+      - 4c5134d0-e1e8-4330-96fe-c577a1221447
       azureml-model-session:
-      - d051-20250528072517
+      - d026-20250521153836
       cmp-upstream-response-duration:
-      - '10728'
+      - '20182'
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -406,11 +405,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '996'
+      - '1004'
       x-ratelimit-remaining-tokens:
-      - '924280'
+      - '989656'
       x-request-id:
-      - 0f87ce6a-1567-47b3-a6c9-937ad2fbbad3
+      - 2e1d03dc-12dc-4119-923e-76cd4ed0e280
     status:
       code: 200
       message: OK
