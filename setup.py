@@ -44,6 +44,7 @@ dev_requirements = [
     'pipdeptree==2.26.1',
     'seaborn==0.13.2',
     'markdownify==1.1.0',
+    'pyright==1.1.401',
 ]
 
 

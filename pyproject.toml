@@ -20,3 +20,17 @@ ignore = ["E501", "PLR0913"]
 [tool.ruff.lint.pylint]
 max-statements = 120
 max-branches = 25
+[tool.pyright]
+include = ["autoreq"]
+exclude = [
+    ".git/**/*",
+    ".venv/**/*",
+    "venv/**/*",
+    "__pycache__/**/*",
+    "build/**/*",
+    "dist/**/*",
+    "monitors4codegen/**/*",
+]
+pythonVersion = "3.10"
+venvPath = "."
+venv = ".venv"

@@ -125,3 +125,69 @@ jobs:
           summary: true
           fail-on-empty: true
           title: Unit test results
+  pyright:
+    permissions: write-all
+    runs-on: [self-hosted, reqs2tests, Linux]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
+      options: --user vcast_user
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+
+      - name: Setup Python virtual environment
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        run: |
+          python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pip install --no-cache --upgrade pip
+          pip install --no-cache -e .[dev]
+          deactivate
+        shell: bash
+
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+
+      - name: Run Pyright
+        env:
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set +e
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pyright --venvpath ${{ env.VCAST_USER_HOME }} --outputjson > pyright_output.json
+          python ci/pyright_output_parser.py pyright_output.json
+          CODE=$?
+          deactivate
+          set -e
+          cat pyright_output.md >> $GITHUB_STEP_SUMMARY
+          # exit $CODE      Uncomment this line to fail the job on Pyright errors
+        shell: bash
