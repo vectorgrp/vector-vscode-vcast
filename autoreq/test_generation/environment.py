@@ -741,6 +741,16 @@ class Environment:
         return self.units
 
     @lru_cache(maxsize=128)
+    def functions_info(self) -> dict:
+        tu_content = self.get_tu_content(reduction_level='high')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(Path(tmpdir) / 'tu.c', 'w') as f:
+                f.write(tu_content)
+            # Create a temporary codebase to extract functions information
+            codebase = Codebase([tmpdir])
+            return {f['name']: f for f in codebase.get_all_functions()}
+
+    @lru_cache(maxsize=128)
     def get_tu_content(
         self,
         unit_name=None,

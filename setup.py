@@ -77,6 +77,7 @@ ext_modules = (
             'autoreq/trace_reqs2code.py',
             'autoreq/reqs2excel.py',
             'autoreq/reqs2rgw.py',
+            'autoreq/r2xreport.py',
         ],
         compiler_directives={
             'language_level': '3',
@@ -109,6 +110,7 @@ setup(
             'reqs2tests = autoreq.reqs2tests:cli',
             'reqs2excel = autoreq.reqs2excel:cli',
             'reqs2rgw = autoreq.reqs2rgw:cli',
+            'r2xreport = autoreq.r2xreport:cli',
         ]
     },
     install_requires=base_requirements,

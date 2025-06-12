@@ -5,12 +5,15 @@ import glob
 import os
 from typing import List
 import platform
+import subprocess
+import shutil
+import logging
+
 from tree_sitter import Language, Parser
 import tree_sitter_cpp as ts_cpp
+from bs4 import BeautifulSoup
 
 from collections import Counter
-import logging
-import shutil
 from pydantic import BaseModel, create_model
 from datetime import datetime
 import json
@@ -27,6 +30,7 @@ from autoreq.constants import APP_NAME
 
 if t.TYPE_CHECKING:
     from autoreq.llm_client import LLMClient
+    from autoreq.test_generation.environment import Environment
 
 
 def paths_to_files(paths, file_extensions=['c']):
@@ -815,3 +819,232 @@ def sanitize_subprogram_name(subprogram_name: str) -> str:
     ]  # Remove everything after the first '('
 
     return subprogram_name.strip()
+
+
+def expand_env_paths(env_dirs) -> t.List[str]:
+    def extract_from_file(file_path: str) -> t.List[Path]:
+        with open(os.path.expandvars(file_path), 'r') as f:
+            return [
+                Path(os.path.expandvars(line.strip()))
+                for line in f.readlines()
+                if line.strip()
+            ]
+
+    if isinstance(env_dirs, list):
+        if env_dirs[0].startswith('@'):
+            envs = extract_from_file(env_dirs[0][1:])
+        else:
+            envs = [Path(os.path.expandvars(env_dir)) for env_dir in env_dirs]
+    elif isinstance(env_dirs, str):
+        if env_dirs.startswith('@'):
+            envs = extract_from_file(env_dirs[1:])
+        else:
+            envs = [Path(os.path.expandvars(env_dirs))]
+    elif isinstance(env_dirs, Path):
+        envs = [Path(os.path.expandvars(str(env_dirs)))]
+    else:
+        raise ValueError('Invalid input for environment directories.')
+
+    assert all(env.is_file() and env.suffix == '.env' for env in envs), (
+        'One or more environment paths are not valid .env files.'
+    )
+    return [str(env) for env in envs]
+
+
+def generate_clicast_html_coverage_report(env) -> t.Optional[Path]:
+    """
+    Generate an HTML coverage report using VectorCAST CLI commands.
+    """
+    cmds = [
+        get_vectorcast_cmd(
+            'clicast',
+            [
+                '-lc',
+                'option',
+                'VCAST_CUSTOM_REPORT_FORMAT',
+                'HTML',
+            ],
+        ),
+        get_vectorcast_cmd(
+            'clicast',
+            [
+                '-lc',
+                '-e',
+                env.env_name,
+                'REports',
+                'Custom',
+                'Coverage',
+                'coverage.html',
+            ],
+        ),
+    ]
+    for cmd in cmds:
+        subprocess.run(
+            cmd,
+            shell=False,
+            check=False,
+            cwd=env.env_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    coverage_file = Path(env.env_dir, 'coverage.html')
+    if not coverage_file.exists():
+        logging.warning(f'Coverage report generation failed for {env.env_name}')
+        return None
+    return coverage_file
+
+
+def _create_source_table(soup: BeautifulSoup):
+    table = soup.new_tag('table', attrs={'class': 'table table-small sfp-table'})
+
+    thead = soup.new_tag('thead')
+    tr = soup.new_tag('tr')
+
+    th_cursor = soup.new_tag(
+        'th',
+        attrs={
+            'class': 'sfp_cursor',
+            'onclick': "collapsibleFile(this, 'file2', 'ips_file2')",
+        },
+    )
+    span_plus = soup.new_tag(
+        'span',
+        attrs={
+            'class': 'sfp-span expansion_row_icon_plus',
+            'id': 'expansion_file_icon_plus_file2',
+        },
+    )
+    span_plus.string = '+'
+    span_minus = soup.new_tag(
+        'span',
+        attrs={
+            'class': 'sfp-span expansion_row_icon_minus',
+            'id': 'expansion_file_icon_minus_file2',
+        },
+    )
+    span_minus.string = '-'
+
+    th_cursor.append(span_plus)
+    th_cursor.append(span_minus)
+
+    th_line = soup.new_tag('th', attrs={'class': 'sfp_number'})
+    th_line.string = 'Line'
+
+    th_color = soup.new_tag('th', attrs={'class': 'sfp_color'})
+
+    th_st = soup.new_tag('th', attrs={'class': 'sfp_coverage'})
+    th_st.string = 'St'
+
+    th_br = soup.new_tag('th', attrs={'class': 'sfp_coverage'})
+    th_br.string = 'Br'
+
+    th_empty = soup.new_tag('th')
+
+    for th_element in (th_cursor, th_line, th_color, th_st, th_br, th_empty):
+        tr.append(th_element)
+
+    thead.append(tr)
+    table.append(thead)
+
+    return table
+
+
+def generate_custom_coverage_reports(
+    env: Environment,
+    original_coverage_report: Path,
+    requirement_coverage_results,
+    output_dir: Path,
+    full_coverage_report: bool = False,
+) -> None:
+    """
+    Generates custom coverage reports, modifying an existing coverage report generated with clicast and
+    integrating requirement coverage results into the report. Processes the coverage data to highlight
+    the specified lines of code based on coverage results and produces individual HTML files for each
+    specified requirement where total coverage was not achieved.
+    Source content comes from the TU content of the environment, which is the same content used to
+    generate the requirements.
+    """
+    tu_content = env.get_tu_content(reduction_level='high')
+    all_funcs = env.functions_info()
+
+    with open(original_coverage_report, 'r') as f:
+        cov_html = BeautifulSoup(f, 'html.parser')
+
+    # Remove the Metrics section from the coverage report's bottom
+    metrics_link = cov_html.find('a', href='#Metrics')
+    if metrics_link:
+        metrics_li = metrics_link.find_parent('li')
+        if metrics_li:
+            metrics_li.decompose()
+    metrics_section = cov_html.find('a', id='Metrics')
+    if metrics_section:
+        report_block = metrics_section.find_parent('div', class_='report-block')
+        if report_block:
+            report_block.decompose()
+
+    # Cleaning up the coverage report
+    coverage_div = cov_html.find('div', class_='report-block-coverage')
+    for children in coverage_div.find_all(recursive=False):
+        if children.name == 'div' and children.get('class') == ['row']:
+            continue
+        children.decompose()
+
+    source_table = _create_source_table(cov_html)
+    coverage_div.append(source_table)
+    tbody = cov_html.new_tag('tbody')
+    source_table.append(tbody)
+
+    uncovered_required_color = '#e93939'
+    covered_required_color = '#6ee96e'
+    covered_color = '#c8f0c8'
+    td_style = 'width: 2em;min-width: 2em;background-color: {color}'
+
+    for rcr in requirement_coverage_results:
+        if not full_coverage_report and rcr['fully_covered']:
+            continue
+        all_table_rows = []  # List to hold all HTML lines for source code
+        for i, line in enumerate(tu_content.split('\n')):
+            tr = cov_html.new_tag('tr')
+            cells = [
+                ('sfp_coverage', ' '),
+                ('sfp_number', str(i + 1)),
+                ('sfp_color', None),
+                ('sfp_coverage', ' '),
+                ('sfp_coverage', '   '),
+            ]
+            for cls, text in cells:
+                td = cov_html.new_tag('td', attrs={'class': cls})
+                if text is not None:
+                    td.string = text
+                tr.append(td)
+
+            td = cov_html.new_tag('td')
+            code = cov_html.new_tag('code', attrs={'class': 'sfp-code'})
+            span = cov_html.new_tag('span')
+            span.string = line
+            code.append(span)
+            td.append(code)
+            tr.append(td)
+
+            tbody.append(tr)
+            all_table_rows.append(tr)
+
+        req_id = rcr['requirement_id']
+        func_info = all_funcs[rcr['function']]
+        start_line = func_info['start_line']
+        for line in rcr['covered_lines']:
+            all_table_rows[start_line + line].find_all('td')[2]['style'] = (
+                td_style.format(color=covered_color)
+            )
+        for line in rcr['required_lines']:
+            c = (
+                covered_required_color
+                if line in rcr['covered_lines']
+                else uncovered_required_color
+            )
+            all_table_rows[start_line + line].find_all('td')[2]['style'] = (
+                td_style.format(color=c)
+            )
+
+        with open(output_dir / f'{req_id}_coverage.html', 'w') as f:
+            f.write(str(cov_html))
