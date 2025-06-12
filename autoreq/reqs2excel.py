@@ -7,6 +7,7 @@ import json
 from .code2reqs import execute_rgw_commands, save_requirements_to_excel
 from .test_generation.environment import Environment
 from .trace_reqs2code import Reqs2CodeMapper
+from .util import expand_env_paths
 import asyncio
 import logging
 
@@ -157,36 +158,6 @@ def format_env_requirements(
         formatted_requirements.append(requirement)
 
 
-def _expand_env_paths(env_dirs) -> t.List[str]:
-    def extract_from_file(file_path: str) -> t.List[Path]:
-        with open(os.path.expandvars(file_path), 'r') as f:
-            return [
-                Path(os.path.expandvars(line.strip()))
-                for line in f.readlines()
-                if line.strip()
-            ]
-
-    if isinstance(env_dirs, list):
-        if env_dirs[0].startswith('@'):
-            envs = extract_from_file(env_dirs[0][1:])
-        else:
-            envs = [Path(os.path.expandvars(env_dir)) for env_dir in env_dirs]
-    elif isinstance(env_dirs, str):
-        if env_dirs.startswith('@'):
-            envs = extract_from_file(env_dirs[1:])
-        else:
-            envs = [Path(os.path.expandvars(env_dirs))]
-    elif isinstance(env_dirs, Path):
-        envs = [Path(os.path.expandvars(str(env_dirs)))]
-    else:
-        raise ValueError('Invalid input for environment directories.')
-
-    assert all(env.is_file() and env.suffix == '.env' for env in envs), (
-        'One or more environment paths are not valid .env files.'
-    )
-    return [str(env) for env in envs]
-
-
 def main(
     env_paths,
     output_file: t.Union[str, Path],
@@ -195,7 +166,7 @@ def main(
     csv_template_path: t.Union[str, Path] = None,
     automatic_traceability: bool = False,
 ) -> None:
-    envs = [Environment(env, use_sandbox=False) for env in _expand_env_paths(env_paths)]
+    envs = [Environment(env, use_sandbox=False) for env in expand_env_paths(env_paths)]
     for env in envs:
         env.build()
 

@@ -5,18 +5,13 @@ import asyncio
 import logging
 import time
 import shutil
-import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field, computed_field
 from tqdm import tqdm
 import traceback
-import tempfile
-
-from bs4 import BeautifulSoup
 
 from autoreq.test_generation.requirement_decomposition import decompose_requirements
-from autoreq.codebase import Codebase
 
 from autoreq.requirements_manager import (
     DecomposingRequirementsManager,
@@ -33,13 +28,16 @@ from autoreq.util import (
     get_processed_environments,
     write_env_result,
     format_time,
-    get_vectorcast_cmd,
+    generate_clicast_html_coverage_report,
+    generate_custom_coverage_reports,
 )
 
 
 class EvaluationResult(BaseModel):
     # Basic information
     environment_path: str
+    tu_content: str
+    functions_info: Dict[str, Dict]
 
     # Raw data needed for calculations
     requirements_data: Dict[str, Any]
@@ -487,81 +485,6 @@ class EvaluationResult(BaseModel):
         populate_by_name = True
 
 
-def generate_custom_coverage_reports(
-    env: Environment,
-    original_coverage_report: Path,
-    requirement_coverage_results,
-    output_dir: Path,
-) -> None:
-    """
-    Generates custom coverage reports, modifying an existing coverage report generated with clicast and
-    integrating requirement coverage results into the report. Processes the coverage data to highlight
-    the specified lines of code based on coverage results and produces individual HTML files for each
-    specified requirement where total coverage was not achieved.
-    Source content comes from the TU content of the environment, which is the same content used to
-    generate the requirements.
-    """
-    tu_content = env.get_tu_content(reduction_level='high')
-    with tempfile.TemporaryDirectory() as tmpdir:
-        with open(Path(tmpdir) / 'tu.c', 'w') as f:
-            f.write(tu_content)
-        # Create a temporary codebase to extract functions information
-        codebase = Codebase([tmpdir])
-        all_funcs = {f['name']: f for f in codebase.get_all_functions()}
-
-    with open(original_coverage_report, 'r') as f:
-        cov_html = BeautifulSoup(f, 'html.parser')
-
-    # Remove the Metrics section from the coverage report's bottom
-    metrics_link = cov_html.find('a', href='#Metrics')
-    if metrics_link:
-        metrics_li = metrics_link.find_parent('li')
-        if metrics_li:
-            metrics_li.decompose()
-    metrics_section = cov_html.find('a', id='Metrics')
-    if metrics_section:
-        report_block = metrics_section.find_parent('div', class_='report-block')
-        if report_block:
-            report_block.decompose()
-
-    # pre_elem is the pre element that contains the source code
-    pre_elem = cov_html.find('pre', class_='aggregate-coverage')
-    for sibling in pre_elem.find_next_siblings():
-        sibling.decompose()
-
-    for rcr in requirement_coverage_results:
-        if rcr['fully_covered']:
-            continue
-        pre_elem.clear()
-        all_html_lines = []  # List to hold all HTML lines for source code
-        for i, line in enumerate(tu_content.split('\n')):
-            span = cov_html.new_tag(
-                'span', attrs={'class': 'na-cvg'}
-            )  # html element containing the line
-            strong = cov_html.new_tag('strong')
-            strong.string = str(i + 1)
-            strong.append(cov_html.new_string(' ' * (8 - (len(str(i + 1))))))
-            span.append(strong)
-            span.append(cov_html.new_string(line))
-            pre_elem.append(span)
-            pre_elem.append(cov_html.new_string('\n'))
-            all_html_lines.append(span)
-
-        req_id = rcr['requirement_id']
-        func_info = all_funcs[rcr['function']]
-        start_line = func_info['start_line']
-        for line in rcr['required_lines']:
-            c = (
-                'full-cvg success-marker'
-                if line in rcr['covered_lines']
-                else 'no-cvg fail-marker'
-            )
-            all_html_lines[start_line + line]['class'] = c
-
-        with open(output_dir / f'{req_id}_coverage.html', 'w') as f:
-            f.write(str(cov_html))
-
-
 async def evaluate_environment(
     env_path: str,
     rm: RequirementsManager,
@@ -576,6 +499,7 @@ async def evaluate_environment(
     max_generation_time: float = None,
     min_pruning_lines: int = 1000,
     use_test_examples: bool = True,
+    full_coverage_report: bool = False,
 ) -> EvaluationResult:
     start_time = time.perf_counter()
     env = Environment(env_path)
@@ -713,44 +637,10 @@ async def evaluate_environment(
                 if tc:
                     f.write(tc.to_vectorcast() + '\n')
 
-        def generate_html_coverage_report():
-            cmds = [
-                get_vectorcast_cmd(
-                    'clicast',
-                    [
-                        '-lc',
-                        'option',
-                        'VCAST_CUSTOM_REPORT_FORMAT',
-                        'HTML',
-                    ],
-                ),
-                get_vectorcast_cmd(
-                    'clicast',
-                    [
-                        '-lc',
-                        '-e',
-                        env.env_name,
-                        'REports',
-                        'Custom',
-                        'Coverage',
-                        'coverage.html',
-                    ],
-                ),
-            ]
-            for cmd in cmds:
-                subprocess.run(
-                    cmd,
-                    shell=False,
-                    check=False,
-                    cwd=env.env_dir,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-            coverage_file = Path(env.env_dir, 'coverage.html')
-            if not coverage_file.exists():
-                logging.warning(f'Coverage report generation failed for {env.env_name}')
-                return
-            shutil.copyfile(coverage_file, env_output_dir / 'coverage.html')
+        def coverage_report():
+            coverage_file = generate_clicast_html_coverage_report(env)
+            if coverage_file:
+                shutil.copyfile(coverage_file, env_output_dir / 'coverage.html')
 
         # Run tests to get coverage
         tst_file_path = env_output_dir / 'test_cases.tst'
@@ -758,7 +648,7 @@ async def evaluate_environment(
             output, coverage = env.run_test_script(
                 str(tst_file_path),
                 with_coverage=True,
-                post_run_callback=generate_html_coverage_report,
+                post_run_callback=coverage_report,
             )
             generated_tests_coverage = coverage
         except Exception as e:
@@ -787,6 +677,7 @@ async def evaluate_environment(
             original_coverage_report,
             requirement_coverage_results,
             coverage_reports_out,
+            full_coverage_report=full_coverage_report,
         )
     except Exception as e:
         logging.error(f'Error generating custom coverage report: {str(e)}')
@@ -810,11 +701,16 @@ async def evaluate_environment(
 
     execution_time = time.perf_counter() - start_time
 
+    tu_content = env.get_tu_content(reduction_level='high')
+    functions_info = env.functions_info()
+
     env.cleanup()
 
     return EvaluationResult(
         # Basic information
         environment_path=env_path,
+        tu_content=tu_content,
+        functions_info=functions_info,
         # Raw data needed for calculations
         requirements_data=requirements_data,
         info_logger_data=dict(info_data),
@@ -1037,6 +933,7 @@ async def process_envs(
             args.timeout * 60,  # Convert from minutes to seconds
             args.min_pruning_lines,
             not args.no_test_examples,
+            full_coverage_report=args.full_coverage_report,
         )
 
         write_env_result(result, output_dir)
@@ -1134,6 +1031,12 @@ async def main():
     )
     parser.add_argument(
         '--individual-decomposition', action='store_true', help=argparse.SUPPRESS
+    )
+    parser.add_argument(
+        '--full-coverage-report',
+        action='store_true',
+        help='Generate a full coverage report including all requirements, not just the uncovered ones.',
+        default=False,
     )
     args = parser.parse_args()
 

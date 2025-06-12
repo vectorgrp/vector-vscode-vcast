@@ -88,6 +88,7 @@ jobs:
       REQ2TESTS_MODELS_PATH: /llm_configs
       BATCHED_MODE: ${{ github.event.inputs.batched-mode }}
       INDIVIDUAL_DECOMPOSITION: ${{ github.event.inputs.individual-decomposition }}
+      BASE_ARTIFACTORY_URL: "https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/${{ github.event.inputs.env-set }}"
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
@@ -190,8 +191,7 @@ jobs:
           
           CODE=0
           source $VCAST_USER_HOME/.venv/bin/activate
-          python evaluation/create_report.py --input ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --output ${{ env.VCAST_USER_HOME }}/.envs/report.html
-          markdownify ${{ env.VCAST_USER_HOME }}/.envs/report.html > ${{ env.VCAST_USER_HOME }}/.envs/results.md
+          python evaluation/create_report.py ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --export-markdown --markdown-base-url ${{ env.BASE_ARTIFACTORY_URL }}/r2t_eval_results
           python ./ci/run_evaluation.py ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
           CODE=$?
           deactivate
@@ -209,22 +209,24 @@ jobs:
           fi
           
           COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/${{ env.ENV_SET_NAME }}"
-          REPORT_URL=$BASE_ARTIFACTORY_URL/report.html
-          RESULTS_URL=$BASE_ARTIFACTORY_URL/r2t_eval_results/
-          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $REPORT_URL -T ${{ env.VCAST_USER_HOME }}/.envs/report.html
+          RESULTS_URL=${{ env.BASE_ARTIFACTORY_URL }}/r2t_eval_results/
+          RESULTS_TAR_URL=${{ env.BASE_ARTIFACTORY_URL }}/r2t_eval_results.tar.gz
+          EVALUATION_REPORT_URL=${{ env.BASE_ARTIFACTORY_URL }}/r2t_eval_results/evaluation_report.html
           cd ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
           tar -cvzf ../to_upload.tar.gz . > /dev/null
           cd ..
           curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_URL -T ./to_upload.tar.gz
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_TAR_URL -T ./to_upload.tar.gz
           
-          echo '## HTML Report' >> $GITHUB_STEP_SUMMARY
-          echo "[See report]($REPORT_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "## Evaluation report" >> $GITHUB_STEP_SUMMARY
+          echo "[Evaluation report]($EVALUATION_REPORT_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "## Results archive" >> $GITHUB_STEP_SUMMARY
+          echo "[Results archive]($RESULTS_TAR_URL)" >> $GITHUB_STEP_SUMMARY
           echo "## Results folder" >> $GITHUB_STEP_SUMMARY
           echo "[Results folder]($RESULTS_URL)" >> $GITHUB_STEP_SUMMARY
           
           echo "## Markdown results" >> $GITHUB_STEP_SUMMARY
-          cat ${{ env.VCAST_USER_HOME }}/.envs/results.md >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results/evaluation_report.md >> $GITHUB_STEP_SUMMARY
           
           exit $CODE
         shell: bash

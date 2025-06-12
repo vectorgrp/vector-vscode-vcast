@@ -1,21 +1,20 @@
 import glob
-from io import BytesIO
+import json
 import base64
+import argparse
+
+from io import BytesIO
 from pathlib import Path
 from typing import List, Dict, Any
-import argparse
 
 import numpy as np
 import seaborn as sns
+from bs4 import BeautifulSoup
 import matplotlib.pyplot as plt
+from markdownify import markdownify as md
 
 from autoreq.evaluate_reqs2tests import EvaluationResult
 from autoreq.util import format_time
-
-
-# Default paths when running as main script
-DEFAULT_RESULT_FOLDER = 'results/piinnovo'
-DEFAULT_REPORT_PATH = 'results/piinnovo/report.html'
 
 
 def load_results(folder_path: str) -> List[EvaluationResult]:
@@ -28,7 +27,17 @@ def load_results(folder_path: str) -> List[EvaluationResult]:
     return results
 
 
-def calculate_aggregated_metrics(results: List[EvaluationResult]) -> Dict[str, Any]:
+def load_test_cases(folder_path: str) -> Dict[str, Dict]:
+    """Load all test cases from the specified folder"""
+    test_cases = {}
+    for test_case_path in Path(folder_path).rglob('test_cases.json'):
+        env = test_case_path.parent.name
+        with open(test_case_path, 'r') as f:
+            test_cases[env] = {tc['requirement_id']: tc for tc in json.load(f)}
+    return test_cases
+
+
+def calculate_aggregated_metrics(results: List[EvaluationResult]) -> Dict[str, Dict]:
     """Calculate aggregated metrics across all environments"""
     # Filter out results with generation errors for summary metrics
     valid_results = [result for result in results if not result.generation_error]
@@ -229,17 +238,61 @@ def format_percentage(value: float) -> str:
     return f'{value * 100:.2f}%'
 
 
-def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any]) -> str:
-    """Create the complete HTML report"""
-    # Define HTML templates
-    html_head = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Test Generation Evaluation Report</title>
-        <style>
+def _extract_uncovered_lines(result: EvaluationResult) -> List[Dict[str, str]]:
+    tu_lines = result.tu_content.splitlines()
+    all_funcs = result.functions_info
+
+    ret = []
+    for rcr in result.requirement_coverage_results:
+        req_id = rcr['requirement_id']
+        func_info = all_funcs[rcr['function']]
+        start_line = func_info['start_line']
+        for line_n in rcr['required_lines']:
+            source_line = tu_lines[start_line + line_n].strip()
+            ret.append(
+                {
+                    'line_number': start_line + line_n + 1,
+                    'requirement_id': req_id,
+                    'source_line': source_line,
+                    'requirement_text': result.requirements_data[req_id]['Title'],
+                }
+            )
+
+    return ret
+
+
+def create_html_report(
+    results: List[EvaluationResult], metrics: Dict[str, Any], test_cases: Dict[str, Any]
+) -> BeautifulSoup:
+    soup = BeautifulSoup('', 'html.parser')
+
+    # <html lang="en">
+    html_tag = soup.new_tag('html', lang='en')
+    soup.append(html_tag)
+
+    # <head> section
+    head_tag = soup.new_tag('head')
+    html_tag.append(head_tag)
+
+    # <meta charset="UTF-8">
+    meta_charset = soup.new_tag('meta', charset='UTF-8')
+    head_tag.append(meta_charset)
+
+    # <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    meta_viewport = soup.new_tag(
+        'meta',
+        attrs={'name': 'viewport', 'content': 'width=device-width, initial-scale=1.0'},
+    )
+    head_tag.append(meta_viewport)
+
+    # <title>Test Generation Evaluation Report</title>
+    title_tag = soup.new_tag('title')
+    title_tag.string = 'Test Generation Evaluation Report'
+    head_tag.append(title_tag)
+
+    # <style> ... </style> (unchanged CSS)
+    style_tag = soup.new_tag('style')
+    style_content = """
             body {
                 font-family: Arial, sans-serif;
                 line-height: 1.6;
@@ -461,277 +514,527 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
                 margin-bottom: 0.5em;
                 color: #34495e;
             }
-        </style>
-    </head>
-    <body>
-        <h1>Test Generation Evaluation Report</h1>
-    """
+        """
+    style_tag.string = style_content
+    head_tag.append(style_tag)
+
+    # <body>
+    body_tag = soup.new_tag('body')
+    html_tag.append(body_tag)
+
+    # <h1>Test Generation Evaluation Report</h1>
+    h1 = soup.new_tag('h1')
+    h1.string = 'Test Generation Evaluation Report'
+    body_tag.append(h1)
 
     # Create summary section
-    summary_section = f"""
-        <div class="report-section">
-            <h2>Summary</h2>
-            <p>Processed {metrics['total_environments']} environments with {metrics['failed_environments']} failed environments. 
-               Summary metrics below are calculated from {metrics['valid_environments']} successful environments with a total of {metrics['total_requirements']} requirements.</p>
+    summary_section = soup.new_tag('div', **{'class': 'report-section'})
+    body_tag.append(summary_section)
 
-            <div class="metric-section">
-                <div class="summary-cards">
-                     <div class="summary-card">
-                        <h3>Requirement Coverage (Macro Avg.)</h3>
-                        <div class="value">{format_percentage(metrics['avg_requirement_coverage'])}</div>
-                    </div>
-                     <div class="summary-card">
-                        <h3>Requirement Coverage (Micro Avg.)</h3>
-                        <div class="value">{format_percentage(metrics['micro_requirement_coverage'])}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <h3>Requirements</h3>
-                    <div class="value">{metrics['total_requirements']}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>Generated Tests</h3>
-                    <div class="value">{metrics['generated_tests']}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>Verified Tests</h3>
-                    <div class="value">{metrics['verified_tests']}</div>
-                </div>
-            </div>
+    h2_summary = soup.new_tag('h2')
+    h2_summary.string = 'Summary'
+    summary_section.append(h2_summary)
 
-            <div class="metric-section">
-                <div class="summary-cards">
-                    <div class="summary-card">
-                        <h3>Precision (Macro Avg.)</h3>
-                        <div class="value">{format_percentage(metrics['avg_precision'])}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>Recall (Macro Avg.)</h3>
-                        <div class="value">{format_percentage(metrics['avg_recall'])}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>F1 Score (Macro Avg.)</h3>
-                        <div class="value">{format_percentage(metrics['avg_f1_score'])}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="metric-section">
-                <div class="summary-cards">
-                    <div class="summary-card">
-                        <h3>Precision (Micro Avg.)</h3>
-                        <div class="value">{format_percentage(metrics['micro_precision'])}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>Recall (Micro Avg.)</h3>
-                        <div class="value">{format_percentage(metrics['micro_recall'])}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>F1 Score (Micro Avg.)</h3>
-                        <div class="value">{format_percentage(metrics['micro_f1_score'])}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <h3>Total Generation Cost</h3>
-                    <div class="value">${format_metric(metrics['total_generation_cost'])}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>Total Verification Cost</h3>
-                    <div class="value">${format_metric(metrics['total_verification_cost'])}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>Total Cost</h3>
-                    <div class="value">${format_metric(metrics['total_cost'])}</div>
-                </div>
-            </div>
-            
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <h3>Total Execution Time</h3>
-                    <div class="value">{format_time(metrics['total_execution_time'])}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>Avg Execution Time</h3>
-                    <div class="value">{format_time(metrics['avg_execution_time'])}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>Failed Environments</h3>
-                    <div class="value">{metrics['failed_environments']}</div>
-                </div>
-            </div>
+    p_summary = soup.new_tag('p')
+    p_summary.string = (
+        f'Processed {metrics["total_environments"]} environments with {metrics["failed_environments"]} failed environments. '
+        f'Summary metrics below are calculated from {metrics["valid_environments"]} successful environments with a total of {metrics["total_requirements"]} requirements.'
+    )
+    summary_section.append(p_summary)
 
-        </div>
-    """
+    metric_section1 = soup.new_tag('div', **{'class': 'metric-section'})
+    summary_section.append(metric_section1)
 
-    # Create main metrics section with histograms
-    main_metrics_section = """
-        <div class="report-section">
-            <button class="collapsible">Main Metrics</button>
-            <div class="content">
-                <h3>Main Performance Metrics</h3>
-    """
+    summary_cards1 = soup.new_tag('div', **{'class': 'summary-cards'})
+    metric_section1.append(summary_cards1)
 
-    # Add histograms for precision, recall, and F1 score
-    main_metrics_section += """
-                <div class="histogram">
-                    <h4>Precision Distribution</h4>
-    """
-    main_metrics_section += create_histogram(
-        metrics['precision'], 'Precision Distribution', 'Precision'
-    )
-    main_metrics_section += """
-                </div>
-                
-                <div class="histogram">
-                    <h4>Recall Distribution</h4>
-    """
-    main_metrics_section += create_histogram(
-        metrics['recall'], 'Recall Distribution', 'Recall'
-    )
-    main_metrics_section += """
-                </div>
-                
-                <div class="histogram">
-                    <h4>F1 Score Distribution</h4>
-    """
-    main_metrics_section += create_histogram(
-        metrics['f1_score'], 'F1 Score Distribution', 'F1 Score'
-    )
-    main_metrics_section += """
-                </div>
+    # Requirement Coverage (Macro Avg.)
+    card_req_macro = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards1.append(card_req_macro)
+    h3_req_macro = soup.new_tag('h3')
+    h3_req_macro.string = 'Requirement Coverage (Macro Avg.)'
+    card_req_macro.append(h3_req_macro)
+    div_value_req_macro = soup.new_tag('div', **{'class': 'value'})
+    div_value_req_macro.string = format_percentage(metrics['avg_requirement_coverage'])
+    card_req_macro.append(div_value_req_macro)
 
-                <div class="histogram">
-                    <h4>Requirement Coverage Distribution</h4>
-    """
-    main_metrics_section += create_histogram(
-        metrics['requirement_coverage'],
-        'Requirement Coverage Distribution',
-        'Requirement Coverage',
+    # Requirement Coverage (Micro Avg.)
+    card_req_micro = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards1.append(card_req_micro)
+    h3_req_micro = soup.new_tag('h3')
+    h3_req_micro.string = 'Requirement Coverage (Micro Avg.)'
+    card_req_micro.append(h3_req_micro)
+    div_value_req_micro = soup.new_tag('div', **{'class': 'value'})
+    div_value_req_micro.string = format_percentage(
+        metrics['micro_requirement_coverage']
     )
-    main_metrics_section += """
-                </div>
-            </div>
-        </div>
-    """
+    card_req_micro.append(div_value_req_micro)
 
-    # Create coverage metrics section with ATG comparison
-    coverage_section = """
-        <div class="report-section">
-            <button class="collapsible">Coverage Metrics</button>
-            <div class="content">
-                <h3>Code Coverage Comparison</h3>
-                
-                <div class="coverage-legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: #3498db;"></div>
-                        <span>Our Tests</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: #e74c3c;"></div>
-                        <span>ATG Tests</span>
-                    </div>
-                </div>
-                
-                <div class="coverage-bars">
-                    <div class="coverage-bar">
-                        <div class="label">
-                            <span>Statement Coverage</span>
-                            <span>Our: {:.2%} | ATG: {:.2%}</span>
-                        </div>
-                        <div class="bar-container">
-                            <div class="bar-fill" style="width: {:.2%};"></div>
-                            <div class="atg-bar-fill" style="width: {:.2%};"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="coverage-bar">
-                        <div class="label">
-                            <span>Branch Coverage</span>
-                            <span>Our: {:.2%} | ATG: {:.2%}</span>
-                        </div>
-                        <div class="bar-container">
-                            <div class="bar-fill" style="width: {:.2%};"></div>
-                            <div class="atg-bar-fill" style="width: {:.2%};"></div>
-                        </div>
-                    </div>
-                </div>
-    """.format(
-        np.mean([c for c in metrics['statement_coverage'] if c is not None]),
-        np.mean([c for c in metrics['atg_statement_coverage'] if c is not None]),
-        np.mean([c for c in metrics['statement_coverage'] if c is not None]),
-        np.mean([c for c in metrics['atg_statement_coverage'] if c is not None]),
-        np.mean([c for c in metrics['branch_coverage'] if c is not None]),
-        np.mean([c for c in metrics['atg_branch_coverage'] if c is not None]),
-        np.mean([c for c in metrics['branch_coverage'] if c is not None]),
-        np.mean([c for c in metrics['atg_branch_coverage'] if c is not None]),
+    # Second row of summary cards: Requirements, Generated Tests, Verified Tests
+    summary_cards2 = soup.new_tag('div', **{'class': 'summary-cards'})
+    summary_section.append(summary_cards2)
+
+    card_requirements = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards2.append(card_requirements)
+    h3_requirements = soup.new_tag('h3')
+    h3_requirements.string = 'Requirements'
+    card_requirements.append(h3_requirements)
+    div_value_requirements = soup.new_tag('div', **{'class': 'value'})
+    div_value_requirements.string = str(metrics['total_requirements'])
+    card_requirements.append(div_value_requirements)
+
+    card_generated = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards2.append(card_generated)
+    h3_generated = soup.new_tag('h3')
+    h3_generated.string = 'Generated Tests'
+    card_generated.append(h3_generated)
+    div_value_generated = soup.new_tag('div', **{'class': 'value'})
+    div_value_generated.string = str(metrics['generated_tests'])
+    card_generated.append(div_value_generated)
+
+    card_verified = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards2.append(card_verified)
+    h3_verified = soup.new_tag('h3')
+    h3_verified.string = 'Verified Tests'
+    card_verified.append(h3_verified)
+    div_value_verified = soup.new_tag('div', **{'class': 'value'})
+    div_value_verified.string = str(metrics['verified_tests'])
+    card_verified.append(div_value_verified)
+
+    # Third row: Precision, Recall, F1 Score (Macro Avg.)
+    metric_section2 = soup.new_tag('div', **{'class': 'metric-section'})
+    summary_section.append(metric_section2)
+
+    summary_cards3 = soup.new_tag('div', **{'class': 'summary-cards'})
+    metric_section2.append(summary_cards3)
+
+    card_prec_macro = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards3.append(card_prec_macro)
+    h3_prec_macro = soup.new_tag('h3')
+    h3_prec_macro.string = 'Precision (Macro Avg.)'
+    card_prec_macro.append(h3_prec_macro)
+    div_value_prec_macro = soup.new_tag('div', **{'class': 'value'})
+    div_value_prec_macro.string = format_percentage(metrics['avg_precision'])
+    card_prec_macro.append(div_value_prec_macro)
+
+    card_rec_macro = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards3.append(card_rec_macro)
+    h3_rec_macro = soup.new_tag('h3')
+    h3_rec_macro.string = 'Recall (Macro Avg.)'
+    card_rec_macro.append(h3_rec_macro)
+    div_value_rec_macro = soup.new_tag('div', **{'class': 'value'})
+    div_value_rec_macro.string = format_percentage(metrics['avg_recall'])
+    card_rec_macro.append(div_value_rec_macro)
+
+    card_f1_macro = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards3.append(card_f1_macro)
+    h3_f1_macro = soup.new_tag('h3')
+    h3_f1_macro.string = 'F1 Score (Macro Avg.)'
+    card_f1_macro.append(h3_f1_macro)
+    div_value_f1_macro = soup.new_tag('div', **{'class': 'value'})
+    div_value_f1_macro.string = format_percentage(metrics['avg_f1_score'])
+    card_f1_macro.append(div_value_f1_macro)
+
+    # Fourth row: Precision, Recall, F1 Score (Micro Avg.)
+    metric_section3 = soup.new_tag('div', **{'class': 'metric-section'})
+    summary_section.append(metric_section3)
+
+    summary_cards4 = soup.new_tag('div', **{'class': 'summary-cards'})
+    metric_section3.append(summary_cards4)
+
+    card_prec_micro = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards4.append(card_prec_micro)
+    h3_prec_micro = soup.new_tag('h3')
+    h3_prec_micro.string = 'Precision (Micro Avg.)'
+    card_prec_micro.append(h3_prec_micro)
+    div_value_prec_micro = soup.new_tag('div', **{'class': 'value'})
+    div_value_prec_micro.string = format_percentage(metrics['micro_precision'])
+    card_prec_micro.append(div_value_prec_micro)
+
+    card_rec_micro2 = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards4.append(card_rec_micro2)
+    h3_rec_micro2 = soup.new_tag('h3')
+    h3_rec_micro2.string = 'Recall (Micro Avg.)'
+    card_rec_micro2.append(h3_rec_micro2)
+    div_value_rec_micro2 = soup.new_tag('div', **{'class': 'value'})
+    div_value_rec_micro2.string = format_percentage(metrics['micro_recall'])
+    card_rec_micro2.append(div_value_rec_micro2)
+
+    card_f1_micro = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards4.append(card_f1_micro)
+    h3_f1_micro = soup.new_tag('h3')
+    h3_f1_micro.string = 'F1 Score (Micro Avg.)'
+    card_f1_micro.append(h3_f1_micro)
+    div_value_f1_micro = soup.new_tag('div', **{'class': 'value'})
+    div_value_f1_micro.string = format_percentage(metrics['micro_f1_score'])
+    card_f1_micro.append(div_value_f1_micro)
+
+    # Fifth row: Costs
+    summary_cards5 = soup.new_tag('div', **{'class': 'summary-cards'})
+    summary_section.append(summary_cards5)
+
+    card_gen_cost = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards5.append(card_gen_cost)
+    h3_gen_cost = soup.new_tag('h3')
+    h3_gen_cost.string = 'Total Generation Cost'
+    card_gen_cost.append(h3_gen_cost)
+    div_value_gen_cost = soup.new_tag('div', **{'class': 'value'})
+    div_value_gen_cost.string = f'${format_metric(metrics["total_generation_cost"])}'
+    card_gen_cost.append(div_value_gen_cost)
+
+    card_ver_cost = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards5.append(card_ver_cost)
+    h3_ver_cost = soup.new_tag('h3')
+    h3_ver_cost.string = 'Total Verification Cost'
+    card_ver_cost.append(h3_ver_cost)
+    div_value_ver_cost = soup.new_tag('div', **{'class': 'value'})
+    div_value_ver_cost.string = f'${format_metric(metrics["total_verification_cost"])}'
+    card_ver_cost.append(div_value_ver_cost)
+
+    card_total_cost = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards5.append(card_total_cost)
+    h3_total_cost = soup.new_tag('h3')
+    h3_total_cost.string = 'Total Cost'
+    card_total_cost.append(h3_total_cost)
+    div_value_total_cost = soup.new_tag('div', **{'class': 'value'})
+    div_value_total_cost.string = f'${format_metric(metrics["total_cost"])}'
+    card_total_cost.append(div_value_total_cost)
+
+    # Sixth row: Execution Times and Failed Environments
+    summary_cards6 = soup.new_tag('div', **{'class': 'summary-cards'})
+    summary_section.append(summary_cards6)
+
+    card_total_time = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards6.append(card_total_time)
+    h3_total_time = soup.new_tag('h3')
+    h3_total_time.string = 'Total Execution Time'
+    card_total_time.append(h3_total_time)
+    div_value_total_time = soup.new_tag('div', **{'class': 'value'})
+    div_value_total_time.string = format_time(metrics['total_execution_time'])
+    card_total_time.append(div_value_total_time)
+
+    card_avg_time = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards6.append(card_avg_time)
+    h3_avg_time = soup.new_tag('h3')
+    h3_avg_time.string = 'Avg Execution Time'
+    card_avg_time.append(h3_avg_time)
+    div_value_avg_time = soup.new_tag('div', **{'class': 'value'})
+    div_value_avg_time.string = format_time(metrics['avg_execution_time'])
+    card_avg_time.append(div_value_avg_time)
+
+    card_failed_envs = soup.new_tag('div', **{'class': 'summary-card'})
+    summary_cards6.append(card_failed_envs)
+    h3_failed_envs = soup.new_tag('h3')
+    h3_failed_envs.string = 'Failed Environments'
+    card_failed_envs.append(h3_failed_envs)
+    div_value_failed_envs = soup.new_tag('div', **{'class': 'value'})
+    div_value_failed_envs.string = str(metrics['failed_environments'])
+    card_failed_envs.append(div_value_failed_envs)
+
+    # Main Metrics Section with Histograms
+    main_metrics_section = soup.new_tag('div', **{'class': 'report-section'})
+    body_tag.append(main_metrics_section)
+
+    btn_main_metrics = soup.new_tag('button', **{'class': 'collapsible'})
+    btn_main_metrics.string = 'Main Metrics'
+    main_metrics_section.append(btn_main_metrics)
+
+    content_main_metrics = soup.new_tag('div', **{'class': 'content'})
+    main_metrics_section.append(content_main_metrics)
+
+    h3_main_perf = soup.new_tag('h3')
+    h3_main_perf.string = 'Main Performance Metrics'
+    content_main_metrics.append(h3_main_perf)
+
+    # Precision Histogram
+    hist_div_prec = soup.new_tag('div', **{'class': 'histogram'})
+    content_main_metrics.append(hist_div_prec)
+    h4_prec = soup.new_tag('h4')
+    h4_prec.string = 'Precision Distribution'
+    hist_div_prec.append(h4_prec)
+    hist_div_prec.append(
+        BeautifulSoup(
+            create_histogram(
+                metrics['precision'], 'Precision Distribution', 'Precision'
+            ),
+            'html.parser',
+        )
     )
 
-    # Add histograms for coverage metrics
-    coverage_section += """
-                <div class="histogram-grid">
-                    <div class="histogram-container">
-                        <div class="histogram-header">Statement Coverage Distribution</div>
-    """
-    coverage_section += create_histogram(
-        [c for c in metrics['statement_coverage'] if c is not None],
-        'Statement Coverage Distribution',
-        'Statement Coverage',
+    # Recall Histogram
+    hist_div_rec = soup.new_tag('div', **{'class': 'histogram'})
+    content_main_metrics.append(hist_div_rec)
+    h4_rec = soup.new_tag('h4')
+    h4_rec.string = 'Recall Distribution'
+    hist_div_rec.append(h4_rec)
+    hist_div_rec.append(
+        BeautifulSoup(
+            create_histogram(metrics['recall'], 'Recall Distribution', 'Recall'),
+            'html.parser',
+        )
     )
-    coverage_section += """
-                    </div>
-                    
-                    <div class="histogram-container">
-                        <div class="histogram-header">ATG Statement Coverage Distribution</div>
-    """
-    coverage_section += create_histogram(
-        [c for c in metrics['atg_statement_coverage'] if c is not None],
-        'ATG Statement Coverage Distribution',
-        'Statement Coverage',
-    )
-    coverage_section += """
-                    </div>
-                    
-                    <div class="histogram-container">
-                        <div class="histogram-header">Branch Coverage Distribution</div>
-    """
-    coverage_section += create_histogram(
-        [c for c in metrics['branch_coverage'] if c is not None],
-        'Branch Coverage Distribution',
-        'Branch Coverage',
-    )
-    coverage_section += """
-                    </div>
-                    
-                    <div class="histogram-container">
-                        <div class="histogram-header">ATG Branch Coverage Distribution</div>
-    """
-    coverage_section += create_histogram(
-        [c for c in metrics['atg_branch_coverage'] if c is not None],
-        'ATG Branch Coverage Distribution',
-        'Branch Coverage',
-    )
-    coverage_section += """
-                    </div>
-                </div>
-            </div>
-        </div>
-    """
 
-    # Create fallback metrics section with histograms for all metrics
-    fallback_section = """
-        <div class="report-section">
-            <button class="collapsible">Fallback Metrics</button>
-            <div class="content">
-                <h3>Fallback Usage Metrics (Macro Avg.)</h3>
-                
-                <div class="metric-grid">
-    """
+    # F1 Score Histogram
+    hist_div_f1 = soup.new_tag('div', **{'class': 'histogram'})
+    content_main_metrics.append(hist_div_f1)
+    h4_f1 = soup.new_tag('h4')
+    h4_f1.string = 'F1 Score Distribution'
+    hist_div_f1.append(h4_f1)
+    hist_div_f1.append(
+        BeautifulSoup(
+            create_histogram(metrics['f1_score'], 'F1 Score Distribution', 'F1 Score'),
+            'html.parser',
+        )
+    )
+
+    # Requirement Coverage Histogram
+    hist_div_req_cov = soup.new_tag('div', **{'class': 'histogram'})
+    content_main_metrics.append(hist_div_req_cov)
+    h4_req_cov = soup.new_tag('h4')
+    h4_req_cov.string = 'Requirement Coverage Distribution'
+    hist_div_req_cov.append(h4_req_cov)
+    hist_div_req_cov.append(
+        BeautifulSoup(
+            create_histogram(
+                metrics['requirement_coverage'],
+                'Requirement Coverage Distribution',
+                'Requirement Coverage',
+            ),
+            'html.parser',
+        )
+    )
+
+    # Coverage Section with ATG Comparison
+    coverage_section = soup.new_tag('div', **{'class': 'report-section'})
+    body_tag.append(coverage_section)
+
+    btn_coverage = soup.new_tag('button', **{'class': 'collapsible'})
+    btn_coverage.string = 'Coverage Metrics'
+    coverage_section.append(btn_coverage)
+
+    content_coverage = soup.new_tag('div', **{'class': 'content'})
+    coverage_section.append(content_coverage)
+
+    h3_cov_header = soup.new_tag('h3')
+    h3_cov_header.string = 'Code Coverage Comparison'
+    content_coverage.append(h3_cov_header)
+
+    # Legend
+    legend_cov = soup.new_tag('div', **{'class': 'coverage-legend'})
+    content_coverage.append(legend_cov)
+
+    legend_item_our = soup.new_tag('div', **{'class': 'legend-item'})
+    legend_cov.append(legend_item_our)
+    color_our = soup.new_tag(
+        'div', **{'class': 'legend-color'}, style='background-color: #3498db;'
+    )
+    legend_item_our.append(color_our)
+    span_our = soup.new_tag('span')
+    span_our.string = 'Our Tests'
+    legend_item_our.append(span_our)
+
+    legend_item_atg = soup.new_tag('div', **{'class': 'legend-item'})
+    legend_cov.append(legend_item_atg)
+    color_atg = soup.new_tag(
+        'div', **{'class': 'legend-color'}, style='background-color: #e74c3c;'
+    )
+    legend_item_atg.append(color_atg)
+    span_atg = soup.new_tag('span')
+    span_atg.string = 'ATG Tests'
+    legend_item_atg.append(span_atg)
+
+    # Coverage bars container
+    coverage_bars = soup.new_tag('div', **{'class': 'coverage-bars'})
+    content_coverage.append(coverage_bars)
+
+    # Compute mean coverage values
+    mean_stmt = np.mean([c for c in metrics['statement_coverage'] if c is not None])
+    mean_atg_stmt = np.mean(
+        [c for c in metrics['atg_statement_coverage'] if c is not None]
+    )
+    mean_branch = np.mean([c for c in metrics['branch_coverage'] if c is not None])
+    mean_atg_branch = np.mean(
+        [c for c in metrics['atg_branch_coverage'] if c is not None]
+    )
+
+    # Statement Coverage bar
+    bar_stmt = soup.new_tag('div', **{'class': 'coverage-bar'})
+    coverage_bars.append(bar_stmt)
+    label_stmt = soup.new_tag('div', **{'class': 'label'})
+    bar_stmt.append(label_stmt)
+    span_label_stmt = soup.new_tag('span')
+    span_label_stmt.string = 'Statement Coverage'
+    label_stmt.append(span_label_stmt)
+    span_values_stmt = soup.new_tag('span')
+    span_values_stmt.string = f'Our: {mean_stmt:.2%} | ATG: {mean_atg_stmt:.2%}'
+    label_stmt.append(span_values_stmt)
+
+    bar_container_stmt = soup.new_tag('div', **{'class': 'bar-container'})
+    bar_stmt.append(bar_container_stmt)
+    bar_fill_stmt = soup.new_tag(
+        'div', **{'class': 'bar-fill'}, style=f'width: {mean_stmt:.2%};'
+    )
+    bar_container_stmt.append(bar_fill_stmt)
+    atg_fill_stmt = soup.new_tag(
+        'div', **{'class': 'atg-bar-fill'}, style=f'width: {mean_atg_stmt:.2%};'
+    )
+    bar_container_stmt.append(atg_fill_stmt)
+
+    # Branch Coverage bar
+    bar_branch = soup.new_tag('div', **{'class': 'coverage-bar'})
+    coverage_bars.append(bar_branch)
+    label_branch = soup.new_tag('div', **{'class': 'label'})
+    bar_branch.append(label_branch)
+    span_label_branch = soup.new_tag('span')
+    span_label_branch.string = 'Branch Coverage'
+    label_branch.append(span_label_branch)
+    span_values_branch = soup.new_tag('span')
+    span_values_branch.string = f'Our: {mean_branch:.2%} | ATG: {mean_atg_branch:.2%}'
+    label_branch.append(span_values_branch)
+
+    bar_container_branch = soup.new_tag('div', **{'class': 'bar-container'})
+    bar_branch.append(bar_container_branch)
+    bar_fill_branch = soup.new_tag(
+        'div', **{'class': 'bar-fill'}, style=f'width: {mean_branch:.2%};'
+    )
+    bar_container_branch.append(bar_fill_branch)
+    atg_fill_branch = soup.new_tag(
+        'div', **{'class': 'atg-bar-fill'}, style=f'width: {mean_atg_branch:.2%};'
+    )
+    bar_container_branch.append(atg_fill_branch)
+
+    # Histograms grid
+    hist_grid = soup.new_tag('div', **{'class': 'histogram-grid'})
+    content_coverage.append(hist_grid)
+
+    # Statement Coverage Distribution
+    hist_container_stmt = soup.new_tag('div', **{'class': 'histogram-container'})
+    hist_grid.append(hist_container_stmt)
+    hist_header_stmt = soup.new_tag('div', **{'class': 'histogram-header'})
+    hist_header_stmt.string = 'Statement Coverage Distribution'
+    hist_container_stmt.append(hist_header_stmt)
+    hist_container_stmt.append(
+        BeautifulSoup(
+            create_histogram(
+                [c for c in metrics['statement_coverage'] if c is not None],
+                'Statement Coverage Distribution',
+                'Statement Coverage',
+            ),
+            'html.parser',
+        )
+    )
+
+    # ATG Statement Coverage Distribution
+    hist_container_atg_stmt = soup.new_tag('div', **{'class': 'histogram-container'})
+    hist_grid.append(hist_container_atg_stmt)
+    hist_header_atg_stmt = soup.new_tag('div', **{'class': 'histogram-header'})
+    hist_header_atg_stmt.string = 'ATG Statement Coverage Distribution'
+    hist_container_atg_stmt.append(hist_header_atg_stmt)
+    hist_container_atg_stmt.append(
+        BeautifulSoup(
+            create_histogram(
+                [c for c in metrics['atg_statement_coverage'] if c is not None],
+                'ATG Statement Coverage Distribution',
+                'Statement Coverage',
+            ),
+            'html.parser',
+        )
+    )
+
+    # Branch Coverage Distribution
+    hist_container_branch = soup.new_tag('div', **{'class': 'histogram-container'})
+    hist_grid.append(hist_container_branch)
+    hist_header_branch = soup.new_tag('div', **{'class': 'histogram-header'})
+    hist_header_branch.string = 'Branch Coverage Distribution'
+    hist_container_branch.append(hist_header_branch)
+    hist_container_branch.append(
+        BeautifulSoup(
+            create_histogram(
+                [c for c in metrics['branch_coverage'] if c is not None],
+                'Branch Coverage Distribution',
+                'Branch Coverage',
+            ),
+            'html.parser',
+        )
+    )
+
+    # ATG Branch Coverage Distribution
+    hist_container_atg_branch = soup.new_tag('div', **{'class': 'histogram-container'})
+    hist_grid.append(hist_container_atg_branch)
+    hist_header_atg_branch = soup.new_tag('div', **{'class': 'histogram-header'})
+    hist_header_atg_branch.string = 'ATG Branch Coverage Distribution'
+    hist_container_atg_branch.append(hist_header_atg_branch)
+    hist_container_atg_branch.append(
+        BeautifulSoup(
+            create_histogram(
+                [c for c in metrics['atg_branch_coverage'] if c is not None],
+                'ATG Branch Coverage Distribution',
+                'Branch Coverage',
+            ),
+            'html.parser',
+        )
+    )
+
+    # Uncovered lines section
+    h3_cov_header = soup.new_tag('h3')
+    h3_cov_header.string = 'Uncovered Lines'
+    content_coverage.append(h3_cov_header)
+    all_uncovered_reqs = [
+        r
+        for result in results
+        for r in result.requirement_coverage_results
+        if not r['fully_covered']
+    ]
+    if not all_uncovered_reqs:
+        p_no_uncovered = soup.new_tag('p')
+        p_no_uncovered.string = 'No uncovered lines found.'
+        content_coverage.append(p_no_uncovered)
+    else:
+        for result in results:
+            uncovered_reqs = [
+                r for r in result.requirement_coverage_results if not r['fully_covered']
+            ]
+            if not uncovered_reqs:
+                continue
+            env_name = Path(result.environment_path).stem
+
+            env_section = soup.new_tag('div')
+            content_coverage.append(env_section)
+
+            btn_env = soup.new_tag('button', **{'class': 'collapsible'})
+            btn_env.string = env_name
+            env_section.append(btn_env)
+
+            content_env = soup.new_tag('div', **{'class': 'content'})
+            env_section.append(content_env)
+
+            pre = soup.new_tag('pre')
+            content_env.append(pre)
+
+            for ul in _extract_uncovered_lines(result):
+                tooltip_text = f'{ul["requirement_id"]} – {ul["requirement_text"]}'
+                span_line = soup.new_tag('span', title=tooltip_text)
+                span_line.string = f'{ul["line_number"]}\t{ul["source_line"]}'
+                pre.append(span_line)
+                pre.append('\n')
+
+    # Fallback Metrics Section
+    fallback_section = soup.new_tag('div', **{'class': 'report-section'})
+    body_tag.append(fallback_section)
+
+    btn_fallback = soup.new_tag('button', **{'class': 'collapsible'})
+    btn_fallback.string = 'Fallback Metrics'
+    fallback_section.append(btn_fallback)
+
+    content_fallback = soup.new_tag('div', **{'class': 'content'})
+    fallback_section.append(content_fallback)
+
+    h3_fallback_title = soup.new_tag('h3')
+    h3_fallback_title.string = 'Fallback Usage Metrics (Macro Avg.)'
+    content_fallback.append(h3_fallback_title)
+
+    metric_grid = soup.new_tag('div', **{'class': 'metric-grid'})
+    content_fallback.append(metric_grid)
 
     fallback_metrics = [
         ('Failed Generation Rate', metrics['failed_generation_rate']),
@@ -754,93 +1057,141 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
     ]
 
     for name, values in fallback_metrics:
-        avg_value = np.mean(values)
-        fallback_section += f"""
-                    <div class="metric-card">
-                        <div class="metric-name">{name}</div>
-                        <div class="metric-value">{format_percentage(avg_value)}</div>
-                    </div>
-        """
+        avg_val = np.mean(values)
+        card = soup.new_tag('div', **{'class': 'metric-card'})
+        metric_grid.append(card)
+        name_div = soup.new_tag('div', **{'class': 'metric-name'})
+        name_div.string = name
+        card.append(name_div)
+        value_div = soup.new_tag('div', **{'class': 'metric-value'})
+        value_div.string = format_percentage(avg_val)
+        card.append(value_div)
 
-    fallback_section += """
-                </div>
-                <h3>Fallback Metrics Distributions</h3>
-                <div class="histogram-grid">
-    """
+    h3_fallback_dist = soup.new_tag('h3')
+    h3_fallback_dist.string = 'Fallback Metrics Distributions'
+    content_fallback.append(h3_fallback_dist)
 
-    # Add histograms for ALL fallback metrics
+    hist_grid_fallback = soup.new_tag('div', **{'class': 'histogram-grid'})
+    content_fallback.append(hist_grid_fallback)
+
     for name, values in fallback_metrics:
-        fallback_section += f"""
-                    <div class="histogram-container">
-                        <div class="histogram-header">{name} Distribution</div>
-        """
-        fallback_section += create_histogram(values, f'{name} Distribution', name)
-        fallback_section += """
-                    </div>
-        """
+        hist_cont = soup.new_tag('div', **{'class': 'histogram-container'})
+        hist_grid_fallback.append(hist_cont)
+        hist_header = soup.new_tag('div', **{'class': 'histogram-header'})
+        hist_header.string = f'{name} Distribution'
+        hist_cont.append(hist_header)
+        hist_cont.append(
+            BeautifulSoup(
+                create_histogram(values, f'{name} Distribution', name), 'html.parser'
+            )
+        )
 
-    fallback_section += """
-                </div>
-            </div>
-        </div>
-    """
+    # Individual Results Section
+    individual_section = soup.new_tag('div', **{'class': 'report-section'})
+    body_tag.append(individual_section)
 
-    # Create individual results section with improved collapsing behavior
-    individual_results_section = """
-        <div class="report-section">
-            <button class="collapsible">Individual Environment Results</button>
-            <div class="content">
-    """
+    btn_indiv = soup.new_tag('button', **{'class': 'collapsible'})
+    btn_indiv.string = 'Individual Environment Results'
+    individual_section.append(btn_indiv)
 
-    # Add each individual environment's results
+    content_indiv = soup.new_tag('div', **{'class': 'content'})
+    individual_section.append(content_indiv)
+
     for result in results:
         env_name = Path(result.environment_path).stem
-        individual_results_section += f"""
-                <button class="collapsible">{env_name}</button>
-                <div class="content">
-                    <h4>Environment: {result.environment_path}</h4>
-                    
-                    <div class="summary-cards">
-                        <div class="summary-card">
-                            <h3>Requirements</h3>
-                            <div class="value">{result.total_requirements}</div>
-                        </div>
-                        <div class="summary-card">
-                            <h3>Generated Tests</h3>
-                            <div class="value">{result.generated_tests}</div>
-                        </div>
-                        <div class="summary-card">
-                            <h3>Verified Tests</h3>
-                            <div class="value">{result.verified_tests}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="summary-cards">
-                        <div class="summary-card">
-                            <h3>Precision</h3>
-                            <div class="value">{format_percentage(result.precision)}</div>
-                        </div>
-                        <div class="summary-card">
-                            <h3>Recall</h3>
-                            <div class="value">{format_percentage(result.recall)}</div>
-                        </div>
-                        <div class="summary-card">
-                            <h3>F1 Score</h3>
-                            <div class="value">{format_percentage(result.f1_score)}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="summary-cards">
-                        <div class="summary-card">
-                            <h3>Requirement Coverage</h3>
-                            <div class="value">{format_percentage(result.requirement_coverage)}</div>
-                        </div>
-                    </div>
 
-                    <h4>Coverage Information</h4>
-        """
+        btn_env = soup.new_tag('button', **{'class': 'collapsible'})
+        btn_env.string = env_name
+        content_indiv.append(btn_env)
 
-        # Add coverage information with ATG comparison if available
+        content_env = soup.new_tag('div', **{'class': 'content'})
+        content_indiv.append(content_env)
+
+        h4_env = soup.new_tag('h4')
+        h4_env.string = f'Environment: {result.environment_path}'
+        content_env.append(h4_env)
+
+        # Summary cards for this environment
+        sum_cards_env1 = soup.new_tag('div', **{'class': 'summary-cards'})
+        content_env.append(sum_cards_env1)
+
+        card_env_req = soup.new_tag('div', **{'class': 'summary-card'})
+        sum_cards_env1.append(card_env_req)
+        h3_env_req = soup.new_tag('h3')
+        h3_env_req.string = 'Requirements'
+        card_env_req.append(h3_env_req)
+        div_env_req = soup.new_tag('div', **{'class': 'value'})
+        div_env_req.string = str(result.total_requirements)
+        card_env_req.append(div_env_req)
+
+        card_env_gen = soup.new_tag('div', **{'class': 'summary-card'})
+        sum_cards_env1.append(card_env_gen)
+        h3_env_gen = soup.new_tag('h3')
+        h3_env_gen.string = 'Generated Tests'
+        card_env_gen.append(h3_env_gen)
+        div_env_gen = soup.new_tag('div', **{'class': 'value'})
+        div_env_gen.string = str(result.generated_tests)
+        card_env_gen.append(div_env_gen)
+
+        card_env_ver = soup.new_tag('div', **{'class': 'summary-card'})
+        sum_cards_env1.append(card_env_ver)
+        h3_env_ver = soup.new_tag('h3')
+        h3_env_ver.string = 'Verified Tests'
+        card_env_ver.append(h3_env_ver)
+        div_env_ver = soup.new_tag('div', **{'class': 'value'})
+        div_env_ver.string = str(result.verified_tests)
+        card_env_ver.append(div_env_ver)
+
+        # Precision, Recall, F1 for this env
+        sum_cards_env2 = soup.new_tag('div', **{'class': 'summary-cards'})
+        content_env.append(sum_cards_env2)
+
+        card_env_prec = soup.new_tag('div', **{'class': 'summary-card'})
+        sum_cards_env2.append(card_env_prec)
+        h3_env_prec = soup.new_tag('h3')
+        h3_env_prec.string = 'Precision'
+        card_env_prec.append(h3_env_prec)
+        div_env_prec_val = soup.new_tag('div', **{'class': 'value'})
+        div_env_prec_val.string = format_percentage(result.precision)
+        card_env_prec.append(div_env_prec_val)
+
+        card_env_rec = soup.new_tag('div', **{'class': 'summary-card'})
+        sum_cards_env2.append(card_env_rec)
+        h3_env_rec = soup.new_tag('h3')
+        h3_env_rec.string = 'Recall'
+        card_env_rec.append(h3_env_rec)
+        div_env_rec_val = soup.new_tag('div', **{'class': 'value'})
+        div_env_rec_val.string = format_percentage(result.recall)
+        card_env_rec.append(div_env_rec_val)
+
+        card_env_f1 = soup.new_tag('div', **{'class': 'summary-card'})
+        sum_cards_env2.append(card_env_f1)
+        h3_env_f1 = soup.new_tag('h3')
+        h3_env_f1.string = 'F1 Score'
+        card_env_f1.append(h3_env_f1)
+        div_env_f1_val = soup.new_tag('div', **{'class': 'value'})
+        div_env_f1_val.string = format_percentage(result.f1_score)
+        card_env_f1.append(div_env_f1_val)
+
+        # Requirement Coverage for this env
+        sum_cards_env3 = soup.new_tag('div', **{'class': 'summary-cards'})
+        content_env.append(sum_cards_env3)
+
+        card_env_req_cov = soup.new_tag('div', **{'class': 'summary-card'})
+        sum_cards_env3.append(card_env_req_cov)
+        h3_env_req_cov = soup.new_tag('h3')
+        h3_env_req_cov.string = 'Requirement Coverage'
+        card_env_req_cov.append(h3_env_req_cov)
+        div_env_req_cov_val = soup.new_tag('div', **{'class': 'value'})
+        div_env_req_cov_val.string = format_percentage(result.requirement_coverage)
+        card_env_req_cov.append(div_env_req_cov_val)
+
+        # Coverage Information header
+        h4_cov_info = soup.new_tag('h4')
+        h4_cov_info.string = 'Coverage Information'
+        content_env.append(h4_cov_info)
+
+        # Determine coverage values
         stmt_cov = 0
         branch_cov = 0
         atg_stmt_cov = 0
@@ -859,54 +1210,154 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
                 'percentage', 0
             )
 
-        individual_results_section += f"""
-                    <div class="coverage-legend">
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #3498db;"></div>
-                            <span>Our Tests</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #e74c3c;"></div>
-                            <span>ATG Tests</span>
-                        </div>
-                    </div>
-                    
-                    <div class="coverage-bars">
-                        <div class="coverage-bar">
-                            <div class="label">
-                                <span>Statement Coverage</span>
-                                <span>Our: {stmt_cov:.2%} | ATG: {atg_stmt_cov:.2%}</span>
-                            </div>
-                            <div class="bar-container">
-                                <div class="bar-fill" style="width: {stmt_cov:.2%};"></div>
-                                <div class="atg-bar-fill" style="width: {atg_stmt_cov:.2%};"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="coverage-bar">
-                            <div class="label">
-                                <span>Branch Coverage</span>
-                                <span>Our: {branch_cov:.2%} | ATG: {atg_branch_cov:.2%}</span>
-                            </div>
-                            <div class="bar-container">
-                                <div class="bar-fill" style="width: {branch_cov:.2%};"></div>
-                                <div class="atg-bar-fill" style="width: {atg_branch_cov:.2%};"></div>
-                            </div>
-                        </div>
-                    </div>
-        """
+        # Legend for this environment
+        legend_env = soup.new_tag('div', **{'class': 'coverage-legend'})
+        content_env.append(legend_env)
 
-        # Add fallback metrics
-        individual_results_section += """
-                    <h4>Fallback Metrics</h4>
-                    <table>
-                        <tr>
-                            <th>Metric</th>
-                            <th>Value</th>
-                        </tr>
-        """
+        legend_item_env_our = soup.new_tag('div', **{'class': 'legend-item'})
+        legend_env.append(legend_item_env_our)
+        color_env_our = soup.new_tag(
+            'div', **{'class': 'legend-color'}, style='background-color: #3498db;'
+        )
+        legend_item_env_our.append(color_env_our)
+        span_env_our = soup.new_tag('span')
+        span_env_our.string = 'Our Tests'
+        legend_item_env_our.append(span_env_our)
 
-        fallback_items = [
+        legend_item_env_atg = soup.new_tag('div', **{'class': 'legend-item'})
+        legend_env.append(legend_item_env_atg)
+        color_env_atg = soup.new_tag(
+            'div', **{'class': 'legend-color'}, style='background-color: #e74c3c;'
+        )
+        legend_item_env_atg.append(color_env_atg)
+        span_env_atg = soup.new_tag('span')
+        span_env_atg.string = 'ATG Tests'
+        legend_item_env_atg.append(span_env_atg)
+
+        # Coverage bars for this environment
+        coverage_bars_env = soup.new_tag('div', **{'class': 'coverage-bars'})
+        content_env.append(coverage_bars_env)
+
+        # Statement Coverage bar
+        bar_env_stmt = soup.new_tag('div', **{'class': 'coverage-bar'})
+        coverage_bars_env.append(bar_env_stmt)
+        label_env_stmt = soup.new_tag('div', **{'class': 'label'})
+        bar_env_stmt.append(label_env_stmt)
+        span_label_env_stmt = soup.new_tag('span')
+        span_label_env_stmt.string = 'Statement Coverage'
+        label_env_stmt.append(span_label_env_stmt)
+        span_values_env_stmt = soup.new_tag('span')
+        span_values_env_stmt.string = f'Our: {stmt_cov:.2%} | ATG: {atg_stmt_cov:.2%}'
+        label_env_stmt.append(span_values_env_stmt)
+
+        bar_container_env_stmt = soup.new_tag('div', **{'class': 'bar-container'})
+        bar_env_stmt.append(bar_container_env_stmt)
+        bar_fill_env_stmt = soup.new_tag(
+            'div', **{'class': 'bar-fill'}, style=f'width: {stmt_cov:.2%};'
+        )
+        bar_container_env_stmt.append(bar_fill_env_stmt)
+        atg_fill_env_stmt = soup.new_tag(
+            'div', **{'class': 'atg-bar-fill'}, style=f'width: {atg_stmt_cov:.2%};'
+        )
+        bar_container_env_stmt.append(atg_fill_env_stmt)
+
+        # Branch Coverage bar
+        bar_env_branch = soup.new_tag('div', **{'class': 'coverage-bar'})
+        coverage_bars_env.append(bar_env_branch)
+        label_env_branch = soup.new_tag('div', **{'class': 'label'})
+        bar_env_branch.append(label_env_branch)
+        span_label_env_branch = soup.new_tag('span')
+        span_label_env_branch.string = 'Branch Coverage'
+        label_env_branch.append(span_label_env_branch)
+        span_values_env_branch = soup.new_tag('span')
+        span_values_env_branch.string = (
+            f'Our: {branch_cov:.2%} | ATG: {atg_branch_cov:.2%}'
+        )
+        label_env_branch.append(span_values_env_branch)
+
+        bar_container_env_branch = soup.new_tag('div', **{'class': 'bar-container'})
+        bar_env_branch.append(bar_container_env_branch)
+        bar_fill_env_branch = soup.new_tag(
+            'div', **{'class': 'bar-fill'}, style=f'width: {branch_cov:.2%};'
+        )
+        bar_container_env_branch.append(bar_fill_env_branch)
+        atg_fill_env_branch = soup.new_tag(
+            'div', **{'class': 'atg-bar-fill'}, style=f'width: {atg_branch_cov:.2%};'
+        )
+        bar_container_env_branch.append(atg_fill_env_branch)
+
+        # Uncovered requirements
+        h4_uncov_req = soup.new_tag('h4')
+        h4_uncov_req.string = 'Uncovered Requirements'
+        content_env.append(h4_uncov_req)
+        uncovered_reqs = [
+            r for r in result.requirement_coverage_results if not r['fully_covered']
+        ]
+        if not uncovered_reqs:
+            p_no_uncov = soup.new_tag('p')
+            p_no_uncov.string = 'All requirements are covered.'
+            content_env.append(p_no_uncov)
+        else:
+            ul_uncov = soup.new_tag('ul')
+            content_env.append(ul_uncov)
+            for req in uncovered_reqs:
+                req_id = req['requirement_id']
+                req_text = result.requirements_data[req_id]['Title']
+                link_to_req = f'./{env_name}/coverage_reports/{req_id}_coverage.html'
+                test_case = test_cases.get(env_name, {}).get(
+                    req_id, 'Test case not found'
+                )
+                if isinstance(test_case, dict):
+                    test_case = json.dumps(test_case, indent=4)
+
+                li_uncov = soup.new_tag('li')
+                a_uncov = soup.new_tag('a', href=link_to_req)
+                a_uncov.string = req_id
+                li_uncov.append(a_uncov)
+                p = soup.new_tag('p')
+                p.string = req_text
+                li_uncov.append(p)
+
+                collapsible = soup.new_tag('div', **{'class': 'collapsible'})
+                collapsible['style'] = (
+                    'cursor:pointer; padding:4px 8px; '
+                    'background:#eee; border:1px solid #ccc; margin-top:4px;'
+                )
+                collapsible.string = '▶ Show Test Case'
+                li_uncov.append(collapsible)
+
+                content = soup.new_tag('div', **{'class': 'content'})
+                content['style'] = (
+                    'max-height:0; overflow:hidden; '
+                    'transition:max-height 0.2s ease-out; '
+                    'padding:0 8px; border:1px solid #ccc; '
+                    'border-top:none; background:#fafafa;'
+                )
+                pre = soup.new_tag('pre')
+                pre.string = test_case
+                pre['style'] = 'max-height: 500px; overflow: scroll;'
+                content.append(pre)
+                li_uncov.append(content)
+
+                ul_uncov.append(li_uncov)
+
+        # Fallback Metrics Table for this environment
+        h4_fallback_env = soup.new_tag('h4')
+        h4_fallback_env.string = 'Fallback Metrics'
+        content_env.append(h4_fallback_env)
+
+        table_fallback_env = soup.new_tag('table')
+        content_env.append(table_fallback_env)
+        tr_head = soup.new_tag('tr')
+        table_fallback_env.append(tr_head)
+        th_metric = soup.new_tag('th')
+        th_metric.string = 'Metric'
+        tr_head.append(th_metric)
+        th_value = soup.new_tag('th')
+        th_value.string = 'Value'
+        tr_head.append(th_value)
+
+        fallback_items_env = [
             ('Failed Generation Rate', result.failed_generation_rate),
             ('Test Failure Feedback Rate', result.test_failure_feedback_rate),
             ('Error Correction Needed Rate', result.error_correction_needed_rate),
@@ -926,145 +1377,235 @@ def create_html_report(results: List[EvaluationResult], metrics: Dict[str, Any])
             ('Exception Rate', result.exception_rate),
         ]
 
-        for name, value in fallback_items:
-            individual_results_section += f"""
-                        <tr>
-                            <td>{name}</td>
-                            <td>{format_percentage(value)}</td>
-                        </tr>
-            """
+        for name, value in fallback_items_env:
+            tr = soup.new_tag('tr')
+            table_fallback_env.append(tr)
+            td_name = soup.new_tag('td')
+            td_name.string = name
+            tr.append(td_name)
+            td_val = soup.new_tag('td')
+            td_val.string = format_percentage(value)
+            tr.append(td_val)
 
-        individual_results_section += """
-                    </table>
-                    
-                    <h4>Cost Information</h4>
-                    <table>
-                        <tr>
-                            <th>Metric</th>
-                            <th>Value</th>
-                        </tr>
-                        <tr>
-                            <td>Generation Cost</td>
-                            <td>${:.4f}</td>
-                        </tr>
-                        <tr>
-                            <td>Verification Cost</td>
-                            <td>${:.4f}</td>
-                        </tr>
-                        <tr>
-                            <td>Total Cost</td>
-                            <td>${:.4f}</td>
-                        </tr>
-                        <tr>
-                            <td>Execution Time</td>
-                            <td>{}</td>
-                        </tr>
-                    </table>
-        """.format(
-            result.total_generation_cost,
-            result.total_verification_cost,
-            result.total_cost,
-            format_time(result.execution_time),
-        )
+        # Cost Information Table for this environment
+        h4_cost_env = soup.new_tag('h4')
+        h4_cost_env.string = 'Cost Information'
+        content_env.append(h4_cost_env)
 
-        # Add error information if available
+        table_cost_env = soup.new_tag('table')
+        content_env.append(table_cost_env)
+        tr_cost_head = soup.new_tag('tr')
+        table_cost_env.append(tr_cost_head)
+        th_cost_metric = soup.new_tag('th')
+        th_cost_metric.string = 'Metric'
+        tr_cost_head.append(th_cost_metric)
+        th_cost_value = soup.new_tag('th')
+        th_cost_value.string = 'Value'
+        tr_cost_head.append(th_cost_value)
+
+        tr_gen_cost_env = soup.new_tag('tr')
+        table_cost_env.append(tr_gen_cost_env)
+        td_gen_label = soup.new_tag('td')
+        td_gen_label.string = 'Generation Cost'
+        tr_gen_cost_env.append(td_gen_label)
+        td_gen_val = soup.new_tag('td')
+        td_gen_val.string = f'${result.total_generation_cost:.4f}'
+        tr_gen_cost_env.append(td_gen_val)
+
+        tr_ver_cost_env = soup.new_tag('tr')
+        table_cost_env.append(tr_ver_cost_env)
+        td_ver_label = soup.new_tag('td')
+        td_ver_label.string = 'Verification Cost'
+        tr_ver_cost_env.append(td_ver_label)
+        td_ver_val = soup.new_tag('td')
+        td_ver_val.string = f'${result.total_verification_cost:.4f}'
+        tr_ver_cost_env.append(td_ver_val)
+
+        tr_tot_cost_env = soup.new_tag('tr')
+        table_cost_env.append(tr_tot_cost_env)
+        td_tot_label = soup.new_tag('td')
+        td_tot_label.string = 'Total Cost'
+        tr_tot_cost_env.append(td_tot_label)
+        td_tot_val = soup.new_tag('td')
+        td_tot_val.string = f'${result.total_cost:.4f}'
+        tr_tot_cost_env.append(td_tot_val)
+
+        tr_exec_time_env = soup.new_tag('tr')
+        table_cost_env.append(tr_exec_time_env)
+        td_exec_label = soup.new_tag('td')
+        td_exec_label.string = 'Execution Time'
+        tr_exec_time_env.append(td_exec_label)
+        td_exec_val = soup.new_tag('td')
+        td_exec_val.string = format_time(result.execution_time)
+        tr_exec_time_env.append(td_exec_val)
+
+        # Error Information if present
         if result.generation_error:
-            individual_results_section += f"""
-                    <h4>Error Information</h4>
-                    <div style="background-color: #ffeeee; padding: 10px; border-radius: 5px;">
-                        <pre>{result.generation_error}</pre>
-                    </div>
-            """
+            h4_error_env = soup.new_tag('h4')
+            h4_error_env.string = 'Error Information'
+            content_env.append(h4_error_env)
 
-        individual_results_section += """
-                </div>
-        """
+            div_error_env = soup.new_tag(
+                'div',
+                style='background-color: #ffeeee; padding: 10px; border-radius: 5px;',
+            )
+            content_env.append(div_error_env)
+            pre_error = soup.new_tag('pre')
+            pre_error.string = result.generation_error
+            div_error_env.append(pre_error)
 
-    individual_results_section += """
-            </div>
-        </div>
-    """
+    # JavaScript Section for collapsible behavior
+    script_tag = soup.new_tag('script')
+    script_content = """
+        document.addEventListener('DOMContentLoaded', function() {
+            var coll = document.getElementsByClassName("collapsible");
 
-    # Updated JavaScript for better handling of collapsible sections
-    js_section = """
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                var coll = document.getElementsByClassName("collapsible");
-                
-                // Helper function to update parent heights
-                function updateParentHeights(element) {
-                    let parent = element;
-                    while (parent) {
-                        let content = parent.nextElementSibling;
-                        if (content && content.classList.contains("content")) {
-                            if (content.style.maxHeight) {
-                                content.style.maxHeight = content.scrollHeight + "px";
-                            }
-                        }
-                        parent = parent.parentElement;
-                        if (parent && !parent.classList.contains("content")) {
-                            break;
+            // Helper function to update parent heights
+            function updateParentHeights(element) {
+                let parent = element;
+                while (parent) {
+                    let content = parent.nextElementSibling;
+                    if (content && content.classList.contains("content")) {
+                        if (content.style.maxHeight) {
+                            content.style.maxHeight = content.scrollHeight + "px";
                         }
                     }
+                    parent = parent.parentElement;
+                    if (parent && !parent.classList.contains("content")) {
+                        break;
+                    }
                 }
-                
-                // Initialize collapsible sections
-                for (var i = 0; i < coll.length; i++) {
-                    coll[i].addEventListener("click", function() {
-                        this.classList.toggle("active");
-                        var content = this.nextElementSibling;
-                        
-                        // Toggle current section
-                        if (content.style.maxHeight) {
-                            content.style.maxHeight = null;
-                        } else {
-                            content.style.maxHeight = content.scrollHeight + "px";
-                            
-                            // Update parent heights for nested sections
-                            setTimeout(() => {
-                                updateParentHeights(this);
-                            }, 10);
-                        }
-                    });
-                }
-                
-                // Mark top-level contents for special handling
-                var reportSections = document.querySelectorAll('.report-section > .content');
-                for (var i = 0; i < reportSections.length; i++) {
-                    reportSections[i].classList.add('top-level-content');
-                }
-                
-                // Open the first level of collapsibles by default
-                var topLevelColl = document.querySelectorAll('.report-section > .collapsible');
-                for (var i = 0; i < topLevelColl.length; i++) {
-                    topLevelColl[i].click();
-                }
-            });
-        </script>
+            }
+
+            // Initialize collapsible sections
+            for (var i = 0; i < coll.length; i++) {
+                coll[i].addEventListener("click", function() {
+                    this.classList.toggle("active");
+                    var content = this.nextElementSibling;
+
+                    // Toggle current section
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + "px";
+
+                        // Update parent heights for nested sections
+                        setTimeout(() => {
+                            updateParentHeights(this);
+                        }, 10);
+                    }
+                });
+            }
+
+            // Mark top-level contents for special handling
+            var reportSections = document.querySelectorAll('.report-section > .content');
+            for (var i = 0; i < reportSections.length; i++) {
+                reportSections[i].classList.add('top-level-content');
+            }
+
+            // Open the first level of collapsibles by default
+            var topLevelColl = document.querySelectorAll('.report-section > .collapsible');
+            for (var i = 0; i < topLevelColl.length; i++) {
+                topLevelColl[i].click();
+            }
+        });
     """
+    script_tag.string = script_content
+    body_tag.append(script_tag)
 
-    html_footer = """
-    </body>
-    </html>
-    """
-
-    # Combine all sections
-    return (
-        html_head
-        + summary_section
-        + main_metrics_section
-        + coverage_section
-        + fallback_section
-        + individual_results_section
-        + js_section
-        + html_footer
-    )
+    return soup
 
 
-def create_report(result_folder: str, report_path: str):
-    """Generate a report from results in the specified folder and save it to the report path"""
-    # Create output directory if it doesn't exist
-    Path(report_path).parent.mkdir(parents=True, exist_ok=True)
+def force_unhide(soup: BeautifulSoup) -> None:
+    for tag in soup.find_all(attrs={'style': True}):
+        style = tag['style']
+        if 'display:none' not in style.replace(' ', '').lower():
+            continue
+        cleaned = (
+            ';'.join(
+                part.strip()
+                for part in style.split(';')
+                if 'display' not in part.replace(' ', '').lower()
+            )
+            .strip()
+            .rstrip(';')
+        )
+        if cleaned:
+            tag['style'] = cleaned
+        else:
+            del tag['style']
+
+    for tag in soup.find_all(hidden=True):
+        del tag['hidden']
+
+    for detail in soup.find_all('details'):
+        detail['open'] = None
+
+    collapse_classes = ('collapse', 'accordion-collapse')
+    for tag in soup.find_all(class_=True):
+        classes = tag.get('class', [])
+        if not any(c in classes for c in collapse_classes):
+            continue
+        new_classes = [
+            c for c in classes if c not in ('collapse', 'accordion-collapse')
+        ]
+        if new_classes:
+            tag['class'] = new_classes
+        else:
+            del tag['class']
+
+
+def create_markdown_report(
+    results: List[EvaluationResult], soup: BeautifulSoup, markdown_base_url: str = None
+) -> str:
+    _soup = BeautifulSoup(str(soup), 'html.parser')
+    force_unhide(_soup)
+
+    h2 = _soup.new_tag('h2')
+    h2.string = 'Uncovered lines recap'
+    outer_ul = _soup.new_tag('ul')
+
+    data = {}
+    for r in results:
+        env_name = Path(r.environment_path).stem
+        for req in r.requirement_coverage_results:
+            if req['fully_covered']:
+                continue
+            data.setdefault(env_name, {})
+            data[env_name][req['requirement_id']] = [
+                _l for _l in req['required_lines'] if _l not in req['covered_lines']
+            ]
+
+    for env, reqs in data.items():
+        env_li = _soup.new_tag('li')
+        env_li.string = env
+
+        inner_ul = _soup.new_tag('ul')
+        for req_id, lines in reqs.items():
+            req_li = _soup.new_tag('li')
+            req_li.string = f'{req_id}: {lines}'
+            inner_ul.append(req_li)
+
+        env_li.append(inner_ul)
+        outer_ul.append(env_li)
+
+    body = _soup.body
+    body.insert(0, outer_ul)
+    body.insert(0, h2)
+
+    if markdown_base_url:
+        for a in _soup.find_all('a'):
+            href = a.get('href')
+            if href and href.startswith('./'):
+                a['href'] = markdown_base_url + href[2:]
+
+    return md(str(_soup), strip=['img'], heading_style='ATX')
+
+
+def create_report(
+    result_folder: str, export_markdown: bool = False, markdown_base_url: str = None
+) -> None:
+    """Generate a report from results in the specified folder"""
 
     # Load results
     results = load_results(result_folder)
@@ -1072,17 +1613,29 @@ def create_report(result_folder: str, report_path: str):
         print(f'No result files found in {result_folder}')
         return
 
-    print(f'Loaded {len(results)} evaluation results for {report_path}')
+    print(f'Loaded {len(results)} evaluation results')
 
     # Calculate aggregated metrics
     metrics = calculate_aggregated_metrics(results)
 
+    # Load test cases
+    test_cases = load_test_cases(result_folder)
+
     # Create HTML report
-    html_report = create_html_report(results, metrics)
+    html_report = create_html_report(results, metrics, test_cases)
 
     # Write report to file
+    report_path = Path(result_folder) / 'evaluation_report.html'
     with open(report_path, 'w') as f:
-        f.write(html_report)
+        f.write(str(html_report))
+
+    if export_markdown:
+        md_report = create_markdown_report(
+            results, html_report, markdown_base_url=markdown_base_url
+        )
+        md_report_path = Path(result_folder) / 'evaluation_report.md'
+        with open(md_report_path, 'w') as f:
+            f.write(md_report)
 
     print(f'Report generated at {report_path}')
 
@@ -1093,21 +1646,28 @@ def main():
         description='Generate HTML report from evaluation results'
     )
     parser.add_argument(
-        '--input',
-        type=str,
-        default=DEFAULT_RESULT_FOLDER,
-        help=f'Folder containing evaluation result files (default: {DEFAULT_RESULT_FOLDER})',
+        'evaluation_results_folder',
+        help=f'Folder containing evaluation result files',
     )
     parser.add_argument(
-        '--output',
+        '--markdown-base-url',
+        required=False,
         type=str,
-        default=DEFAULT_REPORT_PATH,
-        help=f'Path where the HTML report will be saved (default: {DEFAULT_REPORT_PATH})',
+        help='Base URL for markdown links (e.g., "https://example.com/reports/")',
+    )
+    parser.add_argument(
+        '--export-markdown',
+        action='store_true',
+        help='Export markdown together with HTML report',
     )
     args = parser.parse_args()
 
     # Generate report
-    create_report(args.input, args.output)
+    create_report(
+        args.evaluation_results_folder,
+        export_markdown=args.export_markdown,
+        markdown_base_url=args.markdown_base_url,
+    )
 
 
 if __name__ == '__main__':

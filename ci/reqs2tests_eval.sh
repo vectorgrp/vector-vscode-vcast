@@ -87,7 +87,7 @@ main () {
   source $VCAST_USER_HOME/.venv/bin/activate
 
   get_extra_args
-  cmd="python $REPO_DIR/autoreq/evaluate_reqs2tests.py @$BENCH_ENVS_DIR/bench_envs.txt --allow-partial --timeout 30 ${EXTRA_ARGS[*]} r2t_eval_results"
+  cmd="python $REPO_DIR/autoreq/evaluate_reqs2tests.py @$BENCH_ENVS_DIR/bench_envs.txt --full-coverage-report --allow-partial --timeout 30 ${EXTRA_ARGS[*]} r2t_eval_results"
   echo "Running command: $cmd"
   eval $cmd
   deactivate

@@ -175,10 +175,48 @@ reqs2rgw_a = Analysis(
 )
 
 
+r2xreport_a = Analysis(
+    ['r2xreport.py'],
+    pathex=[],
+    binaries=filter_binaries(
+        collect_dynamic_libs(
+            package='autoreq', search_patterns=['*.dll', '*.dylib', '*.so', '*.pyd']
+        )
+    ),
+    datas=[
+        ('autoreq/resources', 'autoreq/resources'),
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/ccls_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
+        (
+            'monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json',
+            'monitors4codegen/multilspy/language_servers/clangd_language',
+        ),
+    ],
+    hiddenimports=hiddenimports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=['runtime_hook_fix_exit.py'],
+    excludes=excluded_modules,
+    noarchive=False,
+    optimize=0,
+)
+
+
 reqs2tests_pyz = PYZ(reqs2tests_a.pure)
 code2reqs_pyz = PYZ(code2reqs_a.pure)
 reqs2excel_pyz = PYZ(reqs2excel_a.pure)
 reqs2rgw_pyz = PYZ(reqs2rgw_a.pure)
+r2xreport_pyz = PYZ(r2xreport_a.pure)
 
 reqs2tests_exe = EXE(
     reqs2tests_pyz,
@@ -252,6 +290,24 @@ reqs2rgw_exe = EXE(
     entitlements_file=None,
 )
 
+r2xreport_exe = EXE(
+    r2xreport_pyz,
+    r2xreport_a.scripts,
+    [('u', None, 'OPTION')],
+    exclude_binaries=True,
+    name='r2xreport',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+
 
 coll = COLLECT(
     reqs2tests_exe,
@@ -266,6 +322,9 @@ coll = COLLECT(
     reqs2rgw_exe,
     reqs2rgw_a.binaries,
     reqs2rgw_a.datas,
+    r2xreport_exe,
+    r2xreport_a.binaries,
+    r2xreport_a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],
