@@ -17,7 +17,7 @@ indent-style = "space"
 docstring-code-format = false
 [tool.ruff.lint]
 select = ["F", "E", "PL"]
-ignore = ["E501", "PLR0913"]
+ignore = ["E501", "PLR0913", "PLR2004"]
 [tool.ruff.lint.pylint]
 max-statements = 120
 max-branches = 25

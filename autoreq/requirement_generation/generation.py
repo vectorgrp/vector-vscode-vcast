@@ -88,7 +88,9 @@ class RequirementsGenerator:
             function_name
         )[0]
 
-        return get_executable_statement_groups(function_body)
+        return get_executable_statement_groups(
+            function_body, include_virtual_groups=True
+        )
 
     async def _postprocess_requirements(
         self, function_name: str, requirements: List[str], allow_merge=True

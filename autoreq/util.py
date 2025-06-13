@@ -438,7 +438,7 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
         return merged
 
     def to_str_position(string, line, column):
-        lines = string.split('\n')
+        lines = string.splitlines()
         line_start_index = sum(len(_l) + 1 for _l in lines[:line])
 
         return line_start_index + column
@@ -465,11 +465,15 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
     return prune_code(code, ranges)
 
 
-def get_executable_statement_groups(code: str) -> List[List[int]]:
+def get_executable_statement_groups(code: str, include_virtual_groups: bool = False):
     """
     Extract executable statement groups from code using tree-sitter.
     Returns a list of lists, where each inner list contains line numbers of statements
     that belong to the same execution path.
+
+    Args:
+        code: Source code to analyze
+        include_virtual_groups: If True, creates virtual groups for empty constructs and non-entry paths
     """
     root_node = parse_code(code)
 
@@ -479,8 +483,8 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
         'expression_statement',
         'return_statement',
         'throw_statement',
-        'break_statement',
-        'continue_statement',
+        #'break_statement',
+        #'continue_statement',
     ]
 
     IGNORED_NODE_TYPES = [
@@ -515,8 +519,17 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
         'case_statement': 'value',
     }
 
+    # Define non-entry path labels for each construct type
+    PATH_NODE_NON_ENTRY_LABELS = {
+        'if_statement': 'IF {condition} ==> FALSE',
+        'while_statement': 'WHILE {condition} ==> FALSE',
+        'for_statement': 'FOR ({condition}) ==> FALSE',
+        'do_statement': 'DO-WHILE {condition} ==> FALSE',
+        'switch_statement': 'SWITCH {condition} ==> NO_MATCH',
+    }
+
     class CollectedNode(BaseModel):
-        line_number: int
+        line_numbers: List[int]
         path: List[str]
         symbols: List[str]
 
@@ -527,14 +540,14 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
 
         @property
         def lines(self):
-            lines = code.split('\n')
+            lines = code.splitlines()
             return [lines[i] for i in self.line_numbers]
 
         def __str__(self):
             # First, construct the path
             path_str = '\n -> '.join(self.path)
 
-            code_lines = code.split('\n')
+            code_lines = code.splitlines()
 
             start_line = min(self.line_numbers)
             end_line = max(self.line_numbers)
@@ -547,13 +560,32 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
 
         @staticmethod
         def from_collected_nodes(collected_nodes):
+            assert len(set(tuple(node.path) for node in collected_nodes)) == 1, (
+                'All collected nodes must have the same path'
+            )
             return StatementGroup(
-                line_numbers=[node.line_number for node in collected_nodes],
+                line_numbers=[
+                    line for node in collected_nodes for line in node.line_numbers
+                ],
                 path=collected_nodes[0].path,
                 symbols=list(
                     set(symbol for node in collected_nodes for symbol in node.symbols)
                 ),
             )
+
+    def extract_symbols_from_node(node):
+        """Extract symbols from any tree-sitter node"""
+        symbols = set()
+
+        def visit_node(node):
+            if node.type in ('identifier', 'type_identifier', 'field_identifier'):
+                symbols.add(node.text.decode('utf-8'))
+            for child in node.children:
+                visit_node(child)
+
+        if node:
+            visit_node(node)
+        return list(symbols)
 
     # Function to collect statements by execution path
     def collect_statements(node, curr_path):
@@ -564,18 +596,13 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
         # Check if this is a statement that should be collected
         if node.type in COLLECTED_NODE_TYPES:
             # Add the line number to the current group
-            line_number = node.start_point[0]
-            symbols = set()
-
-            def visit_node(node):
-                if node.type in ('identifier', 'type_identifier', 'field_identifier'):
-                    symbols.add(node.text.decode('utf-8'))
-                for child in node.children:
-                    visit_node(child)
-
-            visit_node(node)
+            line_number_start = node.start_point[0]
+            line_number_end = node.end_point[0]
+            symbols = extract_symbols_from_node(node)
             return CollectedNode(
-                line_number=line_number, path=curr_path, symbols=list(symbols)
+                line_numbers=list(range(line_number_start, line_number_end + 1)),
+                path=curr_path,
+                symbols=symbols,
             )
 
         if node.type in PATH_NODE_CHILD_PATH_LABELS:
@@ -587,6 +614,7 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
                     field: re.sub(r'\s{2,}', ' ', 'DEFAULT ==> ENTERED')
                     for field in PATH_NODE_CHILD_PATH_LABELS[node.type]
                 }
+                condition_text = 'default'
             else:
                 condition_text = condition.text.decode('utf-8') if condition else 'None'
                 path_labels = {
@@ -601,10 +629,22 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
                 }
         else:
             path_labels = {}
+            condition = None
+            condition_text = None
 
         groups = []
+        virtual_groups = []
+
+        any_prior_child_had_groups = False
+
+        def has_group_somewhere(groups):
+            if isinstance(groups, list):
+                return any(has_group_somewhere(g) for g in groups)
+
+            return groups is not None
+
         # Recursively process other nodes
-        for child in node.children:
+        for i, child in enumerate(node.children):
             # Check if this child is a condition part
             field_name = next(
                 (
@@ -614,16 +654,93 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
                 ),
                 None,
             )
-            path_label = path_labels.get(field_name, None) or path_labels.get('*', None)
+            path_label = path_labels.get(field_name) or path_labels.get('*')
 
             if path_label:
                 new_path = [*curr_path, path_label]
             else:
                 new_path = curr_path
 
-            groups.append(collect_statements(child, new_path))
+            child_result = collect_statements(child, new_path)
+            groups.append(child_result)
 
-        return groups
+            # Check if we need to create virtual groups for empty constructs
+
+            # For everything except case statements, we can create virtual groups for each individual child independently
+            # For case statements, we only create a virtual group if it's the last child (as the children are flat inside the ast)
+            other_children_disallow_virtual_group = (
+                node.type == 'case_statement' and any_prior_child_had_groups
+            ) or i != len(node.children) - 1
+
+            if (
+                include_virtual_groups
+                and path_label
+                and not has_group_somewhere(child_result)
+                and not other_children_disallow_virtual_group
+            ):
+                # Create empty body group - represents entering the construct but finding no statements
+                condition_symbols = (
+                    extract_symbols_from_node(condition) if condition else []
+                )
+                empty_body_group = CollectedNode(
+                    line_numbers=[node.start_point[0]],
+                    path=new_path,
+                    symbols=condition_symbols,
+                )
+                virtual_groups.append(empty_body_group)
+
+            any_prior_child_had_groups = (
+                any_prior_child_had_groups or has_group_somewhere(child_result)
+            )
+
+        # Create non-entry virtual groups if enabled
+        if include_virtual_groups and node.type in PATH_NODE_CHILD_PATH_LABELS:
+            condition_symbols = (
+                extract_symbols_from_node(condition) if condition else []
+            )
+
+            # Special handling for if/switch - don't create non-entry if there's else/default
+            create_non_entry = True
+            if node.type == 'if_statement':
+                # Check if there's an else clause
+                alternative = node.child_by_field_name('alternative')
+                if alternative:
+                    create_non_entry = False
+            elif node.type == 'switch_statement':
+                # Check if there's a default case in the switch body
+                switch_body = node.child_by_field_name('body')
+                if switch_body:
+                    for child in switch_body.children:
+                        if child.type == 'case_statement':
+                            case_value = child.child_by_field_name('value')
+                            if not case_value:  # This indicates a default case
+                                create_non_entry = False
+                                break
+            elif node.type == 'case_statement':
+                # For case statements, we don't create non-entry paths
+                create_non_entry = False
+
+            if create_non_entry:
+                # Create non-entry path using the template
+                condition_clean = (condition_text or '').replace('\n', '')
+                template = PATH_NODE_NON_ENTRY_LABELS.get(node.type)
+
+                assert template, (
+                    f'No non-entry path label template defined for {node.type}'
+                )
+
+                non_entry_path_label = template.format(condition=condition_clean)
+
+                non_entry_group = CollectedNode(
+                    line_numbers=[node.start_point[0]],
+                    path=[*curr_path, non_entry_path_label],
+                    symbols=condition_symbols,
+                )
+                virtual_groups.append(non_entry_group)
+
+        # Combine regular groups with virtual groups
+        all_groups = groups + virtual_groups
+        return all_groups if all_groups else groups
 
     # Start processing from the root
     executable_groups = collect_statements(root_node, [])
@@ -641,6 +758,9 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
                 if len(groups) == 0 or last_was_list:
                     groups.append([])
 
+                if len(groups[-1]) > 0 and groups[-1][-1].path != item.path:
+                    groups.append([])
+
                 groups[-1].append(item)
                 last_was_list = False
 
@@ -648,7 +768,7 @@ def get_executable_statement_groups(code: str) -> List[List[int]]:
 
     flat_groups = to_flat_groups(executable_groups)
     executable_groups = [
-        StatementGroup.from_collected_nodes(group) for group in flat_groups
+        StatementGroup.from_collected_nodes(group) for group in flat_groups if group
     ]
 
     return executable_groups
@@ -680,7 +800,9 @@ async def get_relevant_statement_groups(
 
     requirements_text = '\n'.join([f'{i + 1}. {r}' for i, r in enumerate(requirements)])
 
-    all_groups = get_executable_statement_groups(function_body)
+    all_groups = get_executable_statement_groups(
+        function_body, include_virtual_groups=True
+    )
 
     prettified_groups = []
     for i, part in enumerate(all_groups):
