@@ -51,6 +51,14 @@ get_extra_args() {
     echo "Individual decomposition enabled"
     EXTRA_ARGS+=("--individual-decomposition")
   fi
+  
+  if [[ -n "$MIN_PRUNING_LINES" ]]; then
+    min_pruning_check=$(echo $MIN_PRUNING_LINES | python3.10 -c "import sys;exec('try:obj=int(str(sys.stdin.read().strip()))\nexcept:obj=-1');print(obj > 0)")
+    if [[ "$min_pruning_check" != "False" ]]; then
+      echo "Min pruning lines set to $MIN_PRUNING_LINES"
+      EXTRA_ARGS+=("--min-pruning-lines" "$MIN_PRUNING_LINES")
+    fi
+  fi
 }
 
 process_url() {

@@ -66,6 +66,10 @@ on:
         description: 'Enable individual decomposition for the evaluation'
         required: false
         default: false
+      min-pruning-lines:
+        description: 'Minimum pruning lines (positive integer)'
+        required: false
+        default: '500'
 env:
   NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
   REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
@@ -88,6 +92,7 @@ jobs:
       REQ2TESTS_MODELS_PATH: /llm_configs
       BATCHED_MODE: ${{ github.event.inputs.batched-mode }}
       INDIVIDUAL_DECOMPOSITION: ${{ github.event.inputs.individual-decomposition }}
+      MIN_PRUNING_LINES: ${{ github.event.inputs.min-pruning-lines }}
       BASE_ARTIFACTORY_URL: "https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/${{ github.event.inputs.env-set }}"
 
     container:
@@ -188,6 +193,7 @@ jobs:
           echo "**Reasoning model parameters override:** ${{ github.event.inputs.reasoning-model-params-override }}" >> $GITHUB_STEP_SUMMARY
           echo "**Batched mode:** ${{ env.BATCHED_MODE }}" >> $GITHUB_STEP_SUMMARY
           echo "**Individual decomposition:** ${{ env.INDIVIDUAL_DECOMPOSITION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Min pruning lines:** ${{ env.MIN_PRUNING_LINES }}" >> $GITHUB_STEP_SUMMARY
           
           CODE=0
           source $VCAST_USER_HOME/.venv/bin/activate
