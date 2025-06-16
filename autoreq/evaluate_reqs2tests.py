@@ -499,6 +499,7 @@ async def evaluate_environment(
     max_generation_time: float = None,
     min_pruning_lines: int = 1000,
     use_test_examples: bool = True,
+    blackbox: bool = False,
     disable_requirement_coverage: bool = False,
     full_coverage_report: bool = False,
 ) -> EvaluationResult:
@@ -516,6 +517,7 @@ async def evaluate_environment(
         use_extended_reasoning=extended_reasoning,
         min_prune_lines=min_pruning_lines,
         use_test_examples=use_test_examples,
+        blackbox=blackbox,
     )
     test_verifier = TestVerifier(
         rm, env, allow_partial=allow_partial or allow_batch_partial
@@ -947,6 +949,7 @@ async def process_envs(
             args.timeout * 60,  # Convert from minutes to seconds
             args.min_pruning_lines,
             not args.no_test_examples,
+            args.blackbox,
             args.disable_requirement_coverage,
             full_coverage_report=args.full_coverage_report,
         )
@@ -1053,6 +1056,11 @@ async def main():
         '--disable-requirement-coverage',
         action='store_true',
         help='Disable requirement coverage calculation.',
+    )
+    parser.add_argument(
+        '--blackbox',
+        action='store_true',
+        help='Use blackbox test generation (but not blackbox verification).',
     )
     parser.add_argument(
         '--full-coverage-report',

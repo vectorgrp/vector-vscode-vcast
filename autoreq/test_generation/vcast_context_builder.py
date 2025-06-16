@@ -21,14 +21,20 @@ class VcastContextBuilder:
         focus_lines=None,
         include_unit_name=False,
         return_used_fallback=False,
+        blackbox=False,
     ):
         unit_name = self._get_function_unit(function_name)
 
         if unit_name is None:
             raise ValueError(f"Function '{function_name}' not found in any unit.")
 
+        if blackbox:
+            if focus_lines is not None:
+                logging.warning('Warning: Pruning will be ignored in blackbox mode.')
+            focus_lines = None
+
         context, used_fallback = await self._build_raw_code_context(
-            function_name, unit_name, focus_lines
+            function_name, unit_name, focus_lines, blackbox
         )
 
         if include_unit_name:
@@ -40,15 +46,17 @@ class VcastContextBuilder:
         return context
 
     @alru_cache(maxsize=None)
-    async def _build_raw_code_context(self, function_name, unit_name, focus_lines=None):
+    async def _build_raw_code_context(
+        self, function_name, unit_name, focus_lines=None, collapse_function_body=False
+    ):
         ast_context = await self._reduce_context_ast(
-            function_name, unit_name, focus_lines
+            function_name, unit_name, focus_lines, collapse_function_body
         )
         if ast_context:
             return ast_context, False
 
         llm_context = await self._reduce_context_llm(
-            function_name, unit_name, focus_lines
+            function_name, unit_name, focus_lines, collapse_function_body
         )
         if llm_context:
             return llm_context, True
@@ -59,8 +67,13 @@ class VcastContextBuilder:
         return fallback_content, True
 
     async def _reduce_context_llm(
-        self, function_name, unit_name, focus_lines
+        self, function_name, unit_name, focus_lines, collapse_function_body
     ):  # Added unit_name
+        if collapse_function_body:
+            raise ValueError(
+                'LLM context reduction does not support collapsing function bodies.'
+            )
+
         context = self.environment.get_tu_content(
             unit_name=unit_name, reduction_level='medium'
         )  # Pass unit_name
@@ -81,7 +94,9 @@ class VcastContextBuilder:
 
         return reduced_context
 
-    async def _reduce_context_ast(self, function_name, unit_name, focus_lines):
+    async def _reduce_context_ast(
+        self, function_name, unit_name, focus_lines, collapse_function_body
+    ):
         codebase = self.environment.tu_codebase
 
         temp_tu_path = self._get_unit_temp_tu_path(unit_name)
@@ -91,7 +106,7 @@ class VcastContextBuilder:
         relevant_definitions = codebase.get_definitions_for_symbol(
             function_name,
             filepath=temp_tu_path,
-            collapse_function_body=False,
+            collapse_function_body=collapse_function_body,
             return_dict=True,
             depth=3,
         )
@@ -111,7 +126,9 @@ class VcastContextBuilder:
             reduced_context.append(f'\n{definition_text}')
 
         func_code = codebase.find_definitions_by_name(
-            function_name, filepath=temp_tu_path
+            function_name,
+            filepath=temp_tu_path,
+            collapse_function_body=collapse_function_body,
         )[0]
 
         if focus_lines:

@@ -56,16 +56,10 @@ on:
         description: 'The no_proxy extension to add (comma separated list)'
         required: false
         default: '10.180.44.4'
-      batched-mode:
-        type: boolean
-        description: 'Enable batched mode for the evaluation'
+      evaluation-flags:
+        description: 'Evaluation flags (comma-separated): batched-mode,individual-decomposition,blackbox'
         required: false
-        default: true
-      individual-decomposition:
-        type: boolean
-        description: 'Enable individual decomposition for the evaluation'
-        required: false
-        default: false
+        default: 'batched-mode'
       min-pruning-lines:
         description: 'Minimum pruning lines (positive integer)'
         required: false
@@ -90,8 +84,7 @@ jobs:
       REQ2TESTS_MODEL: ${{ github.event.inputs.model-config }}
       REQ2TESTS_REASONING_MODEL: ${{ github.event.inputs.reasoning-model-config }}
       REQ2TESTS_MODELS_PATH: /llm_configs
-      BATCHED_MODE: ${{ github.event.inputs.batched-mode }}
-      INDIVIDUAL_DECOMPOSITION: ${{ github.event.inputs.individual-decomposition }}
+      EVALUATION_FLAGS: ${{ github.event.inputs.evaluation-flags }}
       MIN_PRUNING_LINES: ${{ github.event.inputs.min-pruning-lines }}
       BASE_ARTIFACTORY_URL: "https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/${{ github.event.inputs.env-set }}"
 
@@ -191,8 +184,7 @@ jobs:
           echo "**Model parameters override:** ${{ github.event.inputs.model-params-override }}" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning model config name:** ${{ env.REQ2TESTS_REASONING_MODEL }}" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning model parameters override:** ${{ github.event.inputs.reasoning-model-params-override }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Batched mode:** ${{ env.BATCHED_MODE }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Individual decomposition:** ${{ env.INDIVIDUAL_DECOMPOSITION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Evaluation flags:** ${{ env.EVALUATION_FLAGS }}" >> $GITHUB_STEP_SUMMARY
           echo "**Min pruning lines:** ${{ env.MIN_PRUNING_LINES }}" >> $GITHUB_STEP_SUMMARY
           
           CODE=0

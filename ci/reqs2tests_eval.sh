@@ -43,13 +43,32 @@ get_extra_args() {
     EXTRA_ARGS+=("--max-cost" "$MAX_COST")
   fi
 
-  if [[ "$BATCHED_MODE" == "true" ]]; then
-    echo "Batched mode enabled"
-    EXTRA_ARGS+=("--batched")
-  fi
-  if [[ "$INDIVIDUAL_DECOMPOSITION" == "true" ]]; then
-    echo "Individual decomposition enabled"
-    EXTRA_ARGS+=("--individual-decomposition")
+  # Parse evaluation flags
+  if [[ -n "$EVALUATION_FLAGS" ]]; then
+    IFS=',' read -ra FLAGS <<< "$EVALUATION_FLAGS"
+    for flag in "${FLAGS[@]}"; do
+      # Trim whitespace
+      flag=$(echo "$flag" | xargs)
+      case "$flag" in
+        "batched-mode")
+          echo "Batched mode enabled"
+          EXTRA_ARGS+=("--batched")
+          ;;
+        "individual-decomposition")
+          echo "Individual decomposition enabled"
+          EXTRA_ARGS+=("--individual-decomposition")
+          ;;
+        "blackbox")
+          echo "Blackbox mode enabled"
+          EXTRA_ARGS+=("--blackbox")
+          ;;
+        *)
+          if [[ -n "$flag" ]]; then
+            echo "Warning: Unknown evaluation flag '$flag'"
+          fi
+          ;;
+      esac
+    done
   fi
   
   if [[ -n "$MIN_PRUNING_LINES" ]]; then
