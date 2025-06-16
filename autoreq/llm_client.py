@@ -12,6 +12,8 @@ import anthropic
 import instructor
 from dotenv import load_dotenv
 from sys import exit
+import time
+import json
 from autoreq.replay import RequestReplay
 
 load_dotenv()
@@ -296,18 +298,18 @@ class LLMClient:
 
                     completion = await call_client.beta.chat.completions.parse(**kwargs)
 
-                    from pathlib import Path
-                    import time
-                    import json
+                    # Debug message saving (only when environment variable is set)
+                    debug_messages_dir = os.getenv('REQ2TESTS_DEBUG_DIR')
+                    if debug_messages_dir:
+                        debug_path = Path(debug_messages_dir)
+                        debug_path.mkdir(exist_ok=True, parents=True)
+                        with open(debug_path / f'{time.time()}.txt', 'w') as f:
+                            for message in messages:
+                                f.write(f'{message["role"]}: {message["content"]}\n')
 
-                    Path('./llm_messages').mkdir(exist_ok=True, parents=True)
-                    with open(f'./llm_messages/{time.time()}.txt', 'w') as f:
-                        for message in messages:
-                            f.write(f'{message["role"]}: {message["content"]}\n')
-
-                        f.write(
-                            f'Response: {json.dumps(completion.choices[0].message.parsed.model_dump(), indent=4)}\n'
-                        )
+                            f.write(
+                                f'Response: {json.dumps(completion.choices[0].message.parsed.model_dump(), indent=4)}\n'
+                            )
 
                     # Update token usage for OpenAI models
                     self.token_usage[call_type]['input_tokens'] += (
