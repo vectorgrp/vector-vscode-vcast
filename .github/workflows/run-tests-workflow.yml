@@ -143,7 +143,7 @@ jobs:
         run: npm run gh-test | tee output.txt
         shell: bash
 
-      - name: Publish e2e tests results
+      - name: Publish unit tests results
         uses: actions-mirror/mikepenz-action-junit-report@v5
         if: always()
         env:
