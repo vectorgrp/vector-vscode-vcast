@@ -61,7 +61,7 @@ class TestCase:
         }
 
     def to_identifier(self):
-        return f'{self.unit_name}.{self.subprogram_name}.{self.test_name}'
+        return f'{self.unit_name}.{sanitize_subprogram_name(self.subprogram_name)}.{self.test_name}'
 
 
 class Environment:
@@ -115,7 +115,9 @@ class Environment:
             )
         except subprocess.TimeoutExpired:
             logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
-            return None
+            raise RuntimeError(
+                f"Build command '{' '.join(cmd)}' timed out. Please check your VectorCAST installation and environment."
+            )
 
         logging.debug('Command: %s Return code: %s', ' '.join(cmd), result.returncode)
 

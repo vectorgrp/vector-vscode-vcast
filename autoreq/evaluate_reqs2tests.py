@@ -499,6 +499,7 @@ async def evaluate_environment(
     max_generation_time: float = None,
     min_pruning_lines: int = 1000,
     use_test_examples: bool = True,
+    disable_requirement_coverage: bool = False,
     full_coverage_report: bool = False,
 ) -> EvaluationResult:
     start_time = time.perf_counter()
@@ -526,7 +527,14 @@ async def evaluate_environment(
     }
 
     # Get ATG coverage before running our tests
-    atg_coverage = env.atg_coverage
+    try:
+        atg_coverage = env.atg_coverage
+    except Exception as e:
+        logging.error(
+            f'Failed to get ATG coverage for {env_path}: {str(e)}\n'
+            f'Continuing without ATG coverage data.'
+        )
+        atg_coverage = None
 
     # Generate tests with progress bar
     test_cases = []
@@ -656,17 +664,23 @@ async def evaluate_environment(
             generated_tests_coverage = {'error': str(e)}
 
     # Calculate requirement coverage
-    rc = RequirementCoverage(env, rm)
-    requirement_coverage_results = []
-    for test_case in tqdm(test_cases, desc='Calculating requirement coverage'):
-        if test_case is None:
-            continue
-        result = rc.check_requirement_coverage(
-            test_case.requirement_id, [test_case.to_vectorcast(add_uuid=True)]
+    if disable_requirement_coverage:
+        requirement_coverage_results = []
+        logging.info(
+            'Requirement coverage calculation is disabled. Skipping requirement coverage.'
         )
+    else:
+        rc = RequirementCoverage(env, rm)
+        requirement_coverage_results = []
+        for test_case in tqdm(test_cases, desc='Calculating requirement coverage'):
+            if test_case is None:
+                continue
+            result = rc.check_requirement_coverage(
+                test_case.requirement_id, [test_case.to_vectorcast(add_uuid=True)]
+            )
 
-        if result:
-            requirement_coverage_results.append(result.model_dump())
+            if result:
+                requirement_coverage_results.append(result.model_dump())
 
     original_coverage_report = env_output_dir / 'coverage.html'
     try:
@@ -933,6 +947,7 @@ async def process_envs(
             args.timeout * 60,  # Convert from minutes to seconds
             args.min_pruning_lines,
             not args.no_test_examples,
+            args.disable_requirement_coverage,
             full_coverage_report=args.full_coverage_report,
         )
 
@@ -1030,7 +1045,14 @@ async def main():
         help='Do not use test examples from the environment for test generation.',
     )
     parser.add_argument(
-        '--individual-decomposition', action='store_true', help=argparse.SUPPRESS
+        '--individual-decomposition',
+        action='store_true',
+        help='Decompose each requirement individually.',
+    )
+    parser.add_argument(
+        '--disable-requirement-coverage',
+        action='store_true',
+        help='Disable requirement coverage calculation.',
     )
     parser.add_argument(
         '--full-coverage-report',

@@ -186,6 +186,8 @@ class LLMClient:
         openai.RateLimitError,
         openai.APITimeoutError,
         openai.APIConnectionError,
+        openai.ContentFilterFinishReasonError,
+        openai.LengthFinishReasonError,
     )
 
     @cached_property
@@ -215,7 +217,7 @@ class LLMClient:
         """Check if request storing is enabled."""
         return os.getenv('REQ2TESTS_STORE_REQUESTS_DIR') is not None
 
-    @backoff.on_exception(backoff.expo, exceptions, max_time=120)
+    @backoff.on_exception(backoff.expo, exceptions, max_time=120, max_tries=3)
     async def call_model(
         self,
         messages: t.List[t.Dict[str, str]],
@@ -293,6 +295,19 @@ class LLMClient:
                             kwargs.pop(arg, None)
 
                     completion = await call_client.beta.chat.completions.parse(**kwargs)
+
+                    from pathlib import Path
+                    import time
+                    import json
+
+                    Path('./llm_messages').mkdir(exist_ok=True, parents=True)
+                    with open(f'./llm_messages/{time.time()}.txt', 'w') as f:
+                        for message in messages:
+                            f.write(f'{message["role"]}: {message["content"]}\n')
+
+                        f.write(
+                            f'Response: {json.dumps(completion.choices[0].message.parsed.model_dump(), indent=4)}\n'
+                        )
 
                     # Update token usage for OpenAI models
                     self.token_usage[call_type]['input_tokens'] += (
