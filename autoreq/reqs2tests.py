@@ -241,12 +241,17 @@ async def main():
         help='Do not use requirement keys for test generation. Store a reference to the requirement in the notes instead',
     )
     parser.add_argument(
+        '--blackbox',
+        action='store_true',
+        help='Generate blackbox tests instead of supplying the language model with the source code of the function under test.',
+    )
+    parser.add_argument(
         '--min-pruning-lines', type=int, default=1000, help=argparse.SUPPRESS
     )
     parser.add_argument(
         '--no-test-examples',
         action='store_true',
-        help='Use test examples from the environment for test generation.',
+        help=argparse.SUPPRESS,
     )
     args = parser.parse_args()
 
@@ -278,6 +283,7 @@ async def main():
         use_extended_reasoning=args.extended_reasoning,
         min_prune_lines=args.min_pruning_lines,
         use_test_examples=not args.no_test_examples,
+        blackbox=args.blackbox,
     )
 
     vectorcast_test_cases = await generate_tests(

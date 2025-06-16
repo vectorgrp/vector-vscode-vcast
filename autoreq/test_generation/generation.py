@@ -30,6 +30,7 @@ class TestGenerator:
         use_test_examples=True,  # TODO: This can probably be disabled soon, some C++ features would need to be represented in the test framework examples though
         schema_type='unified',  # TODO: input_expected could work a bit better for some C code when pruning, so keep that in mind for the future
         add_prompt_identifiers_when_unpruned=True,
+        blackbox=False,
     ):
         self.requirements_manager = requirements_manager
         self.environment = environment
@@ -47,6 +48,7 @@ class TestGenerator:
         self.use_test_examples = use_test_examples
         self.add_prompt_identifiers_when_unpruned = add_prompt_identifiers_when_unpruned
         self.schema_type = schema_type
+        self.blackbox = blackbox
 
     def _group_requirements_into_batches(self, requirement_ids, batch_size):
         """Group requirements by function and split into batches of specified size."""
@@ -166,6 +168,7 @@ class TestGenerator:
             include_unit_name=True,
             return_used_fallback=True,
             focus_lines=relevant_lines,
+            blackbox=self.blackbox,
         )
         for req_id in requirement_ids:
             self.info_logger.set_used_code_context_fallback(req_id, used_fallback)
@@ -492,6 +495,7 @@ Return your answer in the following format:
             include_unit_name=True,
             return_used_fallback=True,
             focus_lines=relevant_lines,
+            blackbox=self.blackbox,
         )
         self.info_logger.set_used_code_context_fallback(requirement_id, used_fallback)
         logging.debug('Generated code context: %s', context)
