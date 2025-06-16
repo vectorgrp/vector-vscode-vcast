@@ -41,6 +41,7 @@ RUN Invoke-WebRequest -Uri "https://github.com/brechtsanders/winlibs_mingw/relea
 
 RUN cmd /S /C "net user %IMG_USERNAME% /add"
 RUN cmd /S /C "net localgroup Administrators %IMG_USERNAME% /add"
+RUN powershell -Command 'Set-LocalUser -Name $Env:IMG_USERNAME -PasswordNeverExpires $true'
 
 RUN "setx /M PATH \"$Env:PATH;C:\\mingw64\\mingw64\\bin;\""
 USER ${IMG_USERNAME}
