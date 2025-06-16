@@ -369,6 +369,26 @@ def getFunctionList(api, unitName):
     return returnList
 
 
+def getStubFunctionList(api, stubName):
+    """
+    common code to generate list of functions ...
+    """
+    global globalOutputLog
+    returnList = list()
+    unitObject = getObjectFromName(api.Unit.all(), stubName)
+    # unitName might be invalid ...
+    if unitObject:
+        for function in unitObject.all_functions:
+            if not isTestableFunction(function):
+                globalOutputLog.append(function.vcast_name)
+                returnList.append(function.vcast_name)
+
+        if len(unitObject.globals) > 0:
+            returnList.append(TAG_FOR_GLOBALS)
+
+    return returnList
+
+
 def getTestList(api, unitName, functionName):
     returnList = list()
     unitObject = getObjectFromName(api.Unit.all(), unitName)
@@ -489,6 +509,30 @@ def processSlotLines(api, pieces, triggerCharacter):
     return returnData
 
 
+def getUnitNameFromFunction(api, function):
+    allUnits = api.Unit.all()
+    for unit in allUnits:
+        currentFunctionList = getFunctionList(api, unit.name)
+        for currentFunction in currentFunctionList:
+            getUnitNameFromFunction
+            if currentFunction == function:
+                return unit.name
+
+    return None
+
+
+def get_callees_from_harness(function):
+    global globalOutputLog
+    instr = function.cover_data
+    coverableFunctions = instr.uninstrumented_expressions
+    globalOutputLog.append(coverableFunctions)
+    functionNameList = []
+    for calls in coverableFunctions:
+        functionNameList.append(calls.name)
+
+    return functionNameList
+
+
 def processStandardLines(api, pieces, triggerCharacter):
     """
     This function process everything except TEST.SLOT and TEST.REQUIREMENT_KEY lines
@@ -509,18 +553,29 @@ def processStandardLines(api, pieces, triggerCharacter):
         returnData.choiceKind = choiceKindType.File
 
     elif lengthOfCommand == 4 and triggerCharacter == ".":  # Function
-        returnData.choiceList = getFunctionList(api, pieces[2])
+        unitParam = pieces[2]
+        if unitParam == "uut_prototype_stubs":
+            returnData.choiceList = getStubFunctionList(api, unitParam)
+        else:
+            returnData.choiceList = getFunctionList(api, unitParam)
+
         returnData.choiceKind = choiceKindType.Function
 
     elif (
         lengthOfCommand == 5 and triggerCharacter == "."
     ):  # parameters and global objects
         unitName = pieces[2]
+        functionName = pieces[3]
+
+        # If we are on prototype_stubs, we need to get the original unit for the function first
+        # because otherwise further autocompletion won't work
+        if unitName == "uut_prototype_stubs":
+            unitName = getUnitNameFromFunction(api, functionName)
+
         unitObject = getObjectFromName(api.Unit.all(), unitName)
         functionList = unitObject.functions
 
-        functionName = pieces[3]
-        # functionNAme can be <<GLOBAL>> ...
+        # functionName can be <<GLOBAL>> ...
         if functionName == TAG_FOR_GLOBALS:
             globalsList = unitObject.globals
             returnData.choiceList = getNameListFromItemList(globalsList)
@@ -536,9 +591,16 @@ def processStandardLines(api, pieces, triggerCharacter):
 
     elif lengthOfCommand > 5:  # in field | array index | value part
         unitName = pieces[2]
-        unitObject = getObjectFromName(api.Unit.all(), unitName)
         functionName = pieces[3]
         paramName = pieces[4].split("[")[0]
+
+        # If we are on prototype_stubs, we need to get the original unit for the function first
+        # because otherwise further autocompletion won't work
+        if unitName == "uut_prototype_stubs":
+            unitName = getUnitNameFromFunction(api, functionName)
+
+        unitObject = getObjectFromName(api.Unit.all(), unitName)
+
         if functionName == TAG_FOR_GLOBALS:
             globalsList = unitObject.globals
             itemObject = getObjectFromName(globalsList, paramName)
