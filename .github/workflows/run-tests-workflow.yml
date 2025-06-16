@@ -144,7 +144,7 @@ jobs:
         shell: bash
 
       - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action/linux@v2
+        uses: actions-mirror/enrico-mi-publish-unit-test-result-action@v2
         if: always()
         env:
           CHECK_NAME: Unit Test results - Vcast ${{ matrix.vcast }}
