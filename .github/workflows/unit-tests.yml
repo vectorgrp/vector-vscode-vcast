@@ -125,7 +125,7 @@ jobs:
 
       - name: Results summary
         if: always()
-        uses: actions-mirror/pmeier/pytest-results-action@main
+        uses: actions-mirror/pmeier-pytest-results-action@main
         with:
           path: test-results.xml
           summary: true
