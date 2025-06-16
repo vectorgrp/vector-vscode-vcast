@@ -22,7 +22,7 @@ venv/
 *.egg-info/
 monitors4codegen/multilspy/language_servers/clangd_language/clangd
 *.csv
-!tests/*.csv
+!tests/**/*.csv
 *.html
 tests/envs_for_tests
 tests/llm_cache
@@ -33,5 +33,5 @@ autoreq/*.c
 *.zip
 *.tar.gz
 *.xlsx
-!tests/*.xlsx
+!tests/**/*.xlsx
 *.log

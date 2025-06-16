@@ -337,7 +337,7 @@ interactions:
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.77.0
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -349,7 +349,9 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.77.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -367,37 +369,40 @@ interactions:
         set the Dessert field to CAKE. We will allocate an order, set Entree to LOBSTER,
         Salad to GREEN, Beverage to WINE, and Dessert to NO_DESSERT (to ensure it
         is changed by the function). After calling the function, we expect Dessert
-        to be set to CAKE. Other fields are not relevant for this requirement.\",\"test_mapping_analysis\":\"The
-        requirement maps directly to the second branch in the Add_Included_Dessert
+        to be set to CAKE. Other fields are not relevant to the requirement and can
+        be left at their default or unspecified values.\",\"test_mapping_analysis\":\"The
+        requirement is directly mapped to the second branch in the Add_Included_Dessert
         function: if Entree is LOBSTER, Salad is GREEN, and Beverage is WINE, then
-        Dessert is set to CAKE. By setting these values and checking the Dessert field,
-        we directly exercise the requirement.\",\"test_case\":{\"test_name\":\"Test_Lobster_Green_Wine_Results_In_Cake_Dessert\",\"test_description\":\"Verifies
+        Dessert is set to CAKE. By setting these input values and checking the Dessert
+        field, we ensure the requirement is exercised and validated.\",\"test_case\":{\"test_name\":\"Test_Lobster_Green_Wine_Results_In_Cake\",\"test_description\":\"Tests
         that Add_Included_Dessert sets Dessert to CAKE when Entree is LOBSTER, Salad
         is GREEN, and Beverage is WINE, as required.\",\"requirement_id\":\"Add_Included_Dessert.2\",\"unit_name\":\"manager\",\"subprogram_name\":\"Add_Included_Dessert\",\"input_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order\",\"value\":\"\u003c\u003cmalloc
-        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1748954429,"id":"chatcmpl-BeLEL3OGQ8CtORJbeEJhxzynFMmOA","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":419,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":6369,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":6788}}
+        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1750064158,"id":"chatcmpl-BizvCOfFEUdBUAZMZLZd3z4iSfQt6","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":430,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":6369,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":6799}}
 
         '
     headers:
       Content-Length:
-      - '3015'
+      - '3084'
       Content-Type:
       - application/json
       Date:
-      - Tue, 03 Jun 2025 12:40:42 GMT
+      - Mon, 16 Jun 2025 08:56:02 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 4c5134d0-e1e8-4330-96fe-c577a1221447
+      - 4a0c2dc4-86d9-4720-a4f6-9a14e1ac43f5
       azureml-model-session:
-      - d026-20250521153836
+      - d001-20250530223523
       cmp-upstream-response-duration:
-      - '20182'
+      - '12311'
       x-accel-buffering:
       - 'no'
       x-content-type-options:
       - nosniff
       x-ms-deployment-name:
       - gpt-4.1
+      x-ms-rai-invoked:
+      - 'true'
       x-ms-region:
       - Sweden Central
       x-ratelimit-limit-requests:
@@ -405,11 +410,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '1004'
+      - '994'
       x-ratelimit-remaining-tokens:
-      - '989656'
+      - '943201'
       x-request-id:
-      - 2e1d03dc-12dc-4119-923e-76cd4ed0e280
+      - 238a9d72-fb87-46e7-b083-7e751310de7f
     status:
       code: 200
       message: OK

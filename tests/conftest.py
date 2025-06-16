@@ -84,6 +84,30 @@ class TestFileRecorder(BaseFileRecorder):
                 raise e
 
 
+class RequirementsFileRecorder(BaseFileRecorder):
+    """Recorder specifically for requirements files."""
+
+    def _compare_files(self, actual_path: str, expected_path: str):
+        """Compare requirements files line by line."""
+        assert actual_path.endswith('.csv') and expected_path.endswith('.csv'), (
+            'Both actual and expected paths must be CSV files.'
+        )
+
+        import pandas as pd
+
+        actual_df = pd.read_csv(actual_path)
+        expected_df = pd.read_csv(expected_path)
+        for (k1, v1), (k2, v2) in zip(
+            actual_df.to_dict().items(), expected_df.to_dict().items()
+        ):
+            assert k1 == k2, f'Column names do not match: {k1} != {k2}'
+            sorted_v1 = sorted(v1.values())
+            sorted_v2 = sorted(v2.values())
+            assert sorted_v1 == sorted_v2, (
+                f'Column values do not match for {k1}: {sorted_v1} != {sorted_v2}'
+            )
+
+
 @pytest.fixture
 def mock_llm_client(recording_mode):
     """Mock LLMClient initialization with default mock configs when not recording."""
@@ -295,3 +319,9 @@ def recording_mode(request):
 def test_output_recorder(recording_mode, request):
     """Fixture to handle recording and replaying of test output files."""
     return TestFileRecorder(recording_mode, request.node.name)
+
+
+@pytest.fixture
+def requirements_output_recorder(recording_mode, request):
+    """Fixture to handle recording and replaying of requirements output files."""
+    return RequirementsFileRecorder(recording_mode, request.node.name)
