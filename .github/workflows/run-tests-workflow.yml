@@ -149,7 +149,7 @@ jobs:
         env:
           CHECK_NAME: Unit Test results - Vcast ${{ matrix.vcast }}
         with:
-          report_paths: ./tests/internal/e2e/test_results/*.xml
+          report_paths: ./test-output.xml
           check_name: ${{ env.CHECK_NAME }}
 
       - name: Show coverage summary
