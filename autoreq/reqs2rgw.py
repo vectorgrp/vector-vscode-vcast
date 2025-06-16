@@ -7,7 +7,7 @@ from autoreq.code2reqs import save_requirements_to_csv, execute_rgw_commands
 
 def main(requirement_file, env_path, gateway_path):
     env = Environment(env_path)
-    rm = RequirementsManager(requirement_file)
+    rm = RequirementsManager(requirement_file, discard_none_functions=False)
 
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file_path = temp_file.name

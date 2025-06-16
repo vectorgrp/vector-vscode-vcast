@@ -11,7 +11,11 @@ import asyncio
 
 
 class RequirementsManager:
-    def __init__(self, requirements_or_path: t.Union[t.List[t.Dict], str]):
+    def __init__(
+        self,
+        requirements_or_path: t.Union[t.List[t.Dict], str],
+        discard_none_functions=True,
+    ):
         # If it's a path (str), load from CSV or Excel; if it's already a list, store directly
         if isinstance(requirements_or_path, str) and os.path.isfile(
             requirements_or_path
@@ -22,7 +26,9 @@ class RequirementsManager:
 
         filtered_requirements = []
         for req in self._requirements:
-            if 'Function' not in req or req['Function'] == 'None':
+            if 'Function' not in req or (
+                discard_none_functions and req['Function'] == 'None'
+            ):
                 logging.warning(
                     f'Requirement {req["ID"]} has no function assigned. Discarding.'
                 )
