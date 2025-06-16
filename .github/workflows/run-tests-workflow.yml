@@ -399,7 +399,7 @@ jobs:
           ./tests/internal/e2e/run_e2e_tests.sh
 
       - name: Publish e2e tests results
-        uses: EnricoMi/publish-unit-test-result-action/linux@v2
+        uses: actions-mirror/enrico-mi-publish-unit-test-result-action@v2
         if: always()
         env:
           CHECK_NAME: E2e Test results - Vcast ${{ matrix.version }} - Group ${{ matrix.group }}
