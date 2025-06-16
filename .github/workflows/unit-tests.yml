@@ -123,15 +123,14 @@ jobs:
           echo "[Download complete coverage report]($COVERAGE_TAR_URL)" >> $GITHUB_STEP_SUMMARY
         shell: bash
 
-#      not working
-#      - name: Results summary
-#        if: always()
-#        uses: pmeier/pytest-results-action@main
-#        with:
-#          path: test-results.xml
-#          summary: true
-#          fail-on-empty: true
-#          title: Unit test results
+      - name: Results summary
+        if: always()
+        uses: actions-mirror/pmeier/pytest-results-action@main
+        with:
+          path: test-results.xml
+          summary: true
+          fail-on-empty: true
+          title: Unit test results
 
   pyright:
     permissions: write-all
