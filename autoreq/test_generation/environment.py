@@ -96,34 +96,21 @@ class Environment:
         return os.path.exists(db_path)
 
     def build(self):
-        env_name = self.env_name
-        cmd = get_vectorcast_cmd('enviroedg', [f'{env_name}.env'])
+        """Build the VectorCAST environment."""
+        logging.debug(f'Building environment: {self.env_name}')
 
-        env_vars = os.environ.copy()
-        env_vars['VCAST_FORCE_OVERWRITE_ENV_DIR'] = '1'
+        result = self._run_vectorcast_command(
+            'enviroedg',
+            [f'{self.env_name}.env'],
+            timeout=120,
+            extra_env={'VCAST_FORCE_OVERWRITE_ENV_DIR': '1'},
+        )
 
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.env_dir,
-                env=env_vars,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=30,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
+        if result is None:
             raise RuntimeError(
-                f"Build command '{' '.join(cmd)}' timed out. Please check your VectorCAST installation and environment."
+                f"Build command for environment '{self.env_name}' failed. "
+                'Please check your VectorCAST installation and environment.'
             )
-
-        logging.debug('Command: %s Return code: %s', ' '.join(cmd), result.returncode)
-
-        if result.returncode != 0:
-            error_msg = f"Build command '{' '.join(cmd)}' failed with error:\n{result.stderr or result.stdout}"
-            raise RuntimeError(error_msg)
 
     def run_tests(self, test_cases: List[str], **kwargs) -> Optional[str]:
         tst_file_path = self._get_temporary_file_path(f'temp_tests_{self.env_name}.tst')
@@ -146,38 +133,26 @@ class Environment:
             temp_tst_file.flush()
 
             output = self.run_test_script(tst_file_path, **kwargs)
-            # No need to delete here, will be cleaned up by cleanup() method
 
             return output
 
-    def _get_coverage_info(self, tests: TestCase) -> Optional[dict]:
-        cmd = get_vectorcast_cmd(
+    def _get_coverage_info(self, tests: List[TestCase]) -> Optional[dict]:
+        """Get coverage information for the given tests."""
+        logging.debug(f'Getting coverage info for {len(tests)} tests')
+
+        result = self._run_vectorcast_command(
             'vpython',
             [
                 str(TEST_COVERAGE_SCRIPT_PATH),
                 self.env_name,
                 *(t.to_identifier() for t in tests),
             ],
+            timeout=30,
         )
 
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.env_dir,
-                env=os.environ.copy(),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=30,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
+        if result is None:
+            logging.error('Coverage command failed')
             return None
-
-        if result.returncode != 0:
-            error_msg = f"Coverage command '{' '.join(cmd)}' failed with error:\n{result.stderr or result.stdout}"
-            raise RuntimeError(error_msg)
 
         try:
             return json.loads(result.stdout)
@@ -187,7 +162,7 @@ class Environment:
 
     def run_test_script(
         self, tst_file_path: str, with_coverage=False, post_run_callback=None
-    ) -> Optional[str]:
+    ) -> Optional[Union[str, tuple[str, Optional[dict]]]]:
         tst_file_path = os.path.abspath(tst_file_path)
 
         with open(tst_file_path, 'r') as f:
@@ -248,6 +223,7 @@ class Environment:
 
         output = ''
         env_vars = os.environ.copy()
+        result = None
 
         try:
             # Execute the commands using subprocess and capture the outputs
@@ -267,12 +243,14 @@ class Environment:
                     logging.error(
                         f"Command '{' '.join(cmd)}' timed out after 30 seconds"
                     )
+                    continue
 
                 logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
                 logging.debug('Command: %s Return code: %s', cmd, result.returncode)
 
-            # TODO: Maybe add special output if timed out?
-            output += result.stdout
+                # TODO: Maybe add special output if timed out?
+                if result is not None:
+                    output += result.stdout
 
             if with_coverage:
                 coverage_data = self._get_coverage_info(tests)
@@ -288,7 +266,7 @@ class Environment:
             # Remove the test cases - this will always execute
             for cmd in removal_commands:
                 try:
-                    result = subprocess.run(
+                    cleanup_result = subprocess.run(
                         cmd,
                         cwd=self.env_dir,
                         env=env_vars,
@@ -298,59 +276,41 @@ class Environment:
                         timeout=30,
                         check=False,
                     )
+                    logging.debug(
+                        "Command '%s' output:\n%s", cmd, cleanup_result.stdout
+                    )
+                    logging.debug(
+                        'Command: %s Return code: %s', cmd, cleanup_result.returncode
+                    )
                 except subprocess.TimeoutExpired:
                     logging.error(
                         f"Command '{' '.join(cmd)}' timed out after 30 seconds"
                     )
 
-                logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
-                logging.debug('Command: %s Return code: %s', cmd, result.returncode)
-
         return output
 
     @cached_property
     def allowed_identifiers(self) -> List[str]:
-        env_name = self.env_name
-
-        # Create a temporary file
+        """Get allowed identifiers for test generation."""
         tst_file_path = self._get_temporary_file_path(
-            f'identifiers_template_{env_name}.tst'
+            f'identifiers_template_{self.env_name}.tst'
         )
 
-        # Run the command to generate the test script template
-        env_vars = os.environ.copy()
-
-        cmd = get_vectorcast_cmd(
-            'clicast', ['-e', env_name, 'test', 'script', 'template', tst_file_path]
+        # Try to generate test script template
+        logging.debug('Generating test script template for identifiers')
+        result = self._run_vectorcast_command(
+            'clicast',
+            ['-e', self.env_name, 'test', 'script', 'template', tst_file_path],
+            timeout=30,
+            check_output_file=tst_file_path,
         )
 
-        failed = False
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.env_dir,
-                env=env_vars,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=30,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            logging.error(f"Command '{' '.join(cmd)}' timed out after 30 seconds")
-            failed = True
-
-        if not failed:
-            if result.returncode != 0:
-                error_msg = f"Command '{' '.join(cmd)}' failed with error:\n{result.stderr or result.stdout}"
-                raise RuntimeError(error_msg)
-
+        if result is not None:
             # Read the generated test script template
             with open(tst_file_path, 'r') as f:
                 content = f.read()
-            # No need to delete here, will be cleaned up by cleanup() method
 
-            # Extract identifiers from SCRIPT.VALUE and SCRIPT.EXPECTED lines
+            # Extract identifiers from TEST.VALUE and TEST.EXPECTED lines
             identifiers = []
             lines = content.splitlines()
             for line in lines:
@@ -363,9 +323,10 @@ class Environment:
                 return identifiers
 
         logging.warning('Failed to generate test script template')
-        logging.warning('Falling back to scraping from ATG')
+        logging.warning('Falling back to scraping from ATG tests')
         self._used_atg_identifier_fallback = True
 
+        # Fallback: extract identifiers from ATG tests
         used_identifiers = []
         for test in self.atg_tests:
             for value in test.input_values + test.expected_values:
@@ -515,13 +476,36 @@ class Environment:
 
         return units
 
-    @cached_property
-    def atg_tests(self) -> List[str]:
-        env_name = self.env_name
-        # First try with baselining
-        atg_file = self._get_temporary_file_path('atg_for_regular_use.tst')
-        cmd = get_vectorcast_cmd('atg', ['-e', env_name, '--baselining', atg_file])
+    # ============================================================================
+    # VectorCAST Command Execution
+    # ============================================================================
+
+    def _run_vectorcast_command(
+        self,
+        tool: str,
+        args: List[str],
+        timeout: int = 30,
+        check_output_file: Optional[str] = None,
+        extra_env: Optional[dict] = None,
+    ) -> Optional[subprocess.CompletedProcess]:
+        """
+        Run a VectorCAST command with consistent error handling.
+
+        Args:
+            tool: The VectorCAST tool to run (e.g., 'atg', 'clicast')
+            args: Arguments to pass to the tool
+            timeout: Timeout in seconds
+            check_output_file: If provided, check that this file exists after command execution
+            extra_env: Additional environment variables to set
+
+        Returns:
+            CompletedProcess if successful, None if failed
+        """
+        cmd = get_vectorcast_cmd(tool, args)
+
         env_vars = os.environ.copy()
+        if extra_env:
+            env_vars.update(extra_env)
 
         try:
             result = subprocess.run(
@@ -531,98 +515,141 @@ class Environment:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=60,
+                timeout=timeout,
                 check=False,
             )
-        except subprocess.TimeoutExpired:
-            logging.warning('ATG with baselining timed out, trying without baselining')
-            # Retry without baselining
-            cmd = get_vectorcast_cmd('atg', ['-e', env_name, atg_file])
-            try:
-                result = subprocess.run(
-                    cmd,
-                    cwd=self.env_dir,
-                    env=env_vars,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=30,
-                    check=False,
+
+            # Check if command succeeded
+            if result.returncode == 0:
+                # If an output file is expected, verify it exists
+                if check_output_file and not os.path.exists(check_output_file):
+                    logging.warning(
+                        f'Command succeeded but expected output file {check_output_file} not found'
+                    )
+                    return None
+                return result
+            else:
+                logging.debug(
+                    f'Command {" ".join(cmd)} failed with return code {result.returncode}: {result.stderr}'
                 )
-            except subprocess.TimeoutExpired:
-                logging.error('ATG command without baselining also timed out')
-                return []
+                return None
 
-        if result.returncode != 0:
-            logging.error(f'ATG command failed with error:\n{result.stderr}')
-            return []
+        except subprocess.TimeoutExpired:
+            logging.debug(f'Command {" ".join(cmd)} timed out after {timeout} seconds')
+            return None
+        except FileNotFoundError:
+            logging.debug(f'Command {tool} not found')
+            return None
 
-        if not os.path.exists(atg_file):
-            logging.error('ATG file not generated')
+    # ============================================================================
+    # ATG Test Generation (with Fallback Strategies)
+    # ============================================================================
+
+    def _try_atg_with_baselining(
+        self, atg_file: str
+    ) -> Optional[subprocess.CompletedProcess]:
+        """Try to run ATG with baselining."""
+        logging.debug('Trying ATG with baselining')
+        return self._run_vectorcast_command(
+            'atg',
+            ['-e', self.env_name, '--baselining', atg_file],
+            timeout=60,
+            check_output_file=atg_file,
+        )
+
+    def _try_atg_without_baselining(
+        self, atg_file: str
+    ) -> Optional[subprocess.CompletedProcess]:
+        """Try to run ATG without baselining."""
+        logging.debug('Trying ATG without baselining')
+        return self._run_vectorcast_command(
+            'atg',
+            ['-e', self.env_name, atg_file],
+            timeout=60,
+            check_output_file=atg_file,
+        )
+
+    def _try_clicast_auto_atg_test(
+        self, atg_file: str
+    ) -> Optional[subprocess.CompletedProcess]:
+        """Try to run clicast tools auto_atg_test as fallback."""
+        logging.debug('Trying clicast auto_atg_test fallback')
+        return self._run_vectorcast_command(
+            'clicast',
+            ['-e', self.env_name, 'tools', 'auto_atg_test', atg_file],
+            timeout=60,
+            check_output_file=atg_file,
+        )
+
+    @cached_property
+    def atg_tests(self) -> List[TestCase]:
+        """Generate ATG tests using multiple fallback strategies."""
+        atg_file = self._get_temporary_file_path('atg_for_regular_use.tst')
+
+        # Strategy 1: Try ATG with baselining
+        logging.debug('Attempting ATG with baselining')
+        result = self._try_atg_with_baselining(atg_file)
+
+        if result is None:
+            # Strategy 2: Try ATG without baselining
+            logging.debug('Attempting ATG without baselining')
+            result = self._try_atg_without_baselining(atg_file)
+
+        if result is None:
+            # Strategy 3: Try clicast auto_atg_test as fallback
+            logging.debug('Attempting clicast auto_atg_test fallback')
+            result = self._try_clicast_auto_atg_test(atg_file)
+
+        if result is None:
+            logging.error('All ATG generation strategies failed')
             return []
 
         return self.parse_test_script(atg_file)
 
     @cached_property
     def atg_coverage(self):
-        # Generate atg file if not already generated
+        """Generate ATG coverage using fallback strategies."""
         atg_file = self._get_temporary_file_path('atg_for_coverage.tst')
 
-        cmd = get_vectorcast_cmd('atg', ['-e', self.env_name, atg_file])
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.env_dir,
-                env=os.environ.copy(),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=60,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            logging.error('ATG coverage command timed out after 30 seconds')
-            return None
+        # Try the same fallback strategies as atg_tests
+        logging.debug('Attempting ATG generation for coverage analysis')
+        result = self._try_atg_without_baselining(
+            atg_file
+        )  # Start without baselining for coverage
 
-        if result.returncode != 0:
-            logging.error(f'ATG coverage command failed with error:\n{result.stderr}')
+        if result is None:
+            result = self._try_atg_with_baselining(atg_file)
+
+        if result is None:
+            result = self._try_clicast_auto_atg_test(atg_file)
+
+        if result is None:
+            logging.error('All ATG generation strategies failed for coverage analysis')
             return None
 
         # Get the coverage
-        output, coverage = self.run_test_script(atg_file, with_coverage=True)
-
-        return coverage
+        try:
+            result, coverage = self.run_test_script(atg_file, with_coverage=True)
+            return coverage
+        except Exception as e:
+            logging.error(f'Failed to run test script for coverage: {e}')
+            return None
 
     @cached_property
-    def basis_path_tests(self) -> List[str]:
-        env_name = self.env_name
+    def basis_path_tests(self) -> List[TestCase]:
+        """Generate basis path tests."""
         basis_test_file = self._get_temporary_file_path('basis.tst')
-        cmd = get_vectorcast_cmd(
-            'clicast', ['-e', env_name, 'tool', 'auto_test', basis_test_file]
+
+        logging.debug('Generating basis path tests')
+        result = self._run_vectorcast_command(
+            'clicast',
+            ['-e', self.env_name, 'tool', 'auto_test', basis_test_file],
+            timeout=60,
+            check_output_file=basis_test_file,
         )
-        env_vars = os.environ.copy()
 
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.env_dir,
-                env=env_vars,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=60,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            logging.error(f"Command '{' '.join(cmd)}' timed out after 60 seconds")
-            return []
-
-        if result.returncode != 0:
-            logging.error(f'Basis path command failed with error:\n{result.stderr}')
-            return []
-
-        if not os.path.exists(basis_test_file):
-            logging.error('Basis path file not generated')
+        if result is None:
+            logging.error('Basis path test generation failed')
             return []
 
         return self.parse_test_script(basis_test_file)
@@ -739,12 +766,13 @@ class Environment:
         return atg_derived_functions
 
     @property
-    def modules(self) -> str:
+    def modules(self) -> List[str]:
         return self.units
 
     @lru_cache(maxsize=128)
     def functions_info(self) -> dict:
         tu_content = self.get_tu_content(reduction_level='high')
+
         with tempfile.TemporaryDirectory() as tmpdir:
             with open(Path(tmpdir) / 'tu.c', 'w') as f:
                 f.write(tu_content)
@@ -801,8 +829,15 @@ class Environment:
         else:
             raise FileNotFoundError(f'Translation unit file not found for {unit_name}')
 
-        encoding = charset_normalizer.from_path(tu_path).best().encoding
-        content = str(charset_normalizer.from_path(tu_path).best())
+        detected = charset_normalizer.from_path(tu_path).best()
+        if detected is None:
+            # Fallback to UTF-8 if detection fails
+            encoding = 'utf-8'
+            with open(tu_path, 'r', encoding=encoding) as f:
+                content = f.read()
+        else:
+            encoding = detected.encoding
+            content = str(detected)
 
         if reduction_level == 'low':
             if return_encoding:
@@ -848,7 +883,7 @@ class Environment:
         return relevant_content
 
     @staticmethod
-    def parse_test_script(tst_file_path: Union[str, os.PathLike]) -> List[str]:
+    def parse_test_script(tst_file_path: Union[str, os.PathLike]) -> List[TestCase]:
         # with open(tst_file_path, 'r') as f:
         #    content = f.readlines()
         content = str(charset_normalizer.from_path(tst_file_path).best()).splitlines()
@@ -929,23 +964,6 @@ class Environment:
         if current_test:
             test_cases.append(current_test)
         return test_cases
-
-    def _run_command(self, command: str, timeout=30) -> str:
-        try:
-            subprocess.run(
-                command,
-                cwd=self.env_dir,
-                env=os.environ.copy(),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=timeout,
-                check=False,
-            )
-            return True
-        except subprocess.TimeoutExpired:
-            logging.error(f"Command '{' '.join(command)}' timed out after 30 seconds")
-            return False
 
     def cleanup(self):
         """Clean up all temporary files and directories."""
