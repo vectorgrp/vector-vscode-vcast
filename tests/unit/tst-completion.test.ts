@@ -94,6 +94,14 @@ TEST.NOTES:
 TEST.END_NOTES:
 TEST.END`;
 
+const uutPrototypeTst = `
+TEST.NEW
+TEST.NAME:valueHover
+TEST.VALUE:uut_prototype_stubs.
+TEST.NOTES: 
+TEST.END_NOTES:
+TEST.END`;
+
 const fieldTst = `
 TEST.NEW
 TEST.NAME:fieldTest
@@ -740,6 +748,40 @@ describe("Text Completion", () => {
           kind: 3,
           detail: "",
           data: 1,
+        },
+      ]);
+    },
+    timeout
+  );
+
+  test(
+    "validate tst completion for TEST.VALUE:uut_prototype_stubs.",
+    async () => {
+      const tstText = [initialTst, uutPrototypeTst].join("\n");
+      const lineToComplete = "TEST.VALUE:uut_prototype_stubs.";
+      const completionPosition = getCompletionPositionForLine(
+        lineToComplete,
+        tstText
+      );
+      const triggerCharacter = lineToComplete.at(-1);
+
+      const generatedCompletionData = await generateCompletionData(
+        tstText,
+        completionPosition,
+        triggerCharacter
+      );
+      expect(generatedCompletionData).toEqual([
+        {
+          data: 0,
+          detail: "",
+          kind: 3,
+          label: "external_add",
+        },
+        {
+          data: 1,
+          detail: "",
+          kind: 3,
+          label: "log_result",
         },
       ]);
     },
