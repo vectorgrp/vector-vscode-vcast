@@ -528,18 +528,6 @@ def getUnitNameFromFunction(api, function):
     return None
 
 
-def get_callees_from_harness(function):
-    global globalOutputLog
-    instr = function.cover_data
-    coverableFunctions = instr.uninstrumented_expressions
-    globalOutputLog.append(coverableFunctions)
-    functionNameList = []
-    for calls in coverableFunctions:
-        functionNameList.append(calls.name)
-
-    return functionNameList
-
-
 def processStandardLines(api, pieces, triggerCharacter):
     """
     This function process everything except TEST.SLOT and TEST.REQUIREMENT_KEY lines
