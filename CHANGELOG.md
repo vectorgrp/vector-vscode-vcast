@@ -152,7 +152,7 @@ This option is new for VectorCAST 23 sp2
 ### Bug Fixes
 - Fixed wrong Test Results message log (#248)
 
-## [1.0.16] - 2024-05-08
+## [1.0.16] - 2025-05-08
 - Implemented Manage support (#253), including:
     - **Environment Management**:  
         - Add existing environments to projects.  
@@ -169,4 +169,8 @@ This option is new for VectorCAST 23 sp2
         
 - Implemented ability to load Test Scripts by saving the .tst file
 
+## [1.0.17] - 2025-06-17
+
+### Bug Fixes
+- Fixed autocompletion for uut_prototype_stubs.
 
