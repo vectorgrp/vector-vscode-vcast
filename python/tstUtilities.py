@@ -376,9 +376,16 @@ def getStubFunctionList(api, stubName):
     global globalOutputLog
     returnList = list()
     unitObject = getObjectFromName(api.Unit.all(), stubName)
+
+    # First try with functions, if that list is empty, use all_functions
+    # In some cases, .functions is empty
+    functionList = unitObject.functions
+    if len(functionList) == 0:
+        functionList = unitObject.all_functions
+
     # unitName might be invalid ...
     if unitObject:
-        for function in unitObject.all_functions:
+        for function in functionList:
             if not isTestableFunction(function):
                 globalOutputLog.append(function.vcast_name)
                 returnList.append(function.vcast_name)
