@@ -358,36 +358,8 @@ def getFunctionList(api, unitName):
             # coded_tests_driver because this function is supporting
             # TEST.VALUE and TEST.EXPECTED lines.
             if (
-                isTestableFunction(function)
-                and function.vcast_name != CODED_TEST_SUBPROGRAM_NAME
-            ):
-                returnList.append(function.vcast_name)
-
-        if len(unitObject.globals) > 0:
-            returnList.append(TAG_FOR_GLOBALS)
-
-    return returnList
-
-
-def getStubFunctionList(api, stubName):
-    """
-    common code to generate list of functions ...
-    """
-    global globalOutputLog
-    returnList = list()
-    unitObject = getObjectFromName(api.Unit.all(), stubName)
-
-    # First try with functions, if that list is empty, use all_functions
-    # In some cases, .functions is empty
-    functionList = unitObject.functions
-    if len(functionList) == 0:
-        functionList = unitObject.all_functions
-
-    # unitName might be invalid ...
-    if unitObject:
-        for function in functionList:
-            if not isTestableFunction(function):
-                globalOutputLog.append(function.vcast_name)
+                unitName == PROTOTYPE_STUB_VCAST_NAME or isTestableFunction(function)
+            ) and function.vcast_name != CODED_TEST_SUBPROGRAM_NAME:
                 returnList.append(function.vcast_name)
 
         if len(unitObject.globals) > 0:
@@ -516,18 +488,6 @@ def processSlotLines(api, pieces, triggerCharacter):
     return returnData
 
 
-def getUnitNameFromFunction(api, function):
-    allUnits = api.Unit.all()
-    for unit in allUnits:
-        currentFunctionList = getFunctionList(api, unit.name)
-        for currentFunction in currentFunctionList:
-            getUnitNameFromFunction
-            if currentFunction == function:
-                return unit.name
-
-    return None
-
-
 def processStandardLines(api, pieces, triggerCharacter):
     """
     This function process everything except TEST.SLOT and TEST.REQUIREMENT_KEY lines
@@ -548,29 +508,18 @@ def processStandardLines(api, pieces, triggerCharacter):
         returnData.choiceKind = choiceKindType.File
 
     elif lengthOfCommand == 4 and triggerCharacter == ".":  # Function
-        unitParam = pieces[2]
-        if unitParam == "uut_prototype_stubs":
-            returnData.choiceList = getStubFunctionList(api, unitParam)
-        else:
-            returnData.choiceList = getFunctionList(api, unitParam)
-
+        returnData.choiceList = getFunctionList(api, pieces[2])
         returnData.choiceKind = choiceKindType.Function
 
     elif (
         lengthOfCommand == 5 and triggerCharacter == "."
     ):  # parameters and global objects
         unitName = pieces[2]
-        functionName = pieces[3]
-
-        # If we are on prototype_stubs, we need to get the original unit for the function first
-        # because otherwise further autocompletion won't work
-        if unitName == "uut_prototype_stubs":
-            unitName = getUnitNameFromFunction(api, functionName)
-
         unitObject = getObjectFromName(api.Unit.all(), unitName)
         functionList = unitObject.functions
 
-        # functionName can be <<GLOBAL>> ...
+        functionName = pieces[3]
+        # functionNAme can be <<GLOBAL>> ...
         if functionName == TAG_FOR_GLOBALS:
             globalsList = unitObject.globals
             returnData.choiceList = getNameListFromItemList(globalsList)
@@ -586,16 +535,9 @@ def processStandardLines(api, pieces, triggerCharacter):
 
     elif lengthOfCommand > 5:  # in field | array index | value part
         unitName = pieces[2]
+        unitObject = getObjectFromName(api.Unit.all(), unitName)
         functionName = pieces[3]
         paramName = pieces[4].split("[")[0]
-
-        # If we are on prototype_stubs, we need to get the original unit for the function first
-        # because otherwise further autocompletion won't work
-        if unitName == "uut_prototype_stubs":
-            unitName = getUnitNameFromFunction(api, functionName)
-
-        unitObject = getObjectFromName(api.Unit.all(), unitName)
-
         if functionName == TAG_FOR_GLOBALS:
             globalsList = unitObject.globals
             itemObject = getObjectFromName(globalsList, paramName)
