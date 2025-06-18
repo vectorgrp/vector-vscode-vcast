@@ -169,4 +169,8 @@ This option is new for VectorCAST 23 sp2
         
 - Implemented ability to load Test Scripts by saving the .tst file
 
+## [1.0.17] - 2025-06-17
+
+### Bug Fixes
+- Fixed autocompletion for uut_prototype_stubs.
 
