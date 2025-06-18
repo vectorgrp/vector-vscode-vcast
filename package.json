@@ -315,6 +315,12 @@
             "order": 9,
             "default": false,
             "description": "Generate high-level requirements in addition to low-level requirements."
+          },
+          "vectorcastTestExplorer.outputDebugInfo": {
+            "type": "boolean",
+            "order": 10,
+            "default": true,
+            "description": "Output debug information to the console"
           }
         }
       },

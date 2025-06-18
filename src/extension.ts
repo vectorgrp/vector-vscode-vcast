@@ -1766,6 +1766,11 @@ function createProcessEnvironment(vcastInstallDir?: string): NodeJS.ProcessEnv {
     processEnv.VSCODE_VECTORCAST_DIR = vcastInstallDir;
   }
 
+  const outputDebugInfo = vscode.workspace.getConfiguration('vectorcastTestExplorer').get<boolean>('outputDebugInfo', false)
+  if (outputDebugInfo) {
+    processEnv.REQ2TESTS_LOG_LEVEL = "debug";
+  }
+
   return processEnv;
 }
 
