@@ -5,6 +5,7 @@ Multilspy logger module.
 import inspect
 import logging
 from datetime import datetime
+import os
 from pydantic import BaseModel
 
 
@@ -28,7 +29,9 @@ class MultilspyLogger:
 
     def __init__(self) -> None:
         self.logger = logging.getLogger('multilspy')
-        self.logger.setLevel(logging.WARNING)
+        log_level = os.environ.get('REQ2TESTS_LOG_LEVEL', 'WARNING').upper()
+        numeric_level = getattr(logging, log_level, logging.INFO)
+        self.logger.setLevel(numeric_level)
 
     def log(
         self, debug_message: str, level: int, sanitized_error_message: str = ''

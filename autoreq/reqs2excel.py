@@ -7,7 +7,7 @@ import json
 from .code2reqs import execute_rgw_commands, save_requirements_to_excel
 from .test_generation.environment import Environment
 from .trace_reqs2code import Reqs2CodeMapper
-from .util import expand_env_paths
+from .util import configure_logging, expand_env_paths
 import asyncio
 import logging
 
@@ -165,10 +165,19 @@ def main(
     init_requirements: bool = False,
     csv_template_path: t.Union[str, Path] = None,
     automatic_traceability: bool = False,
+    no_automatic_build: bool = False,
 ) -> None:
     envs = [Environment(env, use_sandbox=False) for env in expand_env_paths(env_paths)]
+
     for env in envs:
-        env.build()
+        if not env.is_built:
+            if no_automatic_build:
+                logging.error(
+                    f'Environment {env.env_name} is not built and --no-automatic-build is set. Exiting.'
+                )
+                return
+            logging.info(f'Environment {env.env_name} is not built. Building it now...')
+            env.build()
 
     from_rgw = False
     if init_requirements:
@@ -252,8 +261,17 @@ def cli():
         default=False,
         required=False,
     )
+    parser.add_argument(
+        '--no-automatic-build',
+        action='store_true',
+        help='Do not automatically build the environments if they are not built.',
+        default=False,
+        required=False,
+    )
 
     args = parser.parse_args()
+
+    configure_logging()
 
     main(
         args.envs,

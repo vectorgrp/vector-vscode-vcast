@@ -14,6 +14,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
 from autoreq.requirements_manager import RequirementsManager
+from autoreq.util import configure_logging
 
 from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
@@ -415,6 +416,8 @@ def cli():
     )
 
     args = parser.parse_args()
+
+    configure_logging()
 
     asyncio.run(
         main(

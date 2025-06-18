@@ -7,6 +7,7 @@ import tempfile  # Add this import if not already present
 from tqdm import tqdm
 
 from autoreq.test_generation.requirement_decomposition import decompose_requirements
+from autoreq.util import configure_logging
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
 from .requirements_manager import RequirementsManager, DecomposingRequirementsManager
@@ -255,9 +256,7 @@ async def main():
     )
     args = parser.parse_args()
 
-    log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
-    numeric_level = getattr(logging, log_level, logging.INFO)
-    logging.basicConfig(level=numeric_level)
+    configure_logging()
 
     # Initialize the environment directly
     environment = Environment(args.env_path, use_sandbox=False)
