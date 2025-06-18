@@ -73,6 +73,7 @@ import {
   showSettings,
   updateCoverageAndRebuildEnv,
   forceLowerCaseDriveLetter,
+  decodeVar,
 } from "./utilities";
 
 import {
@@ -142,6 +143,22 @@ let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
 
+/**
+ * Decodes a Base64-encoded variable name.
+ */
+function decodeAndRemoveDeveloperEnvs() {
+  // Base64-encoded variable names
+  const encodedVars: string[] = [
+    "VkNBU1RfVVNJTkdfSEVBRExFU1NfTU9ERQ",
+    "VkNBU1RfVVNFX0NJX0xJQ0VOU0VT",
+  ];
+
+  for (const encoded of encodedVars) {
+    const varName = decodeVar(encoded);
+    delete process.env[varName];
+  }
+}
+
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
@@ -210,6 +227,9 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
 }
 
 async function activationLogic(context: vscode.ExtensionContext) {
+  // remove developer env variables
+  decodeAndRemoveDeveloperEnvs();
+
   // adds all of the command handlers
   configureExtension(context);
 

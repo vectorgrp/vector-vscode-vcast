@@ -83,6 +83,15 @@ export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
   return returnValue;
 }
 
+/**
+ *  Decodes a base64 encoded string.
+ * @param b64 - The base64 encoded string to decode.
+ * @returns The decoded string.
+ */
+export function decodeVar(b64: string): string {
+  return Buffer.from(b64, "base64").toString("utf-8");
+}
+
 export function addLaunchConfiguration(
   fileUri: Uri,
   pathToSupportFiles: string
