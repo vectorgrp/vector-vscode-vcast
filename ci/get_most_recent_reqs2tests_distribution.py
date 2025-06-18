@@ -26,7 +26,7 @@ if os.getenv("R2T_RELEASE_URL_LIN"):
     logging.info(
         f"Using R2T_RELEASE_URL_LIN: {os.getenv('R2T_RELEASE_URL_LIN')} for Linux"
     )
-    url = os.getenv("R2T_RELEASE_URL").rstrip("/")
+    url = os.getenv("R2T_RELEASE_URL_LIN").rstrip("/")
     download_file(url)
 if os.getenv("R2T_RELEASE_URL_WIN"):
     logging.info(
