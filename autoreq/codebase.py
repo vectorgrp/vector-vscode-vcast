@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import List, Dict, Optional, Set, Union
+from autoreq.util import are_paths_equal
 from monitors4codegen.multilspy import SyncLanguageServer
 from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
 from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
@@ -285,7 +286,7 @@ class Codebase:
             for defs in self._definition_index.values()
             for def_info in defs
             if def_info['kind'] in self.FUNCTION_KINDS
-            and Path(def_info['file']) == Path(abs_path)
+            and are_paths_equal(def_info['file'], abs_path)
         ]
         logger.debug(f'Found {len(functions)} total functions/methods in file')
 
@@ -341,7 +342,7 @@ class Codebase:
             definitions = [
                 d
                 for d in definitions
-                if Path(self._make_absolute(d['file'])) == Path(abs_filepath)
+                if are_paths_equal(self._make_absolute(d['file']), abs_filepath)
             ]
             logger.debug(
                 f'Filtered by filepath: {len(definitions)} definitions (removed {original_count - len(definitions)})'
@@ -570,7 +571,7 @@ class Codebase:
                 (
                     d
                     for d in definitions
-                    if Path(self._make_absolute(d['file'])) == Path(abs_filepath)
+                    if are_paths_equal(self._make_absolute(d['file']), abs_filepath)
                 ),
                 None,
             )

@@ -11,7 +11,12 @@ import sqlite3
 import logging
 import charset_normalizer
 
-from autoreq.util import prune_code, sanitize_subprogram_name, get_vectorcast_cmd
+from autoreq.util import (
+    are_paths_equal,
+    prune_code,
+    sanitize_subprogram_name,
+    get_vectorcast_cmd,
+)
 
 from autoreq.constants import TEST_COVERAGE_SCRIPT_PATH
 
@@ -712,7 +717,7 @@ class Environment:
 
             info = None
             for temp_tu_path, path_info in temp_path_to_info_map.items():
-                if Path(temp_tu_path) == Path(abs_temp_tu_file_path):
+                if are_paths_equal(temp_tu_path, abs_temp_tu_file_path):
                     info = path_info
                     break
 

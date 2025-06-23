@@ -1179,3 +1179,16 @@ def configure_logging():
 
     # Ensure we do not leak too much information from the OpenAI client
     logging.getLogger('openai._base_client').setLevel(max(logging.INFO, numeric_level))
+
+
+def are_paths_equal(path1: str, path2: str) -> bool:
+    """
+    Compare two paths for equality
+    """
+    p1 = Path(path1)
+    p2 = Path(path2)
+
+    if p1.exists() and p2.exists():
+        return p1.samefile(p2)
+
+    return p1.resolve(strict=False) == p2.resolve(strict=False)
