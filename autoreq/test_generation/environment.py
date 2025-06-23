@@ -707,8 +707,14 @@ class Environment:
 
         testable_functions = []
         for function in all_functions_from_tus:
+            logging.debug(f'Checking if function {function["name"]} is testable')
             abs_temp_tu_file_path = function['file']
-            info = temp_path_to_info_map.get(abs_temp_tu_file_path)
+
+            info = None
+            for temp_tu_path, path_info in temp_path_to_info_map.items():
+                if Path(temp_tu_path) == Path(abs_temp_tu_file_path):
+                    info = path_info
+                    break
 
             if info:
                 unit_name = info['unit_name']
@@ -717,11 +723,27 @@ class Environment:
                 reduced_content = self.get_tu_content(
                     unit_name=unit_name, reduction_level='high'
                 )
-                if function['definition'] in reduced_content:
+                if function['definition'].replace('\r', '') in reduced_content.replace(
+                    '\r', ''
+                ):
                     func_copy = function.copy()
                     func_copy['file'] = original_source_file
                     func_copy['unit_name'] = unit_name
                     testable_functions.append(func_copy)
+                    logging.debug(
+                        f'Function {function["name"]} in unit {unit_name} is testable. Adding to output.'
+                    )
+                else:
+                    logging.debug(
+                        f'Function {function["name"]} in unit {unit_name} is not testable due to content mismatch.\n'
+                        f'Function definition: {function["definition"]}\n'
+                        f'Reduced content: {reduced_content}'
+                    )
+            else:
+                logging.debug(
+                    f'No matching temporary TU file found for function {function["name"]}\n'
+                    f'Available TUs: {list(temp_path_to_info_map.keys())}, TU file: {abs_temp_tu_file_path}'
+                )
 
         if testable_functions:
             return testable_functions
