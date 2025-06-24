@@ -49,6 +49,14 @@ export function getSpecGroups(useVcast24: boolean) {
       },
       params: {},
     },
+    requirements: {
+      specs: [
+        "./**/**/vcast.build_env.test.ts",
+        "./**/**/vcast_requirements_tests.test.ts",
+      ],
+      env: { REQS2X_PCT_RELEASE: "True", VCAST_USE_PYTHON: "True" },
+      params: {},
+    },
     bugs: {
       specs: [
         "./**/**/vcast_testgen_bugs.test.ts",
@@ -109,6 +117,18 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_testdel_func_atg.test.ts",
       ],
       env: { VCAST_USE_PYTHON: "True" },
+      params: {},
+    };
+
+    specGroups["requirements"] = {
+      specs: [
+        "./**/**/vcast.build_env.test.ts",
+        "./**/**/vcast_requirements_tests.test.ts",
+      ],
+      env: {
+        REQS2X_PCT_RELEASE: "True",
+        VCAST_USE_PYTHON: "True",
+      },
       params: {},
     };
 
