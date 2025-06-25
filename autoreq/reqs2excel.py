@@ -23,6 +23,7 @@ def load_requirements_from_gateway(rgw_path: Path) -> t.List[t.Dict]:
     ret = []
     for group_id, reqs_info in data.items():
         for req_id, req in reqs_info.items():
+            req['key'] = req_id
             ret.append(req)
     return ret
 
@@ -126,7 +127,6 @@ def format_env_requirements(
     environment: Environment,
 ):
     for req in requirements_info:
-        req_id = req['id']
         related_function_name = ''
         if reqs2code_mapping:
             related_function_name = reqs2code_mapping[req['description']]
@@ -148,8 +148,8 @@ def format_env_requirements(
             related_function_name = 'None'
 
         requirement = {
-            'Key': req_id,
-            'ID': req_id,
+            'Key': req['key'],
+            'ID': req['id'],
             'Title': req['title'],
             'Description': req['description'],
             'Module': func_info['unit_name'] if func_info else 'None',

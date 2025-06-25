@@ -14,6 +14,7 @@ import traceback
 from autoreq.test_generation.requirement_decomposition import decompose_requirements
 
 from autoreq.requirements_manager import (
+    ID_FIELD,
     DecomposingRequirementsManager,
     RequirementsManager,
 )
@@ -904,13 +905,13 @@ async def process_envs(
                 async def decomposer(req):
                     req_template = req.copy()
                     # decomposed_req_descriptions = await decompose_requirement(req['Description'])
-                    decomposed_req_descriptions = decomposed_req_map[req['ID']]
+                    decomposed_req_descriptions = decomposed_req_map[req[ID_FIELD]]
                     decomposed_reqs = []
                     for i, decomposed_req_description in enumerate(
                         decomposed_req_descriptions
                     ):
                         decomposed_req = req_template.copy()
-                        decomposed_req['ID'] = f'{req["ID"]}.{i + 1}'
+                        decomposed_req[ID_FIELD] = f'{req[ID_FIELD]}.{i + 1}'
                         decomposed_req['Description'] = decomposed_req_description
                         decomposed_reqs.append(decomposed_req)
                     print('Original:', req['Description'])

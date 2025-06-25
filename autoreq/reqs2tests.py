@@ -10,7 +10,11 @@ from autoreq.test_generation.requirement_decomposition import decompose_requirem
 from autoreq.util import configure_logging
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
-from .requirements_manager import RequirementsManager, DecomposingRequirementsManager
+from .requirements_manager import (
+    ID_FIELD,
+    RequirementsManager,
+    DecomposingRequirementsManager,
+)
 
 
 async def init_requirements_manager(args: argparse.Namespace):
@@ -31,11 +35,11 @@ async def init_requirements_manager(args: argparse.Namespace):
         async def decomposer(req):
             req_template = req.copy()
             # decomposed_req_descriptions = await decompose_requirement(req['Description'])
-            decomposed_req_descriptions = decomposed_req_map[req['ID']]
+            decomposed_req_descriptions = decomposed_req_map[req[ID_FIELD]]
             decomposed_reqs = []
             for i, decomposed_req_description in enumerate(decomposed_req_descriptions):
                 decomposed_req = req_template.copy()
-                decomposed_req['ID'] = f'{req["ID"]}.{i + 1}'
+                decomposed_req[ID_FIELD] = f'{req[ID_FIELD]}.{i + 1}'
                 decomposed_req['Description'] = decomposed_req_description
                 decomposed_reqs.append(decomposed_req)
             logging.info(f'Original Requirement: {req["Description"]}')

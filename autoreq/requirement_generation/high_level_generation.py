@@ -5,7 +5,7 @@ from typing import List
 
 from ..llm_client import LLMClient
 from ..test_generation.environment import Environment
-from ..requirements_manager import RequirementsManager
+from ..requirements_manager import ID_FIELD, RequirementsManager
 
 
 class AtomicRequirement(BaseModel):
@@ -49,11 +49,11 @@ class HighLevelRequirementsGenerator:
         for req_data in all_low_level_reqs_list:
             if (
                 req_data.get('Module') == unit_name
-                and req_data.get('ID')
+                and req_data.get(ID_FIELD)
                 and req_data.get('Description')
             ):
                 if req_data.get('Function') != 'None':
-                    unit_specific_reqs[req_data['ID']] = req_data['Description']
+                    unit_specific_reqs[req_data[ID_FIELD]] = req_data['Description']
                     req_count += 1
 
         if not unit_specific_reqs:

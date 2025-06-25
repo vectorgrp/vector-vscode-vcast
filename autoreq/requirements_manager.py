@@ -9,6 +9,8 @@ import inspect
 from openpyxl import load_workbook
 import asyncio
 
+ID_FIELD = 'Key'
+
 
 class RequirementsManager:
     def __init__(
@@ -30,7 +32,7 @@ class RequirementsManager:
                 discard_none_functions and req['Function'] == 'None'
             ):
                 logging.warning(
-                    f'Requirement {req["ID"]} has no function assigned. Discarding.'
+                    f'Requirement {req[ID_FIELD]} has no function assigned. Discarding.'
                 )
                 continue
             filtered_requirements.append(req)
@@ -40,7 +42,7 @@ class RequirementsManager:
         # Build a quick lookup by requirement ID
         self._requirements_by_id = {}
         for req in self._requirements:
-            self._requirements_by_id[req['ID']] = req
+            self._requirements_by_id[req[ID_FIELD]] = req
 
     def _load_from_csv(self, path: t.Union[str, Path]):
         reqs = []
@@ -150,7 +152,7 @@ class DecomposingRequirementsManager(RequirementsManager):
             for sub_req in sub_reqs:
                 all_sub_requirements.append(sub_req)
                 # Keep track of which original requirement this sub-requirement belongs to
-                self._sub_to_original_map[sub_req['ID']] = orig_id
+                self._sub_to_original_map[sub_req[ID_FIELD]] = orig_id
 
         # Initialize the parent class with the flattened sub-requirements
         super().__init__(all_sub_requirements)
@@ -183,9 +185,9 @@ class DecomposingRequirementsManager(RequirementsManager):
 
             # Ensure each sub-requirement has a unique ID
             for i, sub_req in enumerate(decomposed_reqs):
-                if 'ID' not in sub_req:
+                if ID_FIELD not in sub_req:
                     # If no ID is provided, create one based on the original ID
-                    sub_req['ID'] = f'{original_req["ID"]}.{i + 1}'
+                    sub_req[ID_FIELD] = f'{original_req[ID_FIELD]}.{i + 1}'
 
             return req_id, decomposed_reqs
 
@@ -272,7 +274,7 @@ class DecomposingRequirementsManager(RequirementsManager):
             A list of sub-requirement IDs, or an empty list if not found
         """
         sub_reqs = self.get_sub_requirements(original_requirement_id)
-        return [req['ID'] for req in sub_reqs]
+        return [req[ID_FIELD] for req in sub_reqs]
 
     def filter(self, filter_callback):
         """Ensure that we return a DecomposingRequirementsManager instance after filtering."""
