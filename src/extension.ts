@@ -204,6 +204,8 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     : context.extensionUri;
 
   vectorMessage(`BASEURI: ${baseUri.fsPath}`);
+  logCliOperation(`LINUX_VSIX_FILE: ${process.env.LINUX_VSIX_FILE}`);
+  logCliOperation(`BASEURI: ${baseUri.fsPath}`);
 
   CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
