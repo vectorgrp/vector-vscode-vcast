@@ -206,7 +206,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   };
 
   const vsixName = `${name}-${version}.vsix`;
-  const vsixPath = `/__w/vector-vscode-vcast/vector-vscode-vcast/${vsixName}`;
+  const vsixPath = `${process.cwd()}/vector-vscode-vcast/vector-vscode-vcast/${vsixName}`;
   const baseUri = isCI ? vscode.Uri.file(vsixPath) : context.extensionUri;
 
   vectorMessage(`BASEURI: ${baseUri.fsPath}`);
