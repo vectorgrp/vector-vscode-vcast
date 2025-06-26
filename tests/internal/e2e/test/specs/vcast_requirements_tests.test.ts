@@ -8,9 +8,13 @@ import {
 import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
+  checkIfRequestInLogs,
+  executeCtrlClickOn,
+  expandWorkspaceFolderSectionInExplorer,
   findSubprogram,
   findSubprogramMethod,
   getViewContent,
+  releaseCtrl,
   updateTestID,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
@@ -19,6 +23,7 @@ import { checkForServerRunnability } from "../../../../unit/getToolversion";
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
+  let useDataServer: boolean = true;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
@@ -26,6 +31,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
     let releaseIsSuitableForServer = await checkForServerRunnability();
+    if (process.env.VCAST_USE_PYTHON || !releaseIsSuitableForServer) {
+      useDataServer = false;
+    }
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -77,6 +85,92 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
+  });
+
+  it("should set default config file", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+    const configFile = await workspaceFolderSection.findItem("CCAST_.CFG");
+    await configFile.openContextMenu();
+    await (await $("aria/Set as VectorCAST Configuration File")).click();
+  });
+
+  it("should check for server starting logs if in server mode", async () => {
+    const outputView = await bottomBar.openOutputView();
+
+    // Check if server started
+    if (useDataServer) {
+      // Check message pane for expected message
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Started VectorCAST Data Server"),
+        { timeout: TIMEOUT }
+      );
+
+      // Check server logs
+      const logs = await checkIfRequestInLogs(3, ["port:", "clicast"]);
+      expect(logs).toBe(true);
+    }
+  });
+
+  it("should create VectorCAST environment", async () => {
+    await updateTestID();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+    const cppFolder = workspaceFolderSection.findItem("cpp");
+    await (await cppFolder).select();
+
+    const mooCpp = await workspaceFolderSection.findItem("moo.cpp");
+    await executeCtrlClickOn(mooCpp);
+    await releaseCtrl();
+
+    await mooCpp.openContextMenu();
+    await (await $("aria/Create VectorCAST Environment")).click();
+
+    // Making sure notifications are shown
+    await (await $("aria/Notifications")).click();
+
+    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    const vcastNotificationSourceElement = await $(
+      "aria/VectorCAST Test Explorer (Extension)"
+    );
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
+    await (await vcastNotification.$("aria/Yes")).click();
+
+    console.log(
+      "Waiting for clicast and waiting for environment to get processed"
+    );
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Environment built Successfully"),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Finished creating vcast environment");
+    await browser.takeScreenshot();
+    await browser.saveScreenshot(
+      "info_finished_creating_vcast_environment.png"
+    );
+    // Clearing all notifications
+    await (await $(".codicon-notifications-clear-all")).click();
   });
 
   it("should generate requirementsr", async () => {
@@ -183,12 +277,11 @@ describe("vTypeCheck VS Code Extension", () => {
         )) as TextEditor;
 
         // Expect some HTML stuff to be present
-        expect(await checkElementExistsInHTML("Clear_Table")).toBe(true);
-        expect(await checkElementExistsInHTML("FR11")).toBe(true);
-        expect(await checkElementExistsInHTML("Add_Included_Dessert")).toBe(
-          true
-        );
-        expect(await checkElementExistsInHTML("FR27")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme 1")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme 2")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme 3")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme 4")).toBe(true);
 
         await editorView.closeEditor("Requirements Report", 0);
       }
@@ -213,7 +306,7 @@ describe("vTypeCheck VS Code Extension", () => {
         console.log(await vcastTestingViewContentSection.getTitle());
         await vcastTestingViewContentSection.expand();
         subprogram = await findSubprogram(
-          "manager",
+          "moo",
           vcastTestingViewContentSection
         );
         if (subprogram) {
@@ -224,15 +317,12 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     if (!subprogram) {
-      throw new Error("Subprogram 'manager' not found");
+      throw new Error("Subprogram 'moo' not found");
     }
 
-    const subprogramMethod = await findSubprogramMethod(
-      subprogram,
-      "Manager::PlaceOrder"
-    );
+    const subprogramMethod = await findSubprogramMethod(subprogram, "extreme");
     if (!subprogramMethod) {
-      throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
+      throw new Error("Subprogram method 'extreme' not found");
     }
 
     if (!subprogramMethod.isExpanded()) {
