@@ -2649,7 +2649,7 @@ function generateRequirementsHtml(requirements: any[]): string {
             h1 { color: #2c3e50; }
             h2 { color: #34495e; margin-top: 30px; }
             .requirement { background-color: #f7f7f7; padding: 15px; margin: 10px 0; border-radius: 5px; }
-            .req-key { font-weight: bold; color: #2980b9; }
+            .req-id { font-weight: bold; color: #2980b9; }
             .req-description { margin-top: 10px; color: #333333; }
         </style>
     </head>
@@ -2673,7 +2673,7 @@ function generateRequirementsHtml(requirements: any[]): string {
     for (const req of reqs) {
       htmlContent += `
         <div class="requirement">
-            <div class="req-key">${req.Key || "No Key"}</div>
+            <div class="req-id">${req.ID || "No ID"}</div>
             <div class="req-description">${req.Description || "No Description"}</div>
         </div>
       `;
