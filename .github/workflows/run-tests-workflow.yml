@@ -107,7 +107,6 @@ jobs:
         run: |
           mv /tmp/linux_distribution ./resources/distribution
           npm run package
-          rm -rf ./resources/distribution
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
           NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
           mv $VSIX_FILE $NEW_VSIX_FILE
@@ -123,7 +122,6 @@ jobs:
         run: |
           mv /tmp/win_distribution ./resources/distribution
           npm run package
-          rm -rf ./resources/distribution
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
           NEW_VSIX_FILE="${VSIX_FILE%.vsix}.win.vsix"
           mv $VSIX_FILE $NEW_VSIX_FILE
@@ -264,15 +262,6 @@ jobs:
           -H "Content-Type: application/octet-stream" \
           $upload_url \
           --data-binary "@${{ env.WIN_VSIX_FILE }}"
-
-      - name: Find all distribution folders
-        run: |
-          echo "=== Distribution under current dir ==="
-          find "$(pwd)" -type d -name distribution -print
-          echo "=== Linux distribution under /tmp ==="
-          find /tmp -type d -name linux_distribution -print
-          echo "=== Windows distribution under /tmp ==="
-          find /tmp -type d -name win_distribution -print
 
 
   generate-e2e-matrix:
