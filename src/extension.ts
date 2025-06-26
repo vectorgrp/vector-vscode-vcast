@@ -199,12 +199,19 @@ let REQS2RGW_EXECUTABLE_PATH: string;
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   // If the LINUX_VSIX_FILE environment variable is set, we're likely running in a CI test environment.
   // In this case, use its value as the base URI since the default extensionUri won't point to the correct resource location.
-  const baseUri = process.env.LINUX_VSIX_FILE
-    ? vscode.Uri.file(process.env.LINUX_VSIX_FILE)
-    : context.extensionUri;
+  const isCI = process.env.HOME?.startsWith("/github") ?? false;
+  const { name, version } = context.extension.packageJSON as {
+    name: string;
+    version: string;
+  };
+
+  const vsixName = `${name}-${version}.vsix`;
+  const vsixPath = `/__w/vector-vscode-vcast/vector-vscode-vcast/${vsixName}`;
+  const baseUri = isCI ? vscode.Uri.file(vsixPath) : context.extensionUri;
 
   vectorMessage(`BASEURI: ${baseUri.fsPath}`);
-  logCliOperation(`LINUX_VSIX_FILE: ${process.env.LINUX_VSIX_FILE}`);
+  logCliOperation(`VSIXPATH: ${vsixPath}`);
+  logCliOperation(`ISCI: ${isCI}`);
   logCliOperation(`BASEURI: ${baseUri.fsPath}`);
 
   CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
