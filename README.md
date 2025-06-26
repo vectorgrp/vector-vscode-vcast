@@ -319,6 +319,47 @@ The extension supports generating MC/DC reports for specific lines with MC/DC co
     - The report will open in a separate window on the right.
 
 
+### Manage Support
+
+The VectorCAST VS Code extension integrates seamlessly with VectorCAST/Manage without forcing you to switch back to the VectorCAST GUI.
+
+#### Goals
+
+1. **Seamless VS Code Experience**  
+   Leverage your existing Manage project without duplicating configurations in both VS Code and the VectorCAST GUI.
+
+2. **Minimize Context Switching**  
+   Perform everyday tasks—build, test, view reports—directly in VS Code. No need to jump back to the Manage GUI unless you’re doing advanced configuration work.
+
+#### Accessing Manage Commands
+
+Right‑click any node in the Test Explorer tree (or in the Explorer pane) and choose **VectorCAST →** to reveal the full set of Manage‑aware commands. These include:
+
+| Command                                 | Description                                                              |
+|-----------------------------------------|--------------------------------------------------------------------------|
+| **Add Existing Environment**            | Link an existing Manage environment into your VS Code project node.     |
+| **Delete Project Environment**          | Remove the environment from both the tree and disk.                      |
+| **Build/Execute Incremental**           | Run an incremental build & test based on the changed code/tests.         |
+| **Create Compiler from CFG File**       | Generate or validate a compiler configuration from a Manage CFG.         |
+| **Delete Compiler**                     | Remove a compiler entry from the current Manage project.                 |
+| **Create Testsuite**                    | Add a new testsuite under your Manage project.                           |
+| **Delete Testsuite**                    | Remove an existing testsuite from the project.                           |
+| **Build Single Project Environment**    | Build just one environment without affecting others.                     |
+| **Remove Environment from Testsuite**   | Unlink an environment from a specific testsuite.                         |
+| **Create Environment from Source Files**| Generate a new environment directly from your source code.               |
+
+#### Typical Workflow
+
+1. **Open a Manage Project**  
+   Open your workspace folder that contains a `Manage` project or a VectorCAST project directory.
+
+2. **Discover Environments**  
+   The Test Explorer will automatically list all environments defined in Manage in the Testing pane.
+
+3. **Right‑Click & Execute**  
+   To perform any command: **Right-Click on a Node → VectorCAST → Command**  
+
+
 ### VectorCAST Data Server
 
 #### Introduction

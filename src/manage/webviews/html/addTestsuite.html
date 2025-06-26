@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Testsuite to Compiler</title>
+
+  <!-- replaced at runtime -->
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal">
+    <h2>Add Testsuite to Compiler</h2>
+    <label for="testsuiteInput">Testsuite Name:</label>
+    <input
+      aria-label="Testsuite Input"
+      type="text"
+      id="testsuiteInput"
+      placeholder="Enter Testsuite Name"
+    />
+    <div>
+      <button class="primary-button" onclick="submitForm()">OK</button>
+      <button class="cancel-button" onclick="cancel()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- replaced at runtime (with nonce) -->
+  <script src="{{ scriptUri }}"></script>
+</body>
+</html>

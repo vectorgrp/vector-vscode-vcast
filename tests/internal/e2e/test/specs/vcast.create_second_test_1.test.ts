@@ -160,7 +160,7 @@ describe("vTypeCheck VS Code Extension", () => {
     currentLine = await tab.getLineOfText(lastValueLineInPreviousTest);
     await tab.moveCursor(currentLine, lastValueLineInPreviousTest.length + 1);
     await browser.keys(Key.Enter);
-    await tab.save();
+
     currentLine += 1;
     // Not evaluating LSE, so setting text is sufficent and faster than typing
     await tab.setTextAtLine(
@@ -179,13 +179,10 @@ describe("vTypeCheck VS Code Extension", () => {
       "TEST.STUB:database.DataBase::UpdateTableRecord"
     );
 
-    await tab.save();
     await bottomBar.toggle(true);
     // This produces invalid locator error somehow
     // await tab.openContextMenu()
     // Loading test script directly for now
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
+    await tab.save();
   });
 });

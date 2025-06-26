@@ -83,6 +83,15 @@ export function loadLaunchFile(jsonPath: string): jsonDataType | undefined {
   return returnValue;
 }
 
+/**
+ *  Decodes a base64 encoded string.
+ * @param b64 - The base64 encoded string to decode.
+ * @returns The decoded string.
+ */
+export function decodeVar(b64: string): string {
+  return Buffer.from(b64, "base64").toString("utf-8");
+}
+
 export function addLaunchConfiguration(
   fileUri: Uri,
   pathToSupportFiles: string
@@ -261,8 +270,28 @@ export function forceLowerCaseDriveLetter(path?: string): string {
   } else return "";
 }
 
+export function normalizePath(path: string): string {
+  // This function is used to fix the drive letter AS WELL AS
+  // replace any backslashes with forward slashes
+
+  let returnPath = path;
+  if (os.platform() == "win32") {
+    returnPath = forceLowerCaseDriveLetter(path).replace(/\\/g, "/");
+  }
+  return returnPath;
+}
+
+/**
+ * this function returns a single line range DecorationOption
+ * @param lineIndex line index to be used for the range
+ * @returns DecorationOptions for the line
+ */
 export function getRangeOption(lineIndex: number): vscode.DecorationOptions {
-  // this function returns a single line range DecorationOption
+  // If we start the extension with a cpp file opened and in focus, lineIndex is -1 because the cursor is not
+  // on a line. We need to set it to 0 in that case
+  if (lineIndex < 0) {
+    lineIndex = 0;
+  }
   const startPos = new vscode.Position(lineIndex, 0);
   const endPos = new vscode.Position(lineIndex, 0);
   return { range: new vscode.Range(startPos, endPos) };

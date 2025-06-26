@@ -145,3 +145,32 @@ This option is new for VectorCAST 23 sp2
 - Fix hover colours execution reports (#236)
 - Fix View Test Results context menu (#237)
 
+## [1.0.15] - 2024-12-20
+- Implemented MCDC and MCDC+Statement Coverage (#243)
+- Added ability to generate MCDC reports 
+
+### Bug Fixes
+- Fixed wrong Test Results message log (#248)
+
+## [1.0.16] - 2025-05-20
+- Implemented Manage support (#253), including:
+    - **Environment Management**:  
+        - Add existing environments to projects.  
+        - Delete environments from a project.  
+        - Create environments from source files.  
+        - Build individual environments in isolation. 
+        - Build / Execute Environments 
+    - **Compiler Integration**:  
+        - Create compiler instances from CFG configuration files.  
+        - Remove compiler instances from the project.    
+    - **Testsuite Handling**:  
+        - Create and delete testsuites.  
+        - Link and unlink environments to/from testsuites.  
+        
+- Implemented ability to load Test Scripts by saving the .tst file
+
+## [1.0.17] - 2025-06-17
+
+### Bug Fixes
+- Fixed autocompletion for uut_prototype_stubs.
+

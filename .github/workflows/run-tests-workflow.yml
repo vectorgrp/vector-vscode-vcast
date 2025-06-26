@@ -389,7 +389,7 @@ jobs:
           echo 'Activating Vcast ${{ matrix.version }}'
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
-          USE_VCAST_24=$(if [[ $(cat $RELEASE_DIR/DATA/tool_version.txt) == 24* ]]; then echo "True"; else echo "False"; fi)
+          USE_VCAST_24=$([ "$(head -n1 "$RELEASE_DIR/DATA/tool_version.txt" | grep -oE '^[0-9]+')" -ge 24 ] && echo "True" || echo "False")
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
         shell: bash
 

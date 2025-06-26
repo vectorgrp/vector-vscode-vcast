@@ -14,7 +14,7 @@ import { TIMEOUT } from "../test_utils/vcast_utils";
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  const QUOTES_ENV = "cpp/unitTests/QUOTES_EXAMPLE";
+  const QUOTES_ENV = "QUOTES_EXAMPLE";
   const QUOTES_EXAMPLE_UNIT = "quotes_example";
   const QUOTES_EXAMPLE_FUNCTION = "Moo::honk(int,int,int)";
   before(async () => {

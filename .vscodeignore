@@ -23,3 +23,9 @@ docker
 .prettierignore
 .xo-config.json
 tsconfig_test.json
+
+# <— unignore webview assets
+!src/manage/webviews/html/**
+!src/manage/webviews/css/**
+!src/manage/webviews/webviewScripts/**
+

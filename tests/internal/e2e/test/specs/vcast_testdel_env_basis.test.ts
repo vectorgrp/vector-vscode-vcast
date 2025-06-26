@@ -78,7 +78,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should correctly delete all BASIS PATH tests for the environment", async () => {
     await updateTestID();
 
-    const envName = "cpp/unitTests/DATABASE-MANAGER";
+    const envName = "DATABASE-MANAGER";
     console.log(`Deleting all BASIS PATH tests for the environment ${envName}`);
     await deleteAllTestsForEnv(envName);
   });
