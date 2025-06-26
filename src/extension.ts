@@ -199,7 +199,7 @@ let REQS2RGW_EXECUTABLE_PATH: string;
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   // If the LINUX_VSIX_FILE environment variable is set, we're likely running in a CI test environment.
   // In this case, use its value as the base URI since the default extensionUri won't point to the correct resource location.
-  const isCI = false; //process.env.HOME?.startsWith("/github") ?? false;
+  const isCI = process.env.HOME?.startsWith("/github") ?? false;
   const { name, version } = context.extension.packageJSON as {
     name: string;
     version: string;
