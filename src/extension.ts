@@ -200,16 +200,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   // If the LINUX_VSIX_FILE environment variable is set, we're likely running in a CI test environment.
   // In this case, use its value as the base URI since the default extensionUri won't point to the correct resource location.
   const isCI = process.env.HOME?.startsWith("/github") ?? false;
-  const { name, version } = context.extension.packageJSON as {
-    name: string;
-    version: string;
-  };
-
-  const vsixName = `${name}-${version}.vsix`;
-  // On CI, cwd is something like "/__w/vector-vscode-vcast/vector-vscode-vcast/tests/internal/e2e"
-  // Strip off "/tests/internal/e2e" to get back to repo root
-  const repoRoot = "/vcast/vsix";
-
+  
   // Now compose the full path to the .vsix
   const vsixPath = "/tmp/linux_distribution";
 
