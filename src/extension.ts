@@ -206,15 +206,21 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   };
 
   const vsixName = `${name}-${version}.vsix`;
-  const vsixPath = `${process.cwd()}/vector-vscode-vcast/vector-vscode-vcast/${vsixName}`;
+  // On CI, cwd is something like "/__w/vector-vscode-vcast/vector-vscode-vcast/tests/internal/e2e"
+  // Strip off "/tests/internal/e2e" to get back to repo root
+  const cwd = process.cwd();
+  const repoRoot = cwd.replace(/\/tests\/internal\/e2e$/, "");
+
+  // Now compose the full path to the .vsix
+  const vsixPath = path.join(repoRoot, vsixName);
+
+  // Select baseUri
   const baseUri = isCI ? vscode.Uri.file(vsixPath) : context.extensionUri;
-  const installPath = context.extensionUri.fsPath;
 
   vectorMessage(`BASEURI: ${baseUri.fsPath}`);
   logCliOperation(`VSIXPATH: ${vsixPath}`);
   logCliOperation(`ISCI: ${isCI}`);
   logCliOperation(`BASEURI: ${baseUri.fsPath}`);
-  logCliOperation(`INSTALLPATH: ${installPath}`);
 
   CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
