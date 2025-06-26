@@ -12,13 +12,36 @@ import asyncio
 import logging
 
 
-def load_requirements_from_gateway(rgw_path: Path) -> t.List[t.Dict]:
+def get_requirements_json_path(rgw_path: Path) -> t.Optional[Path]:
+    """
+    Returns the path to the requirements.json file in the requirements gateway.
+    """
     requirements_json_path = rgw_path / 'requirements.json'
-    assert requirements_json_path.is_file(), (
-        'The requirements gateway does not contain a requirements.json file.'
+    if requirements_json_path.is_file():
+        return requirements_json_path
+
+    requirements_json_path = rgw_path / 'repository.json'
+    if requirements_json_path.is_file():
+        logging.warning(
+            'The requirements gateway contains a repository.json file instead of requirements.json.\n'
+            'In newer versions of VectorCAST, the requirements gateway uses requirements.json instead of repository.json.'
+        )
+        return requirements_json_path
+
+    return None
+
+
+def load_requirements_from_gateway(rgw_path: Path) -> t.List[t.Dict]:
+    requirements_json_path = get_requirements_json_path(rgw_path)
+    assert requirements_json_path is not None, (
+        'The requirements gateway does not contain a file containing requirements.'
     )
     with open(requirements_json_path, 'r') as f:
         data = json.load(f)
+
+    # For older versions of VectorCAST, the requirements might be under 'requirements' key.
+    if 'requirements' in data:
+        data = data['requirements']
 
     ret = []
     for group_id, reqs_info in data.items():
@@ -189,8 +212,8 @@ def main(
         requirements = {}
         for env in envs:
             rgw_path = Path(env.env_dir) / 'requirements_gateway'
-            requirements_json_path = rgw_path / 'requirements.json'
-            if not (rgw_path.is_dir() and requirements_json_path.is_file()):
+            requirements_json_path = get_requirements_json_path(rgw_path)
+            if not (rgw_path.is_dir() and requirements_json_path is not None):
                 execute_rgw_commands(
                     env.env_file_path, csv_template_path, str(env.env_dir)
                 )
