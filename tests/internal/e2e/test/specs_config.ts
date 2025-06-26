@@ -145,6 +145,11 @@ export function getSpecGroups(useVcast24: boolean) {
       env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
+    specGroups["manage"] = {
+      specs: ["./**/**/vcast_manage.test.ts"],
+      env: { VCAST_USE_PYTHON: "True", MANAGE_TEST: "True" },
+      params: {},
+    };
 
     specGroups["basic_user_interactions_server"] = {
       specs: [
@@ -257,6 +262,12 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
+    specGroups["manage_server"] = {
+      specs: ["./**/**/vcast_manage.test.ts"],
+      env: { MANAGE_TEST: "True" },
+      params: {},
+    };
+
     specGroups["coded_tests_server"] = {
       specs: [
         "./**/**/vcast_coded_tests.test.ts",
@@ -274,6 +285,12 @@ export function getSpecGroups(useVcast24: boolean) {
     };
 
     specGroups["import_coded_test_server"] = {
+      specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
+      env: { IMPORT_CODED_TEST_IN_TST: "True" },
+      params: {},
+    };
+
+    specGroups["import_coded_test"] = {
       specs: ["./**/**/vcast_coded_tests_relative_path.test.ts"],
       env: { IMPORT_CODED_TEST_IN_TST: "True" },
       params: {},

@@ -176,10 +176,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await tab.save();
 
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.loadTestScript");
-    });
-
     // Check for server logs when loading scripts
     if (useDataServer) {
       const expectedLoadScriptLogs = [
@@ -188,7 +184,7 @@ describe("vTypeCheck VS Code Extension", () => {
         "server return code: 0",
       ];
       const loadScriptLog = await checkIfRequestInLogs(
-        8,
+        13,
         expectedLoadScriptLogs
       );
       expect(loadScriptLog).toBe(true);
@@ -365,7 +361,7 @@ describe("vTypeCheck VS Code Extension", () => {
         "server return code: 0",
         "received client request: report for",
       ];
-      const runTestsLog = await checkIfRequestInLogs(22, expectedRunTestsLogs);
+      const runTestsLog = await checkIfRequestInLogs(27, expectedRunTestsLogs);
       expect(runTestsLog).toBe(true);
 
       statusBar = workbench.getStatusBar();
@@ -394,7 +390,7 @@ describe("vTypeCheck VS Code Extension", () => {
         "vcastDataServer is exiting",
       ];
       const serverOfflineLog = await checkIfRequestInLogs(
-        5,
+        10,
         expectedServerOfflineLogs
       );
       expect(serverOfflineLog).toBe(true);
@@ -415,7 +411,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
       // No new logs should be there ebcasue we shutdown the server --> check for the same logs
       const runTestsLogAfterSettingOffline = await checkIfRequestInLogs(
-        5,
+        10,
         expectedServerOfflineLogs
       );
       expect(runTestsLogAfterSettingOffline).toBe(true);
@@ -465,7 +461,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
       // Server is now online again --> We should see the same logs as before
       const runTestsLogAfterSettingOnline = await checkIfRequestInLogs(
-        22,
+        27,
         expectedRunTestsLogs
       );
       expect(runTestsLogAfterSettingOnline).toBe(true);
@@ -488,8 +484,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const workspaceFolderSection = await explorerSideBarView
       .getContent()
       .getSection(workspaceFolderName.toUpperCase());
-    console.log(await workspaceFolderSection.getTitle());
-    await workspaceFolderSection.expand();
+    const cppFolder = workspaceFolderSection.findItem("cpp");
+    await (await cppFolder).select();
 
     const managerCpp = workspaceFolderSection.findItem("manager.cpp");
     await (await managerCpp).select();

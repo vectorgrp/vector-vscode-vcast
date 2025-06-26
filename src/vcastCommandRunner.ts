@@ -22,7 +22,7 @@ import { pythonErrorCodes } from "../src-common/vcastServerTypes";
 const path = require("path");
 
 export interface commandStatusType {
-  errorCode: number;
+  errorCode: number | string;
   stdout: string;
 }
 
@@ -78,7 +78,7 @@ export function getJsonDataFromTestInterface(
 ): any {
   let returnData = undefined;
 
-  let jsonText = executeVPythonScript(commandToRun, enviroPath, false).stdout;
+  let jsonText = executeVPythonScript(commandToRun, enviroPath, true).stdout;
   try {
     returnData = JSON.parse(jsonText);
   } catch {
@@ -93,22 +93,78 @@ function processExceptionFromExecuteCommand(
   error: any,
   printErrorDetails: boolean
 ): commandStatusType {
-  // see detailed comment with the function definition
-  let stdoutString: string = cleanVectorcastOutput(error.stdout.toString());
-  let commandStatus = { errorCode: error.status, stdout: stdoutString };
+  // Safely access stdout and clean it if available
+  let rawStdout = "";
+  let stdoutString = "";
 
-  if (error.status == pythonErrorCodes.testInterfaceError) {
+  // Check if error has a stdout property and convert it to string
+  rawStdout = error?.stdout?.toString();
+
+  if (rawStdout) {
+    stdoutString = cleanVectorcastOutput(rawStdout);
+  }
+
+  // Determine the most meaningful error message
+  let errorMessage = "Unknown error";
+  if (error) {
+    if (typeof error.message === "string") {
+      errorMessage = error.message;
+    } else if (typeof error.code === "string") {
+      errorMessage = error.code;
+    }
+  }
+
+  // Determine the error code: use status if available, fallback to error.code (like "EACCES")
+  let errorCode: number | string = 1;
+  if (error) {
+    if (typeof error.status === "number") {
+      errorCode = error.status;
+    } else if (typeof error.code === "string") {
+      errorCode = error.code; // Like "EACCES"
+    }
+  }
+
+  let commandStatus = {
+    errorCode: errorCode,
+    stdout: stdoutString,
+  };
+
+  if (error && error.status === pythonErrorCodes.testInterfaceError) {
     // Improvement needed: we should document this
     commandStatus.errorCode = 0;
     vectorMessage("Exception while executing python interface");
-    vectorMessage(stdoutString, errorLevel.info, indentString);
+
+    // Access Errors do not have an stdout
+    if (stdoutString) {
+      // Log the cleaned stdout from the Python interface
+      vectorMessage(stdoutString, errorLevel.info, indentString);
+    } else {
+      // Provide fallback logging when stdout is empty but we still have an error message
+      vectorMessage(
+        `Python interface failed: ${errorMessage}`,
+        errorLevel.warn,
+        indentString
+      );
+    }
   } else {
-    commandStatus.errorCode = error.status;
+    commandStatus.errorCode = errorCode;
+
     if (printErrorDetails) {
       vectorMessage("Exception while executing VectorCAST command");
       vectorMessage(command, errorLevel.trace, indentString);
-      vectorMessage(stdoutString, errorLevel.info, indentString);
-      openMessagePane();
+
+      if (stdoutString) {
+        // Log standard output if available
+        vectorMessage(stdoutString, errorLevel.info, indentString);
+      } else {
+        // Log system-level or command-level error when stdout is missing
+        // This helps identify cases like permission denied, missing files, etc.
+        vectorMessage(
+          `Command failed: ${errorMessage}`,
+          errorLevel.info,
+          indentString
+        );
+      }
     }
   }
 
@@ -135,6 +191,7 @@ export function executeCommandSync(
       error,
       printErrorDetails
     );
+    openMessagePane();
   }
   return commandStatus;
 }
@@ -150,12 +207,12 @@ export function executeWithRealTimeEcho(
   // this function is used to build and rebuild environments
   // long running commands where we want to show real-time output
 
-  // it uses spawn to execute a clicast command, log the output to the
+  // it uses spawn to execute a clicast | manage command, log the output to the
   // message pane, and update the test explorer when the command completes
 
   // To debug what's going on with vcast, you can add -dall to
-  // argList, which will dump debug info for the clicast invocation
-  let clicast = spawn(command, argList, { cwd: CWD });
+  // argList, which will dump debug info for the clicast | manage invocation
+  let processHandle = spawn(command, argList, { cwd: CWD });
   vectorMessage("-".repeat(100));
 
   // maybe this is a hack, but after reading stackoverflow for a while I could
@@ -167,11 +224,24 @@ export function executeWithRealTimeEcho(
   // condition because the exit might not have saved it when the close is seen.
 
   vectorMessage("-".repeat(100));
-  clicast.stdout.on("data", function (data: any) {
+  let messageFragment: string = "";
+  processHandle.stdout.on("data", function (data: any) {
     // split raw message based on \n or \r because messages
     // that come directly from the compiler are LF terminated
     const rawString = data.toString();
     const lineArray = rawString.split(/[\n\r?]/);
+
+    // add any left over fragment to the end of the first line
+    if (messageFragment.length > 0) {
+      lineArray[0] = messageFragment + lineArray[0];
+      messageFragment = "";
+    }
+
+    // handle the case where the last line is not complete
+    if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
+      messageFragment = lineArray.pop();
+    }
+
     for (const line of lineArray) {
       if (line.length > 0) {
         vectorMessage(line.replace(/\n/g, ""));
@@ -179,20 +249,230 @@ export function executeWithRealTimeEcho(
     }
   });
 
-  clicast.stdout.on("close", function (code: any) {
+  processHandle.stdout.on("close", function (code: any) {
     vectorMessage("-".repeat(100));
   });
 
-  clicast.on("exit", function (code: any) {
+  processHandle.on("exit", function (code: any) {
+    // clearTimeout(timeout); // Clear the timeout if the process exits naturally
     vectorMessage("-".repeat(100));
     vectorMessage(
-      `clicast: '${argList.join(" ")}' returned exit code: ${code.toString()}`
+      `${path.basename(command)}: '${argList.join(" ")}' returned exit code: ${code.toString()}`
     );
     vectorMessage("-".repeat(100));
     if (callback) {
       callback(enviroPath, code);
     }
   });
+
+  processHandle.on("error", (error) => {
+    // clearTimeout(timeout); // Clear the timeout on error
+    vectorMessage(`Error occurred: ${error.message}`);
+  });
+}
+
+export function executeWithRealTimeEchoWithProgress(
+  command: string,
+  argList: string[],
+  CWD: string,
+  vscodeMessage: string,
+  callback?: any,
+  enviroPath?: string | string[]
+) {
+  return vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `${vscodeMessage}`,
+      cancellable: true, // <-- make it cancellable so user gets a cross to click
+    },
+    async (progress, token) => {
+      progress.report({ increment: 10 });
+
+      let processHandle = spawn(command, argList, { cwd: CWD });
+      vectorMessage("-".repeat(100));
+      vectorMessage("-".repeat(100));
+      let messageFragment: string = "";
+
+      // Progress "feel good" increment
+      let progressValue = 10;
+      const progressInterval = setInterval(() => {
+        if (progressValue < 90) {
+          progressValue += 15;
+          progress.report({ increment: 10 });
+        }
+      }, 3000);
+
+      // Handle user cancellation (cross clicked)
+      token.onCancellationRequested(() => {
+        if (processHandle) {
+          processHandle.kill(); // kill the spawned process
+          vectorMessage(`User cancelled the operation.`);
+        }
+        clearInterval(progressInterval);
+      });
+
+      await new Promise<void>((resolve) => {
+        processHandle.stdout.on("data", function (data: any) {
+          const rawString = data.toString();
+          const lineArray = rawString.split(/[\n\r?]/);
+
+          if (messageFragment.length > 0) {
+            lineArray[0] = messageFragment + lineArray[0];
+            messageFragment = "";
+          }
+
+          if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
+            messageFragment = lineArray.pop();
+          }
+
+          for (const line of lineArray) {
+            if (line.length > 0) {
+              vectorMessage(line.replace(/\n/g, ""));
+            }
+          }
+        });
+
+        processHandle.on("exit", async function (code: any) {
+          clearInterval(progressInterval);
+          progress.report({ increment: 100 });
+          vectorMessage("-".repeat(100));
+          vectorMessage(
+            `${path.basename(command)}: '${argList.join(" ")}' returned exit code: ${code.toString()}`
+          );
+          vectorMessage("-".repeat(100));
+          if (callback) {
+            await callback(enviroPath, code);
+          }
+          resolve();
+        });
+
+        processHandle.on("error", (error) => {
+          clearInterval(progressInterval);
+          vectorMessage(`Error occurred: ${error.message}`);
+          resolve();
+        });
+      });
+    }
+  );
+}
+
+// A command runner simmilar to executeWithRealTimeEcho for long running commands
+// With the difference that it runs multiple commands sequentially and waits for each to finish
+export function executeWithRealTimeEchoWithProgressSequential(
+  command: string,
+  argLists: string[][],
+  progressMessages: string[],
+  CWD: string,
+  callback?: (enviroPath: string, exitCode: number) => void,
+  enviroPath?: string[]
+) {
+  return vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      cancellable: true,
+      title: "Executing command(s)...",
+    },
+    async (progress, token) => {
+      let enviroPathIndex = 0;
+      // Track total progress used
+      let totalProgress = 0;
+
+      // Loop over each argument list
+      for (const [index, argList] of argLists.entries()) {
+        // If cancellation has been requested, break out of the loop.
+        if (token.isCancellationRequested) {
+          vectorMessage(
+            "Operation cancelled by user. Exiting remaining tasks."
+          );
+          break;
+        }
+
+        // Reset per iteration progress
+        let progressValue = 0;
+        enviroPathIndex = index;
+        const message = `${progressMessages[index]} [ ${index + 1} / ${argLists.length} ] ...`;
+
+        // Reset progress if needed.
+        if (totalProgress > 0) {
+          progress.report({ increment: -totalProgress, message });
+          totalProgress = 0;
+        }
+
+        await new Promise<void>((resolve) => {
+          // Spawn the process for the current argument list.
+          const processHandle = spawn(command, argList, { cwd: CWD });
+          vectorMessage("-".repeat(100));
+          vectorMessage(`Executing: ${command} ${argList.join(" ")}`);
+          let messageFragment: string = "";
+
+          // Increment the progress bar every 3 seconds.
+          const progressInterval = setInterval(() => {
+            if (progressValue < 80) {
+              progressValue += 5;
+              totalProgress += 5;
+              progress.report({ increment: 5, message });
+            }
+          }, 3000);
+
+          // Listen for cancellation and kill the process if requested.
+          const cancellationSubscription = token.onCancellationRequested(() => {
+            vectorMessage(
+              "Cancellation requested. Killing the current process..."
+            );
+            processHandle.kill();
+          });
+
+          processHandle.stdout.on("data", (data: any) => {
+            const rawString = data.toString();
+            const lineArray = rawString.split(/[\n\r]+/);
+
+            if (messageFragment.length > 0) {
+              lineArray[0] = messageFragment + lineArray[0];
+              messageFragment = "";
+            }
+
+            if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
+              messageFragment = lineArray.pop() ?? "";
+            }
+
+            for (const line of lineArray) {
+              if (line.length > 0) {
+                vectorMessage(line.replace(/\n/g, ""));
+              }
+            }
+          });
+
+          processHandle.on("exit", (code: any) => {
+            clearInterval(progressInterval);
+            cancellationSubscription.dispose();
+
+            if (callback && enviroPath) {
+              let currentEnviroPath = enviroPath[enviroPathIndex];
+              callback(currentEnviroPath, code);
+            }
+
+            // Ensure progress reaches 100% for this iteration.
+            const finalIncrement = 100 - progressValue;
+            progress.report({
+              increment: finalIncrement,
+              message: `Finished: ${message}`,
+            });
+            totalProgress += finalIncrement;
+
+            vectorMessage(`Process finished with exit code: ${code}`);
+            resolve();
+          });
+
+          processHandle.on("error", (error) => {
+            clearInterval(progressInterval);
+            cancellationSubscription.dispose();
+            vectorMessage(`Error occurred: ${error.message}`);
+            resolve();
+          });
+        });
+      }
+    }
+  );
 }
 
 export function executeCommandWithProgress(

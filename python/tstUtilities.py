@@ -358,9 +358,8 @@ def getFunctionList(api, unitName):
             # coded_tests_driver because this function is supporting
             # TEST.VALUE and TEST.EXPECTED lines.
             if (
-                isTestableFunction(function)
-                and function.vcast_name != CODED_TEST_SUBPROGRAM_NAME
-            ):
+                unitName == PROTOTYPE_STUB_VCAST_NAME or isTestableFunction(function)
+            ) and function.vcast_name != CODED_TEST_SUBPROGRAM_NAME:
                 returnList.append(function.vcast_name)
 
         if len(unitObject.globals) > 0:

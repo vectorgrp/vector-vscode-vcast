@@ -11,6 +11,7 @@ import {
   ContentAssist,
   ContentAssistItem,
   BottomBarPanel,
+  OutputView,
 } from "wdio-vscode-service";
 import * as fs from "fs";
 import { Key } from "webdriverio";
@@ -340,7 +341,7 @@ export async function getTestHandle(
       async () =>
         (await customSubprogramMethod.getChildren()).length ===
         totalNumberOfTestsForMethod,
-      { timeout: 8000, timeoutMsg: `${expectedTestName} not found` }
+      { timeout: 10000, timeoutMsg: `${expectedTestName} not found` }
     );
   } catch {
     return undefined;
@@ -408,6 +409,14 @@ export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
       (await (await bottomBar.openOutputView()).getText())
         .toString()
         .includes("Starting execution of test: BASIS-PATH-004"),
+    { timeout: TIMEOUT }
+  );
+
+  await browser.waitUntil(
+    async () =>
+      (await (await bottomBar.openOutputView()).getText())
+        .toString()
+        .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
 }
@@ -1025,6 +1034,10 @@ export async function generateAllTestsForUnit(
   unitName: string,
   testGenMethod: string
 ) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  await bottomBar.toggle(true);
+  const outputView = await bottomBar.openOutputView();
   const menuItemLabel = `Insert ${testGenMethod} Tests`;
   let subprogram: TreeItem;
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -1043,6 +1056,20 @@ export async function generateAllTestsForUnit(
   if (!subprogram) {
     throw `Subprogram ${unitName} not found`;
   }
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for"),
+    { timeout: TIMEOUT }
+  );
 }
 
 export async function generateAllTestsForFunction(
@@ -1050,6 +1077,10 @@ export async function generateAllTestsForFunction(
   functionName: string,
   testGenMethod: string
 ) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  await bottomBar.toggle(true);
+  const outputView = await bottomBar.openOutputView();
   const menuItemLabel = `Insert ${testGenMethod} Tests`;
   let subprogram: TreeItem;
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -1070,6 +1101,20 @@ export async function generateAllTestsForFunction(
   if (!subprogram) {
     throw `Subprogram ${unitName} not found`;
   }
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for"),
+    { timeout: TIMEOUT }
+  );
 }
 
 export async function deleteAllTestsForUnit(
@@ -1542,7 +1587,7 @@ export async function checkForGutterAndGenerateReport(
  */
 export async function rebuildEnvironmentFromTestingPane(envName: string) {
   const vcastTestingViewContent = await getViewContent("Testing");
-  const env = `cpp/unitTests/${envName}`;
+  const env = `${envName}`;
 
   console.log("Re-Building Environment from Test Explorer");
   // Flask --> Right-click on env --> Re-Build environment
@@ -1561,4 +1606,209 @@ export async function rebuildEnvironmentFromTestingPane(envName: string) {
       }
     }
   }
+}
+
+/**
+ * Executes a context menu action on a tree node.
+ *
+ * @param level - The level of the node (e.g. 0 for project, 1 for compiler, etc.).
+ * @param nodeName - The text label of the node to target.
+ * @param vectorCASTSubMenu - If true, opens the "VectorCAST" submenu before selecting the item.
+ * @param contextMenuItemName - The name of the context menu item to click.
+ */
+export async function executeContextMenuAction(
+  level: number,
+  nodeName: string,
+  vectorCASTSubMenu: boolean,
+  contextMenuItemName: string
+): Promise<void> {
+  // Find the target tree node.
+  const targetNode: TreeItem = await retryFindTreeNode(level, nodeName);
+  if (!targetNode) {
+    throw new Error(`Node "${nodeName}" not found at level ${level}`);
+  }
+
+  // Right-click on the target node by opening its context menu.
+  const contextMenu = await targetNode.openContextMenu();
+
+  if (vectorCASTSubMenu) {
+    // First, select the "VectorCAST" submenu.
+    await contextMenu.select("VectorCAST");
+  }
+  const menuElement = await $(`aria/${contextMenuItemName}`);
+  await menuElement.click();
+}
+
+async function retryFindTreeNode(
+  level: number,
+  nodeName: string,
+  retries = 3,
+  delayMs = 500
+): Promise<TreeItem | undefined> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const node = await findTreeNodeAtLevel(level, nodeName);
+    if (node) return node;
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return undefined;
+}
+
+/**
+ * Recursively finds a tree node at the given level with the provided text label.
+ *
+ * @param level - The depth level (0 = first level under "Test Explorer").
+ * @param nodeName - The text label to match.
+ * @param nodes - (Optional) The nodes to search; if not provided, search starts from the "Test Explorer" section.
+ * @returns The matching tree node, or undefined if not found.
+ */
+export async function findTreeNodeAtLevel(
+  level: number,
+  nodeName: string,
+  nodes?: any[]
+): Promise<TreeItem | undefined> {
+  // Step 1: bootstrap from the Test Explorer
+  if (!nodes) {
+    const view = await getViewContent("Testing");
+    const sections = await view.getSections();
+    let testSection;
+    for (const s of sections) {
+      if ((await s.getTitle()).trim() === "Test Explorer") {
+        testSection = s;
+        break;
+      }
+    }
+    if (!testSection) throw new Error("Test Explorer section not found");
+    nodes = await testSection.getVisibleItems();
+  }
+
+  // Step 2: if we're at the target level, scan for a matching name
+  if (level === 0) {
+    for (const node of nodes) {
+      const text = (await node.elem.getText()).trim();
+      if (text === nodeName) {
+        return node;
+      }
+    }
+    return undefined;
+  }
+
+  // Step 3: otherwise, recurse into each node's children
+  for (const node of nodes) {
+    if (!(await node.isExpanded())) {
+      await node.expand();
+      // give the UI a moment to populate children
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const children = await node.getChildren();
+    // **explicitly return** the recursive call if it finds something
+    const found = await findTreeNodeAtLevel(level - 1, nodeName, children);
+    if (found !== undefined) {
+      return found;
+    }
+  }
+
+  // nothing found anywhere
+  return undefined;
+}
+
+export async function insertStringToInput(
+  stringToInsert: string,
+  divName: string
+) {
+  // Get the workbench and open the webview
+  const workbench = await browser.getWorkbench();
+  workbench.getEditorView();
+
+  // Retrieve all webviews and check the number of webviews open
+  const webviews = await workbench.getAllWebviews();
+  expect(webviews).toHaveLength(1); // Assumes only one webview is open
+  const webview = webviews[0];
+
+  // Open the webview
+  await webview.open();
+
+  // Wait for the input element to be available by its ARIA label
+  const inputElement = await $(`aria/${divName}`);
+
+  // Check if the element exists before proceeding
+  if (!inputElement) {
+    console.error(`Input element with ARIA label '${divName}' not found.`);
+    return;
+  }
+
+  // Insert the string into the input element
+  await inputElement.setValue(stringToInsert);
+  console.log(
+    `Inserted "${stringToInsert}" into input with ARIA label "${divName}".`
+  );
+}
+
+export async function clickButtonBasedOnAriaLabel(ariaLabel: string) {
+  // Get the workbench and open the webview
+  const workbench = await browser.getWorkbench();
+
+  // Retrieve all webviews and check the number of webviews open
+  const webviews = await workbench.getAllWebviews();
+  expect(webviews).toHaveLength(1); // Assumes only one webview is open
+  const webview = webviews[0];
+
+  // Open the webview
+  await webview.open();
+
+  // Wait for the input element to be available by its ARIA label
+  const button = await $(`aria/${ariaLabel}`);
+
+  // Check if the element exists before proceeding
+  if (!button) {
+    console.error(`Input element with ARIA label '${ariaLabel}' not found.`);
+    return;
+  }
+
+  await button.click();
+}
+
+// Helper: retrieve node text (from CustomTreeItem or ViewSection).
+export async function getNodeText(node: any): Promise<string> {
+  if ("elem" in node && node.elem && typeof node.elem.getText === "function") {
+    return (await node.elem.getText()).trim();
+  }
+  if (typeof node.getTitle === "function") {
+    return (await node.getTitle()).trim();
+  }
+  throw new Error("Unknown node type");
+}
+
+// Helper: retrieve texts from an array of nodes.
+export async function getTexts(nodes: any[]): Promise<string[]> {
+  const texts: string[] = [];
+  for (const node of nodes) {
+    texts.push(await getNodeText(node));
+  }
+  return texts;
+}
+
+/**
+ * Waits until there is at least one line in the outputView
+ * that both contains `prefix` and ends with `/${suffix}`.
+ */
+export async function waitForEnvSuffix(
+  outputView: OutputView,
+  env: string,
+  timeout = TIMEOUT,
+  interval = 500
+) {
+  await browser.waitUntil(
+    async () => {
+      const outputText = (await outputView.getText()).toString();
+      return (
+        outputText.includes("Processing environment data for:") &&
+        outputText.includes(env)
+      );
+    },
+    {
+      timeout,
+      interval,
+      timeoutMsg: `Timed out waiting for "Processing environment data for:" and "/${env}"`,
+    }
+  );
 }

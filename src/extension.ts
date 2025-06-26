@@ -39,7 +39,14 @@ import {
 
 import { viewMCDCReport, viewResultsReport } from "./reporting";
 
-import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+import {
+  environmentDataCache,
+  environmentNodeDataType,
+  getEnviroNodeData,
+  getEnviroPathFromID,
+  getTestNode,
+  testNodeType,
+} from "./testData";
 
 import {
   activateTestPane,
@@ -52,6 +59,12 @@ import {
   refreshAllExtensionData,
   updateCodedTestCases,
   updateDataForEnvironment,
+  vcastUnbuiltEnviroList,
+  globalProjectWebviewComboboxItems,
+  setGlobalProjectIsOpenedChecker,
+  setGlobalCompilerAndTestsuites,
+  loadTestScriptButton,
+  makeEnviroNodeID,
 } from "./testPane";
 
 import {
@@ -61,6 +74,7 @@ import {
   showSettings,
   updateCoverageAndRebuildEnv,
   forceLowerCaseDriveLetter,
+  decodeVar,
 } from "./utilities";
 
 import {
@@ -70,7 +84,22 @@ import {
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
   rebuildEnvironment,
+  openProjectInVcast,
+  deleteLevel,
 } from "./vcastAdapter";
+
+import {
+  buildProjectEnvironment,
+  removeTestsuiteFromProject,
+  importEnvToTestsuite,
+  createTestsuiteInCompiler,
+  addCompilerToProject,
+  updateProjectData,
+  buildExecuteIncremental,
+  cleanProjectEnvironment,
+  addEnvToTestsuite,
+  deleteEnvironmentFromProject,
+} from "./manage/manageSrc/manageCommands";
 
 import {
   deleteServerLog,
@@ -97,22 +126,44 @@ import {
   newEnvironment,
   newTestScript,
   openCodedTest,
+  ProjectEnvParameters,
 } from "./vcastTestInterface";
 
 import {
   addIncludePath,
+  envIsEmbeddedInProject,
   getEnviroNameFromFile,
+  getLevelFromNodeId,
+  getVcmRoot,
+  openProjectFromEnviroPath,
   openTestScript,
 } from "./vcastUtilities";
 
 import fs = require("fs");
+import { getNonce, resolveWebviewBase } from "./manage/manageSrc/manageUtils";
 const path = require("path");
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
-import { parse as csvParse } from 'csv-parse/sync';
-const excelToJson = require('convert-excel-to-json');
+import { parse as csvParse } from "csv-parse/sync";
+const excelToJson = require("convert-excel-to-json");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
+
+/**
+ * Decodes a Base64-encoded variable name.
+ */
+function decodeAndRemoveDeveloperEnvs() {
+  // Base64-encoded variable names
+  const encodedVars: string[] = [
+    "VkNBU1RfVVNJTkdfSEVBRExFU1NfTU9ERQ",
+    "VkNBU1RfVVNFX0NJX0xJQ0VOU0VT",
+  ];
+
+  for (const encoded of encodedVars) {
+    const varName = decodeVar(encoded);
+    delete process.env[varName];
+  }
+}
 // Add a new output channel for CLI operations
 let cliOutputChannel: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Requirement Test Generation Operations"
@@ -145,10 +196,30 @@ let REQS2EXCEL_EXECUTABLE_PATH: string;
 let REQS2RGW_EXECUTABLE_PATH: string;
 
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
-  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "code2reqs").fsPath;
-  REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2tests").fsPath;
-  REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2excel").fsPath;
-  REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2rgw").fsPath;
+  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    context.extensionUri,
+    "resources",
+    "distribution",
+    "code2reqs"
+  ).fsPath;
+  REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    context.extensionUri,
+    "resources",
+    "distribution",
+    "reqs2tests"
+  ).fsPath;
+  REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    context.extensionUri,
+    "resources",
+    "distribution",
+    "reqs2excel"
+  ).fsPath;
+  REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    context.extensionUri,
+    "resources",
+    "distribution",
+    "reqs2rgw"
+  ).fsPath;
 
   //CODE2REQS_EXECUTABLE_PATH = "code2reqs";
   //REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
@@ -218,7 +289,7 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
         true
       );
       // default to coverage ON
-      toggleCoverageAction();
+      await toggleCoverageAction();
       // initialize the verbose setting
       adjustVerboseSetting();
     } else {
@@ -227,33 +298,41 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
   }
 }
 
-const HARDCODED_ENV_VARS: Record<string, string> = {
-}
+const HARDCODED_ENV_VARS: Record<string, string> = {};
 
-async function getEnvironmentListIncludingUnbuilt(workspacePath: string): Promise<string[]> {
+async function getEnvironmentListIncludingUnbuilt(
+  workspacePath: string
+): Promise<string[]> {
   return new Promise<string[]>((resolve, reject) => {
     // Use glob to find all .env files in the workspace
-    const glob = require('glob');
-    glob('**/*.env', { cwd: workspacePath, nodir: true }, (err: Error, envFiles: string[]) => {
-      if (err) {
-        reject(err);
-        return;
+    const glob = require("glob");
+    glob(
+      "**/*.env",
+      { cwd: workspacePath, nodir: true },
+      (err: Error, envFiles: string[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // Convert each .env file to its corresponding environment path
+        const envPaths = envFiles.map((envFile) => {
+          const fullPath = path.join(workspacePath, envFile);
+          const dirPath = path.dirname(fullPath);
+          const baseName = path.basename(envFile, ".env");
+          return path.join(dirPath, baseName);
+        });
+
+        resolve(envPaths);
       }
-
-      // Convert each .env file to its corresponding environment path
-      const envPaths = envFiles.map(envFile => {
-        const fullPath = path.join(workspacePath, envFile);
-        const dirPath = path.dirname(fullPath);
-        const baseName = path.basename(envFile, '.env');
-        return path.join(dirPath, baseName);
-      });
-
-      resolve(envPaths);
-    });
+    );
   });
 }
 
 async function activationLogic(context: vscode.ExtensionContext) {
+  // remove developer env variables
+  decodeAndRemoveDeveloperEnvs();
+
   // adds all of the command handlers
   configureExtension(context);
 
@@ -272,11 +351,17 @@ async function activationLogic(context: vscode.ExtensionContext) {
   activateLanguageServerClient(context);
 
   // Enable/disable the requirement generation component of the extension
-  vscode.commands.executeCommand('setContext', 'vectorcastTestExplorer.generateRequirementsEnabled', GENERATE_REQUIREMENTS_ENABLED);
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.generateRequirementsEnabled",
+    GENERATE_REQUIREMENTS_ENABLED
+  );
 
   // Initialize requirements availability for all environments
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
-    const envPaths = await getEnvironmentListIncludingUnbuilt(workspace.workspaceFolders[0].uri.fsPath);
+    const envPaths = await getEnvironmentListIncludingUnbuilt(
+      workspace.workspaceFolders[0].uri.fsPath
+    );
     for (const envPath of envPaths) {
       updateRequirementsAvailability(envPath);
     }
@@ -293,29 +378,38 @@ function setupRequirementsFileWatchers(context: vscode.ExtensionContext) {
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
     // Create a file watcher that watches for requirements files changes
     // using a glob pattern to match all reqs.csv and reqs.xlsx files in the workspace
-    requirementsFileWatcher = workspace.createFileSystemWatcher('**/reqs.{csv,xlsx}');
+    requirementsFileWatcher =
+      workspace.createFileSystemWatcher("**/reqs.{csv,xlsx}");
 
     // When a requirements file is created
-    requirementsFileWatcher.onDidCreate(async (uri) => {
-      logCliOperation(`Requirements file created: ${uri.fsPath}`);
-      const changeDir = path.dirname(uri.fsPath);
-      const envDirName = findEnvironmentInPath(changeDir);
-      if (envDirName) {
-        const envPath = path.join(changeDir, envDirName);
-        updateRequirementsAvailability(envPath);
-      }
-    }, null, context.subscriptions);
+    requirementsFileWatcher.onDidCreate(
+      async (uri) => {
+        logCliOperation(`Requirements file created: ${uri.fsPath}`);
+        const changeDir = path.dirname(uri.fsPath);
+        const envDirName = findEnvironmentInPath(changeDir);
+        if (envDirName) {
+          const envPath = path.join(changeDir, envDirName);
+          updateRequirementsAvailability(envPath);
+        }
+      },
+      null,
+      context.subscriptions
+    );
 
     // When a requirements file is deleted
-    requirementsFileWatcher.onDidDelete(async (uri) => {
-      logCliOperation(`Requirements file deleted: ${uri.fsPath}`);
-      const parentDir = path.dirname(uri.fsPath);
-      const envDirName = findEnvironmentInPath(parentDir);
-      if (envDirName) {
-        const envPath = path.join(parentDir, envDirName);
-        updateRequirementsAvailability(envPath);
-      }
-    }, null, context.subscriptions);
+    requirementsFileWatcher.onDidDelete(
+      async (uri) => {
+        logCliOperation(`Requirements file deleted: ${uri.fsPath}`);
+        const parentDir = path.dirname(uri.fsPath);
+        const envDirName = findEnvironmentInPath(parentDir);
+        if (envDirName) {
+          const envPath = path.join(parentDir, envDirName);
+          updateRequirementsAvailability(envPath);
+        }
+      },
+      null,
+      context.subscriptions
+    );
 
     // Register the watcher to be disposed when the extension deactivates
     context.subscriptions.push(requirementsFileWatcher);
@@ -326,11 +420,11 @@ function findEnvironmentInPath(dirPath: string): string | null {
   const envFilePattern = new RegExp(/\.env$/);
   const files = fs.readdirSync(dirPath);
 
-  const envFiles = files.filter(file => envFilePattern.test(file));
+  const envFiles = files.filter((file) => envFilePattern.test(file));
 
   // Now see if there is a directory with the same name as the env file
   for (const file of envFiles) {
-    const envName = file.replace(envFilePattern, '');
+    const envName = file.replace(envFilePattern, "");
     const envDirPath = path.join(dirPath, envName);
     if (fs.existsSync(envDirPath) && fs.lstatSync(envDirPath).isDirectory()) {
       return envName;
@@ -349,8 +443,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(coverStatusBar);
   let toggleCoverageCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.coverage",
-    () => {
-      toggleCoverageAction();
+    async () => {
+      await toggleCoverageAction();
     }
   );
   context.subscriptions.push(toggleCoverageCommand);
@@ -491,7 +585,6 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(insertATGTestsFromEditorCommand);
 
-
   let generateRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.generateRequirements",
     (args: any) => {
@@ -510,7 +603,10 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
-        await generateTestsFromRequirements(enviroPath, testNode.functionName || testNode.unitName || null);
+        await generateTestsFromRequirements(
+          enviroPath,
+          testNode.functionName || testNode.unitName || null
+        );
       }
     }
   );
@@ -560,23 +656,22 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.deleteTest ////////////////////////////////////////////////////////
   let deleteTestCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteTest",
-    (...nodeList: any) => {
-      // adding the ... to nodeList, results in us getting a list of selected tests!
+    async (...nodeList: any) => {
       if (nodeList) {
-        // add a confirmation step if the user has selected multiple tests, or
-        // has selected a container node, like an environment, unit, or subprogram
         if (nodeList.length > 1 || nodeList[0].children.size > 0) {
           const message =
             "The selected tests will be deleted, and this action cannot be undone.";
-          vscode.window
-            .showWarningMessage(message, "Delete", "Cancel")
-            .then((answer) => {
-              if (answer === "Delete") {
-                deleteTests(nodeList);
-              }
-            });
+          const answer = await vscode.window.showWarningMessage(
+            message,
+            "Delete",
+            "Cancel"
+          );
+
+          if (answer === "Delete") {
+            await deleteTests(nodeList);
+          }
         } else {
-          deleteTests(nodeList);
+          await deleteTests(nodeList);
         }
       }
     }
@@ -609,8 +704,8 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.loadTestScript////////////////////////////////////////////////////////
   let loadTestScriptCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.loadTestScript",
-    () => {
-      loadTestScript();
+    async () => {
+      await loadTestScriptButton();
     }
   );
   context.subscriptions.push(loadTestScriptCommand);
@@ -718,9 +813,15 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.openVCAST  ////////////////////////////////////////////////////////
   let openVCAST = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCAST",
-    (enviroNode: any) => {
+    async (enviroNode: any) => {
       vectorMessage("Starting VectorCAST ...");
-      openVcastFromEnviroNode(enviroNode.id, updateDataForEnvironment);
+      // If the Env is embedded in a project, we want to open the whole project
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      if (envIsEmbeddedInProject(enviroPath)) {
+        await openProjectFromEnviroPath(enviroPath);
+      } else {
+        openVcastFromEnviroNode(enviroNode.id, updateDataForEnvironment);
+      }
     }
   );
   context.subscriptions.push(openVCAST);
@@ -728,9 +829,15 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.openVCASTFromVce  ////////////////////////////////////////////////////////
   let openVCASTFromVce = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openVCASTFromVce",
-    (arg: any) => {
+    async (arg: any) => {
       vectorMessage("Starting VectorCAST ...");
-      openVcastFromVCEfile(arg.fsPath, updateDataForEnvironment);
+      const dotIndex = arg.fsPath.lastIndexOf(".");
+      const enviroPath = arg.fsPath.slice(0, dotIndex);
+      if (envIsEmbeddedInProject(enviroPath)) {
+        await openProjectFromEnviroPath(enviroPath);
+      } else {
+        openVcastFromVCEfile(arg.fsPath, updateDataForEnvironment);
+      }
     }
   );
   context.subscriptions.push(openVCASTFromVce);
@@ -777,6 +884,315 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(rebuildEnviro);
 
+  let updateProjectLevelCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.updateProjectEnvironment",
+    async (enviroNode: any) => {
+      const enviroPath = getEnviroPathFromID(enviroNode.id);
+      // Check if the result is valid
+      if (enviroPath) {
+        await updateProjectData(enviroPath, true);
+      } else {
+        vectorMessage(`Unable to find Environment ${enviroNode.id}`);
+      }
+    }
+  );
+  context.subscriptions.push(updateProjectLevelCommand);
+
+  // Command: vectorcastTestExplorer.buildExecuteIncremental  ////////////////////////////////////////////////////////
+  let buildExecuteIncrementalCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.buildExecuteIncremental",
+    async (enviroNode: any) => {
+      const enviroPathList: string[] = [];
+      let projectPath = "";
+      let displayName = "";
+
+      // In case the Node id starts with vcast:, it is an environment node and the id is the build path
+      if (enviroNode.id.includes("vcast:")) {
+        const enviroPath = enviroNode.id.split("vcast:")[1];
+        enviroPathList.push(enviroPath);
+        const enviroData = getEnviroNodeData(enviroPath);
+        ({ displayName, projectPath } = enviroData);
+      } else {
+        // Otherwise it's either a project, compiler or testsuite node
+        projectPath = enviroNode.id.split(".vcm")[0] + ".vcm";
+        const projectData = getLevelFromNodeId(enviroNode.id);
+        displayName = projectData.level;
+
+        // Collect all relevant environment paths
+        for (const [envPath, envValue] of environmentDataCache) {
+          // If projectPath == enviroNode.id -> Project Node, otherwise we have to check
+          // if the current displayName is part of the envValue.displayName (compiler, testsuite)
+          if (
+            envValue.projectPath === projectPath &&
+            (projectPath === enviroNode.id ||
+              envValue.displayName.includes(displayName))
+          ) {
+            enviroPathList.push(envPath);
+          }
+        }
+      }
+
+      await buildExecuteIncremental(
+        projectPath,
+        displayName,
+        enviroPathList,
+        enviroNode.id
+      );
+      await refreshAllExtensionData();
+    }
+  );
+
+  context.subscriptions.push(buildExecuteIncrementalCommand);
+
+  let openProjectInVectorCAST = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.openProjectInVectorCAST",
+    async (node: any) => {
+      // this returns the full path to the environment directory
+      const result = getVcmRoot(node.id);
+
+      // Check if the result is valid
+      if (result) {
+        const { rootPath, vcmName } = result;
+        vectorMessage(`Opening ${vcmName} in VectorCAST...`);
+        await openProjectInVcast(rootPath, vcmName);
+      } else {
+        vectorMessage(`Unable to open project ${node.id}`);
+      }
+    }
+  );
+  context.subscriptions.push(openProjectInVectorCAST);
+
+  let addCompilerToProjectCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addCompilerToProject",
+    async (args: any) => {
+      // Verify that the command was invoked from a node with an 'id' property.
+      if (!args?.id) {
+        vscode.window.showErrorMessage("No project node provided.");
+        return;
+      }
+      //project file path
+      const projectFilePath = args.id;
+
+      // Open a file dialog so the user can select a .CFG file.
+      const cfgFiles = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        openLabel: "Select VectorCAST Configuration (.CFG) file",
+        filters: {
+          "CFG Files": ["cfg"],
+          "All Files": ["*"],
+        },
+      });
+
+      if (!cfgFiles || cfgFiles.length === 0) {
+        vscode.window.showInformationMessage("No CFG file selected.");
+        return;
+      }
+
+      // Get the first selected file's path.
+      const pathToCFG = cfgFiles[0].fsPath;
+
+      await addCompilerToProject(projectFilePath, pathToCFG);
+    }
+  );
+  context.subscriptions.push(addCompilerToProjectCommand);
+
+  const addTestsuiteToCompiler = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addTestsuiteToCompiler",
+    async (node: any) => {
+      const manageWebviewSrcDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "addTestsuiteToCompiler",
+        "Add Testsuite to Compiler",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(manageWebviewSrcDir)],
+        }
+      );
+
+      panel.webview.html = await getTestsuiteWebviewContent(context, panel);
+
+      // --- Dispatch Table ---
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
+        undefined,
+        context.subscriptions
+      );
+
+      // --- Handlers ---
+      function handleSubmit(message: { testsuiteName?: string }): void {
+        const { testsuiteName } = message;
+
+        if (!testsuiteName) {
+          vscode.window.showErrorMessage("Testsuite name is required.");
+          return;
+        }
+
+        const projectPath = path.dirname(node.id);
+        const compilerName = path.basename(node.id);
+
+        createTestsuiteInCompiler(projectPath, compilerName, testsuiteName);
+        panel.dispose();
+      }
+    }
+  );
+
+  context.subscriptions.push(addTestsuiteToCompiler);
+
+  // Webview HTML content.
+  async function getTestsuiteWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+
+    // on-disk locations
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "addTestsuite.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "addTestsuite.js")
+    );
+    const htmlPath = path.join(base, "html", "addTestsuite.html");
+
+    // webview URIs
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // read template
+    let html = fs.readFileSync(htmlPath, "utf8");
+
+    // build CSP + nonce
+    const nonce = getNonce();
+    const cspMeta = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+
+    // inject CSP
+    html = html.replace(/<head>/, `<head>${cspMeta}`);
+
+    // replace placeholders and add nonce to script tag
+    html = html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      );
+
+    return html;
+  }
+
+  // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
+  let buildProjectEnviro = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.buildProjectEnviro",
+    async (enviroNode: any) => {
+      // displayName is the what will be passed as the --level arg value
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      const displayName = enviroData.displayName;
+      console.log("Building project environment: " + displayName);
+
+      await buildProjectEnvironment(
+        enviroData.projectPath,
+        displayName,
+        enviroPath
+      );
+    }
+  );
+  context.subscriptions.push(buildProjectEnviro);
+
+  let deleteTestsuiteCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.deleteTestsuite",
+    (node: any) => {
+      const nodeParts = node.id.split("/");
+      // compiler/testsuite
+      // Can't do path.join because on windows the level would be with the wrong "\"
+      const testsuiteLevel =
+        nodeParts[nodeParts.length - 2] + "/" + nodeParts[nodeParts.length - 1];
+      // Join the path without the testsuite level
+      const joinedPath = path.join(...nodeParts.slice(0, nodeParts.length - 2));
+      // Add a leading slash for non-Windows platforms
+      const projectPath =
+        process.platform === "win32" ? joinedPath : "/" + joinedPath;
+      deleteLevel(projectPath, testsuiteLevel);
+    }
+  );
+  context.subscriptions.push(deleteTestsuiteCommand);
+
+  // Command: vectorcastTestExplorer.deleteCompiler ////////////////////////////////////////////////////////
+  let deleteCompilerCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.deleteCompiler",
+    (node: any) => {
+      const compiler = node.id;
+      const projectPath = path.dirname(compiler);
+      const compilerLevel = path.basename(compiler);
+      deleteLevel(projectPath, compilerLevel);
+    }
+  );
+  context.subscriptions.push(deleteCompilerCommand);
+
+  // Command: vectorcastTestExplorer.deleteEnviroFromProject  ////////////////////////////////////////////////////////
+  let deleteEnviroFromProject = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.deleteEnviroFromProject",
+    async (enviroNode: any) => {
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      const enviroName = path.basename(enviroPath);
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      // always ask for confirmation before deleting an environment
+      const message =
+        "Environment: " +
+        enviroName +
+        " will be deleted from the project, and this action cannot be undone.";
+      vscode.window
+        .showInformationMessage(message, "Delete", "Cancel")
+        .then(async (answer) => {
+          if (answer === "Delete") {
+            // Delete the env completely from the project
+            await deleteEnvironmentFromProject(
+              enviroData.projectPath,
+              enviroName
+            );
+          }
+        });
+    }
+  );
+  context.subscriptions.push(deleteEnviroFromProject);
+
+  // Command: vectorcastTestExplorer.removeTestsuite  ////////////////////////////////////////////////////////
+  let removeTestsuite = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.removeTestsuite",
+    async (enviroNode: any) => {
+      // this returns the full path to the environment directory
+      let enviroPath = getEnviroPathFromID(enviroNode.id);
+      // In case the env is not built, it will be not present in the cache
+      if (!enviroPath) {
+        // So we check if it is present in the unbuilt list
+        // If so, we take the id and split it after "vcast:" to get the path
+        // In case that is not possible, we throw an error message
+        if (vcastUnbuiltEnviroList.includes(enviroNode.id)) {
+          const parts = enviroNode.id.split(":");
+          enviroPath = parts.slice(1).join(":");
+        } else {
+          vscode.window.showErrorMessage(
+            `Unable to determine environment path from node: ${enviroNode.id}`
+          );
+          return;
+        }
+      }
+      await removeTestsuiteFromProject(enviroPath, enviroNode.id);
+    }
+  );
+  context.subscriptions.push(removeTestsuite);
+
   // Command: vectorcastTestExplorer.deleteEnviro  ////////////////////////////////////////////////////////
   let deleteEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteEnviro",
@@ -800,6 +1216,38 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(deleteEnviro);
+
+  // Command: vectorcastTestExplorer.cleanEnviro  ////////////////////////////////////////////////////////
+  let cleanEnviro = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.cleanEnviro",
+    (enviroNode: any) => {
+      // this returns the full path to the environment directory
+      const enviroPath = getEnviroPathFromID(enviroNode.id);
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+      const displayName = enviroData.displayName;
+      const projectPath = enviroData.projectPath;
+
+      // always ask for confirmation before deleting an environment
+      const message =
+        "Environment: " +
+        enviroPath +
+        " will be cleaned, and this action cannot be undone.";
+      vscode.window
+        .showInformationMessage(message, "Clean Environment", "Cancel")
+        .then(async (answer) => {
+          if (answer === "Clean Environment") {
+            // execute a manage call to clean the env
+            await cleanProjectEnvironment(
+              enviroPath,
+              enviroNode.id,
+              projectPath,
+              displayName
+            );
+          }
+        });
+    }
+  );
+  context.subscriptions.push(cleanEnviro);
 
   // Command: vectorcastTestExplorer.setDefaultConfigFile////////////////////////////////////////////////////////
   let selectDefaultConfigFile = vscode.commands.registerCommand(
@@ -860,8 +1308,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
         const parentDir = path.dirname(enviroPath);
-        const csvPath = path.join(parentDir, 'reqs.csv');
-        const xlsxPath = path.join(parentDir, 'reqs.xlsx');
+        const csvPath = path.join(parentDir, "reqs.csv");
+        const xlsxPath = path.join(parentDir, "reqs.xlsx");
 
         let filePath = "";
         let fileType = "";
@@ -872,14 +1320,16 @@ function configureExtension(context: vscode.ExtensionContext) {
           filePath = csvPath;
           fileType = "CSV";
         } else {
-          vscode.window.showErrorMessage('Requirements file not found. Generate requirements first.');
+          vscode.window.showErrorMessage(
+            "Requirements file not found. Generate requirements first."
+          );
           return;
         }
 
         try {
           const panel = vscode.window.createWebviewPanel(
-            'requirementsReport',
-            'Requirements Report',
+            "requirementsReport",
+            "Requirements Report",
             vscode.ViewColumn.One,
             { enableScripts: true }
           );
@@ -889,7 +1339,9 @@ function configureExtension(context: vscode.ExtensionContext) {
           const htmlContent = generateRequirementsHtml(requirements);
           panel.webview.html = htmlContent;
         } catch (err) {
-          vscode.window.showErrorMessage(`Error generating requirements report: ${err}`);
+          vscode.window.showErrorMessage(
+            `Error generating requirements report: ${err}`
+          );
         }
       }
     }
@@ -903,17 +1355,22 @@ function configureExtension(context: vscode.ExtensionContext) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
 
-        const message = "This will remove all generated requirements files. This action cannot be undone.";
-        const choice = await vscode.window.showWarningMessage(message, "Remove", "Cancel");
+        const message =
+          "This will remove all generated requirements files. This action cannot be undone.";
+        const choice = await vscode.window.showWarningMessage(
+          message,
+          "Remove",
+          "Cancel"
+        );
 
         if (choice === "Remove") {
           const parentDir = path.dirname(enviroPath);
           const filesToRemove = [
-            path.join(parentDir, 'reqs.csv'),
-            path.join(parentDir, 'reqs.xlsx'),
-            path.join(parentDir, 'reqs_converted.csv'),
-            path.join(parentDir, 'reqs.html'),
-            path.join(parentDir, 'reqs2tests.tst')
+            path.join(parentDir, "reqs.csv"),
+            path.join(parentDir, "reqs.xlsx"),
+            path.join(parentDir, "reqs_converted.csv"),
+            path.join(parentDir, "reqs.html"),
+            path.join(parentDir, "reqs2tests.tst"),
           ];
 
           // Remove files
@@ -922,31 +1379,49 @@ function configureExtension(context: vscode.ExtensionContext) {
               try {
                 fs.unlinkSync(file);
               } catch (err) {
-                vscode.window.showErrorMessage(`Failed to remove ${file}: ${err}`);
+                vscode.window.showErrorMessage(
+                  `Failed to remove ${file}: ${err}`
+                );
               }
             }
           }
 
-          const generatedRepositoryPath = path.join(parentDir, 'generated_requirement_repository');
-          const actualRepositoryPath = findRelevantRequirementGateway(enviroPath);
+          const generatedRepositoryPath = path.join(
+            parentDir,
+            "generated_requirement_repository"
+          );
+          const actualRepositoryPath =
+            findRelevantRequirementGateway(enviroPath);
 
           // Separately prompt for repository directory removal
-          if (fs.existsSync(generatedRepositoryPath) && path.relative(generatedRepositoryPath, actualRepositoryPath) === '') {
-            const repoMessage = "Would you also like to remove the auto-generated requirements gateway too?";
-            const repoChoice = await vscode.window.showWarningMessage(repoMessage, "Yes", "No");
+          if (
+            fs.existsSync(generatedRepositoryPath) &&
+            path.relative(generatedRepositoryPath, actualRepositoryPath) === ""
+          ) {
+            const repoMessage =
+              "Would you also like to remove the auto-generated requirements gateway too?";
+            const repoChoice = await vscode.window.showWarningMessage(
+              repoMessage,
+              "Yes",
+              "No"
+            );
 
             if (repoChoice === "Yes") {
               try {
                 fs.rmdirSync(generatedRepositoryPath, { recursive: true });
               } catch (err) {
-                vscode.window.showErrorMessage(`Failed to remove repository directory: ${err}`);
+                vscode.window.showErrorMessage(
+                  `Failed to remove repository directory: ${err}`
+                );
               }
             }
           }
 
           await refreshAllExtensionData();
           updateRequirementsAvailability(enviroPath);
-          vscode.window.showInformationMessage("Requirements removed successfully");
+          vscode.window.showInformationMessage(
+            "Requirements removed successfully"
+          );
         }
       }
     }
@@ -955,10 +1430,14 @@ function configureExtension(context: vscode.ExtensionContext) {
 
   vscode.workspace.onDidChangeWorkspaceFolders(
     async (e) => {
-      refreshAllExtensionData();
+      await refreshAllExtensionData();
+      setGlobalProjectIsOpenedChecker();
+      setGlobalCompilerAndTestsuites();
       // Refresh requirements availability for all environments
       if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
-        const envPaths = await getEnvironmentListIncludingUnbuilt(workspace.workspaceFolders[0].uri.fsPath);
+        const envPaths = await getEnvironmentListIncludingUnbuilt(
+          workspace.workspaceFolders[0].uri.fsPath
+        );
         for (const envPath of envPaths) {
           updateRequirementsAvailability(envPath);
         }
@@ -996,8 +1475,14 @@ function configureExtension(context: vscode.ExtensionContext) {
       // changing the file will invalidate the
       // coverage and editor annotations
       if (editor) {
+        // Check if file ends with .tst and has "build" in its path
+        // We want to load the test script automatically when the user saves
+        const filePath = editor.uri.fsPath;
+        if (filePath.endsWith(".tst") && alreadyConfigured) {
+          await loadTestScript();
+        }
         await updateCodedTestCases(editor);
-        updateCOVdecorations();
+        await updateCOVdecorations();
         updateTestDecorator();
       }
     },
@@ -1048,9 +1533,7 @@ async function installPreActivationEventHandlers(
       ) {
         initializeServerState();
       } else if (
-        event.affectsConfiguration(
-          "vectorcastTestExplorer.build.coverageKind"
-        )
+        event.affectsConfiguration("vectorcastTestExplorer.build.coverageKind")
       ) {
         await updateCoverageAndRebuildEnv();
       } else if (
@@ -1062,7 +1545,7 @@ async function installPreActivationEventHandlers(
         // for clicast and vpython path etc.
         if (await checkIfInstallationIsOK()) {
           await initializeServerState();
-          refreshAllExtensionData();
+          await refreshAllExtensionData();
         } else {
           // this will remove the status bar icon and shutdown the server
           // it needs to be in both sides of the if because we want it to run
@@ -1095,12 +1578,386 @@ async function installPreActivationEventHandlers(
         // of all items if this is a multi-select.  Since argList is always valid, even for a single
         // selection, we just use this here.
         if (argList) {
-          newEnvironment(argList);
+          await newEnvironment(argList);
         }
       }
     }
   );
   context.subscriptions.push(newEnviroVCASTCommand);
+
+  const importEnviroToProject = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.importEnviroToProject",
+    async (_args: vscode.Uri, argList: vscode.Uri[]) => {
+      const manageWebviewSrcDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "importEnviroToProject",
+        "Import Environment to Project",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(manageWebviewSrcDir)],
+        }
+      );
+
+      panel.webview.html = await getImportEnvWebviewContent(
+        context,
+        panel,
+        argList
+      );
+
+      // --- Dispatch Table ---
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        importEnvFile: handleImportEnvFile,
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
+        undefined,
+        context.subscriptions
+      );
+
+      // --- Handlers ---
+      async function handleImportEnvFile(): Promise<void> {
+        const files = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { "Env Files": ["env"] },
+          openLabel: "Select Env File",
+        });
+
+        if (files?.length) {
+          panel.webview.postMessage({
+            command: "envFileSelected",
+            envFile: files[0].fsPath,
+          });
+        }
+      }
+
+      async function handleSubmit(message: {
+        projectPath?: string;
+        envFiles?: string[];
+        testsuiteArgs?: string[];
+      }): Promise<void> {
+        const { projectPath, envFiles = [], testsuiteArgs = [] } = message;
+
+        if (!projectPath || !envFiles.length || !testsuiteArgs.length) {
+          vscode.window.showErrorMessage(
+            "Project Path, Env Files, and Testsuite are required."
+          );
+          return;
+        }
+
+        for (const file of envFiles) {
+          if (!fs.existsSync(file)) {
+            vscode.window.showInformationMessage(
+              `Environment file ${file} does not exist.`
+            );
+            return;
+          }
+
+          for (const level of testsuiteArgs) {
+            vectorMessage(`Env File: ${file}`);
+            await importEnvToTestsuite(projectPath, level, file);
+          }
+        }
+
+        panel.dispose();
+      }
+    }
+  );
+
+  context.subscriptions.push(importEnviroToProject);
+
+  // Command: vectorcastTestExplorer.addEnviroToProject
+  const addEnviroToProject = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.addEnviroToProject",
+    async (_projectNode: any) => {
+      const manageWebviewSrcDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "addEnviroToProject",
+        "Add Environment To Project",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(manageWebviewSrcDir)],
+        }
+      );
+
+      panel.webview.html = await getImportEnvWebviewContent(context, panel, []);
+
+      // --- Command dispatch table ---
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        importEnvFile: handleImportEnvFile,
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      // --- Message handler ---
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
+        undefined,
+        context.subscriptions
+      );
+
+      // --- Handlers ---
+      async function handleImportEnvFile() {
+        const [uri] =
+          (await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            filters: { "Environment Files": ["env"] },
+            openLabel: "Select Environment File",
+          })) ?? [];
+
+        if (uri) {
+          panel.webview.postMessage({
+            command: "envFileSelected",
+            envFile: uri.fsPath,
+          });
+        }
+      }
+
+      async function handleSubmit(message: {
+        projectPath?: string;
+        envFiles?: string[];
+        testsuiteArgs?: string[];
+      }): Promise<void> {
+        const { projectPath, envFiles = [], testsuiteArgs = [] } = message;
+
+        if (!projectPath || !envFiles.length || !testsuiteArgs.length) {
+          vscode.window.showErrorMessage(
+            "Project Path, Env Files, and Testsuite are required."
+          );
+          return;
+        }
+
+        if (envFiles.length > 1) {
+          vscode.window.showInformationMessage(
+            "Multiple Env Files selected. Only the first one will be used."
+          );
+        }
+
+        const envFile = envFiles[0];
+
+        // this should not happen as we click on the envs, but in case the user manually changes something
+        if (!fs.existsSync(envFile)) {
+          vscode.window.showInformationMessage(
+            `Environment file ${envFile} does not exist.`
+          );
+          return;
+        }
+
+        for (const [index, level] of testsuiteArgs.entries()) {
+          vectorMessage(`Env File: ${envFile}`);
+
+          if (index === 0) {
+            await importEnvToTestsuite(projectPath, level, envFile);
+          } else {
+            const envName = path.basename(envFile, ".env");
+            await addEnvToTestsuite(projectPath, level, envName);
+          }
+        }
+
+        panel.dispose();
+      }
+    }
+  );
+
+  context.subscriptions.push(addEnviroToProject);
+
+  /**
+   * Returns the HTML content for the webview.
+   * It builds a form that allows the user to select:
+   *   - a Project Path (populated from a global combobox map),
+   *   - Env Files (with pre-filled values from the argList), and
+   *   - a set of Compiler/Testsuite rows.
+   *
+   * The label "Source Files" is replaced with "Env Files" in this version.
+   */
+  async function getImportEnvWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    argList: vscode.Uri[]
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+
+    // on-disk resource locations
+    const cssOnDisk = vscode.Uri.file(path.join(base, "css", "importEnv.css"));
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "importEnv.js")
+    );
+    const htmlPath = path.join(base, "html", "importEnv.html");
+
+    // convert to webview URIs
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // prepare dynamic data
+    const projectData = JSON.stringify(
+      Array.from(globalProjectWebviewComboboxItems.entries())
+    );
+    const initialEnvFile = JSON.stringify(argList[0]?.fsPath ?? "");
+
+    // load the template
+    let html = fs.readFileSync(htmlPath, "utf8");
+
+    // inject CSP + nonce
+    const nonce = getNonce();
+    const cspMeta = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+    html = html.replace(/<head>/, `<head>${cspMeta}`);
+
+    // inject URIs + data
+    html = html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      )
+      .replace(
+        /<\/head>/,
+        `  <script nonce="${nonce}">
+         window.projectData = ${projectData};
+         window.initialEnvFile = ${initialEnvFile};
+        </script>\n</head>`
+      );
+
+    return html;
+  }
+
+  const newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.newEnviroInProjectVCAST",
+    async (_args: vscode.Uri, argList: vscode.Uri[]) => {
+      const manageWebviewSrcDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "newEnvProject",
+        "Create Environment in Project",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(manageWebviewSrcDir)],
+        }
+      );
+
+      panel.webview.html = await getNewEnvWebviewContent(
+        context,
+        panel,
+        argList
+      );
+
+      // --- Dispatch Table ---
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
+        undefined,
+        context.subscriptions
+      );
+
+      // --- Handlers ---
+      async function handleSubmit(message: {
+        projectPath?: string;
+        sourceFiles?: string[];
+        testsuiteArgs?: string[];
+      }): Promise<void> {
+        const { projectPath, sourceFiles = [], testsuiteArgs = [] } = message;
+
+        if (!projectPath || !testsuiteArgs.length) {
+          vscode.window.showErrorMessage(
+            "Compiler Name and Testsuite Name are required."
+          );
+          return;
+        }
+
+        // Validate file existence
+        for (const file of sourceFiles) {
+          if (!fs.existsSync(file)) {
+            vscode.window.showInformationMessage(
+              `Source file ${file} does not exist.`
+            );
+            return;
+          }
+        }
+
+        const params: ProjectEnvParameters = {
+          path: projectPath,
+          sourceFiles,
+          testsuiteArgs,
+        };
+
+        vscode.window.showInformationMessage(
+          `Creating environment in ${projectPath} with ${testsuiteArgs.join(
+            ", "
+          )} and sources ${sourceFiles.join(", ")}`
+        );
+
+        await newEnvironment(argList, params);
+        panel.dispose();
+      }
+    }
+  );
+
+  context.subscriptions.push(newEnviroInProjectVCASTCommand);
+
+  async function getNewEnvWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    argList: vscode.Uri[]
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "newEnvProject.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "newEnvProject.js")
+    );
+    const htmlPath = path.join(base, "html", "newEnvProject.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    const projectData = JSON.stringify(
+      Array.from(globalProjectWebviewComboboxItems.entries())
+    );
+    const initialSourceFiles = JSON.stringify(argList.map((u) => u.fsPath));
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+
+    const nonce = getNonce();
+    const csp = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+    html = html.replace(/<head>/, `<head>${csp}`);
+
+    html = html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      )
+      .replace(
+        /<\/head>/,
+        `<script nonce="${nonce}">
+           window.projectData = ${projectData};
+           window.initialSourceFiles = ${initialSourceFiles};
+         </script>\n</head>`
+      );
+
+    return html;
+  }
 }
 
 // this method is called when your extension is deactivated
@@ -1123,12 +1980,12 @@ export async function deactivate() {
  */
 function findRelevantRequirementGateway(enviroPath: string): string | null {
   const parentDir = path.dirname(enviroPath);
-  const configPath = path.join(parentDir, 'CCAST_.CFG');
+  const configPath = path.join(parentDir, "CCAST_.CFG");
 
-  const configContent = fs.readFileSync(configPath, 'utf-8');
+  const configContent = fs.readFileSync(configPath, "utf-8");
 
   // Check if the config file contains a requirements gateway
-  const gatewayMatch = configContent.match(/VCAST_REPOSITORY:\s*(.+)\s*/)
+  const gatewayMatch = configContent.match(/VCAST_REPOSITORY:\s*(.+)\s*/);
 
   if (gatewayMatch == null) {
     return null;
@@ -1149,9 +2006,12 @@ async function generateRequirements(enviroPath: string) {
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  const xlsxPath = path.join(parentDir, 'reqs.xlsx');
-  const csvPath = path.join(parentDir, 'reqs.csv');
-  const repositoryDir = path.join(parentDir, 'generated_requirement_repository');
+  const xlsxPath = path.join(parentDir, "reqs.xlsx");
+  const csvPath = path.join(parentDir, "reqs.csv");
+  const repositoryDir = path.join(
+    parentDir,
+    "generated_requirement_repository"
+  );
 
   // Check for existing gateway
   const existingGateway = findRelevantRequirementGateway(enviroPath);
@@ -1170,7 +2030,8 @@ async function generateRequirements(enviroPath: string) {
 
   // Check for existing reqs.csv or reqs.xlsx
   if (fs.existsSync(xlsxPath) || fs.existsSync(csvPath)) {
-    const message = "Existing requirements files found. Do you want to overwrite them?";
+    const message =
+      "Existing requirements files found. Do you want to overwrite them?";
     const choice = await vscode.window.showWarningMessage(
       message,
       "Overwrite",
@@ -1182,8 +2043,11 @@ async function generateRequirements(enviroPath: string) {
     }
   }
 
-  const config = vscode.workspace.getConfiguration('vectorcastTestExplorer');
-  const generateHighLevelRequirements = config.get<boolean>('generateHighLevelRequirements', false);
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const generateHighLevelRequirements = config.get<boolean>(
+    "generateHighLevelRequirements",
+    false
+  );
 
   const commandArgs = [
     envPath,
@@ -1201,94 +2065,110 @@ async function generateRequirements(enviroPath: string) {
   }
 
   // Log the command being executed
-  const commandString = `${CODE2REQS_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
+  const commandString = `${CODE2REQS_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
-  await vscode.window.withProgress({
-    location: vscode.ProgressLocation.Notification,
-    title: `Generating Requirements for ${envName.split(".")[0]}`,
-    cancellable: true
-  }, async (progress, cancellationToken) => {
-    let lastProgress = 0;
-    let simulatedProgress = 0;
-    const simulatedProgressInterval = setInterval(() => {
-      if (simulatedProgress < 30 && !cancellationToken.isCancellationRequested) {
-        simulatedProgress += 1;
-        progress.report({ increment: 1 });
-      }
-    }, 1000);
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Generating Requirements for ${envName.split(".")[0]}`,
+      cancellable: true,
+    },
+    async (progress, cancellationToken) => {
+      let lastProgress = 0;
+      let simulatedProgress = 0;
+      const simulatedProgressInterval = setInterval(() => {
+        if (
+          simulatedProgress < 30 &&
+          !cancellationToken.isCancellationRequested
+        ) {
+          simulatedProgress += 1;
+          progress.report({ increment: 1 });
+        }
+      }, 1000);
 
-    return await new Promise<void>((resolve, reject) => {
-      const process = spawnWithVcastEnv(CODE2REQS_EXECUTABLE_PATH, commandArgs);
+      return await new Promise<void>((resolve, reject) => {
+        const process = spawnWithVcastEnv(
+          CODE2REQS_EXECUTABLE_PATH,
+          commandArgs
+        );
 
-      cancellationToken.onCancellationRequested(() => {
-        process.kill();
-        clearInterval(simulatedProgressInterval);
-        logCliOperation("Operation cancelled by user");
-        resolve();
-      });
+        cancellationToken.onCancellationRequested(() => {
+          process.kill();
+          clearInterval(simulatedProgressInterval);
+          logCliOperation("Operation cancelled by user");
+          resolve();
+        });
 
-      process.stdout.on("data", (data) => {
-        if (cancellationToken.isCancellationRequested) return;
-        const output = data.toString();
+        process.stdout.on("data", (data) => {
+          if (cancellationToken.isCancellationRequested) return;
+          const output = data.toString();
 
-        const lines = output.split("\n");
-        for (const line of lines) {
-          try {
-            const json = JSON.parse(line);
-            if (json.event === "progress" && json.value !== undefined) {
-              const scaledProgress = json.value * 0.7;
-              const increment = (scaledProgress - lastProgress) * 100;
-              if (increment > 0) {
-                progress.report({ increment });
-                lastProgress = scaledProgress;
+          const lines = output.split("\n");
+          for (const line of lines) {
+            try {
+              const json = JSON.parse(line);
+              if (json.event === "progress" && json.value !== undefined) {
+                const scaledProgress = json.value * 0.7;
+                const increment = (scaledProgress - lastProgress) * 100;
+                if (increment > 0) {
+                  progress.report({ increment });
+                  lastProgress = scaledProgress;
+                }
+              } else if (json.event === "problem" && json.value !== undefined) {
+                vscode.window.showWarningMessage(json.value);
+                logCliOperation(`Warning: ${json.value}`);
               }
-            } else if (json.event === "problem" && json.value !== undefined) {
-              vscode.window.showWarningMessage(json.value);
-              logCliOperation(`Warning: ${json.value}`);
-            }
-          } catch (e) {
-            if (line) {
-              logCliOperation(`code2reqs: ${line}`);
+            } catch (e) {
+              if (line) {
+                logCliOperation(`code2reqs: ${line}`);
+              }
             }
           }
-        }
+        });
+
+        process.stderr.on("data", (data) => {
+          const errorOutput = data.toString();
+          logCliError(`code2reqs: ${errorOutput}`);
+          console.error(`Stderr: ${errorOutput}`);
+        });
+
+        process.on("close", async (code) => {
+          clearInterval(simulatedProgressInterval);
+          if (cancellationToken.isCancellationRequested) return;
+
+          if (code === 0) {
+            logCliOperation(
+              `code2reqs completed successfully with code ${code}`
+            );
+            await refreshAllExtensionData();
+            updateRequirementsAvailability(enviroPath);
+
+            // Run the showRequirements command to display the generated Excel
+            vscode.commands.executeCommand(
+              "vectorcastTestExplorer.showRequirements",
+              { id: enviroPath }
+            );
+
+            vscode.window.showInformationMessage(
+              "Successfully generated requirements for the environment!"
+            );
+            resolve();
+          } else {
+            const errorMessage = `Error: code2reqs exited with code ${code}`;
+            vscode.window.showErrorMessage(errorMessage);
+            logCliError(errorMessage, true);
+            reject();
+          }
+        });
       });
-
-      process.stderr.on("data", (data) => {
-        const errorOutput = data.toString();
-        logCliError(`code2reqs: ${errorOutput}`);
-        console.error(`Stderr: ${errorOutput}`);
-      });
-
-      process.on("close", async (code) => {
-        clearInterval(simulatedProgressInterval);
-        if (cancellationToken.isCancellationRequested) return;
-
-        if (code === 0) {
-          logCliOperation(`code2reqs completed successfully with code ${code}`);
-          await refreshAllExtensionData();
-          updateRequirementsAvailability(enviroPath);
-
-          // Run the showRequirements command to display the generated Excel
-          vscode.commands.executeCommand('vectorcastTestExplorer.showRequirements', { id: enviroPath });
-
-          vscode.window.showInformationMessage("Successfully generated requirements for the environment!");
-          resolve();
-        } else {
-          const errorMessage = `Error: code2reqs exited with code ${code}`;
-          vscode.window.showErrorMessage(errorMessage);
-          logCliError(errorMessage, true);
-          reject();
-        }
-      });
-    });
-  });
+    }
+  );
 }
 
 async function parseRequirementsFromFile(filePath: string): Promise<any[]> {
   try {
-    if (filePath.endsWith('.xlsx')) {
+    if (filePath.endsWith(".xlsx")) {
       const result = excelToJson({
         sourceFile: filePath,
       }).Requirements;
@@ -1297,7 +2177,7 @@ async function parseRequirementsFromFile(filePath: string): Promise<any[]> {
 
       const requirements = [];
 
-      console.log(columnNames, result)
+      console.log(columnNames, result);
 
       for (const row of result.slice(1)) {
         const requirement: Record<string, string> = {};
@@ -1309,13 +2189,13 @@ async function parseRequirementsFromFile(filePath: string): Promise<any[]> {
 
       return requirements;
     } else {
-      const fileContent = await fs.promises.readFile(filePath, 'utf8');
+      const fileContent = await fs.promises.readFile(filePath, "utf8");
       return csvParse(fileContent, {
         columns: true,
         skip_empty_lines: true,
         trim: true,
         ltrim: true,
-        quote: '"'
+        quote: '"',
       });
     }
   } catch (error) {
@@ -1324,15 +2204,18 @@ async function parseRequirementsFromFile(filePath: string): Promise<any[]> {
   }
 }
 
-async function generateTestsFromRequirements(enviroPath: string, unitOrFunctionName: string | null) {
+async function generateTestsFromRequirements(
+  enviroPath: string,
+  unitOrFunctionName: string | null
+) {
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  const csvPath = path.join(parentDir, 'reqs.csv');
-  const xlsxPath = path.join(parentDir, 'reqs.xlsx');
-  const tstPath = path.join(parentDir, 'reqs2tests.tst');
+  const csvPath = path.join(parentDir, "reqs.csv");
+  const xlsxPath = path.join(parentDir, "reqs.xlsx");
+  const tstPath = path.join(parentDir, "reqs2tests.tst");
 
   let reqsFile = "";
   let fileType = "";
@@ -1343,14 +2226,20 @@ async function generateTestsFromRequirements(enviroPath: string, unitOrFunctionN
     reqsFile = csvPath;
     fileType = "CSV";
   } else {
-    vscode.window.showErrorMessage('No requirements file found. Please generate requirements first.');
+    vscode.window.showErrorMessage(
+      "No requirements file found. Please generate requirements first."
+    );
     return;
   }
 
   // Get the decompose setting from configuration
-  const config = vscode.workspace.getConfiguration('vectorcastTestExplorer');
-  const decomposeRequirements = config.get<boolean>('decomposeRequirements', true);
-  const enableRequirementKeys = findRelevantRequirementGateway(enviroPath) !== null;
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const decomposeRequirements = config.get<boolean>(
+    "decomposeRequirements",
+    true
+  );
+  const enableRequirementKeys =
+    findRelevantRequirementGateway(enviroPath) !== null;
   console.log(decomposeRequirements, enableRequirementKeys);
 
   const commandArgs = [
@@ -1366,96 +2255,107 @@ async function generateTestsFromRequirements(enviroPath: string, unitOrFunctionN
     "--allow-partial",
     "--json-events",
     "--no-automatic-build",
-    ...(enableRequirementKeys ? [] : ["--no-requirement-keys"])
+    ...(enableRequirementKeys ? [] : ["--no-requirement-keys"]),
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
+  const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
-  await vscode.window.withProgress({
-    location: vscode.ProgressLocation.Notification,
-    title: `Generating Tests from Requirements (${fileType}) for ${envName.split(".")[0]}`,
-    cancellable: true
-  }, async (progress, cancellationToken) => {
-    let lastProgress = 0;
-    let simulatedProgress = 0;
-    const simulatedProgressInterval = setInterval(() => {
-      if (simulatedProgress < 40 && !cancellationToken.isCancellationRequested) {
-        simulatedProgress += 1;
-        progress.report({ increment: 1 });
-      }
-    }, 2000);
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Generating Tests from Requirements (${fileType}) for ${envName.split(".")[0]}`,
+      cancellable: true,
+    },
+    async (progress, cancellationToken) => {
+      let lastProgress = 0;
+      let simulatedProgress = 0;
+      const simulatedProgressInterval = setInterval(() => {
+        if (
+          simulatedProgress < 40 &&
+          !cancellationToken.isCancellationRequested
+        ) {
+          simulatedProgress += 1;
+          progress.report({ increment: 1 });
+        }
+      }, 2000);
 
-    return new Promise<void>((resolve, reject) => {
-      const process = spawnWithVcastEnv(REQS2TESTS_EXECUTABLE_PATH, commandArgs);
-      console.log(`reqs2tests ${commandArgs.join(' ')}`);
+      return new Promise<void>((resolve, reject) => {
+        const process = spawnWithVcastEnv(
+          REQS2TESTS_EXECUTABLE_PATH,
+          commandArgs
+        );
+        console.log(`reqs2tests ${commandArgs.join(" ")}`);
 
-      cancellationToken.onCancellationRequested(() => {
-        process.kill();
-        clearInterval(simulatedProgressInterval);
-        logCliOperation("Operation cancelled by user");
-        resolve();
-      });
+        cancellationToken.onCancellationRequested(() => {
+          process.kill();
+          clearInterval(simulatedProgressInterval);
+          logCliOperation("Operation cancelled by user");
+          resolve();
+        });
 
-      process.stdout.on("data", (data) => {
-        if (cancellationToken.isCancellationRequested) return;
-        const output = data.toString();
+        process.stdout.on("data", (data) => {
+          if (cancellationToken.isCancellationRequested) return;
+          const output = data.toString();
 
-        const lines = output.split("\n");
-        for (const line of lines) {
-          try {
-            const json = JSON.parse(line);
-            if (json.event === "progress" && json.value !== undefined) {
-              const scaledProgress = json.value * 0.6;
-              const increment = (scaledProgress - lastProgress) * 100;
-              if (increment > 0) {
-                progress.report({ increment });
-                lastProgress = scaledProgress;
+          const lines = output.split("\n");
+          for (const line of lines) {
+            try {
+              const json = JSON.parse(line);
+              if (json.event === "progress" && json.value !== undefined) {
+                const scaledProgress = json.value * 0.6;
+                const increment = (scaledProgress - lastProgress) * 100;
+                if (increment > 0) {
+                  progress.report({ increment });
+                  lastProgress = scaledProgress;
+                }
+              } else if (json.event === "problem" && json.value !== undefined) {
+                if (json.value.includes("Individual")) {
+                  return;
+                }
+                vscode.window.showWarningMessage(json.value);
+                logCliOperation(`Warning: ${json.value}`);
               }
-            } else if (json.event === "problem" && json.value !== undefined) {
-              if (json.value.includes("Individual")) {
-                return;
+            } catch (e) {
+              if (line) {
+                logCliOperation(`reqs2tests: ${line}`);
               }
-              vscode.window.showWarningMessage(json.value);
-              logCliOperation(`Warning: ${json.value}`);
-            }
-          } catch (e) {
-            if (line) {
-              logCliOperation(`reqs2tests: ${line}`);
             }
           }
-        }
+        });
+
+        process.stderr.on("data", (data) => {
+          const errorOutput = data.toString();
+          logCliError(`reqs2tests: ${errorOutput}`);
+          console.error(`Stderr: ${errorOutput}`);
+        });
+
+        process.on("close", async (code) => {
+          clearInterval(simulatedProgressInterval);
+          if (cancellationToken.isCancellationRequested) return;
+
+          if (code === 0) {
+            logCliOperation(
+              `reqs2tests completed successfully with code ${code}`
+            );
+            await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
+            await refreshAllExtensionData();
+
+            vscode.window.showInformationMessage(
+              "Successfully generated tests for the requirements!"
+            );
+            resolve();
+          } else {
+            const errorMessage = `Error: reqs2tests exited with code ${code}`;
+            vscode.window.showErrorMessage(errorMessage);
+            logCliError(errorMessage, true);
+            reject();
+          }
+        });
       });
-
-      process.stderr.on("data", (data) => {
-        const errorOutput = data.toString();
-        logCliError(`reqs2tests: ${errorOutput}`);
-        console.error(`Stderr: ${errorOutput}`);
-      });
-
-      process.on("close", async (code) => {
-        clearInterval(simulatedProgressInterval);
-        if (cancellationToken.isCancellationRequested) return;
-
-        if (code === 0) {
-          logCliOperation(`reqs2tests completed successfully with code ${code}`);
-          await loadTestScriptIntoEnvironment(envName.split('.')[0], tstPath);
-          await refreshAllExtensionData();
-
-          vscode.window.showInformationMessage(
-            "Successfully generated tests for the requirements!"
-          );
-          resolve();
-        } else {
-          const errorMessage = `Error: reqs2tests exited with code ${code}`;
-          vscode.window.showErrorMessage(errorMessage);
-          logCliError(errorMessage, true);
-          reject();
-        }
-      });
-    });
-  });
+    }
+  );
 }
 
 async function importRequirementsFromGateway(enviroPath: string) {
@@ -1468,14 +2368,16 @@ async function importRequirementsFromGateway(enviroPath: string) {
   const repositoryPath = findRelevantRequirementGateway(enviroPath);
 
   if (!repositoryPath) {
-    vscode.window.showErrorMessage("Requirements Gateway either is not specified or does not exist. Aborting.");
+    vscode.window.showErrorMessage(
+      "Requirements Gateway either is not specified or does not exist. Aborting."
+    );
     return;
   }
 
-  const gatewayPath = path.join(repositoryPath, 'requirements_gateway');
+  const gatewayPath = path.join(repositoryPath, "requirements_gateway");
 
-  const csvPath = path.join(parentDir, 'reqs.csv');
-  const xlsxPath = path.join(parentDir, 'reqs.xlsx');
+  const csvPath = path.join(parentDir, "reqs.csv");
+  const xlsxPath = path.join(parentDir, "reqs.xlsx");
 
   // Check if requirements files already exist
   const xlsxExists = fs.existsSync(xlsxPath);
@@ -1484,13 +2386,15 @@ async function importRequirementsFromGateway(enviroPath: string) {
   if (xlsxExists || csvExists) {
     let warningMessage = "Warning: ";
     if (xlsxExists) {
-      warningMessage += "An existing Excel requirements file (reqs.xlsx) will be overwritten.";
+      warningMessage +=
+        "An existing Excel requirements file (reqs.xlsx) will be overwritten.";
     }
     if (csvExists) {
       if (xlsxExists) {
         warningMessage += " Additionally, ";
       }
-      warningMessage += "An existing CSV requirements file (reqs.csv) will be ignored as the new Excel file takes precedence.";
+      warningMessage +=
+        "An existing CSV requirements file (reqs.csv) will be ignored as the new Excel file takes precedence.";
     }
 
     const choice = await vscode.window.showWarningMessage(
@@ -1504,87 +2408,109 @@ async function importRequirementsFromGateway(enviroPath: string) {
     }
   }
 
-  const choice = await vscode.window.showInformationMessage("Would you like our system to automatically try to add traceability to the requirements?", "Yes", "No");
+  const choice = await vscode.window.showInformationMessage(
+    "Would you like our system to automatically try to add traceability to the requirements?",
+    "Yes",
+    "No"
+  );
 
   const addTraceability = choice === "Yes";
 
   const commandArgs = [
-    '--requirements-gateway-path', gatewayPath,
-    '--output-file', xlsxPath,
-    ...(addTraceability ? ['--automatic-traceability'] : []),
-    envPath
+    "--requirements-gateway-path",
+    gatewayPath,
+    "--output-file",
+    xlsxPath,
+    ...(addTraceability ? ["--automatic-traceability"] : []),
+    envPath,
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2EXCEL_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
+  const commandString = `${REQS2EXCEL_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
-  await vscode.window.withProgress({
-    location: vscode.ProgressLocation.Notification,
-    title: `Importing Requirements from Gateway`,
-    cancellable: true
-  }, async (progress, cancellationToken) => {
-    let simulatedProgress = 0;
-    const simulatedProgressInterval = setInterval(() => {
-      if (simulatedProgress < 90 && !cancellationToken.isCancellationRequested) {
-        simulatedProgress += 5;
-        progress.report({ increment: 5 });
-      }
-    }, 500);
-
-    return new Promise<void>((resolve, reject) => {
-      const process = spawnWithVcastEnv(REQS2EXCEL_EXECUTABLE_PATH, commandArgs);
-
-      cancellationToken.onCancellationRequested(() => {
-        process.kill();
-        clearInterval(simulatedProgressInterval);
-        logCliOperation("Operation cancelled by user");
-        resolve();
-      });
-
-      process.stdout.on("data", (data) => {
-        const output = data.toString();
-        logCliOperation(`reqs2excel: ${output}`);
-      });
-
-      process.stderr.on("data", (data) => {
-        const errorOutput = data.toString();
-        logCliError(`reqs2excel: ${errorOutput}`);
-      });
-
-      process.on("close", async (code) => {
-        clearInterval(simulatedProgressInterval);
-        if (cancellationToken.isCancellationRequested) return;
-
-        if (code === 0) {
-          logCliOperation(`reqs2excel completed successfully with code ${code}`);
-
-          // Update the requirements availability
-          await refreshAllExtensionData();
-          updateRequirementsAvailability(enviroPath);
-
-          // Show the imported requirements
-          vscode.commands.executeCommand('vectorcastTestExplorer.showRequirements', { id: enviroPath });
-
-          vscode.window.showInformationMessage("Successfully imported requirements from gateway");
-          resolve();
-        } else {
-          const errorMessage = `Error: reqs2excel exited with code ${code}`;
-          vscode.window.showErrorMessage(errorMessage);
-          logCliError(errorMessage, true);
-          reject();
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Importing Requirements from Gateway`,
+      cancellable: true,
+    },
+    async (progress, cancellationToken) => {
+      let simulatedProgress = 0;
+      const simulatedProgressInterval = setInterval(() => {
+        if (
+          simulatedProgress < 90 &&
+          !cancellationToken.isCancellationRequested
+        ) {
+          simulatedProgress += 5;
+          progress.report({ increment: 5 });
         }
+      }, 500);
+
+      return new Promise<void>((resolve, reject) => {
+        const process = spawnWithVcastEnv(
+          REQS2EXCEL_EXECUTABLE_PATH,
+          commandArgs
+        );
+
+        cancellationToken.onCancellationRequested(() => {
+          process.kill();
+          clearInterval(simulatedProgressInterval);
+          logCliOperation("Operation cancelled by user");
+          resolve();
+        });
+
+        process.stdout.on("data", (data) => {
+          const output = data.toString();
+          logCliOperation(`reqs2excel: ${output}`);
+        });
+
+        process.stderr.on("data", (data) => {
+          const errorOutput = data.toString();
+          logCliError(`reqs2excel: ${errorOutput}`);
+        });
+
+        process.on("close", async (code) => {
+          clearInterval(simulatedProgressInterval);
+          if (cancellationToken.isCancellationRequested) return;
+
+          if (code === 0) {
+            logCliOperation(
+              `reqs2excel completed successfully with code ${code}`
+            );
+
+            // Update the requirements availability
+            await refreshAllExtensionData();
+            updateRequirementsAvailability(enviroPath);
+
+            // Show the imported requirements
+            vscode.commands.executeCommand(
+              "vectorcastTestExplorer.showRequirements",
+              { id: enviroPath }
+            );
+
+            vscode.window.showInformationMessage(
+              "Successfully imported requirements from gateway"
+            );
+            resolve();
+          } else {
+            const errorMessage = `Error: reqs2excel exited with code ${code}`;
+            vscode.window.showErrorMessage(errorMessage);
+            logCliError(errorMessage, true);
+            reject();
+          }
+        });
       });
-    });
-  });
+    }
+  );
 }
 
 async function populateRequirementsGateway(enviroPath: string) {
   const parentDir = path.dirname(enviroPath);
   const envName = path.basename(enviroPath);
   const envPath = path.join(parentDir, `${envName}.env`);
-  const csvPath = path.join(parentDir, 'reqs.csv');
-  const xlsxPath = path.join(parentDir, 'reqs.xlsx');
+  const csvPath = path.join(parentDir, "reqs.csv");
+  const xlsxPath = path.join(parentDir, "reqs.xlsx");
 
   // Check which requirements file exists
   let requirementsFile = "";
@@ -1593,7 +2519,9 @@ async function populateRequirementsGateway(enviroPath: string) {
   } else if (fs.existsSync(csvPath)) {
     requirementsFile = csvPath;
   } else {
-    vscode.window.showErrorMessage('No requirements file found. Generate requirements first.');
+    vscode.window.showErrorMessage(
+      "No requirements file found. Generate requirements first."
+    );
     return;
   }
 
@@ -1612,18 +2540,21 @@ async function populateRequirementsGateway(enviroPath: string) {
     }
   }
 
-  const exportRepository = path.join(parentDir, 'generated_requirement_repository');
+  const exportRepository = path.join(
+    parentDir,
+    "generated_requirement_repository"
+  );
 
   // Run reqs2rgw with appropriate parameters
   const commandArgs = [
     envPath,
     requirementsFile,
-    '--gateway-path',
-    exportRepository
+    "--gateway-path",
+    exportRepository,
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2RGW_EXECUTABLE_PATH} ${commandArgs.join(' ')}`;
+  const commandString = `${REQS2RGW_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
   return new Promise<void>((resolve, reject) => {
@@ -1652,7 +2583,9 @@ async function populateRequirementsGateway(enviroPath: string) {
           );
           resolve();
         } catch (err) {
-          vscode.window.showErrorMessage(`Error updating environment configuration: ${err}`);
+          vscode.window.showErrorMessage(
+            `Error updating environment configuration: ${err}`
+          );
           reject(err);
         }
       } else {
@@ -1667,45 +2600,38 @@ async function populateRequirementsGateway(enviroPath: string) {
 
 let existingEnvs: string[] = [];
 function updateRequirementsAvailability(enviroPath: string) {
-  let workspaceRoot: string = "";
-  if (vscode.workspace) {
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(
-      vscode.Uri.file(enviroPath)
-    );
-    if (workspaceFolder) workspaceRoot = workspaceFolder.uri.fsPath;
-  }
-
-  let enviroDisplayName: string = "";
-  if (workspaceRoot.length > 0) {
-    enviroDisplayName = path
-      .relative(workspaceRoot, enviroPath)
-      .replaceAll("\\", "/");
-  } else {
-    enviroDisplayName = enviroPath.replaceAll("\\", "/");
-  }
-  const enviroNodeID: string = "vcast:" + enviroDisplayName;
+  const nodeID = makeEnviroNodeID(enviroPath);
 
   // the vcast: prefix to allow package.json nodes to control
   // when the VectorCAST context menu should be shown
 
   // Check if this environment has requirements
   const parentDir = path.dirname(enviroPath);
-  const csvPath = path.join(parentDir, 'reqs.csv');
-  const xlsxPath = path.join(parentDir, 'reqs.xlsx');
+  const csvPath = path.join(parentDir, "reqs.csv");
+  const xlsxPath = path.join(parentDir, "reqs.xlsx");
 
-  const hasRequirementsFiles = fs.existsSync(csvPath) || fs.existsSync(xlsxPath);
+  const hasRequirementsFiles =
+    fs.existsSync(csvPath) || fs.existsSync(xlsxPath);
 
   if (hasRequirementsFiles) {
     // Add this environment to the list if not already present
-    if (!existingEnvs.includes(enviroNodeID)) {
-      const updatedEnvs = [...existingEnvs, enviroNodeID];
-      vscode.commands.executeCommand('setContext', 'vectorcastTestExplorer.vcastRequirementsAvailable', updatedEnvs);
+    if (!existingEnvs.includes(nodeID)) {
+      const updatedEnvs = [...existingEnvs, nodeID];
+      vscode.commands.executeCommand(
+        "setContext",
+        "vectorcastTestExplorer.vcastRequirementsAvailable",
+        updatedEnvs
+      );
       existingEnvs = updatedEnvs;
     }
   } else {
     // Remove this environment from the list if present
-    const updatedEnvs = existingEnvs.filter(env => env !== enviroNodeID);
-    vscode.commands.executeCommand('setContext', 'vectorcastTestExplorer.vcastRequirementsAvailable', updatedEnvs);
+    const updatedEnvs = existingEnvs.filter((env) => env !== nodeID);
+    vscode.commands.executeCommand(
+      "setContext",
+      "vectorcastTestExplorer.vcastRequirementsAvailable",
+      updatedEnvs
+    );
     existingEnvs = updatedEnvs;
   }
 }
@@ -1734,7 +2660,7 @@ function generateRequirementsHtml(requirements: any[]): string {
   // Group requirements by function
   const requirementsByFunction: Record<string, any[]> = {};
   for (const req of requirements) {
-    const funcName = req.Function || 'Unknown Function';
+    const funcName = req.Function || "Unknown Function";
     if (!requirementsByFunction[funcName]) {
       requirementsByFunction[funcName] = [];
     }
@@ -1747,14 +2673,14 @@ function generateRequirementsHtml(requirements: any[]): string {
     for (const req of reqs) {
       htmlContent += `
         <div class="requirement">
-            <div class="req-key">${req.Key || 'No Key'}</div>
-            <div class="req-description">${req.Description || 'No Description'}</div>
+            <div class="req-key">${req.Key || "No Key"}</div>
+            <div class="req-description">${req.Description || "No Description"}</div>
         </div>
       `;
     }
   }
 
-  htmlContent += '</body></html>';
+  htmlContent += "</body></html>";
   return htmlContent;
 }
 
@@ -1764,6 +2690,13 @@ function createProcessEnvironment(vcastInstallDir?: string): NodeJS.ProcessEnv {
   const processEnv = { ...process.env };
   if (vcastInstallDir) {
     processEnv.VSCODE_VECTORCAST_DIR = vcastInstallDir;
+  }
+
+  const outputDebugInfo = vscode.workspace
+    .getConfiguration("vectorcastTestExplorer")
+    .get<boolean>("outputDebugInfo", false);
+  if (outputDebugInfo) {
+    processEnv.REQ2TESTS_LOG_LEVEL = "debug";
   }
 
   return processEnv;
@@ -1778,4 +2711,3 @@ function spawnWithVcastEnv(
   const env = createProcessEnvironment(vcastInstallDir);
   return spawn(command, args, { ...options, env });
 }
-

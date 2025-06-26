@@ -45,7 +45,7 @@ async function terminateServerProcessing(errorText: string) {
 
   await stopServer();
 
-  refreshAllExtensionData();
+  await refreshAllExtensionData();
 
   vscode.window.showErrorMessage(
     errorMessage +

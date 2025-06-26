@@ -7,7 +7,13 @@ import { loadScriptCallBack } from "./callbacks";
 
 import { vectorMessage } from "./messagePane";
 
-import { getTestNode, testNodeType } from "./testData";
+import {
+  environmentDataCache,
+  environmentNodeDataType,
+  getEnviroNodeData,
+  getTestNode,
+  testNodeType,
+} from "./testData";
 
 import {
   jsoncModificationOptions,
@@ -18,9 +24,12 @@ import {
 
 import {
   dumpTestScriptFile,
+  openProjectInVcast,
   runATGCommands,
   runBasisPathCommands,
 } from "./vcastAdapter";
+
+import { cleanProjectEnvironment } from "./manage/manageSrc/manageCommands";
 
 import {
   clicastCommandToUse,
@@ -33,6 +42,15 @@ import {
 } from "./vcastInstallation";
 
 import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
+import {
+  globalController,
+  globalProjectDataCache,
+  globalProjectMap,
+  globalUnusedCompilerList,
+  globalUnusedTestsuiteList,
+  nodeKind,
+  vcastTestItem,
+} from "./testPane";
 
 const fs = require("fs");
 const os = require("os");
@@ -219,7 +237,7 @@ export async function adjustScriptContentsBeforeLoad(scriptPath: string) {
   fs.writeFileSync(scriptPath, newLines.join("\n"), "utf8");
 }
 
-export function generateAndLoadBasisPathTests(testNode: testNodeType) {
+export async function generateAndLoadBasisPathTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
   // In all cases, we need to do the following:
   //  - Call clicast <-e -u -s options> tool auto_test temp.tst  [creates tests]
@@ -242,7 +260,7 @@ export function generateAndLoadBasisPathTests(testNode: testNodeType) {
   runBasisPathCommands(testNode, tempScriptPath, loadScriptCallBack);
 }
 
-export function generateAndLoadATGTests(testNode: testNodeType) {
+export async function generateAndLoadATGTests(testNode: testNodeType) {
   // This can be called for any node, including environment nodes
   // In all cases, we need to do the following:
   //  - Call atg <-e -u -s options> temp.tst  [creates tests]
@@ -355,7 +373,7 @@ function getTestArgument(testID: string, withFlag: boolean): string {
   if (testID.length > 0) {
     // we need to strip the "path part" of the environment directory from the test ID
     // which is the part before the '|' and after the ':'
-    const enviroPath = testID.split("|")[0].split(":")[1];
+    const enviroPath = testID.split("|")[0].split("vcast:")[1];
 
     // now the path to the environment might have a slash if the environment is nested or not
     // so we need to handle that case, since we only want the environment name
@@ -471,4 +489,338 @@ export function getRebuildOptionsString(): string {
   const jsonOptions: string = JSON.stringify(optionsDict);
 
   return jsonOptions;
+}
+
+/**
+ * Function to retrieve the Combobox items for the webview when creating an env in a project
+ * @param projectFile Path to Project File
+ * @returns 2 Lists containing the project compilers and testsuites
+ */
+export function getWebviewComboboxItems(projectFile: string) {
+  let comboBoxList: { compilers: string[]; testsuites: string[] } = {
+    compilers: [],
+    testsuites: [],
+  };
+  let compilerList: string[] = [];
+  let testsuiteList: string[] = [];
+
+  const enviroData = globalProjectDataCache.get(projectFile);
+
+  if (enviroData) {
+    for (let [, envData] of enviroData) {
+      if (!compilerList.includes(envData.compiler.name)) {
+        compilerList.push(envData.compiler.name);
+      }
+
+      for (let testsuiteName of envData.compiler.testsuites) {
+        if (!testsuiteList.includes(testsuiteName)) {
+          testsuiteList.push(testsuiteName);
+        }
+      }
+    }
+  }
+
+  // Include empty / unused compilers
+  for (let compiler of globalUnusedCompilerList) {
+    if (!compilerList.includes(compiler.displayName)) {
+      compilerList.push(compiler.displayName);
+    }
+  }
+
+  // Include empty / unused testSuites
+  for (let testsuite of globalUnusedTestsuiteList) {
+    const testsuiteName = path.basename(testsuite.displayName);
+    if (!testsuiteList.includes(testsuiteName)) {
+      testsuiteList.push(testsuiteName);
+    }
+  }
+
+  comboBoxList.compilers = compilerList;
+  comboBoxList.testsuites = testsuiteList;
+
+  return comboBoxList;
+}
+
+/**
+ * Checks if the current Environment is part of a Project or not
+ * @param enviroPath Path to Environment
+ * @returns True if the Environment is part of a Project, False otherwise
+ */
+export function envIsEmbeddedInProject(enviroPath: string) {
+  for (let envData of environmentDataCache.values()) {
+    if (envData.buildDirectory === enviroPath && envData.projectPath !== "") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks if the current Environment is part of a Project or not
+ * @param enviroPath Path to Environment
+ * @returns True if the Environment is part of a Project, False otherwise
+ */
+export function checkIfAnyProjectsAreOpened() {
+  for (let envData of environmentDataCache.values()) {
+    if (envData.projectPath !== "") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Returns the Project file name and the Root path of the Project based
+ * on the full path of the Project File
+ * @param fullPath Full Path to the Project File
+ */
+export function getVcmRoot(fullPath: string) {
+  // pre-compile the regex once
+  const vcmRe = /(.*\/)([^/]+\.vcm)(?:\/.*)?$/;
+
+  // use exec() instead of match() (sonarcloud)
+  const match = vcmRe.exec(fullPath);
+
+  if (match) {
+    // match[1] is the directory (with trailing slash), match[2] is the .vcm name
+    const rootPath = match[1].replace(/\/$/, "");
+    const vcmName = match[2];
+    return { rootPath, vcmName };
+  }
+
+  return null;
+}
+/**
+ * Opens the Project based on the Environment path if the Environment is part of a Project
+ * @param enviroPath Path to the Environment
+ */
+export async function openProjectFromEnviroPath(enviroPath: string) {
+  for (let envData of environmentDataCache.values()) {
+    if (envData.buildDirectory === enviroPath) {
+      const result = getVcmRoot(envData.projectPath);
+      if (result) {
+        const { rootPath, vcmName } = result;
+        await openProjectInVcast(rootPath, vcmName);
+      }
+    }
+  }
+}
+
+/**
+ * Checks if a Environment is build in mutle Testsuites
+ * @param enviroName Name of the Environment
+ * @returns True, if the Environment is build in multiple Testsuites, False otherwise
+ */
+export async function checkIfEnvironmentIsBuildMultipleTimes(
+  enviroName: string
+) {
+  let count = 0;
+  for (let envData of environmentDataCache.values()) {
+    const currentEnviroName = path.basename(envData.buildDirectory);
+    if (enviroName === currentEnviroName && envData.isBuilt === true) {
+      count++;
+    }
+  }
+  return count > 1;
+}
+
+/**
+ * Deletes all build folders for an environment within a project except for the one
+ * corresponding to the current Testsuite. When an environment is built in multiple
+ * Testsuites, synchronization issues can occur during project updates. This function
+ * removes the other build folders so that the project update can proceed with
+ * only the current environment build.
+ *
+ * @param enviroPath - The file system path of the environment that is being updated.
+ */
+export async function deleteOtherBuildFolders(
+  enviroPath: string
+): Promise<void> {
+  const givenEnviroName = path.basename(enviroPath);
+  for (let envData of environmentDataCache.values()) {
+    const currentEnviroPath = envData.buildDirectory;
+    const currentEnviroName = path.basename(currentEnviroPath);
+    if (
+      givenEnviroName === currentEnviroName &&
+      currentEnviroPath !== enviroPath &&
+      envData.isBuilt === true
+    ) {
+      // Normalize path to use forward slashes for a consistent enviroNodeID
+      const normalizedCurrentEnviroPath = currentEnviroPath.replace(/\\/g, "/");
+      const enviroNodeID = "vcast:" + normalizedCurrentEnviroPath;
+
+      const enviroData: environmentNodeDataType = getEnviroNodeData(
+        normalizedCurrentEnviroPath
+      );
+
+      await cleanProjectEnvironment(
+        enviroPath,
+        enviroNodeID,
+        enviroData.projectPath,
+        enviroData.displayName
+      );
+    }
+  }
+}
+
+/**
+ * Checks if all Testsuites from the project are also present in the test pane
+ * If Testsuites are empty, they will be created here
+ */
+export function ensureTestsuiteNodes() {
+  globalUnusedTestsuiteList.forEach((item) => {
+    // Expecting a format like "GNU/Banana"
+    const parts = item.displayName.split("/");
+    if (parts.length !== 2) {
+      vectorMessage(`Invalid testsuite format: ${item.displayName}`);
+      return;
+    }
+    const compilerName = parts[0];
+    const testsuiteName = parts[1];
+
+    // Search for the compiler node across all top-level items.
+    let compilerNode: vcastTestItem | undefined;
+    globalController.items.forEach((topItem) => {
+      const node = findNodeByKindAndLabel(
+        topItem as vcastTestItem,
+        nodeKind.compiler,
+        compilerName
+      );
+      if (node) {
+        compilerNode = node;
+      }
+    });
+    if (!compilerNode) {
+      vectorMessage(`No compiler node found for "${compilerName}"`);
+      return;
+    }
+
+    // Compute the expected testsuite node id.
+    const testsuiteNodeId = `${compilerNode.id}/${testsuiteName}`;
+    let testsuiteNode = compilerNode.children.get(
+      testsuiteNodeId
+    ) as vcastTestItem;
+    if (!testsuiteNode) {
+      // Create the testsuite node under the found compiler.
+      testsuiteNode = globalController.createTestItem(
+        testsuiteNodeId,
+        testsuiteName
+      ) as vcastTestItem;
+      testsuiteNode.nodeKind = nodeKind.testsuite;
+      compilerNode.children.add(testsuiteNode);
+    }
+  });
+}
+
+/**
+ * Ensures that all compiler nodes from the globalUnusedCompilerList are present
+ * in the test pane. Each item in globalUnusedCompilerList is expected to have a
+ * displayName property (e.g. "GNU") and the name of the projectFile.
+ * If a compiler node is not found, it is created.
+ */
+export function ensureCompilerNodes() {
+  globalUnusedCompilerList.forEach((item) => {
+    const compilerName = item.displayName; // e.g. "GNU"
+    const projectFile = item.projectFile; // e.g. "/path/to/project.vcm"
+
+    // Attempt to find the project node.
+    // If you have a globalProjectMap keyed by project file, use it:
+    let projectNode: vcastTestItem | undefined =
+      globalProjectMap.get(projectFile);
+    if (!projectNode) {
+      // Alternatively, you can search among top-level nodes if needed.
+      globalController.items.forEach((topItem) => {
+        if ((topItem as vcastTestItem).id === projectFile) {
+          projectNode = topItem as vcastTestItem;
+        }
+      });
+    }
+
+    // If no project node exists, do nothing.
+    if (!projectNode) {
+      vectorMessage(
+        `Project node for "${projectFile}" not found. Skipping compiler "${compilerName}".`
+      );
+      return;
+    }
+
+    // Check if a compiler node with the given displayName already exists under the project node.
+    let compilerNode: vcastTestItem | undefined;
+    projectNode.children.forEach((child) => {
+      const testItem = child as vcastTestItem;
+      if (
+        testItem.nodeKind === nodeKind.compiler &&
+        typeof testItem.label === "string" &&
+        testItem.label === compilerName
+      ) {
+        compilerNode = testItem;
+      }
+    });
+
+    // If the compiler node doesn't exist, create and add it.
+    if (!compilerNode) {
+      // Construct an ID for the compiler node. For example, use the projectFile and compilerName.
+      const compilerNodeId = `${projectFile}/${compilerName}`;
+      compilerNode = globalController.createTestItem(
+        compilerNodeId,
+        compilerName
+      ) as vcastTestItem;
+      compilerNode.nodeKind = nodeKind.compiler;
+      projectNode.children.add(compilerNode);
+    }
+  });
+}
+
+/**
+ * Retruns the node with the given kind and label or undefined if not found
+ * @returns node if found, undefined otherwise
+ */
+function findNodeByKindAndLabel(
+  node: vcastTestItem,
+  kind: nodeKind,
+  label: string
+): vcastTestItem | undefined {
+  if (
+    node.nodeKind === kind &&
+    typeof node.label === "string" &&
+    node.label === label
+  ) {
+    return node;
+  }
+  let found: vcastTestItem | undefined;
+  node.children.forEach((child) => {
+    const result = findNodeByKindAndLabel(child as vcastTestItem, kind, label);
+    if (result) {
+      found = result;
+    }
+  });
+  return found;
+}
+
+export function getLevelFromNodeId(path: string) {
+  const marker = ".vcm";
+  const markerIndex = path.lastIndexOf(marker);
+
+  if (markerIndex === -1) {
+    // Marker not found; handle as needed.
+    return { projectName: "", level: "" };
+  }
+
+  // Determine the project name by finding the preceding slash (if any)
+  const slashBefore = path.lastIndexOf("/", markerIndex);
+  let projectName;
+  if (slashBefore === -1) {
+    projectName = path.substring(0, markerIndex + marker.length);
+  } else {
+    projectName = path.substring(slashBefore + 1, markerIndex + marker.length);
+  }
+
+  // Start right after the marker; skip a slash if present
+  let remainderStart = markerIndex + marker.length;
+  if (path[remainderStart] === "/" || path[remainderStart] === "\\") {
+    remainderStart++;
+  }
+  const level = path.substring(remainderStart);
+
+  return { projectName, level };
 }
