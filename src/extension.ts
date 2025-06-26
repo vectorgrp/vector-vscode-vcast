@@ -145,8 +145,7 @@ const path = require("path");
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import { parse as csvParse } from "csv-parse/sync";
 const excelToJson = require("convert-excel-to-json");
-import { parse as csvParse } from "csv-parse/sync";
-const excelToJson = require("convert-excel-to-json");
+
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
@@ -198,42 +197,38 @@ let REQS2EXCEL_EXECUTABLE_PATH: string;
 let REQS2RGW_EXECUTABLE_PATH: string;
 
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
-  // CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "code2reqs").fsPath;
-  // REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2tests").fsPath;
-  // REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2excel").fsPath;
-  // REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(context.extensionUri, "resources", "distribution", "reqs2rgw").fsPath;
+  // If the LINUX_VSIX_FILE environment variable is set, we're likely running in a CI test environment.
+  // In this case, use its value as the base URI since the default extensionUri won't point to the correct resource location.
+  const baseUri = process.env.LINUX_VSIX_FILE
+    ? vscode.Uri.file(process.env.LINUX_VSIX_FILE)
+    : context.extensionUri;
 
-  let hardcode =
-    "/home/denis/.vscode/extensions/vectorgroup.vectorcasttestexplorer-1.0.15";
-  const hardcodeUri = vscode.Uri.file(hardcode);
+  vectorMessage(`BASEURI: ${baseUri.fsPath}`);
+
   CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    hardcodeUri,
+    baseUri,
     "resources",
     "distribution",
     "code2reqs"
   ).fsPath;
   REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    hardcodeUri,
+    baseUri,
     "resources",
-    "distribution",
+    "divstribution",
     "reqs2tests"
   ).fsPath;
   REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    hardcodeUri,
+    baseUri,
     "resources",
     "distribution",
     "reqs2excel"
   ).fsPath;
   REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    hardcodeUri,
+    baseUri,
     "resources",
     "distribution",
     "reqs2rgw"
   ).fsPath;
-
-  //CODE2REQS_EXECUTABLE_PATH = "code2reqs";
-  //REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
-  //REQS2EXCEL_EXECUTABLE_PATH = "reqs2excel";
 
   fs.access(CODE2REQS_EXECUTABLE_PATH, fs.constants.X_OK, (err) => {
     if (err) {
@@ -243,7 +238,6 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     }
   });
 }
-
 function setHardcodedEnvVars() {
   for (const [key, value] of Object.entries(HARDCODED_ENV_VARS)) {
     process.env[key] = value;
@@ -2277,13 +2271,17 @@ async function generateTestsFromRequirements(
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
+  const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(
+    " "
+  )}`;
   logCliOperation(`Executing command: ${commandString}`);
 
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `Generating Tests from Requirements (${fileType}) for ${envName.split(".")[0]}`,
+      title: `Generating Tests from Requirements (${fileType}) for ${
+        envName.split(".")[0]
+      }`,
       cancellable: true,
     },
     async (progress, cancellationToken) => {
@@ -2444,7 +2442,9 @@ async function importRequirementsFromGateway(enviroPath: string) {
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2EXCEL_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
+  const commandString = `${REQS2EXCEL_EXECUTABLE_PATH} ${commandArgs.join(
+    " "
+  )}`;
   logCliOperation(`Executing command: ${commandString}`);
 
   await vscode.window.withProgress(
@@ -2692,7 +2692,9 @@ function generateRequirementsHtml(requirements: any[]): string {
       htmlContent += `
         <div class="requirement">
             <div class="req-id">${req.ID || "No ID"}</div>
-            <div class="req-description">${req.Description || "No Description"}</div>
+            <div class="req-description">${
+              req.Description || "No Description"
+            }</div>
         </div>
       `;
     }
