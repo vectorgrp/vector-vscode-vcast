@@ -265,19 +265,15 @@ jobs:
           $upload_url \
           --data-binary "@${{ env.WIN_VSIX_FILE }}"
 
-      - name: Find all distribution folders (incl. /tmp)
+      - name: Find all distribution folders
         run: |
-          echo "=== Distribution under workspace ==="
-          find "${{ github.workspace }}" -type d -name distribution -print
-          echo "=== Distribution under /tmp ==="
+          echo "=== Distribution under current dir ==="
+          find "$(pwd)" -type d -name distribution -print
+          echo "=== Linux distribution under /tmp ==="
           find /tmp -type d -name linux_distribution -print
+          echo "=== Windows distribution under /tmp ==="
           find /tmp -type d -name win_distribution -print
 
-      - name: Find all resources folders (incl. /tmp)
-        run: |
-          echo "=== resources under workspace ==="
-          find "${{ github.workspace }}" -type d -name resources -print
-          echo "=== resources under /tmp ==="
 
   generate-e2e-matrix:
     if: github.event.pull_request.draft == false
