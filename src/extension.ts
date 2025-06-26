@@ -211,7 +211,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   const repoRoot = "/vcast/vsix";
 
   // Now compose the full path to the .vsix
-  const vsixPath = path.join(repoRoot, vsixName);
+  const vsixPath = "/tmp/linux_distribution";
 
   // Check existence
   if (!fs.existsSync(vsixPath)) {
@@ -222,7 +222,19 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     logCliOperation(`Found VSIX at: ${vsixPath}`);
   }
 
-  // Select baseUri
+  // distributionUri MUST be a Uri
+  const distributionUri: vscode.Uri = isCI
+    ? vscode.Uri.file(vsixPath)
+    : vscode.Uri.joinPath(context.extensionUri, "resources", "distribution");
+
+  if (!fs.existsSync(distributionUri.fsPath)) {
+    logCliError(`Distribution not found at expected path: ${distributionUri}`);
+    // You can either throw or fall back, e.g.:
+    // throw new Error(`Missing VSIX: ${vsixPath}`);
+  } else {
+    logCliOperation(`Found Distribution at: ${distributionUri}`);
+  }
+
   const baseUri = isCI ? vscode.Uri.file(vsixPath) : context.extensionUri;
 
   vectorMessage(`BASEURI: ${baseUri.fsPath}`);
@@ -231,27 +243,19 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   logCliOperation(`BASEURI: ${baseUri.fsPath}`);
 
   CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    "resources",
-    "distribution",
+    distributionUri,
     "code2reqs"
   ).fsPath;
   REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    "resources",
-    "divstribution",
+    distributionUri,
     "reqs2tests"
   ).fsPath;
   REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    "resources",
-    "distribution",
+    distributionUri,
     "reqs2excel"
   ).fsPath;
   REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    "resources",
-    "distribution",
+    distributionUri,
     "reqs2rgw"
   ).fsPath;
 
