@@ -113,6 +113,12 @@ jobs:
           mv $VSIX_FILE $NEW_VSIX_FILE
           echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
 
+      - name: Prepare /vcast/vsix and copy VSIX
+        shell: bash
+        run: |
+          mkdir -p /vcast/vsix
+          cp "$LINUX_VSIX_FILE" "/vcast/vsix/$(basename "$LINUX_VSIX_FILE" .linux.vsix).vsix"
+
       - name: Package with VSCE - Windows
         run: |
           mv /tmp/win_distribution ./resources/distribution

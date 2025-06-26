@@ -208,11 +208,19 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   const vsixName = `${name}-${version}.vsix`;
   // On CI, cwd is something like "/__w/vector-vscode-vcast/vector-vscode-vcast/tests/internal/e2e"
   // Strip off "/tests/internal/e2e" to get back to repo root
-  const cwd = process.cwd();
-  const repoRoot = cwd.replace(/\/tests\/internal\/e2e$/, "");
+  const repoRoot = "/vcast/vsix";
 
   // Now compose the full path to the .vsix
   const vsixPath = path.join(repoRoot, vsixName);
+
+  // Check existence
+  if (!fs.existsSync(vsixPath)) {
+    logCliError(`VSIX not found at expected path: ${vsixPath}`);
+    // You can either throw or fall back, e.g.:
+    // throw new Error(`Missing VSIX: ${vsixPath}`);
+  } else {
+    logCliOperation(`Found VSIX at: ${vsixPath}`);
+  }
 
   // Select baseUri
   const baseUri = isCI ? vscode.Uri.file(vsixPath) : context.extensionUri;
