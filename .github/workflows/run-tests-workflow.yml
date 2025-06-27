@@ -99,6 +99,10 @@ jobs:
             exit 1
           fi
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
+
+          mkdir -p "$HOME/vsix/resources/distribution"
+          cp -r /tmp/linux_distribution/* "$HOME/vsix/resources/distribution/"
+          
           mv distribution /tmp/linux_distribution
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
