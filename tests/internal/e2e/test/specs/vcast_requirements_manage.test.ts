@@ -89,14 +89,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const outputView = await bottomBar.openOutputView();
     // ── guard the channel‐select so a failure doesn’t abort the test ──
-    try {
-      await outputView.selectChannel(
-        "VectorCAST Requirement Test Generation Operations"
-      );
-      console.log("Channel selected");
-    } catch (err) {
-      console.warn("selectChannel failed, continuing anyway:", err.message);
-    }
+    await selectOutputChannel(
+      "VectorCAST Requirement Test Generation Operations"
+    );
+
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
     const vcastTestingViewContent = await getViewContent("Testing");
