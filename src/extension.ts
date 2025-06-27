@@ -220,7 +220,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   // Strip off "/tests/internal/e2e" to get back to repo root
 
   // Now compose the full path to the .vsix
-  const vsixPath = `./`;
+  const vsixPath = `${process.env.HOME}/vsix`;
 
   // Check existence
   if (!fs.existsSync(vsixPath)) {

@@ -101,9 +101,6 @@ jobs:
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
           mv distribution /tmp/linux_distribution
 
-          mkdir -p "$GITHUB_WORKSPACE/vsix/resources/distribution"
-          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/vsix/resources/distribution/"
-
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
 
@@ -114,6 +111,8 @@ jobs:
 
           echo "Contents of ./resources/distribution:"
           ls -R ./resources/distribution
+          mkdir -p "/github/home/vsix/resources/distribution"
+          cp -r ./resources/distribution/* "/github/home/vsix/resources/distribution"
 
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
           NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
