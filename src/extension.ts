@@ -75,6 +75,7 @@ import {
   updateCoverageAndRebuildEnv,
   forceLowerCaseDriveLetter,
   decodeVar,
+  normalizePath,
 } from "./utilities";
 
 import {
@@ -2600,7 +2601,7 @@ async function populateRequirementsGateway(enviroPath: string) {
 
 let existingEnvs: string[] = [];
 function updateRequirementsAvailability(enviroPath: string) {
-  const nodeID = makeEnviroNodeID(enviroPath);
+  const nodeID = makeEnviroNodeID(normalizePath(enviroPath));
 
   // the vcast: prefix to allow package.json nodes to control
   // when the VectorCAST context menu should be shown
