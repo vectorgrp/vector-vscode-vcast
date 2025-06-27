@@ -259,7 +259,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     "resources",
-    "divstribution",
+    "distribution",
     "reqs2tests"
   ).fsPath;
   REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(
