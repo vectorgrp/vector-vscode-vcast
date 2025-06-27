@@ -1608,6 +1608,11 @@ export async function rebuildEnvironmentFromTestingPane(envName: string) {
   }
 }
 
+export async function selectOutputChannel(channelName: string) {
+  const dropdown = await $('select[aria-label="Output Channels"]');
+  await dropdown.selectByVisibleText(channelName);
+}
+
 /**
  * Executes a context menu action on a tree node.
  *
