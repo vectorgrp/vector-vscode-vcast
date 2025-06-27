@@ -108,16 +108,16 @@ jobs:
         run: |
           mv /tmp/linux_distribution ./resources/distribution
           npm run package
-
-          echo "Contents of ./resources/distribution:"
-          ls -R ./resources/distribution
-          mkdir -p "/github/home/vsix/resources/distribution"
-          cp -r ./resources/distribution/* "/github/home/vsix/resources/distribution"
-
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
           NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
           mv $VSIX_FILE $NEW_VSIX_FILE
           echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
+
+      - name: Upload vsix distribution artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: vsix-distribution
+          path: /github/home/vsix/resources/distribution 
 
       - name: Package with VSCE - Windows
         run: |
@@ -371,6 +371,18 @@ jobs:
 
       - name: Package with VSCE
         run: npm run package
+      
+      - name: Download vsix distribution artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: vsix-distribution
+          path: /github/home/vsix/resources/distribution 
+
+      - name: Show downloaded distribution
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          echo "VSIX distribution contents:"
+          ls -R "/github/home/vsix/resources/distribution" 
 
       - name: Restore cached dependencies - node
         id: cache-dependencies-restore-node
