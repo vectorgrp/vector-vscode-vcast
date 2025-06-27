@@ -1609,7 +1609,7 @@ export async function rebuildEnvironmentFromTestingPane(envName: string) {
 }
 
 export async function selectOutputChannel(channelName: string) {
-  const dropdown = await $('select[aria-label="Output Channels"]');
+  const dropdown = await $("select.monaco-select-box");
   await dropdown.selectByVisibleText(channelName);
 }
 
