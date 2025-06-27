@@ -101,6 +101,9 @@ jobs:
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
           mv distribution /tmp/linux_distribution
 
+          mkdir -p "$GITHUB_WORKSPACE/vsix/resources/distribution"
+          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/vsix/resources/distribution/"
+
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
 
@@ -108,16 +111,14 @@ jobs:
         run: |
           mv /tmp/linux_distribution ./resources/distribution
           npm run package
+
+          echo "Contents of ./resources/distribution:"
+          ls -R ./resources/distribution
+
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
           NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
           mv $VSIX_FILE $NEW_VSIX_FILE
           echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
-
-      - name: Upload vsix distribution artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: vsix-distribution
-          path: /github/home/vsix/resources/distribution 
 
       - name: Package with VSCE - Windows
         run: |
@@ -368,21 +369,43 @@ jobs:
           path: |
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+      
+      - name: Pull latest reqs2tests release
+        shell: bash
+        run: |
+          python3 ./ci/get_most_recent_reqs2tests_distribution.py
+          if [ ! -f "autoreq-linux.tar.gz" ]; then
+            echo "Error: autoreq-linux.tar.gz not found."
+            exit 1
+          fi
+          if [ ! -f "autoreq-win.tar.gz" ]; then
+            echo "Error: autoreq-win.tar.gz not found."
+            exit 1
+          fi
+          tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
+          mv distribution /tmp/linux_distribution
+
+          mkdir -p "$GITHUB_WORKSPACE/vsix/resources/distribution"
+          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/vsix/resources/distribution/"
+
+          tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
+          mv distribution /tmp/win_distribution
+
+      - name: Package with VSCE - Linux
+        run: |
+          mv /tmp/linux_distribution ./resources/distribution
+          npm run package
+
+          echo "Contents of ./resources/distribution:"
+          ls -R ./resources/distribution
+
+          VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
+          NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
+          mv $VSIX_FILE $NEW_VSIX_FILE
+          echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
 
       - name: Package with VSCE
         run: npm run package
-      
-      - name: Download vsix distribution artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: vsix-distribution
-          path: /github/home/vsix/resources/distribution 
-
-      - name: Show downloaded distribution
-        run: |
-          echo "Workspace: $GITHUB_WORKSPACE"
-          echo "VSIX distribution contents:"
-          ls -R "/github/home/vsix/resources/distribution" 
 
       - name: Restore cached dependencies - node
         id: cache-dependencies-restore-node
