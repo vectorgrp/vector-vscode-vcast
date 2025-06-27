@@ -67,6 +67,8 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
+    // Wait for the output channel to be populated
+    await browser.pause(5000);
     // ── guard the channel‐select so a failure doesn’t abort the test ──
     try {
       await outputView.selectChannel(
