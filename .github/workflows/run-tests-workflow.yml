@@ -101,8 +101,8 @@ jobs:
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
           mv distribution /tmp/linux_distribution
 
-          mkdir -p "/__w/vector-vscode-vcast/vector-vscode-vcast/vsix/resources/distribution"
-          cp -r /tmp/linux_distribution/* "/__w/vector-vscode-vcast/vector-vscode-vcast/vsix/resources/distribution/"
+          mkdir -p "$GITHUB_WORKSPACE/vsix/resources/distribution"
+          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/vsix/resources/distribution/"
 
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
