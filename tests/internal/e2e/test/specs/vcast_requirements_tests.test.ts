@@ -11,7 +11,6 @@ import {
   findSubprogram,
   findSubprogramMethod,
   getViewContent,
-  selectOutputChannel,
   updateTestID,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
@@ -94,11 +93,19 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const outputView = await bottomBar.openOutputView();
     // ── guard the channel‐select so a failure doesn’t abort the test ──
-    await selectOutputChannel(
-      "VectorCAST Requirement Test Generation Operations"
-    );
-
-    await bottomBar.maximize();
+    try {
+      await browser.waitUntil(async () =>
+        (await outputView.getChannelNames())
+          .toString()
+          .includes("VectorCAST Requirement Test Generation Operations")
+      );
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+      console.log("Channel selected");
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
     const vcastTestingViewContent = await getViewContent("Testing");

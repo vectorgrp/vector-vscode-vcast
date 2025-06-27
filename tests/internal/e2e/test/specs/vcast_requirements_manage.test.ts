@@ -69,11 +69,20 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     console.log("WAITING FOR TEST EXPLORER");
     // Wait for the output channel to be populated
-    await browser.pause(5000);
     // ── guard the channel‐select so a failure doesn’t abort the test ──
-    await selectOutputChannel(
-      "VectorCAST Requirement Test Generation Operations"
-    );
+    try {
+      await browser.waitUntil(async () =>
+        (await outputView.getChannelNames())
+          .toString()
+          .includes("VectorCAST Requirement Test Generation Operations")
+      );
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+      console.log("Channel selected");
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
 
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
@@ -89,10 +98,14 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const outputView = await bottomBar.openOutputView();
     // ── guard the channel‐select so a failure doesn’t abort the test ──
-    await selectOutputChannel(
-      "VectorCAST Requirement Test Generation Operations"
-    );
-
+    try {
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+      console.log("Channel selected");
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
     const vcastTestingViewContent = await getViewContent("Testing");
@@ -168,9 +181,19 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const outputView = await bottomBar.openOutputView();
     // ── guard the channel‐select so a failure doesn’t abort the test ──
-    await selectOutputChannel(
-      "VectorCAST Requirement Test Generation Operations"
-    );
+    try {
+      await browser.waitUntil(async () =>
+        (await outputView.getChannelNames())
+          .toString()
+          .includes("VectorCAST Requirement Test Generation Operations")
+      );
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+      console.log("Channel selected");
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
 
     await browser.waitUntil(
       async () =>
