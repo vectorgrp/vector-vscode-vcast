@@ -98,12 +98,8 @@ jobs:
             echo "Error: autoreq-win.tar.gz not found."
             exit 1
           fi
-          tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
+          tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
           mv distribution /tmp/linux_distribution
-
-          mkdir -p "$GITHUB_WORKSPACE/vsix/resources/distribution"
-          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/vsix/resources/distribution/"
-
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
 
@@ -111,10 +107,7 @@ jobs:
         run: |
           mv /tmp/linux_distribution ./resources/distribution
           npm run package
-
-          echo "Contents of ./resources/distribution:"
-          ls -R ./resources/distribution
-
+          rm -rf ./resources/distribution
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
           NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
           mv $VSIX_FILE $NEW_VSIX_FILE
@@ -124,6 +117,7 @@ jobs:
         run: |
           mv /tmp/win_distribution ./resources/distribution
           npm run package
+          rm -rf ./resources/distribution
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
           NEW_VSIX_FILE="${VSIX_FILE%.vsix}.win.vsix"
           mv $VSIX_FILE $NEW_VSIX_FILE
@@ -202,10 +196,6 @@ jobs:
              VSIX_FILE=${{ env.LINUX_VSIX_FILE }}
              cp $VSIX_FILE $(basename "${VSIX_FILE%.linux.vsix}.vsix")
              tar -cvzf ../VectorCAST-Reqs2Tests-Linux.tar.gz * > /dev/null
-
-             mkdir -p /github/home/vsix/linux
-             tar -xzf ../VectorCAST-Reqs2Tests-Linux.tar.gz -C /github/home/vsix/linux
-
              URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
              curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Linux.tar.gz
              echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
@@ -396,8 +386,8 @@ jobs:
           mv /tmp/linux_distribution ./resources/distribution
           npm run package
 
-          echo "Contents of ./resources/distribution:"
-          ls -R ./resources/distribution
+          echo "Contents of $GITHUB_WORKSPACE/vsix/resources/distribution:"
+          ls -R $GITHUB_WORKSPACE/vsix/resources/distribution
 
           VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
           NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
