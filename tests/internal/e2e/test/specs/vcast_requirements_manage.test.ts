@@ -1,16 +1,12 @@
 import {
   type BottomBarPanel,
   type Workbench,
-  CustomTreeItem,
   TextEditor,
-  TreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
   executeContextMenuAction,
-  findSubprogram,
-  findSubprogramMethod,
   getViewContent,
   updateTestID,
 } from "../test_utils/vcast_utils";
@@ -166,10 +162,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should generate requirements tests", async () => {
     await updateTestID();
 
-    const vcastTestingViewContent = await getViewContent("Testing");
-    let subprogram: TreeItem;
-
-    const outputView = await bottomBar.openOutputView();
+    await bottomBar.openOutputView();
     await bottomBar.maximize();
 
     // Find Manager::PlaceOrder subprogram and click on Generate Tests
@@ -195,13 +188,5 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Generating tests: 100%|██████████|"),
       { timeout: 180_000 }
     );
-
-    const notifications = await $("aria/Notifications");
-    await notifications.click();
-    const vcastNotificationSourceElement = await $(
-      "aria/VectorCAST Test Explorer (Extension)"
-    );
-    const vcastNotification = await vcastNotificationSourceElement.$("..");
-    await (await vcastNotification.$("aria/Clean other Environments")).click();
   });
 });

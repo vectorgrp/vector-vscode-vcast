@@ -196,40 +196,22 @@ let REQS2TESTS_EXECUTABLE_PATH: string;
 let REQS2EXCEL_EXECUTABLE_PATH: string;
 let REQS2RGW_EXECUTABLE_PATH: string;
 
-export function logPathContents(paths: string[]): void {
-  paths.forEach((p) => {
-    if (fs.existsSync(p)) {
-      try {
-        const contents = fs.readdirSync(p).map((item) => path.join(p, item));
-        logCliOperation(`Path ${p} exists and these are the contents:`);
-        contents.forEach((item) => logCliOperation(`  - ${item}`));
-      } catch (err) {
-        logCliOperation(`⚠️ Error reading contents of ${p}`);
-      }
-    } else {
-      logCliOperation(`Path ${p} does not exist.`);
-    }
-  });
-}
-
+/**
+ * Sets up the paths to the executables used by the autoreq feature. Distinguishes between github CI and local.
+ * @param context vscode Context
+ */
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
-  // If the LINUX_VSIX_FILE environment variable is set, we're likely running in a CI test environment.
-  // In this case, use its value as the base URI since the default extensionUri won't point to the correct resource location.
-
+  // We need to check if we are on CI because in that case we have to use an alternate base dir to the resource files
   const isCI = process.env.HOME?.startsWith("/github") ?? false;
-  // On CI, cwd is something like "/__w/vector-vscode-vcast/vector-vscode-vcast/tests/internal/e2e"
-  // Strip off "/tests/internal/e2e" to get back to repo root
 
-  // Now compose the full path to the .vsix
+  // Base dir of the resource files should be here (see run-tests-workflow.yml/Pull latest reqs2tests release)
   const vsixResourceBasePath = `${process.env.GITHUB_WORKSPACE}/vsix`;
 
-  // Check existence
+  // Check existence for debugging reasons
   if (!fs.existsSync(vsixResourceBasePath)) {
     logCliError(
       `VSIX resource folder not found at expected path: ${vsixResourceBasePath}`
     );
-    // You can either throw or fall back, e.g.:
-    // throw new Error(`Missing VSIX: ${vsixPath}`);
   } else {
     logCliOperation(`Found VSIX resource folder at: ${vsixResourceBasePath}`);
   }
@@ -237,24 +219,6 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   const baseUri = isCI
     ? vscode.Uri.file(vsixResourceBasePath)
     : context.extensionUri;
-
-  const pathList = [
-    "/tmp/linux_distribution",
-    `${process.env.HOME}`,
-    `${process.env.HOME}/.vscode`,
-    `${process.env.VSIX_DIST}`,
-    `${process.env.HOME}/vsix/resources/distribution`,
-    `${process.env.HOME}/vsix/linux`,
-    `${process.env.GITHUB_WORKSPACE}`,
-    `${process.env.GITHUB_WORKSPACE}/vector-vscode-vcast`,
-    `${process.env.GITHUB_WORKSPACE}/vsix/resources/distribution`,
-  ];
-  logPathContents(pathList);
-
-  vectorMessage(`BASEURI: ${baseUri.fsPath}`);
-  logCliOperation(`VSIXPATH: ${vsixResourceBasePath}`);
-  logCliOperation(`ISCI: ${isCI}`);
-  logCliOperation(`BASEURI: ${baseUri.fsPath}`);
 
   CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
@@ -281,34 +245,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     "reqs2rgw"
   ).fsPath;
 
-  // let hardcode =
-  //   "/home/denis/.vscode/extensions/vectorgroup.vectorcasttestexplorer-1.0.17";
-  // const hardcodeUri = vscode.Uri.file(hardcode);
-  // CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-  //   hardcodeUri,
-  //   "resources",
-  //   "distribution",
-  //   "code2reqs"
-  // ).fsPath;
-  // REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-  //   hardcodeUri,
-  //   "resources",
-  //   "distribution",
-  //   "reqs2tests"
-  // ).fsPath;
-  // REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(
-  //   hardcodeUri,
-  //   "resources",
-  //   "distribution",
-  //   "reqs2excel"
-  // ).fsPath;
-  // REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(
-  //   hardcodeUri,
-  //   "resources",
-  //   "distribution",
-  //   "reqs2rgw"
-  // ).fsPath;
-
+  // Checking for debugging reasons if the path to the executable exsists or not
   fs.access(CODE2REQS_EXECUTABLE_PATH, fs.constants.X_OK, (err) => {
     if (err) {
       logCliError(`Executable not accessible: ${err}`);
