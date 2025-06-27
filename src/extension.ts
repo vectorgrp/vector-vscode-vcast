@@ -196,6 +196,22 @@ let REQS2TESTS_EXECUTABLE_PATH: string;
 let REQS2EXCEL_EXECUTABLE_PATH: string;
 let REQS2RGW_EXECUTABLE_PATH: string;
 
+export function logPathContents(paths: string[]): void {
+  paths.forEach((p) => {
+    if (fs.existsSync(p)) {
+      try {
+        const contents = fs.readdirSync(p).map((item) => path.join(p, item));
+        logCliOperation(`Path ${p} exists and these are the contents:`);
+        contents.forEach((item) => logCliOperation(`  - ${item}`));
+      } catch (err) {
+        logCliOperation(`⚠️ Error reading contents of ${p}`);
+      }
+    } else {
+      logCliOperation(`Path ${p} does not exist.`);
+    }
+  });
+}
+
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   // If the LINUX_VSIX_FILE environment variable is set, we're likely running in a CI test environment.
   // In this case, use its value as the base URI since the default extensionUri won't point to the correct resource location.
@@ -216,6 +232,15 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   }
 
   const baseUri = isCI ? vscode.Uri.file(vsixPath) : context.extensionUri;
+
+  const pathList = [
+    "/tmp/linux_distribution",
+    `${process.env.HOME}/tmp/linux_distribution`,
+    `.distribution`,
+    `/__w/vector-vscode-vcast/vector-vscode-vcast`,
+    `/__w/vector-vscode-vcast/vector-vscode-vcast/vectorcasttestexplorer-1.0.17.vsix`,
+  ];
+  logPathContents(pathList);
 
   vectorMessage(`BASEURI: ${baseUri.fsPath}`);
   logCliOperation(`VSIXPATH: ${vsixPath}`);
@@ -246,6 +271,34 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     "distribution",
     "reqs2rgw"
   ).fsPath;
+
+  // let hardcode =
+  //   "/home/denis/.vscode/extensions/vectorgroup.vectorcasttestexplorer-1.0.17";
+  // const hardcodeUri = vscode.Uri.file(hardcode);
+  // CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
+  //   hardcodeUri,
+  //   "resources",
+  //   "distribution",
+  //   "code2reqs"
+  // ).fsPath;
+  // REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
+  //   hardcodeUri,
+  //   "resources",
+  //   "distribution",
+  //   "reqs2tests"
+  // ).fsPath;
+  // REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(
+  //   hardcodeUri,
+  //   "resources",
+  //   "distribution",
+  //   "reqs2excel"
+  // ).fsPath;
+  // REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(
+  //   hardcodeUri,
+  //   "resources",
+  //   "distribution",
+  //   "reqs2rgw"
+  // ).fsPath;
 
   fs.access(CODE2REQS_EXECUTABLE_PATH, fs.constants.X_OK, (err) => {
     if (err) {
