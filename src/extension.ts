@@ -215,23 +215,28 @@ export function logPathContents(paths: string[]): void {
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   // If the LINUX_VSIX_FILE environment variable is set, we're likely running in a CI test environment.
   // In this case, use its value as the base URI since the default extensionUri won't point to the correct resource location.
+
   const isCI = process.env.HOME?.startsWith("/github") ?? false;
   // On CI, cwd is something like "/__w/vector-vscode-vcast/vector-vscode-vcast/tests/internal/e2e"
   // Strip off "/tests/internal/e2e" to get back to repo root
 
   // Now compose the full path to the .vsix
-  const vsixPath = `${process.env.HOME}/vsix`;
+  const vsixResourceBasePath = `${process.env.GITHUB_WORKSPACE}/vsix`;
 
   // Check existence
-  if (!fs.existsSync(vsixPath)) {
-    logCliError(`VSIX not found at expected path: ${vsixPath}`);
+  if (!fs.existsSync(vsixResourceBasePath)) {
+    logCliError(
+      `VSIX resource folder not found at expected path: ${vsixResourceBasePath}`
+    );
     // You can either throw or fall back, e.g.:
     // throw new Error(`Missing VSIX: ${vsixPath}`);
   } else {
-    logCliOperation(`Found VSIX at: ${vsixPath}`);
+    logCliOperation(`Found VSIX resource folder at: ${vsixResourceBasePath}`);
   }
 
-  const baseUri = isCI ? vscode.Uri.file(vsixPath) : context.extensionUri;
+  const baseUri = isCI
+    ? vscode.Uri.file(vsixResourceBasePath)
+    : context.extensionUri;
 
   const pathList = [
     "/tmp/linux_distribution",
@@ -243,15 +248,11 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     `${process.env.GITHUB_WORKSPACE}`,
     `${process.env.GITHUB_WORKSPACE}/vector-vscode-vcast`,
     `${process.env.GITHUB_WORKSPACE}/vsix/resources/distribution`,
-    `/__w/vector-vscode-vcast/vector-vscode-vcast/resources`,
-    `/__w/vector-vscode-vcast/vector-vscode-vcast/resources/distribution`,
-    `/__w/vector-vscode-vcast/vector-vscode-vcast/.vscode`,
-    `/__w/vector-vscode-vcast/vector-vscode-vcast/vsix/resources/distribution`,
   ];
   logPathContents(pathList);
 
   vectorMessage(`BASEURI: ${baseUri.fsPath}`);
-  logCliOperation(`VSIXPATH: ${vsixPath}`);
+  logCliOperation(`VSIXPATH: ${vsixResourceBasePath}`);
   logCliOperation(`ISCI: ${isCI}`);
   logCliOperation(`BASEURI: ${baseUri.fsPath}`);
 
