@@ -199,7 +199,6 @@ jobs:
              URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
              curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Linux.tar.gz
              echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
-             rm *.vsix
           else
              echo "Unable to build distribution for Linux" >> $GITHUB_STEP_SUMMARY
           fi
@@ -217,6 +216,23 @@ jobs:
           fi
           
           cd .. && rm -rf .distribution VectorCAST-Reqs2Tests-*.tar.gz
+      
+      - name: Debug: List files in all relevant directories
+        run: |
+          echo "/__w/vector-vscode-vcast/vector-vscode-vcast"
+          ls -lR /__w/vector-vscode-vcast/vector-vscode-vcast || echo "Not found"
+
+          echo "rds/vector-vscode-vcast"
+          ls -lR rds/vector-vscode-vcast || echo "Not found"
+
+          echo "/tmp/linux_distribution"
+          ls -lR /tmp/linux_distribution || echo "Not found"
+
+          echo "./resources/distribution"
+          ls -lR ./resources/distribution || echo "Not found"
+
+          echo "/vcast/vsix"
+          ls -lR /vcast/vsix || echo "Not found"
 
       - name: Upload coverage artifact
         if: ${{ always() && strategy.job-index == '0' }}
