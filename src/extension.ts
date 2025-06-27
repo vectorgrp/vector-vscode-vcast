@@ -236,7 +236,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
   const pathList = [
     "/tmp/linux_distribution",
     `${process.env.HOME}`,
-    `${process.env.HOME}/tmp/linux_distribution`,
+    `${process.env.HOME}/.vscode`,
     `${process.env.VSIX_DIST}`,
     `${process.env.HOME}/vsix/resources/distribution`,
     `${process.env.HOME}/vsix/linux`,
