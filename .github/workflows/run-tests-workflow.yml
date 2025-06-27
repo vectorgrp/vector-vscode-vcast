@@ -38,7 +38,6 @@ jobs:
       R2T_RELEASE_BRANCH: ${{ github.event.inputs.r2t-release-branch }}
       R2T_RELEASE_URL_LIN: ${{ github.event.inputs.r2t-release-url-linux || '' }}
       R2T_RELEASE_URL_WIN: ${{ github.event.inputs.r2t-release-url-win || '' }}
-      VSIX_DIST: ${{ github.workspace }}/vsix/resources/distribution
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -102,8 +101,8 @@ jobs:
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
           mv distribution /tmp/linux_distribution
 
-          mkdir -p "$VSIX_DIST"
-          cp -r /tmp/linux_distribution/* "$VSIX_DIST/"
+          mkdir -p "/__w/vector-vscode-vcast/vector-vscode-vcast/vsix/resources/distribution"
+          cp -r /tmp/linux_distribution/* "/__w/vector-vscode-vcast/vector-vscode-vcast/vsix/resources/distribution/"
 
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
