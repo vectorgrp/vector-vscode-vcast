@@ -241,7 +241,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     `${process.env.HOME}/vsix/resources/distribution`,
     `${process.env.HOME}/vsix/linux`,
     `./resources/distribution`,
-    `/__w/vector-vscode-vcast/vector-vscode-vcast/resources`,
+    `/home/github/vscode_runners_gh1/6/_work/vector-vscode-vcast/vector-vscode-vcast/vsix/resources/distribution`,
   ];
   logPathContents(pathList);
 
