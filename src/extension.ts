@@ -238,7 +238,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     `${process.env.HOME}/tmp/linux_distribution`,
     `.distribution`,
     `/__w/vector-vscode-vcast/vector-vscode-vcast`,
-    `/__w/vector-vscode-vcast/vector-vscode-vcast/vectorcasttestexplorer-1.0.17.vsix`,
+    `/__w/vector-vscode-vcast/vector-vscode-vcast/vectorcasttestexplorer-1.0.17.linux.vsix`,
   ];
   logPathContents(pathList);
 

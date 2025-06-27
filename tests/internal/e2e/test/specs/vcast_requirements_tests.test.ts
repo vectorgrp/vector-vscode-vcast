@@ -101,6 +101,7 @@ describe("vTypeCheck VS Code Extension", () => {
     } catch (err) {
       console.warn("selectChannel failed, continuing anyway:", err.message);
     }
+    await bottomBar.maximize();
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
     const vcastTestingViewContent = await getViewContent("Testing");
