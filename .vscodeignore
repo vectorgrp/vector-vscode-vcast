@@ -28,4 +28,3 @@ tsconfig_test.json
 !src/manage/webviews/html/**
 !src/manage/webviews/css/**
 !src/manage/webviews/webviewScripts/**
-
