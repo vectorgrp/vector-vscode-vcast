@@ -10,7 +10,7 @@ class Type:
     def __str__(self):
         return self.name
 
-    def to_vectorcast_path(self):
+    def to_vectorcast_path(self, **kwargs):
         raise NotImplementedError()
 
     def to_vectorcast(self, *args, deduplicate=True, **kwargs):
@@ -28,7 +28,7 @@ class Type:
 class BasicType(Type):
     """Represents primitive types like int, float, char"""
 
-    def to_vectorcast_path(self):
+    def to_vectorcast_path(self, **kwargs):
         return [[]]
 
 
@@ -39,8 +39,8 @@ class PointerType(Type):
         super().__init__(name)
         self.pointed_type = pointed_type
 
-    def to_vectorcast_path(self):
-        compiled_pointed = self.pointed_type.to_vectorcast_path()
+    def to_vectorcast_path(self, **kwargs):
+        compiled_pointed = self.pointed_type.to_vectorcast_path(**kwargs)
         compiled_pointer = []
 
         compiled_pointer.append([])
@@ -59,11 +59,11 @@ class ArrayType(Type):
         self.element_type = element_type
         self.size = size
 
-    def to_vectorcast_path(self):
+    def to_vectorcast_path(self, **kwargs):
         compiled_array = []
 
         for idx in range(self.size or 4):
-            compiled_element = self.element_type.to_vectorcast_path()
+            compiled_element = self.element_type.to_vectorcast_path(**kwargs)
             for identifier in compiled_element:
                 compiled_array.append([f'[{idx}]', *identifier])
 
@@ -77,7 +77,7 @@ class StringType(Type):
         super().__init__(name)
         self.size = size
 
-    def to_vectorcast_path(self):
+    def to_vectorcast_path(self, **kwargs):
         return [[]]
 
 
@@ -88,10 +88,10 @@ class StructType(Type):
         super().__init__(name)
         self.fields = fields or []  # List of Identifiers representing fields
 
-    def to_vectorcast_path(self):
+    def to_vectorcast_path(self, **kwargs):
         compiled_struct = []
         for field in self.fields:
-            compiled_field = field.type.to_vectorcast_path()
+            compiled_field = field.type.to_vectorcast_path(**kwargs)
             for identifier in compiled_field:
                 compiled_struct.append([field.name, *identifier])
 
@@ -106,28 +106,26 @@ class ClassType(Type):
         self.fields = fields or []  # List of Identifiers representing fields
         self.constructors = constructors or []  # List of constructor information
 
-    def to_vectorcast_path(self, include_constructors=False):
+    def to_vectorcast_path(self, parent_already_constructed=False, **kwargs):
         compiled_class = []
 
         # Add constructor call if constructors exist and flag is True
-        if include_constructors:
+        if not parent_already_constructed:
             # Add class allocation identifier with (cl) prefix for global class instances
             compiled_class.append([])
 
             for constructor in self.constructors:
-                prototype = constructor.get('prototype', '')
-                # Extract just the function name from prototype like "Manager::Manager()"
-                if '::' in prototype:
-                    func_name = prototype.split('::')[-1].split('(')[0]
-                else:
-                    func_name = prototype.split('(')[0]
+                constructor_name = constructor.get('name', '')
                 compiled_class.append(
-                    [self.name, '<<constructor>>', f'{func_name}()', '<<call>>']
+                    # [self.name, '<<constructor>>', f'{func_name}()', '<<call>>']
+                    [self.name, '<<constructor>>', constructor_name, '<<call>>']
                 )
 
         # Add fields
         for field in self.fields:
-            compiled_field = field.type.to_vectorcast_path()
+            compiled_field = field.type.to_vectorcast_path(
+                **kwargs, parent_already_constructed=True
+            )
             for identifier in compiled_field:
                 compiled_class.append([self.name, field.name, *identifier])
 
@@ -167,22 +165,20 @@ class FunctionType(Type):
             None  # ClassType if this is a member function, None otherwise
         )
 
-    def to_vectorcast_path(self, top_level=False):
+    def to_vectorcast_path(self, **kwargs):
         param_prefix = [self.unit, self.name]
         global_prefix = [self.unit, '<<GLOBAL>>']
 
         compiled_function = []
         if self.origin_class is not None:
-            compiled_class = self.origin_class.to_vectorcast_path(
-                include_constructors=top_level
-            )
+            compiled_class = self.origin_class.to_vectorcast_path(**kwargs)
             for identifier in compiled_class:
                 compiled_function.append(
                     [*global_prefix, '(cl)', self.origin_class.name, *identifier]
                 )
 
         for g in self.globals:
-            compiled_global = g.type.to_vectorcast_path()
+            compiled_global = g.type.to_vectorcast_path(**kwargs)
 
             # Handle class instances with (cl) prefix
             if isinstance(g.type, ClassType):
@@ -195,17 +191,17 @@ class FunctionType(Type):
                     compiled_function.append([*global_prefix, g.name, *identifier])
 
         for param in self.parameters:
-            compiled_param = param.type.to_vectorcast_path()
+            compiled_param = param.type.to_vectorcast_path(**kwargs)
             for identifier in compiled_param:
                 compiled_function.append([*param_prefix, param.name, *identifier])
 
         if self.return_type:
-            compiled_return = self.return_type.to_vectorcast_path()
+            compiled_return = self.return_type.to_vectorcast_path(**kwargs)
             for identifier in compiled_return:
                 compiled_function.append([*param_prefix, 'return', *identifier])
 
         for called_func in self.called_functions:
-            compiled_called_func = called_func.type.to_vectorcast_path()
+            compiled_called_func = called_func.type.to_vectorcast_path(**kwargs)
             compiled_function.extend(compiled_called_func)
 
         return compiled_function
@@ -342,8 +338,12 @@ class TypeResolver:
 
         # Add constructors
         for constructor in type_elem.findall('constructor'):
+            constructor_prog = constructor.find('subprog')
+            constructor_name = constructor_prog.get('name').split('::')[-1]
+            constructor_name += constructor_prog.get('parameterization', '')
+
             constructor_info = {
-                'prototype': constructor.get('prototype'),
+                'name': constructor_name,
                 'index': constructor.get('index'),
             }
             class_type.constructors.append(constructor_info)

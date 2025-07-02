@@ -358,9 +358,7 @@ class Environment:
         remove_surely_stubbed_inputs=False,
     ):
         try:
-            all_identifiers = self.type_resolver.resolve(function_name).to_vectorcast(
-                top_level=True
-            )
+            all_identifiers = self.type_resolver.resolve(function_name).to_vectorcast()
         except Exception as e:
             logging.debug(
                 f'Failed to resolve identifiers for function {function_name}: {e}'
