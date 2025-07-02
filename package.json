@@ -301,12 +301,6 @@
         "title": "Show Requirements"
       },
       {
-        "command": "vectorcastTestExplorer.configureAPISettings",
-        "category": "VectorCAST Test Explorer",
-        "title": "Configure Azure OpenAI Settings",
-        "detail": "Configure Azure OpenAI API settings required for requirements and requirement test generation"
-      },
-      {
         "command": "vectorcastTestExplorer.removeRequirements",
         "category": "VectorCAST Test Explorer",
         "title": "Remove Requirements"
@@ -347,7 +341,7 @@
           "vectorcastTestExplorer.useDataServer": {
             "type": "boolean",
             "order": 2,
-            "default": false,
+            "default": true,
             "description": "Provides faster interaction with VectorCAST environments"
           },
           "vectorcastTestExplorer.automaticallyUpdateManageProject": {
