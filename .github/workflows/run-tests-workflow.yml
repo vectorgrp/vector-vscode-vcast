@@ -4,12 +4,10 @@ on:
   push:
     branches:
       - main
-      - autoreq
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     branches:
       - main
-      - autoreq
   release:
   workflow_dispatch:
     inputs:
