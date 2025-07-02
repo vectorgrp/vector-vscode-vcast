@@ -161,7 +161,9 @@ class Codebase:
                             file_symbols_count += 1
                             if symbol.get('kind') in self.INDEXABLE_KINDS:
                                 indexable_symbols_count += 1
-                                name = symbol['name']
+                                name = '::'.join(
+                                    symbol['namespaces'] + [symbol['name']]
+                                )
                                 start_line = symbol['range']['start']['line']
                                 end_line = symbol['range']['end']['line']
 

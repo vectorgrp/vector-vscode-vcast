@@ -913,16 +913,22 @@ Tip:
 
             if compile_error_output.strip():
                 error_lines.append(compile_error_output.strip())
-        else:
-            # Extract feedback from test execution
-            # We likely do not want to include this
-            for line in lines:
-                if '========' in line:
-                    break
-                elif re.search(r'\[\s+FAIL\s+\]', line):
-                    test_fail_lines.append(line.strip())
-                elif re.search(r'\[\s+\]', line):
-                    test_fail_lines.append(line.strip())
+
+        # Check for segfauls
+        segfault_index = output.find('Segmentation Violation')
+        if segfault_index != -1:
+            error_lines.append(
+                'Segmentation Violation detected. This usually means that the test case is leaving some input/global/stub values uninitialized or dereferencing null pointers.'
+            )
+
+        # Extract feedback from test execution
+        for line in lines:
+            if '========' in line:
+                break
+            elif re.search(r'\[\s+FAIL\s+\]', line):
+                test_fail_lines.append(line.strip())
+            elif re.search(r'\[\s+\]', line):
+                test_fail_lines.append(line.strip())
 
         logging.debug('Output:\n%s', output)
         logging.debug('Errors:\n%s', '\n'.join(error_lines))

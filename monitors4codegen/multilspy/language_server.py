@@ -761,19 +761,31 @@ class LanguageServer:
             assert LSPConstants.NAME in item
             assert LSPConstants.KIND in item
 
+            item['namespaces'] = []
             if LSPConstants.CHILDREN in item:
                 # TODO: l_tree should be a list of TreeRepr. Define the following function to return TreeRepr as well
 
                 def visit_tree_nodes_and_build_tree_repr(
-                    tree: LSPTypes.DocumentSymbol,
+                    tree: LSPTypes.DocumentSymbol, parent_namespaces: List[str] = None
                 ) -> List[multilspy_types.UnifiedSymbolInformation]:
                     l: List[multilspy_types.UnifiedSymbolInformation] = []
+
+                    if parent_namespaces is None:
+                        parent_namespaces = []
+                    tree['namespaces'] = parent_namespaces.copy()
+
+                    if tree['kind'] == LSPTypes.SymbolKind.Namespace:
+                        # If the symbol is a namespace or module, we need to add the parent namespaces to the symbol
+                        parent_namespaces.append(tree['name'])
+
                     children = tree['children'] if 'children' in tree else []
                     if 'children' in tree:
                         del tree['children']
+
                     l.append(multilspy_types.UnifiedSymbolInformation(**tree))
+
                     for child in children:
-                        l.extend(visit_tree_nodes_and_build_tree_repr(child))
+                        l.extend(visit_tree_nodes_and_build_tree_repr(child, parent_namespaces=parent_namespaces))
                     return l
 
                 ret.extend(visit_tree_nodes_and_build_tree_repr(item))

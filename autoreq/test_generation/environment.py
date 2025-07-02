@@ -11,6 +11,7 @@ import sqlite3
 import logging
 import charset_normalizer
 
+from autoreq.test_generation.type_resolver import TypeResolver
 from autoreq.util import (
     are_paths_equal,
     prune_code,
@@ -295,8 +296,15 @@ class Environment:
         return output
 
     @cached_property
-    def allowed_identifiers(self) -> List[str]:
-        """Get allowed identifiers for test generation."""
+    def type_resolver(self):
+        param_file = os.path.join(self.env_dir, self.env_name, 'param.xml')
+        types_file = os.path.join(self.env_dir, self.env_name, 'types.xml')
+
+        return TypeResolver(param_file, types_file)
+
+    @cached_property
+    def _generic_allowed_identifiers_backup(self) -> List[str]:
+        """Get allowed identifiers for test generation in case the type resolver does not work."""
         tst_file_path = self._get_temporary_file_path(
             f'identifiers_template_{self.env_name}.tst'
         )
@@ -349,7 +357,15 @@ class Environment:
         remove_surely_stubbed_returns=False,
         remove_surely_stubbed_inputs=False,
     ):
-        all_identifiers = self.allowed_identifiers
+        try:
+            all_identifiers = self.type_resolver.resolve(function_name).to_vectorcast(
+                top_level=True
+            )
+        except Exception as e:
+            logging.debug(
+                f'Failed to resolve identifiers for function {function_name}: {e}'
+            )
+            all_identifiers = self._generic_allowed_identifiers_backup
         definition = self.tu_codebase.find_definitions_by_name(function_name)[0]
 
         if focus_lines:

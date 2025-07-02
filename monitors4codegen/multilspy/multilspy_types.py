@@ -217,6 +217,8 @@ class UnifiedSymbolInformation(TypedDict):
     selectionRange: NotRequired[Range]
     """ The range that should be selected and revealed when this symbol is being picked, e.g the name of a function.
     Must be contained by the `range`. """
+    namespaces: NotRequired[List[str]]
+    """ A list of namespaces that this symbol belongs to. This is used to provide a full namespace path for the symbol"""
 
 
 TreeRepr = Dict[int, List['TreeRepr']]

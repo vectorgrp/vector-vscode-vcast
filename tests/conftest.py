@@ -2,8 +2,10 @@ import json
 import os
 import tarfile
 import requests
+import difflib
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+
 
 import pytest
 
@@ -39,6 +41,33 @@ class BaseFileRecorder:
     def _compare_files(self, actual_path: str, expected_path: str):
         """Override this method in subclasses to implement specific comparison logic."""
         raise NotImplementedError('Subclasses must implement _compare_files method')
+
+
+class GenericFileRecorder(BaseFileRecorder):
+    """Generic recorder for text files."""
+
+    def _compare_files(self, actual_path: str, expected_path: str):
+        """Compare text files line by line."""
+        with open(actual_path, 'r', encoding='utf-8') as actual_file:
+            actual_lines = actual_file.readlines()
+
+        with open(expected_path, 'r', encoding='utf-8') as expected_file:
+            expected_lines = expected_file.readlines()
+
+        diff = difflib.unified_diff(
+            expected_lines,
+            actual_lines,
+            lineterm='',
+            fromfile='expected',
+            tofile='actual',
+        )
+
+        diff_output = '\n'.join(diff)
+        if diff_output:
+            print(f'Differences found:\n{diff_output}')
+            return False
+
+        return True
 
 
 class TestFileRecorder(BaseFileRecorder):
@@ -325,3 +354,9 @@ def test_output_recorder(recording_mode, request):
 def requirements_output_recorder(recording_mode, request):
     """Fixture to handle recording and replaying of requirements output files."""
     return RequirementsFileRecorder(recording_mode, request.node.name)
+
+
+@pytest.fixture
+def generic_output_recorder(recording_mode, request):
+    """Fixture to handle recording and replaying of generic text output files."""
+    return GenericFileRecorder(recording_mode, request.node.name)

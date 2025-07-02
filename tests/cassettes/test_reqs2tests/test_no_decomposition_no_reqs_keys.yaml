@@ -294,10 +294,7 @@ interactions:
       "schema": {"$defs": {"ExpectedValueMapping": {"additionalProperties": false,
       "properties": {"identifier": {"$ref": "#/$defs/Identifier"}, "value": {"title":
       "Value", "type": "string"}}, "required": ["identifier", "value"], "title": "ExpectedValueMapping",
-      "type": "object"}, "Identifier": {"enum": ["USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_INT1",
-      "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_INT2", "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_INT3",
-      "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_FLT1", "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_STR1",
-      "USER_GLOBALS_VCAST.<<GLOBAL>>.VECTORCAST_BUFFER[0..3]", "manager.Add_Included_Dessert.Order",
+      "type": "object"}, "Identifier": {"enum": ["manager.Add_Included_Dessert.Order",
       "manager.Add_Included_Dessert.Order[0].Soup", "manager.Add_Included_Dessert.Order[0].Salad",
       "manager.Add_Included_Dessert.Order[0].Entree", "manager.Add_Included_Dessert.Order[0].Dessert",
       "manager.Add_Included_Dessert.Order[0].Beverage"], "title": "Identifier", "type":
@@ -331,13 +328,13 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '27831'
+      - '27529'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.77.0
+      - AsyncAzureOpenAI/Python 1.58.1
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -349,9 +346,7 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.77.0
-      x-stainless-read-timeout:
-      - '600'
+      - 1.58.1
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -368,33 +363,34 @@ interactions:
         need to create an order with these specific values. The function should then
         set the Dessert field to CAKE. We will allocate an order, set Entree to LOBSTER,
         Salad to GREEN, Beverage to WINE, and Dessert to NO_DESSERT (to ensure it
-        is changed by the function). After calling the function, we expect Dessert
-        to be set to CAKE. Other fields are not relevant to the requirement and can
-        be left at their default or unspecified values.\",\"test_mapping_analysis\":\"The
-        requirement is directly mapped to the second branch in the Add_Included_Dessert
-        function: if Entree is LOBSTER, Salad is GREEN, and Beverage is WINE, then
-        Dessert is set to CAKE. By setting these input values and checking the Dessert
-        field, we ensure the requirement is exercised and validated.\",\"test_case\":{\"test_name\":\"Test_Lobster_Green_Wine_Results_In_Cake\",\"test_description\":\"Tests
+        is not already CAKE). After calling the function, we expect Dessert to be
+        set to CAKE.\",\"test_mapping_analysis\":\"The requirement specifies a precise
+        combination of entree, salad, and beverage that should result in Dessert being
+        set to CAKE. The code checks for this combination and sets Dessert accordingly.
+        By setting the input values to LOBSTER, GREEN, and WINE, and verifying that
+        Dessert is set to CAKE, we directly test the requirement. All other fields
+        are set as required for completeness, but only Dessert is expected to change
+        as per the requirement.\",\"test_case\":{\"test_name\":\"Test_AddIncludedDessert_LobsterGreenWine_Cake\",\"test_description\":\"Tests
         that Add_Included_Dessert sets Dessert to CAKE when Entree is LOBSTER, Salad
         is GREEN, and Beverage is WINE, as required.\",\"requirement_id\":\"Add_Included_Dessert.2\",\"unit_name\":\"manager\",\"subprogram_name\":\"Add_Included_Dessert\",\"input_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order\",\"value\":\"\u003c\u003cmalloc
-        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1750064158,"id":"chatcmpl-BizvCOfFEUdBUAZMZLZd3z4iSfQt6","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":430,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":6369,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":6799}}
+        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Soup\",\"value\":\"NO_SOUP\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1751372627,"id":"chatcmpl-BoUJX8D8HlZZ7UQCsmJczIaWORM6u","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":455,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":6274,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":6729}}
 
         '
     headers:
       Content-Length:
-      - '3084'
+      - '3212'
       Content-Type:
       - application/json
       Date:
-      - Mon, 16 Jun 2025 08:56:02 GMT
+      - Tue, 01 Jul 2025 12:23:50 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 4a0c2dc4-86d9-4720-a4f6-9a14e1ac43f5
+      - 12cbc45a-41a9-4b1d-a75a-5f35896e9ad1
       azureml-model-session:
-      - d001-20250530223523
+      - d067-20250625125422
       cmp-upstream-response-duration:
-      - '12311'
+      - '3869'
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -410,11 +406,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '994'
+      - '996'
       x-ratelimit-remaining-tokens:
-      - '943201'
+      - '945836'
       x-request-id:
-      - 238a9d72-fb87-46e7-b083-7e751310de7f
+      - 5ef3c426-92f4-4edc-8689-d7cbaa7626e1
     status:
       code: 200
       message: OK
