@@ -10,6 +10,17 @@ on:
       - main
   release:
   workflow_dispatch:
+    inputs:
+      r2t-release-url-linux:
+        description: 'Linux release URL to be used for the bundle'
+        required: false
+      r2t-release-url-win:
+        description: 'Windows release URL to be used for the bundle'
+        required: false
+      r2t-release-branch:
+        description: 'Release branch to be used for the bundle'
+        required: false
+        default: "demo_release"
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -17,11 +28,14 @@ jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
     env:
       ENABLE_ATG_FEATURE: TRUE
       LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      R2T_RELEASE_BRANCH: ${{ github.event.inputs.r2t-release-branch }}
+      R2T_RELEASE_URL_LIN: ${{ github.event.inputs.r2t-release-url-linux || '' }}
+      R2T_RELEASE_URL_WIN: ${{ github.event.inputs.r2t-release-url-win || '' }}
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -70,8 +84,42 @@ jobs:
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
-      - name: Package with VSCE
-        run: npm run package
+      - name: Pull latest reqs2tests release
+        shell: bash
+        run: |
+          python3 ./ci/get_most_recent_reqs2tests_distribution.py
+          if [ ! -f "autoreq-linux.tar.gz" ]; then
+            echo "Error: autoreq-linux.tar.gz not found."
+            exit 1
+          fi
+          if [ ! -f "autoreq-win.tar.gz" ]; then
+            echo "Error: autoreq-win.tar.gz not found."
+            exit 1
+          fi
+          tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
+          mv distribution /tmp/linux_distribution
+          tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
+          mv distribution /tmp/win_distribution
+
+      - name: Package with VSCE - Linux
+        run: |
+          mv /tmp/linux_distribution ./resources/distribution
+          npm run package
+          rm -rf ./resources/distribution
+          VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
+          NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
+          mv $VSIX_FILE $NEW_VSIX_FILE
+          echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
+
+      - name: Package with VSCE - Windows
+        run: |
+          mv /tmp/win_distribution ./resources/distribution
+          npm run package
+          rm -rf ./resources/distribution
+          VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
+          NEW_VSIX_FILE="${VSIX_FILE%.vsix}.win.vsix"
+          mv $VSIX_FILE $NEW_VSIX_FILE
+          echo "WIN_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
 
       - name: Vcast activation
         run: |
@@ -93,15 +141,14 @@ jobs:
         run: npm run gh-test | tee output.txt
         shell: bash
 
-      - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action/linux@v2
+      - name: Publish unit tests results
+        uses: mikepenz/action-junit-report@v5
         if: always()
         env:
           CHECK_NAME: Unit Test results - Vcast ${{ matrix.vcast }}
         with:
+          report_paths: ./test-output.xml
           check_name: ${{ env.CHECK_NAME }}
-          files: |
-            ./test-output.xml
 
       - name: Show coverage summary
         if: ${{ always() && strategy.job-index == '3' }}
@@ -123,33 +170,74 @@ jobs:
           title="Coverage report URL" && \
           [ -z $(cat url.txt) ] && echo "::notice title=$title::URL not found" || echo "::notice title=$title::$(cat url.txt)"
 
-      # Upload artifacts
-      - name: Find VSIX File
-        if: always()
-        run: |
-          VSIX_FILE=$(ls /__w/vector-vscode-vcast/vector-vscode-vcast/*.vsix)
-          echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
-
       - name: Upload vectorcasttestexplorer artifact
-        uses: actions/upload-artifact@v4
         if: ${{ always() && strategy.job-index == '0' }}
-        with:
-          name: vectorcasttestexplorer
-          path: ${{ env.VSIX_FILE }}
+        shell: bash
+        run: |
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"
+          README_URL="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/demo-data/Readme.pdf"
+          ENV_SAMPLES=(
+            "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/demo-data/TUTORIAL_C.zip"
+          )
+          mkdir .distribution && cd .distribution
+          
+          wget $README_URL -O Readme.pdf
+          for url in "${ENV_SAMPLES[@]}"; do
+            wget $url -O $(basename $url)
+            unzip $(basename $url)
+            rm $(basename $url)
+          done
+          
+          echo "## Distribution - Linux" >> $GITHUB_STEP_SUMMARY
+          if [[ -f ${{ env.LINUX_VSIX_FILE }} ]] ; then
+             VSIX_FILE=${{ env.LINUX_VSIX_FILE }}
+             cp $VSIX_FILE $(basename "${VSIX_FILE%.linux.vsix}.vsix")
+             tar -cvzf ../VectorCAST-Reqs2Tests-Linux.tar.gz * > /dev/null
+             URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
+             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Linux.tar.gz
+             echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
+             rm *.vsix
+          else
+             echo "Unable to build distribution for Linux" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "## Distribution - Windows" >> $GITHUB_STEP_SUMMARY
+          if [[ -f ${{ env.WIN_VSIX_FILE }} ]] ; then
+             VSIX_FILE=${{ env.WIN_VSIX_FILE }}
+             cp $VSIX_FILE $(basename "${VSIX_FILE%.win.vsix}.vsix")
+             tar -cvzf ../VectorCAST-Reqs2Tests-Windows.tar.gz * > /dev/null
+             URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Windows.tar.gz"
+             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Windows.tar.gz
+             echo "[Download distribution - Windows]($URL)" >> $GITHUB_STEP_SUMMARY
+          else
+             echo "Unable to build distribution for Windows" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          cd .. && rm -rf .distribution VectorCAST-Reqs2Tests-*.tar.gz
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
         if: ${{ always() && strategy.job-index == '0' }}
-        with:
-          name: coverage
-          path: ./coverage
+        shell: bash
+        run: |
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"          
+          echo "## Coverage" >> $GITHUB_STEP_SUMMARY
+          if [[ -d ./coverage ]] ; then
+             cd coverage && tar -cvzf ../coverage.tar.gz * > /dev/null && cd ..
+             URL="$ARTIFACTORY_URL/coverage/"
+             curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T coverage.tar.gz
+             echo "[Download coverage artifacts]($URL)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No coverage artifacts found" >> $GITHUB_STEP_SUMMARY
+          fi
 
       # Upload release asset
       - name: Upload release asset
         if: ${{ github.event_name == 'release' && strategy.job-index == '0' }}
         run: |
           url="${{ github.event.release.upload_url }}" && \
-          export upload_url=${url%%\{*}?name=vectorcasttestexplorer-${{ github.event.release.tag_name }}.vsix && \
+          export upload_url=${url%%\{*}?name=vectorcasttestexplorer-${{ github.event.release.tag_name }}.linux.vsix && \
           curl -L \
           -X POST \
           -H "Accept: application/vnd.github+json" \
@@ -157,12 +245,22 @@ jobs:
           -H "X-GitHub-Api-Version: 2022-11-28" \
           -H "Content-Type: application/octet-stream" \
           $upload_url \
-          --data-binary "@${{ env.VSIX_FILE }}"
+          --data-binary "@${{ env.LINUX_VSIX_FILE }}"
+          
+          export upload_url=${url%%\{*}?name=vectorcasttestexplorer-${{ github.event.release.tag_name }}.win.vsix && \
+          curl -L \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          -H "Content-Type: application/octet-stream" \
+          $upload_url \
+          --data-binary "@${{ env.WIN_VSIX_FILE }}"
 
   generate-e2e-matrix:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -202,7 +300,7 @@ jobs:
     needs: generate-e2e-matrix
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -259,6 +357,40 @@ jobs:
           path: |
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+      
+      - name: Pull latest reqs2tests release
+        shell: bash
+        run: |
+          python3 ./ci/get_most_recent_reqs2tests_distribution.py
+          if [ ! -f "autoreq-linux.tar.gz" ]; then
+            echo "Error: autoreq-linux.tar.gz not found."
+            exit 1
+          fi
+          if [ ! -f "autoreq-win.tar.gz" ]; then
+            echo "Error: autoreq-win.tar.gz not found."
+            exit 1
+          fi
+          tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
+          mv distribution /tmp/linux_distribution
+
+          mkdir -p "$GITHUB_WORKSPACE/vsix/resources/distribution"
+          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/vsix/resources/distribution/"
+
+          tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
+          mv distribution /tmp/win_distribution
+
+      - name: Package with VSCE - Linux
+        run: |
+          mv /tmp/linux_distribution ./resources/distribution
+          npm run package
+
+          echo "Contents of $GITHUB_WORKSPACE/vsix/resources/distribution:"
+          ls -R $GITHUB_WORKSPACE/vsix/resources/distribution
+
+          VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
+          NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
+          mv $VSIX_FILE $NEW_VSIX_FILE
+          echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
 
       - name: Package with VSCE
         run: npm run package
@@ -298,15 +430,13 @@ jobs:
           ./tests/internal/e2e/run_e2e_tests.sh
 
       - name: Publish e2e tests results
-        uses: EnricoMi/publish-unit-test-result-action/linux@v2
+        uses: mikepenz/action-junit-report@v5
         if: always()
         env:
           CHECK_NAME: E2e Test results - Vcast ${{ matrix.version }} - Group ${{ matrix.group }}
         with:
+          report_paths: ./tests/internal/e2e/test_results/*.xml
           check_name: ${{ env.CHECK_NAME }}
-          large_files: true
-          files: |
-            ./tests/internal/e2e/test_results/*.xml
 
       - name: Show run summary
         if: always()
@@ -316,7 +446,7 @@ jobs:
           echo "${content}" >> $GITHUB_STEP_SUMMARY
           
           COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}"
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/tests-results"
           count=`ls -1 tests/internal/e2e/*.png 2>/dev/null | wc -l`
           if [ $count != 0 ] ; then
             cd tests/internal/e2e
@@ -346,7 +476,7 @@ jobs:
   black:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -397,7 +527,7 @@ jobs:
   prettier:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
@@ -449,7 +579,7 @@ jobs:
   xo:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: [self-hosted, vscode-vcast, Linux]
 
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
