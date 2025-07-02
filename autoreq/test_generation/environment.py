@@ -856,13 +856,18 @@ class Environment:
         else:
             raise FileNotFoundError(f'Translation unit file not found for {unit_name}')
 
-        detected = charset_normalizer.from_path(tu_path).best()
-        if detected is None:
-            # Fallback to UTF-8 if detection fails
+        try:
             encoding = 'utf-8'
             with open(tu_path, 'r', encoding=encoding) as f:
                 content = f.read()
-        else:
+        except UnicodeError:
+            detected = charset_normalizer.from_path(tu_path).best()
+
+            if detected is None:
+                raise ValueError(
+                    'Failed to detect encoding for the translation unit file.'
+                )
+
             encoding = detected.encoding
             content = str(detected)
 
