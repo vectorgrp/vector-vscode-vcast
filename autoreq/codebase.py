@@ -162,9 +162,10 @@ class Codebase:
                             file_symbols_count += 1
                             if symbol.get('kind') in self.INDEXABLE_KINDS:
                                 indexable_symbols_count += 1
-                                name = '::'.join(
+                                qualified_name = '::'.join(
                                     symbol['namespaces'] + [symbol['name']]
                                 )
+                                unqualified_name = symbol['name']
                                 start_line = symbol['range']['start']['line']
                                 end_line = symbol['range']['end']['line']
 
@@ -172,18 +173,23 @@ class Codebase:
                                 definition_lines = lines[start_line : end_line + 1]
                                 definition_text = '\n'.join(definition_lines)
 
-                                if name not in self._definition_index:
-                                    self._definition_index[name] = []
-                                self._definition_index[name].append(
-                                    {
-                                        'name': name,
-                                        'kind': symbol['kind'],
-                                        'file': abs_file,
-                                        'start_line': start_line,
-                                        'end_line': end_line,
-                                        'definition': definition_text,
-                                    }
-                                )
+                                for name in {
+                                    qualified_name,
+                                    unqualified_name,
+                                }:
+                                    if name not in self._definition_index:
+                                        self._definition_index[name] = []
+                                    self._definition_index[name].append(
+                                        {
+                                            'name': qualified_name,
+                                            'unqualified_name': unqualified_name,
+                                            'kind': symbol['kind'],
+                                            'file': abs_file,
+                                            'start_line': start_line,
+                                            'end_line': end_line,
+                                            'definition': definition_text,
+                                        }
+                                    )
 
                         logger.debug(
                             f'File processed: {file_symbols_count} total symbols, {indexable_symbols_count} indexable'
