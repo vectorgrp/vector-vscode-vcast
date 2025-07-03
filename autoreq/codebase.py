@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import List, Dict, Optional, Set, Union
+from autoreq.constants import SOURCE_FILE_EXTENSIONS
 from autoreq.util import are_paths_equal
 from monitors4codegen.multilspy import SyncLanguageServer
 from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
@@ -121,7 +122,7 @@ class Codebase:
                     )
                 else:
                     files = []
-                    for pattern in ['*.cpp', '*.c']:
+                    for pattern in ['*.' + ext for ext in SOURCE_FILE_EXTENSIONS]:
                         pattern_files = list(path.rglob(pattern))
                         non_blacklisted = [
                             f for f in pattern_files if not self._is_blacklisted(str(f))
