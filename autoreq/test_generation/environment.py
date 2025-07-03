@@ -1,5 +1,6 @@
 from functools import cached_property, lru_cache
 from dataclasses import dataclass
+from glob import glob
 import json
 import os
 from pathlib import Path
@@ -19,7 +20,7 @@ from autoreq.util import (
     get_vectorcast_cmd,
 )
 
-from autoreq.constants import TEST_COVERAGE_SCRIPT_PATH
+from autoreq.constants import SOURCE_FILE_EXTENSIONS, TEST_COVERAGE_SCRIPT_PATH
 
 from typing import Union
 from ..codebase import Codebase
@@ -860,15 +861,7 @@ class Environment:
 
             unit_path = self.source_files[unit_index]
 
-        tu_path_c = os.path.join(self.env_dir, self.env_name, f'{unit_name}.tu.c')
-        tu_path_cpp = os.path.join(self.env_dir, self.env_name, f'{unit_name}.tu.cpp')
-
-        if os.path.exists(tu_path_c):
-            tu_path = tu_path_c
-        elif os.path.exists(tu_path_cpp):
-            tu_path = tu_path_cpp
-        else:
-            raise FileNotFoundError(f'Translation unit file not found for {unit_name}')
+        tu_path = self._get_tu_path(unit_name)
 
         try:
             encoding = 'utf-8'
@@ -927,6 +920,33 @@ class Environment:
             return relevant_content, original_line_mapping
 
         return relevant_content
+
+    def _get_tu_path(self, unit_name: str) -> str:
+        """Get the path to the translation unit file for the specified unit name."""
+        candidate_paths = glob(
+            os.path.join(self.env_dir, self.env_name, f'{unit_name}.tu.*'),
+        )
+
+        candidate_paths = [
+            path
+            for path in candidate_paths
+            if any(
+                path.lower().endswith('.tu.' + ext.lower())
+                for ext in SOURCE_FILE_EXTENSIONS
+            )
+        ]
+
+        if not candidate_paths:
+            raise FileNotFoundError(
+                f'Translation unit file not found for unit {unit_name} in environment {self.env_name}'
+            )
+
+        if len(candidate_paths) > 1:
+            logging.warning(
+                f'Multiple translation unit files found for unit {unit_name}: {candidate_paths}. Using the first one.'
+            )
+
+        return candidate_paths[0]
 
     @staticmethod
     def parse_test_script(tst_file_path: Union[str, os.PathLike]) -> List[TestCase]:

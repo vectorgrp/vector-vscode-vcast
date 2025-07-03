@@ -7,3 +7,18 @@ TEST_FRAMEWORK_REFERENCE_PATH = (
 TEST_COVERAGE_SCRIPT_PATH = (
     Path(__file__).parent / 'resources/v_coverage.py'
 ).resolve()
+
+SOURCE_FILE_EXTENSIONS = (
+    'c',
+    'cpp',
+    'cxx',
+    'cc',
+    'c++',
+    'tpp',
+    'h',
+    'hpp',
+    'hxx',
+    'hh',
+    'hp',
+    'ipp',
+)
