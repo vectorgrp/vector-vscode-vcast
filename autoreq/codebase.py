@@ -166,6 +166,9 @@ class Codebase:
                                     symbol['namespaces'] + [symbol['name']]
                                 )
                                 unqualified_name = symbol['name']
+                                classless_unqualified_name = unqualified_name.split(
+                                    '::'
+                                )[-1]
                                 start_line = symbol['range']['start']['line']
                                 end_line = symbol['range']['end']['line']
 
@@ -176,6 +179,7 @@ class Codebase:
                                 for name in {
                                     qualified_name,
                                     unqualified_name,
+                                    classless_unqualified_name,
                                 }:
                                     if name not in self._definition_index:
                                         self._definition_index[name] = []
@@ -183,6 +187,7 @@ class Codebase:
                                         {
                                             'name': qualified_name,
                                             'unqualified_name': unqualified_name,
+                                            'classless_unqualified_name': classless_unqualified_name,
                                             'kind': symbol['kind'],
                                             'file': abs_file,
                                             'start_line': start_line,

@@ -115,7 +115,7 @@ class VcastContextBuilder:
 
         definition_groups = defaultdict(list)
         for symbol, definition_text in relevant_definitions.items():
-            if symbol == function_name:
+            if symbol.split('::')[-1] == function_name.split('::')[-1]:
                 continue
             definition_groups[definition_text].append(symbol)
 
