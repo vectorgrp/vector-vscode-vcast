@@ -1,0 +1,136 @@
+
+    <html>
+    <head>
+        <title>Requirements</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; background-color: #ffffff; color: #000000; }
+            h1 { color: #2c3e50; }
+            h2 { color: #34495e; margin-top: 30px; }
+            .requirement { background-color: #f7f7f7; padding: 15px; margin: 10px 0; border-radius: 5px; }
+            .req-key { font-weight: bold; color: #2980b9; }
+            .req-description { margin-top: 10px; color: #333333; }
+        </style>
+    </head>
+    <body>
+        <h1>Requirements</h1>
+    <h2>Get_Check_Total</h2>
+            <div class="requirement">
+                <div class="req-key">Get_Check_Total.1</div>
+                <div class="req-description">The system shall return the check total associated with the specified table index.</div>
+            </div>
+            <h2>Get_Next_Party_To_Be_Seated</h2>
+            <div class="requirement">
+                <div class="req-key">Get_Next_Party_To_Be_Seated.1</div>
+                <div class="req-description">The system shall reset the waiting list index to 0 if it is greater than 9 before accessing the waiting list.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Get_Next_Party_To_Be_Seated.2</div>
+                <div class="req-description">The system shall not reset the waiting list index if it is 9 or less before accessing the waiting list.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Get_Next_Party_To_Be_Seated.3</div>
+                <div class="req-description">The system shall return the party at the current waiting list index and increment the index after returning the party.</div>
+            </div>
+            <h2>Add_Included_Dessert</h2>
+            <div class="requirement">
+                <div class="req-key">Add_Included_Dessert.1</div>
+                <div class="req-description">The system shall set the dessert to PIE when the order includes STEAK as the entree, CAESAR as the salad, and MIXED_DRINK as the beverage.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Add_Included_Dessert.2</div>
+                <div class="req-description">The system shall set the dessert to CAKE when the order includes LOBSTER as the entree, GREEN as the salad, and WINE as the beverage, and the first condition is not met.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Add_Included_Dessert.3</div>
+                <div class="req-description">The system shall leave the dessert unchanged when the order does not meet either of the specified entree, salad, and beverage combinations.</div>
+            </div>
+            <h2>Clear_Table</h2>
+            <div class="requirement">
+                <div class="req-key">Clear_Table.1</div>
+                <div class="req-description">The system shall mark the table as unoccupied and set the number in party to one when clearing a table.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Clear_Table.2</div>
+                <div class="req-description">The system shall set all order fields for each seat at the table to their respective 'no' values when clearing a table.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Clear_Table.3</div>
+                <div class="req-description">The system shall clear the order fields for exactly four seats when clearing a table.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Clear_Table.4</div>
+                <div class="req-description">The system shall set the check total to zero, update the table record, and return a success indicator when clearing a table.</div>
+            </div>
+            <h2>Add_Party_To_Waiting_List</h2>
+            <div class="requirement">
+                <div class="req-key">Add_Party_To_Waiting_List.1</div>
+                <div class="req-description">The system shall reset the waiting list index to zero when the waiting list is full before adding a new party.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Add_Party_To_Waiting_List.2</div>
+                <div class="req-description">The system shall add a new party to the next available position in the waiting list when the list is not full.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Add_Party_To_Waiting_List.3</div>
+                <div class="req-description">The system shall copy each character of a non-empty, non-NULL party name into the waiting list entry.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Add_Party_To_Waiting_List.4</div>
+                <div class="req-description">The system shall not copy any characters if the provided party name is NULL or empty.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Add_Party_To_Waiting_List.5</div>
+                <div class="req-description">The system shall ensure that each party name added to the waiting list is null-terminated.</div>
+            </div>
+            <h2>Place_Order</h2>
+            <div class="requirement">
+                <div class="req-key">Place_Order.1</div>
+                <div class="req-description">The system shall retrieve the table record, mark the table as occupied, increment the party size, store the order for the specified seat, and add any included dessert as appropriate when an order is placed.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Place_Order.2</div>
+                <div class="req-description">The system shall not add any amount to the check total when the entree is not ordered.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Place_Order.3</div>
+                <div class="req-description">The system shall add 14.0 to the check total when the entree ordered is steak.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Place_Order.4</div>
+                <div class="req-description">The system shall add 10.0 to the check total when the entree ordered is chicken.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Place_Order.5</div>
+                <div class="req-description">The system shall add 18.0 to the check total when the entree ordered is lobster.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Place_Order.6</div>
+                <div class="req-description">The system shall add 12.0 to the check total when the entree ordered is pasta.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Place_Order.7</div>
+                <div class="req-description">The system shall not add any amount to the check total when the entree value does not match any defined entree.</div>
+            </div>
+            
+            <div class="requirement">
+                <div class="req-key">Place_Order.8</div>
+                <div class="req-description">The system shall update the table record with the new data and return a success indicator after processing the order.</div>
+            </div>
+            </body></html>

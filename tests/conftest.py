@@ -117,24 +117,100 @@ class RequirementsFileRecorder(BaseFileRecorder):
     """Recorder specifically for requirements files."""
 
     def _compare_files(self, actual_path: str, expected_path: str):
-        """Compare requirements files line by line."""
-        assert actual_path.endswith('.csv') and expected_path.endswith('.csv'), (
-            'Both actual and expected paths must be CSV files.'
-        )
+        def compare_pandas(actual_df, expected_df):
+            for (k1, v1), (k2, v2) in zip(
+                actual_df.to_dict().items(), expected_df.to_dict().items()
+            ):
+                assert k1 == k2, f'Column names do not match: {k1} != {k2}'
+                sorted_v1 = sorted(v1.values())
+                sorted_v2 = sorted(v2.values())
+                assert sorted_v1 == sorted_v2, (
+                    f'Column values do not match for {k1}: {sorted_v1} != {sorted_v2}'
+                )
 
-        import pandas as pd
+        def compare_html_tags(actual_tag, expected_tag):
+            actual_requirements = extract_requirements(actual_tag)
+            expected_requirements = extract_requirements(expected_tag)
 
-        actual_df = pd.read_csv(actual_path)
-        expected_df = pd.read_csv(expected_path)
-        for (k1, v1), (k2, v2) in zip(
-            actual_df.to_dict().items(), expected_df.to_dict().items()
-        ):
-            assert k1 == k2, f'Column names do not match: {k1} != {k2}'
-            sorted_v1 = sorted(v1.values())
-            sorted_v2 = sorted(v2.values())
-            assert sorted_v1 == sorted_v2, (
-                f'Column values do not match for {k1}: {sorted_v1} != {sorted_v2}'
-            )
+            if len(actual_requirements) != len(expected_requirements):
+                return False
+
+            for expected_req in expected_requirements:
+                found_match = False
+                for actual_req in actual_requirements:
+                    if (
+                        expected_req['key'] == actual_req['key']
+                        and expected_req['description'] == actual_req['description']
+                    ):
+                        found_match = True
+                        break
+
+                if not found_match:
+                    return False
+
+            return True
+
+        def extract_requirements(tag):
+            """Extract all requirements from HTML tag into a list of dictionaries."""
+            requirements = []
+
+            # Find all h2 elements (requirement categories)
+            h2_elements = tag.find_all('h2')
+
+            for h2_elem in h2_elements:
+                category_name = h2_elem.text.strip()
+
+                current = h2_elem.next_sibling
+                while current and current.name != 'h2':
+                    if current.name == 'div' and 'requirement' in current.get(
+                        'class', []
+                    ):
+                        req_key = current.find('div', class_='req-key')
+                        req_desc = current.find('div', class_='req-description')
+
+                        if req_key and req_desc:
+                            requirements.append(
+                                {
+                                    'category': category_name,
+                                    'key': req_key.text.strip(),
+                                    'description': req_desc.text.strip(),
+                                }
+                            )
+
+                    current = current.next_sibling
+
+            return requirements
+
+        if actual_path.endswith('.csv') and expected_path.endswith('.csv'):
+            import pandas as pd
+
+            actual_df = pd.read_csv(actual_path)
+            expected_df = pd.read_csv(expected_path)
+            compare_pandas(actual_df, expected_df)
+        elif actual_path.endswith('.xlsx') and expected_path.endswith('.xlsx'):
+            import pandas as pd
+
+            actual_df = pd.read_excel(actual_path)
+            expected_df = pd.read_excel(expected_path)
+            compare_pandas(actual_df, expected_df)
+        elif actual_path.endswith('.html') and expected_path.endswith('.html'):
+            from bs4 import BeautifulSoup
+
+            with open(actual_path, 'r') as actual_file:
+                actual_soup = BeautifulSoup(actual_file, 'html.parser')
+            with open(expected_path, 'r') as expected_file:
+                expected_soup = BeautifulSoup(expected_file, 'html.parser')
+
+            actual_body = actual_soup.find('body')
+            expected_body = expected_soup.find('body')
+
+            if not actual_body or not expected_body:
+                raise ValueError('HTML file must contain a body tag')
+
+            if not compare_html_tags(actual_body, expected_body):
+                raise AssertionError('HTML content does not match')
+        else:
+            raise ValueError('Unsupported file format for requirements comparison. ')
 
 
 @pytest.fixture
@@ -210,7 +286,14 @@ def mock_llm_client(recording_mode):
             'total_cost': 0,
         }
 
-    with patch('autoreq.llm_client.LLMClient.__init__', new=llm_init_side_effect):
+    from aiolimiter import AsyncLimiter
+
+    mock_rate_limit = AsyncLimiter(100**10, 10**10)
+
+    with (
+        patch('autoreq.llm_client.LLMClient.__init__', new=llm_init_side_effect),
+        patch('autoreq.llm_client.RATE_LIMIT', mock_rate_limit),
+    ):
         yield None
 
 
