@@ -64,6 +64,7 @@ ext_modules = (
             'autoreq/codebase.py',
             'autoreq/requirement_generation/generation.py',
             'autoreq/requirement_generation/high_level_generation.py',
+            'autoreq/test_generation/type_resolver.py',
             'autoreq/test_generation/environment.py',
             'autoreq/test_generation/requirement_decomposition.py',
             'autoreq/test_generation/vcast_context_builder.py',
