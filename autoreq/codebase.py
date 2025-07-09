@@ -258,9 +258,11 @@ class Codebase:
 
         functions = [
             def_info
-            for defs in self._definition_index.values()
+            for query_term, defs in self._definition_index.items()
             for def_info in defs
             if def_info['kind'] in self.FUNCTION_KINDS
+            and query_term
+            == def_info['name']  # Only take original qualified definition
         ]
         logger.debug(f'Found {len(functions)} total functions/methods')
 
