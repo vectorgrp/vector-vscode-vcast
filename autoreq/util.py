@@ -1113,8 +1113,6 @@ def generate_custom_coverage_reports(
 
     source_table = _create_source_table(cov_html)
     coverage_div.append(source_table)
-    tbody = cov_html.new_tag('tbody')
-    source_table.append(tbody)
 
     uncovered_required_color = '#e93939'
     covered_required_color = '#6ee96e'
@@ -1124,6 +1122,10 @@ def generate_custom_coverage_reports(
     for rcr in requirement_coverage_results:
         if not full_coverage_report and rcr['fully_covered']:
             continue
+
+        tbody = cov_html.new_tag('tbody')
+        source_table.append(tbody)
+
         all_table_rows = []  # List to hold all HTML lines for source code
         for i, line in enumerate(tu_content.split('\n')):
             tr = cov_html.new_tag('tr')
@@ -1170,6 +1172,8 @@ def generate_custom_coverage_reports(
 
         with open(output_dir / f'{req_id}_coverage.html', 'w') as f:
             f.write(str(cov_html))
+
+        tbody.decompose()
 
 
 def configure_logging():
