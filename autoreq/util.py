@@ -1176,15 +1176,6 @@ def generate_custom_coverage_reports(
         tbody.decompose()
 
 
-def configure_logging():
-    log_level = os.environ.get('REQ2TESTS_LOG_LEVEL', 'WARNING').upper()
-    numeric_level = getattr(logging, log_level, logging.INFO)
-    logging.basicConfig(level=numeric_level)
-
-    # Ensure we do not leak too much information from the OpenAI client
-    logging.getLogger('openai._base_client').setLevel(max(logging.INFO, numeric_level))
-
-
 def are_paths_equal(path1: str, path2: str) -> bool:
     """
     Compare two paths for equality

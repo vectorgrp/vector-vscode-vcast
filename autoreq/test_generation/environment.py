@@ -11,6 +11,7 @@ import tempfile
 import sqlite3
 import logging
 import charset_normalizer
+import traceback
 
 from autoreq.test_generation.type_resolver import TypeResolver
 from autoreq.util import (
@@ -164,7 +165,14 @@ class Environment:
         try:
             return json.loads(result.stdout)
         except json.JSONDecodeError as e:
-            logging.error(f'Failed to parse coverage data: {e}')
+            stacktrace = traceback.format_exc()
+            logging.error(
+                'Failed to parse coverage data',
+                extra={
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                },
+            )
             return None
 
     def run_test_script(
@@ -248,12 +256,21 @@ class Environment:
                     )
                 except subprocess.TimeoutExpired:
                     logging.error(
-                        f"Command '{' '.join(cmd)}' timed out after 30 seconds"
+                        'Commands timed out after 30 seconds',
+                        extra={
+                            'command': ' '.join(cmd),
+                        },
                     )
                     continue
 
-                logging.debug("Command '%s' output:\n%s", cmd, result.stdout)
-                logging.debug('Command: %s Return code: %s', cmd, result.returncode)
+                logging.debug(
+                    'Command executed',
+                    extra={
+                        'command': ' '.join(cmd),
+                        'return_code': result.returncode,
+                        'stdout': result.stdout,
+                    },
+                )
 
                 # TODO: Maybe add special output if timed out?
                 if result is not None:
@@ -267,7 +284,14 @@ class Environment:
                 try:
                     post_run_callback()
                 except Exception as e:
-                    logging.error(f'Error during post_run_callback: {e}')
+                    stacktrace = traceback.format_exc()
+                    logging.error(
+                        'Error during post_run_callback',
+                        extra={
+                            'stacktrace': stacktrace,
+                            'error': str(e),
+                        },
+                    )
 
         finally:
             # Remove the test cases - this will always execute
@@ -284,14 +308,19 @@ class Environment:
                         check=False,
                     )
                     logging.debug(
-                        "Command '%s' output:\n%s", cmd, cleanup_result.stdout
-                    )
-                    logging.debug(
-                        'Command: %s Return code: %s', cmd, cleanup_result.returncode
+                        'Running cleanup command',
+                        extra={
+                            'command': ' '.join(cmd),
+                            'return_code': cleanup_result.returncode,
+                            'stdout': cleanup_result.stdout,
+                        },
                     )
                 except subprocess.TimeoutExpired:
                     logging.error(
-                        f"Command '{' '.join(cmd)}' timed out after 30 seconds"
+                        'Commands timed out after 30 seconds',
+                        extra={
+                            'command': ' '.join(cmd),
+                        },
                     )
 
         return output
@@ -361,8 +390,14 @@ class Environment:
         try:
             all_identifiers = self.type_resolver.resolve(function_name).to_vectorcast()
         except Exception as e:
+            stacktrace = traceback.format_exc()
             logging.debug(
-                f'Failed to resolve identifiers for function {function_name}: {e}'
+                'Failed to resolve identifiers',
+                extra={
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                    'function_name': function_name,
+                },
             )
             all_identifiers = self._generic_allowed_identifiers_backup
         definition = self.tu_codebase.find_definitions_by_name(function_name)[0]
@@ -376,7 +411,13 @@ class Environment:
                 try:
                     unit, subprogram, entity = identifier.split('.')[:3]
                 except Exception:
-                    logging.warning(f'Invalid identifier format: {identifier}')
+                    logging.warning(
+                        'Invalid identifier format',
+                        extra={
+                            'identifier': identifier,
+                            'function_name': function_name,
+                        },
+                    )
                     continue
 
                 if subprogram != '<<GLOBAL>>':
@@ -439,16 +480,38 @@ class Environment:
                     relevant_identifiers.append(identifier)
 
             except IndexError:
-                logging.warning(f'Invalid identifier format: {identifier}')
+                logging.warning(
+                    'Invalid identifier format',
+                    extra={
+                        'identifier': identifier,
+                        'function_name': function_name,
+                    },
+                )
                 continue
 
         logging.debug(
-            f'Found {len(relevant_identifiers)} relevant identifiers for function {function_name}'
+            'Relevant identifiers found',
+            extra={
+                'function_name': function_name,
+                'tot_relevant_identifiers': len(relevant_identifiers),
+                'relevant_identifiers': relevant_identifiers,
+                'focus_lines': focus_lines,
+                'max_array_index': max_array_index,
+                'remove_surely_stubbed_returns': remove_surely_stubbed_returns,
+                'remove_surely_stubbed_inputs': remove_surely_stubbed_inputs,
+            },
         )
 
         if not relevant_identifiers and focus_lines:
             logging.warning(
-                f'No relevant identifiers found for pruned function {function_name}. Using identifiers for unpruned function.'
+                'No relevant identifiers found for pruned function. Using identifiers for unpruned function.',
+                extra={
+                    'function_name': function_name,
+                    'focus_lines': focus_lines,
+                    'max_array_index': max_array_index,
+                    'remove_surely_stubbed_returns': remove_surely_stubbed_returns,
+                    'remove_surely_stubbed_inputs': remove_surely_stubbed_inputs,
+                },
             )
             relevant_identifiers = self.get_allowed_identifiers_for_function(
                 function_name,
@@ -544,18 +607,34 @@ class Environment:
                 # If an output file is expected, verify it exists
                 if check_output_file and not os.path.exists(check_output_file):
                     logging.warning(
-                        f'Command succeeded but expected output file {check_output_file} not found'
+                        'Command succeeded but expected output file not found',
+                        extra={
+                            'command': ' '.join(cmd),
+                            'output_file': check_output_file,
+                        },
                     )
                     return None
                 return result
             else:
                 logging.debug(
-                    f'Command {" ".join(cmd)} failed with return code {result.returncode}: {result.stderr}'
+                    'Command failed',
+                    extra={
+                        'command': ' '.join(cmd),
+                        'return_code': result.returncode,
+                        'stdout': result.stdout,
+                        'stderr': result.stderr,
+                    },
                 )
                 return None
 
         except subprocess.TimeoutExpired:
-            logging.debug(f'Command {" ".join(cmd)} timed out after {timeout} seconds')
+            logging.error(
+                'Commands timed out after 30 seconds',
+                extra={
+                    'command': ' '.join(cmd),
+                    'timeout': timeout,
+                },
+            )
             return None
         except FileNotFoundError:
             logging.debug(f'Command {tool} not found')
@@ -652,7 +731,15 @@ class Environment:
             result, coverage = self.run_test_script(atg_file, with_coverage=True)
             return coverage
         except Exception as e:
-            logging.error(f'Failed to run test script for coverage: {e}')
+            stacktrace = traceback.format_exc()
+            logging.error(
+                'Failed to run test script for coverage',
+                extra={
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                    'atg_file': atg_file,
+                },
+            )
             return None
 
     @cached_property
@@ -755,14 +842,23 @@ class Environment:
                     )
                 else:
                     logging.debug(
-                        f'Function {function["name"]} in unit {unit_name} is not testable due to content mismatch.\n'
-                        f'Function definition: {function["definition"]}\n'
-                        f'Reduced content: {reduced_content}'
+                        f'Function {function["name"]} in unit {unit_name} is not testable due to content mismatch.',
+                        extra={
+                            'unit_name': unit_name,
+                            'function_name': function['name'],
+                            'file': original_source_file,
+                            'function_definition': function['definition'],
+                            'reduced_content': reduced_content,
+                        },
                     )
             else:
                 logging.debug(
-                    f'No matching temporary TU file found for function {function["name"]}\n'
-                    f'Available TUs: {list(temp_path_to_info_map.keys())}, TU file: {abs_temp_tu_file_path}'
+                    f'No matching temporary TU file found for function {function["name"]}. Skipping.',
+                    extra={
+                        'function_name': function['name'],
+                        'tu_file': abs_temp_tu_file_path,
+                        'available_tus': list(temp_path_to_info_map.keys()),
+                    },
                 )
 
         if testable_functions:
@@ -802,7 +898,12 @@ class Environment:
                     added_subprograms.add((unit_name, subprogram_name))
                 else:
                     logging.warning(
-                        f"ATG test case for unit '{unit_name}' but unit not found in environment's source files."
+                        f'ATG test case for unit "{unit_name}" but unit not found in environment\'s source files. Skipping.',
+                        extra={
+                            'unit_name': unit_name,
+                            'subprogram_name': subprogram_name,
+                            'file': original_source_file,
+                        },
                     )
 
         return atg_derived_functions
@@ -943,7 +1044,11 @@ class Environment:
 
         if len(candidate_paths) > 1:
             logging.warning(
-                f'Multiple translation unit files found for unit {unit_name}: {candidate_paths}. Using the first one.'
+                'Multiple translation unit files found for unit. Using the first one.',
+                extra={
+                    'unit_name': unit_name,
+                    'candidate_paths': candidate_paths,
+                },
             )
 
         return candidate_paths[0]

@@ -5,9 +5,10 @@ import logging
 import os
 import tempfile  # Add this import if not already present
 from tqdm import tqdm
+import traceback
 
 from autoreq.test_generation.requirement_decomposition import decompose_requirements
-from autoreq.util import configure_logging
+from autoreq.aq_logging import configure_logging
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
 from .requirements_manager import (
@@ -42,9 +43,16 @@ async def init_requirements_manager(args: argparse.Namespace):
                 decomposed_req[ID_FIELD] = f'{req[ID_FIELD]}.{i + 1}'
                 decomposed_req['Description'] = decomposed_req_description
                 decomposed_reqs.append(decomposed_req)
-            logging.info(f'Original Requirement: {req["Description"]}')
             logging.info(
-                f'Decomposed Requirement: {[r["Description"] for r in decomposed_reqs]}'
+                'Requirement decomposition',
+                extra={
+                    'requirement_id': req[ID_FIELD],
+                    'decomposed_count': len(decomposed_reqs),
+                    'original_requirement': req['Description'],
+                    'decomposed_requirements': [
+                        r['Description'] for r in decomposed_reqs
+                    ],
+                },
             )
 
             if len(decomposed_reqs) > 1:
@@ -114,10 +122,13 @@ async def generate_tests(
                 continue
 
             logging.info(
-                'VectorCAST Test Case:\n%s',
-                test_case.to_vectorcast(
-                    use_requirement_key=not args.no_requirement_keys
-                ),
+                'VectorCAST Test Case',
+                extra={
+                    'requirement_id': test_case.requirement_id,
+                    'test_case': test_case.to_vectorcast(
+                        use_requirement_key=not args.no_requirement_keys
+                    ),
+                },
             )
 
             # Map back to original requirement ID
@@ -134,9 +145,14 @@ async def generate_tests(
             )
 
     except Exception as e:
-        logging.error(f'Unexpected error during test generation: {e}')
-        import traceback
-
+        stacktrace = traceback.format_exc()
+        logging.error(
+            'Unexpected error during test generation',
+            extra={
+                'stacktrace': stacktrace,
+                'error': str(e),
+            },
+        )
         traceback.print_exc()
     finally:
         pbar.close()
@@ -161,7 +177,13 @@ def export_env(args: argparse.Namespace, vectorcast_test_cases: list):
 
         # Run the test script in the real environment
         output = real_environment.run_test_script(tst_file_path)
-        logging.info('Execution Output in real environment:\n%s', output)
+        logging.info(
+            'Execution Output in real environment',
+            extra={
+                'tst_file_path': str(tst_file_path),
+                'output': str(output),
+            },
+        )
 
         # Cleanup real environment
         real_environment.cleanup()
@@ -260,7 +282,7 @@ async def main():
     )
     args = parser.parse_args()
 
-    configure_logging()
+    configure_logging('reqs2tests')
 
     # Initialize the environment directly
     environment = Environment(args.env_path, use_sandbox=False)
@@ -326,9 +348,12 @@ async def main():
 
     if individual_test_generation_needed:
         logging.warning(
-            'Individual test generation was necessary for the following requirements:'
+            'Individual test generation was necessary for the requirements',
+            extra={
+                'individual_test_generation_needed': individual_test_generation_needed,
+                'count': len(individual_test_generation_needed),
+            },
         )
-        logging.warning(', '.join(individual_test_generation_needed))
 
         if args.json_events:
             print(
@@ -347,8 +372,13 @@ async def main():
     ]
 
     if failed_requirements:
-        logging.warning('Failed to generate tests for the following requirements:')
-        logging.warning(', '.join(failed_requirements))
+        logging.warning(
+            'Test generation failed for requirements',
+            extra={
+                'failed_requirements': failed_requirements,
+                'count': len(failed_requirements),
+            },
+        )
 
         if args.json_events:
             print(
@@ -370,10 +400,12 @@ async def main():
 
     if test_failure_requirements:
         logging.warning(
-            'Failing tests were given as feedback for the following requirements:'
+            'Failing tests were given as feedback for the requirements',
+            extra={
+                'test_failure_requirements': test_failure_requirements,
+                'count': len(test_failure_requirements),
+            },
         )
-        logging.warning(', '.join(test_failure_requirements))
-
         if args.json_events:
             print(
                 json.dumps(
@@ -391,9 +423,13 @@ async def main():
     ]
 
     if partial_test_requirements:
-        logging.warning('Partial tests were generated for the following requirements:')
-        logging.warning(', '.join(partial_test_requirements))
-
+        logging.warning(
+            'Partial tests were generated for the requirements',
+            extra={
+                'partial_test_requirements': partial_test_requirements,
+                'count': len(partial_test_requirements),
+            },
+        )
         if args.json_events:
             print(
                 json.dumps(
@@ -410,36 +446,26 @@ async def main():
     total_cost_info = test_generator.llm_client.total_cost
 
     # Display token usage and costs
-    logging.info('Token Usage and Costs:')
     logging.info(
-        f'Generation Model - Input Tokens: {token_usage["generation"]["input_tokens"]}'
+        'Token Usage and Costs',
+        extra={
+            'gen_model_input_tokens': token_usage['generation']['input_tokens'],
+            'gen_model_output_tokens': token_usage['generation']['output_tokens'],
+            'reasoning_model_input_tokens': token_usage['reasoning']['input_tokens'],
+            'reasoning_model_output_tokens': token_usage['reasoning']['output_tokens'],
+            'total_tokens': (
+                token_usage['generation']['input_tokens']
+                + token_usage['generation']['output_tokens']
+                + token_usage['reasoning']['input_tokens']
+                + token_usage['reasoning']['output_tokens']
+            ),
+            'gen_model_input_cost': total_cost_info['generation']['input_cost'],
+            'gen_model_output_cost': total_cost_info['generation']['output_cost'],
+            'reasoning_model_input_cost': total_cost_info['reasoning']['input_cost'],
+            'reasoning_model_output_cost': total_cost_info['reasoning']['output_cost'],
+            'total_cost': total_cost_info['total_cost'],
+        },
     )
-    logging.info(
-        f'Generation Model - Output Tokens: {token_usage["generation"]["output_tokens"]}'
-    )
-    logging.info(
-        f'Reasoning Model - Input Tokens: {token_usage["reasoning"]["input_tokens"]}'
-    )
-    logging.info(
-        f'Reasoning Model - Output Tokens: {token_usage["reasoning"]["output_tokens"]}'
-    )
-    logging.info(
-        f'Total Tokens: {token_usage["generation"]["input_tokens"] + token_usage["generation"]["output_tokens"] + token_usage["reasoning"]["input_tokens"] + token_usage["reasoning"]["output_tokens"]}'
-    )
-
-    logging.info(
-        f'Generation Model - Input Cost: ${total_cost_info["generation"]["input_cost"]:.6f}'
-    )
-    logging.info(
-        f'Generation Model - Output Cost: ${total_cost_info["generation"]["output_cost"]:.6f}'
-    )
-    logging.info(
-        f'Reasoning Model - Input Cost: ${total_cost_info["reasoning"]["input_cost"]:.6f}'
-    )
-    logging.info(
-        f'Reasoning Model - Output Cost: ${total_cost_info["reasoning"]["output_cost"]:.6f}'
-    )
-    logging.info(f'Total Cost: ${total_cost_info["total_cost"]:.6f}')
 
     # Save info logger data to a JSON file
     # with open('info_logger.json', 'w') as info_file:

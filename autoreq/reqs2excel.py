@@ -2,14 +2,16 @@ import os.path
 import typing as t
 from pathlib import Path
 import json
+import asyncio
+import logging
+import traceback
 
 
 from .code2reqs import execute_rgw_commands, save_requirements_to_excel
 from .test_generation.environment import Environment
 from .trace_reqs2code import Reqs2CodeMapper
-from .util import configure_logging, expand_env_paths
-import asyncio
-import logging
+from .util import expand_env_paths
+from .aq_logging import configure_logging
 
 
 def get_requirements_json_path(rgw_path: Path) -> t.Optional[Path]:
@@ -87,9 +89,13 @@ def requirements_to_xlsx(
             else:
                 reqs2code_mapping = {}
         except Exception as e:
+            stacktrace = traceback.format_exc()
             logging.error(
-                'Error occurred during automatic matching requirements to functions: %s',
-                str(e),
+                'Error occurred during automatic matching requirements to functions',
+                extra={
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                },
             )
             logging.info(
                 'Generating Excel file with requirements and functions for manual matching and review...'
@@ -118,9 +124,13 @@ def requirements_to_xlsx(
             else:
                 reqs2code_mapping = {}
         except Exception as e:
+            stacktrace = traceback.format_exc()
             logging.error(
-                'Error occurred during automatic matching requirements to functions: %s',
-                str(e),
+                'Error occurred during automatic matching requirements to functions',
+                extra={
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                },
             )
             logging.info(
                 'Generating Excel file with requirements and functions for manual matching and review...'
@@ -165,8 +175,11 @@ def format_env_requirements(
 
         if not func_info:
             logging.info(
-                'No function found for requirement %s, assigning None',
-                req['description'],
+                'No function found for requirement, assigning None',
+                extra={
+                    'requirement': req['description'],
+                    'function': related_function_name,
+                },
             )
             related_function_name = 'None'
 
@@ -196,7 +209,8 @@ def main(
         if not env.is_built:
             if no_automatic_build:
                 logging.error(
-                    f'Environment {env.env_name} is not built and --no-automatic-build is set. Exiting.'
+                    f'Environment {env.env_name} is not built and --no-automatic-build is set. Exiting.',
+                    extra={'env_name': env.env_name, 'env_dir': env.env_dir},
                 )
                 return
             logging.info(f'Environment {env.env_name} is not built. Building it now...')
@@ -294,7 +308,7 @@ def cli():
 
     args = parser.parse_args()
 
-    configure_logging()
+    configure_logging('reqs2excel')
 
     main(
         args.envs,

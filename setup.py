@@ -62,6 +62,7 @@ ext_modules = (
             'autoreq/search.py',
             'autoreq/constants.py',
             'autoreq/util.py',
+            'autoreq/aq_logging.py',
             'autoreq/codebase.py',
             'autoreq/requirement_generation/generation.py',
             'autoreq/requirement_generation/high_level_generation.py',

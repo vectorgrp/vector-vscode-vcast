@@ -32,6 +32,7 @@ from autoreq.util import (
     generate_clicast_html_coverage_report,
     generate_custom_coverage_reports,
 )
+from autoreq.aq_logging import configure_logging
 
 
 class EvaluationResult(BaseModel):
@@ -533,9 +534,14 @@ async def evaluate_environment(
     try:
         atg_coverage = env.atg_coverage
     except Exception as e:
+        stacktrace = traceback.format_exc()
         logging.error(
-            f'Failed to get ATG coverage for {env_path}: {str(e)}\n'
-            f'Continuing without ATG coverage data.'
+            'Failed to get ATG coverage',
+            extra={
+                'environment': env_path,
+                'error': str(e),
+                'stacktrace': stacktrace,
+            },
         )
         atg_coverage = None
 
@@ -567,13 +573,26 @@ async def evaluate_environment(
             f'Test generation timed out after {max_generation_time} seconds'
         )
         logging.error(
-            f'Test generation timed out for {env_path} after {max_generation_time} seconds'
+            'Test generation timed out',
+            extra={
+                'environment': env_path,
+                'stacktrace': traceback.format_exc(),
+                'timeout': max_generation_time,
+            },
         )
     except Exception as e:
         generation_error = (
             f'Test generation failed: {str(e)}\n{"".join(traceback.format_exc())}'
         )
-        logging.error(f'Test generation failed for {env_path}: {str(e)}')
+        logging.error(
+            'Test generation failed',
+            extra={
+                'environment': env_path,
+                'error': str(e),
+                'stacktrace': traceback.format_exc(),
+            },
+        )
+
     finally:
         pbar.close()
 
@@ -663,7 +682,15 @@ async def evaluate_environment(
             )
             generated_tests_coverage = coverage
         except Exception as e:
-            logging.error(f'Error getting coverage for generated tests: {str(e)}')
+            stacktrace = traceback.format_exc()
+            logging.error(
+                'Error getting coverage for generated tests',
+                extra={
+                    'environment': env_path,
+                    'error': str(e),
+                    'stacktrace': stacktrace,
+                },
+            )
             generated_tests_coverage = {'error': str(e)}
 
     # Calculate requirement coverage
@@ -697,7 +724,15 @@ async def evaluate_environment(
             full_coverage_report=full_coverage_report,
         )
     except Exception as e:
-        logging.error(f'Error generating custom coverage report: {str(e)}')
+        stacktrace = traceback.format_exc()
+        logging.error(
+            'Error generating custom coverage report',
+            extra={
+                'environment': env_path,
+                'error': str(e),
+                'stacktrace': stacktrace,
+            },
+        )
     finally:
         original_coverage_report.unlink(missing_ok=True)
 
@@ -1070,6 +1105,8 @@ async def main():
         default=False,
     )
     args = parser.parse_args()
+
+    configure_logging('evaluate_reqs2tests')
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

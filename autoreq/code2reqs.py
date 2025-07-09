@@ -8,13 +8,14 @@ import subprocess
 import tempfile
 import asyncio
 import logging
+import traceback
 from openpyxl.styles import Font, PatternFill
 from openpyxl import Workbook
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
 from autoreq.requirements_manager import RequirementsManager
-from autoreq.util import configure_logging
+from autoreq.aq_logging import configure_logging
 
 from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
@@ -171,13 +172,28 @@ def execute_command(command_list):
             check=False,  # More secure
         )
         if result.returncode != 0:
-            logging.error(f'Error executing command: {" ".join(command_list)}')
-            logging.error(result.stderr)
+            logging.error(
+                'Error executing command',
+                extra={
+                    'commands': command_list,
+                    'returncode': result.returncode,
+                    'stdout': result.stdout,
+                    'stderr': result.stderr,
+                },
+            )
         else:
             logging.info(result.stdout)
         return result
     except Exception as e:
-        logging.error(f'Failed to execute command: {e}')
+        stacktrace = traceback.format_exc()
+        logging.error(
+            'Failed to execute command',
+            extra={
+                'commands': command_list,
+                'error': str(e),
+                'stacktrace': stacktrace,
+            },
+        )
         raise
 
 
@@ -242,10 +258,6 @@ async def main(
     export_line_number=False,
     generate_high_level_requirements=False,
 ):
-    log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
-    numeric_level = getattr(logging, log_level, logging.INFO)
-    logging.basicConfig(level=numeric_level)
-
     if export_line_number:
         logging.warning(
             'Disabling post-processing of requirements to allow accurate export of covered line numbers'
@@ -417,7 +429,7 @@ def cli():
 
     args = parser.parse_args()
 
-    configure_logging()
+    configure_logging('code2reqs')
 
     asyncio.run(
         main(
