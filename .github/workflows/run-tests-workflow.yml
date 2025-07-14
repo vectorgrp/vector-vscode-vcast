@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       prioritize-spec-group:
-        description: 'Test group to prioritize during E2E tests (e.g., manager)'
+        description: 'Comma-separated list of E2E test groups to run (e.g. groupName1, groupName2, ...)'
         required: false
       r2t-release-url-linux:
         description: 'Linux release URL to be used for the bundle'
