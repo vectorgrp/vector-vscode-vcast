@@ -166,9 +166,7 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
     specGroups["manage"] = {
-      specs: [
-        "./**/**/vcast_manage.test.ts",
-      ],
+      specs: ["./**/**/vcast_manage.test.ts"],
       env: { VCAST_USE_PYTHON: "True", MANAGE_TEST: "True" },
       params: {},
     };
@@ -285,9 +283,7 @@ export function getSpecGroups(useVcast24: boolean) {
     };
 
     specGroups["manage_server"] = {
-      specs: [
-        "./**/**/vcast_manage.test.ts",
-      ],
+      specs: ["./**/**/vcast_manage.test.ts"],
       env: { MANAGE_TEST: "True" },
       params: {},
     };
