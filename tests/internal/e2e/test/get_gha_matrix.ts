@@ -24,22 +24,13 @@ function dumpGhaMatrix() {
 
   // if a group is prioritized, move those entries to the front
   if (prioritizeGroup) {
-    const head: typeof result = [];
-    const tail: typeof result = [];
-
-    result.forEach((entry) => {
-      if (entry.group === prioritizeGroup) {
-        head.push(entry);
-      } else {
-        tail.push(entry);
-      }
-    });
-
+    const head = result.filter((entry) => entry.group === prioritizeGroup);
+    const tail = result.filter((entry) => entry.group !== prioritizeGroup);
     result = [...head, ...tail];
   }
 
   // write out the sorted matrix
-  fs.writeFileSync("gha_matrix.json", JSON.stringify(result, null, 2));
+  fs.writeFileSync("gha_matrix.json", JSON.stringify(result));
 
   // emit for GitHub Actions
   console.log(`matrix=${JSON.stringify(result)}`);
