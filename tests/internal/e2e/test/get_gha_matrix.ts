@@ -24,8 +24,11 @@ function dumpGhaMatrix() {
     const specs = getSpecGroups(is2024OrHigher);
 
     Object.keys(specs).forEach((group) => {
-      // If prioritizedGroups is set, only include groups that match
-      if (prioritizedGroups.length === 0 || prioritizedGroups.includes(group)) {
+      // If prioritizedGroups is set, only include groups that contain one of the names in the list
+      if (
+        prioritizedGroups.length === 0 ||
+        prioritizedGroups.some((pg) => group.includes(pg))
+      ) {
         result.push({ version, group });
       }
     });
@@ -37,7 +40,7 @@ function dumpGhaMatrix() {
     const tail: { version: string; group: string }[] = [];
 
     result.forEach((entry) => {
-      if (prioritizedGroups.includes(entry.group)) {
+      if (prioritizedGroups.some((pg) => entry.group.includes(pg))) {
         head.push(entry);
       } else {
         tail.push(entry);
