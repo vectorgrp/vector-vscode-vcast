@@ -75,6 +75,7 @@ import {
   updateCoverageAndRebuildEnv,
   forceLowerCaseDriveLetter,
   decodeVar,
+  normalizePath,
 } from "./utilities";
 
 import {
@@ -145,6 +146,7 @@ const path = require("path");
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import { parse as csvParse } from "csv-parse/sync";
 const excelToJson = require("convert-excel-to-json");
+
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
@@ -195,37 +197,64 @@ let REQS2TESTS_EXECUTABLE_PATH: string;
 let REQS2EXCEL_EXECUTABLE_PATH: string;
 let REQS2RGW_EXECUTABLE_PATH: string;
 
+/**
+ * Sets up the paths to the executables used by the autoreq feature. Distinguishes between github CI and local.
+ * @param context vscode Context
+ */
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
+  // We need to check if we are on CI because in that case we have to use an alternate base dir to the resource files
+  const isCI = process.env.HOME?.startsWith("/github") ?? false;
+
+  // Base dir of the resource files should be here (see run-tests-workflow.yml/Pull latest reqs2tests release)
+  const vsixResourceBasePath = `${process.env.GITHUB_WORKSPACE}/vsix`;
+
+  // Check existence for debugging reasons
+  if (!fs.existsSync(vsixResourceBasePath)) {
+    logCliError(
+      `VSIX resource folder not found at expected path: ${vsixResourceBasePath}`
+    );
+  } else {
+    logCliOperation(`Found VSIX resource folder at: ${vsixResourceBasePath}`);
+  }
+
+  const baseUri = isCI
+    ? vscode.Uri.file(vsixResourceBasePath)
+    : context.extensionUri;
+
   CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    context.extensionUri,
+    baseUri,
     "resources",
     "distribution",
     "code2reqs"
   ).fsPath;
   REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    context.extensionUri,
+    baseUri,
     "resources",
     "distribution",
     "reqs2tests"
   ).fsPath;
   REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    context.extensionUri,
+    baseUri,
     "resources",
     "distribution",
     "reqs2excel"
   ).fsPath;
   REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    context.extensionUri,
+    baseUri,
     "resources",
     "distribution",
     "reqs2rgw"
   ).fsPath;
 
-  //CODE2REQS_EXECUTABLE_PATH = "code2reqs";
-  //REQS2TESTS_EXECUTABLE_PATH = "reqs2tests";
-  //REQS2EXCEL_EXECUTABLE_PATH = "reqs2excel";
+  // Checking for debugging reasons if the path to the executable exsists or not
+  fs.access(CODE2REQS_EXECUTABLE_PATH, fs.constants.X_OK, (err) => {
+    if (err) {
+      logCliError(`Executable not accessible: ${err}`);
+    } else {
+      logCliOperation("Executable is accessible and executable");
+    }
+  });
 }
-
 function setHardcodedEnvVars() {
   for (const [key, value] of Object.entries(HARDCODED_ENV_VARS)) {
     process.env[key] = value;
@@ -2259,13 +2288,17 @@ async function generateTestsFromRequirements(
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
+  const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(
+    " "
+  )}`;
   logCliOperation(`Executing command: ${commandString}`);
 
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `Generating Tests from Requirements (${fileType}) for ${envName.split(".")[0]}`,
+      title: `Generating Tests from Requirements (${fileType}) for ${
+        envName.split(".")[0]
+      }`,
       cancellable: true,
     },
     async (progress, cancellationToken) => {
@@ -2426,7 +2459,9 @@ async function importRequirementsFromGateway(enviroPath: string) {
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2EXCEL_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
+  const commandString = `${REQS2EXCEL_EXECUTABLE_PATH} ${commandArgs.join(
+    " "
+  )}`;
   logCliOperation(`Executing command: ${commandString}`);
 
   await vscode.window.withProgress(
@@ -2600,7 +2635,7 @@ async function populateRequirementsGateway(enviroPath: string) {
 
 let existingEnvs: string[] = [];
 function updateRequirementsAvailability(enviroPath: string) {
-  const nodeID = makeEnviroNodeID(enviroPath);
+  const nodeID = makeEnviroNodeID(normalizePath(enviroPath));
 
   // the vcast: prefix to allow package.json nodes to control
   // when the VectorCAST context menu should be shown
@@ -2674,7 +2709,9 @@ function generateRequirementsHtml(requirements: any[]): string {
       htmlContent += `
         <div class="requirement">
             <div class="req-id">${req.ID || "No ID"}</div>
-            <div class="req-description">${req.Description || "No Description"}</div>
+            <div class="req-description">${
+              req.Description || "No Description"
+            }</div>
         </div>
       `;
     }

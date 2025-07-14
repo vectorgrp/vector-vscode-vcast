@@ -185,24 +185,25 @@ jobs:
           ENV_SAMPLES=(
             "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/demo-data/TUTORIAL_C.zip"
           )
-          mkdir .distribution && cd .distribution
-          
+          mkdir distribution
+          cd distribution
           wget $README_URL -O Readme.pdf
           for url in "${ENV_SAMPLES[@]}"; do
             wget $url -O $(basename $url)
             unzip $(basename $url)
             rm $(basename $url)
           done
+          cd ..
           
           echo "## Distribution - Linux" >> $GITHUB_STEP_SUMMARY
           if [[ -f ${{ env.LINUX_VSIX_FILE }} ]] ; then
              VSIX_FILE=${{ env.LINUX_VSIX_FILE }}
-             cp $VSIX_FILE $(basename "${VSIX_FILE%.linux.vsix}.vsix")
-             tar -cvzf ../VectorCAST-Reqs2Tests-Linux.tar.gz * > /dev/null
+             cp $VSIX_FILE distribution/$(basename "${VSIX_FILE%.linux.vsix}.vsix")
+             tar -cvzf VectorCAST-Reqs2Tests-Linux.tar.gz distribution > /dev/null
              URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
-             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Linux.tar.gz
+             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Linux.tar.gz
              echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
-             rm *.vsix
+             rm distribution/*.vsix
           else
              echo "Unable to build distribution for Linux" >> $GITHUB_STEP_SUMMARY
           fi
@@ -210,16 +211,16 @@ jobs:
           echo "## Distribution - Windows" >> $GITHUB_STEP_SUMMARY
           if [[ -f ${{ env.WIN_VSIX_FILE }} ]] ; then
              VSIX_FILE=${{ env.WIN_VSIX_FILE }}
-             cp $VSIX_FILE $(basename "${VSIX_FILE%.win.vsix}.vsix")
-             tar -cvzf ../VectorCAST-Reqs2Tests-Windows.tar.gz * > /dev/null
+             cp $VSIX_FILE distribution/$(basename "${VSIX_FILE%.win.vsix}.vsix")
+             tar -cvzf VectorCAST-Reqs2Tests-Windows.tar.gz distribution > /dev/null
              URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Windows.tar.gz"
-             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Windows.tar.gz
+             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Windows.tar.gz
              echo "[Download distribution - Windows]($URL)" >> $GITHUB_STEP_SUMMARY
           else
              echo "Unable to build distribution for Windows" >> $GITHUB_STEP_SUMMARY
           fi
           
-          cd .. && rm -rf .distribution VectorCAST-Reqs2Tests-*.tar.gz
+          rm -rf distribution VectorCAST-Reqs2Tests-*.tar.gz
 
       - name: Upload coverage artifact
         if: ${{ always() && strategy.job-index == '0' }}
@@ -366,6 +367,40 @@ jobs:
           path: |
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+      
+      - name: Pull latest reqs2tests release
+        shell: bash
+        run: |
+          python3 ./ci/get_most_recent_reqs2tests_distribution.py
+          if [ ! -f "autoreq-linux.tar.gz" ]; then
+            echo "Error: autoreq-linux.tar.gz not found."
+            exit 1
+          fi
+          if [ ! -f "autoreq-win.tar.gz" ]; then
+            echo "Error: autoreq-win.tar.gz not found."
+            exit 1
+          fi
+          tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
+          mv distribution /tmp/linux_distribution
+
+          mkdir -p "$GITHUB_WORKSPACE/vsix/resources/distribution"
+          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/vsix/resources/distribution/"
+
+          tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
+          mv distribution /tmp/win_distribution
+
+      - name: Package with VSCE - Linux
+        run: |
+          mv /tmp/linux_distribution ./resources/distribution
+          npm run package
+
+          echo "Contents of $GITHUB_WORKSPACE/vsix/resources/distribution:"
+          ls -R $GITHUB_WORKSPACE/vsix/resources/distribution
+
+          VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
+          NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
+          mv $VSIX_FILE $NEW_VSIX_FILE
+          echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
 
       - name: Package with VSCE
         run: npm run package
