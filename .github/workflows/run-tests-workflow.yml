@@ -227,7 +227,7 @@ jobs:
           ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"          
           echo "## Coverage" >> $GITHUB_STEP_SUMMARY
           if [[ -d ./coverage ]] ; then
-             tar -cvzf coverage.tar.gz coverage > /dev/null
+             cd coverage && tar -cvzf ../coverage.tar.gz * > /dev/null && cd ..
              URL="$ARTIFACTORY_URL/coverage/"
              curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T coverage.tar.gz
              echo "[Download coverage artifacts]($URL)" >> $GITHUB_STEP_SUMMARY
