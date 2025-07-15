@@ -3,13 +3,14 @@ import os
 import tarfile
 import requests
 import difflib
+import subprocess
+import shutil
+import glob
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 
 import pytest
-
-from autoreq.llm_client import LLMClient
 
 
 class BaseFileRecorder:
@@ -218,6 +219,8 @@ def mock_llm_client(recording_mode):
     """Mock LLMClient initialization with default mock configs when not recording."""
     if recording_mode:
         # Validate that only approved models are used during recording
+        from autoreq.llm_client import LLMClient
+
         llm_client = LLMClient()
         model_name = llm_client.config.MODEL_NAME
         reasoning_model_name = llm_client.reasoning_config.MODEL_NAME
@@ -304,6 +307,12 @@ def pytest_addoption(parser):
         action='store_true',
         default=False,
         help='Enable recording mode for both pytest-recording and test output files',
+    )
+    parser.addoption(
+        '--cython',
+        action='store_true',
+        default=False,
+        help='Enable cythonization of the project before running tests',
     )
 
 
@@ -443,3 +452,85 @@ def requirements_output_recorder(recording_mode, request):
 def generic_output_recorder(recording_mode, request):
     """Fixture to handle recording and replaying of generic text output files."""
     return GenericFileRecorder(recording_mode, request.node.name)
+
+
+def pytest_sessionstart(session):
+    """Handle cythonization at the very beginning of the pytest session."""
+    if not session.config.getoption('--cython', default=False):
+        return
+
+    # https://github.com/pytest-dev/pytest-xdist/issues/783
+    if hasattr(session.config, 'workerinput'):
+        return
+
+    # Get the project root directory
+    project_root = Path(__file__).parent.parent
+
+    # Store original working directory
+    original_cwd = os.getcwd()
+
+    try:
+        # Change to project root
+        os.chdir(project_root)
+
+        import sys
+
+        # Run cythonization
+        result = subprocess.run(
+            [sys.executable, 'setup.py', 'build_ext', '--inplace', '-j', '6'],
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=project_root,
+        )
+
+        if result.returncode != 0:
+            pytest.exit(f'Cythonization failed: {result.stderr}', returncode=1)
+
+    except Exception as e:
+        pytest.exit(f'Cythonization failed: {e}', returncode=1)
+
+    finally:
+        # Restore original working directory
+        os.chdir(original_cwd)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Handle cleanup at the end of the pytest session."""
+    if not session.config.getoption('--cython', default=False):
+        return
+
+    # https://github.com/pytest-dev/pytest-xdist/issues/783
+    if hasattr(session.config, 'workerinput'):
+        return
+
+    # Get the project root directory
+    project_root = Path(__file__).parent.parent
+
+    # Cleanup: Remove all generated .so files and build artifacts
+
+    # Define patterns for cleanup
+    cleanup_patterns = [
+        str(project_root / 'autoreq' / '**' / '*.so'),
+        str(project_root / 'autoreq' / '**' / '*.c'),
+        str(project_root / 'autoreq' / '**' / '*.cpp'),
+        str(project_root / 'build'),
+        str(project_root / 'autoreq.egg-info'),
+    ]
+
+    # Remove .so and .c files
+    for pattern in cleanup_patterns[:3]:  # Only file patterns
+        for file_path in glob.glob(pattern, recursive=True):
+            try:
+                os.remove(file_path)
+            except OSError as e:
+                print(f'Warning: Could not remove {file_path}: {e}')
+
+    # Remove directories
+    for dir_pattern in cleanup_patterns[3:]:  # Only directory patterns
+        dir_path = Path(dir_pattern)
+        if dir_path.exists():
+            try:
+                shutil.rmtree(dir_path)
+            except OSError as e:
+                print(f'Warning: Could not remove directory {dir_path}: {e}')
