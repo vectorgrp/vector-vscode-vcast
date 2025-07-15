@@ -22,24 +22,24 @@ interactions:
       Use the standard C syntax to refer to fields within structures.\n  - Example:\n    {
       \"identifier\": \"unit.subprogram.struct_param.field\", \"value\": \"CAESAR\"
       }\n    { \"identifier\": \"unit.subprogram.struct_param.field\", \"value\":
-      \"STEAK\" }\n- In case you are accessing the field of a structure pointer, dereference
-      it using `*`. The `->` operator is NEVER valid syntax.\n  - Example:\n    {
-      \"identifier\": \"unit.subprogram.*struct_pointer.field\", \"value\": \"''b''\"
-      }\n    instead of\n    { \"identifier\": \"unit.subprogram.struct_pointer->field\",
-      \"value\": \"''b''\" }\n\n#### Enumeration Types\n- Use the enumeral value directly.\n  -
+      \"STEAK\" }\n\n#### Enumeration Types\n- Use the enumeral value directly.\n  -
       Example:\n    { \"identifier\": \"unit.subprogram.enum_param\", \"value\": \"ENUM_VALUE\"
       }\n\n#### Character and String Types\n- Use standard C delimiters for characters
       and strings.\n  - Example:\n    { \"identifier\": \"unit.subprogram.char_param\",
       \"value\": \"''a''\" }\n    { \"identifier\": \"unit.subprogram.string_param\",
-      \"value\": \"\\\"Hello, World\\\"\" }\n\n#### Pointer and Array Types\n- For
+      \"value\": \"\\\"Hello, World\\\"\" }\n- Treat strings as atomic values to set.
+      Do not attempt to treat them as a char array, i.e., do not malloc or attempt
+      to access chars at individual indices.\n\n#### Pointer and Array Types\n- For
       constrained arrays, specify the index and value.\n  - Example:\n    { \"identifier\":
       \"unit.subprogram.array_param[2]\", \"value\": \"42\" }\n- For unconstrained
-      arrays, use `<<malloc [amount as integer]>>` to allocate memory.\n  - Example:\n    {
-      \"identifier\": \"unit.subprogram.array_param[]\", \"value\": \"<<malloc 2>>\"
-      }\n    { \"identifier\": \"unit.subprogram.array_param[1]\", \"value\": \"3\"
-      }\n- For pointers, use index 0 to access it\n  - Example:\n    { \"identifier\":
+      arrays, use `<<malloc [amount of slots to allocate as integer]>>` to allocate
+      memory.\n  - Example:\n    { \"identifier\": \"unit.subprogram.array_param\",
+      \"value\": \"<<malloc 2>>\" }\n    { \"identifier\": \"unit.subprogram.array_param[1]\",
+      \"value\": \"3\" }\n- For pointers, use index 0 to access it (generally pointers
+      and unconstrained arrays are the same after all)\n  - Example:\n    { \"identifier\":
       \"unit.subprogram.ptr_param[0]\", \"value\": \"12\" }\n- If you want to make
-      something null then use `<<null>>`.\n  - Example:\n    { \"identifier\": \"unit.subprogram.pointer_param[0]\",
+      something null then use `<<null>>`.\n  - Example:\n    { \"identifier\": \"unit.subprogram.pointer_param\",
+      \"value\": \"<<null>>\" }\n    or\n    { \"identifier\": \"unit.subprogram.array_param\",
       \"value\": \"<<null>>\" }\n\n#### Function Return Parameters\n- Use the keyword
       `return` for function return values.\n  - Example:\n    { \"identifier\": \"unit.subprogram.return\",
       \"value\": \"23.0\" }\n\n#### Global Objects\n- Use the syntax `UNIT.<<GLOBAL>>.OBJECT`
@@ -103,34 +103,31 @@ interactions:
       the specified subprogram/function\n2. When a value of a variable would be read,
       if it is specified as a test value, it is set to that value instead\n3. After
       the subprogram finishes, the expected values are checked against the actual
-      values at that point\n\n- All tests are executed in isolation. The execution
-      of one test does not influence the execution of others.\n- Unless a function
-      is called inside the checked subprogram their identifiers are not updated and
-      should not be used as expected values.\n- All function calls from external files,
-      i.e, those referenced with `uut_prototype_stubs` are stubbed automatically and
-      do not implement any behaviour. Setting their input values has no effect on
-      their output values (instead default values are output unless you specify values
-      for them).\n- If any of the parameters or return value of a called function
-      (which is not automatically stubbed as outlined above) are set or expected to
-      be some value using an identifier, the function will be stubbed during execution
-      and not implement any behaviour. In this case it is forbidden to also expect
-      the return value to equal something (it won''t as the function will be stubbed).
-      If necessary for pointer-related work: Look for global variables to access what
-      you need instead\n- In general any value not set (input of course), will fall
-      back to a default value. However this should be avoided to prevent undefined
-      behaviour. This means all input variables (and outputs of stubbed values) should
-      be exhaustively described.\n- In particular, to access methods of a class and
-      set values it is imperative to first instantiate the class using a constructor.
-      For all classes a default object is ready to be initialized if needed using
-      the respective constructor.\n- Do not set an identifier multiple times, it just
-      results in overriding of the previous value\n- It is currently hard/impossible
-      to test values written to pointers. If you encounter them, fall back to testing
-      simpler partial things like return values (or just specifying no expected values)\n\n##
-      Examples\n\nLet''s consider a more complex C++ code snippet in a file named
-      `data_processor.cpp`:\n\n```cpp\n// File: data_processor.cpp\n// Unit: data_processor\n\ntypedef
-      struct {\n    int id;\n    float value;\n    char status;\n} DataRecord;\n\ntypedef
-      enum {\n    MODE_NORMAL = 0,\n    MODE_DEBUG = 1,\n    MODE_ERROR = 2\n} ProcessingMode;\n\n//
-      External function declarations\nextern int validate_record(DataRecord* record);\nextern
+      values at that point\n\nAll tests are executed in isolation. The execution of
+      one test does not influence the execution of others.\n\n### Stubbing behaviour\n-
+      All function calls from external files, i.e, those referenced with `uut_prototype_stubs`
+      are stubbed automatically and do not implement any behaviour. Setting their
+      input values has no effect on their output values (instead default values are
+      output unless you specify values for them).\n- If any of the parameters or return
+      value of a called function (which is not automatically stubbed as outlined above)
+      are set or expected to be some value using an identifier, the function will
+      be stubbed during execution and not implement any behaviour. In this case it
+      is forbidden to also expect the return value to equal something (it won''t as
+      the function will be stubbed).\n  - If none are set or expected the function
+      will execute as normal\n\n### Default identifier values and initialization\n-
+      In general any value not set (input of course), will fall back to a default
+      value. However this should be avoided to prevent undefined behaviour. This means
+      all input variables (and outputs of stubbed values) should be exhaustively described.\n-
+      Do not set an identifier multiple times, it just results in overriding of the
+      previous value\n- To access methods of a class and set values it is imperative
+      to first instantiate the class using a constructor. For all classes a default
+      object is ready to be initialized if needed using the respective constructor.\n-
+      Similarly, arrays or pointers should always be allocated\n\n## Examples\n\nLet''s
+      consider a more complex C++ code snippet in a file named `data_processor.cpp`:\n\n```cpp\n//
+      File: data_processor.cpp\n// Unit: data_processor\n\ntypedef struct {\n    int
+      id;\n    float value;\n    char status;\n} DataRecord;\n\ntypedef enum {\n    MODE_NORMAL
+      = 0,\n    MODE_DEBUG = 1,\n    MODE_ERROR = 2\n} ProcessingMode;\n\n// External
+      function declarations\nextern int validate_record(DataRecord* record);\nextern
       void log_error(const char* message);\nextern DataRecord* allocate_buffer(int
       size);\n\nProcessingMode current_mode = MODE_NORMAL;\n\nint process_data_array(DataRecord*
       input_array, int array_size, DataRecord** output_array) {\n    if (input_array
@@ -271,44 +268,124 @@ interactions:
       subprogram being tested (function name)\n    c. Provide the input and expected
       values by providing the correct identifier and value in the syntax outlined
       above.\n\nYou are allowed to use the following identifiers in your test case:\n-
-      manager.Add_Included_Dessert.Order\n- manager.Add_Included_Dessert.Order[0].Soup\n-
-      manager.Add_Included_Dessert.Order[0].Salad\n- manager.Add_Included_Dessert.Order[0].Entree\n-
-      manager.Add_Included_Dessert.Order[0].Dessert\n- manager.Add_Included_Dessert.Order[0].Beverage\n\nYou
-      MUST set an input value for all input to the functions, used globals and called
-      stubs.\nIf you do not ensure this, it can happen that your test does not cover
-      the correct path corresponding to the requirement.\nAn expected value is not
-      required for all identifiers. Only for those relevant to the requirement.\n\nNotes:\n-
-      You are NOT allowed to invent any syntax that is not specified in the syntax
-      reference. Stick to the syntax provided.\n- You are NOT allowed to invent any
-      units or functions that are not present in the provided code.\n- This is a highly
-      critical task, please ensure that the test case is correct and complete and
-      does not contain any logical or syntactical errors.\n- Test cases are independent
-      of each other, i.e., they should not rely on one being run before the other
-      (or environment being modified by one).\n- For each test case, make sure to
-      set an input value for all arguments, global variables and stubs used in the
-      function.\n- For each test case, make sure to only set expected values precisely
-      for what the requirement specifies. Nothing more, nothing less.\n- In case the
-      requirement and the code differ, the requirement is what you should test, i.e.,
-      it is the source of truth.\n- Watch out for off-by-one errors\n", "role": "user"}],
-      "model": "gpt-4.1", "response_format": {"json_schema": {"name": "TestGenerationResult",
-      "schema": {"$defs": {"ExpectedValueMapping": {"additionalProperties": false,
-      "properties": {"identifier": {"$ref": "#/$defs/Identifier"}, "value": {"title":
-      "Value", "type": "string"}}, "required": ["identifier", "value"], "title": "ExpectedValueMapping",
-      "type": "object"}, "Identifier": {"enum": ["manager.Add_Included_Dessert.Order",
+      manager.Add_Included_Dessert.Order\n- manager.Add_Included_Dessert.Order[i].Soup
+      (for all: i in 0..31)\n- manager.Add_Included_Dessert.Order[i].Salad (for all:
+      i in 0..31)\n- manager.Add_Included_Dessert.Order[i].Entree (for all: i in 0..31)\n-
+      manager.Add_Included_Dessert.Order[i].Dessert (for all: i in 0..31)\n- manager.Add_Included_Dessert.Order[i].Beverage
+      (for all: i in 0..31)\n\nYou MUST set an input value for all input to the functions,
+      used globals and called stubs.\nIf you do not ensure this, it can happen that
+      your test does not cover the correct path corresponding to the requirement.\nAn
+      expected value is not required for all identifiers. Only for those relevant
+      to the requirement.\n\n\nNotes:\n- You are NOT allowed to invent any syntax
+      that is not specified in the syntax reference. Stick to the syntax provided.\n-
+      You are NOT allowed to invent any units or functions that are not present in
+      the provided code.\n- This is a highly critical task, please ensure that the
+      test case is correct and complete and does not contain any logical or syntactical
+      errors.\n- Test cases are independent of each other, i.e., they should not rely
+      on one being run before the other (or environment being modified by one).\n-
+      For each test case, make sure to set an input value for all arguments, global
+      variables and stubs used in the function.\n- For each test case, make sure to
+      only set expected values precisely for what the requirement specifies. Nothing
+      more, nothing less.\n- In case the requirement and the code differ, the requirement
+      is what you should test, i.e., it is the source of truth.\n- Watch out for off-by-one
+      errors\n- It might be that some of the provided code context and identifiers
+      are incorrect. Use the most obviously correct parts of both and ignore the rest.\n",
+      "role": "user"}], "model": "gpt-4.1", "response_format": {"json_schema": {"name":
+      "TestGenerationResult", "schema": {"$defs": {"ExpectedValueMapping": {"additionalProperties":
+      false, "properties": {"identifier": {"$ref": "#/$defs/Identifier"}, "value":
+      {"title": "Value", "type": "string"}}, "required": ["identifier", "value"],
+      "title": "ExpectedValueMapping", "type": "object"}, "Identifier": {"enum": ["manager.Add_Included_Dessert.Order",
       "manager.Add_Included_Dessert.Order[0].Soup", "manager.Add_Included_Dessert.Order[0].Salad",
       "manager.Add_Included_Dessert.Order[0].Entree", "manager.Add_Included_Dessert.Order[0].Dessert",
-      "manager.Add_Included_Dessert.Order[0].Beverage"], "title": "Identifier", "type":
-      "string"}, "InputValueMapping": {"additionalProperties": false, "properties":
-      {"identifier": {"$ref": "#/$defs/Identifier"}, "value": {"title": "Value", "type":
-      "string"}}, "required": ["identifier", "value"], "title": "InputValueMapping",
-      "type": "object"}, "TestCase": {"additionalProperties": false, "properties":
-      {"expected_values": {"items": {"$ref": "#/$defs/ExpectedValueMapping"}, "title":
-      "Expected Values", "type": "array"}, "input_values": {"items": {"$ref": "#/$defs/InputValueMapping"},
-      "title": "Input Values", "type": "array"}, "requirement_id": {"title": "Requirement
-      Id", "type": "string"}, "subprogram_name": {"title": "Subprogram Name", "type":
-      "string"}, "test_description": {"title": "Test Description", "type": "string"},
-      "test_name": {"title": "Test Name", "type": "string"}, "unit_name": {"title":
-      "Unit Name", "type": "string"}}, "required": ["test_name", "test_description",
+      "manager.Add_Included_Dessert.Order[0].Beverage", "manager.Add_Included_Dessert.Order[1].Soup",
+      "manager.Add_Included_Dessert.Order[1].Salad", "manager.Add_Included_Dessert.Order[1].Entree",
+      "manager.Add_Included_Dessert.Order[1].Dessert", "manager.Add_Included_Dessert.Order[1].Beverage",
+      "manager.Add_Included_Dessert.Order[2].Soup", "manager.Add_Included_Dessert.Order[2].Salad",
+      "manager.Add_Included_Dessert.Order[2].Entree", "manager.Add_Included_Dessert.Order[2].Dessert",
+      "manager.Add_Included_Dessert.Order[2].Beverage", "manager.Add_Included_Dessert.Order[3].Soup",
+      "manager.Add_Included_Dessert.Order[3].Salad", "manager.Add_Included_Dessert.Order[3].Entree",
+      "manager.Add_Included_Dessert.Order[3].Dessert", "manager.Add_Included_Dessert.Order[3].Beverage",
+      "manager.Add_Included_Dessert.Order[4].Soup", "manager.Add_Included_Dessert.Order[4].Salad",
+      "manager.Add_Included_Dessert.Order[4].Entree", "manager.Add_Included_Dessert.Order[4].Dessert",
+      "manager.Add_Included_Dessert.Order[4].Beverage", "manager.Add_Included_Dessert.Order[5].Soup",
+      "manager.Add_Included_Dessert.Order[5].Salad", "manager.Add_Included_Dessert.Order[5].Entree",
+      "manager.Add_Included_Dessert.Order[5].Dessert", "manager.Add_Included_Dessert.Order[5].Beverage",
+      "manager.Add_Included_Dessert.Order[6].Soup", "manager.Add_Included_Dessert.Order[6].Salad",
+      "manager.Add_Included_Dessert.Order[6].Entree", "manager.Add_Included_Dessert.Order[6].Dessert",
+      "manager.Add_Included_Dessert.Order[6].Beverage", "manager.Add_Included_Dessert.Order[7].Soup",
+      "manager.Add_Included_Dessert.Order[7].Salad", "manager.Add_Included_Dessert.Order[7].Entree",
+      "manager.Add_Included_Dessert.Order[7].Dessert", "manager.Add_Included_Dessert.Order[7].Beverage",
+      "manager.Add_Included_Dessert.Order[8].Soup", "manager.Add_Included_Dessert.Order[8].Salad",
+      "manager.Add_Included_Dessert.Order[8].Entree", "manager.Add_Included_Dessert.Order[8].Dessert",
+      "manager.Add_Included_Dessert.Order[8].Beverage", "manager.Add_Included_Dessert.Order[9].Soup",
+      "manager.Add_Included_Dessert.Order[9].Salad", "manager.Add_Included_Dessert.Order[9].Entree",
+      "manager.Add_Included_Dessert.Order[9].Dessert", "manager.Add_Included_Dessert.Order[9].Beverage",
+      "manager.Add_Included_Dessert.Order[10].Soup", "manager.Add_Included_Dessert.Order[10].Salad",
+      "manager.Add_Included_Dessert.Order[10].Entree", "manager.Add_Included_Dessert.Order[10].Dessert",
+      "manager.Add_Included_Dessert.Order[10].Beverage", "manager.Add_Included_Dessert.Order[11].Soup",
+      "manager.Add_Included_Dessert.Order[11].Salad", "manager.Add_Included_Dessert.Order[11].Entree",
+      "manager.Add_Included_Dessert.Order[11].Dessert", "manager.Add_Included_Dessert.Order[11].Beverage",
+      "manager.Add_Included_Dessert.Order[12].Soup", "manager.Add_Included_Dessert.Order[12].Salad",
+      "manager.Add_Included_Dessert.Order[12].Entree", "manager.Add_Included_Dessert.Order[12].Dessert",
+      "manager.Add_Included_Dessert.Order[12].Beverage", "manager.Add_Included_Dessert.Order[13].Soup",
+      "manager.Add_Included_Dessert.Order[13].Salad", "manager.Add_Included_Dessert.Order[13].Entree",
+      "manager.Add_Included_Dessert.Order[13].Dessert", "manager.Add_Included_Dessert.Order[13].Beverage",
+      "manager.Add_Included_Dessert.Order[14].Soup", "manager.Add_Included_Dessert.Order[14].Salad",
+      "manager.Add_Included_Dessert.Order[14].Entree", "manager.Add_Included_Dessert.Order[14].Dessert",
+      "manager.Add_Included_Dessert.Order[14].Beverage", "manager.Add_Included_Dessert.Order[15].Soup",
+      "manager.Add_Included_Dessert.Order[15].Salad", "manager.Add_Included_Dessert.Order[15].Entree",
+      "manager.Add_Included_Dessert.Order[15].Dessert", "manager.Add_Included_Dessert.Order[15].Beverage",
+      "manager.Add_Included_Dessert.Order[16].Soup", "manager.Add_Included_Dessert.Order[16].Salad",
+      "manager.Add_Included_Dessert.Order[16].Entree", "manager.Add_Included_Dessert.Order[16].Dessert",
+      "manager.Add_Included_Dessert.Order[16].Beverage", "manager.Add_Included_Dessert.Order[17].Soup",
+      "manager.Add_Included_Dessert.Order[17].Salad", "manager.Add_Included_Dessert.Order[17].Entree",
+      "manager.Add_Included_Dessert.Order[17].Dessert", "manager.Add_Included_Dessert.Order[17].Beverage",
+      "manager.Add_Included_Dessert.Order[18].Soup", "manager.Add_Included_Dessert.Order[18].Salad",
+      "manager.Add_Included_Dessert.Order[18].Entree", "manager.Add_Included_Dessert.Order[18].Dessert",
+      "manager.Add_Included_Dessert.Order[18].Beverage", "manager.Add_Included_Dessert.Order[19].Soup",
+      "manager.Add_Included_Dessert.Order[19].Salad", "manager.Add_Included_Dessert.Order[19].Entree",
+      "manager.Add_Included_Dessert.Order[19].Dessert", "manager.Add_Included_Dessert.Order[19].Beverage",
+      "manager.Add_Included_Dessert.Order[20].Soup", "manager.Add_Included_Dessert.Order[20].Salad",
+      "manager.Add_Included_Dessert.Order[20].Entree", "manager.Add_Included_Dessert.Order[20].Dessert",
+      "manager.Add_Included_Dessert.Order[20].Beverage", "manager.Add_Included_Dessert.Order[21].Soup",
+      "manager.Add_Included_Dessert.Order[21].Salad", "manager.Add_Included_Dessert.Order[21].Entree",
+      "manager.Add_Included_Dessert.Order[21].Dessert", "manager.Add_Included_Dessert.Order[21].Beverage",
+      "manager.Add_Included_Dessert.Order[22].Soup", "manager.Add_Included_Dessert.Order[22].Salad",
+      "manager.Add_Included_Dessert.Order[22].Entree", "manager.Add_Included_Dessert.Order[22].Dessert",
+      "manager.Add_Included_Dessert.Order[22].Beverage", "manager.Add_Included_Dessert.Order[23].Soup",
+      "manager.Add_Included_Dessert.Order[23].Salad", "manager.Add_Included_Dessert.Order[23].Entree",
+      "manager.Add_Included_Dessert.Order[23].Dessert", "manager.Add_Included_Dessert.Order[23].Beverage",
+      "manager.Add_Included_Dessert.Order[24].Soup", "manager.Add_Included_Dessert.Order[24].Salad",
+      "manager.Add_Included_Dessert.Order[24].Entree", "manager.Add_Included_Dessert.Order[24].Dessert",
+      "manager.Add_Included_Dessert.Order[24].Beverage", "manager.Add_Included_Dessert.Order[25].Soup",
+      "manager.Add_Included_Dessert.Order[25].Salad", "manager.Add_Included_Dessert.Order[25].Entree",
+      "manager.Add_Included_Dessert.Order[25].Dessert", "manager.Add_Included_Dessert.Order[25].Beverage",
+      "manager.Add_Included_Dessert.Order[26].Soup", "manager.Add_Included_Dessert.Order[26].Salad",
+      "manager.Add_Included_Dessert.Order[26].Entree", "manager.Add_Included_Dessert.Order[26].Dessert",
+      "manager.Add_Included_Dessert.Order[26].Beverage", "manager.Add_Included_Dessert.Order[27].Soup",
+      "manager.Add_Included_Dessert.Order[27].Salad", "manager.Add_Included_Dessert.Order[27].Entree",
+      "manager.Add_Included_Dessert.Order[27].Dessert", "manager.Add_Included_Dessert.Order[27].Beverage",
+      "manager.Add_Included_Dessert.Order[28].Soup", "manager.Add_Included_Dessert.Order[28].Salad",
+      "manager.Add_Included_Dessert.Order[28].Entree", "manager.Add_Included_Dessert.Order[28].Dessert",
+      "manager.Add_Included_Dessert.Order[28].Beverage", "manager.Add_Included_Dessert.Order[29].Soup",
+      "manager.Add_Included_Dessert.Order[29].Salad", "manager.Add_Included_Dessert.Order[29].Entree",
+      "manager.Add_Included_Dessert.Order[29].Dessert", "manager.Add_Included_Dessert.Order[29].Beverage",
+      "manager.Add_Included_Dessert.Order[30].Soup", "manager.Add_Included_Dessert.Order[30].Salad",
+      "manager.Add_Included_Dessert.Order[30].Entree", "manager.Add_Included_Dessert.Order[30].Dessert",
+      "manager.Add_Included_Dessert.Order[30].Beverage", "manager.Add_Included_Dessert.Order[31].Soup",
+      "manager.Add_Included_Dessert.Order[31].Salad", "manager.Add_Included_Dessert.Order[31].Entree",
+      "manager.Add_Included_Dessert.Order[31].Dessert", "manager.Add_Included_Dessert.Order[31].Beverage"],
+      "title": "Identifier", "type": "string"}, "InputValueMapping": {"additionalProperties":
+      false, "properties": {"identifier": {"$ref": "#/$defs/Identifier"}, "value":
+      {"title": "Value", "type": "string"}}, "required": ["identifier", "value"],
+      "title": "InputValueMapping", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"expected_values": {"items": {"$ref": "#/$defs/ExpectedValueMapping"},
+      "title": "Expected Values", "type": "array"}, "input_values": {"items": {"$ref":
+      "#/$defs/InputValueMapping"}, "title": "Input Values", "type": "array"}, "requirement_id":
+      {"title": "Requirement Id", "type": "string"}, "subprogram_name": {"title":
+      "Subprogram Name", "type": "string"}, "test_description": {"title": "Test Description",
+      "type": "string"}, "test_name": {"title": "Test Name", "type": "string"}, "unit_name":
+      {"title": "Unit Name", "type": "string"}}, "required": ["test_name", "test_description",
       "requirement_id", "unit_name", "subprogram_name", "input_values", "expected_values"],
       "title": "TestCase", "type": "object"}}, "additionalProperties": false, "properties":
       {"test_case": {"$ref": "#/$defs/TestCase"}, "test_description": {"title": "Test
@@ -328,7 +405,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '27529'
+      - '35099'
       content-type:
       - application/json
       host:
@@ -360,37 +437,36 @@ interactions:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_description\":\"To
         test the requirement that CAKE is included as the dessert when the order consists
         of LOBSTER as the entree, GREEN as the salad, and WINE as the beverage, we
-        need to create an order with these specific values. The function should then
-        set the Dessert field to CAKE. We will allocate an order, set Entree to LOBSTER,
-        Salad to GREEN, Beverage to WINE, and Dessert to NO_DESSERT (to ensure it
-        is not already CAKE). After calling the function, we expect Dessert to be
-        set to CAKE.\",\"test_mapping_analysis\":\"The requirement specifies a precise
-        combination of entree, salad, and beverage that should result in Dessert being
-        set to CAKE. The code checks for this combination and sets Dessert accordingly.
-        By setting the input values to LOBSTER, GREEN, and WINE, and verifying that
-        Dessert is set to CAKE, we directly test the requirement. All other fields
-        are set as required for completeness, but only Dessert is expected to change
-        as per the requirement.\",\"test_case\":{\"test_name\":\"Test_AddIncludedDessert_LobsterGreenWine_Cake\",\"test_description\":\"Tests
+        need to create an order with these specific values. The test should allocate
+        an order, set Entree to LOBSTER, Salad to GREEN, Beverage to WINE, and Dessert
+        to NO_DESSERT (to ensure the function changes it). After calling Add_Included_Dessert,
+        we expect Dessert to be set to CAKE. This directly exercises the code path
+        for the requirement.\",\"test_mapping_analysis\":\"The requirement specifies
+        that when Entree is LOBSTER, Salad is GREEN, and Beverage is WINE, Dessert
+        should be set to CAKE. The code implements this in the second branch of the
+        if-else statement. By setting these values and checking that Dessert is set
+        to CAKE, we confirm the requirement is met. All other fields are left at their
+        default or irrelevant values, as they do not affect this path.\",\"test_case\":{\"test_name\":\"Test_Lobster_Green_Wine_Results_In_Cake_Dessert\",\"test_description\":\"Tests
         that Add_Included_Dessert sets Dessert to CAKE when Entree is LOBSTER, Salad
         is GREEN, and Beverage is WINE, as required.\",\"requirement_id\":\"Add_Included_Dessert.2\",\"unit_name\":\"manager\",\"subprogram_name\":\"Add_Included_Dessert\",\"input_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order\",\"value\":\"\u003c\u003cmalloc
-        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Soup\",\"value\":\"NO_SOUP\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1751372627,"id":"chatcmpl-BoUJX8D8HlZZ7UQCsmJczIaWORM6u","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":455,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":6274,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":6729}}
+        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1752564147,"id":"chatcmpl-BtUHbhfqv4ArA4quo2NgKVld31z3k","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":436,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":8464,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":8900}}
 
         '
     headers:
       Content-Length:
-      - '3212'
+      - '3096'
       Content-Type:
       - application/json
       Date:
-      - Tue, 01 Jul 2025 12:23:50 GMT
+      - Tue, 15 Jul 2025 07:22:31 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 12cbc45a-41a9-4b1d-a75a-5f35896e9ad1
+      - ccdb2c6e-3de0-4f53-aedd-62263a8c72a5
       azureml-model-session:
-      - d067-20250625125422
+      - d072-20250625145402
       cmp-upstream-response-duration:
-      - '3869'
+      - '5316'
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -406,11 +482,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '996'
+      - '1005'
       x-ratelimit-remaining-tokens:
-      - '945836'
+      - '1000053'
       x-request-id:
-      - 5ef3c426-92f4-4edc-8689-d7cbaa7626e1
+      - 9787dc8f-552d-46ba-b0af-1b1bc9f7e26c
     status:
       code: 200
       message: OK

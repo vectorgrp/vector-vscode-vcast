@@ -30,11 +30,6 @@ The following sections describe the syntax for specifying the `identifier` and `
   - Example:
     { "identifier": "unit.subprogram.struct_param.field", "value": "CAESAR" }
     { "identifier": "unit.subprogram.struct_param.field", "value": "STEAK" }
-- In case you are accessing the field of a structure pointer, dereference it using `*`. The `->` operator is NEVER valid syntax.
-  - Example:
-    { "identifier": "unit.subprogram.*struct_pointer.field", "value": "'b'" }
-    instead of
-    { "identifier": "unit.subprogram.struct_pointer->field", "value": "'b'" }
 
 #### Enumeration Types
 - Use the enumeral value directly.
@@ -46,21 +41,24 @@ The following sections describe the syntax for specifying the `identifier` and `
   - Example:
     { "identifier": "unit.subprogram.char_param", "value": "'a'" }
     { "identifier": "unit.subprogram.string_param", "value": "\"Hello, World\"" }
+- Treat strings as atomic values to set. Do not attempt to treat them as a char array, i.e., do not malloc or attempt to access chars at individual indices.
 
 #### Pointer and Array Types
 - For constrained arrays, specify the index and value.
   - Example:
     { "identifier": "unit.subprogram.array_param[2]", "value": "42" }
-- For unconstrained arrays, use `<<malloc [amount as integer]>>` to allocate memory.
+- For unconstrained arrays, use `<<malloc [amount of slots to allocate as integer]>>` to allocate memory.
   - Example:
-    { "identifier": "unit.subprogram.array_param[]", "value": "<<malloc 2>>" }
+    { "identifier": "unit.subprogram.array_param", "value": "<<malloc 2>>" }
     { "identifier": "unit.subprogram.array_param[1]", "value": "3" }
-- For pointers, use index 0 to access it
+- For pointers, use index 0 to access it (generally pointers and unconstrained arrays are the same after all)
   - Example:
     { "identifier": "unit.subprogram.ptr_param[0]", "value": "12" }
 - If you want to make something null then use `<<null>>`.
   - Example:
-    { "identifier": "unit.subprogram.pointer_param[0]", "value": "<<null>>" }
+    { "identifier": "unit.subprogram.pointer_param", "value": "<<null>>" }
+    or
+    { "identifier": "unit.subprogram.array_param", "value": "<<null>>" }
 
 #### Function Return Parameters
 - Use the keyword `return` for function return values.
@@ -143,14 +141,18 @@ The following sections describe the syntax for specifying the `identifier` and `
 2. When a value of a variable would be read, if it is specified as a test value, it is set to that value instead
 3. After the subprogram finishes, the expected values are checked against the actual values at that point
 
-- All tests are executed in isolation. The execution of one test does not influence the execution of others.
-- Unless a function is called inside the checked subprogram their identifiers are not updated and should not be used as expected values.
+All tests are executed in isolation. The execution of one test does not influence the execution of others.
+
+### Stubbing behaviour
 - All function calls from external files, i.e, those referenced with `uut_prototype_stubs` are stubbed automatically and do not implement any behaviour. Setting their input values has no effect on their output values (instead default values are output unless you specify values for them).
-- If any of the parameters or return value of a called function (which is not automatically stubbed as outlined above) are set or expected to be some value using an identifier, the function will be stubbed during execution and not implement any behaviour. In this case it is forbidden to also expect the return value to equal something (it won't as the function will be stubbed). If necessary for pointer-related work: Look for global variables to access what you need instead
+- If any of the parameters or return value of a called function (which is not automatically stubbed as outlined above) are set or expected to be some value using an identifier, the function will be stubbed during execution and not implement any behaviour. In this case it is forbidden to also expect the return value to equal something (it won't as the function will be stubbed).
+  - If none are set or expected the function will execute as normal
+
+### Default identifier values and initialization
 - In general any value not set (input of course), will fall back to a default value. However this should be avoided to prevent undefined behaviour. This means all input variables (and outputs of stubbed values) should be exhaustively described.
-- In particular, to access methods of a class and set values it is imperative to first instantiate the class using a constructor. For all classes a default object is ready to be initialized if needed using the respective constructor.
 - Do not set an identifier multiple times, it just results in overriding of the previous value
-- It is currently hard/impossible to test values written to pointers. If you encounter them, fall back to testing simpler partial things like return values (or just specifying no expected values)
+- To access methods of a class and set values it is imperative to first instantiate the class using a constructor. For all classes a default object is ready to be initialized if needed using the respective constructor.
+- Similarly, arrays or pointers should always be allocated
 
 ## Examples
 

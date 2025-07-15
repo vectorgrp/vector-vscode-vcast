@@ -73,6 +73,7 @@ ext_modules = (
             'autoreq/test_generation/atg_context_builder.py',
             'autoreq/test_generation/info_logger.py',
             'autoreq/test_generation/generic_models.py',
+            'autoreq/test_generation/test_patcher.py',
             'autoreq/test_generation/schema_builder.py',
             'autoreq/test_generation/generation.py',
             'autoreq/reqs2tests.py',

@@ -15,7 +15,11 @@ def _get_env_identifiers(env, for_function=None):
     tr = env.type_resolver
     all_identifiers = []
     for func in functions_to_consider:
-        all_identifiers.extend(tr.resolve(func['name']).to_vectorcast(top_level=True))
+        all_identifiers.extend(
+            tr.resolve(func['name']).to_vectorcast_identifiers(
+                top_level=True, max_pointer_index=1
+            )
+        )
     return all_identifiers
 
 

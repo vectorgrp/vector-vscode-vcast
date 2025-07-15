@@ -7,6 +7,7 @@ from pydantic import create_model
 from dotenv import load_dotenv
 import logging
 
+from autoreq.test_generation.test_patcher import TestPatcher
 from autoreq.util import get_relevant_statement_groups
 
 from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
@@ -31,6 +32,7 @@ class TestGenerator:
         schema_type='unified',  # TODO: input_expected could work a bit better for some C code when pruning, so keep that in mind for the future
         add_prompt_identifiers_when_unpruned=True,
         blackbox=False,
+        with_test_patcher=True,
     ):
         self.requirements_manager = requirements_manager
         self.environment = environment
@@ -49,6 +51,11 @@ class TestGenerator:
         self.add_prompt_identifiers_when_unpruned = add_prompt_identifiers_when_unpruned
         self.schema_type = schema_type
         self.blackbox = blackbox
+
+        if with_test_patcher:
+            self.test_patcher = TestPatcher(self.environment)
+        else:
+            self.test_patcher = None
 
     def _group_requirements_into_batches(self, requirement_ids, batch_size):
         """Group requirements by function and split into batches of specified size."""
@@ -224,6 +231,8 @@ Example Test Cases:
             gen_info.input_identifiers, gen_info.expected_identifiers, num_lines
         )
 
+        stubbed_functions_section = self._build_stubbed_functions_section(function_name)
+
         messages = [
             {
                 'role': 'system',
@@ -255,6 +264,7 @@ For each requirement in order...
     2. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
     3. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
 {identifier_section}
+{stubbed_functions_section}
 Notes:
 - You are NOT allowed to invent any syntax that is not specified in the syntax reference. Stick to the syntax provided.
 - You are NOT allowed to invent any units or functions that are not present in the provided code.
@@ -262,6 +272,7 @@ Notes:
 - Test cases are independent of each other, i.e., they should not rely on one being run before the other (or environment being modified by one).
 - Generate exactly one test case per requirement.
 - In case the requirement and the code differ, the requirement is what you should test, i.e., it is the source of truth.
+- It might be that some of the provided code context and identifiers are incorrect. Use the most obviously correct parts of both and ignore the rest.
 
 Return your answer in the following format:
 ```json
@@ -322,10 +333,7 @@ Return your answer in the following format:
                     f'Requirement {test_case.requirement_id} was generated multiple times or was not requested.'
                 )
 
-            output = self.environment.run_tests(
-                [test_case.to_vectorcast(add_uuid=True)]
-            )
-            errors, test_failures = self._parse_error_output(output)
+            errors, test_failures = self._run_test_case_and_report(test_case)
 
             if errors or (not allow_partial and test_failures):
                 self.info_logger.set_individual_test_generation_needed(
@@ -346,9 +354,9 @@ Return your answer in the following format:
 
             if test_failures:
                 self.info_logger.set_partial_test_generated(test_case.requirement_id)
-                return test_case.as_partial
+                return self._patch_test_case(test_case.as_partial)
             else:
-                return test_case
+                return self._patch_test_case(test_case)
 
         for test_case in asyncio.as_completed(
             [process_generated_test_case(test_case) for test_case in test_cases]
@@ -394,7 +402,7 @@ Return your answer in the following format:
                 )
                 if result:
                     self.info_logger.set_test_generated(requirement_id)
-                    return result
+                    return self._patch_test_case(result)
                 else:
                     first_try = False
         except Exception:
@@ -489,6 +497,8 @@ Return your answer in the following format:
             gen_info.input_identifiers, gen_info.expected_identifiers, num_lines
         )
 
+        stubbed_functions_section = self._build_stubbed_functions_section(function_name)
+
         # Build code context
         context, used_fallback = await self.context_builder.build_code_context(
             function_name,
@@ -576,6 +586,7 @@ Solve the problem using the following steps:
     b. Provide the name of the unit being tested (base file name without extension) and the name of the subprogram being tested (function name)
     c. Provide the input and expected values by providing the correct identifier and value in the syntax outlined above.
 {identifier_section}
+{stubbed_functions_section}
 Notes:
 - You are NOT allowed to invent any syntax that is not specified in the syntax reference. Stick to the syntax provided.
 - You are NOT allowed to invent any units or functions that are not present in the provided code.
@@ -585,6 +596,7 @@ Notes:
 - For each test case, make sure to only set expected values precisely for what the requirement specifies. Nothing more, nothing less.
 - In case the requirement and the code differ, the requirement is what you should test, i.e., it is the source of truth.
 - Watch out for off-by-one errors
+- It might be that some of the provided code context and identifiers are incorrect. Use the most obviously correct parts of both and ignore the rest.
 """,
             },
         ]
@@ -710,11 +722,11 @@ An expected value is not required for all identifiers. Only for those relevant t
 
             def arrayrepl(match):
                 nonlocal array_indices
-                array_indices.append(match.group(1))
+                array_indices.append(int(match.group(1)))
                 var_name = INDEX_VARIABLE_NAMES[len(array_indices) - 1]
                 return f'!!ARRAY_INDEX_PLACEHOLDER_{var_name}!!'
 
-            normalized_ident = re.sub(r'\[([^\[\]]*?)\]', arrayrepl, ident)
+            normalized_ident = re.sub(r'\[(\d+)\]', arrayrepl, ident)
             similar_identifiers[normalized_ident].append(array_indices)
             original_identifiers[normalized_ident] = ident
 
@@ -761,6 +773,54 @@ An expected value is not required for all identifiers. Only for those relevant t
 
         return combined_identifiers
 
+    def _build_stubbed_functions_section(self, function_name):
+        # TODO: Handle pruned functions
+        called_function_names = [
+            f.name.split('::')[-1]
+            for f in self.environment.type_resolver.resolve(
+                function_name
+            ).called_functions
+        ]
+
+        if not called_function_names:
+            return ''
+
+        called_unstubbed_functions = []
+        for name in called_function_names:
+            definition = self.environment.tu_codebase.find_definitions_by_name(name)[0]
+            if '{' and '}' in definition:
+                called_unstubbed_functions.append(name)
+
+        called_stubbed_functions = []
+        for name in called_function_names:
+            if name not in called_unstubbed_functions:
+                called_stubbed_functions.append(name)
+
+        section = ''
+        if called_unstubbed_functions:
+            section += f'Unstubbed-by-default called functions (implement behaviour unless an identifier is set in which case the respective function is stubbed) called by {function_name}:\n'
+            for name in called_unstubbed_functions:
+                section += f'- {name}\n'
+        if called_stubbed_functions:
+            section += f'Stubbed-by-default called functions (no behaviour is implemented, you can use identifiers to simulate a return value) called by {function_name}:\n'
+            for name in called_stubbed_functions:
+                section += f'- {name}\n'
+
+        return section
+
+    def _run_test_case_and_report(self, test_case):
+        patched_test = self._patch_test_case(test_case)
+        output = self.environment.run_tests([patched_test.to_vectorcast(add_uuid=True)])
+        errors, test_failures = self._parse_error_output(output)
+
+        return errors, test_failures
+
+    def _patch_test_case(self, test_case):
+        if self.test_patcher:
+            return self.test_patcher.patch_test_case(test_case)
+        else:
+            return test_case
+
     async def _iterative_error_correction(
         self,
         requirement_id,
@@ -780,10 +840,9 @@ An expected value is not required for all identifiers. Only for those relevant t
         while iteration < max_iterations:
             iteration += 1
 
-            output = self.environment.run_tests(
-                [test_generation_result.test_case.to_vectorcast(add_uuid=True)]
+            errors, test_failures = self._run_test_case_and_report(
+                test_generation_result.test_case
             )
-            errors, test_failures = self._parse_error_output(output)
 
             if not allow_test_feedback:
                 test_failures = None
@@ -858,10 +917,9 @@ Tip:
                     )
                     return None
 
-        output = self.environment.run_tests(
-            [test_generation_result.test_case.to_vectorcast(add_uuid=True)]
+        errors, test_failures = self._run_test_case_and_report(
+            test_generation_result.test_case
         )
-        errors, test_failures = self._parse_error_output(output)
 
         if errors:
             logging.warning(f'Failed to fix errors after {iteration} iterations')

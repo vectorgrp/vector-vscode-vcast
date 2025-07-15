@@ -388,7 +388,13 @@ class Environment:
         remove_surely_stubbed_inputs=False,
     ):
         try:
-            all_identifiers = self.type_resolver.resolve(function_name).to_vectorcast()
+            all_identifiers = self.type_resolver.resolve(
+                function_name
+            ).to_vectorcast_identifiers(
+                top_level=True,
+                max_array_index=max_array_index,
+                max_pointer_index=max_array_index,
+            )
         except Exception as e:
             stacktrace = traceback.format_exc()
             logging.debug(
@@ -439,19 +445,10 @@ class Environment:
                         relevant_identifiers.append(identifier)
                         continue
 
+                # Remove array indices
                 entity_match = re.match(r'.*?\[(\d+)\]', entity)
-
                 if entity_match:
-                    array_index = int(entity_match.group(1))
-                    if max_array_index is not None and array_index > max_array_index:
-                        continue
-                    entity = entity[
-                        : entity.index('[')
-                    ]  # Remove array index if present
-                else:
-                    entity = entity.split('[', 1)[
-                        0
-                    ]  # Remove array index if present (should not be)
+                    entity = entity.split('[', 1)[0]
 
                 if '.str.' in identifier:
                     # Skip string identifiers

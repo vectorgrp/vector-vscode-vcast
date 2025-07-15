@@ -22,3 +22,5 @@ SOURCE_FILE_EXTENSIONS = (
     'hp',
     'ipp',
 )
+
+MAX_IDENTIFIER_INDEX = 32

@@ -1,4 +1,60 @@
+from functools import lru_cache
 import xml.etree.ElementTree as ET
+from typing import List, Optional, Union
+
+from pydantic import BaseModel, Field
+
+from autoreq.constants import MAX_IDENTIFIER_INDEX
+
+
+class VectorcastIdentifier(BaseModel):
+    """Represents a VectorCAST identifier path"""
+
+    segments: List[str] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
+
+    def __str__(self):
+        return '.'.join(self.segments).replace('.[', '[')
+
+    @staticmethod
+    def from_segments(
+        *segments: str, metadata: Optional[dict] = None
+    ) -> 'VectorcastIdentifier':
+        if metadata is None:
+            metadata = {}
+        else:
+            metadata = metadata.copy()
+        return VectorcastIdentifier(segments=list(segments), metadata=metadata)
+
+    def append(self, segment: str) -> 'VectorcastIdentifier':
+        return VectorcastIdentifier(
+            segments=self.segments + [segment], metadata=self.metadata
+        )
+
+    def prepend(self, segment: str) -> 'VectorcastIdentifier':
+        return VectorcastIdentifier(
+            segments=[segment] + self.segments, metadata=self.metadata
+        )
+
+    def join(
+        self, other: Union['VectorcastIdentifier', List[str]]
+    ) -> 'VectorcastIdentifier':
+        other_segments = (
+            other.segments if isinstance(other, VectorcastIdentifier) else other
+        )
+        metadata = (
+            self.metadata | other.metadata
+            if isinstance(other, VectorcastIdentifier)
+            else self.metadata
+        )
+        return VectorcastIdentifier(
+            segments=self.segments + other_segments, metadata=metadata
+        )
+
+    def add_metadata(self, key: str, value: Union[str, bool]) -> 'VectorcastIdentifier':
+        new_metadata = self.metadata.copy()
+        new_metadata[key] = value
+        return VectorcastIdentifier(segments=self.segments, metadata=new_metadata)
 
 
 class Type:
@@ -10,26 +66,48 @@ class Type:
     def __str__(self):
         return self.name
 
-    def to_vectorcast_path(self, **kwargs):
+    def _create_raw_vectorcast_identifiers(
+        self, **kwargs
+    ) -> List[VectorcastIdentifier]:
         raise NotImplementedError()
 
-    def to_vectorcast(self, *args, deduplicate=True, **kwargs):
-        compiled_type = self.to_vectorcast_path(*args, **kwargs)
-        finalized_identifiers = []
-        for identifier in compiled_type:
-            finalized_identifier = '.'.join(identifier).replace('.[', '[')
+    @lru_cache(maxsize=4096)
+    def to_vectorcast_identifiers(
+        self, deduplicate=True, return_raw=False, **kwargs
+    ) -> List[str]:
+        identifiers = self._create_raw_vectorcast_identifiers(**kwargs)
 
-            if not deduplicate or finalized_identifier not in finalized_identifiers:
-                finalized_identifiers.append(finalized_identifier)
+        if deduplicate:
+            seen = set()
+            unique_identifiers = []
+            for identifier in identifiers:
+                ident_str = str(identifier)
+                if ident_str not in seen:
+                    seen.add(ident_str)
+                    unique_identifiers.append(identifier)
 
-        return finalized_identifiers
+            identifiers = unique_identifiers
+
+        if return_raw:
+            return identifiers
+
+        return list(map(str, identifiers))
+
+
+class NotSupportedType(Type):
+    """Represents a type that is not supported or unknown"""
+
+    def _create_raw_vectorcast_identifiers(self, **kwargs):
+        return []
 
 
 class BasicType(Type):
     """Represents primitive types like int, float, char"""
 
-    def to_vectorcast_path(self, **kwargs):
-        return [[]]
+    def _create_raw_vectorcast_identifiers(
+        self, **kwargs
+    ) -> List[VectorcastIdentifier]:
+        return [VectorcastIdentifier()]
 
 
 class PointerType(Type):
@@ -39,14 +117,25 @@ class PointerType(Type):
         super().__init__(name)
         self.pointed_type = pointed_type
 
-    def to_vectorcast_path(self, **kwargs):
-        compiled_pointed = self.pointed_type.to_vectorcast_path(**kwargs)
-        compiled_pointer = []
+    def _create_raw_vectorcast_identifiers(
+        self, max_pointer_index=None, **kwargs
+    ) -> List[VectorcastIdentifier]:
+        compiled_pointed = self.pointed_type._create_raw_vectorcast_identifiers(
+            **kwargs
+        )
 
-        compiled_pointer.append([])
+        if len(compiled_pointed) == 0:
+            return []
 
+        compiled_pointer = [VectorcastIdentifier(metadata={'pointer_type': self})]
+        """
         for identifier in compiled_pointed:
-            compiled_pointer.append(['[0]', *identifier])
+            compiled_pointer.append(identifier.prepend('[0]'))
+        """
+
+        for idx in range(max_pointer_index or MAX_IDENTIFIER_INDEX):
+            for identifier in compiled_pointed:
+                compiled_pointer.append(identifier.prepend(f'[{idx}]'))
 
         return compiled_pointer
 
@@ -59,13 +148,33 @@ class ArrayType(Type):
         self.element_type = element_type
         self.size = size
 
-    def to_vectorcast_path(self, **kwargs):
+    def _create_raw_vectorcast_identifiers(
+        self, max_array_index=None, **kwargs
+    ) -> List[VectorcastIdentifier]:
         compiled_array = []
 
-        for idx in range(self.size or 4):
-            compiled_element = self.element_type.to_vectorcast_path(**kwargs)
+        if self.size is None:
+            compiled_array.append(
+                VectorcastIdentifier(
+                    metadata={
+                        'unconstrained_array_type': self.element_type
+                    }  # TODO: Make sure this shouldn't be []
+                )
+            )
+
+        original_array_size = self.size or MAX_IDENTIFIER_INDEX
+        array_size = (
+            min(max_array_index, original_array_size)
+            if max_array_index is not None
+            else original_array_size
+        )
+
+        for idx in range(array_size):
+            compiled_element = self.element_type._create_raw_vectorcast_identifiers(
+                **kwargs
+            )
             for identifier in compiled_element:
-                compiled_array.append([f'[{idx}]', *identifier])
+                compiled_array.append(identifier.prepend(f'[{idx}]'))
 
         return compiled_array
 
@@ -77,8 +186,10 @@ class StringType(Type):
         super().__init__(name)
         self.size = size
 
-    def to_vectorcast_path(self, **kwargs):
-        return [[]]
+    def _create_raw_vectorcast_identifiers(
+        self, **kwargs
+    ) -> List[VectorcastIdentifier]:
+        return [VectorcastIdentifier()]
 
 
 class StructType(Type):
@@ -88,12 +199,14 @@ class StructType(Type):
         super().__init__(name)
         self.fields = fields or []  # List of Identifiers representing fields
 
-    def to_vectorcast_path(self, **kwargs):
+    def _create_raw_vectorcast_identifiers(
+        self, **kwargs
+    ) -> List[VectorcastIdentifier]:
         compiled_struct = []
         for field in self.fields:
-            compiled_field = field.type.to_vectorcast_path(**kwargs)
+            compiled_field = field.type._create_raw_vectorcast_identifiers(**kwargs)
             for identifier in compiled_field:
-                compiled_struct.append([field.name, *identifier])
+                compiled_struct.append(identifier.prepend(field.name))
 
         return compiled_struct
 
@@ -106,28 +219,37 @@ class ClassType(Type):
         self.fields = fields or []  # List of Identifiers representing fields
         self.constructors = constructors or []  # List of constructor information
 
-    def to_vectorcast_path(self, parent_already_constructed=False, **kwargs):
+    def _create_raw_vectorcast_identifiers(
+        self, parent_already_constructed=False, **kwargs
+    ) -> List[VectorcastIdentifier]:
         compiled_class = []
 
         # Add constructor call if constructors exist and flag is True
         if not parent_already_constructed:
             # Add class allocation identifier with (cl) prefix for global class instances
-            compiled_class.append([])
+            compiled_class.append(VectorcastIdentifier())
 
             for constructor in self.constructors:
                 constructor_name = constructor.get('name', '')
                 compiled_class.append(
-                    # [self.name, '<<constructor>>', f'{func_name}()', '<<call>>']
-                    [self.name, '<<constructor>>', constructor_name, '<<call>>']
+                    VectorcastIdentifier.from_segments(
+                        self.name,
+                        '<<constructor>>',
+                        constructor_name,
+                        '<<call>>',
+                        metadata={'constructor_type': self},
+                    )
                 )
 
         # Add fields
         for field in self.fields:
-            compiled_field = field.type.to_vectorcast_path(
+            compiled_field = field.type._create_raw_vectorcast_identifiers(
                 **kwargs, parent_already_constructed=True
             )
             for identifier in compiled_field:
-                compiled_class.append([self.name, field.name, *identifier])
+                base_ident = VectorcastIdentifier.from_segments(self.name)
+                final_ident = base_ident.append(field.name).join(identifier)
+                compiled_class.append(final_ident)
 
         return compiled_class
 
@@ -165,43 +287,60 @@ class FunctionType(Type):
             None  # ClassType if this is a member function, None otherwise
         )
 
-    def to_vectorcast_path(self, **kwargs):
-        param_prefix = [self.unit, self.name]
-        global_prefix = [self.unit, '<<GLOBAL>>']
+    def _create_raw_vectorcast_identifiers(
+        self, top_level=False, parent_already_constructed=False, **kwargs
+    ) -> List[VectorcastIdentifier]:
+        param_prefix = VectorcastIdentifier.from_segments(self.unit, self.name)
+        global_prefix = VectorcastIdentifier.from_segments(self.unit, '<<GLOBAL>>')
 
         compiled_function = []
         if self.origin_class is not None:
-            compiled_class = self.origin_class.to_vectorcast_path(**kwargs)
+            compiled_class = self.origin_class._create_raw_vectorcast_identifiers(
+                **kwargs
+            )
             for identifier in compiled_class:
-                compiled_function.append(
-                    [*global_prefix, '(cl)', self.origin_class.name, *identifier]
-                )
+                base_ident = global_prefix.join(['(cl)', self.origin_class.name])
+                compiled_function.append(base_ident.join(identifier))
 
         for g in self.globals:
-            compiled_global = g.type.to_vectorcast_path(**kwargs)
+            compiled_global = g.type._create_raw_vectorcast_identifiers(**kwargs)
 
             # Handle class instances with (cl) prefix
             if isinstance(g.type, ClassType):
                 for identifier in compiled_global:
+                    base_ident = global_prefix.join(['(cl)', g.name])
                     compiled_function.append(
-                        [*global_prefix, '(cl)', g.name, *identifier]
+                        base_ident.join(identifier).add_metadata('global_in', self)
                     )
             else:
                 for identifier in compiled_global:
-                    compiled_function.append([*global_prefix, g.name, *identifier])
+                    base_ident = global_prefix.append(g.name)
+                    compiled_function.append(
+                        base_ident.join(identifier).add_metadata('global_in', self)
+                    )
 
         for param in self.parameters:
-            compiled_param = param.type.to_vectorcast_path(**kwargs)
+            compiled_param = param.type._create_raw_vectorcast_identifiers(**kwargs)
             for identifier in compiled_param:
-                compiled_function.append([*param_prefix, param.name, *identifier])
+                base_ident = param_prefix.append(param.name)
+                compiled_function.append(
+                    base_ident.join(identifier).add_metadata('param_for', self)
+                )
 
         if self.return_type:
-            compiled_return = self.return_type.to_vectorcast_path(**kwargs)
+            # If we get the identifiers for the UUT, then the return value has to be constructed already. So no constructors should be added.
+            compiled_return = self.return_type._create_raw_vectorcast_identifiers(
+                **kwargs,
+                parent_already_constructed=top_level or parent_already_constructed,
+            )
             for identifier in compiled_return:
-                compiled_function.append([*param_prefix, 'return', *identifier])
+                base_ident = param_prefix.append('return')
+                compiled_function.append(base_ident.join(identifier))
 
         for called_func in self.called_functions:
-            compiled_called_func = called_func.type.to_vectorcast_path(**kwargs)
+            compiled_called_func = called_func.type._create_raw_vectorcast_identifiers(
+                **kwargs
+            )
             compiled_function.extend(compiled_called_func)
 
         return compiled_function
@@ -256,6 +395,7 @@ class TypeResolver:
                 'CLASS': lambda: ClassType(type_name),
                 'CLASS_PTR': lambda: PointerType(type_name, None),
                 'ENUMERATION': lambda: EnumType(type_name),
+                'NOT_SUPPORTED': lambda: NotSupportedType(type_name),
             }
 
             if type_type in type_mapping:

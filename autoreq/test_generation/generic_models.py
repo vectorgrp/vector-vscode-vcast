@@ -73,8 +73,8 @@ class GenericTestCase(BaseModel):
 
     unit_names: ClassVar[property]
     as_partial: ClassVar[property]
+    stubbed_functions: ClassVar[property]
     to_vectorcast: ClassVar[Callable]
-    _get_needed_stubs: ClassVar[Callable]
 
     @property
     def unit_names(self):
@@ -121,7 +121,7 @@ class GenericTestCase(BaseModel):
             test_case_str += f'{line}\n'
         test_case_str += 'TEST.END_NOTES:\n'
 
-        for stub in sorted(list(self._get_needed_stubs())):
+        for stub in sorted(list(self.stubbed_functions)):
             test_case_str += f'TEST.STUB:{stub}\n'
 
         # Sometimes the LLM duplicates assignments. Deduplicating them is a free win
@@ -152,7 +152,8 @@ class GenericTestCase(BaseModel):
         test_case_str += 'TEST.END\n'
         return test_case_str
 
-    def _get_needed_stubs(self):
+    @property
+    def stubbed_functions(self):
         self_sanitized_name = sanitize_subprogram_name(self.subprogram_name)
         self_sanitized_name = self_sanitized_name.split('::')[-1]
 
