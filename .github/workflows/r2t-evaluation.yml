@@ -86,7 +86,6 @@ jobs:
       REQ2TESTS_MODELS_PATH: /llm_configs
       EVALUATION_FLAGS: ${{ github.event.inputs.evaluation-flags }}
       MIN_PRUNING_LINES: ${{ github.event.inputs.min-pruning-lines }}
-      BASE_ARTIFACTORY_URL: "https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/${{ github.event.inputs.env-set }}"
       REQ2TESTS_LOG_DIR: /home/vcast_user/.r2t_logs
       REQ2TESTS_LOG_TO_FILE: 1
 
@@ -175,6 +174,11 @@ jobs:
         run: |
           ./ci/reqs2tests_eval.sh
         shell: bash
+
+      - name: Calculate base artifactory URL
+        run: |
+          RANDOM_STRING=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
+          echo "BASE_ARTIFACTORY_URL=https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-$RANDOM_STRING-${{ github.sha }}/${{ github.event.inputs.env-set }}" >> $GITHUB_ENV
 
       - name: Upload reports and show summary
         if: always()
