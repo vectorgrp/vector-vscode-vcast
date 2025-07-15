@@ -1,6 +1,6 @@
 from functools import lru_cache
 import xml.etree.ElementTree as ET
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -9,6 +9,14 @@ from autoreq.constants import MAX_IDENTIFIER_INDEX
 
 class VectorcastIdentifier(BaseModel):
     """Represents a VectorCAST identifier path"""
+
+    model_config = {
+        'arbitrary_types_allowed': True,
+        'ignored_types': (
+            Callable,
+            property,
+        ),  # Tell Pydantic to ignore methods and properties
+    }
 
     segments: List[str] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
