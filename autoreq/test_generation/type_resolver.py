@@ -296,8 +296,18 @@ class FunctionType(Type):
         )
 
     def _create_raw_vectorcast_identifiers(
-        self, top_level=False, parent_already_constructed=False, **kwargs
+        self,
+        top_level=False,
+        parent_already_constructed=False,
+        already_constructed_functions=None,
+        **kwargs,
     ) -> List[VectorcastIdentifier]:
+        if already_constructed_functions is None:
+            already_constructed_functions = set()
+
+        if self.name in already_constructed_functions:
+            return []
+
         param_prefix = VectorcastIdentifier.from_segments(self.unit, self.name)
         global_prefix = VectorcastIdentifier.from_segments(self.unit, '<<GLOBAL>>')
 
@@ -347,7 +357,9 @@ class FunctionType(Type):
 
         for called_func in self.called_functions:
             compiled_called_func = called_func.type._create_raw_vectorcast_identifiers(
-                **kwargs
+                **kwargs,
+                already_constructed_functions=already_constructed_functions
+                | {self.name},
             )
             compiled_function.extend(compiled_called_func)
 
