@@ -1,3 +1,4 @@
+import logging
 from typing import List, Any, ClassVar, Callable, Union, Tuple
 from pydantic import BaseModel
 import re
@@ -159,6 +160,12 @@ class GenericTestCase(BaseModel):
 
         needed_stubs = set()
         for value in self.input_values + self.expected_values:
+            if '.' not in value.identifier:
+                logging.warning(
+                    f'Value {value.identifier} does not have a unit name. Skipping stub generation.'
+                )
+                continue
+
             unit_name, subprogram_name = value.identifier.split('.')[:2]
 
             if unit_name == 'uut_prototype_stubs':
