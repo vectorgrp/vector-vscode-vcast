@@ -136,14 +136,13 @@ class SchemaBuilder:
             allowed_expected_identifiers is not None
             and len(allowed_expected_identifiers) > 250
         )
-        if too_many_identifiers:
+        if too_many_identifiers and not relaxed_schema:
             logging.warning(
                 f'Function {function_name} has too many identifiers: '
                 f'{len(allowed_input_identifiers)} input and {len(allowed_expected_identifiers)} expected. Relaxing schema.'
             )
-            allowed_input_identifiers = None
-            allowed_expected_identifiers = None
             schema_gen_info.too_many_identifiers = True
+            relaxed_schema = True
 
         schema_gen_info.input_identifiers = allowed_input_identifiers or []
         schema_gen_info.expected_identifiers = allowed_expected_identifiers or []
