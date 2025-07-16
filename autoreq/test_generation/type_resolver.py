@@ -693,6 +693,7 @@ class TypeResolver:
                 return type_obj
         return None
 
+    @lru_cache(maxsize=4096)
     def resolve(self, identifier):
         """Resolve any type of object (function or type).
 
