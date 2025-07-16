@@ -602,7 +602,9 @@ class Environment:
             # Check if command succeeded
             if result.returncode == 0:
                 # If an output file is expected, verify it exists
-                if check_output_file and not os.path.exists(check_output_file):
+                if check_output_file and not os.path.exists(
+                    os.path.join(self.env_dir, check_output_file)
+                ):
                     logging.warning(
                         'Command succeeded but expected output file not found',
                         extra={
