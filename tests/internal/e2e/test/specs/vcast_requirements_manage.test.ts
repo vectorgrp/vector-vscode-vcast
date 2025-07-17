@@ -181,18 +181,18 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const outputView = await bottomBar.openOutputView();
     // ── guard the channel‐select so a failure doesn’t abort the test ──
-    try {
-      await browser.waitUntil(async () =>
-        (await outputView.getChannelNames())
-          .toString()
-          .includes("VectorCAST Requirement Test Generation Operations")
-      );
-      await outputView.selectChannel(
-        "VectorCAST Requirement Test Generation Operations"
-      );
-      console.log("Channel selected");
-    } catch (err) {
-      console.warn("selectChannel failed, continuing anyway:", err.message);
+    const channels = await outputView.getChannelNames();
+    console.log("Available channels:");
+    console.log(channels);
+    const target = channels.find((ch) =>
+      ch.includes("VectorCAST Requirement Test Generation Operations")
+    );
+
+    if (target) {
+      await outputView.selectChannel(target);
+      console.log("Channel selected:", target);
+    } else {
+      console.warn("Could not find the VectorCAST channel in:", channels);
     }
 
     await browser.waitUntil(
