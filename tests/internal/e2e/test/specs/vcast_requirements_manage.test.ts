@@ -179,6 +179,15 @@ describe("vTypeCheck VS Code Extension", () => {
       "Generate Tests from Requirements"
     );
 
+    // Wait for some output to appear (polling getText)
+    await browser.waitUntil(
+      async () => {
+        const text = await outputView.getText();
+        return text && text.length > 0;
+      },
+      { timeout: 10000, timeoutMsg: "Output view text never appeared." }
+    );
+
     const outputView = await bottomBar.openOutputView();
     // ── guard the channel‐select so a failure doesn’t abort the test ──
     const channels = await outputView.getChannelNames();
