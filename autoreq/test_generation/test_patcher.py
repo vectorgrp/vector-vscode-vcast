@@ -2,6 +2,7 @@ from copy import deepcopy
 import logging
 
 from autoreq.test_generation.generic_models import GenericValueMapping
+from autoreq.util import get_unique_prefixes
 
 
 class TestPatcher:
@@ -86,30 +87,35 @@ class TestPatcher:
             )
             return {}
 
-        input_identifiers = [
-            test_value.identifier for test_value in test_case.input_values
-        ]
+        input_identifiers = self._get_input_identifiers(test_case)
 
-        uninitialized_pointer_ids = [
+        pointer_ids = [
             i
             for i in relevant_identifiers
-            if str(i) not in input_identifiers
-            and (
-                i.metadata.get('pointer_type')
-                or i.metadata.get('unconstrained_array_type')
-            )
+            if i.metadata.get('pointer_type')
+            or i.metadata.get('unconstrained_array_type')
         ]
 
-        uninitialized_param_pointer_ids = [
+        top_level_pointer_ids = self._only_top_level_identifiers(pointer_ids)
+
+        uninitialized_pointer_ids = [
+            i for i in pointer_ids if i not in input_identifiers
+        ]
+
+        uninitialized_top_level_pointer_ids = [
+            i for i in uninitialized_pointer_ids if i in top_level_pointer_ids
+        ]
+
+        uninitialized_top_level_param_pointer_ids = [
             i
-            for i in uninitialized_pointer_ids
+            for i in uninitialized_top_level_pointer_ids
             if 'param_for' in i.metadata
             and i.metadata['param_for'].name == test_case.subprogram_name
         ]
 
-        uninitialized_global_pointer_ids = [
+        uninitialized_top_level_global_pointer_ids = [
             i
-            for i in uninitialized_pointer_ids
+            for i in uninitialized_top_level_pointer_ids
             if 'global_in' in i.metadata
             and i.metadata['global_in'].name == test_case.subprogram_name
         ]
@@ -118,15 +124,14 @@ class TestPatcher:
             i
             for i in uninitialized_pointer_ids
             if any(
-                test_value.identifier.startswith(str(i))
-                and test_value.identifier != str(i)
-                for test_value in test_case.input_values
+                test_id.is_subidentifier_of(i) and test_id != i
+                for test_id in input_identifiers
             )
         ]
 
         all_uninitialized_pointers = (
-            uninitialized_param_pointer_ids
-            + uninitialized_global_pointer_ids
+            uninitialized_top_level_param_pointer_ids
+            + uninitialized_top_level_global_pointer_ids
             + uninitialized_nonparam_but_used_pointer_ids
         )
 
@@ -150,6 +155,33 @@ class TestPatcher:
             return None
 
         return function_type.to_vectorcast_identifiers(top_level=True, return_raw=True)
+
+    def _get_input_identifiers(self, test_case):
+        relevant_identifiers = self._get_relevant_identifiers(test_case)
+
+        str_to_identifiers = {
+            str(identifier): identifier for identifier in relevant_identifiers
+        }
+
+        input_identifiers = []
+        for test_value in test_case.input_values:
+            identifier = test_value.identifier
+            if identifier in str_to_identifiers:
+                input_identifiers.append(str_to_identifiers[identifier])
+            else:
+                logging.warning(
+                    f'Identifier {identifier} not found in relevant identifiers for subprogram {test_case.subprogram_name}'
+                )
+
+        return input_identifiers
+
+    def _only_top_level_identifiers(self, ids):
+        segments_to_ids = {tuple(identifier.segments): identifier for identifier in ids}
+        top_level_segment_list = get_unique_prefixes(segments_to_ids)
+        top_level_identifiers = [
+            segments_to_ids[segments] for segments in top_level_segment_list
+        ]
+        return top_level_identifiers
 
     def _calculate_max_used_size(self, identifier_str, test_case):
         """Calculate the maximum used size for a given identifier based on test case input values."""

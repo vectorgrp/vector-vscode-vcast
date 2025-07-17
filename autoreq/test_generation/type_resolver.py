@@ -64,6 +64,15 @@ class VectorcastIdentifier(BaseModel):
         new_metadata[key] = value
         return VectorcastIdentifier(segments=self.segments, metadata=new_metadata)
 
+    def is_subidentifier_of(self, other: 'VectorcastIdentifier') -> bool:
+        if not isinstance(other, VectorcastIdentifier):
+            return False
+
+        if len(self.segments) <= len(other.segments):
+            return False
+
+        return self.segments[: len(other.segments)] == other.segments
+
 
 class Type:
     """Base class for all types"""

@@ -3,7 +3,7 @@ import typing as t
 import re
 import glob
 import os
-from typing import List
+from typing import Any, List
 import platform
 import subprocess
 import shutil
@@ -1187,3 +1187,45 @@ def are_paths_equal(path1: str, path2: str) -> bool:
         return p1.samefile(p2)
 
     return p1.resolve(strict=False) == p2.resolve(strict=False)
+
+
+def get_unique_prefixes(prefix_lists: t.List[Any]) -> t.List[Any]:
+    # First: Build a trie structure to hold the strings
+    class TrieNode:
+        def __init__(self):
+            self.children = {}
+            self.is_end = False
+
+        def __getitem__(self, key):
+            return self.children[key]
+
+        def __setitem__(self, key, value):
+            self.children[key] = value
+
+        def __iter__(self):
+            return iter(self.children)
+
+    trie = TrieNode()
+    for prefix_list in prefix_lists:
+        node = trie
+        for list_entry in prefix_list:
+            if list_entry not in node:
+                node[list_entry] = TrieNode()
+
+            node = node[list_entry]
+        node.is_end = True
+
+    # Now: Traverse the trie to find unique prefixes
+    unique_prefixes = []
+
+    def traverse(node, prefix):
+        if node.is_end:
+            unique_prefixes.append(prefix)
+            return
+
+        for list_entry, child in node.children.items():
+            traverse(child, prefix + [list_entry])
+
+    traverse(trie, [])
+
+    return list(map(tuple, unique_prefixes))
