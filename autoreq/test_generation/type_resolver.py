@@ -79,11 +79,24 @@ class Type:
     ) -> List[VectorcastIdentifier]:
         raise NotImplementedError()
 
+    def _create_limited_depth_raw_vectorcast_identifiers(
+        self, call_stack=None, depth_limit=512, **kwargs
+    ) -> List[VectorcastIdentifier]:
+        if call_stack is None:
+            call_stack = []
+
+        call_stack.append(self.name)
+
+        if len(call_stack) >= depth_limit:
+            return []
+
+        return self._create_raw_vectorcast_identifiers(call_stack=call_stack, **kwargs)
+
     @lru_cache(maxsize=4096)
     def to_vectorcast_identifiers(
         self, deduplicate=True, return_raw=False, **kwargs
     ) -> List[str]:
-        identifiers = self._create_raw_vectorcast_identifiers(**kwargs)
+        identifiers = self._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
 
         if deduplicate:
             seen = set()
@@ -128,8 +141,8 @@ class PointerType(Type):
     def _create_raw_vectorcast_identifiers(
         self, max_pointer_index=None, **kwargs
     ) -> List[VectorcastIdentifier]:
-        compiled_pointed = self.pointed_type._create_raw_vectorcast_identifiers(
-            **kwargs
+        compiled_pointed = (
+            self.pointed_type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
         )
 
         if len(compiled_pointed) == 0:
@@ -178,8 +191,10 @@ class ArrayType(Type):
         )
 
         for idx in range(array_size):
-            compiled_element = self.element_type._create_raw_vectorcast_identifiers(
-                **kwargs
+            compiled_element = (
+                self.element_type._create_limited_depth_raw_vectorcast_identifiers(
+                    **kwargs
+                )
             )
             for identifier in compiled_element:
                 compiled_array.append(identifier.prepend(f'[{idx}]'))
@@ -212,7 +227,9 @@ class StructType(Type):
     ) -> List[VectorcastIdentifier]:
         compiled_struct = []
         for field in self.fields:
-            compiled_field = field.type._create_raw_vectorcast_identifiers(**kwargs)
+            compiled_field = (
+                field.type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
+            )
             for identifier in compiled_field:
                 compiled_struct.append(identifier.prepend(field.name))
 
@@ -251,8 +268,10 @@ class ClassType(Type):
 
         # Add fields
         for field in self.fields:
-            compiled_field = field.type._create_raw_vectorcast_identifiers(
-                **kwargs, parent_already_constructed=True
+            compiled_field = (
+                field.type._create_limited_depth_raw_vectorcast_identifiers(
+                    **kwargs, parent_already_constructed=True
+                )
             )
             for identifier in compiled_field:
                 base_ident = VectorcastIdentifier.from_segments(self.name)
@@ -313,15 +332,19 @@ class FunctionType(Type):
 
         compiled_function = []
         if self.origin_class is not None:
-            compiled_class = self.origin_class._create_raw_vectorcast_identifiers(
-                **kwargs
+            compiled_class = (
+                self.origin_class._create_limited_depth_raw_vectorcast_identifiers(
+                    **kwargs
+                )
             )
             for identifier in compiled_class:
                 base_ident = global_prefix.join(['(cl)', self.origin_class.name])
                 compiled_function.append(base_ident.join(identifier))
 
         for g in self.globals:
-            compiled_global = g.type._create_raw_vectorcast_identifiers(**kwargs)
+            compiled_global = g.type._create_limited_depth_raw_vectorcast_identifiers(
+                **kwargs
+            )
 
             # Handle class instances with (cl) prefix
             if isinstance(g.type, ClassType):
@@ -338,7 +361,9 @@ class FunctionType(Type):
                     )
 
         for param in self.parameters:
-            compiled_param = param.type._create_raw_vectorcast_identifiers(**kwargs)
+            compiled_param = (
+                param.type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
+            )
             for identifier in compiled_param:
                 base_ident = param_prefix.append(param.name)
                 compiled_function.append(
@@ -347,19 +372,23 @@ class FunctionType(Type):
 
         if self.return_type:
             # If we get the identifiers for the UUT, then the return value has to be constructed already. So no constructors should be added.
-            compiled_return = self.return_type._create_raw_vectorcast_identifiers(
-                **kwargs,
-                parent_already_constructed=top_level or parent_already_constructed,
+            compiled_return = (
+                self.return_type._create_limited_depth_raw_vectorcast_identifiers(
+                    **kwargs,
+                    parent_already_constructed=top_level or parent_already_constructed,
+                )
             )
             for identifier in compiled_return:
                 base_ident = param_prefix.append('return')
                 compiled_function.append(base_ident.join(identifier))
 
         for called_func in self.called_functions:
-            compiled_called_func = called_func.type._create_raw_vectorcast_identifiers(
-                **kwargs,
-                already_constructed_functions=already_constructed_functions
-                | {self.name},
+            compiled_called_func = (
+                called_func.type._create_limited_depth_raw_vectorcast_identifiers(
+                    **kwargs,
+                    already_constructed_functions=already_constructed_functions
+                    | {self.name},
+                )
             )
             compiled_function.extend(compiled_called_func)
 
