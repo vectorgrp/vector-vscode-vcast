@@ -176,7 +176,24 @@ describe("vTypeCheck VS Code Extension", () => {
       "Generate Tests from Requirements"
     );
 
-    await bottomBar.openDebugConsoleView();
+    await bottomBar.maximize();
+
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Script loaded successfully"),
+      { timeout: 180_000 }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("returned exit code: 0"),
+      { timeout: 180_000 }
+    );
+
     await browser.pause(10000);
     const outputView = await bottomBar.openOutputView();
 
@@ -193,8 +210,6 @@ describe("vTypeCheck VS Code Extension", () => {
     } catch (err) {
       console.warn("selectChannel failed, continuing anyway:", err.message);
     }
-
-    await bottomBar.maximize();
 
     await browser.waitUntil(
       async () =>
