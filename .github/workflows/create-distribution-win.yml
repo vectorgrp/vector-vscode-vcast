@@ -3,8 +3,7 @@ run-name: ${{ github.ref_name }} is generating distribution for Windows
 on:
   workflow_dispatch:
 env:
-  NODE_EXTRA_CA_CERTS: C:\\ca_bundle.crt
-  REQUESTS_CA_BUNDLE: C:\\ca_bundle.crt
+  NODE_EXTRA_CA_CERTS: C:\\certs\\Vector_Root_2.0.crt
   DOCKER_CONFIG: C:\\.docker_config.json
   HTTP_PROXY: http://gateway.zscloud.net:9480
   HTTPS_PROXY: http://gateway.zscloud.net:9480
@@ -29,25 +28,24 @@ jobs:
           echo "CONTAINER_ID=$CONTAINER_ID" >> $env:GITHUB_ENV
         shell: powershell
 
-#      Cache not working
-#      - name: Virtual environment restore from cache
-#        uses: actions/cache/restore@v4
-#        id: cache-venv-restore
-#        with:
-#          path: ${{ github.workspace }}/venv/
-#          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: ${{ github.workspace }}/venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
 
       - name: Setup Python virtual environment
-#        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
         run: docker exec ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\create_virtual_environment.bat"
         shell: cmd
 
-#      - name: Virtual environment save cache
-#        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
-#        uses: actions/cache/save@v4
-#        with:
-#          path: ${{ github.workspace }}/venv/
-#          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
 
       - name: Reqs2tests distribution
         run: docker exec ${{ env.CONTAINER_ID }} cmd /c "C:\r2t\ci\build_distribution_win.bat"
