@@ -168,9 +168,6 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should generate requirements tests", async () => {
     await updateTestID();
 
-    await bottomBar.openOutputView();
-    await bottomBar.maximize();
-
     // Find Manager::PlaceOrder subprogram and click on Generate Tests
     await executeContextMenuAction(
       3,
@@ -179,6 +176,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Generate Tests from Requirements"
     );
 
+    await browser.pause(20000);
     const outputView = await bottomBar.openOutputView();
 
     // Wait for some output to appear (polling getText)
@@ -190,7 +188,6 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: 10000, timeoutMsg: "Output view text never appeared." }
     );
 
-  
     // ── guard the channel‐select so a failure doesn’t abort the test ──
     const channels = await outputView.getChannelNames();
     console.log("Available channels:");
@@ -205,6 +202,8 @@ describe("vTypeCheck VS Code Extension", () => {
     } else {
       console.warn("Could not find the VectorCAST channel in:", channels);
     }
+
+    await bottomBar.maximize();
 
     await browser.waitUntil(
       async () =>
