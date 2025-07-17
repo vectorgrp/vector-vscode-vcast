@@ -7,6 +7,7 @@ import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
   executeContextMenuAction,
+  findTreeNodeAtLevel,
   getViewContent,
   selectOutputChannel,
   updateTestID,
@@ -194,37 +195,7 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: 180_000 }
     );
 
-    await browser.pause(10000);
-    const outputView = await bottomBar.openOutputView();
-
-    try {
-      await browser.waitUntil(async () =>
-        (await outputView.getChannelNames())
-          .toString()
-          .includes("VectorCAST Requirement Test Generation Operations")
-      );
-      await outputView.selectChannel(
-        "VectorCAST Requirement Test Generation Operations"
-      );
-      console.log("Channel selected");
-    } catch (err) {
-      console.warn("selectChannel failed, continuing anyway:", err.message);
-    }
-
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("reqs2tests completed successfully with code 0"),
-      { timeout: 180_000 }
-    );
-
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Generating tests: 100%|██████████|"),
-      { timeout: 180_000 }
-    );
+    const testsuiteNode = await findTreeNodeAtLevel(4, "bar_test");
+    expect(testsuiteNode).toBeDefined();
   });
 });
