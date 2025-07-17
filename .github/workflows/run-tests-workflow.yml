@@ -293,7 +293,7 @@ jobs:
         if: failure()
         uses: actions/checkout@v4
 
-      - name: Set jobs matrixW
+      - name: Set jobs matrix
         id: set-matrix
         env:
           VCAST_VERSIONS: ${{ vars.VCAST_VERSIONS }}
