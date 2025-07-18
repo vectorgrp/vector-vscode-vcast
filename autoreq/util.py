@@ -1189,7 +1189,7 @@ def are_paths_equal(path1: str, path2: str) -> bool:
     return p1.resolve(strict=False) == p2.resolve(strict=False)
 
 
-def get_unique_prefixes(prefix_lists: t.List[Any]) -> t.List[Any]:
+def get_unique_prefixes(prefix_lists):
     # First: Build a trie structure to hold the strings
     class TrieNode:
         def __init__(self):
