@@ -66,6 +66,14 @@ def check_results(run_results_path):
 
     run_results_path = Path(run_results_path)
     env_set_name = os.getenv('ENV_SET_NAME')
+    envs_to_skip = os.getenv('ENVS_TO_SKIP')
+    envs_to_test = os.getenv('ENVS_TO_TEST')
+
+    if envs_to_skip:
+        envs_to_skip = set(env.strip() for env in envs_to_skip.split(','))
+
+    if envs_to_test:
+        envs_to_test = set(env.strip() for env in envs_to_test.split(','))
 
     if not run_results_path.is_dir():
         errors.append(f'Directory {run_results_path} not found.')
@@ -77,6 +85,12 @@ def check_results(run_results_path):
 
     this_env_set_assertions = assertions[env_set_name]
     for env_name, metrics in this_env_set_assertions['envs'].items():
+        if env_name in envs_to_skip:
+            continue
+
+        if envs_to_test and env_name not in envs_to_test:
+            continue
+
         json_file = run_results_path / f'{env_name}_result.json'
         if not json_file.is_file():
             errors.append(f'{env_name} - JSON file {json_file} not found.')

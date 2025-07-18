@@ -3,17 +3,10 @@ run-name: ${{ github.ref_name }} is testing reqs2tests
 on:
   workflow_dispatch:
     inputs:
-      env-set:
-        type: choice
-        options:
-          - sanity
-          - piinnovo
-          - atg-customer
-          - sanity-rc
-          - atg-customer-rc
-        description: 'Select the environment set to run the tests'
-        required: false
-        default: 'sanity'
+      eval-envs:
+        description: 'Environments to be evaluated. Minimal benchmark: sanity-rc. Full benchmark: atg-customer-rc. Input format: ENV_SET=sanity-rc;ENVS_TO_SKIP=TUTORIAL_C,SRC_MODMGR or ENV_SET=sanity-rc;ENVS_TO_TEST=TUTORIAL_C,LEAKY_BUCKET'
+        required: true
+        default: 'ENV_SET=sanity-rc'
       max-cost:
         description: 'Maximum cost of the tests (positive float, 0 for unlimited)'
         required: false
@@ -76,7 +69,7 @@ jobs:
     env:
       VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION }}
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
-      ENV_SET_NAME: ${{ github.event.inputs.env-set }}
+      EVAL_ENVS: ${{ github.event.inputs.eval-envs }}
       MAX_COST: ${{ github.event.inputs.max-cost }}
       PIINNOVO_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-source.tar.gz"
       HALLA_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/halla-modmgr4a-source.tar.gz"
@@ -183,8 +176,13 @@ jobs:
       - name: Upload reports and show summary
         if: always()
         run: |
+          export ENV_SET_NAME=$(echo "$EVAL_ENVS" | grep -oP 'ENV_SET=\K[^;]*' || echo "")
+          export ENVS_TO_SKIP=$(echo "$EVAL_ENVS" | grep -oP 'ENVS_TO_SKIP=\K[^;]*' || echo "")
+          export ENVS_TO_TEST=$(echo "$EVAL_ENVS" | grep -oP 'ENVS_TO_TEST=\K[^;]*' || echo "")
           echo "### Info" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment set:** ${{ env.ENV_SET_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment set:** $ENV_SET_NAME " >> $GITHUB_STEP_SUMMARY
+          echo "**Skipped environments:** $ENVS_TO_SKIP" >> $GITHUB_STEP_SUMMARY
+          echo "**Only environments tested:** $ENVS_TO_TEST" >> $GITHUB_STEP_SUMMARY
           echo "**Max cost:** ${{ env.MAX_COST }}" >> $GITHUB_STEP_SUMMARY
           echo "**Model config name:** ${{ env.REQ2TESTS_MODEL }}" >> $GITHUB_STEP_SUMMARY
           echo "**Model parameters override:** ${{ github.event.inputs.model-params-override }}" >> $GITHUB_STEP_SUMMARY

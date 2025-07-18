@@ -1104,6 +1104,14 @@ async def main():
         help='Generate a full coverage report including all requirements, not just the uncovered ones.',
         default=False,
     )
+    parser.add_argument(
+        '--envs-to-skip',
+        help='Comma-separated list of environment names to skip during evaluation.',
+    )
+    parser.add_argument(
+        '--envs-to-test',
+        help='Comma-separated list of environment names to test. If specified, only these environments will be processed.',
+    )
     args = parser.parse_args()
 
     configure_logging('evaluate_reqs2tests')
@@ -1113,6 +1121,35 @@ async def main():
 
     # Expand environment arguments
     expanded_env_req_pairs = expand_environment_args(args.env_req_pairs)
+
+    # Filter environments based on --envs-to-skip and --envs-to-test
+    if args.envs_to_skip or args.envs_to_test:
+        envs_to_skip = set()
+        envs_to_test = set()
+
+        if args.envs_to_skip:
+            envs_to_skip = set(env.strip() for env in args.envs_to_skip.split(','))
+
+        if args.envs_to_test:
+            envs_to_test = set(env.strip() for env in args.envs_to_test.split(','))
+
+        filtered_pairs = []
+        for pair in expanded_env_req_pairs:
+            env_path, _ = parse_env_req_pair(pair)
+            env_name = Path(env_path).stem
+
+            if env_name in envs_to_skip:
+                continue
+
+            if envs_to_test and env_name not in envs_to_test:
+                continue
+
+            filtered_pairs.append(pair)
+
+        expanded_env_req_pairs = filtered_pairs
+        print(
+            f'Filtered environments: {len(expanded_env_req_pairs)} environments will be processed'
+        )
 
     # Set up MLflow if requested
     mlflow = setup_mlflow(args.mlflow) if args.mlflow else None

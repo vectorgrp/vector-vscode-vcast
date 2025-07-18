@@ -10,6 +10,10 @@ HALLA_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/
 SANITY_RC_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/sanity-rc.tar.gz"
 ATG_CUSTOMER_RC_ENVS="https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/atg-customer-rc.tar.gz"
 
+ENV_SET_NAME=$(echo "$EVAL_ENVS" | grep -oP 'ENV_SET=\K[^;]*' || echo "")
+ENVS_TO_SKIP=$(echo "$EVAL_ENVS" | grep -oP 'ENVS_TO_SKIP=\K[^;]*' || echo "")
+ENVS_TO_TEST=$(echo "$EVAL_ENVS" | grep -oP 'ENVS_TO_TEST=\K[^;]*' || echo "")
+
 ENVS=("sanity" "piinnovo" "atg-customer" "sanity-rc" "atg-customer-rc")
 if [[ "$ENV_SET_NAME" == "sanity" ]]; then
   ENV_SET_URL=$SANITY_ENVS
@@ -77,6 +81,16 @@ get_extra_args() {
       echo "Min pruning lines set to $MIN_PRUNING_LINES"
       EXTRA_ARGS+=("--min-pruning-lines" "$MIN_PRUNING_LINES")
     fi
+  fi
+
+  if [[ -n "$ENVS_TO_SKIP" ]]; then
+    echo "Environments to skip: $ENVS_TO_SKIP"
+    EXTRA_ARGS+=("--envs-to-skip" "$ENVS_TO_SKIP")
+  fi
+
+  if [[ -n "$ENVS_TO_TEST" ]]; then
+    echo "Environments to test: $ENVS_TO_TEST"
+    EXTRA_ARGS+=("--envs-to-test" "$ENVS_TO_TEST")
   fi
 }
 
