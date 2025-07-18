@@ -1229,3 +1229,15 @@ def get_unique_prefixes(prefix_lists):
     traverse(trie, [])
 
     return list(map(tuple, unique_prefixes))
+
+
+# Based on: https://stackoverflow.com/questions/1151658/python-hashable-dicts
+class HashableCounter(Counter):
+    def __key(self):
+        return tuple((k, self[k]) for k in sorted(self))
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        return self.__key() == other.__key()

@@ -1,4 +1,3 @@
-from collections import Counter
 from functools import lru_cache
 import xml.etree.ElementTree as ET
 from typing import Callable, List, Optional, Union
@@ -6,6 +5,7 @@ from typing import Callable, List, Optional, Union
 from pydantic import BaseModel, Field
 
 from autoreq.constants import MAX_IDENTIFIER_INDEX
+from autoreq.util import HashableCounter
 
 
 class VectorcastIdentifier(BaseModel):
@@ -89,6 +89,7 @@ class Type:
     ) -> List[VectorcastIdentifier]:
         raise NotImplementedError()
 
+    @lru_cache(maxsize=4096)
     def _create_limited_depth_raw_vectorcast_identifiers(
         self,
         call_stack=None,
@@ -96,7 +97,7 @@ class Type:
         **kwargs,
     ) -> List[VectorcastIdentifier]:
         if call_stack is None:
-            call_stack = Counter()
+            call_stack = HashableCounter()
 
         call_stack = call_stack.copy()
         call_stack[self.name] += 1
@@ -347,6 +348,8 @@ class FunctionType(Type):
     ) -> List[VectorcastIdentifier]:
         if already_constructed_functions is None:
             already_constructed_functions = set()
+        else:
+            already_constructed_functions = set(already_constructed_functions)
 
         if self.name in already_constructed_functions:
             return []
@@ -410,8 +413,9 @@ class FunctionType(Type):
             compiled_called_func = (
                 called_func.type._create_limited_depth_raw_vectorcast_identifiers(
                     **kwargs,
-                    already_constructed_functions=already_constructed_functions
-                    | {self.name},
+                    already_constructed_functions=tuple(
+                        already_constructed_functions | {self.name}
+                    ),
                 )
             )
             compiled_function.extend(compiled_called_func)
