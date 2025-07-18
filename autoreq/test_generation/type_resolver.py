@@ -101,6 +101,11 @@ class Type:
         call_stack = call_stack.copy()
         call_stack[self.name] += 1
 
+        in_cycle = call_stack.most_common(1)[0][1] >= 2
+
+        if in_cycle:
+            return []
+
         if call_stack.total() >= depth_limit:
             return []
 
