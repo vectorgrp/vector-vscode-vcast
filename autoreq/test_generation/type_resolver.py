@@ -1,3 +1,4 @@
+from collections import Counter
 from functools import lru_cache
 import xml.etree.ElementTree as ET
 from typing import Callable, List, Optional, Union
@@ -89,17 +90,25 @@ class Type:
         raise NotImplementedError()
 
     def _create_limited_depth_raw_vectorcast_identifiers(
-        self, call_stack=None, depth_limit=512, **kwargs
+        self,
+        call_stack=None,
+        depth_limit=32,
+        **kwargs,
     ) -> List[VectorcastIdentifier]:
         if call_stack is None:
-            call_stack = []
+            call_stack = Counter()
 
-        call_stack.append(self.name)
+        call_stack = call_stack.copy()
+        call_stack[self.name] += 1
 
-        if len(call_stack) >= depth_limit:
+        if call_stack.total() >= depth_limit:
             return []
 
-        return self._create_raw_vectorcast_identifiers(call_stack=call_stack, **kwargs)
+        return self._create_raw_vectorcast_identifiers(
+            call_stack=call_stack,
+            depth_limit=depth_limit,
+            **kwargs,
+        )
 
     @lru_cache(maxsize=4096)
     def to_vectorcast_identifiers(
@@ -148,20 +157,19 @@ class PointerType(Type):
         self.pointed_type = pointed_type
 
     def _create_raw_vectorcast_identifiers(
-        self, max_pointer_index=None, **kwargs
+        self, max_pointer_index=MAX_IDENTIFIER_INDEX, **kwargs
     ) -> List[VectorcastIdentifier]:
         compiled_pointed = (
-            self.pointed_type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
+            self.pointed_type._create_limited_depth_raw_vectorcast_identifiers(
+                **kwargs,
+                max_pointer_index=1,  # Nested pointers do not get expanded
+            )
         )
 
         if len(compiled_pointed) == 0:
             return []
 
         compiled_pointer = [VectorcastIdentifier(metadata={'pointer_type': self})]
-        """
-        for identifier in compiled_pointed:
-            compiled_pointer.append(identifier.prepend('[0]'))
-        """
 
         for idx in range(max_pointer_index or MAX_IDENTIFIER_INDEX):
             for identifier in compiled_pointed:
@@ -179,7 +187,7 @@ class ArrayType(Type):
         self.size = size
 
     def _create_raw_vectorcast_identifiers(
-        self, max_array_index=None, **kwargs
+        self, max_array_index=MAX_IDENTIFIER_INDEX, **kwargs
     ) -> List[VectorcastIdentifier]:
         compiled_array = []
 
@@ -199,12 +207,14 @@ class ArrayType(Type):
             else original_array_size
         )
 
-        for idx in range(array_size):
-            compiled_element = (
-                self.element_type._create_limited_depth_raw_vectorcast_identifiers(
-                    **kwargs
-                )
+        compiled_element = (
+            self.element_type._create_limited_depth_raw_vectorcast_identifiers(
+                **kwargs,
+                max_array_index=1,  # Nested arrays do not get expanded
             )
+        )
+
+        for idx in range(array_size):
             for identifier in compiled_element:
                 compiled_array.append(identifier.prepend(f'[{idx}]'))
 
