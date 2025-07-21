@@ -1,6 +1,7 @@
 from copy import deepcopy
 import logging
 
+from autoreq.constants import MAX_IDENTIFIER_DEPTH_LIMIT, MAX_IDENTIFIER_INDEX
 from autoreq.test_generation.generic_models import GenericValueMapping
 from autoreq.util import get_unique_prefixes
 
@@ -154,7 +155,13 @@ class TestPatcher:
             logging.warning(f'No type found for subprogram {test_case.subprogram_name}')
             return None
 
-        return function_type.to_vectorcast_identifiers(top_level=True, return_raw=True)
+        return function_type.to_vectorcast_identifiers(
+            top_level=True,
+            return_raw=True,
+            depth_limit=MAX_IDENTIFIER_DEPTH_LIMIT,
+            max_array_index=MAX_IDENTIFIER_INDEX,
+            max_pointer_index=MAX_IDENTIFIER_INDEX,
+        )
 
     def _get_input_identifiers(self, test_case):
         relevant_identifiers = self._get_relevant_identifiers(test_case)

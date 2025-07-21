@@ -21,7 +21,11 @@ from autoreq.util import (
     get_vectorcast_cmd,
 )
 
-from autoreq.constants import SOURCE_FILE_EXTENSIONS, TEST_COVERAGE_SCRIPT_PATH
+from autoreq.constants import (
+    MAX_IDENTIFIER_DEPTH_LIMIT,
+    SOURCE_FILE_EXTENSIONS,
+    TEST_COVERAGE_SCRIPT_PATH,
+)
 
 from typing import Union
 from ..codebase import Codebase
@@ -386,6 +390,7 @@ class Environment:
         max_array_index=None,
         remove_surely_stubbed_returns=False,
         remove_surely_stubbed_inputs=False,
+        depth_limit=MAX_IDENTIFIER_DEPTH_LIMIT,
     ):
         try:
             all_identifiers = self.type_resolver.resolve(
@@ -394,6 +399,7 @@ class Environment:
                 top_level=True,
                 max_array_index=max_array_index,
                 max_pointer_index=max_array_index,
+                depth_limit=depth_limit,
             )
         except Exception as e:
             stacktrace = traceback.format_exc()
