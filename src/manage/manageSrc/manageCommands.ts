@@ -75,6 +75,29 @@ export async function buildProjectEnvironment(
   );
 }
 
+export async function createNewProject(projectPath: string, compiler: string) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = path.dirname(projectPath);
+  const progressMessage = `Creating new Project ${projectName}  ...`;
+  const manageArgs = [`-p${projectName}`, `--create`, "--force"];
+
+  await executeWithRealTimeEchoWithProgress(
+    manageCommandToUse,
+    manageArgs,
+    projectLocation,
+    progressMessage
+  );
+
+  const compilerPath = await createNewCFGFromCompiler(compiler);
+  if (compilerPath) {
+    const compilerName = path.basename(compilerPath);
+    await addCompilerToProject(projectPath, compilerPath);
+    vectorMessage(`Added Compiler ${compilerName} to Project ${projectName}`);
+  } else {
+    vectorMessage(`No Compiler found for Project ${projectName}`);
+  }
+}
+
 export async function cleanProjectEnvironment(
   enviroPath: string,
   enviroNodeID: string,

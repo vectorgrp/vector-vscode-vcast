@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Create Compiler</title>
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal">
+    <h2>Create Compiler in Project</h2>
+  
+    <p><strong>Project:</strong> <span id="projectPathDisplay"></span></p>
+  
+    <label for="compilerInput">Select Compiler:</label>
+    <div class="autocomplete">
+      <input type="text" id="compilerInput" placeholder="Type or click to select…" autocomplete="off" />
+      <ul id="suggestions" class="suggestions"></ul>
+    </div>
+  
+    <div class="button-container">
+      <button id="btnCancel" class="cancel-button">Cancel</button>
+      <button id="btnSubmit" class="primary-button">OK</button>
+    </div>
+  </div>
+  <script src="{{ scriptUri }}"></script>
+</body>
+</html>

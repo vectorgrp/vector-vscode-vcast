@@ -1,10 +1,14 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
+import { promisify } from "util";
+import { exec as execCb } from "child_process";
 
 import { globalController, globalProjectDataCache } from "../../testPane";
 import { vectorMessage } from "../../messagePane";
 import { normalizePath } from "../../utilities";
+
+const exec = promisify(execCb);
 
 /**
  * Searches the entire globalController for a test item with the specified id.
@@ -133,6 +137,47 @@ export function addManagedEnvironments(
       });
     }
   }
+}
+
+interface CompilerList {
+  [tag: string]: string;
+}
+
+export const compilerTagList: CompilerList = {};
+
+/**
+ * Runs `grep "C_COMPILER_TAG"` on the VectorCAST C_TEMPLATES.DAT file
+ * and updates the exported `compilerList` in-place.
+ */
+export async function setCompilerList(): Promise<CompilerList> {
+  if (!process.env.VECTORCAST_DIR) {
+    throw new Error("VECTORCAST_DIR environment variable is not set");
+  }
+
+  const datPath = `${process.env.VECTORCAST_DIR}/DATA/C_TEMPLATES.DAT`;
+  const cmd = `grep "C_COMPILER_TAG" "${datPath}"`;
+  const { stdout } = await exec(cmd);
+
+  // Clear any existing entries
+  Object.keys(compilerTagList).forEach((key) => {
+    delete compilerTagList[key];
+  });
+
+  stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line)
+    .forEach((line) => {
+      // e.g. "C_COMPILER_TAG: TAG: Name..."
+      const parts = line.split(": ").map((p) => p.trim());
+      const tag = parts[1];
+      const name = parts.length >= 3 ? parts.slice(2).join(": ") : parts[1];
+
+      // Switch key and value: map name → tag
+      compilerTagList[name] = tag;
+    });
+
+  return compilerTagList;
 }
 
 // Simple list with ignored projects in case something goes wrong but we can still continue with other projects

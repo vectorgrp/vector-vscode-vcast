@@ -137,7 +137,12 @@ import {
 } from "./vcastUtilities";
 
 import fs = require("fs");
-import { getNonce, resolveWebviewBase } from "./manage/manageSrc/manageUtils";
+import {
+  compilerTagList,
+  getNonce,
+  resolveWebviewBase,
+  setCompilerList,
+} from "./manage/manageSrc/manageUtils";
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
@@ -220,6 +225,9 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
       await toggleCoverageAction();
       // initialize the verbose setting
       adjustVerboseSetting();
+
+      // Sets the list for all available compilers
+      await setCompilerList();
     } else {
       openMessagePane();
     }
@@ -1581,6 +1589,129 @@ async function installPreActivationEventHandlers(
         `<script nonce="${nonce}">
            window.projectData = ${projectData};
            window.initialSourceFiles = ${initialSourceFiles};
+         </script>\n</head>`
+      );
+
+    return html;
+  }
+
+  const newCompilerCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.newCompilerInProjectVCAST",
+    async (args: any) => {
+      // Retrieve project path from the clicked node's 'id'
+      const projectPath: string | undefined = args?.id;
+      if (!projectPath) {
+        vscode.window.showErrorMessage("No project node provided.");
+        return;
+      }
+
+      // Create webview panel
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "newCompiler",
+        "Create Compiler in Project",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      // Load HTML into webview
+      panel.webview.html = await getNewCompilerWebviewContent(
+        context,
+        panel,
+        projectPath
+      );
+
+      // Dispatch table
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
+        undefined,
+        context.subscriptions
+      );
+
+      // Handle submission
+      async function handleSubmit(message: { compilerName?: string }) {
+        const compilerName = message.compilerName;
+        if (!compilerName) {
+          vscode.window.showErrorMessage("Compiler Name is required.");
+          return;
+        }
+
+        const compilerTemplate = compilerTagList[compilerName];
+        if (!compilerTemplate) {
+          vscode.window.showErrorMessage(
+            `Compiler Template Name was not found for ${compilerName}.`
+          );
+          return;
+        }
+
+        const params: any = {
+          path: projectPath,
+          compiler: compilerName,
+        };
+
+        vscode.window.showInformationMessage(
+          `Adding compiler ${compilerName} to project ${projectPath}`
+        );
+
+        // await addCompilerToProject(projectPath, compilerName);
+        panel.dispose();
+      }
+    }
+  );
+
+  context.subscriptions.push(newCompilerCmd);
+
+  async function getNewCompilerWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    projectPath: string
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "newCompiler.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "newCompiler.js")
+    );
+    const htmlPath = path.join(base, "html", "newCompiler.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // For demo, hard‑coded compiler list
+    const compilerList = JSON.stringify(Object.keys(compilerTagList));
+    const projectPathJson = JSON.stringify(projectPath);
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+    const csp = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+    html = html.replace(/<head>/, `<head>${csp}`);
+
+    html = html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      )
+      .replace(
+        /<\/head>/,
+        `<script nonce="${nonce}">
+           window.projectPath = ${projectPathJson};
+           window.compilerData = ${compilerList};
          </script>\n</head>`
       );
 
