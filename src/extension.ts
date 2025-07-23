@@ -98,6 +98,7 @@ import {
   addEnvToTestsuite,
   deleteEnvironmentFromProject,
   createNewCompilerInProject,
+  createNewProject,
 } from "./manage/manageSrc/manageCommands";
 
 import {
@@ -1595,6 +1596,124 @@ async function installPreActivationEventHandlers(
       );
 
     return html;
+  }
+
+  const createNewProjectCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createNewProject",
+    async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders?.length) {
+        vscode.window.showErrorMessage("Open a folder first.");
+        return;
+      }
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "newProject",
+        "Create New Project",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      panel.webview.html = await getNewProjectWebviewContent(
+        context,
+        panel,
+        workspaceRoot
+      );
+
+      const dispatch: Record<string, (msg: any) => Promise<void> | void> = {
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      panel.webview.onDidReceiveMessage(
+        (msg) => dispatch[msg.command]?.(msg),
+        undefined,
+        context.subscriptions
+      );
+
+      async function handleSubmit(message: {
+        projectName?: string;
+        compilerName?: string;
+      }) {
+        const { projectName, compilerName } = message;
+        if (!projectName) {
+          vscode.window.showErrorMessage("Project Name is required.");
+          return;
+        }
+        if (!compilerName) {
+          vscode.window.showErrorMessage("Compiler selection is required.");
+          return;
+        }
+
+        const compilerTag = compilerTagList[compilerName];
+        if (!compilerTag) {
+          vscode.window.showErrorMessage(
+            `No compiler tag found for "${compilerName}".`
+          );
+          return;
+        }
+
+        const projectPath = path.join(workspaceRoot, projectName);
+        vscode.window.showInformationMessage(
+          `Creating project "${projectName}" at ${projectPath} using ${compilerName}.`
+        );
+        await createNewProject(projectPath, compilerTag);
+        panel.dispose();
+      }
+    }
+  );
+
+  context.subscriptions.push(createNewProjectCmd);
+
+  // helper to load the HTML
+  async function getNewProjectWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    workspaceRoot: string
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(path.join(base, "css", "newProject.css"));
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "newProject.js")
+    );
+    const htmlPath = path.join(base, "html", "newProject.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // we want just the compiler names array
+    const compilersJson = JSON.stringify(Object.keys(compilerTagList));
+    const workspaceJson = JSON.stringify(workspaceRoot);
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+    const csp = `
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none';
+                   style-src ${panel.webview.cspSource};
+                   script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+  `;
+    html = html.replace(/<head>/, `<head>${csp}`);
+
+    return html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      )
+      .replace(
+        /<\/head>/,
+        `<script nonce="${nonce}">
+         window.workspaceRoot = ${workspaceJson};
+         window.compilerData  = ${compilersJson};
+       </script>\n</head>`
+      );
   }
 
   const newCompilerCmd = vscode.commands.registerCommand(

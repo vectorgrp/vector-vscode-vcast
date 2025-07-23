@@ -485,6 +485,10 @@ export async function buildProjectDataCache(baseDirectory: string) {
   const options = { cwd: baseDirectory, absolute: true, strict: false };
   const projectFileList = glob.sync("**/*.vcm", options);
 
+  // Resetting unused compiler & testsuite list
+  globalUnusedCompilerList.length = 0;
+  globalUnusedTestsuiteList.length = 0;
+
   for (const projectFile of projectFileList) {
     // enviroList is a list of json objects with fields:
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
@@ -496,7 +500,6 @@ export async function buildProjectDataCache(baseDirectory: string) {
 
       // This includes all unused and empty testsuites and compilers because
       // they are not in the enviroList as they do not include any envs
-      globalUnusedTestsuiteList.length = 0;
       globalUnusedTestsuiteList.push(...projectData.projectTestsuiteData);
 
       projectData.projectCompilerData.forEach(
@@ -504,7 +507,6 @@ export async function buildProjectDataCache(baseDirectory: string) {
           item.projectFile = forceLowerCaseDriveLetter(item.projectFile);
         }
       );
-      globalUnusedCompilerList.length = 0;
       globalUnusedCompilerList.push(...projectData.projectCompilerData);
 
       // convert the raw json data into a map for the cache

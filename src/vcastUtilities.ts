@@ -728,12 +728,16 @@ export function ensureCompilerNodes() {
     let projectNode: vcastTestItem | undefined =
       globalProjectMap.get(projectFile);
     if (!projectNode) {
-      // Alternatively, you can search among top-level nodes if needed.
-      globalController.items.forEach((topItem) => {
-        if ((topItem as vcastTestItem).id === projectFile) {
-          projectNode = topItem as vcastTestItem;
-        }
-      });
+      // If project node doesn't exist, create a new one.
+      // This gets triggered when we have a project without envs but with a compiler
+      const projectDisplayName = path.basename(projectFile);
+      projectNode = globalController.createTestItem(
+        projectFile,
+        projectDisplayName
+      ) as vcastTestItem;
+      projectNode.nodeKind = nodeKind.project;
+      globalController.items.add(projectNode);
+      globalProjectMap.set(projectFile, projectNode);
     }
 
     // If no project node exists, do nothing.

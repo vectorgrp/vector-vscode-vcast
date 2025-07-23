@@ -45,6 +45,10 @@
     ],
     "commands": [
       {
+        "command": "vectorcastTestExplorer.createNewProject",
+        "title": "VectorCAST: Create New Project"
+      },
+      {
         "command": "vectorcastTestExplorer.configure",
         "category": "VectorCAST Test Explorer",
         "title": "Configure"
