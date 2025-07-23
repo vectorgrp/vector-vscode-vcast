@@ -97,6 +97,7 @@ import {
   cleanProjectEnvironment,
   addEnvToTestsuite,
   deleteEnvironmentFromProject,
+  createNewCompilerInProject,
 } from "./manage/manageSrc/manageCommands";
 
 import {
@@ -143,6 +144,7 @@ import {
   resolveWebviewBase,
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
+import { create } from "domain";
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
@@ -1653,14 +1655,17 @@ async function installPreActivationEventHandlers(
           return;
         }
 
-        const params: any = {
-          path: projectPath,
-          compiler: compilerName,
-        };
-
-        vscode.window.showInformationMessage(
-          `Adding compiler ${compilerName} to project ${projectPath}`
-        );
+        if (projectPath) {
+          vscode.window.showInformationMessage(
+            `Adding compiler ${compilerName} to project ${projectPath}`
+          );
+          await createNewCompilerInProject(projectPath, compilerTemplate);
+        } else {
+          vscode.window.showErrorMessage(
+            "Project Path is not defined. Cannot add compiler."
+          );
+          return;
+        }
 
         // await addCompilerToProject(projectPath, compilerName);
         panel.dispose();

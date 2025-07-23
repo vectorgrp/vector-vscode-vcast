@@ -11,6 +11,60 @@ import { normalizePath } from "../../utilities";
 const exec = promisify(execCb);
 
 /**
+ * Generates a new CFG file for the given compiler by invoking VectorCAST's clicast tool,
+ * writes it into the specified compilers directory, and returns the full path to the file.
+ *
+ * @param compiler - The compiler template (e.g. 'VXSIM64_RTP_WORKBENCH_CPP').
+ * @param projectCompilerPath - Absolute path to the 'compilers' directory in the project.
+ * @returns The absolute file path of the generated CFG, or undefined if generation failed.
+ */
+export async function createNewCFGFromCompiler(
+  compiler: string,
+  projectCompilerPath: string
+): Promise<string | undefined> {
+  // Ensure VECTORCAST_DIR is defined
+  const vectorcastDir = process.env.VECTORCAST_DIR;
+  if (!vectorcastDir) {
+    vscode.window.showErrorMessage(
+      "Environment variable VECTORCAST_DIR is not set."
+    );
+    return;
+  }
+
+  // Build the path to the 'clicast' executable
+  const clicastPath = path.join(vectorcastDir, "clicast");
+  const args = ["-lc", "template", compiler].join(" ");
+  const command = `${clicastPath} ${args}`;
+
+  try {
+    // Execute clicast and capture stdout (the CFG content)
+    const { stdout, stderr } = await exec(command);
+    if (stderr) {
+      vscode.window.showErrorMessage(`clicast error: ${stderr}`);
+      return;
+    }
+
+    // Determine output filename and path
+    const fileName = `${compiler}.cfg`;
+    const fullPath = path.join(projectCompilerPath, fileName);
+
+    // Convert the CFG content into a Uint8Array for VS Code FS
+    const fileUri = vscode.Uri.file(fullPath);
+    const contentBuffer = Buffer.from(stdout, "utf8");
+
+    // Write the file via VS Code's FS API
+    await vscode.workspace.fs.writeFile(fileUri, contentBuffer);
+
+    return fullPath;
+  } catch (error: any) {
+    vscode.window.showErrorMessage(
+      `Failed to generate CFG for ${compiler}: ${error.message}`
+    );
+    return;
+  }
+}
+
+/**
  * Searches the entire globalController for a test item with the specified id.
  * @param targetId The id of the test item to search for.
  * @returns The test item if found, otherwise undefined.

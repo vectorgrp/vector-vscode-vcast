@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
 
 import {
   buildEnvironmentCallback,
@@ -11,7 +12,10 @@ import {
   cleanEnvironmentCallback,
 } from "./manageCallbacks";
 
-import { findTestItemInController } from "./manageUtils";
+import {
+  createNewCFGFromCompiler,
+  findTestItemInController,
+} from "./manageUtils";
 
 import { openMessagePane, vectorMessage } from "../../messagePane";
 
@@ -75,6 +79,39 @@ export async function buildProjectEnvironment(
   );
 }
 
+export async function createNewCompilerInProject(
+  projectPath: string,
+  compiler: string
+) {
+  const projectName = path.basename(projectPath);
+  const projectLocation = projectPath.split(".vcm")[0];
+  // We save all new created compilers in a compilers dir
+  // Check if it already exists, otherwise create it
+  if (!fs.existsSync(projectLocation)) {
+    vectorMessage(`${projectLocation} does not exist.`);
+    return;
+  }
+  const projectCompilerPath = path.join(projectLocation, "compilers");
+  if (!fs.existsSync(projectCompilerPath)) {
+    await vscode.workspace.fs.createDirectory(
+      vscode.Uri.file(projectCompilerPath)
+    );
+  }
+
+  const compilerPath = await createNewCFGFromCompiler(
+    compiler,
+    projectCompilerPath
+  );
+
+  if (compilerPath) {
+    const compilerName = path.basename(compilerPath);
+    await addCompilerToProject(projectPath, compilerPath);
+    vectorMessage(`Added Compiler ${compilerName} to Project ${projectName}`);
+  } else {
+    vectorMessage(`No Compiler found for Project ${projectName}`);
+  }
+}
+
 export async function createNewProject(projectPath: string, compiler: string) {
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
@@ -88,14 +125,7 @@ export async function createNewProject(projectPath: string, compiler: string) {
     progressMessage
   );
 
-  const compilerPath = await createNewCFGFromCompiler(compiler);
-  if (compilerPath) {
-    const compilerName = path.basename(compilerPath);
-    await addCompilerToProject(projectPath, compilerPath);
-    vectorMessage(`Added Compiler ${compilerName} to Project ${projectName}`);
-  } else {
-    vectorMessage(`No Compiler found for Project ${projectName}`);
-  }
+  await createNewCompilerInProject(projectPath, compiler);
 }
 
 export async function cleanProjectEnvironment(

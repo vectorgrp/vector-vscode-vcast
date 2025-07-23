@@ -96,6 +96,11 @@
         "title": "Add Testsuite to Compiler"
       },
       {
+        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
+        "category": "VectorCAST Test Explorer",
+        "title": "Create new Compiler in Project"
+      },
+      {
         "command": "vectorcastTestExplorer.addEnviroToProject",
         "category": "VectorCAST Test Explorer",
         "title": "Add existing Environment to Project"
@@ -426,6 +431,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.addEnviroToProject",
           "when": "never"
         },
@@ -699,6 +708,11 @@
       },
       {
         "command": "vectorcastTestExplorer.addEnviroToProject",
+        "group": "vcast.project",
+        "when": "testId =~ /\\.vcm$/"
+      },
+      {
+        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
         "group": "vcast.project",
         "when": "testId =~ /\\.vcm$/"
       },
