@@ -1,10 +1,10 @@
 const vscode = acquireVsCodeApi();
 
 window.addEventListener("DOMContentLoaded", () => {
-  const projectPath = window.projectPath || "";
+  const projectName = window.projectName || "";
   const compilerData = window.compilerData || [];
 
-  document.getElementById("projectPathDisplay").textContent = projectPath;
+  document.getElementById("projectNameDisplay").textContent = projectName;
 
   const input = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");

@@ -145,7 +145,7 @@ import {
   resolveWebviewBase,
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
-import { create } from "domain";
+
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
@@ -1626,13 +1626,32 @@ async function installPreActivationEventHandlers(
         workspaceRoot
       );
 
-      const dispatch: Record<string, (msg: any) => Promise<void> | void> = {
-        submit: handleSubmit,
-        cancel: () => panel.dispose(),
-      };
-
       panel.webview.onDidReceiveMessage(
-        (msg) => dispatch[msg.command]?.(msg),
+        async (msg) => {
+          switch (msg.command) {
+            case "browseForDir": {
+              const folderUris = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: "Select Target Folder",
+              });
+              if (folderUris?.length) {
+                panel.webview.postMessage({
+                  command: "setTargetDir",
+                  targetDir: folderUris[0].fsPath,
+                });
+              }
+              break;
+            }
+            case "submit":
+              await handleSubmit(msg);
+              break;
+            case "cancel":
+              panel.dispose();
+              break;
+          }
+        },
         undefined,
         context.subscriptions
       );
@@ -1640,8 +1659,9 @@ async function installPreActivationEventHandlers(
       async function handleSubmit(message: {
         projectName?: string;
         compilerName?: string;
+        targetDir?: string;
       }) {
-        const { projectName, compilerName } = message;
+        const { projectName, compilerName, targetDir } = message;
         if (!projectName) {
           vscode.window.showErrorMessage("Project Name is required.");
           return;
@@ -1650,7 +1670,6 @@ async function installPreActivationEventHandlers(
           vscode.window.showErrorMessage("Compiler selection is required.");
           return;
         }
-
         const compilerTag = compilerTagList[compilerName];
         if (!compilerTag) {
           vscode.window.showErrorMessage(
@@ -1659,7 +1678,9 @@ async function installPreActivationEventHandlers(
           return;
         }
 
-        const projectPath = path.join(workspaceRoot, projectName);
+        const base = targetDir ?? workspaceRoot;
+        const projectPath = path.join(base, projectName);
+
         vscode.window.showInformationMessage(
           `Creating project "${projectName}" at ${projectPath} using ${compilerName}.`
         );
@@ -1671,7 +1692,6 @@ async function installPreActivationEventHandlers(
 
   context.subscriptions.push(createNewProjectCmd);
 
-  // helper to load the HTML
   async function getNewProjectWebviewContent(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
@@ -1687,33 +1707,30 @@ async function installPreActivationEventHandlers(
     const cssUri = panel.webview.asWebviewUri(cssOnDisk);
     const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
 
-    // we want just the compiler names array
     const compilersJson = JSON.stringify(Object.keys(compilerTagList));
+    // pass default targetDir as workspace root
     const workspaceJson = JSON.stringify(workspaceRoot);
 
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
-    const csp = `
-    <meta http-equiv="Content-Security-Policy"
-          content="default-src 'none';
-                   style-src ${panel.webview.cspSource};
-                   script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
-  `;
-    html = html.replace(/<head>/, `<head>${csp}`);
+    html = html.replace(
+      /<head>/,
+      `<head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
+          panel.webview.cspSource
+        }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+        <script nonce="${nonce}">
+          window.compilerData = ${compilersJson};
+          window.defaultDir   = ${workspaceJson};
+        </script>`
+    );
+    html = html.replace("{{ cssUri }}", cssUri.toString());
+    html = html.replace(
+      "{{ scriptUri }}",
+      `<script nonce="${nonce}" src="${scriptUri}"></script>`
+    );
 
-    return html
-      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
-      .replace(
-        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
-        `<script nonce="${nonce}" src="${scriptUri}"></script>`
-      )
-      .replace(
-        /<\/head>/,
-        `<script nonce="${nonce}">
-         window.workspaceRoot = ${workspaceJson};
-         window.compilerData  = ${compilersJson};
-       </script>\n</head>`
-      );
+    return html;
   }
 
   const newCompilerCmd = vscode.commands.registerCommand(
@@ -1813,7 +1830,8 @@ async function installPreActivationEventHandlers(
 
     // For demo, hard‑coded compiler list
     const compilerList = JSON.stringify(Object.keys(compilerTagList));
-    const projectPathJson = JSON.stringify(projectPath);
+    const projectDir = path.resolve(projectPath);
+    const projectName = JSON.stringify(path.basename(projectDir));
 
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
@@ -1834,7 +1852,7 @@ async function installPreActivationEventHandlers(
       .replace(
         /<\/head>/,
         `<script nonce="${nonce}">
-           window.projectPath = ${projectPathJson};
+           window.projectName = ${projectName};
            window.compilerData = ${compilerList};
          </script>\n</head>`
       );

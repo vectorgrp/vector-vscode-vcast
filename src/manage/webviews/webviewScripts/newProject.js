@@ -1,23 +1,38 @@
 const vscode = acquireVsCodeApi();
 
 window.addEventListener("DOMContentLoaded", () => {
-  const root = window.workspaceRoot || "";
   const compilers = window.compilerData || [];
+  const defaultDir = window.defaultDir || "";
 
-  document.getElementById("workspaceDisplay").textContent = root;
-
-  const nameInput = document.getElementById("projectNameInput");
-  const compInput = document.getElementById("compilerInput");
+  const targetInput = document.getElementById("targetDirInput");
+  const browseBtn   = document.getElementById("btnBrowse");
+  const nameInput   = document.getElementById("projectNameInput");
+  const compInput   = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
 
-  let filtered = [], activeIndex = -1;
+  // initialize target folder
+  let targetDir = defaultDir;
+  targetInput.value = targetDir;
 
+  // browse for folder
+  browseBtn.addEventListener("click", () => {
+    vscode.postMessage({ command: "browseForDir" });
+  });
+
+  // receive chosen folder
+  window.addEventListener("message", (e) => {
+    const msg = e.data;
+    if (msg.command === "setTargetDir") {
+      targetDir = msg.targetDir;
+      targetInput.value = targetDir;
+    }
+  });
+
+  // autocomplete setup (unchanged)...
+  let filtered = [], activeIndex = -1;
   function renderSuggestions() {
     suggestions.innerHTML = "";
-    if (!filtered.length) {
-      suggestions.classList.remove("visible");
-      return;
-    }
+    if (!filtered.length) return suggestions.classList.remove("visible");
     filtered.forEach((item, i) => {
       const li = document.createElement("li");
       li.textContent = item;
@@ -30,7 +45,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     suggestions.classList.add("visible");
   }
-
   function updateSuggestions(showAll = false) {
     const q = compInput.value.toLowerCase().trim();
     filtered = showAll || !q
@@ -39,10 +53,8 @@ window.addEventListener("DOMContentLoaded", () => {
     activeIndex = -1;
     renderSuggestions();
   }
-
   compInput.addEventListener("input", () => updateSuggestions());
   compInput.addEventListener("focus", () => updateSuggestions(true));
-
   compInput.addEventListener("keydown", e => {
     if (!filtered.length) return;
     if (e.key === "ArrowDown") {
@@ -63,20 +75,22 @@ window.addEventListener("DOMContentLoaded", () => {
       suggestions.classList.remove("visible");
     }
   });
-
   document.addEventListener("click", e => {
-    if (!e.target.closest(".autocomplete")) {
-      suggestions.classList.remove("visible");
-    }
+    if (!e.target.closest(".autocomplete")) suggestions.classList.remove("visible");
   });
 
+  // submit
   document.getElementById("btnSubmit").addEventListener("click", () => {
-    const projectName  = nameInput.value.trim();
-    const compilerName = compInput.value.trim();
-    vscode.postMessage({ command: 'submit', projectName, compilerName });
+    vscode.postMessage({
+      command: "submit",
+      projectName: nameInput.value.trim(),
+      compilerName: compInput.value.trim(),
+      targetDir
+    });
   });
 
+  // cancel
   document.getElementById("btnCancel").addEventListener("click", () => {
-    vscode.postMessage({ command: 'cancel' });
+    vscode.postMessage({ command: "cancel" });
   });
 });

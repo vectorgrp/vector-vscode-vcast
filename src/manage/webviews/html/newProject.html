@@ -10,10 +10,20 @@
   <div class="modal">
     <h2>Create New Project</h2>
 
-    <p><strong>Workspace:</strong> <span id="workspaceDisplay"></span></p>
+    <!-- Folder selector row -->
+    <label for="targetDirInput">Target Folder:</label>
+    <div class="single-input-container">
+      <input
+        type="text"
+        id="targetDirInput"
+        readonly
+        placeholder="Select a folder…"
+      />
+      <button id="btnBrowse" class="select-button">Select</button>
+    </div>
 
     <label for="projectNameInput">Project Name:</label>
-    <input type="text" id="projectNameInput" placeholder="Enter new project name…"/>
+    <input type="text" id="projectNameInput" placeholder="Enter new project name…" />
 
     <label for="compilerInput">Select Compiler:</label>
     <div class="autocomplete">
@@ -27,6 +37,6 @@
     </div>
   </div>
 
-  <script src="{{ scriptUri }}"></script>
+  {{ scriptUri }}
 </body>
 </html>
