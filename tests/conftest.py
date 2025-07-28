@@ -2,7 +2,6 @@ import json
 import os
 import tarfile
 import requests
-import difflib
 import subprocess
 import shutil
 import glob
@@ -55,20 +54,9 @@ class GenericFileRecorder(BaseFileRecorder):
         with open(expected_path, 'r', encoding='utf-8') as expected_file:
             expected_lines = expected_file.readlines()
 
-        diff = difflib.unified_diff(
-            expected_lines,
-            actual_lines,
-            lineterm='',
-            fromfile='expected',
-            tofile='actual',
-        )
+        assert actual_lines == expected_lines
 
-        diff_output = '\n'.join(diff)
-        if diff_output:
-            print(f'Differences found:\n{diff_output}')
-            return False
-
-        return True
+        return actual_lines == expected_lines
 
 
 class TestFileRecorder(BaseFileRecorder):

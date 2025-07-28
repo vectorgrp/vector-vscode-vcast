@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple, Dict, Any
 from pydantic import Field, create_model, BaseModel
 import time
 
+from autoreq.constants import MAX_IDENTIFIER_INDEX
 from autoreq.test_generation.identifier_type_gen import create_identifier_type
 from autoreq.test_generation.generic_models import (
     GenericValueMapping,
@@ -20,7 +21,6 @@ class SchemaGenerationInfo(BaseModel):
     """
 
     no_identifiers_found: bool
-    used_atg_identifiers: bool
     too_many_identifiers: bool
     input_identifiers: List[str]
     expected_identifiers: List[str]
@@ -30,7 +30,7 @@ class SchemaBuilder:
     def __init__(
         self,
         environment,
-        max_identifier_array_index: int = 32,
+        max_identifier_array_index: int = MAX_IDENTIFIER_INDEX,
         default_schema_identifier_type=None,
     ):
         self.environment = environment
@@ -60,7 +60,6 @@ class SchemaBuilder:
     ) -> Tuple[type, SchemaGenerationInfo]:
         schema_gen_info = SchemaGenerationInfo(
             no_identifiers_found=False,
-            used_atg_identifiers=False,
             too_many_identifiers=False,
             input_identifiers=[],
             expected_identifiers=[],
@@ -70,29 +69,23 @@ class SchemaBuilder:
             identifier_type = self.default_schema_identifier_type or 'input_expected'
 
         if identifier_type == 'input_expected':
-            allowed_input_identifiers, used_atg_identifiers_input = (
+            allowed_input_identifiers = (
                 self.environment.get_allowed_identifiers_for_function(
                     function_name,
-                    return_used_atg_fallback=True,
-                    max_array_index=self.max_identifier_array_index,
+                    max_identifier_index=self.max_identifier_array_index,
                     focus_lines=focus_lines,
                     remove_surely_stubbed_inputs=True,
                     remove_surely_stubbed_returns=False,
                 )
             )
-            allowed_expected_identifiers, used_atg_identifiers_expected = (
+            allowed_expected_identifiers = (
                 self.environment.get_allowed_identifiers_for_function(
                     function_name,
-                    return_used_atg_fallback=True,
-                    max_array_index=self.max_identifier_array_index,
+                    max_identifier_index=self.max_identifier_array_index,
                     focus_lines=focus_lines,
                     remove_surely_stubbed_inputs=False,
                     remove_surely_stubbed_returns=True,
                 )
-            )
-
-            schema_gen_info.used_atg_identifiers = (
-                used_atg_identifiers_input or used_atg_identifiers_expected
             )
 
             found_no_allowed_identifiers = (
@@ -106,18 +99,16 @@ class SchemaBuilder:
                 f'{len(allowed_expected_identifiers)} allowed expected identifiers for function {function_name}'
             )
         elif identifier_type == 'unified':
-            allowed_input_identifiers, used_atg_identifiers = (
+            allowed_input_identifiers = (
                 self.environment.get_allowed_identifiers_for_function(
                     function_name,
-                    return_used_atg_fallback=True,
-                    max_array_index=self.max_identifier_array_index,
+                    max_identifier_index=self.max_identifier_array_index,
                     focus_lines=focus_lines,
                     remove_surely_stubbed_inputs=False,
                     remove_surely_stubbed_returns=False,
                 )
             )
             allowed_expected_identifiers = allowed_input_identifiers
-            schema_gen_info.used_atg_identifiers = used_atg_identifiers
 
             found_no_allowed_identifiers = len(allowed_input_identifiers) == 0
             schema_gen_info.no_identifiers_found = found_no_allowed_identifiers

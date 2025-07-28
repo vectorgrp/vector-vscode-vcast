@@ -63,10 +63,40 @@ def test_compare_against_test_script_template(envs_dir):
         env.build()
 
         test_script_template_identifiers = set(
-            x for x in env._generic_allowed_identifiers_backup if 'VECTORCAST' not in x
+            x for x in env.raw_template_identifiers if 'VECTORCAST' not in x
         )
         all_identifiers = set(_get_env_identifiers(env))
 
         assert test_script_template_identifiers == all_identifiers
+
+    os.chdir(current_workdir)
+
+
+def test_filtered_identifiers_per_function_regression(
+    envs_dir,
+    generic_output_recorder,
+):
+    current_workdir = os.getcwd()
+    with tempfile.TemporaryDirectory() as out_folder:
+        os.chdir(out_folder)
+
+        copy_folder(envs_dir / 'TUTORIAL_C', Path(out_folder))
+
+        env = Environment('TUTORIAL_C.env', use_sandbox=False)
+        env.build()
+
+        # Test each function individually to track per-function filtered identifiers
+        for function in env.testable_functions:
+            function_name = function['name']
+            file_name = f'filtered_identifiers_{function_name}.txt'
+
+            filtered_identifiers = env.get_allowed_identifiers_for_function(
+                function_name, max_identifier_index=1
+            )
+            with open(file_name, 'w') as f:
+                for ident in sorted(filtered_identifiers):  # Sort for consistent output
+                    f.write(f'{ident}\n')
+
+            generic_output_recorder.record_or_compare(file_name, file_name)
 
     os.chdir(current_workdir)

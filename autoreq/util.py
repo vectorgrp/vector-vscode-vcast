@@ -1189,12 +1189,21 @@ def are_paths_equal(path1: str, path2: str) -> bool:
     return p1.resolve(strict=False) == p2.resolve(strict=False)
 
 
-def get_unique_prefixes(prefix_lists):
-    # First: Build a trie structure to hold the strings
+class Trie:
+    """
+    A trie (prefix tree) data structure for storing sequences of items.
+
+    This implementation allows storing any hashable items, not just characters,
+    making it suitable for storing lists of strings, paths, etc.
+    """
+
     class TrieNode:
         def __init__(self):
             self.children = {}
             self.is_end = False
+
+        def __contains__(self, key):
+            return key in self.children
 
         def __getitem__(self, key):
             return self.children[key]
@@ -1205,39 +1214,191 @@ def get_unique_prefixes(prefix_lists):
         def __iter__(self):
             return iter(self.children)
 
-    trie = TrieNode()
-    for prefix_list in prefix_lists:
-        node = trie
-        for list_entry in prefix_list:
-            if list_entry not in node:
-                node[list_entry] = TrieNode()
+        def items(self):
+            return self.children.items()
 
-            node = node[list_entry]
+    def __init__(self):
+        self.root = self.TrieNode()
+
+    def insert(self, sequence):
+        """
+        Insert a sequence into the trie.
+
+        Args:
+            sequence: An iterable of hashable items to insert
+        """
+        node = self.root
+        for item in sequence:
+            if item not in node:
+                node[item] = self.TrieNode()
+            node = node[item]
         node.is_end = True
 
-    # Now: Traverse the trie to find unique prefixes
-    unique_prefixes = []
+    def search(self, sequence):
+        """
+        Search for a complete sequence in the trie.
 
-    def traverse(node, prefix):
-        if node.is_end:
-            unique_prefixes.append(prefix)
-            return
+        Args:
+            sequence: An iterable of hashable items to search for
 
-        for list_entry, child in node.children.items():
-            traverse(child, prefix + [list_entry])
+        Returns:
+            bool: True if the sequence exists as a complete path, False otherwise
+        """
+        node = self.root
+        for item in sequence:
+            if item not in node:
+                return False
+            node = node[item]
+        return node.is_end
 
-    traverse(trie, [])
+    def starts_with(self, prefix):
+        """
+        Check if any sequence in the trie starts with the given prefix.
 
-    return list(map(tuple, unique_prefixes))
+        Args:
+            prefix: An iterable of hashable items representing the prefix
+
+        Returns:
+            bool: True if any sequence starts with the prefix, False otherwise
+        """
+        return len(self.get_descendants(prefix)) > 0
+
+    def get_descendants(self, prefix):
+        """
+        Get all sequences in the trie that start with the given prefix.
+
+        Args:
+            prefix: An iterable of hashable items representing the prefix
+
+        Returns:
+            List[tuple]: A list of tuples representing all sequences that start with the prefix
+        """
+        node = self.root
+        for item in prefix:
+            if item not in node:
+                return []
+            node = node[item]
+
+        sequences = []
+
+        def dfs(current_node, current_sequence):
+            if current_node.is_end:
+                sequences.append(tuple(current_sequence))
+
+            for item, child_node in current_node.items():
+                dfs(child_node, current_sequence + [item])
+
+        dfs(node, list(prefix))
+        return sequences
+
+    def get_ancestors(self, sequence):
+        """
+        Get all sequences in the trie that are ancestors of the given sequence.
+
+        Args:
+            sequence: An iterable of hashable items representing the sequence
+        Returns:
+            List[tuple]: A list of tuples representing all ancestor sequences
+        """
+        ancestors = []
+        node = self.root
+        current_sequence = []
+        for item in sequence:
+            if item not in node:
+                break
+
+            node = node[item]
+            current_sequence.append(item)
+
+            if node.is_end:
+                ancestors.append(tuple(current_sequence))
+
+        return ancestors
+
+    def get_all_sequences(self):
+        """
+        Get all complete sequences stored in the trie.
+
+        Returns:
+            List[tuple]: A list of tuples representing all stored sequences
+        """
+        sequences = []
+
+        def dfs(node, current_sequence):
+            if node.is_end:
+                sequences.append(tuple(current_sequence))
+
+            for item, child_node in node.items():
+                dfs(child_node, current_sequence + [item])
+
+        dfs(self.root, [])
+        return sequences
+
+    def get_unique_prefixes(self):
+        """
+        Get the shortest unique prefixes for all sequences in the trie.
+        This is useful when you want to find the minimal distinguishing prefixes.
+
+        Returns:
+            List[tuple]: A list of tuples representing unique prefixes
+        """
+        unique_prefixes = []
+
+        def dfs(node, current_prefix):
+            if node.is_end:
+                unique_prefixes.append(tuple(current_prefix))
+                return
+
+            for item, child_node in node.items():
+                dfs(child_node, current_prefix + [item])
+
+        dfs(self.root, [])
+        return unique_prefixes
+
+
+def get_unique_prefixes(prefix_lists):
+    """
+    Find unique prefixes from a list of prefix lists using a trie data structure.
+
+    Args:
+        prefix_lists: A list of sequences (lists) to find unique prefixes for
+
+    Returns:
+        List[tuple]: A list of tuples representing the unique prefixes
+    """
+    trie = Trie()
+
+    # Insert all sequences into the trie
+    for prefix_list in prefix_lists:
+        trie.insert(prefix_list)
+
+    # Get all unique prefixes
+    return trie.get_unique_prefixes()
 
 
 # Based on: https://stackoverflow.com/questions/1151658/python-hashable-dicts
 class HashableCounter(Counter):
-    def __key(self):
+    def _key(self):
         return tuple((k, self[k]) for k in sorted(self))
 
     def __hash__(self):
-        return hash(self.__key())
+        return hash(self._key())
 
     def __eq__(self, other):
-        return self.__key() == other.__key()
+        if not isinstance(other, HashableCounter):
+            return False
+        return self._key() == other._key()
+
+
+def extract_code_symbols(code):
+    root_node = parse_code(code)
+    symbols = set()
+
+    def visit_node(node):
+        if node.type in ('identifier', 'type_identifier', 'field_identifier'):
+            symbols.add(node.text.decode('utf-8'))
+        for child in node.children:
+            visit_node(child)
+
+    visit_node(root_node)
+    return symbols

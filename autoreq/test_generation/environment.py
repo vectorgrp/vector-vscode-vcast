@@ -13,9 +13,10 @@ import logging
 import charset_normalizer
 import traceback
 
-from autoreq.test_generation.type_resolver import TypeResolver
+from autoreq.test_generation.type_resolver import TypeResolver, VectorcastIdentifierTree
 from autoreq.util import (
     are_paths_equal,
+    extract_code_symbols,
     prune_code,
     sanitize_subprogram_name,
     get_vectorcast_cmd,
@@ -95,7 +96,6 @@ class Environment:
         else:
             self.env_dir = env_dir
         self._tu_codebase_paths = None
-        self._used_atg_identifier_fallback = False
         self._used_atg_testable_functions_fallback = False
 
     def _get_temporary_file_path(self, filename: str) -> str:
@@ -337,7 +337,7 @@ class Environment:
         return TypeResolver(param_file, types_file)
 
     @cached_property
-    def _generic_allowed_identifiers_backup(self) -> List[str]:
+    def raw_template_identifiers(self) -> List[str]:
         """Get allowed identifiers for test generation in case the type resolver does not work."""
         tst_file_path = self._get_temporary_file_path(
             f'identifiers_template_{self.env_name}.tst'
@@ -366,39 +366,28 @@ class Environment:
                     if identifier not in identifiers:
                         identifiers.append(identifier)
 
-            if len(identifiers) > 0:
-                return identifiers
+            return identifiers
 
         logging.warning('Failed to generate test script template')
-        logging.warning('Falling back to scraping from ATG tests')
-        self._used_atg_identifier_fallback = True
 
-        # Fallback: extract identifiers from ATG tests
-        used_identifiers = []
-        for test in self.atg_tests:
-            for value in test.input_values + test.expected_values:
-                if value.identifier not in used_identifiers:
-                    used_identifiers.append(value.identifier)
-
-        return used_identifiers
+        return []
 
     def get_allowed_identifiers_for_function(
         self,
         function_name,
-        return_used_atg_fallback=False,
         focus_lines=None,
-        max_array_index=None,
+        max_identifier_index=None,
         remove_surely_stubbed_returns=False,
         remove_surely_stubbed_inputs=False,
         depth_limit=MAX_IDENTIFIER_DEPTH_LIMIT,
     ):
         try:
-            all_identifiers = self.type_resolver.resolve(
-                function_name
-            ).to_vectorcast_identifiers(
+            function_type = self.type_resolver.resolve(function_name)
+            all_identifiers = function_type.to_vectorcast_identifiers(
                 top_level=True,
-                max_array_index=max_array_index,
-                max_pointer_index=max_array_index,
+                return_raw=True,
+                max_array_index=max_identifier_index,
+                max_pointer_index=max_identifier_index,
                 depth_limit=depth_limit,
             )
         except Exception as e:
@@ -411,86 +400,85 @@ class Environment:
                     'function_name': function_name,
                 },
             )
-            all_identifiers = self._generic_allowed_identifiers_backup
-        definition = self.tu_codebase.find_definitions_by_name(function_name)[0]
+            logging.warning(
+                f'Failed to resolve identifiers for function {function_name}.'
+            )
+            return []
+
+        main_function_definition = self.tu_codebase.find_definitions_by_name(
+            function_name
+        )[0]
 
         if focus_lines:
-            definition = prune_code(definition, focus_lines)
+            main_function_definition = prune_code(main_function_definition, focus_lines)
 
+        main_code_symbols = extract_code_symbols(main_function_definition)
+        descendant_function_to_include_in_symbols = set()
+        for called_func in function_type.called_functions.values():
+            if called_func.sanitized_name not in main_code_symbols:
+                continue
+
+            descendant_function_to_include_in_symbols.add(
+                called_func.sanitized_name
+            )  # TODO: This is slightly unsafe to use over .name, but it should be mostly fine (although it would be good if we can fix up lsp symbol nmaing)
+            descendant_function_to_include_in_symbols |= {
+                descendant_func.sanitized_name
+                for descendant_func in called_func.descendant_functions.values()
+            }
+
+        relevant_symbols = main_code_symbols.copy()
+        for des_func in descendant_function_to_include_in_symbols:
+            des_func_def = self.tu_codebase.find_definitions_by_name(des_func)[0]
+            # TODO: Maybe we want to treat the search symbols as all search terms in related identifiers for stubbed functions
+            des_func_symbols = extract_code_symbols(des_func_def)
+            relevant_symbols.update(des_func_symbols)
+
+        relevant_functions = {
+            function_type.sanitized_name
+        } | descendant_function_to_include_in_symbols
+
+        # Add main identifiers
         relevant_identifiers = []
         for identifier in all_identifiers:
-            try:
-                try:
-                    unit, subprogram, entity = identifier.split('.')[:3]
-                except Exception:
-                    logging.warning(
-                        'Invalid identifier format',
-                        extra={
-                            'identifier': identifier,
-                            'function_name': function_name,
-                        },
-                    )
-                    continue
+            ident_func = identifier.metadata.get('function_type', None)
 
-                if subprogram != '<<GLOBAL>>':
-                    subprogram = sanitize_subprogram_name(
-                        subprogram
-                    )  # Remove templates and overloading information
-                    subprogram = subprogram.split('::')[
-                        -1
-                    ]  # Remove namespace if present
-
-                if entity == '(cl)':
-                    identifier_min_length = 6
-                    if len(identifier.split('.')) < identifier_min_length:
-                        continue
-
-                    class_name, constructor, entity = identifier.split('.')[3:6]
-
-                    if entity == '<<constructor>>':
-                        relevant_identifiers.append(identifier)
-                        continue
-
-                # Remove array indices
-                entity_match = re.match(r'.*?\[(\d+)\]', entity)
-                if entity_match:
-                    entity = entity.split('[', 1)[0]
-
-                if '.str.' in identifier:
-                    # Skip string identifiers
-                    # TODO: Investigate why they exist
-                    continue
-
-                if unit == 'USER_GLOBALS_VCAST':
-                    relevant_identifiers.append(identifier)
-                    continue
-
-                if unit == 'uut_prototype_stubs':
-                    is_return_value = '.return' in identifier
-
-                    if remove_surely_stubbed_returns and is_return_value:
-                        continue
-
-                    if remove_surely_stubbed_inputs and not is_return_value:
-                        continue
-
-                if subprogram == '<<GLOBAL>>':
-                    search_term = entity
-                else:
-                    search_term = subprogram
-
-                if search_term in definition:
-                    relevant_identifiers.append(identifier)
-
-            except IndexError:
-                logging.warning(
-                    'Invalid identifier format',
-                    extra={
-                        'identifier': identifier,
-                        'function_name': function_name,
-                    },
-                )
+            if ident_func.sanitized_name not in relevant_functions:
                 continue
+
+            if (
+                ident_func.unit == 'uut_prototype_stubs'
+            ):  # TODO: ...That would also allow to simplify this away
+                search_term = ident_func.sanitized_name
+            else:
+                search_term = identifier.metadata.get('search_term', None)
+
+            if (
+                search_term is None or search_term in relevant_symbols
+            ):  # TODO: Come up with a better solution here than None as "always include"
+                relevant_identifiers.append(identifier)
+
+        # Add ancestors
+        relevant_identifiers_tree = VectorcastIdentifierTree(relevant_identifiers)
+        all_identifiers_tree = VectorcastIdentifierTree(all_identifiers)
+        ancestor_relevant_identifiers = []
+        for identifier in relevant_identifiers:
+            ancestors = all_identifiers_tree.get_ancestors(identifier)
+
+            for ancestor in ancestors:
+                if not relevant_identifiers_tree.search(ancestor):
+                    ancestor_relevant_identifiers.append(ancestor)
+                    relevant_identifiers_tree.insert(ancestor)
+
+        relevant_identifiers.extend(ancestor_relevant_identifiers)
+
+        # Reorder by rebuilding from the original sorted list (so ancestors and children are together)
+        relevant_identifiers = [
+            ident
+            for ident in all_identifiers
+            if relevant_identifiers_tree.search(ident)
+        ]
+
+        relevant_identifiers = list(map(str, relevant_identifiers))
 
         logging.debug(
             'Relevant identifiers found',
@@ -499,7 +487,7 @@ class Environment:
                 'tot_relevant_identifiers': len(relevant_identifiers),
                 'relevant_identifiers': relevant_identifiers,
                 'focus_lines': focus_lines,
-                'max_array_index': max_array_index,
+                'max_identifier_index': max_identifier_index,
                 'remove_surely_stubbed_returns': remove_surely_stubbed_returns,
                 'remove_surely_stubbed_inputs': remove_surely_stubbed_inputs,
             },
@@ -511,19 +499,17 @@ class Environment:
                 extra={
                     'function_name': function_name,
                     'focus_lines': focus_lines,
-                    'max_array_index': max_array_index,
+                    'max_identifier_index': max_identifier_index,
                     'remove_surely_stubbed_returns': remove_surely_stubbed_returns,
                     'remove_surely_stubbed_inputs': remove_surely_stubbed_inputs,
                 },
             )
             relevant_identifiers = self.get_allowed_identifiers_for_function(
                 function_name,
-                return_used_atg_fallback=return_used_atg_fallback,
                 focus_lines=None,
+                max_identifier_index=max_identifier_index,
+                depth_limit=depth_limit,
             )
-
-        if return_used_atg_fallback:
-            return relevant_identifiers, self._used_atg_identifier_fallback
 
         return relevant_identifiers
 

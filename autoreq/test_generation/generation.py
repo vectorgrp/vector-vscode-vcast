@@ -222,9 +222,6 @@ Example Test Cases:
             self.info_logger.set_found_no_allowed_identifiers(
                 req_id, gen_info.no_identifiers_found
             )
-            self.info_logger.set_used_atg_identifier_fallback(
-                req_id, gen_info.used_atg_identifiers
-            )
 
         # If we prune, we can also give identifiers
         identifier_section = self._build_identifier_section(
@@ -487,9 +484,6 @@ Return your answer in the following format:
         )
         self.info_logger.set_found_no_allowed_identifiers(
             requirement_id, gen_info.no_identifiers_found
-        )
-        self.info_logger.set_used_atg_identifier_fallback(
-            requirement_id, gen_info.used_atg_identifiers
         )
 
         # If we prune, we can also give identifiers
@@ -776,8 +770,8 @@ An expected value is not required for all identifiers. Only for those relevant t
     def _build_stubbed_functions_section(self, function_name):
         # TODO: Handle pruned functions
         called_function_names = [
-            f.name.split('::')[-1]
-            for f in self.environment.type_resolver.resolve(
+            func_name.split('::')[-1]
+            for func_name in self.environment.type_resolver.resolve(
                 function_name
             ).called_functions
         ]

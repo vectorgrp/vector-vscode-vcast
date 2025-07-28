@@ -5,7 +5,7 @@ from typing import Callable, List, Optional, Union
 from pydantic import BaseModel, Field
 
 from autoreq.constants import MAX_IDENTIFIER_INDEX
-from autoreq.util import HashableCounter
+from autoreq.util import HashableCounter, Trie, sanitize_subprogram_name
 
 
 class VectorcastIdentifier(BaseModel):
@@ -60,9 +60,12 @@ class VectorcastIdentifier(BaseModel):
             segments=self.segments + other_segments, metadata=metadata
         )
 
-    def add_metadata(self, key: str, value: Union[str, bool]) -> 'VectorcastIdentifier':
+    def add_metadata(
+        self, key: str, value: Union[str, bool], allow_overwrite=True
+    ) -> 'VectorcastIdentifier':
         new_metadata = self.metadata.copy()
-        new_metadata[key] = value
+        if allow_overwrite or key not in new_metadata:
+            new_metadata[key] = value
         return VectorcastIdentifier(segments=self.segments, metadata=new_metadata)
 
     def is_subidentifier_of(self, other: 'VectorcastIdentifier') -> bool:
@@ -73,6 +76,56 @@ class VectorcastIdentifier(BaseModel):
             return False
 
         return self.segments[: len(other.segments)] == other.segments
+
+
+class VectorcastIdentifierTree:
+    def __init__(self, identifiers):
+        self.identifiers = identifiers
+        self._segment_trie, self._segments_to_identifiers = (
+            self._initialize_datastructures(identifiers)
+        )
+
+    def _initialize_datastructures(self, identifiers):
+        trie = Trie()
+
+        for ident in identifiers:
+            trie.insert(ident.segments)
+
+        segments_to_identifiers = {}
+        for ident in identifiers:
+            segments_to_identifiers[tuple(ident.segments)] = ident
+
+        return trie, segments_to_identifiers
+
+    def insert(self, identifier: VectorcastIdentifier):
+        self.identifiers.append(identifier)
+        self._segment_trie.insert(identifier.segments)
+        self._segments_to_identifiers[tuple(identifier.segments)] = identifier
+
+    def search(self, identifier: VectorcastIdentifier) -> bool:
+        return self._segment_trie.search(identifier.segments)
+
+    def get_descendants(
+        self, identifier: VectorcastIdentifier
+    ) -> List[VectorcastIdentifier]:
+        child_segments = self._segment_trie.get_descendants(identifier.segments)
+
+        return [
+            self._segments_to_identifiers[tuple(segments)]
+            for segments in child_segments
+            if tuple(segments) in self._segments_to_identifiers
+        ]
+
+    def get_ancestors(
+        self, identifier: VectorcastIdentifier
+    ) -> List[VectorcastIdentifier]:
+        parent_segments = self._segment_trie.get_ancestors(identifier.segments)
+
+        return [
+            self._segments_to_identifiers[tuple(segments)]
+            for segments in parent_segments
+            if tuple(segments) in self._segments_to_identifiers
+        ]
 
 
 class Type:
@@ -245,18 +298,22 @@ class StructType(Type):
 
     def __init__(self, name, fields=None):
         super().__init__(name)
-        self.fields = fields or []  # List of Identifiers representing fields
+        self.fields = fields or {}  # Dict mapping field names to types
 
     def _create_raw_vectorcast_identifiers(
         self, **kwargs
     ) -> List[VectorcastIdentifier]:
         compiled_struct = []
-        for field in self.fields:
+        for field_name, field_type in self.fields.items():
             compiled_field = (
-                field.type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
+                field_type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
             )
             for identifier in compiled_field:
-                compiled_struct.append(identifier.prepend(field.name))
+                compiled_struct.append(
+                    identifier.prepend(field_name).add_metadata(
+                        'search_term', field_name, allow_overwrite=False
+                    )
+                )
 
         return compiled_struct
 
@@ -266,7 +323,7 @@ class ClassType(Type):
 
     def __init__(self, name, fields=None, constructors=None):
         super().__init__(name)
-        self.fields = fields or []  # List of Identifiers representing fields
+        self.fields = fields or {}  # Dict mapping field names to types
         self.constructors = constructors or []  # List of constructor information
 
     def _create_raw_vectorcast_identifiers(
@@ -292,15 +349,19 @@ class ClassType(Type):
                 )
 
         # Add fields
-        for field in self.fields:
+        for field_name, field_type in self.fields.items():
             compiled_field = (
-                field.type._create_limited_depth_raw_vectorcast_identifiers(
+                field_type._create_limited_depth_raw_vectorcast_identifiers(
                     **kwargs, parent_already_constructed=True
                 )
             )
             for identifier in compiled_field:
                 base_ident = VectorcastIdentifier.from_segments(self.name)
-                final_ident = base_ident.append(field.name).join(identifier)
+                final_ident = (
+                    base_ident.append(field_name)
+                    .join(identifier)
+                    .add_metadata('search_term', field_name, allow_overwrite=False)
+                )
                 compiled_class.append(final_ident)
 
         return compiled_class
@@ -314,30 +375,50 @@ class EnumType(BasicType):
         self.values = values or []  # List of enum values
 
 
-class Identifier:
-    """Unified class for parameters, globals, and called functions"""
-
-    def __init__(self, name, type_info):
-        self.name = name
-        self.type = type_info
-
-    def __str__(self):
-        return f'{self.name}: {self.type}'
-
-
 class FunctionType(Type):
     """Represents a function type with all associated information"""
 
     def __init__(self, name):
         super().__init__(name)
-        self.parameters = []  # List of Identifiers
+        self.parameters = {}  # Dict mapping parameter names to types
         self.return_type = None  # Type of return value
-        self.globals = []  # List of Identifiers
-        self.called_functions = []  # List of Identifiers
+        self.globals = {}  # Dict mapping global variable names to types
+        self.called_functions = {}  # Dict mapping called function names to types
         self.unit = None  # The unit this function belongs to
         self.origin_class = (
             None  # ClassType if this is a member function, None otherwise
         )
+
+    @property
+    def sanitized_name(self):
+        sanitized_func_name = sanitize_subprogram_name(self.name).split('::')[
+            -1
+        ]  # Remove templates and overloading information
+
+        return sanitized_func_name
+
+    @property
+    def descendant_functions(self):
+        return {func.name: func for func in self._find_descendant_functions()}
+
+    def _find_descendant_functions(self, seen_functions=None):
+        if seen_functions is None:
+            seen_functions = set()
+
+        if self.name in seen_functions:
+            return []
+
+        seen_functions.add(self.name)
+
+        descendant_functions = []
+        for called_func_name, called_func_type in self.called_functions.items():
+            if called_func_name not in seen_functions:
+                descendant_functions.append(called_func_type)
+                descendant_functions.extend(
+                    called_func_type._find_descendant_functions(seen_functions)
+                )
+
+        return descendant_functions
 
     def _create_raw_vectorcast_identifiers(
         self,
@@ -368,33 +449,39 @@ class FunctionType(Type):
                 base_ident = global_prefix.join(['(cl)', self.origin_class.name])
                 compiled_function.append(base_ident.join(identifier))
 
-        for g in self.globals:
-            compiled_global = g.type._create_limited_depth_raw_vectorcast_identifiers(
-                **kwargs
+        for global_name, global_type in self.globals.items():
+            compiled_global = (
+                global_type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
             )
 
             # Handle class instances with (cl) prefix
-            if isinstance(g.type, ClassType):
+            if isinstance(global_type, ClassType):
                 for identifier in compiled_global:
-                    base_ident = global_prefix.join(['(cl)', g.name])
+                    base_ident = global_prefix.join(['(cl)', global_name])
                     compiled_function.append(
-                        base_ident.join(identifier).add_metadata('global_in', self)
+                        base_ident.join(identifier)
+                        .add_metadata('global_in', self)
+                        .add_metadata('search_term', global_name, allow_overwrite=False)
                     )
             else:
                 for identifier in compiled_global:
-                    base_ident = global_prefix.append(g.name)
+                    base_ident = global_prefix.append(global_name)
                     compiled_function.append(
-                        base_ident.join(identifier).add_metadata('global_in', self)
+                        base_ident.join(identifier)
+                        .add_metadata('global_in', self)
+                        .add_metadata('search_term', global_name, allow_overwrite=False)
                     )
 
-        for param in self.parameters:
+        for param_name, param_type in self.parameters.items():
             compiled_param = (
-                param.type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
+                param_type._create_limited_depth_raw_vectorcast_identifiers(**kwargs)
             )
             for identifier in compiled_param:
-                base_ident = param_prefix.append(param.name)
+                base_ident = param_prefix.append(param_name)
                 compiled_function.append(
-                    base_ident.join(identifier).add_metadata('param_for', self)
+                    base_ident.join(identifier)
+                    .add_metadata('param_for', self)
+                    .add_metadata('search_term', param_name, allow_overwrite=False)
                 )
 
         if self.return_type:
@@ -407,18 +494,36 @@ class FunctionType(Type):
             )
             for identifier in compiled_return:
                 base_ident = param_prefix.append('return')
-                compiled_function.append(base_ident.join(identifier))
+                compiled_function.append(
+                    base_ident.join(identifier).add_metadata(
+                        'search_term', self.sanitized_name, allow_overwrite=False
+                    )
+                )
 
-        for called_func in self.called_functions:
+        for called_func_name, called_func_type in self.called_functions.items():
             compiled_called_func = (
-                called_func.type._create_limited_depth_raw_vectorcast_identifiers(
+                called_func_type._create_limited_depth_raw_vectorcast_identifiers(
                     **kwargs,
                     already_constructed_functions=tuple(
                         already_constructed_functions | {self.name}
                     ),
                 )
             )
+            # if stubs -> search term: function name, else: search term regular but in function type -> do this in env.py
+            compiled_called_func = [
+                ident.add_metadata(
+                    'callsite_function_type', self, allow_overwrite=False
+                )
+                for ident in compiled_called_func
+            ]
             compiled_function.extend(compiled_called_func)
+
+        compiled_function = [
+            ident.add_metadata(
+                'search_term', self.sanitized_name, allow_overwrite=False
+            ).add_metadata('function_type', self, allow_overwrite=False)
+            for ident in compiled_function
+        ]
 
         return compiled_function
 
@@ -545,7 +650,7 @@ class TypeResolver:
             else:
                 field_type = Type('unknown')
 
-            struct_type.fields.append(Identifier(field_name, field_type))
+            struct_type.fields[field_name] = field_type
 
     def _resolve_class_type(self, type_id, type_elem):
         """Resolve class type references and add fields and constructors"""
@@ -574,7 +679,7 @@ class TypeResolver:
             else:
                 field_type = Type('unknown')
 
-            class_type.fields.append(Identifier(field_name, field_type))
+            class_type.fields[field_name] = field_type
 
     def _resolve_enum_type(self, type_id, type_elem):
         """Resolve enum type and add values"""
@@ -689,7 +794,7 @@ class TypeResolver:
             if param_name == 'return':
                 func_type.return_type = param_type
             else:
-                func_type.parameters.append(Identifier(param_name, param_type))
+                func_type.parameters[param_name] = param_type
 
     def _extract_function_globals(self, func_type, subprog, globals_map):
         """Extract globals referenced by a function"""
@@ -697,7 +802,7 @@ class TypeResolver:
             global_idx = global_ref.get('index')
             if global_idx in globals_map:
                 global_name, global_type = globals_map[global_idx]
-                func_type.globals.append(Identifier(global_name, global_type))
+                func_type.globals[global_name] = global_type
 
     def _process_called_functions(self, param_root, unit_function_map):
         """Process called functions using the fully populated function objects"""
@@ -733,7 +838,7 @@ class TypeResolver:
                 called_func = FunctionType(f'function_{called_func_name}')
                 self._functions[called_func_name] = called_func
 
-            func_type.called_functions.append(Identifier(called_func_name, called_func))
+            func_type.called_functions[called_func_name] = called_func
 
     def resolve_function_by_name(self, function_name):
         """Get information about a specific function"""
