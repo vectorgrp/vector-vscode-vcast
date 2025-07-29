@@ -639,6 +639,13 @@ class Environment:
         self, atg_file: str
     ) -> Optional[subprocess.CompletedProcess]:
         """Try to run ATG with baselining."""
+
+        logging.debug('Clearing unapplied test data before running ATG with baselining')
+        self._run_vectorcast_command(
+            'clicast',
+            ['-e', self.env_name, 'test', 'unapplied', 'clear'],
+            timeout=30,
+        )
         logging.debug('Trying ATG with baselining')
         return self._run_vectorcast_command(
             'atg',
