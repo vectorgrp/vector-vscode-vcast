@@ -804,7 +804,9 @@ An expected value is not required for all identifiers. Only for those relevant t
 
     def _run_test_case_and_report(self, test_case):
         patched_test = self._patch_test_case(test_case)
-        output = self.environment.run_tests([patched_test.to_vectorcast(add_uuid=True)])
+        output = self.environment.run_tests(
+            [patched_test.to_vectorcast(add_uuid=True, use_requirement_key=False)]
+        )
         errors, test_failures = self._parse_error_output(output)
 
         return errors, test_failures

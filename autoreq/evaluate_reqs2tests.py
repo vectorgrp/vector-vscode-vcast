@@ -665,7 +665,7 @@ async def evaluate_environment(
             f.write('TEST.SCRIPT_FEATURE:STATIC_HEADER_FUNCS_IN_UUTS\n\n')
             for tc in test_cases:
                 if tc:
-                    f.write(tc.to_vectorcast() + '\n')
+                    f.write(tc.to_vectorcast(use_requirement_key=False) + '\n')
 
         def coverage_report():
             coverage_file = generate_clicast_html_coverage_report(env)
