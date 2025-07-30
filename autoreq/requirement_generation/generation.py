@@ -1,8 +1,10 @@
 import logging
 from typing import List, Dict, Any
 from pydantic import BaseModel, create_model
+import traceback
 
 from autoreq.util import get_executable_statement_groups
+from autoreq.info_logger import RequirementGenerationInfoLogger
 
 from ..llm_client import LLMClient
 from ..test_generation.vcast_context_builder import VcastContextBuilder
@@ -82,6 +84,7 @@ class RequirementsGenerator:
         self.combine_related_requirements = combine_related_requirements
         self.extended_reasoning = extended_reasoning
         self.context_builder = VcastContextBuilder(environment)
+        self.info_logger = RequirementGenerationInfoLogger()
 
     def extract_semantic_parts(self, function_name: str) -> List[Dict[str, Any]]:
         function_body = self.environment.tu_codebase.find_definitions_by_name(
@@ -133,11 +136,20 @@ Notes:
 ```
 """
 
-        response = await self.llm_client.call_model(
-            [{'role': 'user', 'content': prompt}], ReworkedRequirementsResult
-        )
+        try:
+            response = await self.llm_client.call_model(
+                [{'role': 'user', 'content': prompt}], ReworkedRequirementsResult
+            )
+            return response.reworked_requirements
+        except Exception as e:
+            logging.exception(
+                f'Postprocessing failed for function {function_name}: {e}'
+            )
+            self.info_logger.set_postprocessing_failed(function_name)
+            self.info_logger.add_exception(function_name, traceback.format_exc())
 
-        return response.reworked_requirements
+            # Return original requirements if postprocessing fails
+            return requirements
 
     async def generate(
         self,
@@ -152,11 +164,11 @@ Notes:
                 'Semantic parts will not correspond to the requirements if you ask for them to be post-processed.'
             )
 
+        # Start tracking this function
+        semantic_parts = self.extract_semantic_parts(function_name)
+
         # Get the full context using context builder
         function_context = await self.context_builder.build_code_context(function_name)
-
-        # Extract semantic parts using just the function body
-        semantic_parts = self.extract_semantic_parts(function_name)
 
         # Format semantic parts for prompt
         prettified_parts = []
@@ -285,31 +297,58 @@ The success of this task is critical. If you do not generate exactly one test ca
                     available_parts, partial_available_parts
                 )
 
-                partial_result = await self.llm_client.call_model(
-                    messages=batch_messages,
-                    schema=_derive_requirement_schema(current_num_parts),
+                try:
+                    partial_result = await self.llm_client.call_model(
+                        messages=batch_messages,
+                        schema=_derive_requirement_schema(current_num_parts),
+                        temperature=0.0,
+                        max_tokens=16000,
+                        extended_reasoning=self.extended_reasoning,
+                    )
+                    partial_requirements = [
+                        getattr(
+                            partial_result, f'requirement_for_part_{i + 1}'
+                        ).statement
+                        for i in range(current_num_parts)
+                    ]
+                    all_requirements.extend(partial_requirements)
+                except Exception as e:
+                    logging.exception(
+                        f'Call to model failed for batch requirement generation: {e}'
+                    )
+                    self.info_logger.set_requirement_generation_failed(function_name)
+                    self.info_logger.add_exception(
+                        function_name, traceback.format_exc()
+                    )
+                    # Return empty list if generation fails
+                    if return_covered_semantic_parts:
+                        return [], semantic_parts
+                    return []
+            requirements = all_requirements
+        else:
+            try:
+                result = await self.llm_client.call_model(
+                    messages=messages,
+                    schema=_derive_requirement_schema(num_parts),
                     temperature=0.0,
                     max_tokens=16000,
                     extended_reasoning=self.extended_reasoning,
                 )
-                partial_requirements = [
-                    getattr(partial_result, f'requirement_for_part_{i + 1}').statement
-                    for i in range(current_num_parts)
+                requirements = [
+                    getattr(result, f'requirement_for_part_{i + 1}').statement
+                    for i in range(num_parts)
                 ]
-                all_requirements.extend(partial_requirements)
-            requirements = all_requirements
-        else:
-            result = await self.llm_client.call_model(
-                messages=messages,
-                schema=_derive_requirement_schema(num_parts),
-                temperature=0.0,
-                max_tokens=16000,
-                extended_reasoning=self.extended_reasoning,
-            )
-            requirements = [
-                getattr(result, f'requirement_for_part_{i + 1}').statement
-                for i in range(num_parts)
-            ]
+            except Exception as e:
+                logging.exception(
+                    f'Call to model failed for requirement generation: {e}'
+                )
+                self.info_logger.set_requirement_generation_failed(function_name)
+                self.info_logger.add_exception(function_name, traceback.format_exc())
+
+                # Return empty list if generation fails
+                if return_covered_semantic_parts:
+                    return [], semantic_parts
+                return []
 
         if post_process_requirements:
             requirements = await self._postprocess_requirements(
@@ -322,7 +361,3 @@ The success of this task is critical. If you do not generate exactly one test ca
             return requirements, semantic_parts
 
         return requirements
-
-
-# TODO: Potentially do not split groups at lists
-# TODO: Deal with things we'd like to cover that explicitly do not correspond to a line (e.g., there is an if with no else in the code and we want to cover the else branch). Maybe not necessary

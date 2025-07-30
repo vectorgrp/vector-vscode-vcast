@@ -349,6 +349,42 @@ async def main(
             *[generate_high_level_requirements(unit) for unit in environment.units]
         )
 
+    info_data = generator.info_logger.data
+
+    failed_functions = [
+        req_id
+        for req_id, data in info_data.items()
+        if data['requirement_generation_failed']
+    ]
+
+    if failed_functions:
+        logging.warning(
+            'Requirement generation failed for functions',
+            extra={
+                'failed_functions': failed_functions,
+                'count': len(failed_functions),
+            },
+        )
+
+    # Log high-level requirement generation failures if applicable
+    if generate_high_level_requirements:
+        high_level_info_data = high_level_generator.info_logger.data
+
+        failed_units = [
+            unit_name
+            for unit_name, data in high_level_info_data.items()
+            if data['high_level_generation_failed']
+        ]
+
+        if failed_units:
+            logging.warning(
+                'High-level requirement generation failed for units',
+                extra={
+                    'failed_units': failed_units,
+                    'count': len(failed_units),
+                },
+            )
+
     environment.cleanup()
 
     if export_csv:

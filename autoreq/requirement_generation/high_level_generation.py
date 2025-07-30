@@ -1,11 +1,13 @@
 import json
 import logging
+import traceback
 from pydantic import BaseModel
 from typing import List
 
 from ..llm_client import LLMClient
 from ..test_generation.environment import Environment
 from ..requirements_manager import ID_FIELD, RequirementsManager
+from ..info_logger import HighLevelRequirementGenerationInfoLogger
 
 
 class AtomicRequirement(BaseModel):
@@ -35,6 +37,7 @@ class HighLevelRequirementsGenerator:
         self.environment = environment
         self.low_level_requirements = low_level_requirements
         self.extended_reasoning = extended_reasoning
+        self.info_logger = HighLevelRequirementGenerationInfoLogger()
 
     async def generate(
         self, unit_name: str, return_raw: bool = False
@@ -226,19 +229,27 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
             {'role': 'user', 'content': user_prompt_content},
         ]
 
-        response_model = await self.llm_client.call_model(
-            messages=messages,
-            schema=Requirements,
-            temperature=0.6,
-            max_tokens=4000,
-            extended_reasoning=self.extended_reasoning,
-        )
+        try:
+            response_model = await self.llm_client.call_model(
+                messages=messages,
+                schema=Requirements,
+                temperature=0.6,
+                max_tokens=4000,
+                extended_reasoning=self.extended_reasoning,
+            )
 
-        if response_model and response_model.requirements:
-            return [
-                req if return_raw else req.text
-                for req in response_model.requirements
-                if req.module_name == unit_name
-            ]
+            if response_model and response_model.requirements:
+                return [
+                    req if return_raw else req.text
+                    for req in response_model.requirements
+                    if req.module_name == unit_name
+                ]
 
-        return []
+            return []
+        except Exception as e:
+            logging.exception(
+                f'High-level requirement generation failed for unit {unit_name}: {e}'
+            )
+            self.info_logger.set_high_level_generation_failed(unit_name)
+            self.info_logger.add_exception(unit_name, traceback.format_exc())
+            return []

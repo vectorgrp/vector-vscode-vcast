@@ -12,7 +12,7 @@ from autoreq.util import get_relevant_statement_groups
 
 from autoreq.test_generation.vcast_context_builder import VcastContextBuilder
 from autoreq.test_generation.atg_context_builder import ATGContextBuilder
-from autoreq.test_generation.info_logger import InfoLogger
+from autoreq.info_logger import TestGenerationInfoLogger
 from autoreq.test_generation.schema_builder import SchemaBuilder
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
 from ..llm_client import LLMClient
@@ -41,7 +41,7 @@ class TestGenerator:
         self.context_builder = VcastContextBuilder(
             self.environment, llm_client=self.llm_client
         )
-        self.info_logger = InfoLogger()
+        self.info_logger = TestGenerationInfoLogger()
         self.use_extended_reasoning = use_extended_reasoning
         self.schema_builder = SchemaBuilder(
             self.environment, default_schema_identifier_type=schema_type

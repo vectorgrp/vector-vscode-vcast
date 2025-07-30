@@ -2,7 +2,61 @@ from collections import defaultdict
 import logging
 
 
-class InfoLogger:
+class RequirementGenerationInfoLogger:
+    def __init__(self):
+        self.data = defaultdict(
+            lambda: {
+                'requirement_generation_failed': False,
+                'postprocessing_failed': False,
+                'function_name': None,
+                'exceptions': [],
+            }
+        )
+
+    def set_requirement_generation_failed(self, function_name):
+        """Mark that requirement generation failed for this function"""
+        self.data[function_name]['requirement_generation_failed'] = True
+        logging.debug(
+            f'Tracked requirement generation failure for function {function_name}'
+        )
+
+    def set_postprocessing_failed(self, function_name):
+        """Mark that postprocessing failed for this function"""
+        self.data[function_name]['postprocessing_failed'] = True
+        logging.debug(f'Tracked postprocessing failure for function {function_name}')
+
+    def add_exception(self, function_name, exception):
+        """Add an exception that occurred during generation for this function"""
+        self.data[function_name]['exceptions'].append(exception)
+        logging.debug(f'Tracked exception for function {function_name}: {exception}')
+
+
+class HighLevelRequirementGenerationInfoLogger:
+    def __init__(self):
+        self.data = defaultdict(
+            lambda: {
+                'high_level_generation_failed': False,
+                'unit_name': None,
+                'exceptions': [],
+            }
+        )
+
+    def set_high_level_generation_failed(self, unit_name):
+        """Mark that high-level requirement generation failed for this unit"""
+        self.data[unit_name]['high_level_generation_failed'] = True
+        self.data[unit_name]['unit_name'] = unit_name
+        logging.debug(
+            f'Tracked high-level requirement generation failure for unit {unit_name}'
+        )
+
+    def add_exception(self, unit_name, exception):
+        """Add an exception that occurred during high-level generation for this unit"""
+        self.data[unit_name]['exceptions'].append(exception)
+        self.data[unit_name]['unit_name'] = unit_name
+        logging.debug(f'Tracked high-level exception for unit {unit_name}: {exception}')
+
+
+class TestGenerationInfoLogger:
     def __init__(self):
         self.data = defaultdict(
             lambda: {
