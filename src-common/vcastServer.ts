@@ -25,6 +25,7 @@ export enum vcastCommandType {
   choiceListCT = "choiceList-ct",
   mcdcReport = "mcdcReport",
   mcdcLines = "mcdcLines",
+  getWorkspaceEnviroData = "getWorkspaceEnviroData",
 }
 
 export interface mcdcClientRequestType extends clientRequestType {

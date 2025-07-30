@@ -51,7 +51,7 @@ class UsageError(Exception):
 
 
 modeChoices = [
-    "getProjectData",
+    "getWorkspaceEnviroData" "getProjectData",
     "getEnviroData",
     "executeTest",
     "report",
@@ -709,6 +709,21 @@ def getProjectCompilerData(api):
     return compilerList
 
 
+def find_vce_files(root_dir):
+    vce_files = []
+
+    def scan_dir(path):
+        with os.scandir(path) as entries:
+            for entry in entries:
+                if entry.is_file() and entry.name.endswith(".vce"):
+                    vce_files.append(entry.path)
+                elif entry.is_dir(follow_symlinks=False):
+                    scan_dir(entry.path)
+
+    scan_dir(root_dir)
+    return vce_files
+
+
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     """
     This function does the actual work of processing a vTestInterface command,
@@ -750,6 +765,35 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             raise UsageError(f"Error gathering compiler data: {e}")
 
         api.close()
+        returnObject = topLevel
+
+    elif mode == "getWorkspaceEnviroData":
+        enviro_list = []
+        topLevel = {}
+        vce_files = find_vce_files(pathToUse)
+        for vce_path in vce_files:
+            try:
+                api = UnitTestApi(vce_path)
+                test_data = getTestDataVCAST(api, vce_path)
+                unit_data = getUnitData(api)
+                mocking_support = getEnviroSupportsMock(api)
+                api.close()
+            except Exception as err:
+                raise UsageError(err)
+
+            enviro_list.append(
+                {
+                    "vcePath": vce_path,
+                    "testData": test_data,
+                    "unitData": unit_data,
+                    "mockingSupport": mocking_support,
+                }
+            )
+
+        topLevel["testData"] = enviro_list[0]["testData"] if enviro_list else []
+        topLevel["unitData"] = enviro_list[0]["unitData"] if enviro_list else []
+        topLevel["enviro"] = enviro_list
+
         returnObject = topLevel
 
     elif mode == "getEnviroData":
