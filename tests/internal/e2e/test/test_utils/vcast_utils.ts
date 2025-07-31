@@ -416,7 +416,7 @@ export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
     async () =>
       (await (await bottomBar.openOutputView()).getText())
         .toString()
-        .includes("Processing environment data for:"),
+        .includes("Building environments data for workspace:"),
     { timeout: TIMEOUT }
   );
 }
@@ -1067,7 +1067,7 @@ export async function generateAllTestsForUnit(
     async () =>
       (await outputView.getText())
         .toString()
-        .includes("Processing environment data for"),
+        .includes("Building environments data for workspace"),
     { timeout: TIMEOUT }
   );
 }
@@ -1112,7 +1112,7 @@ export async function generateAllTestsForFunction(
     async () =>
       (await outputView.getText())
         .toString()
-        .includes("Processing environment data for"),
+        .includes("Building environments data for workspace"),
     { timeout: TIMEOUT }
   );
 }
