@@ -268,7 +268,7 @@ function processVCtestData(
           // environment mapping, including whether or not the environment
           // has coded mock support
 
-          const enviroHasMockSupport = jsonData.enviro.mockingSupport;
+          const enviroHasMockSupport = jsonData.mockingSupport;
           const testFilePath = functionNodeForCache.testFile;
 
           sendTestFileDataToLanguageServer(

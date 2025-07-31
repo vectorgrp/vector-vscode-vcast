@@ -51,7 +51,8 @@ class UsageError(Exception):
 
 
 modeChoices = [
-    "getWorkspaceEnviroData" "getProjectData",
+    "getWorkspaceEnviroData",
+    "getProjectData",
     "getEnviroData",
     "executeTest",
     "report",
@@ -814,7 +815,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         topLevel["testData"] = getTestDataVCAST(api, pathToUse)
         topLevel["unitData"] = getUnitData(api)
         topLevel["enviro"] = dict()
-        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(api)
+        topLevel["mockingSupport"] = getEnviroSupportsMock(api)
 
         api.close()
         returnObject = topLevel
