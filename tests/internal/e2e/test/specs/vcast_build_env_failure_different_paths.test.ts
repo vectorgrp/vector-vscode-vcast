@@ -18,6 +18,7 @@ import {
   getViewContent,
   expandTopEnvInTestPane,
   retrieveTestingTopItems,
+  findTreeNodeAtLevel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -201,10 +202,8 @@ async function expectEnvResults(release: string) {
 
   // Iterate thorugh map, expand and check based on release what ENV should be defined.
   for (const entry of release23Value) {
-    const envResult = await expandTopEnvInTestPane(
-      entry.env,
-      topLevelItems as CustomTreeItem[]
-    );
+    const envResult = await findTreeNodeAtLevel(3, `${entry.env}`);
+    console.log(`Trying to find ${entry.env} in Tree`);
     if (entry.state === "defined") {
       expect(envResult).not.toBe(undefined);
     } else {
