@@ -416,7 +416,7 @@ export async function insertBasisPathTestFor(subprogramMethod: CustomTreeItem) {
     async () =>
       (await (await bottomBar.openOutputView()).getText())
         .toString()
-        .includes("Building environments data for workspace:"),
+        .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
 }
