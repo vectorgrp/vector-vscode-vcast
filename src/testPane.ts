@@ -681,6 +681,9 @@ async function loadEnviroData(
     // If we've already fetched the full workspace data, reuse it
     if (cachedWorkspaceEnvData) {
       const enviroList = cachedWorkspaceEnvData["enviro"];
+      vectorMessage(
+        `Processing environment data for: ${enviroData.buildDirectory}`
+      );
       for (const envAPIData of enviroList) {
         vcePathDir = path.dirname(envAPIData.vcePath);
         buildPathDir = path.dirname(enviroData.buildDirectory);
@@ -696,6 +699,9 @@ async function loadEnviroData(
     if (workspaceDir) {
       cachedWorkspaceEnvData = await getWorkspaceEnvDataVPython(workspaceDir);
       const enviroList = cachedWorkspaceEnvData["enviro"];
+      vectorMessage(
+        `Processing environment data for: ${enviroData.buildDirectory}`
+      );
       for (const envAPIData of enviroList) {
         vcePathDir = path.dirname(envAPIData.vcePath);
         buildPathDir = path.dirname(enviroData.buildDirectory);
