@@ -769,8 +769,10 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
     elif mode == "getWorkspaceEnviroData":
         enviro_list = []
+        errors = []
         topLevel = {}
         vce_files = find_vce_files(pathToUse)
+
         for vce_path in vce_files:
             try:
                 api = UnitTestApi(vce_path)
@@ -778,21 +780,24 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                 unit_data = getUnitData(api)
                 mocking_support = getEnviroSupportsMock(api)
                 api.close()
-            except Exception as err:
-                raise UsageError(err)
 
-            enviro_list.append(
-                {
-                    "vcePath": vce_path,
-                    "testData": test_data,
-                    "unitData": unit_data,
-                    "mockingSupport": mocking_support,
-                }
-            )
+                enviro_list.append(
+                    {
+                        "vcePath": vce_path,
+                        "testData": test_data,
+                        "unitData": unit_data,
+                        "mockingSupport": mocking_support,
+                    }
+                )
+
+            except Exception as err:
+                errors.append(f"{vce_path}: {str(err)}")
 
         topLevel["testData"] = enviro_list[0]["testData"] if enviro_list else []
         topLevel["unitData"] = enviro_list[0]["unitData"] if enviro_list else []
         topLevel["enviro"] = enviro_list
+        if errors:
+            topLevel["errors"] = errors
 
         returnObject = topLevel
 

@@ -947,6 +947,8 @@ async function loadAllVCTests(
     }
   } // end if workspace folders
 
+  checkWorkspaceEnvDataForErrors();
+
   // In case we have empty testsuites or compilers in the project,
   // we won't find them in the Env data so we have to add them manually here
   ensureCompilerNodes();
@@ -2023,4 +2025,14 @@ export interface vcastTestItem extends vscode.TestItem {
   // this is used for unit nodes to keep track of the
   // full path to the source file
   sourcePath?: string;
+}
+
+function checkWorkspaceEnvDataForErrors() {
+  // Check for errors and report them
+  const errorList = cachedWorkspaceEnvData["errors"];
+  if (errorList && Array.isArray(errorList)) {
+    for (const errMsg of errorList) {
+      vectorMessage(`Error while loading environment: ${errMsg}. Skipping.`);
+    }
+  }
 }
