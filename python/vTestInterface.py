@@ -752,22 +752,72 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         api.close()
         returnObject = topLevel
 
+    elif mode == "getWorkspaceEnviroData":
+        enviro_list = []
+        errors = []
+        topLevel = {}
+        vce_files = find_vce_files(pathToUse)
+
+        for vce_path in vce_files:
+            try:
+                api = UnitTestApi(vce_path)
+                test_data = getTestDataVCAST(api, vce_path)
+                unit_data = getUnitData(api)
+                mocking_support = getEnviroSupportsMock(api)
+                api.close()
+
+                enviro_list.append(
+                    {
+                        "vcePath": vce_path,
+                        "testData": test_data,
+                        "unitData": unit_data,
+                        "mockingSupport": mocking_support,
+                    }
+                )
+
+            except Exception as err:
+                errors.append(f"{vce_path}: {str(err)}")
+
+        topLevel["testData"] = enviro_list[0]["testData"] if enviro_list else []
+        topLevel["unitData"] = enviro_list[0]["unitData"] if enviro_list else []
+        topLevel["enviro"] = enviro_list
+        if errors:
+            topLevel["errors"] = errors
+
+        returnObject = topLevel
+
     elif mode == "getEnviroData":
         topLevel = dict()
+        enviro_list = []
 
         try:
             api = UnitTestApi(pathToUse)
         except Exception as err:
             raise UsageError(err)
 
-        # it's important that getTetDataVCAST() is called first since it sets up
+        # it's important that getTestDataVCAST() is called first since it sets up
         # the global list of testable functions that getUnitData() needs
-        topLevel["testData"] = getTestDataVCAST(api, pathToUse)
-        topLevel["unitData"] = getUnitData(api)
-        topLevel["enviro"] = dict()
-        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(api)
+        test_data = getTestDataVCAST(api, pathToUse)
+        unit_data = getUnitData(api)
+        mocking_support = getEnviroSupportsMock(api)
 
         api.close()
+
+        # populate enviro_list with one item
+        enviro_list.append(
+            {
+                "vcePath": pathToUse,
+                "testData": test_data,
+                "unitData": unit_data,
+                "mockingSupport": mocking_support,
+            }
+        )
+
+        # create top-level object
+        topLevel["testData"] = test_data
+        topLevel["unitData"] = unit_data
+        topLevel["enviro"] = enviro_list  # a list with one item
+
         returnObject = topLevel
 
     elif mode == "executeTest":
@@ -954,6 +1004,21 @@ def getMCDCLines(enviroPath):
             returnText = f"Error: {str(e)}\n"
 
         return returnText
+
+
+def find_vce_files(root_dir):
+    vce_files = []
+
+    def scan_dir(path):
+        with os.scandir(path) as entries:
+            for entry in entries:
+                if entry.is_file() and entry.name.endswith(".vce"):
+                    vce_files.append(entry.path)
+                elif entry.is_dir(follow_symlinks=False):
+                    scan_dir(entry.path)
+
+    scan_dir(root_dir)
+    return vce_files
 
 
 def main():

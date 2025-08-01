@@ -408,3 +408,14 @@ export async function updateCoverageAndRebuildEnv() {
     await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
   }
 }
+
+/**
+ * Returns the root of the opened workspace.
+ */
+export function getWorkspaceRootPath(): string | undefined {
+  const folders = vscode.workspace.workspaceFolders;
+  if (folders && folders.length > 0) {
+    return folders[0].uri.fsPath;
+  }
+  return undefined;
+}
