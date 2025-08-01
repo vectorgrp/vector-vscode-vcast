@@ -674,40 +674,39 @@ async function loadEnviroData(
   enviroData: environmentNodeDataType,
   comingFromRefresh: boolean
 ): Promise<any | null> {
-  let vcePathDir: string = "";
-  let buildPathDir: string = "";
+  const buildPathDir = path.dirname(enviroData.buildDirectory);
+
+  // Helper to find matching environment entry based on directory
+  const findMatchingEnv = (enviroList: any[]): any | undefined => {
+    vectorMessage(
+      `Processing environment data for: ${enviroData.buildDirectory}`
+    );
+    for (const envAPIData of enviroList) {
+      const vcePathDir = path.dirname(envAPIData.vcePath);
+      if (vcePathDir === buildPathDir) {
+        return envAPIData;
+      }
+    }
+    return undefined;
+  };
 
   if (comingFromRefresh) {
     // If we've already fetched the full workspace data, reuse it
     if (cachedWorkspaceEnvData) {
-      const enviroList = cachedWorkspaceEnvData["enviro"];
-      vectorMessage(
-        `Processing environment data for: ${enviroData.buildDirectory}`
-      );
-      for (const envAPIData of enviroList) {
-        vcePathDir = path.dirname(envAPIData.vcePath);
-        buildPathDir = path.dirname(enviroData.buildDirectory);
-        if (vcePathDir === buildPathDir) {
-          return envAPIData;
-        }
+      const match = findMatchingEnv(cachedWorkspaceEnvData["enviro"]);
+      if (match) {
+        return match;
       }
     }
 
     // First time fetching workspace data, or
-    // In case we did not find the env in the cache (even though it should be), we're rerecreating it again
+    // In case we did not find the env in the cache (even though it should be), we're recreating it again
     const workspaceDir = getWorkspaceRootPath();
     if (workspaceDir) {
       cachedWorkspaceEnvData = await getWorkspaceEnvDataVPython(workspaceDir);
-      const enviroList = cachedWorkspaceEnvData["enviro"];
-      vectorMessage(
-        `Processing environment data for: ${enviroData.buildDirectory}`
-      );
-      for (const envAPIData of enviroList) {
-        vcePathDir = path.dirname(envAPIData.vcePath);
-        buildPathDir = path.dirname(enviroData.buildDirectory);
-        if (vcePathDir === buildPathDir) {
-          return envAPIData;
-        }
+      const match = findMatchingEnv(cachedWorkspaceEnvData["enviro"]);
+      if (match) {
+        return match;
       }
     } else {
       // This should not be possible as we have env data, but just in case
@@ -719,19 +718,13 @@ async function loadEnviroData(
   } else {
     // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
     const envData = await getDataForEnvironment(enviroData.buildDirectory);
-    const enviroList = envData["enviro"];
-    vectorMessage(
-      `Processing environment data for: ${enviroData.buildDirectory}`
-    );
-    for (const envAPIData of enviroList) {
-      vcePathDir = path.dirname(envAPIData.vcePath);
-      buildPathDir = path.dirname(enviroData.buildDirectory);
-      if (vcePathDir === buildPathDir) {
-        return envAPIData;
-      }
+    const match = findMatchingEnv(envData["enviro"]);
+    if (match) {
+      return match;
     }
     return undefined;
   }
+
   // We have a valid build directory, but we couldn't find a matching VCE file in the workspace data.
   vectorMessage(
     `Build directory ${enviroData.buildDirectory} found, but no matching VCE file detected in ${buildPathDir}. Environment data may be incomplete.`
