@@ -696,6 +696,8 @@ export async function generateAndValidateAllTestsFor(
 ) {
   await generateAllTestsForEnv(envName, testGenMethod);
 
+  await browser.pause(5000);
+
   const vcastTestingViewContent = await getViewContent("Testing");
   const expectedTests = await getAllExpectedTests(testGenMethod);
   for (const [unitName, functions] of Object.entries(expectedTests[envName])) {
@@ -1070,6 +1072,13 @@ export async function generateAllTestsForUnit(
         .includes("Building environments data for workspace"),
     { timeout: TIMEOUT }
   );
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for:"),
+    { timeout: TIMEOUT }
+  );
 }
 
 export async function generateAllTestsForFunction(
@@ -1113,6 +1122,13 @@ export async function generateAllTestsForFunction(
       (await outputView.getText())
         .toString()
         .includes("Building environments data for workspace"),
+    { timeout: TIMEOUT }
+  );
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
 }
