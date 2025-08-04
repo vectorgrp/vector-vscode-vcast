@@ -646,6 +646,10 @@ let vcastHasCodedTestsList: string[] = [];
 // Used to avoid redundant API calls during refresh
 let cachedWorkspaceEnvData: any | null = null;
 
+export function clearCachedWorkspaceEnvData(): void {
+  cachedWorkspaceEnvData = null;
+}
+
 /**
  * Given a parent node and environment data, this function creates the environment node.
  * It uses only the last part of the displayName as the label.
@@ -691,40 +695,26 @@ async function loadEnviroData(
           return envAPIData;
         }
       }
-    }
-
-    // First time fetching workspace data, or
-    // In case we did not find the env in the cache (even though it should be), we're rerecreating it again
-    const workspaceDir = getWorkspaceRootPath();
-    if (workspaceDir) {
-      cachedWorkspaceEnvData = await getWorkspaceEnvDataVPython(workspaceDir);
-      const enviroList = cachedWorkspaceEnvData["enviro"];
-      vectorMessage(
-        `Processing environment data for: ${enviroData.buildDirectory}`
-      );
-      for (const envAPIData of enviroList) {
-        vcePathDir = path.dirname(envAPIData.vcePath);
-        buildPathDir = path.dirname(enviroData.buildDirectory);
-        if (vcePathDir === buildPathDir) {
-          return envAPIData;
-        }
-      }
     } else {
-      // This should not be possible as we have env data, but just in case
-      vectorMessage(
-        "No workspace root found, cannot refresh environment data."
-      );
-      return undefined;
+      // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
+      return await getDataForEnvironment(enviroData.buildDirectory);
     }
-  } else {
-    // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
-    return await getDataForEnvironment(enviroData.buildDirectory);
   }
   // We have a valid build directory, but we couldn't find a matching VCE file in the workspace data.
   vectorMessage(
     `Build directory ${enviroData.buildDirectory} found, but no matching VCE file detected in ${buildPathDir}. Environment data may be incomplete.`
   );
   return undefined;
+}
+
+async function buildEnvDataCacheForCurrentDir() {
+  const workspaceDir = getWorkspaceRootPath();
+  if (workspaceDir) {
+    cachedWorkspaceEnvData = await getWorkspaceEnvDataVPython(workspaceDir);
+  } else {
+    // This should not be possible as we have env data, but just in case
+    vectorMessage("No workspace root found, cannot refresh environment data.");
+  }
 }
 
 /**
@@ -888,7 +878,6 @@ async function loadAllVCTests(
   });
 
   // Reset caches and environment lists.
-  cachedWorkspaceEnvData = null;
   ignoreEnvsInProject.length = 0;
   vcastEnviroList = [];
   vcastUnbuiltEnviroList = [];
@@ -897,6 +886,8 @@ async function loadAllVCTests(
 
   // Resets the "used" and empty/unused compilers / testsuites
   clearGlobalCompilersAndTestsuites();
+
+  buildEnvDataCacheForCurrentDir();
 
   let cancelled: boolean = false;
   const environmentList: environmentNodeDataType[] = [];
@@ -954,6 +945,7 @@ async function loadAllVCTests(
   } // end if workspace folders
 
   checkWorkspaceEnvDataForErrors();
+  clearCachedWorkspaceEnvData();
 
   // In case we have empty testsuites or compilers in the project,
   // we won't find them in the Env data so we have to add them manually here
