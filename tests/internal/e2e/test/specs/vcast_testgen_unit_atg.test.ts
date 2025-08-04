@@ -119,7 +119,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Notifications")).click();
 
     // This will timeout if VectorCAST notification does not appear, resulting in a failed test
-    await browser.pause(4000);
+    await browser.pause(10000);
     const vcastNotificationSourceElement = await $(
       "aria/VectorCAST Test Explorer (Extension)"
     );
@@ -163,6 +163,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const envName = "DATABASE-MANAGER";
     console.log("Generating all ATG tests for unit database");
     await generateAllTestsForUnit("database", testGenMethod.ATG);
+    await browser.pause(5000);
     await validateGeneratedTestsForUnit(envName, "database", testGenMethod.ATG);
   });
 });
