@@ -696,9 +696,12 @@ async function loadEnviroData(
         }
       }
     } else {
-      // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
+      // Fallback in case the cache is not build, but it should be
       return await getDataForEnvironment(enviroData.buildDirectory);
     }
+  } else {
+    // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
+    return await getDataForEnvironment(enviroData.buildDirectory);
   }
   // We have a valid build directory, but we couldn't find a matching VCE file in the workspace data.
   vectorMessage(
@@ -887,7 +890,7 @@ async function loadAllVCTests(
   // Resets the "used" and empty/unused compilers / testsuites
   clearGlobalCompilersAndTestsuites();
 
-  buildEnvDataCacheForCurrentDir();
+  await buildEnvDataCacheForCurrentDir();
 
   let cancelled: boolean = false;
   const environmentList: environmentNodeDataType[] = [];
