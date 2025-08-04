@@ -699,7 +699,6 @@ export async function getWorkspaceEnvDataVPython(
 ): Promise<any> {
   // what we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
-  vectorMessage("Building environments data for workspace: " + workspaceDir);
 
   // This function will return the environment data for a single directory
   // by calling vpython with the appropriate command
@@ -708,6 +707,9 @@ export async function getWorkspaceEnvDataVPython(
     workspaceDir
   );
   let jsonData = getJsonDataFromTestInterface(commandToRun, workspaceDir);
+
+  vectorMessage("Building environments data for workspace: " + workspaceDir);
+
   return jsonData;
 }
 
