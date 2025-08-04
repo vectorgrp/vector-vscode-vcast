@@ -1431,7 +1431,7 @@ export async function updateDataForEnvironment(enviroPath: string) {
   // we need await on this call because ther other update function
   // require the data that is loaded downstream of this call
   await updateTestPane(enviroPath);
-  updateDisplayedCoverage();
+  await updateDisplayedCoverage();
   updateExploreDecorations();
   updateTestDecorator();
 
