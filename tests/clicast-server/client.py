@@ -219,6 +219,7 @@ def getEnviroDataTest(clicastPath, enviroPath):
     )
     returnData = transmitTestCommand(request)
     returnData = cleanEnviroData(returnData)
+    print(returnData)
     assert compareToExpected("expected-getEnviroData.json", returnData)
     print("   getEnviroData Test Passed")
 
