@@ -714,11 +714,15 @@ export async function generateAndValidateAllTestsFor(
         .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
-  await browser.waitUntil(
-    async () =>
-      (await outputView.getText()).toString().includes("--mode=getEnviroData"),
-    { timeout: TIMEOUT }
-  );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
 
   await browser.pause(5000);
 
@@ -1097,11 +1101,15 @@ export async function generateAllTestsForUnit(
         .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
-  await browser.waitUntil(
-    async () =>
-      (await outputView.getText()).toString().includes("--mode=getEnviroData"),
-    { timeout: TIMEOUT }
-  );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
 }
 
 export async function generateAllTestsForFunction(
@@ -1148,11 +1156,15 @@ export async function generateAllTestsForFunction(
         .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
-  await browser.waitUntil(
-    async () =>
-      (await outputView.getText()).toString().includes("--mode=getEnviroData"),
-    { timeout: TIMEOUT }
-  );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
 }
 
 export async function deleteAllTestsForUnit(
