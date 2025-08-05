@@ -457,7 +457,7 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT }
     );
-    await waitForEnvSuffix(outputView, "FOO-MOO");
+    await waitForEnvSuffix(outputView, "MOO-FOO");
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
