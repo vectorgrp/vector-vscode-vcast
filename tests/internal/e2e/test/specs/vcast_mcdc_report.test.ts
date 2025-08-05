@@ -465,6 +465,8 @@ describe("vTypeCheck VS Code Extension", () => {
       "info_finished_creating_vcast_environment.png"
     );
 
+    await browser.pause(10000);
+
     // Red MCDC Gutter icon
     await checkForGutterAndGenerateReport(
       15,
