@@ -483,7 +483,10 @@ export async function convertProjectDataToMap(
  * Builds the project data cache for all projects in the given directory.
  * @param baseDirectory - The base directory to search for projects
  */
-export async function buildProjectDataCache(baseDirectory: string) {
+export async function buildProjectDataCache(
+  baseDirectory: string,
+  progress?: vscode.Progress<{ message?: string; increment?: number }>
+) {
   const options = { cwd: baseDirectory, absolute: true, strict: false };
   const projectFileList = glob.sync("**/*.vcm", options);
 
@@ -491,6 +494,11 @@ export async function buildProjectDataCache(baseDirectory: string) {
     // enviroList is a list of json objects with fields:
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
     // See python function vTestInterface.py:getProjectData()
+    if (progress) {
+      progress.report({ message: `Processing project: ${projectFile}` });
+      // allow UI to catch up
+      await new Promise((r) => setTimeout(r, 0));
+    }
     const projectData = await getDataForProject(projectFile);
 
     if (projectData) {
@@ -890,26 +898,32 @@ async function loadAllVCTests(
   // Resets the "used" and empty/unused compilers / testsuites
   clearGlobalCompilersAndTestsuites();
 
+  //Build the workspace-wide env cache
+  progress.report({
+    message: "Fetching Environment data for current directory…",
+  });
   await buildEnvDataCacheForCurrentDir();
 
-  let cancelled: boolean = false;
+  let cancelled = false;
   const environmentList: environmentNodeDataType[] = [];
-  let projectPathDirList: string[] = [];
+  const projectPathDirList: string[] = [];
 
+  progress.report({
+    message: "Processing existing projects and environments.",
+  });
   if (vscode.workspace.workspaceFolders) {
+    //Scan each workspace folder
     for (const workspace of vscode.workspace.workspaceFolders) {
       const workspaceRoot = workspace.uri.fsPath;
       // Build the project cache for this workspace.
-      await buildProjectDataCache(workspaceRoot);
-
+      await buildProjectDataCache(workspaceRoot, progress);
       // Add environments from managed projects
       addManagedEnvironments(
         projectPathDirList,
         environmentList,
         workspaceRoot
       );
-
-      // Add free environments
+      // Add free environments not bound to a project
       addFreeEnvironments(
         workspaceRoot,
         projectPathDirList,
@@ -918,26 +932,26 @@ async function loadAllVCTests(
       );
     }
 
-    if (environmentList.length > 0) vcastEnvironmentsFound = true;
-    const increment = (1 / environmentList.length) * 100;
-
+    if (environmentList.length > 0) {
+      vcastEnvironmentsFound = true;
+    }
+    const increment = 100 / environmentList.length;
     for (const environmentData of environmentList) {
+      if (token.isCancellationRequested) {
+        cancelled = true;
+      }
+      if (cancelled) {
+        break;
+      }
+
       if (environmentData.isBuilt) {
         progress.report({
-          increment: increment,
-          message:
-            "Loading data for environment: " + environmentData.displayName,
+          increment,
+          message: `Loading data for environment: ${environmentData.displayName}`,
         });
-        // Let the progress window update.
-        await new Promise<void>((r) => setTimeout(r, 0));
-        if (token) {
-          token.onCancellationRequested(() => {
-            cancelled = true;
-          });
-        }
-        if (cancelled) break;
-
-        // Get the parent node by building the hierarchy (project -> compiler -> testsuite)
+        // ensure UI updates
+        await new Promise((r) => setTimeout(r, 0));
+        // Get the parent node by building the hierarchy (project -> compiler -> testsuite -> envs)
         const parentNode = getParentNodeForEnvironment(environmentData);
         await updateTestsForEnvironment(parentNode, environmentData, true);
       } else {
@@ -945,7 +959,8 @@ async function loadAllVCTests(
         addUnbuiltEnviroToTestPane(parentNode, environmentData);
       }
     }
-  } // end if workspace folders
+  }
+  // end if workspace folders
 
   checkWorkspaceEnvDataForErrors();
   clearCachedWorkspaceEnvData();
