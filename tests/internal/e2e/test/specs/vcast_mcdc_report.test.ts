@@ -22,6 +22,7 @@ import {
   deleteGeneratedTest,
   rebuildEnvironmentFromTestingPane,
   TIMEOUT,
+  waitForEnvSuffix,
 } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
@@ -446,9 +447,17 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
+          .includes("Setting Up Statement+MC/DC Coverage"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT }
     );
+    await waitForEnvSuffix(outputView, "FOO-MOO");
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
