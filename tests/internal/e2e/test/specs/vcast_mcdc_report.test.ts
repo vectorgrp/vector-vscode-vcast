@@ -461,22 +461,14 @@ describe("vTypeCheck VS Code Extension", () => {
 
     outputView.clearText();
 
-    let settingsEditor = await workbench.openSettings();
-    const coverageKindSetting = await settingsEditor.findSetting(
-      "Coverage Kind",
-      "Vectorcast Test Explorer",
-      "Build"
-    );
-    await coverageKindSetting.setValue("MCDC");
-
-    await waitForEnvSuffix(outputView, "MOO-FOO");
-
+    await editorView.closeEditor("foo.cpp", 0);
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
     await browser.saveScreenshot(
       "info_finished_creating_vcast_environment.png"
     );
 
+    await editorView.closeAllEditors();
     await browser.pause(10000);
 
     // Red MCDC Gutter icon
