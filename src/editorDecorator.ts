@@ -35,9 +35,13 @@ export async function updateCurrentActiveUnitMCDCLines() {
     const filePath = activeEditor.document.uri.fsPath;
     const enviroPath = getEnvPathForFilePath(filePath);
 
+    vectorMessage(`Current File: ${filePath}`);
+
     // Get the unit name based on the file name without extension
     const fullPath = activeEditor.document.fileName;
     const unitName = path.basename(fullPath, path.extname(fullPath));
+
+    vectorMessage(`Unit Name: ${unitName}`);
 
     // Get all mcdc lines for every unit and parse it into JSON
     if (enviroPath) {
@@ -47,6 +51,7 @@ export async function updateCurrentActiveUnitMCDCLines() {
           await getMCDCCoverageLines(enviroPath)
         ).replace(/'/g, '"');
         mcdcUnitCoverageLines = JSON.parse(mcdcCoverageLinesString);
+        vectorMessage(`coverage: ${mcdcUnitCoverageLines}`);
       } catch (error) {
         vectorMessage(`Error trying to parse MCDC coverage lines: ${error}`);
       }
