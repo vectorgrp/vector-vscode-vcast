@@ -461,7 +461,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     outputView.clearText();
 
-    await editorView.closeEditor("foo.cpp", 0);
+    await editorView.closeAllEditors();
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
     await browser.saveScreenshot(
