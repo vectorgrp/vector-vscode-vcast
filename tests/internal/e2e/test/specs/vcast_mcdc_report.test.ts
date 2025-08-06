@@ -459,6 +459,18 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await waitForEnvSuffix(outputView, "MOO-FOO");
 
+    outputView.clearText();
+
+    let settingsEditor = await workbench.openSettings();
+    const coverageKindSetting = await settingsEditor.findSetting(
+      "Coverage Kind",
+      "Vectorcast Test Explorer",
+      "Build"
+    );
+    await coverageKindSetting.setValue("MCDC");
+
+    await waitForEnvSuffix(outputView, "MOO-FOO");
+
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
     await browser.saveScreenshot(
