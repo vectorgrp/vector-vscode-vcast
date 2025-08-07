@@ -46,7 +46,7 @@ function mapToString(map: Map<string, any>): string {
       enviroList: Object.fromEntries(val.enviroList),
     };
   }
-  return JSON.stringify(obj, null, 2);
+  return JSON.stringify(obj);
 }
 
 /**
