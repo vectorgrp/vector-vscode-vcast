@@ -34,7 +34,7 @@ export async function updateCurrentActiveUnitMCDCLines() {
     // First we need to get the env name from the active file
     const filePath = activeEditor.document.uri.fsPath;
     let printMap = false;
-    if (path.basename(filePath).includes("MOO-FOO")) {
+    if (path.basename(filePath).includes("foo.cpp")) {
       printMap = true;
     }
     const enviroPath = getEnvPathForFilePath(filePath, printMap);
