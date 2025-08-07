@@ -58,7 +58,7 @@ function mapToString(map: Map<string, any>): string {
 export function getEnvPathForFilePath(filePath: string): string | null {
   const globalCoverageMap = getGlobalCoverageData();
   const fileData = globalCoverageMap.get(filePath);
-  if(process.env.PRINT_GLOBAL_COVERAGE){
+  if (path.basename(filePath).includes("MOO-FOO")) {
     const stringifiedMap = mapToString(globalCoverageMap);
     vectorMessage(`globalCoverageMap`);
     vectorMessage(`${stringifiedMap}`);
