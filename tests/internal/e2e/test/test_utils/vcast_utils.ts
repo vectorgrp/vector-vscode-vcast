@@ -700,6 +700,8 @@ export async function generateAndValidateAllTestsFor(
   await outputView.clearText();
   await generateAllTestsForEnv(envName, testGenMethod);
 
+  await bottomBar.maximize()
+
   await browser.waitUntil(
     async () =>
       (await outputView.getText())
