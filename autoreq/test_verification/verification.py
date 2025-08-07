@@ -6,7 +6,6 @@ from typing import List, Optional
 
 from ..llm_client import LLMClient
 from ..test_generation.vcast_context_builder import VcastContextBuilder
-from ..test_generation.info_logger import InfoLogger
 from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
 
 
@@ -33,7 +32,6 @@ class TestVerifier:
         self.allow_partial = allow_partial
         self.context_builder = VcastContextBuilder(self.environment)
         self.llm_client = LLMClient()
-        self.info_logger = InfoLogger()
 
     async def verify_test_case(
         self, test_case, requirement_id: Optional[str] = None

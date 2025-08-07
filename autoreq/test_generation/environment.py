@@ -20,6 +20,7 @@ from autoreq.util import (
     prune_code,
     sanitize_subprogram_name,
     get_vectorcast_cmd,
+    execute_vectorcast_command,
 )
 
 from autoreq.constants import (
@@ -573,63 +574,14 @@ class Environment:
         Returns:
             CompletedProcess if successful, None if failed
         """
-        cmd = get_vectorcast_cmd(tool, args)
-
-        env_vars = os.environ.copy()
-        if extra_env:
-            env_vars.update(extra_env)
-
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.env_dir,
-                env=env_vars,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=timeout,
-                check=False,
-            )
-
-            # Check if command succeeded
-            if result.returncode == 0:
-                # If an output file is expected, verify it exists
-                if check_output_file and not os.path.exists(
-                    os.path.join(self.env_dir, check_output_file)
-                ):
-                    logging.warning(
-                        'Command succeeded but expected output file not found',
-                        extra={
-                            'command': ' '.join(cmd),
-                            'output_file': check_output_file,
-                        },
-                    )
-                    return None
-                return result
-            else:
-                logging.debug(
-                    'Command failed',
-                    extra={
-                        'command': ' '.join(cmd),
-                        'return_code': result.returncode,
-                        'stdout': result.stdout,
-                        'stderr': result.stderr,
-                    },
-                )
-                return None
-
-        except subprocess.TimeoutExpired:
-            logging.error(
-                'Commands timed out after 30 seconds',
-                extra={
-                    'command': ' '.join(cmd),
-                    'timeout': timeout,
-                },
-            )
-            return None
-        except FileNotFoundError:
-            logging.debug(f'Command {tool} not found')
-            return None
+        return execute_vectorcast_command(
+            tool=tool,
+            args=args,
+            timeout=timeout,
+            cwd=self.env_dir,
+            check_output_file=check_output_file,
+            extra_env=extra_env,
+        )
 
     # ============================================================================
     # ATG Test Generation (with Fallback Strategies)

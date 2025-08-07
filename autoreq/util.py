@@ -33,6 +33,47 @@ if t.TYPE_CHECKING:
     from autoreq.test_generation.environment import Environment
 
 
+class StatementGroup(BaseModel):
+    line_numbers: List[int]
+    path: List[str]
+    symbols: List[str]
+    code: str
+
+    @property
+    def lines(self):
+        lines = self.code.splitlines()
+        return [lines[i] for i in self.line_numbers]
+
+    def __str__(self):
+        # First, construct the path
+        path_str = '\n -> '.join(self.path)
+
+        code_lines = self.code.splitlines()
+
+        start_line = min(self.line_numbers)
+        end_line = max(self.line_numbers)
+
+        lines_str = '\n'.join(code_lines[i] for i in range(start_line, end_line + 1))
+
+        return f'Path: {path_str}\nLines:\n{lines_str}'
+
+    @staticmethod
+    def from_collected_nodes(collected_nodes, code: str):
+        assert len(set(tuple(node.path) for node in collected_nodes)) == 1, (
+            'All collected nodes must have the same path'
+        )
+        return StatementGroup(
+            line_numbers=[
+                line for node in collected_nodes for line in node.line_numbers
+            ],
+            path=collected_nodes[0].path,
+            symbols=list(
+                set(symbol for node in collected_nodes for symbol in node.symbols)
+            ),
+            code=code,
+        )
+
+
 def paths_to_files(paths, file_extensions=['c']):
     """
     Recursively identifies all file paths in the given directory and file paths.
@@ -533,46 +574,6 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
         path: List[str]
         symbols: List[str]
 
-    class StatementGroup(BaseModel):
-        line_numbers: List[int]
-        path: List[str]
-        symbols: List[str]
-
-        @property
-        def lines(self):
-            lines = code.splitlines()
-            return [lines[i] for i in self.line_numbers]
-
-        def __str__(self):
-            # First, construct the path
-            path_str = '\n -> '.join(self.path)
-
-            code_lines = code.splitlines()
-
-            start_line = min(self.line_numbers)
-            end_line = max(self.line_numbers)
-
-            lines_str = '\n'.join(
-                code_lines[i] for i in range(start_line, end_line + 1)
-            )
-
-            return f'Path: {path_str}\nLines:\n{lines_str}'
-
-        @staticmethod
-        def from_collected_nodes(collected_nodes):
-            assert len(set(tuple(node.path) for node in collected_nodes)) == 1, (
-                'All collected nodes must have the same path'
-            )
-            return StatementGroup(
-                line_numbers=[
-                    line for node in collected_nodes for line in node.line_numbers
-                ],
-                path=collected_nodes[0].path,
-                symbols=list(
-                    set(symbol for node in collected_nodes for symbol in node.symbols)
-                ),
-            )
-
     def extract_symbols_from_node(node):
         """Extract symbols from any tree-sitter node"""
         symbols = set()
@@ -768,7 +769,9 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
 
     flat_groups = to_flat_groups(executable_groups)
     executable_groups = [
-        StatementGroup.from_collected_nodes(group) for group in flat_groups if group
+        StatementGroup.from_collected_nodes(group, code)
+        for group in flat_groups
+        if group
     ]
 
     return executable_groups
@@ -1402,3 +1405,163 @@ def extract_code_symbols(code):
 
     visit_node(root_node)
     return symbols
+
+
+def execute_command(
+    cmd: List[str],
+    timeout: int = 30,
+    cwd: Optional[str] = None,
+    extra_env: Optional[dict] = None,
+    check_output_file: Optional[str] = None,
+    text: bool = True,
+    capture_output: bool = True,
+    check: bool = False,
+    shell: bool = False,
+) -> Optional[subprocess.CompletedProcess]:
+    """
+    Execute a command with comprehensive error handling and logging.
+
+    Args:
+        cmd: Command and arguments to execute
+        timeout: Timeout in seconds
+        cwd: Working directory for command execution
+        extra_env: Additional environment variables to set
+        check_output_file: If provided, check that this file exists after command execution
+        text: If True, decode stdout/stderr as text
+        capture_output: If True, capture stdout and stderr
+        check: If True, raise CalledProcessError on non-zero exit code
+        shell: If True, execute command through shell
+
+    Returns:
+        CompletedProcess if successful, None if failed
+    """
+    env_vars = os.environ.copy()
+    if extra_env:
+        env_vars.update(extra_env)
+
+    try:
+        # Prepare subprocess.run arguments
+        run_kwargs = {
+            'cwd': cwd,
+            'env': env_vars,
+            'timeout': timeout,
+            'check': check,
+            'shell': shell,
+        }
+
+        if capture_output:
+            run_kwargs.update(
+                {
+                    'stdout': subprocess.PIPE,
+                    'stderr': subprocess.PIPE,
+                }
+            )
+
+        if text:
+            run_kwargs['text'] = True
+
+        result = subprocess.run(cmd, **run_kwargs)  # noqa: PLW1510
+
+        # Check if command succeeded
+        if result.returncode == 0:
+            # If an output file is expected, verify it exists
+            if check_output_file:
+                output_path = (
+                    Path(cwd) / check_output_file if cwd else Path(check_output_file)
+                )
+                if not output_path.exists():
+                    logging.warning(
+                        'Command succeeded but expected output file not found',
+                        extra={
+                            'command': ' '.join(cmd)
+                            if isinstance(cmd, list)
+                            else str(cmd),
+                            'output_file': str(output_path),
+                        },
+                    )
+                    return None
+            logging.debug(
+                'Command executed successfully',
+                extra={
+                    'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+                    'return_code': result.returncode,
+                    'stdout': getattr(result, 'stdout', None),
+                    'stderr': getattr(result, 'stderr', None),
+                },
+            )
+            return result
+        else:
+            logging.debug(
+                'Command failed',
+                extra={
+                    'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+                    'return_code': result.returncode,
+                    'stdout': getattr(result, 'stdout', None),
+                    'stderr': getattr(result, 'stderr', None),
+                },
+            )
+            return None
+
+    except subprocess.TimeoutExpired:
+        logging.error(
+            'Command timed out',
+            extra={
+                'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+                'timeout': timeout,
+            },
+        )
+        return None
+    except FileNotFoundError:
+        logging.debug(
+            'Command executable not found',
+            extra={
+                'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+            },
+        )
+        return None
+    except Exception as e:
+        logging.error(
+            'Unexpected error executing command',
+            extra={
+                'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+                'error': str(e),
+            },
+        )
+        return None
+
+
+def execute_vectorcast_command(
+    tool: str,
+    args: List[str],
+    timeout: int = 30,
+    cwd: Optional[str] = None,
+    check_output_file: Optional[str] = None,
+    extra_env: Optional[dict] = None,
+) -> Optional[subprocess.CompletedProcess]:
+    """
+    Execute a VectorCAST command with consistent error handling.
+
+    Args:
+        tool: The VectorCAST tool to run (e.g., 'atg', 'clicast')
+        args: Arguments to pass to the tool
+        timeout: Timeout in seconds
+        cwd: Working directory for command execution
+        check_output_file: If provided, check that this file exists after command execution
+        extra_env: Additional environment variables to set
+
+    Returns:
+        CompletedProcess if successful, None if failed
+    """
+    cmd = get_vectorcast_cmd(tool, args)
+
+    return execute_command(
+        cmd=cmd,
+        timeout=timeout,
+        cwd=cwd,
+        extra_env=extra_env,
+        check_output_file=check_output_file,
+        text=True,
+        capture_output=True,
+        check=False,
+        shell=False,
+    )
