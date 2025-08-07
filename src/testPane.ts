@@ -686,34 +686,31 @@ async function loadEnviroData(
   enviroData: environmentNodeDataType,
   comingFromRefresh: boolean
 ): Promise<any | null> {
-  let vcePathDir: string = "";
-  let buildPathDir: string = "";
+  let buildDirDerivedFromVCEPath: string = "";
+  let buildPathDir: string = enviroData.buildDirectory;
 
   if (comingFromRefresh) {
     // If we've already fetched the full workspace data, reuse it
     if (cachedWorkspaceEnvData) {
       const enviroList = cachedWorkspaceEnvData["enviro"];
-      vectorMessage(
-        `Processing environment data for: ${enviroData.buildDirectory}`
-      );
+      vectorMessage(`Processing environment data for: ${buildPathDir}`);
       for (const envAPIData of enviroList) {
-        vcePathDir = path.dirname(envAPIData.vcePath);
-        buildPathDir = path.dirname(enviroData.buildDirectory);
-        if (vcePathDir === buildPathDir) {
+        buildDirDerivedFromVCEPath = envAPIData.vcePath.split(".vce")[0];
+        if (buildDirDerivedFromVCEPath === buildPathDir) {
           return envAPIData;
         }
       }
     } else {
       // Fallback in case the cache is not build, but it should be
-      return await getDataForEnvironment(enviroData.buildDirectory);
+      return await getDataForEnvironment(buildPathDir);
     }
   } else {
     // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
-    return await getDataForEnvironment(enviroData.buildDirectory);
+    return await getDataForEnvironment(buildPathDir);
   }
   // We have a valid build directory, but we couldn't find a matching VCE file in the workspace data.
   vectorMessage(
-    `Build directory ${enviroData.buildDirectory} found, but no matching VCE file detected in ${buildPathDir}. Environment data may be incomplete.`
+    `Build directory ${buildPathDir} found, but no matching VCE file detected at the same level of it. Environment data may be incomplete.`
   );
   return undefined;
 }
