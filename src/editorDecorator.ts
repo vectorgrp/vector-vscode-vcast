@@ -33,7 +33,11 @@ export async function updateCurrentActiveUnitMCDCLines() {
   if (activeEditor) {
     // First we need to get the env name from the active file
     const filePath = activeEditor.document.uri.fsPath;
-    const enviroPath = getEnvPathForFilePath(filePath);
+    let printMap = false;
+    if (path.basename(filePath).includes("MOO-FOO")) {
+      printMap = true;
+    }
+    const enviroPath = getEnvPathForFilePath(filePath, printMap);
 
     vectorMessage(`Current File: ${filePath}`);
 
