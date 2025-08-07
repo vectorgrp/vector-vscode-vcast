@@ -58,11 +58,13 @@ function mapToString(map: Map<string, any>): string {
 export function getEnvPathForFilePath(filePath: string): string | null {
   const globalCoverageMap = getGlobalCoverageData();
   const fileData = globalCoverageMap.get(filePath);
-  const stringifiedMap = mapToString(globalCoverageMap);
-  vectorMessage(`globalCoverageMap`);
-  vectorMessage(`${stringifiedMap}`);
-  vectorMessage(`fileData`);
-  vectorMessage(`${fileData}`);
+  if(process.env.PRINT_GLOBAL_COVERAGE){
+    const stringifiedMap = mapToString(globalCoverageMap);
+    vectorMessage(`globalCoverageMap`);
+    vectorMessage(`${stringifiedMap}`);
+    vectorMessage(`fileData`);
+    vectorMessage(`${fileData}`);
+  }
   if (fileData?.enviroList) {
     // Retrieve the first environment key, if it exists
     const envKey = Array.from(fileData.enviroList.keys())[0];
