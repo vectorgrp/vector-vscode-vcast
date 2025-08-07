@@ -1004,7 +1004,6 @@ export async function getMCDCCoverageLines(enviroPath: string) {
  */
 function getMCDCCoverageLinesFromPython(enviroPath: string) {
   const commandToRun = getMCDCLineCoverageCommand(enviroPath);
-  vectorMessage(`I will search mcdc lines for ${enviroPath}`);
   const commandStatus: commandStatusType = executeCommandSync(
     commandToRun,
     process.cwd()

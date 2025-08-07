@@ -55,19 +55,9 @@ function mapToString(map: Map<string, any>): string {
  * @param {string} filePath - The file path for which the environment path is needed.
  * @returns {string | null} The environment path if found, otherwise null.
  */
-export function getEnvPathForFilePath(
-  filePath: string,
-  shouldPrint: boolean = false
-): string | null {
+export function getEnvPathForFilePath(filePath: string): string | null {
   const globalCoverageMap = getGlobalCoverageData();
   const fileData = globalCoverageMap.get(filePath);
-  if (shouldPrint) {
-    const stringifiedMap = mapToString(globalCoverageMap);
-    vectorMessage(`globalCoverageMap`);
-    vectorMessage(`${stringifiedMap}`);
-    vectorMessage(`fileData`);
-    vectorMessage(`${fileData}`);
-  }
   if (fileData?.enviroList) {
     // Retrieve the first environment key, if it exists
     const envKey = Array.from(fileData.enviroList.keys())[0];

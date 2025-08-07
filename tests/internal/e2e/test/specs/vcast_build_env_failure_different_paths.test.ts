@@ -152,7 +152,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
-    await bottomBar.maximize()
+    await bottomBar.maximize();
 
     await awaitOutputtext(outputView, "ENV_23_01", true, TIMEOUT);
     await awaitOutputtext(outputView, "ENV_24_02", false, TIMEOUT);
@@ -227,7 +227,7 @@ async function awaitOutputtext(
   ignore: boolean,
   TIMEOUT: number
 ) {
-  console.log(`Checking logs for ${env}`)
+  console.log(`Checking logs for ${env}`);
   if (ignore) {
     await browser.waitUntil(
       async () => {
