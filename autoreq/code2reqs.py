@@ -4,11 +4,9 @@ from tqdm.asyncio import tqdm_asyncio
 from pathlib import Path
 import csv
 import os
-import subprocess
 import tempfile
 import asyncio
 import logging
-import traceback
 from openpyxl.styles import Font, PatternFill
 from openpyxl import Workbook
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -16,6 +14,7 @@ from openpyxl.utils import get_column_letter
 
 from autoreq.requirements_manager import RequirementsManager
 from autoreq.aq_logging import configure_logging
+from autoreq.util import execute_vectorcast_command
 
 from .test_generation.environment import Environment
 from .requirement_generation.generation import RequirementsGenerator
@@ -162,68 +161,28 @@ def save_requirements_to_html(requirements, output_file):
         f.write(html_content)
 
 
-def execute_command(command_list):
-    try:
-        result = subprocess.run(
-            command_list,
-            capture_output=True,
-            text=True,
-            shell=False,
-            check=False,  # More secure
-        )
-        if result.returncode != 0:
-            logging.error(
-                'Error executing command',
-                extra={
-                    'commands': command_list,
-                    'returncode': result.returncode,
-                    'stdout': result.stdout,
-                    'stderr': result.stderr,
-                },
-            )
-        else:
-            logging.info(result.stdout)
-        return result
-    except Exception as e:
-        stacktrace = traceback.format_exc()
-        logging.error(
-            'Failed to execute command',
-            extra={
-                'commands': command_list,
-                'error': str(e),
-                'stacktrace': stacktrace,
-            },
-        )
-        raise
-
-
 def execute_rgw_commands(env_path, csv_path, export_repository):
     export_path = Path(export_repository)
     export_path.mkdir(parents=True, exist_ok=True)
 
     env_dir = Path(env_path).parent
-    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
-    clicast = str(Path(vectorcast_dir) / 'clicast')
-    if os.name == 'nt' and not clicast.endswith('.exe'):
-        clicast += '.exe'
 
     # Convert paths to absolute and ensure proper formatting
     abs_export_path = str(export_path.resolve())
     abs_csv_path = str(Path(csv_path).resolve())
 
     rgw_prep_commands = [
-        [clicast, '-lc', 'option', 'VCAST_REPOSITORY', abs_export_path],
-        [clicast, '-lc', 'RGw', 'INitialize'],
-        [clicast, '-lc', 'Rgw', 'Set', 'Gateway', 'CSV'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'csv_path', abs_csv_path],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'use_attribute_filter', '0'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute_value'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'id_attribute', 'ID'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'key_attribute', 'Key'],
-        [clicast, '-lc', 'RGw', 'Configure', 'Set', 'CSV', 'title_attribute', 'Title'],
+        ['-lc', 'option', 'VCAST_REPOSITORY', abs_export_path],
+        ['-lc', 'RGw', 'INitialize'],
+        ['-lc', 'Rgw', 'Set', 'Gateway', 'CSV'],
+        ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'csv_path', abs_csv_path],
+        ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'use_attribute_filter', '0'],
+        ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute'],
+        ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute_value'],
+        ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'id_attribute', 'ID'],
+        ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'key_attribute', 'Key'],
+        ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'title_attribute', 'Title'],
         [
-            clicast,
             '-lc',
             'RGw',
             'Configure',
@@ -232,15 +191,15 @@ def execute_rgw_commands(env_path, csv_path, export_repository):
             'description_attribute',
             'Description',
         ],
-        [clicast, '-lc', 'RGw', 'Import'],
+        ['-lc', 'RGw', 'Import'],
     ]
 
     # Change working directory before executing commands
     original_dir = os.getcwd()
     try:
         os.chdir(str(env_dir))
-        for command in rgw_prep_commands:
-            execute_command(command)
+        for args in rgw_prep_commands:
+            execute_vectorcast_command('clicast', args)
     finally:
         os.chdir(original_dir)
 
