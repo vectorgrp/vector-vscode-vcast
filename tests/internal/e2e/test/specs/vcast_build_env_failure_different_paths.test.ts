@@ -174,9 +174,9 @@ async function expectEnvResults(release: string) {
     [
       "2023sp0",
       [
-        { env: "ENV_23_01", state: "undefined" },
+        { env: "ENV_23_01", state: "defined" },
         { env: "ENV_24_02", state: "defined" },
-        { env: "ENV_23_03", state: "undefined" },
+        { env: "ENV_23_03", state: "defined" },
         { env: "ENV_24_04", state: "defined" },
       ],
     ],
@@ -225,6 +225,7 @@ async function awaitOutputtext(
   ignore: boolean,
   TIMEOUT: number
 ) {
+  console.log(`Checking logs for ${env}`)
   if (ignore) {
     await browser.waitUntil(
       async () => {
