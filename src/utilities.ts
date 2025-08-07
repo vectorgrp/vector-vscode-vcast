@@ -38,6 +38,17 @@ export interface jsonDataType {
   jsonDataAsString: string;
 }
 
+function mapToString(map: Map<string, any>): string {
+  const obj: Record<string, any> = {};
+  for (const [key, val] of map) {
+    obj[key] = {
+      hasCoverage: val.hasCoverage,
+      enviroList: Object.fromEntries(val.enviroList),
+    };
+  }
+  return JSON.stringify(obj, null, 2);
+}
+
 /**
  * Retrieves the environment path associated with a given file path.
  *
@@ -47,8 +58,9 @@ export interface jsonDataType {
 export function getEnvPathForFilePath(filePath: string): string | null {
   const globalCoverageMap = getGlobalCoverageData();
   const fileData = globalCoverageMap.get(filePath);
+  const stringifiedMap = mapToString(globalCoverageMap);
   vectorMessage(`globalCoverageMap`);
-  vectorMessage(`${globalCoverageMap}`);
+  vectorMessage(`${stringifiedMap}`);
   vectorMessage(`fileData`);
   vectorMessage(`${fileData}`);
   if (fileData?.enviroList) {
