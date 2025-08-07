@@ -23,7 +23,6 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         WAIT_AFTER_TESTS_FINISHED: "True", // Vscode closes too fast for the server
         VCAST_USE_PYTHON: "True",
-        PRINT_GLOBAL_COVERAGE: "True"
       },
       params: {},
     },

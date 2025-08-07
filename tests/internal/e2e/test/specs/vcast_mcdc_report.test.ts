@@ -422,6 +422,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should build new env with nearly identical files and check for mcdc report for double report", async () => {
     const workbench = await browser.getWorkbench();
+    process.env.PRINT_GLOBAL_COVERAGE = "True"
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
