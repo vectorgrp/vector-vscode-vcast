@@ -152,6 +152,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
+    await bottomBar.maximize()
+
     await awaitOutputtext(outputView, "ENV_23_01", true, TIMEOUT);
     await awaitOutputtext(outputView, "ENV_24_02", false, TIMEOUT);
     await awaitOutputtext(outputView, "ENV_23_03", true, TIMEOUT);
