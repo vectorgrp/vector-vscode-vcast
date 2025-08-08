@@ -107,6 +107,45 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
+type FunctionTestData = {
+  name: string;
+  parameterizedName: string;
+  tests: any[]; // could be typed further if you know test object shape
+};
+
+type FileTestData =
+  | { name: string; tests: any[] }
+  | { name: string; path: string; functions: FunctionTestData[] };
+
+type FunctionUnitData = {
+  isTestable: boolean;
+  name: string;
+  startLine: number;
+};
+
+type UnitData = {
+  cmcChecksum: string;
+  covered: string;
+  partiallyCovered: string;
+  uncovered: string;
+  path: string;
+  functionList: FunctionUnitData[];
+};
+
+type EnviroData = {
+  vcePath: string;
+  testData: FileTestData[];
+  unitData: UnitData[];
+  mockingSupport: boolean;
+};
+
+type CachedWorkspaceData = {
+  testData: FileTestData[];
+  unitData: UnitData[];
+  enviro: EnviroData[];
+  errors?: string[];
+};
+
 // This function does the work of adding the actual tests
 // to whatever parent is passed in generally a function node
 //
@@ -652,7 +691,7 @@ let vcastHasCodedTestsList: string[] = [];
 
 // Global cache for workspace-wide env data
 // Used to avoid redundant API calls during refresh
-let cachedWorkspaceEnvData: any | null = null;
+let cachedWorkspaceEnvData: CachedWorkspaceData | null = null;
 
 export function clearCachedWorkspaceEnvData(): void {
   cachedWorkspaceEnvData = null;
@@ -685,7 +724,7 @@ export async function updateTestsForEnvironment(
 async function loadEnviroData(
   enviroData: environmentNodeDataType,
   comingFromRefresh: boolean
-): Promise<any | null> {
+): Promise<EnviroData | undefined> {
   let buildDirDerivedFromVCEPath: string = "";
   let buildPathDir: string = enviroData.buildDirectory;
 
@@ -781,10 +820,12 @@ async function processSingleEnvData(
 }
 
 export function findAndReturnEnvDataByBuildDir(buildDir: string) {
-  const enviroList = cachedWorkspaceEnvData["enviro"];
-  for (const envAPIData of enviroList) {
-    if (path.dirname(envAPIData.vcePath) === path.dirname(buildDir)) {
-      return envAPIData;
+  if (cachedWorkspaceEnvData) {
+    const enviroList = cachedWorkspaceEnvData["enviro"];
+    for (const envAPIData of enviroList) {
+      if (path.dirname(envAPIData.vcePath) === path.dirname(buildDir)) {
+        return envAPIData;
+      }
     }
   }
   return undefined;
@@ -2046,12 +2087,16 @@ export interface vcastTestItem extends vscode.TestItem {
   sourcePath?: string;
 }
 
+/**
+ * Checking for errors while retrieveing all env data form the workspace and report them
+ */
 function checkWorkspaceEnvDataForErrors() {
-  // Check for errors and report them
-  const errorList = cachedWorkspaceEnvData["errors"];
-  if (errorList && Array.isArray(errorList)) {
-    for (const errMsg of errorList) {
-      vectorMessage(`Error while loading environment: ${errMsg}. Skipping.`);
+  if (cachedWorkspaceEnvData) {
+    const errorList = cachedWorkspaceEnvData["errors"];
+    if (errorList && Array.isArray(errorList)) {
+      for (const errMsg of errorList) {
+        vectorMessage(`Error while loading environment: ${errMsg}. Skipping.`);
+      }
     }
   }
 }
