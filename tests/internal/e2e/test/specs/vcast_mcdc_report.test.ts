@@ -470,7 +470,6 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     await editorView.closeAllEditors();
-    await browser.pause(10000);
 
     // Red MCDC Gutter icon
     await checkForGutterAndGenerateReport(

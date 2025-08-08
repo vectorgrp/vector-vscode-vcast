@@ -146,7 +146,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     // Need to wait because there are more than one "Processing environment data for" messages
-    await browser.pause(10000);
+    await browser.pause(3000);
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
@@ -169,7 +169,6 @@ describe("vTypeCheck VS Code Extension", () => {
       "DataBase::GetTableRecord",
       testGenMethod.BasisPath
     );
-    await browser.pause(5000);
     await validateGeneratedTestsForFunction(
       envName,
       "database",
