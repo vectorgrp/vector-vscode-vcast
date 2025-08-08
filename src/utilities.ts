@@ -38,17 +38,6 @@ export interface jsonDataType {
   jsonDataAsString: string;
 }
 
-function mapToString(map: Map<string, any>): string {
-  const obj: Record<string, any> = {};
-  for (const [key, val] of map) {
-    obj[key] = {
-      hasCoverage: val.hasCoverage,
-      enviroList: Object.fromEntries(val.enviroList),
-    };
-  }
-  return JSON.stringify(obj);
-}
-
 /**
  * Retrieves the environment path associated with a given file path.
  *
