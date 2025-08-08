@@ -170,6 +170,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "DataBase::GetTableRecord",
       testGenMethod.ATG
     );
+    await browser.pause(5000);
     await validateGeneratedTestsForFunction(
       envName,
       "database",

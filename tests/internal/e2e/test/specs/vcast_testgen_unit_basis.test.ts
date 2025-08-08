@@ -163,6 +163,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const envName = "DATABASE-MANAGER";
     console.log("Generating all BASIS PATH tests for unit database");
     await generateAllTestsForUnit("database", testGenMethod.BasisPath);
+    await browser.pause(5000);
     await validateGeneratedTestsForUnit(
       envName,
       "database",
