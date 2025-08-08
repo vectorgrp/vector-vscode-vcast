@@ -1483,16 +1483,10 @@ export async function updateDataForEnvironment(enviroPath: string) {
 
   // we need await on this call because ther other update function
   // require the data that is loaded downstream of this call
-  vectorMessage(`Updating ${enviroPath}`);
   await updateTestPane(enviroPath);
-  vectorMessage(`Updating Coverage`);
   await updateDisplayedCoverage();
-  let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const coverageKind = settings.get("build.coverageKind", "None");
-  vectorMessage(`Current Coverage Kind: ${coverageKind}`);
   updateExploreDecorations();
   updateTestDecorator();
-  vectorMessage(`Finished updating`);
 
   // remove environment from the unbuilt list if it's there
   const nodeID = makeEnviroNodeID(enviroPath);

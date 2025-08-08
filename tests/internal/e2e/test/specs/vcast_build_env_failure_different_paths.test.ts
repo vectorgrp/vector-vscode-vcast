@@ -2,13 +2,9 @@
 import process from "node:process";
 import path from "node:path";
 import {
-  type TreeItem,
   type ViewContent,
-  ViewItem,
-  ViewSection,
   type BottomBarPanel,
   type Workbench,
-  type CustomTreeItem,
   type OutputView,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
@@ -16,7 +12,6 @@ import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
   getViewContent,
-  expandTopEnvInTestPane,
   retrieveTestingTopItems,
   findTreeNodeAtLevel,
 } from "../test_utils/vcast_utils";
@@ -198,7 +193,6 @@ async function expectEnvResults(release: string) {
 
   // Iterate through Testing and try to expand builded Envs (2 & 4)
   vcastTestingViewContent = await getViewContent("Testing");
-  const topLevelItems = await retrieveTestingTopItems(vcastTestingViewContent);
 
   const release23Value = envMap.get(release);
 

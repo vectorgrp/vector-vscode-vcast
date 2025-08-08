@@ -47,7 +47,6 @@ export async function updateCurrentActiveUnitMCDCLines() {
           await getMCDCCoverageLines(enviroPath)
         ).replace(/'/g, '"');
         mcdcUnitCoverageLines = JSON.parse(mcdcCoverageLinesString);
-        vectorMessage(`coverage: ${mcdcUnitCoverageLines}`);
       } catch (error) {
         vectorMessage(`Error trying to parse MCDC coverage lines: ${error}`);
       }
