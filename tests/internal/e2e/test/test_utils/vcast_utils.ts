@@ -1743,6 +1743,155 @@ export async function insertStringToInput(
   );
 }
 
+/**
+ * Inserts a string into an input field. Basically the same like insertStringToInput, but for the autocompletion
+ * input field when creating a new compiler, we need a different logic.
+ * @param stringToInsert Value for the input field
+ * @param ariaLabel Label of the element to find it
+ * @param shouldTabToCreate Boolean to controll if it should tab its way to the correct button
+ * @returns
+ */
+export async function insertStringIntoAutocompletionInput(
+  stringToInsert: string,
+  ariaLabel: string,
+  shouldTabToCreate: boolean = false
+): Promise<boolean> {
+  // open webview (same flow you already have)
+  const workbench = await browser.getWorkbench();
+  workbench.getEditorView();
+
+  console.log("0");
+
+  const webviews = await workbench.getAllWebviews();
+  if (webviews.length !== 1) {
+    console.error(`Expected 1 webview but found ${webviews.length}`);
+    return false;
+  }
+  const webview = webviews[0];
+  await webview.open();
+
+  console.log("1");
+
+  // locate the container/input by aria
+  const selector = `div[aria-label="${ariaLabel}"], [aria-label="${ariaLabel}"], div[aria-labelledby="${ariaLabel}"], [aria-labelledby="${ariaLabel}"]`;
+  const candidate = await $(selector);
+  try {
+    await candidate.waitForExist({ timeout: 5000 });
+  } catch {
+    console.error(`No element found for aria label "${ariaLabel}"`);
+    return false;
+  }
+
+  console.log("2");
+
+  // pick the nested input or the element itself
+  let target = candidate;
+  const tag = await target.getTagName().catch(() => null);
+  if (!tag || !["input", "textarea"].includes(tag.toLowerCase())) {
+    const nested = await candidate.$(
+      'input, textarea, [contenteditable="true"], [contenteditable]'
+    );
+    if (await nested.isExisting()) {
+      target = nested;
+    } else {
+      const inputByAttr = await $(
+        `input[aria-label="${ariaLabel}"], textarea[aria-label="${ariaLabel}"]`
+      );
+      if (await inputByAttr.isExisting()) {
+        console.log("3");
+        target = inputByAttr;
+      } else {
+        console.error(`No editable found for aria "${ariaLabel}"`);
+        return false;
+      }
+    }
+  }
+
+  // focus + clear + set
+  try {
+    await target.scrollIntoView();
+    await target.click();
+    if (typeof (target as any).clearValue === "function") {
+      await (target as any).clearValue();
+    } else {
+      await browser.keys(["Control", "a"]);
+      await browser.keys(["Backspace"]);
+    }
+    await target.setValue(stringToInsert);
+    console.log(`Inserted "${stringToInsert}" into "${ariaLabel}"`);
+  } catch (err) {
+    console.error("Failed to set value on target:", err);
+    return false;
+  }
+
+  if (shouldTabToCreate) {
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Enter"]);
+    return true;
+  } else {
+    // Dismiss suggestions / blur
+    try {
+      await browser.keys(["Escape"]);
+      await browser.pause(80);
+      await browser.keys(["Tab"]);
+      await browser.pause(80);
+
+      // click a safe element inside the webview (projectNameDisplay) to ensure dropdown closed
+      await browser.execute(() => {
+        console.log("7");
+        const safe =
+          document.getElementById("projectNameDisplay") || document.body;
+        if (safe) {
+          safe.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+          safe.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+          safe.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        }
+      });
+      await browser.pause(120);
+
+      // wait for suggestions to collapse (best-effort)
+      const suggestions = await $("ul.suggestions");
+      console.log("7");
+      if (await suggestions.isExisting()) {
+        try {
+          await suggestions.waitUntil(
+            async function () {
+              const html = await this.getHTML(false);
+              return !/\<li\b/.test(html);
+            },
+            { timeout: 1200 }
+          );
+        } catch {}
+      }
+    } catch (dismissErr) {
+      console.warn("Error while dismissing suggestions:", dismissErr);
+    }
+
+    try {
+      await browser.executeWorkbench(() => {
+        const host = document.querySelector(
+          ".monaco-workbench"
+        ) as HTMLElement | null;
+        if (host) {
+          host.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+          host.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+          host.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        }
+      });
+    } catch (e) {
+      console.warn(
+        "Unable to re-focus workbench after webview interaction:",
+        e
+      );
+      return false;
+    }
+  }
+
+  await browser.pause(80);
+  return true;
+}
+
 export async function clickButtonBasedOnAriaLabel(ariaLabel: string) {
   // Get the workbench and open the webview
   const workbench = await browser.getWorkbench();

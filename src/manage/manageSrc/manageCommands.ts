@@ -79,6 +79,12 @@ export async function buildProjectEnvironment(
   );
 }
 
+/**
+ * Creates a new compiler in a selected project
+ * @param projectPath Path to project
+ * @param compiler Selected Compiler
+ * @returns
+ */
 export async function createNewCompilerInProject(
   projectPath: string,
   compiler: string
@@ -112,6 +118,11 @@ export async function createNewCompilerInProject(
   }
 }
 
+/**
+ * Creates a new Project including a new Compiler
+ * @param projectPath Path to the new project file
+ * @param compiler Compiler Name
+ */
 export async function createNewProject(projectPath: string, compiler: string) {
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
