@@ -243,15 +243,16 @@ export async function expandAllSubprogramsFor(subprogramGroup: CustomTreeItem) {
 export async function retrieveTestingTopItems(
   vcastTestingViewContent: ViewContent
 ) {
-  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-    if (!(await vcastTestingViewSection.isExpanded())) {
-      await vcastTestingViewSection.expand();
-    }
-    // Get all top-level items (ENV_01, ENV_02, etc.)
-    return await vcastTestingViewSection.getVisibleItems();
+  const sections = await vcastTestingViewContent.getSections();
+  if (sections.length === 0) {
+    return undefined;
   }
 
-  return undefined;
+  const firstSection = sections[0];
+  if (!(await firstSection.isExpanded())) {
+    await firstSection.expand();
+  }
+  return await firstSection.getVisibleItems();
 }
 
 /**
