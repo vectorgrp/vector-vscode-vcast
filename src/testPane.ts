@@ -385,7 +385,10 @@ export const globalCompilersAndTestsuites: {
 
 // Empty Compilers or Testsuites that do not contain anything.
 // We need to store and process them seperately, because otherwise they are not shown in the tree
-export const globalUnusedTestsuiteList: { displayName: string }[] = [];
+export const globalUnusedTestsuiteList: {
+  projectFile: string;
+  displayName: string;
+}[] = [];
 export const globalUnusedCompilerList: {
   projectFile: string;
   displayName: string;
@@ -500,7 +503,12 @@ export async function buildProjectDataCache(baseDirectory: string) {
 
       // This includes all unused and empty testsuites and compilers because
       // they are not in the enviroList as they do not include any envs
-      globalUnusedTestsuiteList.push(...projectData.projectTestsuiteData);
+      globalUnusedTestsuiteList.push(
+        ...projectData.projectTestsuiteData.map((testSuite: any) => ({
+          ...testSuite,
+          projectFile: forceLowerCaseDriveLetter(projectFile),
+        }))
+      );
 
       projectData.projectCompilerData.forEach(
         (item: { projectFile: string | undefined }) => {

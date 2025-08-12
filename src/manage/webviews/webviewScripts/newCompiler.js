@@ -73,12 +73,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Always send 'submit' so extension validation runs
   document.getElementById("btnSubmit").addEventListener("click", () => {
     const compiler = input.value.trim();
-    if (!compiler) {
-      vscode.postMessage({ command: 'error', message: 'Compiler Name is required.' });
-      return;
-    }
     vscode.postMessage({ command: 'submit', compilerName: compiler });
   });
 
