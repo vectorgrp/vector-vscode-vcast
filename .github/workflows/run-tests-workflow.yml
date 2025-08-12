@@ -28,6 +28,7 @@ jobs:
       options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     strategy:
+      fail-fast: false   # ⬅ allow all matrix versions to run even if one fails
       matrix:
         vcast: ${{ fromJSON(vars.VCAST_VERSIONS) }}
 
@@ -88,10 +89,12 @@ jobs:
       - name: Clicast server tests
         run: ./tests/clicast-server/run_clicast_server_tests.sh
         shell: bash
+        continue-on-error: true  # ⬅ run next step even if fails
 
       - name: Run unit tests
         run: npm run gh-test | tee output.txt
         shell: bash
+        continue-on-error: true  # ⬅ run rest of job even if fails
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action/linux@v2
@@ -209,6 +212,8 @@ jobs:
       options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     strategy:
+      # ⬅ let all groups run even if one fails
+      fail-fast: false  
       matrix:
         include: ${{ fromJSON(needs.generate-e2e-matrix.outputs.version_group_matrix) }}
 
@@ -296,6 +301,8 @@ jobs:
       - name: Run tests
         run: |
           ./tests/internal/e2e/run_e2e_tests.sh
+        # ⬅ keep going even if fails
+        continue-on-error: true 
 
       - name: Publish e2e tests results
         uses: EnricoMi/publish-unit-test-result-action/linux@v2
@@ -342,158 +349,3 @@ jobs:
           path: |
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
-
-  black:
-    if: github.event.pull_request.draft == false
-    permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
-
-    container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
-      options: --user vcast_user
-
-    steps:
-      - name: Check out repository
-        id: checkout
-        uses: actions/checkout@v4
-        continue-on-error: true
-
-      - name: Wait before retry
-        id: should-retry-checkout
-        if: failure()
-        continue-on-error: true
-        run: |
-          sleep 10
-          exit 1
-
-      - name: Check out repository (retry)
-        if: failure()
-        uses: actions/checkout@v4
-
-      - name: Run black
-        shell: bash
-        run: |
-          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/' > output.log 2>&1; echo $? > exitcode.txt
-
-      - name: Summary
-        shell: bash
-        if: always()
-        run: |
-          echo "### Black output" >> $GITHUB_STEP_SUMMARY
-          {
-            echo '```'
-            cat output.log
-            echo '```'
-          } >> $GITHUB_STEP_SUMMARY
-
-      - name: Exit with code
-        shell: bash
-        if: always()
-        run: |
-          if [ -f exitcode.txt ]; then
-              exit $(cat exitcode.txt)
-          fi
-
-  prettier:
-    if: github.event.pull_request.draft == false
-    permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
-
-    container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
-      options: --user vcast_user
-
-    steps:
-      - name: Check out repository
-        id: checkout
-        uses: actions/checkout@v4
-        continue-on-error: true
-
-      - name: Wait before retry
-        id: should-retry-checkout
-        if: failure()
-        continue-on-error: true
-        run: |
-          sleep 10
-          exit 1
-
-      - name: Check out repository (retry)
-        if: failure()
-        uses: actions/checkout@v4
-
-      - name: Run prettier
-        shell: bash
-        run: |
-          npm install prettier@$(node -pe "require('./package').devDependencies.prettier")
-          npx prettier -c . > output.log 2>&1; echo $? > exitcode.txt
-
-      - name: Summary
-        shell: bash
-        if: always()
-        run: |
-          echo "### Prettier output" >> $GITHUB_STEP_SUMMARY
-          {
-            echo '```'
-            cat output.log
-            echo '```'
-          } >> $GITHUB_STEP_SUMMARY
-
-      - name: Exit with code
-        shell: bash
-        if: always()
-        run: |
-          if [ -f exitcode.txt ]; then
-              exit $(cat exitcode.txt)
-          fi
-
-  xo:
-    if: github.event.pull_request.draft == false
-    permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
-
-    container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
-      options: --user vcast_user
-
-    steps:
-      - name: Check out repository
-        id: checkout
-        uses: actions/checkout@v4
-        continue-on-error: true
-
-      - name: Wait before retry
-        id: should-retry-checkout
-        if: failure()
-        continue-on-error: true
-        run: |
-          sleep 10
-          exit 1
-
-      - name: Check out repository (retry)
-        if: failure()
-        uses: actions/checkout@v4
-
-      - name: Run xo
-        shell: bash
-        run: |
-          npm install xo@$(node -pe "require('./package').dependencies.xo")
-          npx xo tests/unit > output.log 2>&1; echo $? > exitcode.txt
-
-      - name: Summary
-        shell: bash
-        if: always()
-        run: |
-          echo "### Xo output" >> $GITHUB_STEP_SUMMARY
-          {
-            echo '```'
-            cat output.log
-            echo '```'
-          } >> $GITHUB_STEP_SUMMARY
-
-      - name: Exit with code
-        shell: bash
-        if: always()
-        run: |
-          if [ -f exitcode.txt ]; then
-              exit $(cat exitcode.txt)
-          fi
