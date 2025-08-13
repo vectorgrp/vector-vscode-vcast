@@ -45,6 +45,10 @@
     ],
     "commands": [
       {
+        "command": "vectorcastTestExplorer.createNewProject",
+        "title": "VectorCAST: Create New Project"
+      },
+      {
         "command": "vectorcastTestExplorer.configure",
         "category": "VectorCAST Test Explorer",
         "title": "Configure"
@@ -94,6 +98,11 @@
         "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
         "category": "VectorCAST Test Explorer",
         "title": "Add Testsuite to Compiler"
+      },
+      {
+        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
+        "category": "VectorCAST Test Explorer",
+        "title": "Create new Compiler in Project"
       },
       {
         "command": "vectorcastTestExplorer.addEnviroToProject",
@@ -389,6 +398,13 @@
       }
     ],
     "menus": {
+      "file/newFile": [
+        {
+          "command": "vectorcastTestExplorer.createNewProject",
+          "group": "1_createnew",         
+          "when": "resourceScheme == 'file'" 
+        }
+      ],
       "commandPalette": [
         {
           "command": "vectorcastTestExplorer.configure"
@@ -423,6 +439,10 @@
         },
         {
           "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
           "when": "never"
         },
         {
@@ -699,6 +719,11 @@
       },
       {
         "command": "vectorcastTestExplorer.addEnviroToProject",
+        "group": "vcast.project",
+        "when": "testId =~ /\\.vcm$/"
+      },
+      {
+        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
         "group": "vcast.project",
         "when": "testId =~ /\\.vcm$/"
       },

@@ -97,6 +97,8 @@ import {
   cleanProjectEnvironment,
   addEnvToTestsuite,
   deleteEnvironmentFromProject,
+  createNewCompilerInProject,
+  createNewProject,
 } from "./manage/manageSrc/manageCommands";
 
 import {
@@ -137,7 +139,13 @@ import {
 } from "./vcastUtilities";
 
 import fs = require("fs");
-import { getNonce, resolveWebviewBase } from "./manage/manageSrc/manageUtils";
+import {
+  compilerTagList,
+  getNonce,
+  resolveWebviewBase,
+  setCompilerList,
+} from "./manage/manageSrc/manageUtils";
+
 const path = require("path");
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
@@ -220,6 +228,9 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
       await toggleCoverageAction();
       // initialize the verbose setting
       adjustVerboseSetting();
+
+      // Sets the list for all available compilers
+      await setCompilerList();
     } else {
       openMessagePane();
     }
@@ -1581,6 +1592,268 @@ async function installPreActivationEventHandlers(
         `<script nonce="${nonce}">
            window.projectData = ${projectData};
            window.initialSourceFiles = ${initialSourceFiles};
+         </script>\n</head>`
+      );
+
+    return html;
+  }
+
+  const createNewProjectCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createNewProject",
+    async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders?.length) {
+        vscode.window.showErrorMessage("Open a folder first.");
+        return;
+      }
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "newProject",
+        "Create New Project",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      panel.webview.html = await getNewProjectWebviewContent(
+        context,
+        panel,
+        workspaceRoot
+      );
+
+      panel.webview.onDidReceiveMessage(
+        async (msg) => {
+          switch (msg.command) {
+            case "browseForDir": {
+              const folderUris = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: "Select Target Folder",
+              });
+              if (folderUris?.length) {
+                panel.webview.postMessage({
+                  command: "setTargetDir",
+                  targetDir: folderUris[0].fsPath,
+                });
+              }
+              break;
+            }
+            case "submit":
+              await handleSubmit(msg);
+              break;
+            case "cancel":
+              panel.dispose();
+              break;
+          }
+        },
+        undefined,
+        context.subscriptions
+      );
+
+      async function handleSubmit(message: {
+        projectName?: string;
+        compilerName?: string;
+        targetDir?: string;
+      }) {
+        const { projectName, compilerName, targetDir } = message;
+        if (!projectName) {
+          vscode.window.showErrorMessage("Project Name is required.");
+          return;
+        }
+        if (!compilerName) {
+          vscode.window.showErrorMessage("Compiler selection is required.");
+          return;
+        }
+        const compilerTag = compilerTagList[compilerName];
+        if (!compilerTag) {
+          vscode.window.showErrorMessage(
+            `No compiler tag found for "${compilerName}".`
+          );
+          return;
+        }
+
+        const base = targetDir ?? workspaceRoot;
+        const projectPath = path.join(base, projectName);
+
+        vscode.window.showInformationMessage(
+          `Creating project "${projectName}" at ${projectPath} using ${compilerName}.`
+        );
+        await createNewProject(projectPath, compilerTag);
+        panel.dispose();
+      }
+    }
+  );
+
+  context.subscriptions.push(createNewProjectCmd);
+
+  async function getNewProjectWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    workspaceRoot: string
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(path.join(base, "css", "newProject.css"));
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "newProject.js")
+    );
+    const htmlPath = path.join(base, "html", "newProject.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    const compilersJson = JSON.stringify(Object.keys(compilerTagList));
+    // pass default targetDir as workspace root
+    const workspaceJson = JSON.stringify(workspaceRoot);
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+    html = html.replace(
+      /<head>/,
+      `<head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
+          panel.webview.cspSource
+        }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+        <script nonce="${nonce}">
+          window.compilerData = ${compilersJson};
+          window.defaultDir   = ${workspaceJson};
+        </script>`
+    );
+    html = html.replace("{{ cssUri }}", cssUri.toString());
+    html = html.replace(
+      "{{ scriptUri }}",
+      `<script nonce="${nonce}" src="${scriptUri}"></script>`
+    );
+
+    return html;
+  }
+
+  const newCompilerCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.newCompilerInProjectVCAST",
+    async (args: any) => {
+      // Retrieve project path from the clicked node's 'id'
+      const projectPath: string | undefined = args?.id;
+      if (!projectPath) {
+        vscode.window.showErrorMessage("No project node provided.");
+        return;
+      }
+
+      // Create webview panel
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "newCompiler",
+        "Create Compiler in Project",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      // Load HTML into webview
+      panel.webview.html = await getNewCompilerWebviewContent(
+        context,
+        panel,
+        projectPath
+      );
+
+      // Dispatch table
+      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
+        submit: handleSubmit,
+        cancel: () => panel.dispose(),
+      };
+
+      panel.webview.onDidReceiveMessage(
+        (message) => dispatch[message.command]?.(message),
+        undefined,
+        context.subscriptions
+      );
+
+      // Handle submission
+      async function handleSubmit(message: { compilerName?: string }) {
+        const compilerName = message.compilerName;
+        if (!compilerName) {
+          vscode.window.showErrorMessage("Compiler Name is required.");
+          return;
+        }
+
+        const compilerTemplate = compilerTagList[compilerName];
+        if (!compilerTemplate) {
+          vscode.window.showErrorMessage(
+            `Compiler Template Name was not found for ${compilerName}.`
+          );
+          return;
+        }
+
+        if (projectPath) {
+          vscode.window.showInformationMessage(
+            `Adding compiler ${compilerName} to project ${projectPath}`
+          );
+          await createNewCompilerInProject(projectPath, compilerTemplate);
+        } else {
+          vscode.window.showErrorMessage(
+            "Project Path is not defined. Cannot add compiler."
+          );
+          return;
+        }
+
+        // await addCompilerToProject(projectPath, compilerName);
+        panel.dispose();
+      }
+    }
+  );
+
+  context.subscriptions.push(newCompilerCmd);
+
+  async function getNewCompilerWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    projectPath: string
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "newCompiler.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "newCompiler.js")
+    );
+    const htmlPath = path.join(base, "html", "newCompiler.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // For demo, hard‑coded compiler list
+    const compilerList = JSON.stringify(Object.keys(compilerTagList));
+    const projectDir = path.resolve(projectPath);
+    const projectName = JSON.stringify(path.basename(projectDir));
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+    const csp = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+    html = html.replace(/<head>/, `<head>${csp}`);
+
+    html = html
+      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+      .replace(
+        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      )
+      .replace(
+        /<\/head>/,
+        `<script nonce="${nonce}">
+           window.projectName = ${projectName};
+           window.compilerData = ${compilerList};
          </script>\n</head>`
       );
 

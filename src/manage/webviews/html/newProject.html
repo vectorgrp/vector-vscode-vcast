@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Create New Project</title>
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal">
+    <h2>Create New Project</h2>
+
+    <!-- Folder selector row -->
+    <label for="targetDirInput">Target Folder:</label>
+    <div class="single-input-container">
+      <input
+        type="text"
+        id="targetDirInput"
+        readonly
+        placeholder="Select a folder…"
+      />
+      <button id="btnBrowse" class="select-button">Select</button>
+    </div>
+
+    <label for="projectNameInput">Project Name:</label>
+    <input type="text" id="projectNameInput" aria-label="Project Name Input" placeholder="Enter new project name…" />
+
+    <label for="compilerInput">Select Compiler:</label>
+    <div class="autocomplete">
+      <input type="text" id="compilerInput" aria-label="Compiler Name Input" placeholder="Type or click to select…" autocomplete="off" />
+      <ul id="suggestions" class="suggestions"></ul>
+    </div>
+
+    <div class="button-container">
+      <button id="btnCancel" class="cancel-button">Cancel</button>
+      <button id="btnSubmit" class="primary-button">Create</button>
+    </div>
+  </div>
+
+  {{ scriptUri }}
+</body>
+</html>
