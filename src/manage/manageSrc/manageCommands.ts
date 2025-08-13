@@ -41,6 +41,7 @@ import {
   globalProjectDataCache,
   refreshAllExtensionData,
   runTests,
+  updateProjectStructure,
 } from "../../testPane";
 import { normalizePath } from "../../utilities";
 import { viewResultsReportVC } from "../../reporting";
@@ -311,7 +312,7 @@ export async function createTestsuiteInCompiler(
     message
   );
 
-  await refreshAllExtensionData();
+  await updateProjectStructure(projectPath);
 }
 
 /**
@@ -370,7 +371,7 @@ export async function addCompilerToProject(
     message
   );
 
-  await refreshAllExtensionData();
+  await updateProjectStructure(projectFilePath);
 }
 
 /**

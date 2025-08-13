@@ -887,7 +887,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
   let deleteTestsuiteCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteTestsuite",
-    (node: any) => {
+    async (node: any) => {
       const nodeParts = node.id.split("/");
       // compiler/testsuite
       // Can't do path.join because on windows the level would be with the wrong "\"
@@ -898,7 +898,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       // Add a leading slash for non-Windows platforms
       const projectPath =
         process.platform === "win32" ? joinedPath : "/" + joinedPath;
-      deleteLevel(projectPath, testsuiteLevel);
+      await deleteLevel(projectPath, testsuiteLevel);
     }
   );
   context.subscriptions.push(deleteTestsuiteCommand);
@@ -906,11 +906,11 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.deleteCompiler ////////////////////////////////////////////////////////
   let deleteCompilerCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.deleteCompiler",
-    (node: any) => {
+    async (node: any) => {
       const compiler = node.id;
       const projectPath = path.dirname(compiler);
       const compilerLevel = path.basename(compiler);
-      deleteLevel(projectPath, compilerLevel);
+      await deleteLevel(projectPath, compilerLevel);
     }
   );
   context.subscriptions.push(deleteCompilerCommand);

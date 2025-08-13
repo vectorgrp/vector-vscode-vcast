@@ -60,7 +60,7 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import { cleanVectorcastOutput } from "../src-common/commonUtilities";
-import { refreshAllExtensionData, removeNodeFromTestPane } from "./testPane";
+import { refreshAllExtensionData, updateProjectStructure } from "./testPane";
 
 const path = require("path");
 
@@ -146,9 +146,7 @@ export async function deleteLevel(projectPath: string, level: string) {
   );
 
   const nodeId = path.join(projectPath, level);
-
-  await refreshAllExtensionData();
-  removeNodeFromTestPane(nodeId);
+  await updateProjectStructure(projectPath, nodeId);
 }
 
 // Load Test Script - server logic included -----------------------------------------

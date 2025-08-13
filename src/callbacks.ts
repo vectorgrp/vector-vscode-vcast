@@ -10,8 +10,6 @@ import {
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
-  buildTestPaneContents,
-  refreshAllExtensionData,
   removeCBTfilesCacheForEnviro,
   removeNodeFromTestPane,
   updateDataForEnvironment,
@@ -27,6 +25,9 @@ import {
   closeConnection,
   globalEnviroDataServerActive,
 } from "../src-common/vcastServer";
+import { updateDisplayedCoverage } from "./coverage";
+import { updateExploreDecorations } from "./fileDecorator";
+import { updateTestDecorator } from "./editorDecorator";
 
 const fs = require("fs");
 const path = require("path");
@@ -44,7 +45,6 @@ export async function buildEnvironmentCallback(
   // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
-    await buildTestPaneContents();
     await updateDataForEnvironment(enviroPath);
   } else {
     try {
@@ -121,7 +121,9 @@ export async function deleteEnvironmentCallback(
     }
 
     removeCoverageDataForEnviro(enviroPath);
-    await refreshAllExtensionData();
+    updateDisplayedCoverage();
+    updateExploreDecorations();
+    updateTestDecorator();
     removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
