@@ -26,7 +26,6 @@ import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
 import {
   enviroListAsMapType,
   globalProjectDataCache,
-  refreshAllExtensionData,
   updateTestPane,
 } from "./testPane";
 
@@ -948,7 +947,6 @@ export async function newEnvironment(
         "]"
     );
   }
-  await refreshAllExtensionData();
 }
 
 function valueOrDefault(name: string): string {

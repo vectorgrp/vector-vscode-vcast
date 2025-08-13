@@ -1585,7 +1585,6 @@ export async function deleteTests(nodeList: any[]) {
     await updateProjectData(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
   }
-  await refreshAllExtensionData();
 }
 
 export async function insertBasisPathTests(testNode: testNodeType) {

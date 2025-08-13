@@ -10,11 +10,10 @@ import {
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
-  buildTestPaneContents,
-  refreshAllExtensionData,
   removeCBTfilesCacheForEnviro,
   removeNodeFromTestPane,
   updateDataForEnvironment,
+  updateTestPane,
   vcastUnbuiltEnviroList,
 } from "./testPane";
 
@@ -26,6 +25,9 @@ import {
   closeConnection,
   globalEnviroDataServerActive,
 } from "../src-common/vcastServer";
+import { updateDisplayedCoverage } from "./coverage";
+import { updateExploreDecorations } from "./fileDecorator";
+import { updateTestDecorator } from "./editorDecorator";
 
 const fs = require("fs");
 const path = require("path");
@@ -43,9 +45,7 @@ export async function buildEnvironmentCallback(
   // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
-    await buildTestPaneContents();
     await updateDataForEnvironment(enviroPath);
-    await refreshAllExtensionData();
   } else {
     try {
       // remove the environment directory, as well as the .vce file
@@ -121,7 +121,9 @@ export async function deleteEnvironmentCallback(
     }
 
     removeCoverageDataForEnviro(enviroPath);
-    await refreshAllExtensionData();
+    updateDisplayedCoverage();
+    updateExploreDecorations();
+    updateTestDecorator();
     removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
@@ -146,7 +148,7 @@ export async function loadScriptCallBack(
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
-    await refreshAllExtensionData();
+    await updateTestPane(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
     fs.unlinkSync(scriptPath);
   } else {
