@@ -481,6 +481,94 @@ export async function convertProjectDataToMap(
 }
 
 /**
+ * Updates the data from one project. Similar to loadAllVCTests(), just that we do not iterate over all projects.
+ * Only suitable for structural changes (up to testsuite).
+ * Removes a node in case we come from a "Delete Operation" (deleteLevel())
+ * @param projectFile
+ * @param nodeIDToRemove
+ */
+export async function updateProjectStructure(
+  projectFile: string,
+  nodeIDToRemove: string | undefined = undefined
+) {
+  return vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Updating Project: ${projectFile}`,
+      cancellable: true,
+    },
+    async (progress, token) => {
+      // This call will scan all workspace folders.
+      if (nodeIDToRemove) {
+        globalController.items.forEach((item) => {
+          deleteItemByID(item, nodeIDToRemove);
+        });
+      }
+      const projectData = await getDataForProject(projectFile);
+
+      if (projectData) {
+        const loweredProjectFile = forceLowerCaseDriveLetter(projectFile);
+        const enviroList = projectData.projectEnvData;
+
+        // Remove any old data for this project (mutate in place)
+        globalUnusedTestsuiteList.splice(
+          0,
+          globalUnusedTestsuiteList.length,
+          ...globalUnusedTestsuiteList.filter(
+            (ts) => ts.projectFile !== loweredProjectFile
+          )
+        );
+        globalUnusedCompilerList.splice(
+          0,
+          globalUnusedCompilerList.length,
+          ...globalUnusedCompilerList.filter(
+            (comp) => comp.projectFile !== loweredProjectFile
+          )
+        );
+
+        // Add new test suite data
+        globalUnusedTestsuiteList.push(
+          ...projectData.projectTestsuiteData.map((testSuite: any) => ({
+            ...testSuite,
+            projectFile: loweredProjectFile,
+          }))
+        );
+
+        // Normalize compiler projectFile values
+        projectData.projectCompilerData.forEach((item: any) => {
+          item.projectFile = forceLowerCaseDriveLetter(item.projectFile);
+        });
+
+        // Add new compiler data
+        globalUnusedCompilerList.push(...projectData.projectCompilerData);
+
+        // Convert the raw json data into a map for the cache
+        const enviroListAsMap = await convertProjectDataToMap(enviroList);
+
+        // Store in cache
+        globalProjectDataCache.set(projectFile, enviroListAsMap);
+
+        const comboBoxList = getWebviewComboboxItems(projectFile);
+        globalProjectWebviewComboboxItems.set(projectFile, comboBoxList);
+      } else {
+        vectorMessage("Error getting project data for: " + projectFile);
+        ignoreEnvsInProject.push(projectFile);
+      }
+
+      // In case we have empty testsuites or compilers in the project,
+      // we won't find them in the Env data so we have to add them manually here
+      ensureCompilerNodes();
+      ensureTestsuiteNodes();
+      // Update coverage and decorators.
+      setGlobalProjectIsOpenedChecker();
+      setGlobalCompilerAndTestsuites();
+      await updateDisplayedCoverage();
+      updateTestDecorator();
+    }
+  );
+}
+
+/**
  * Builds the project data cache for all projects in the given directory.
  * @param baseDirectory - The base directory to search for projects
  */
