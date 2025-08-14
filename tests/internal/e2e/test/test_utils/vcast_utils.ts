@@ -1871,9 +1871,7 @@ export async function insertStringIntoAutocompletionInput(
 
     try {
       await browser.executeWorkbench(() => {
-        const host = document.querySelector(
-          ".monaco-workbench"
-        ) as HTMLElement | null;
+        const host = document.querySelector<HTMLElement>(".monaco-workbench");
         if (host) {
           host.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
           host.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));

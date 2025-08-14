@@ -47,7 +47,6 @@ window.addEventListener("DOMContentLoaded", () => {
   input.addEventListener("focus", () => updateSuggestions(true));
 
   input.addEventListener("keydown", (e) => {
-    const items = suggestions.querySelectorAll("li");
     if (e.key === "ArrowDown") {
       e.preventDefault();
       activeIndex = (activeIndex + 1) % filtered.length;

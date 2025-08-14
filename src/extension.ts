@@ -1803,8 +1803,6 @@ async function installPreActivationEventHandlers(
           );
           return;
         }
-
-        // await addCompilerToProject(projectPath, compilerName);
         panel.dispose();
       }
     }

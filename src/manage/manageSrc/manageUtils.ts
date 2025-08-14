@@ -60,18 +60,6 @@ export async function createNewCFGFromCompiler(
     return;
   }
 
-  // // rename/move to <compiler>.cfg
-  // const finalName = `${compiler}.cfg`;
-  // const finalPath = path.join(projectCompilerPath, finalName);
-  // try {
-  //   fs.renameSync(generated, finalPath);
-  // } catch (err: any) {
-  //   vscode.window.showErrorMessage(
-  //     `Failed to rename CFG: ${err.message}`
-  //   );
-  //   return;
-  // }
-
   vectorMessage(`Generated and moved CFG to ${generated}`);
   return generated;
 }
