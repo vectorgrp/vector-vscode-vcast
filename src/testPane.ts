@@ -709,7 +709,7 @@ export async function updateTestsForEnvironment(
   let jsonData: any;
 
   // In case we are refreshing the extension, we do not want to call the API n times (n=|envs|)
-  // Instead we get all the env data at once and save us time.
+  // Instead we get the entire env data at once and save us time.
   jsonData = await loadEnviroData(enviroData, comingFromRefresh);
   if (!jsonData) return;
 

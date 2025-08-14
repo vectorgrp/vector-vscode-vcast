@@ -12,7 +12,6 @@ import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
   getViewContent,
-  retrieveTestingTopItems,
   findTreeNodeAtLevel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
@@ -189,10 +188,11 @@ async function expectEnvResults(release: string) {
     ],
   ]);
 
-  let vcastTestingViewContent: ViewContent;
-
   // Iterate through Testing and try to expand builded Envs (2 & 4)
-  vcastTestingViewContent = await getViewContent("Testing");
+  const workbench = await browser.getWorkbench();
+  const activityBar = workbench.getActivityBar();
+  const testingView = await activityBar.getViewControl("Testing");
+  await testingView?.openView();
 
   const release23Value = envMap.get(release);
 

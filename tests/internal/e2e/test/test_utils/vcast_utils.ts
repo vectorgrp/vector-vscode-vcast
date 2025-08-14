@@ -244,7 +244,7 @@ export async function retrieveTestingTopItems(
   vcastTestingViewContent: ViewContent
 ) {
   const sections = await vcastTestingViewContent.getSections();
-  if (sections.length === 0) {
+  if (!sections.length) {
     return undefined;
   }
 
@@ -252,6 +252,7 @@ export async function retrieveTestingTopItems(
   if (!(await firstSection.isExpanded())) {
     await firstSection.expand();
   }
+
   return await firstSection.getVisibleItems();
 }
 
