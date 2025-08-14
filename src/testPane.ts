@@ -942,7 +942,6 @@ async function loadAllVCTests(
   });
   await buildEnvDataCacheForCurrentDir();
 
-  let cancelled = false;
   const environmentList: environmentNodeDataType[] = [];
   const projectPathDirList: string[] = [];
 
@@ -976,9 +975,6 @@ async function loadAllVCTests(
     const increment = 100 / environmentList.length;
     for (const environmentData of environmentList) {
       if (token.isCancellationRequested) {
-        cancelled = true;
-      }
-      if (cancelled) {
         break;
       }
 
