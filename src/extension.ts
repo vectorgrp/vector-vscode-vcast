@@ -1662,6 +1662,7 @@ async function installPreActivationEventHandlers(
         targetDir?: string;
       }) {
         const { projectName, compilerName, targetDir } = message;
+        // Make sure that Inputs have to be filled and the compiler tag is found
         if (!projectName) {
           vscode.window.showErrorMessage("Project Name is required.");
           return;
