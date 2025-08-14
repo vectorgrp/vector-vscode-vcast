@@ -97,7 +97,6 @@ environment. The subsequent levels show units, functions, and test cases.
 The right click context menu for Environment nodes, has a VectorCAST sub-menu with the following commands:
 
 - Open Environment - opens the environment in the VectorCAST GUI
-- Update Environment - runs the command 'clicast environment update'
 - Delete Environment - deletes this environment from the tree and on disk
 - Edit Test Script - opens the test script for all existing tests
 
@@ -337,10 +336,12 @@ Right‑click any node in the Test Explorer tree (or in the Explorer pane) and c
 
 | Command                                 | Description                                                              |
 |-----------------------------------------|--------------------------------------------------------------------------|
-| **Add Existing Environment**            | Link an existing Manage environment into your VS Code project node.     |
+| **Add Existing Environment**            | Link an existing Manage environment into your VS Code project node.      |
 | **Delete Project Environment**          | Remove the environment from both the tree and disk.                      |
 | **Build/Execute Incremental**           | Run an incremental build & test based on the changed code/tests.         |
+| **Create new Project**                  | Creates a new Project in a selected folder.                              |
 | **Create Compiler from CFG File**       | Generate or validate a compiler configuration from a Manage CFG.         |
+| **Create new Compiler in Project**      | Creates a new Compiler based on a selected Compiler template.            |
 | **Delete Compiler**                     | Remove a compiler entry from the current Manage project.                 |
 | **Create Testsuite**                    | Add a new testsuite under your Manage project.                           |
 | **Delete Testsuite**                    | Remove an existing testsuite from the project.                           |
