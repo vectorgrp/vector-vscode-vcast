@@ -2,7 +2,6 @@
 import process from "node:process";
 import path from "node:path";
 import {
-  type ViewContent,
   type BottomBarPanel,
   type Workbench,
   type OutputView,
@@ -11,7 +10,6 @@ import { Key } from "webdriverio";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  getViewContent,
   findTreeNodeAtLevel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
