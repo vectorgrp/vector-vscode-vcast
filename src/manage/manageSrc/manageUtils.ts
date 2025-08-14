@@ -7,6 +7,7 @@ import { exec as execCb, spawn } from "child_process";
 import { globalController, globalProjectDataCache } from "../../testPane";
 import { vectorMessage } from "../../messagePane";
 import { normalizePath } from "../../utilities";
+import { clicastCommandToUse } from "../../vcastInstallation";
 
 const exec = promisify(execCb);
 
@@ -23,12 +24,6 @@ export async function createNewCFGFromCompiler(
   compiler: string,
   projectCompilerPath: string
 ): Promise<string | undefined> {
-  const vectorcastDir = process.env.VECTORCAST_DIR;
-  if (!vectorcastDir) {
-    vscode.window.showErrorMessage("VECTORCAST_DIR is not set.");
-    return;
-  }
-
   // Make sure compilers dir exists
   if (!fs.existsSync(projectCompilerPath)) {
     await vscode.workspace.fs.createDirectory(
@@ -37,9 +32,15 @@ export async function createNewCFGFromCompiler(
   }
 
   // spawn clicast *in* the compilers folder
-  const clicastExe = path.join(vectorcastDir, "clicast");
   const args = ["-lc", "template", compiler];
-  const proc = spawn(clicastExe, args, {
+
+  // This is checked at the beginning when initializing the data, but to be sure
+  if (!fs.existsSync(clicastCommandToUse)) {
+    vectorMessage(`Clicast was not found. Cancelling compiler operation.`);
+    return;
+  }
+
+  const proc = spawn(clicastCommandToUse, args, {
     cwd: projectCompilerPath,
     stdio: ["ignore", "inherit", "inherit"], // let output stream to console/popup
   });

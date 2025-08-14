@@ -120,7 +120,7 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
 
-    console.log("Checkig for existence of new Compiler");
+    console.log("Checking for existence of new Compiler");
     const compilerNode = await findTreeNodeAtLevel(
       1,
       "GNU_Native_Automatic_C_1"
@@ -145,7 +145,7 @@ describe("vTypeCheck VS Code Extension", () => {
     console.log("Inserting Data to Webview");
     // For the compiler tab we need to do it that way, because it's input is not found
     // The different strucutre (autocompletion) + we already clicked on the same webview
-    // make the problems, so we just navigate with tab and enter within the webivew
+    // make the problems, so we just navigate with tab and enter within the webview
     await insertStringToInput("NewProject", "Project Name Input");
     await browser.keys(["Tab"]);
     await browser.keys("GNU Native_Automatic_C++17");

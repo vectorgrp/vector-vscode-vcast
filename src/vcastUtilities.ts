@@ -686,7 +686,7 @@ export function ensureTestsuiteNodes() {
       return;
     }
 
-    // 1Find the project node from the projectFile
+    // Find the project node from the projectFile
     let projectNode: vcastTestItem | undefined =
       globalProjectMap.get(projectFile);
 
