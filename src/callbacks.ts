@@ -15,6 +15,7 @@ import {
   removeCBTfilesCacheForEnviro,
   removeNodeFromTestPane,
   updateDataForEnvironment,
+  updateTestPane,
   vcastUnbuiltEnviroList,
 } from "./testPane";
 
@@ -45,7 +46,6 @@ export async function buildEnvironmentCallback(
   if (code == 0) {
     await buildTestPaneContents();
     await updateDataForEnvironment(enviroPath);
-    await refreshAllExtensionData();
   } else {
     try {
       // remove the environment directory, as well as the .vce file
@@ -146,7 +146,7 @@ export async function loadScriptCallBack(
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
-    await refreshAllExtensionData();
+    await updateTestPane(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
     fs.unlinkSync(scriptPath);
   } else {
