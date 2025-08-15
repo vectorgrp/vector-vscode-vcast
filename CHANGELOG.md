@@ -181,6 +181,5 @@ This option is new for VectorCAST 23 sp2
 - Added the ability to create new Compilers in a Project.
 
 ### Code Maintenance
-- Improved performance for Manage operations
 - Improved performance when initializing the extension
 
