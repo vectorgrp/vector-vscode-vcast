@@ -17,15 +17,18 @@ jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: ubuntu-24.04
     env:
       ENABLE_ATG_FEATURE: TRUE
       LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
-      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
+      image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
+      options: --user vcast_user
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHRC_TOKEN }}
 
     strategy:
       matrix:
@@ -118,7 +121,7 @@ jobs:
         run: |
           curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
           chmod +x codecov
-          ./codecov -f ./coverage/coverage-final.json -F Unit -n vscode-vcast-unittests -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -r ${{ github.repository }} -U ${http_proxy} >> out.txt
+          ./codecov -f ./coverage/coverage-final.json -F Unit -n vscode-vcast-unittests -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -r ${{ github.repository }} >> out.txt
           cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
           title="Coverage report URL" && \
           [ -z $(cat url.txt) ] && echo "::notice title=$title::URL not found" || echo "::notice title=$title::$(cat url.txt)"
@@ -162,11 +165,14 @@ jobs:
   generate-e2e-matrix:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: ubuntu-24.04
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
       options: --user vcast_user
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHRC_TOKEN }}
 
     outputs:
       version_group_matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -202,11 +208,14 @@ jobs:
     needs: generate-e2e-matrix
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [self-hosted, vscode-vcast]
+    runs-on: ubuntu-24.04
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
-      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
+      image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
+      options: --user vcast_user
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHRC_TOKEN }}
 
     strategy:
       matrix:
@@ -315,17 +324,15 @@ jobs:
           content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
           echo "${content}" >> $GITHUB_STEP_SUMMARY
           
-          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}"
-          count=`ls -1 tests/internal/e2e/*.png 2>/dev/null | wc -l`
-          if [ $count != 0 ] ; then
-            cd tests/internal/e2e
-            tar -cvzf e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots.tar.gz *.png > /dev/null
-            URL="$ARTIFACTORY_URL/e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots/"
-            curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots.tar.gz
-            cd ../../..
-            echo "[Screenshots]($URL)" >> $GITHUB_STEP_SUMMARY
-          fi
+          mkdir e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots
+          mv tests/internal/e2e/*.png e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots/
+          echo "SCREENSHOTS_FOLDER=e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots" >> $GITHUB_ENV
+
+      - name: Upload screenshots artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SCREENSHOTS_FOLDER }}
+          path: ${{ env.SCREENSHOTS_FOLDER }}
 
       - name: Save dependencies - node
         if: steps.cache-dependencies-restore-node.outputs.cache-hit != 'true'
@@ -349,8 +356,11 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
       options: --user vcast_user
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHRC_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -400,8 +410,11 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
       options: --user vcast_user
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHRC_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -452,8 +465,11 @@ jobs:
     runs-on: [ self-hosted, vscode-vcast]
 
     container:
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
       options: --user vcast_user
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHRC_TOKEN }}
 
     steps:
       - name: Check out repository

@@ -1,0 +1,59 @@
+# ghcr.io/vectorgrp/vscode_ubuntu24_ci
+FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+
+ARG USERNAME=vcast_user
+USER root
+SHELL ["/bin/bash", "-lc"]
+
+# vcast
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2021sp0.tar.gz /vcast/2021sp0.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2023sp0.tar.gz /vcast/2023sp0.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2024sp1.tar.gz /vcast/2024sp1.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2024sp4.tar.gz /vcast/2024sp4.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2024sp5.tar.gz /vcast/2024sp5.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2025sp0.tar.gz /vcast/2025sp0.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2025sp1.tar.gz /vcast/2025sp1.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/vector-license.lic /vcast/vector-license.lic
+
+RUN cd /vcast && \
+    for f in *.tar.gz; do tar xf "$f"; done && rm *.tar.gz && \
+    chown -R $(id -u $USERNAME):$(id -g $USERNAME) /vcast
+
+# cleaning up proxy settings
+RUN set -eux; \
+    N_PREFIX_DEFAULT="/home/${USERNAME}/.n"; \
+    NPM_GLOBAL_NPMRC="${N_PREFIX:-$N_PREFIX_DEFAULT}/etc/npmrc"; \
+    for f in \
+      "/etc/npmrc" \
+      "/usr/local/etc/npmrc" \
+      "$NPM_GLOBAL_NPMRC" \
+      "/home/${USERNAME}/.npmrc" \
+      "/home/${USERNAME}/.config/npm/npmrc"; do \
+      if [ -f "$f" ]; then \
+        sed -i -E '/^(proxy|https-proxy|noproxy|cafile|registry)\s*=/d' "$f"; \
+      fi; \
+    done
+
+RUN set -eux; \
+    if [ -f "/home/${USERNAME}/.bashrc" ]; then \
+      sed -i -E '/REQUESTS_CA_BUNDLE|http_proxy|https_proxy|HTTP_PROXY|HTTPS_PROXY|NO_PROXY/d' "/home/${USERNAME}/.bashrc"; \
+    fi
+
+RUN set -eux; \
+    chown root:root /etc/ssl/certs/ca-certificates.crt || true
+
+RUN set -eux; \
+    find /usr/local/share/ca-certificates -type f -name '*.crt' -print -delete || true; \
+    update-ca-certificates --fresh || true
+
+ENV http_proxy= \
+    https_proxy= \
+    HTTP_PROXY= \
+    HTTPS_PROXY= \
+    NO_PROXY=
+
+RUN chown -R "${USERNAME}:${USERNAME}" "/home/${USERNAME}" || true
+
+USER ${USERNAME}
+
+SHELL ["/bin/bash", "--login", "-c"]
