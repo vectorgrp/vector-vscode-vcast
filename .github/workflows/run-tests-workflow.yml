@@ -353,7 +353,7 @@ jobs:
   black:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: ubuntu-24.04
 
     container:
       image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
@@ -407,7 +407,7 @@ jobs:
   prettier:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: ubuntu-24.04
 
     container:
       image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
@@ -462,7 +462,7 @@ jobs:
   xo:
     if: github.event.pull_request.draft == false
     permissions: write-all
-    runs-on: [ self-hosted, vscode-vcast]
+    runs-on: ubuntu-24.04
 
     container:
       image: ghcr.io/vectorgrp/vscode_ubuntu24_ci:with_vcast
