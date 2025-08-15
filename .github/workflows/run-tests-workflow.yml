@@ -324,11 +324,19 @@ jobs:
           content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
           echo "${content}" >> $GITHUB_STEP_SUMMARY
           
-          mkdir e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots
-          mv tests/internal/e2e/*.png e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots/
-          echo "SCREENSHOTS_FOLDER=e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots" >> $GITHUB_ENV
+          if compgen -G "tests/internal/e2e/*.png" > /dev/null; then
+            mkdir e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots
+            mv tests/internal/e2e/*.png e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots/
+            echo "SCREENSHOTS_FOLDER=e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots" >> $GITHUB_ENV
+            echo "HAS_SCREENSHOTS=true" >> $GITHUB_ENV
+          else
+            echo "No PNG files found, skipping screenshot folder creation"
+            echo "HAS_SCREENSHOTS=false" >> $GITHUB_ENV
+          fi
+        shell: bash
 
       - name: Upload screenshots artifact
+        if: env.HAS_SCREENSHOTS == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.SCREENSHOTS_FOLDER }}
