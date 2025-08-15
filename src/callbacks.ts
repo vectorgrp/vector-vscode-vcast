@@ -11,7 +11,6 @@ import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
   buildTestPaneContents,
-  refreshAllExtensionData,
   removeCBTfilesCacheForEnviro,
   removeNodeFromTestPane,
   updateDataForEnvironment,
