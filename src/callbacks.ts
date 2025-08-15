@@ -10,6 +10,8 @@ import {
 import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
+  buildTestPaneContents,
+  refreshAllExtensionData,
   removeCBTfilesCacheForEnviro,
   removeNodeFromTestPane,
   updateDataForEnvironment,
@@ -45,7 +47,9 @@ export async function buildEnvironmentCallback(
   // We check the return code, update the test pane, and cleanup on failure
 
   if (code == 0) {
+    await buildTestPaneContents();
     await updateDataForEnvironment(enviroPath);
+    await refreshAllExtensionData();
   } else {
     try {
       // remove the environment directory, as well as the .vce file
