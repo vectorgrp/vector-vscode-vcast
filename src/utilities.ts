@@ -47,7 +47,6 @@ export interface jsonDataType {
 export function getEnvPathForFilePath(filePath: string): string | null {
   const globalCoverageMap = getGlobalCoverageData();
   const fileData = globalCoverageMap.get(filePath);
-
   if (fileData?.enviroList) {
     // Retrieve the first environment key, if it exists
     const envKey = Array.from(fileData.enviroList.keys())[0];
@@ -407,4 +406,15 @@ export async function updateCoverageAndRebuildEnv() {
   for (let enviroPath of envArray) {
     await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
   }
+}
+
+/**
+ * Returns the root of the opened workspace.
+ */
+export function getWorkspaceRootPath(): string | undefined {
+  const folders = vscode.workspace.workspaceFolders;
+  if (folders && folders.length > 0) {
+    return folders[0].uri.fsPath;
+  }
+  return undefined;
 }

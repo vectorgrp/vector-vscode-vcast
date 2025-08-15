@@ -49,7 +49,6 @@ export async function buildEnvironmentCallback(
   if (code == 0) {
     await buildTestPaneContents();
     await updateDataForEnvironment(enviroPath);
-    await refreshAllExtensionData();
   } else {
     try {
       // remove the environment directory, as well as the .vce file

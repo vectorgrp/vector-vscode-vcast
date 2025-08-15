@@ -1090,9 +1090,9 @@ function configureExtension(context: vscode.ExtensionContext) {
     // this function gets called when the user changes the
     // active editor, including when closing an editor
     // in which case the "editor" parameter will be undefined
-    (editor) => {
+    async (editor) => {
       if (editor) {
-        updateDisplayedCoverage();
+        await updateDisplayedCoverage();
         updateTestDecorator();
       } else {
         hideStatusBarCoverage();

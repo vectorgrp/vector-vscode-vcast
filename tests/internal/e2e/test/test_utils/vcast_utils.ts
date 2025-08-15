@@ -244,7 +244,7 @@ export async function retrieveTestingTopItems(
   vcastTestingViewContent: ViewContent
 ) {
   const sections = await vcastTestingViewContent.getSections();
-  if (sections.length === 0) {
+  if (!sections.length) {
     return undefined;
   }
 
@@ -252,6 +252,7 @@ export async function retrieveTestingTopItems(
   if (!(await firstSection.isExpanded())) {
     await firstSection.expand();
   }
+
   return await firstSection.getVisibleItems();
 }
 
@@ -695,7 +696,39 @@ export async function generateAndValidateAllTestsFor(
   envName: string,
   testGenMethod: string
 ) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  const outputView = await bottomBar.openOutputView();
+  await outputView.clearText();
   await generateAllTestsForEnv(envName, testGenMethod);
+
+  await bottomBar.maximize();
+
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for:"),
+    { timeout: TIMEOUT }
+  );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
+
+  await browser.pause(5000);
 
   const vcastTestingViewContent = await getViewContent("Testing");
   const expectedTests = await getAllExpectedTests(testGenMethod);
@@ -1039,6 +1072,7 @@ export async function generateAllTestsForUnit(
   let bottomBar = workbench.getBottomBar();
   await bottomBar.toggle(true);
   const outputView = await bottomBar.openOutputView();
+  await outputView.clearText();
   const menuItemLabel = `Insert ${testGenMethod} Tests`;
   let subprogram: TreeItem;
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -1068,9 +1102,18 @@ export async function generateAllTestsForUnit(
     async () =>
       (await outputView.getText())
         .toString()
-        .includes("Processing environment data for"),
+        .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
 }
 
 export async function generateAllTestsForFunction(
@@ -1082,6 +1125,7 @@ export async function generateAllTestsForFunction(
   let bottomBar = workbench.getBottomBar();
   await bottomBar.toggle(true);
   const outputView = await bottomBar.openOutputView();
+  await outputView.clearText();
   const menuItemLabel = `Insert ${testGenMethod} Tests`;
   let subprogram: TreeItem;
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -1113,9 +1157,18 @@ export async function generateAllTestsForFunction(
     async () =>
       (await outputView.getText())
         .toString()
-        .includes("Processing environment data for"),
+        .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
 }
 
 export async function deleteAllTestsForUnit(

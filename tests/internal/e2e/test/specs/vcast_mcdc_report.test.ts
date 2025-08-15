@@ -22,6 +22,7 @@ import {
   deleteGeneratedTest,
   rebuildEnvironmentFromTestingPane,
   TIMEOUT,
+  waitForEnvSuffix,
 } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
@@ -421,6 +422,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should build new env with nearly identical files and check for mcdc report for double report", async () => {
     const workbench = await browser.getWorkbench();
+    process.env.PRINT_GLOBAL_COVERAGE = "True";
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
@@ -446,15 +448,28 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
+          .includes("Setting Up Statement+MC/DC Coverage"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
           .includes("Environment built Successfully"),
       { timeout: TIMEOUT }
     );
+    await waitForEnvSuffix(outputView, "MOO-FOO");
 
+    outputView.clearText();
+
+    await editorView.closeAllEditors();
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
     await browser.saveScreenshot(
       "info_finished_creating_vcast_environment.png"
     );
+
+    await editorView.closeAllEditors();
 
     // Red MCDC Gutter icon
     await checkForGutterAndGenerateReport(

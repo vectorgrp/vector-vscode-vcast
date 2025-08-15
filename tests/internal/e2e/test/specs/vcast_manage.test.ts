@@ -176,7 +176,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Expected tree structure relative to the "Test.vcm" container:
     // Level 0: Under Test.vcm, expect "GNU_Native_Automatic_C++"
-    // Level 1: Under GNU_Native_Automatic_C++, expect "BlackBox", "Testsuite", "WhiteBox"
+    // Level 1: Under GNU_Native_Automatic_C++, expect "BlackBox", "TestSuite", "WhiteBox"
     // Level 2: For "BlackBox" and "WhiteBox", expect children: "BAR", "FOO", "QUACK"
     const nodeTreeLevelList = [
       ["GNU_Native_Automatic_C++"],

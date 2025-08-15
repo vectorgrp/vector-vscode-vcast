@@ -2,22 +2,15 @@
 import process from "node:process";
 import path from "node:path";
 import {
-  type TreeItem,
-  type ViewContent,
-  ViewItem,
-  ViewSection,
   type BottomBarPanel,
   type Workbench,
-  type CustomTreeItem,
   type OutputView,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
-  getViewContent,
-  expandTopEnvInTestPane,
-  retrieveTestingTopItems,
+  findTreeNodeAtLevel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -151,6 +144,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
 
+    await bottomBar.maximize();
+
     await awaitOutputtext(outputView, "ENV_23_01", true, TIMEOUT);
     await awaitOutputtext(outputView, "ENV_24_02", false, TIMEOUT);
     await awaitOutputtext(outputView, "ENV_23_03", true, TIMEOUT);
@@ -191,20 +186,18 @@ async function expectEnvResults(release: string) {
     ],
   ]);
 
-  let vcastTestingViewContent: ViewContent;
-
   // Iterate through Testing and try to expand builded Envs (2 & 4)
-  vcastTestingViewContent = await getViewContent("Testing");
-  const topLevelItems = await retrieveTestingTopItems(vcastTestingViewContent);
+  const workbench = await browser.getWorkbench();
+  const activityBar = workbench.getActivityBar();
+  const testingView = await activityBar.getViewControl("Testing");
+  await testingView?.openView();
 
   const release23Value = envMap.get(release);
 
   // Iterate thorugh map, expand and check based on release what ENV should be defined.
   for (const entry of release23Value) {
-    const envResult = await expandTopEnvInTestPane(
-      entry.env,
-      topLevelItems as CustomTreeItem[]
-    );
+    const envResult = await findTreeNodeAtLevel(0, `${entry.env}`);
+    console.log(`Trying to find ${entry.env} in Tree`);
     if (entry.state === "defined") {
       expect(envResult).not.toBe(undefined);
     } else {
@@ -226,12 +219,13 @@ async function awaitOutputtext(
   ignore: boolean,
   TIMEOUT: number
 ) {
+  console.log(`Checking logs for ${env}`);
   if (ignore) {
     await browser.waitUntil(
       async () => {
         const outputText = (await outputView.getText()).toString();
         return (
-          outputText.includes("Ignoring environment") &&
+          outputText.includes("Error while loading environment") &&
           outputText.includes(env)
         );
       },
