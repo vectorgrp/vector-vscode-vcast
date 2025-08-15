@@ -371,7 +371,7 @@ export async function addCompilerToProject(
     message
   );
 
-  await updateProjectStructure(projectFilePath);
+  await refreshAllExtensionData();
 }
 
 /**
