@@ -40,7 +40,8 @@ export async function createNewCFGFromCompiler(
 
   const proc = spawn(clicastCommandToUse, args, {
     cwd: projectCompilerPath,
-    stdio: ["ignore", "inherit", "inherit"], // let output stream to console/popup
+    stdio: ["ignore", "inherit", "inherit"],
+    windowsHide: true,
   });
 
   // wait for it to finish
