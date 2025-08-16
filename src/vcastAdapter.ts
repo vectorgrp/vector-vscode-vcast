@@ -146,7 +146,6 @@ export async function deleteLevel(projectPath: string, level: string) {
   );
 
   const nodeId = path.join(projectPath, level);
-
   await refreshAllExtensionData();
   removeNodeFromTestPane(nodeId);
 }

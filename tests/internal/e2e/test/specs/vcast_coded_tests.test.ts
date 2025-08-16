@@ -817,13 +817,6 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Building environments data for workspace"),
-      { timeout: TIMEOUT }
-    );
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
           .includes("Processing environment data for:"),
       { timeout: TIMEOUT }
     );

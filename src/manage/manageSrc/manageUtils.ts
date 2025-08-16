@@ -1,11 +1,69 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
+import { promisify } from "util";
+import { exec as execCb, spawn } from "child_process";
 
 import { globalController, globalProjectDataCache } from "../../testPane";
 import { vectorMessage } from "../../messagePane";
 import { normalizePath } from "../../utilities";
+import { clicastCommandToUse } from "../../vcastInstallation";
 
+const exec = promisify(execCb);
+
+/**
+ * Generates a new CFG file for the given compiler by invoking VectorCAST's clicast tool,
+ * parses out the path of the generated CFG, copies it into the specified compilers directory,
+ * and returns the full path to the copied file.
+ *
+ * @param compiler - The compiler template (e.g. 'VXSIM64_RTP_WORKBENCH_CPP').
+ * @param projectCompilerPath - Absolute path to the 'compilers' directory in the project.
+ * @returns The absolute file path of the copied CFG, or undefined if generation failed.
+ */
+export async function createNewCFGFromCompiler(
+  compiler: string,
+  projectCompilerPath: string
+): Promise<string | undefined> {
+  // Make sure compilers dir exists
+  if (!fs.existsSync(projectCompilerPath)) {
+    await vscode.workspace.fs.createDirectory(
+      vscode.Uri.file(projectCompilerPath)
+    );
+  }
+
+  // spawn clicast *in* the compilers folder
+  const args = ["-lc", "template", compiler];
+
+  // This is checked at the beginning when initializing the data, but to be sure
+  if (!fs.existsSync(clicastCommandToUse)) {
+    vectorMessage(`Clicast was not found. Cancelling compiler operation.`);
+    return;
+  }
+
+  const proc = spawn(clicastCommandToUse, args, {
+    cwd: projectCompilerPath,
+    stdio: ["ignore", "inherit", "inherit"], // let output stream to console/popup
+  });
+
+  // wait for it to finish
+  const code: number = await new Promise((res) => proc.on("close", res));
+  if (code !== 0) {
+    vscode.window.showErrorMessage(
+      `clicast exited with code ${code} for ${compiler}`
+    );
+    return;
+  }
+
+  // the default CFG is now at compilers/CCAST_.CFG
+  const generated = path.join(projectCompilerPath, "CCAST_.CFG");
+  if (!fs.existsSync(generated)) {
+    vscode.window.showErrorMessage(`Expected CFG not found at ${generated}`);
+    return;
+  }
+
+  vectorMessage(`Generated and moved CFG to ${generated}`);
+  return generated;
+}
 /**
  * Searches the entire globalController for a test item with the specified id.
  * @param targetId The id of the test item to search for.
@@ -133,6 +191,47 @@ export function addManagedEnvironments(
       });
     }
   }
+}
+
+interface CompilerList {
+  [tag: string]: string;
+}
+
+export const compilerTagList: CompilerList = {};
+
+/**
+ * Runs `grep "C_COMPILER_TAG"` on the VectorCAST C_TEMPLATES.DAT file
+ * and updates the exported `compilerList` in-place.
+ */
+export async function setCompilerList(): Promise<CompilerList> {
+  if (!process.env.VECTORCAST_DIR) {
+    throw new Error("VECTORCAST_DIR environment variable is not set");
+  }
+
+  const datPath = `${process.env.VECTORCAST_DIR}/DATA/C_TEMPLATES.DAT`;
+  const cmd = `grep "C_COMPILER_TAG" "${datPath}"`;
+  const { stdout } = await exec(cmd);
+
+  // Clear any existing entries
+  Object.keys(compilerTagList).forEach((key) => {
+    delete compilerTagList[key];
+  });
+
+  stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line)
+    .forEach((line) => {
+      // e.g. "C_COMPILER_TAG: TAG: Name..."
+      const parts = line.split(": ").map((p) => p.trim());
+      const tag = parts[1];
+      const name = parts.length >= 3 ? parts.slice(2).join(": ") : parts[1];
+
+      // Switch key and value: map name → tag
+      compilerTagList[name] = tag;
+    });
+
+  return compilerTagList;
 }
 
 // Simple list with ignored projects in case something goes wrong but we can still continue with other projects

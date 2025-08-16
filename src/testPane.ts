@@ -426,7 +426,10 @@ export const globalCompilersAndTestsuites: {
 
 // Empty Compilers or Testsuites that do not contain anything.
 // We need to store and process them seperately, because otherwise they are not shown in the tree
-export const globalUnusedTestsuiteList: { displayName: string }[] = [];
+export const globalUnusedTestsuiteList: {
+  projectFile: string;
+  displayName: string;
+}[] = [];
 export const globalUnusedCompilerList: {
   projectFile: string;
   displayName: string;
@@ -529,6 +532,10 @@ export async function buildProjectDataCache(
   const options = { cwd: baseDirectory, absolute: true, strict: false };
   const projectFileList = glob.sync("**/*.vcm", options);
 
+  // Resetting unused compiler & testsuite list
+  globalUnusedCompilerList.length = 0;
+  globalUnusedTestsuiteList.length = 0;
+
   for (const projectFile of projectFileList) {
     // enviroList is a list of json objects with fields:
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
@@ -545,15 +552,18 @@ export async function buildProjectDataCache(
 
       // This includes all unused and empty testsuites and compilers because
       // they are not in the enviroList as they do not include any envs
-      globalUnusedTestsuiteList.length = 0;
-      globalUnusedTestsuiteList.push(...projectData.projectTestsuiteData);
+      globalUnusedTestsuiteList.push(
+        ...projectData.projectTestsuiteData.map((testSuite: any) => ({
+          ...testSuite,
+          projectFile: forceLowerCaseDriveLetter(projectFile),
+        }))
+      );
 
       projectData.projectCompilerData.forEach(
         (item: { projectFile: string | undefined }) => {
           item.projectFile = forceLowerCaseDriveLetter(item.projectFile);
         }
       );
-      globalUnusedCompilerList.length = 0;
       globalUnusedCompilerList.push(...projectData.projectCompilerData);
 
       // convert the raw json data into a map for the cache
@@ -1628,7 +1638,6 @@ export async function deleteTests(nodeList: any[]) {
     await updateProjectData(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
   }
-  await refreshAllExtensionData();
 }
 
 export async function insertBasisPathTests(testNode: testNodeType) {
