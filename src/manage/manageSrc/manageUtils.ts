@@ -1,15 +1,13 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
+import * as fs1 from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
-import { promisify } from "util";
-import { exec as execCb, spawn } from "child_process";
+import { spawn } from "child_process";
 
 import { globalController, globalProjectDataCache } from "../../testPane";
 import { vectorMessage } from "../../messagePane";
 import { normalizePath } from "../../utilities";
 import { clicastCommandToUse } from "../../vcastInstallation";
-
-const exec = promisify(execCb);
 
 /**
  * Generates a new CFG file for the given compiler by invoking VectorCAST's clicast tool,
@@ -25,7 +23,7 @@ export async function createNewCFGFromCompiler(
   projectCompilerPath: string
 ): Promise<string | undefined> {
   // Make sure compilers dir exists
-  if (!fs.existsSync(projectCompilerPath)) {
+  if (!fs1.existsSync(projectCompilerPath)) {
     await vscode.workspace.fs.createDirectory(
       vscode.Uri.file(projectCompilerPath)
     );
@@ -35,7 +33,7 @@ export async function createNewCFGFromCompiler(
   const args = ["-lc", "template", compiler];
 
   // This is checked at the beginning when initializing the data, but to be sure
-  if (!fs.existsSync(clicastCommandToUse)) {
+  if (!fs1.existsSync(clicastCommandToUse)) {
     vectorMessage(`Clicast was not found. Cancelling compiler operation.`);
     return;
   }
@@ -56,7 +54,7 @@ export async function createNewCFGFromCompiler(
 
   // the default CFG is now at compilers/CCAST_.CFG
   const generated = path.join(projectCompilerPath, "CCAST_.CFG");
-  if (!fs.existsSync(generated)) {
+  if (!fs1.existsSync(generated)) {
     vscode.window.showErrorMessage(`Expected CFG not found at ${generated}`);
     return;
   }
@@ -140,7 +138,7 @@ export function getNonce(): string {
 export function resolveWebviewBase(context: vscode.ExtensionContext): string {
   // 1) Normal installed extension layout
   const normal = path.join(context.extensionPath, "src", "manage", "webviews");
-  if (fs.existsSync(normal)) {
+  if (fs1.existsSync(normal)) {
     return normal;
   }
 
@@ -151,7 +149,7 @@ export function resolveWebviewBase(context: vscode.ExtensionContext): string {
   if (idx !== -1) {
     const repoRoot = extPath.slice(0, idx);
     const fallback = path.join(repoRoot, "src", "manage", "webviews");
-    if (fs.existsSync(fallback)) {
+    if (fs1.existsSync(fallback)) {
       return fallback;
     }
   }
@@ -208,28 +206,27 @@ export async function setCompilerList(): Promise<CompilerList> {
     throw new Error("VECTORCAST_DIR environment variable is not set");
   }
 
-  const datPath = `${process.env.VECTORCAST_DIR}/DATA/C_TEMPLATES.DAT`;
-  const cmd = `grep "C_COMPILER_TAG" "${datPath}"`;
-  const { stdout } = await exec(cmd);
+  const datPath = normalizePath(
+    path.join(process.env.VECTORCAST_DIR, "DATA", "C_TEMPLATES.DAT")
+  );
 
-  // Clear any existing entries
+  const fileContents = await fs.readFile(datPath, "utf-8");
+
+  const lines = fileContents
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.includes("C_COMPILER_TAG"));
+
   Object.keys(compilerTagList).forEach((key) => {
     delete compilerTagList[key];
   });
 
-  stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line)
-    .forEach((line) => {
-      // e.g. "C_COMPILER_TAG: TAG: Name..."
-      const parts = line.split(": ").map((p) => p.trim());
-      const tag = parts[1];
-      const name = parts.length >= 3 ? parts.slice(2).join(": ") : parts[1];
-
-      // Switch key and value: map name → tag
-      compilerTagList[name] = tag;
-    });
+  lines.forEach((line) => {
+    const parts = line.split(": ").map((p) => p.trim());
+    const tag = parts[1];
+    const name = parts.length >= 3 ? parts.slice(2).join(": ") : parts[1];
+    compilerTagList[name] = tag;
+  });
 
   return compilerTagList;
 }
