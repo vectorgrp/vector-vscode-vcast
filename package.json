@@ -401,8 +401,7 @@
       "file/newFile": [
         {
           "command": "vectorcastTestExplorer.createNewProject",
-          "group": "1_createnew",         
-          "when": "resourceScheme == 'file'" 
+          "group": "1_createnew"
         }
       ],
       "commandPalette": [
