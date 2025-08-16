@@ -174,3 +174,12 @@ This option is new for VectorCAST 23 sp2
 ### Bug Fixes
 - Fixed autocompletion for uut_prototype_stubs.
 
+
+## [1.0.18] - 2025-08-15
+
+- Added the ability to create a new Project
+- Added the ability to create new Compilers in a Project.
+
+### Code Maintenance
+- Improved performance when initializing the extension
+
