@@ -7,7 +7,10 @@ import { spawn } from "child_process";
 import { globalController, globalProjectDataCache } from "../../testPane";
 import { vectorMessage } from "../../messagePane";
 import { normalizePath } from "../../utilities";
-import { clicastCommandToUse, vcastInstallationDirectory } from "../../vcastInstallation";
+import {
+  clicastCommandToUse,
+  vcastInstallationDirectory,
+} from "../../vcastInstallation";
 
 /**
  * Generates a new CFG file for the given compiler by invoking VectorCAST's clicast tool,
