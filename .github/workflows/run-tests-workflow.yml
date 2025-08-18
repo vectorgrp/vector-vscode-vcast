@@ -28,7 +28,7 @@ jobs:
       options: --user vcast_user
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHRC_TOKEN }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
     strategy:
       fail-fast: false   # ⬅ allow all matrix versions to run even if one fails
@@ -175,7 +175,7 @@ jobs:
       options: --user vcast_user
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHRC_TOKEN }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
     outputs:
       version_group_matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -218,7 +218,7 @@ jobs:
       options: --user vcast_user
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHRC_TOKEN }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
     strategy:
       # ⬅ let all groups run even if one fails
@@ -375,7 +375,7 @@ jobs:
       options: --user vcast_user
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHRC_TOKEN }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -429,7 +429,7 @@ jobs:
       options: --user vcast_user
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHRC_TOKEN }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -484,7 +484,7 @@ jobs:
       options: --user vcast_user
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHRC_TOKEN }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
     steps:
       - name: Check out repository
