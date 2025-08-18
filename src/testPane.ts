@@ -47,6 +47,7 @@ import {
   addLaunchConfiguration,
   cleanTestResultsPaneMessage,
   forceLowerCaseDriveLetter,
+  getWorkspaceRootPath,
   loadLaunchFile,
   normalizePath,
   openFileWithLineSelected,
@@ -57,6 +58,7 @@ import {
   getCBTNamesFromFile,
   getDataForEnvironment,
   getDataForProject,
+  getWorkspaceEnvDataVPython,
   loadTestScriptIntoEnvironment,
   refreshCodedTests,
 } from "./vcastAdapter";
@@ -104,6 +106,45 @@ import {
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+
+type FunctionTestData = {
+  name: string;
+  parameterizedName: string;
+  tests: any[]; // could be typed further if you know test object shape
+};
+
+type FileTestData =
+  | { name: string; tests: any[] }
+  | { name: string; path: string; functions: FunctionTestData[] };
+
+type FunctionUnitData = {
+  isTestable: boolean;
+  name: string;
+  startLine: number;
+};
+
+type UnitData = {
+  cmcChecksum: string;
+  covered: string;
+  partiallyCovered: string;
+  uncovered: string;
+  path: string;
+  functionList: FunctionUnitData[];
+};
+
+type EnviroData = {
+  vcePath: string;
+  testData: FileTestData[];
+  unitData: UnitData[];
+  mockingSupport: boolean;
+};
+
+type CachedWorkspaceData = {
+  testData: FileTestData[];
+  unitData: UnitData[];
+  enviro: EnviroData[];
+  errors?: string[];
+};
 
 // This function does the work of adding the actual tests
 // to whatever parent is passed in generally a function node
@@ -266,7 +307,7 @@ function processVCtestData(
           // environment mapping, including whether or not the environment
           // has coded mock support
 
-          const enviroHasMockSupport = jsonData.enviro.mockingSupport;
+          const enviroHasMockSupport = jsonData.mockingSupport;
           const testFilePath = functionNodeForCache.testFile;
 
           sendTestFileDataToLanguageServer(
@@ -385,7 +426,10 @@ export const globalCompilersAndTestsuites: {
 
 // Empty Compilers or Testsuites that do not contain anything.
 // We need to store and process them seperately, because otherwise they are not shown in the tree
-export const globalUnusedTestsuiteList: { displayName: string }[] = [];
+export const globalUnusedTestsuiteList: {
+  projectFile: string;
+  displayName: string;
+}[] = [];
 export const globalUnusedCompilerList: {
   projectFile: string;
   displayName: string;
@@ -481,14 +525,26 @@ export async function convertProjectDataToMap(
  * Builds the project data cache for all projects in the given directory.
  * @param baseDirectory - The base directory to search for projects
  */
-export async function buildProjectDataCache(baseDirectory: string) {
+export async function buildProjectDataCache(
+  baseDirectory: string,
+  progress?: vscode.Progress<{ message?: string; increment?: number }>
+) {
   const options = { cwd: baseDirectory, absolute: true, strict: false };
   const projectFileList = glob.sync("**/*.vcm", options);
+
+  // Resetting unused compiler & testsuite list
+  globalUnusedCompilerList.length = 0;
+  globalUnusedTestsuiteList.length = 0;
 
   for (const projectFile of projectFileList) {
     // enviroList is a list of json objects with fields:
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
     // See python function vTestInterface.py:getProjectData()
+    if (progress) {
+      progress.report({ message: `Processing project: ${projectFile}` });
+      // allow UI to catch up
+      await new Promise((r) => setTimeout(r, 0));
+    }
     const projectData = await getDataForProject(projectFile);
 
     if (projectData) {
@@ -496,15 +552,18 @@ export async function buildProjectDataCache(baseDirectory: string) {
 
       // This includes all unused and empty testsuites and compilers because
       // they are not in the enviroList as they do not include any envs
-      globalUnusedTestsuiteList.length = 0;
-      globalUnusedTestsuiteList.push(...projectData.projectTestsuiteData);
+      globalUnusedTestsuiteList.push(
+        ...projectData.projectTestsuiteData.map((testSuite: any) => ({
+          ...testSuite,
+          projectFile: forceLowerCaseDriveLetter(projectFile),
+        }))
+      );
 
       projectData.projectCompilerData.forEach(
         (item: { projectFile: string | undefined }) => {
           item.projectFile = forceLowerCaseDriveLetter(item.projectFile);
         }
       );
-      globalUnusedCompilerList.length = 0;
       globalUnusedCompilerList.push(...projectData.projectCompilerData);
 
       // convert the raw json data into a map for the cache
@@ -640,62 +699,146 @@ function makeEnviroNodeID(buildDirectory: string): string {
 
 let vcastHasCodedTestsList: string[] = [];
 
+// Global cache for workspace-wide env data
+// Used to avoid redundant API calls during refresh
+let cachedWorkspaceEnvData: CachedWorkspaceData | null = null;
+
+export function clearCachedWorkspaceEnvData(): void {
+  cachedWorkspaceEnvData = null;
+}
+
 /**
  * Given a parent node and environment data, this function creates the environment node.
  * It uses only the last part of the displayName as the label.
  */
 export async function updateTestsForEnvironment(
   parentNode: vcastTestItem | null,
-  enviroData: environmentNodeDataType
+  enviroData: environmentNodeDataType,
+  comingFromRefresh: boolean = false
 ) {
-  const jsonData = await getDataForEnvironment(enviroData.buildDirectory);
+  let jsonData: any;
 
-  if (jsonData) {
-    saveEnviroNodeData(enviroData.buildDirectory, enviroData);
-    updateGlobalDataForFile(enviroData.buildDirectory, jsonData.unitData);
+  // In case we are refreshing the extension, we do not want to call the API n times (n=|envs|)
+  // Instead we get the entire env data at once and save us time.
+  jsonData = await loadEnviroData(enviroData, comingFromRefresh);
+  if (!jsonData) return;
 
-    const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
-    createTestNodeInCache(
-      enviroNodeID,
-      enviroData.buildDirectory,
-      path.basename(enviroData.buildDirectory)
-    );
+  await processSingleEnvData(parentNode, enviroData, jsonData);
+}
 
-    // Use only the last part of the displayName as the environment name.
-    const envName = path.basename(enviroData.displayName);
-    const enviroNode = globalController.createTestItem(
-      enviroNodeID,
-      envName
-    ) as vcastTestItem;
-    enviroNode.nodeKind = nodeKind.environment;
+/**
+ * Loads environment data depending on the context:
+ * - If refreshing: loads all environments at once from workspace (once only)
+ * - Otherwise: loads one environment based on build directory
+ */
+async function loadEnviroData(
+  enviroData: environmentNodeDataType,
+  comingFromRefresh: boolean
+): Promise<EnviroData | undefined> {
+  let buildDirDerivedFromVCEPath: string = "";
+  let buildPathDir: string = enviroData.buildDirectory;
 
-    // Process functions and tests to add child nodes.
-    processVCtestData(
-      enviroData.buildDirectory,
-      enviroNodeID,
-      enviroNode,
-      jsonData
-    );
-
-    if (!vcastEnviroList.includes(enviroNodeID)) {
-      vcastEnviroList.push(enviroNodeID);
-      vscode.commands.executeCommand(
-        "setContext",
-        "vectorcastTestExplorer.vcastEnviroList",
-        vcastEnviroList
-      );
-    }
-
-    // Instead of grouping, add the environment directly.
-    if (parentNode) {
-      globalController.items.delete(enviroNode.id);
-      parentNode.children.add(enviroNode);
+  if (comingFromRefresh) {
+    // If we've already fetched the full workspace data, reuse it
+    if (cachedWorkspaceEnvData) {
+      const enviroList = cachedWorkspaceEnvData["enviro"];
+      vectorMessage(`Processing environment data for: ${buildPathDir}`);
+      for (const envAPIData of enviroList) {
+        buildDirDerivedFromVCEPath = envAPIData.vcePath.split(".vce")[0];
+        if (buildDirDerivedFromVCEPath === buildPathDir) {
+          return envAPIData;
+        }
+      }
     } else {
-      globalController.items.add(enviroNode);
+      // Fallback in case the cache is not build, but it should be
+      return await getDataForEnvironment(buildPathDir);
     }
   } else {
-    vectorMessage(`Ignoring environment: ${enviroData.displayName}\n`);
+    // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
+    return await getDataForEnvironment(buildPathDir);
   }
+  // We have a valid build directory, but we couldn't find a matching VCE file in the workspace data.
+  vectorMessage(
+    `Build directory ${buildPathDir} found, but no matching VCE file detected at the same level of it. Environment data may be incomplete.`
+  );
+  return undefined;
+}
+
+async function buildEnvDataCacheForCurrentDir() {
+  const workspaceDir = getWorkspaceRootPath();
+  if (workspaceDir) {
+    cachedWorkspaceEnvData = await getWorkspaceEnvDataVPython(workspaceDir);
+  } else {
+    // This should not be possible as we have env data, but just in case
+    vectorMessage("No workspace root found, cannot refresh environment data.");
+  }
+}
+
+/**
+ * Processes one environment:
+ * - Updates caches and global structures
+ * - Creates test node and child function/test nodes
+ * - Adds it to the controller tree (either under parent or root)
+ */
+async function processSingleEnvData(
+  parentNode: vcastTestItem | null,
+  enviroData: environmentNodeDataType,
+  jsonData: any = null
+) {
+  saveEnviroNodeData(enviroData.buildDirectory, enviroData);
+  updateGlobalDataForFile(enviroData.buildDirectory, jsonData.unitData);
+
+  const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
+  createTestNodeInCache(
+    enviroNodeID,
+    enviroData.buildDirectory,
+    path.basename(enviroData.buildDirectory)
+  );
+
+  // Use only the last part of the displayName as the environment name.
+  const envName = path.basename(enviroData.displayName);
+  const enviroNode = globalController.createTestItem(
+    enviroNodeID,
+    envName
+  ) as vcastTestItem;
+  enviroNode.nodeKind = nodeKind.environment;
+
+  // Process functions and tests to add child nodes.
+  processVCtestData(
+    enviroData.buildDirectory,
+    enviroNodeID,
+    enviroNode,
+    jsonData
+  );
+
+  if (!vcastEnviroList.includes(enviroNodeID)) {
+    vcastEnviroList.push(enviroNodeID);
+    vscode.commands.executeCommand(
+      "setContext",
+      "vectorcastTestExplorer.vcastEnviroList",
+      vcastEnviroList
+    );
+  }
+
+  // Instead of grouping, add the environment directly.
+  globalController.items.delete(enviroNode.id);
+  if (parentNode) {
+    parentNode.children.add(enviroNode);
+  } else {
+    globalController.items.add(enviroNode);
+  }
+}
+
+export function findAndReturnEnvDataByBuildDir(buildDir: string) {
+  if (cachedWorkspaceEnvData) {
+    const enviroList = cachedWorkspaceEnvData["enviro"];
+    for (const envAPIData of enviroList) {
+      if (path.dirname(envAPIData.vcePath) === path.dirname(buildDir)) {
+        return envAPIData;
+      }
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -803,24 +946,31 @@ async function loadAllVCTests(
   // Resets the "used" and empty/unused compilers / testsuites
   clearGlobalCompilersAndTestsuites();
 
-  let cancelled: boolean = false;
-  const environmentList: environmentNodeDataType[] = [];
-  let projectPathDirList: string[] = [];
+  //Build the workspace-wide env cache
+  progress.report({
+    message: "Fetching Environment data for current directory…",
+  });
+  await buildEnvDataCacheForCurrentDir();
 
+  const environmentList: environmentNodeDataType[] = [];
+  const projectPathDirList: string[] = [];
+
+  progress.report({
+    message: "Processing existing projects and environments.",
+  });
   if (vscode.workspace.workspaceFolders) {
+    //Scan each workspace folder
     for (const workspace of vscode.workspace.workspaceFolders) {
       const workspaceRoot = workspace.uri.fsPath;
       // Build the project cache for this workspace.
-      await buildProjectDataCache(workspaceRoot);
-
+      await buildProjectDataCache(workspaceRoot, progress);
       // Add environments from managed projects
       addManagedEnvironments(
         projectPathDirList,
         environmentList,
         workspaceRoot
       );
-
-      // Add free environments
+      // Add free environments not bound to a project
       addFreeEnvironments(
         workspaceRoot,
         projectPathDirList,
@@ -829,34 +979,35 @@ async function loadAllVCTests(
       );
     }
 
-    if (environmentList.length > 0) vcastEnvironmentsFound = true;
-    const increment = (1 / environmentList.length) * 100;
-
+    if (environmentList.length > 0) {
+      vcastEnvironmentsFound = true;
+    }
+    const increment = 100 / environmentList.length;
     for (const environmentData of environmentList) {
+      if (token.isCancellationRequested) {
+        break;
+      }
+
       if (environmentData.isBuilt) {
         progress.report({
-          increment: increment,
-          message:
-            "Loading data for environment: " + environmentData.displayName,
+          increment,
+          message: `Loading data for environment: ${environmentData.displayName}`,
         });
-        // Let the progress window update.
-        await new Promise<void>((r) => setTimeout(r, 0));
-        if (token) {
-          token.onCancellationRequested(() => {
-            cancelled = true;
-          });
-        }
-        if (cancelled) break;
-
-        // Get the parent node by building the hierarchy (project -> compiler -> testsuite)
+        // ensure UI updates
+        await new Promise((r) => setTimeout(r, 0));
+        // Get the parent node by building the hierarchy (project -> compiler -> testsuite -> envs)
         const parentNode = getParentNodeForEnvironment(environmentData);
-        await updateTestsForEnvironment(parentNode, environmentData);
+        await updateTestsForEnvironment(parentNode, environmentData, true);
       } else {
         const parentNode = getParentNodeForEnvironment(environmentData);
         addUnbuiltEnviroToTestPane(parentNode, environmentData);
       }
     }
-  } // end if workspace folders
+  }
+  // end if workspace folders
+
+  checkWorkspaceEnvDataForErrors();
+  clearCachedWorkspaceEnvData();
 
   // In case we have empty testsuites or compilers in the project,
   // we won't find them in the Env data so we have to add them manually here
@@ -1339,7 +1490,7 @@ export async function updateDataForEnvironment(enviroPath: string) {
   // we need await on this call because ther other update function
   // require the data that is loaded downstream of this call
   await updateTestPane(enviroPath);
-  updateDisplayedCoverage();
+  await updateDisplayedCoverage();
   updateExploreDecorations();
   updateTestDecorator();
 
@@ -1487,7 +1638,6 @@ export async function deleteTests(nodeList: any[]) {
     await updateProjectData(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
   }
-  await refreshAllExtensionData();
 }
 
 export async function insertBasisPathTests(testNode: testNodeType) {
@@ -1934,4 +2084,18 @@ export interface vcastTestItem extends vscode.TestItem {
   // this is used for unit nodes to keep track of the
   // full path to the source file
   sourcePath?: string;
+}
+
+/**
+ * Checking for errors while retrieveing all env data form the workspace and report them
+ */
+function checkWorkspaceEnvDataForErrors() {
+  if (cachedWorkspaceEnvData) {
+    const errorList = cachedWorkspaceEnvData["errors"];
+    if (errorList && Array.isArray(errorList)) {
+      for (const errMsg of errorList) {
+        vectorMessage(`Error while loading environment: ${errMsg}. Skipping.`);
+      }
+    }
+  }
 }

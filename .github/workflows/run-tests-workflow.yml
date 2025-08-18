@@ -31,6 +31,7 @@ jobs:
         password: ${{ secrets.GHRC_TOKEN }}
 
     strategy:
+      fail-fast: false   # ⬅ allow all matrix versions to run even if one fails
       matrix:
         vcast: ${{ fromJSON(vars.VCAST_VERSIONS) }}
 
@@ -91,10 +92,12 @@ jobs:
       - name: Clicast server tests
         run: ./tests/clicast-server/run_clicast_server_tests.sh
         shell: bash
+        continue-on-error: true  # ⬅ run next step even if fails
 
       - name: Run unit tests
         run: npm run gh-test | tee output.txt
         shell: bash
+        continue-on-error: true  # ⬅ run rest of job even if fails
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action/linux@v2
@@ -218,6 +221,8 @@ jobs:
         password: ${{ secrets.GHRC_TOKEN }}
 
     strategy:
+      # ⬅ let all groups run even if one fails
+      fail-fast: false  
       matrix:
         include: ${{ fromJSON(needs.generate-e2e-matrix.outputs.version_group_matrix) }}
 
@@ -305,6 +310,8 @@ jobs:
       - name: Run tests
         run: |
           ./tests/internal/e2e/run_e2e_tests.sh
+        # ⬅ keep going even if fails
+        continue-on-error: true 
 
       - name: Publish e2e tests results
         uses: EnricoMi/publish-unit-test-result-action/linux@v2

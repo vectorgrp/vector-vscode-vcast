@@ -20,6 +20,7 @@ import {
   findTreeNodeAtLevel,
   TIMEOUT,
   waitForEnvSuffix,
+  insertStringIntoAutocompletionInput,
 } from "../test_utils/vcast_utils";
 import path from "node:path";
 
@@ -88,12 +89,94 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
+  it("testing creating new compiler", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    console.log("Create new Compiler in Project");
+    await executeContextMenuAction(
+      0,
+      "Test.vcm",
+      true,
+      "Create new Compiler in Project"
+    );
+
+    console.log("Inserting Data to Webview");
+    await insertStringIntoAutocompletionInput(
+      "GNU Native_Automatic_C",
+      "Compiler Name Input",
+      true
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Added Compiler CCAST_.CFG to Project Test`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking for existence of new Compiler");
+    const compilerNode = await findTreeNodeAtLevel(
+      1,
+      "GNU_Native_Automatic_C_1"
+    );
+    expect(compilerNode).toBeDefined();
+  });
+
+  it("testing creating new project", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    console.log("Executing Create New Project Command:");
+    await browser.executeWorkbench((vscode) => {
+      vscode.commands.executeCommand("vectorcastTestExplorer.createNewProject");
+    });
+
+    console.log("Inserting Data to Webview");
+    // For the compiler tab we need to do it that way, because it's input is not found
+    // The different strucutre (autocompletion) + we already clicked on the same webview
+    // make the problems, so we just navigate with tab and enter within the webview
+    await insertStringToInput("NewProject", "Project Name Input");
+    await browser.keys(["Tab"]);
+    await browser.keys("GNU Native_Automatic_C++17");
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Enter"]);
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Added Compiler CCAST_.CFG to Project NewProject`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking existence of new Project");
+    const projectNode = await findTreeNodeAtLevel(0, "NewProject.vcm");
+    const compilerNode = await findTreeNodeAtLevel(
+      1,
+      "GNU_Native_Automatic_C++17"
+    );
+    expect(projectNode).toBeDefined();
+    expect(compilerNode).toBeDefined();
+  });
+
   it("testing tree structure", async () => {
     await updateTestID();
 
     // Expected tree structure relative to the "Test.vcm" container:
     // Level 0: Under Test.vcm, expect "GNU_Native_Automatic_C++"
-    // Level 1: Under GNU_Native_Automatic_C++, expect "BlackBox", "Testsuite", "WhiteBox"
+    // Level 1: Under GNU_Native_Automatic_C++, expect "BlackBox", "TestSuite", "WhiteBox"
     // Level 2: For "BlackBox" and "WhiteBox", expect children: "BAR", "FOO", "QUACK"
     const nodeTreeLevelList = [
       ["GNU_Native_Automatic_C++"],
