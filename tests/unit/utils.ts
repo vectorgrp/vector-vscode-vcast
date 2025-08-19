@@ -55,7 +55,7 @@ export async function generateHoverData(
 
   const extensionRoot: string = process.env.PACKAGE_PATH || "";
   const useServer: boolean = process.env.USE_SERVER !== undefined;
-  initializePaths(extensionRoot, "vpython", useServer);
+  initializePaths(extensionRoot, "vpython", useServer, "clicast");
 
   if (textDocument) {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
@@ -127,7 +127,7 @@ export async function generateCompletionData(
 
   const extensionRoot: string = process.env.PACKAGE_PATH || "";
   const useServer: boolean = process.env.USE_SERVER !== undefined;
-  initializePaths(extensionRoot, "vpython", useServer);
+  initializePaths(extensionRoot, "vpython", useServer, "clicast");
 
   // Coded test
   if (optParameters?.cppTest && optParameters?.lineSoFar) {
