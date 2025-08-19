@@ -16,12 +16,10 @@ import {
   choiceKindType,
   emptyChoiceData,
   getChoiceData,
+  getClicastCommand,
 } from "./pythonUtilities";
 import { promisify } from "util";
 import { exec } from "child_process";
-
-// Import the resolved clicast command from vcastInstallation
-const { clicastCommandToUse } = require("../src/vcastInstallation");
 
 function filterArray(currentArray: string[], whatToRemove: string) {
   return currentArray.filter((element) => element !== whatToRemove);
@@ -54,7 +52,7 @@ export async function checkClicastOption(
     return clicastOptionCache.get(cacheKey)!;
   }
 
-  const getCodedTestsSupportCommand = `${clicastCommandToUse} get_option ${option}`;
+  const getCodedTestsSupportCommand = `${getClicastCommand()} get_option ${option}`;
 
   try {
     const { stdout } = await execAsync(getCodedTestsSupportCommand, {

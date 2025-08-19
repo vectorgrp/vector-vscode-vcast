@@ -20,6 +20,7 @@ import {
   generateDiagnosticForTest,
   initializePaths,
   updateVPythonCommand,
+  updateClicastCommand,
 } from "./pythonUtilities";
 
 import {
@@ -53,7 +54,8 @@ connection.onInitialize((params: InitializeParams) => {
   initializePaths(
     process.argv[2], // extensionRoot
     process.argv[3], // vpythonPath
-    process.argv[4].toLowerCase() === "true" // useServer
+    process.argv[4].toLowerCase() === "true", // useServer
+    process.argv[5] // clicastPath
   );
 
   return {
@@ -117,6 +119,13 @@ connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
   updateVPythonCommand(data.vPythonCommand);
   connection.console.log(
     "Notification received: vPython Path: " + data.vPythonCommand
+  );
+});
+
+connection.onNotification("vcasttesteditor/updateClicastCommand", (data) => {
+  updateClicastCommand(data.clicastCommand);
+  connection.console.log(
+    "Notification received: Clicast Command: " + data.clicastCommand
   );
 });
 
