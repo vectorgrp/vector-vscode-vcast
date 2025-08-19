@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { TextDocument, TextDocuments } from "vscode-languageserver";
 import URI from "vscode-uri";
 import { checkClicastOption } from "../../langServer/tstCompletion";
+import { updateClicastCommandForLanguageServer } from "../../langServer/pythonUtilities";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
@@ -11,7 +12,6 @@ import {
   runCommand,
 } from "./utils";
 import { getToolVersion } from "./getToolversion";
-import { updateClicastCommandForLanguageServer } from "../../langServer/pythonUtilities";
 
 const timeout = 30_000; // 30 seconds
 
@@ -1451,7 +1451,7 @@ describe("Text Completion", () => {
         expect(generatedCompletionData).toEqual(expectedCompletionData);
 
         // Do it once again, because we cache the option for an env when it's processed once
-        // With thta, we should cover the cached lines and it should return the same result.
+        // With that, we should cover the cached lines and it should return the same result.
         const completionPosition2 = getCompletionPositionForLine(
           lineToComplete,
           tstText
