@@ -54,8 +54,7 @@ connection.onInitialize((params: InitializeParams) => {
   initializePaths(
     process.argv[2], // extensionRoot
     process.argv[3], // vpythonPath
-    process.argv[4].toLowerCase() === "true", // useServer
-    process.argv[5] // clicastPath
+    process.argv[4].toLowerCase() === "true" // useServer
   );
 
   return {

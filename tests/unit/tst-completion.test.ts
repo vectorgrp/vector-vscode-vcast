@@ -11,6 +11,7 @@ import {
   runCommand,
 } from "./utils";
 import { getToolVersion } from "./getToolversion";
+import { updateClicastCommand } from "../../langServer/pythonUtilities";
 
 const timeout = 30_000; // 30 seconds
 
@@ -1384,6 +1385,8 @@ describe("Text Completion", () => {
   test(
     "validate completion for TEST.CODED_TEST_FILE with codedTestsEnabled and codedTestsDriverInSubprogram",
     async () => {
+      updateClicastCommand(`${process.env.VECTORCAST_DIR}/clicast`);
+
       const testEnvPath = path.join(
         process.env.PACKAGE_PATH as string,
         "tests",
@@ -1442,6 +1445,21 @@ describe("Text Completion", () => {
         ];
 
         expect(generatedCompletionData).toEqual(expectedCompletionData);
+
+        // Do it once again, because we cache the option for an env when it's processed once
+        // With thta, we should cover the cached lines and it should return the same result.
+        const completionPosition2 = getCompletionPositionForLine(
+          lineToComplete,
+          tstText
+        );
+
+        const generatedCompletionData2 = await generateCompletionData(
+          tstText,
+          completionPosition2,
+          triggerCharacter
+        );
+
+        expect(generatedCompletionData2).toEqual(expectedCompletionData);
       }
     },
     timeout

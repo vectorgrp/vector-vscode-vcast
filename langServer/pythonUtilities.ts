@@ -39,8 +39,7 @@ export function getClicastCommand() {
 export function initializePaths(
   extensionRoot: string,
   vpythonPath: string,
-  useServer: boolean,
-  clicastPath?: string
+  useServer: boolean
 ) {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
@@ -50,13 +49,7 @@ export function initializePaths(
   console.log(`  using VectorCAST data server: ${useServer}`);
 
   vPythonCommandToUse = vpythonPath;
-  
-  // Initialize clicast command if provided
-  if (clicastPath) {
-    clicastCommandToUse = clicastPath;
-    console.log(`  using clicast: ${clicastPath}`);
-  }
-  
+
   // set the server instance of the globalEnviroDataServerActive flag
   // based on the value passed to us by the client.
   setGLobalServerState(useServer);
