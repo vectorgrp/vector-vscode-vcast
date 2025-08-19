@@ -19,7 +19,7 @@ import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 import {
   generateDiagnosticForTest,
   initializePaths,
-  updateVPythonCommand,
+  updateVPythonCommandForLanguageServer,
   updateClicastCommandForLanguageServer,
 } from "./pythonUtilities";
 
@@ -115,7 +115,7 @@ connection.onNotification("vcasttesteditor/vmockstatus", (data) => {
 });
 
 connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
-  updateVPythonCommand(data.vPythonCommand);
+  updateVPythonCommandForLanguageServer(data.vPythonCommand);
   connection.console.log(
     "Notification received: vPython Path: " + data.vPythonCommand
   );

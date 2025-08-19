@@ -164,23 +164,29 @@ export function updateVMockStatus(vmockAvailable: boolean) {
 }
 
 // This function is used to send an updated path to vPython to the server
-export function sendVPythonCommandToServer(vPythonCommand: string) {
+export function sendVPythonCommandToLanguageServer(vPythonCommand: string) {
   if (client) {
     client.onReady().then(() => {
-      client.sendNotification("vcasttesteditor/updateVPythonCommand", {
-        vPythonCommand,
-      });
+      client.sendNotification(
+        "vcasttesteditor/updateVPythonCommandForLanguageServer",
+        {
+          vPythonCommand,
+        }
+      );
     });
   }
 }
 
 // This function is used to send an updated clicast command to the server
-export function sendClicastCommandToServer(clicastCommand: string) {
+export function sendClicastCommandToLanguageServer(clicastCommand: string) {
   if (client) {
     client.onReady().then(() => {
-      client.sendNotification("vcasttesteditor/updateClicastCommand", {
-        clicastCommand,
-      });
+      client.sendNotification(
+        "vcasttesteditor/updateClicastCommandForLanguageServer",
+        {
+          clicastCommand,
+        }
+      );
     });
   }
 }

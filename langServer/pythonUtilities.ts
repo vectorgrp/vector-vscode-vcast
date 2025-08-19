@@ -20,7 +20,7 @@ let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
 export let clicastCommandToUse: string;
 
-export function updateVPythonCommand(newPath: string) {
+export function updateVPythonCommandForLanguageServer(newPath: string) {
   vPythonCommandToUse = newPath;
 }
 
