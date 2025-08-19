@@ -11,7 +11,7 @@ import {
   runCommand,
 } from "./utils";
 import { getToolVersion } from "./getToolversion";
-import { updateClicastCommand } from "../../langServer/pythonUtilities";
+import { updateClicastCommandForLanguageServer } from "../../langServer/pythonUtilities";
 
 const timeout = 30_000; // 30 seconds
 
@@ -1385,7 +1385,11 @@ describe("Text Completion", () => {
   test(
     "validate completion for TEST.CODED_TEST_FILE with codedTestsEnabled and codedTestsDriverInSubprogram",
     async () => {
-      updateClicastCommand(`${process.env.VECTORCAST_DIR}/clicast`);
+      // Because we do not start the extension, the clicast command does not get initialized.
+      // So we need to do this here manually.
+      updateClicastCommandForLanguageServer(
+        `${process.env.VECTORCAST_DIR}/clicast`
+      );
 
       const testEnvPath = path.join(
         process.env.PACKAGE_PATH as string,

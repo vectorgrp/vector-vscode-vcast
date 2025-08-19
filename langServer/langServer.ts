@@ -20,7 +20,7 @@ import {
   generateDiagnosticForTest,
   initializePaths,
   updateVPythonCommand,
-  updateClicastCommand,
+  updateClicastCommandForLanguageServer,
 } from "./pythonUtilities";
 
 import {
@@ -122,7 +122,7 @@ connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
 });
 
 connection.onNotification("vcasttesteditor/updateClicastCommand", (data) => {
-  updateClicastCommand(data.clicastCommand);
+  updateClicastCommandForLanguageServer(data.clicastCommand);
   connection.console.log(
     "Notification received: Clicast Command: " + data.clicastCommand
   );
