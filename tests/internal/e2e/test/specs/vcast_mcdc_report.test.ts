@@ -420,8 +420,22 @@ describe("vTypeCheck VS Code Extension", () => {
     }
   });
 
-  it("should build new env with nearly identical files and check for mcdc report for double report", async () => {
+  it("should clear Vectorcast Installation Location setting and build new env", async () => {
     const workbench = await browser.getWorkbench();
+
+    // Here we build an env to see if everything works when the VECTORCAST_DIR is set,
+    // But the Installation location is not set
+
+    const settingsEditor = await workbench.openSettings();
+    const unitTestLocationSetting = await settingsEditor.findSetting(
+      "Vectorcast Installation Location",
+      "Vectorcast Test Explorer"
+    );
+    await unitTestLocationSetting.setValue(""); // empty string
+
+    expect(unitTestLocationSetting.getValue()).toEqual("");
+    expect(process.env.VECTORCAST_DIR).toBeDefined;
+
     process.env.PRINT_GLOBAL_COVERAGE = "True";
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
@@ -461,13 +475,18 @@ describe("vTypeCheck VS Code Extension", () => {
     await waitForEnvSuffix(outputView, "MOO-FOO");
 
     outputView.clearText();
-
     await editorView.closeAllEditors();
+
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
     await browser.saveScreenshot(
       "info_finished_creating_vcast_environment.png"
     );
+  });
+
+  it("should check for MCDC report after building environment", async () => {
+    const workbench = await browser.getWorkbench();
+    const outputView = await bottomBar.openOutputView();
 
     await editorView.closeAllEditors();
 
@@ -479,6 +498,7 @@ describe("vTypeCheck VS Code Extension", () => {
       true,
       true
     );
+
     await browser.waitUntil(
       async () =>
         (await outputView.getText())

@@ -64,6 +64,7 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT }
     );
     console.log("WAITING FOR TEST EXPLORER");
+    browser.pause(10000);
     await browser.waitUntil(async () =>
       (await outputView.getChannelNames())
         .toString()
@@ -122,8 +123,27 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should create VectorCAST environment", async () => {
     await updateTestID();
-
     const workbench = await browser.getWorkbench();
+
+    // Here we build an env to see if everything works when the VECTORCAST_DIR is not defined,
+    // But the Installation location is sets
+    const tempVCDir = process.env.VECTORCAST_DIR;
+    process.env.VECTORCAST_DIR = null;
+
+    // Open Settings and put in valid path
+    const settingsEditor = await workbench.openSettings();
+    const unitTestLocationSetting = await settingsEditor.findSetting(
+      "Vectorcast Installation Location",
+      "Vectorcast Test Explorer"
+    );
+    await unitTestLocationSetting.setValue(tempVCDir);
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    console.log(`VC DIR should be null ${process.env.VECTORCAST_DIR}`);
+    expect(`${process.env.VECTORCAST_DIR}`).toEqual(null);
+
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
@@ -141,6 +161,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await databaseCpp.openContextMenu();
     await (await $("aria/Create VectorCAST Environment")).click();
+
+    console.log("Removing Notifications");
 
     // Making sure notifications are shown
     await (await $("aria/Notifications")).click();
@@ -167,7 +189,11 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.saveScreenshot(
       "info_finished_creating_vcast_environment.png"
     );
-    // Clearing all notifications
-    await (await $(".codicon-notifications-clear-all")).click();
+
+    process.env.VECTORCAST_DIR = tempVCDir;
+    console.log(
+      `VC DIR should be defined again: ${process.env.VECTORCAST_DIR}`
+    );
+    expect(`${process.env.VECTORCAST_DIR}`).toBeDefined();
   });
 });
