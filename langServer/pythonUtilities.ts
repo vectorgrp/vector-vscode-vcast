@@ -18,7 +18,7 @@ import { getDiagnosticObject } from "./tstValidation";
 
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
-let clicastCommandToUse: string;
+export let clicastCommandToUse: string;
 
 export function updateVPythonCommand(newPath: string) {
   vPythonCommandToUse = newPath;
@@ -28,7 +28,7 @@ export function getVPythonCommand() {
   return vPythonCommandToUse;
 }
 
-export function updateClicastCommand(newCommand: string) {
+export function updateClicastCommandForLanguageServer(newCommand: string) {
   clicastCommandToUse = newCommand;
 }
 
