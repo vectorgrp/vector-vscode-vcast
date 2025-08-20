@@ -433,7 +433,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await unitTestLocationSetting.setValue(""); // empty string
 
-    expect(await unitTestLocationSetting.getValue()).toEqual("");
+    expect(await unitTestLocationSetting.getValue()).toBeNull();
     expect(process.env.VECTORCAST_DIR).toBeDefined();
 
     process.env.PRINT_GLOBAL_COVERAGE = "True";
