@@ -142,7 +142,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await notificationsCenter.clearAllNotifications();
 
     console.log(`VC DIR should be null ${process.env.VECTORCAST_DIR}`);
-    expect(`${process.env.VECTORCAST_DIR}`).toEqual(null);
+    expect(`${process.env.VECTORCAST_DIR}`).toBeNull();
 
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
