@@ -128,7 +128,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Here we build an env to see if everything works when the VECTORCAST_DIR is not defined,
     // But the Installation location is sets
     const tempVCDir = process.env.VECTORCAST_DIR;
-    process.env.VECTORCAST_DIR = null;
+    delete process.env.VECTORCAST_DIR;
 
     // Open Settings and put in valid path
     const settingsEditor = await workbench.openSettings();
@@ -142,7 +142,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await notificationsCenter.clearAllNotifications();
 
     console.log(`VC DIR should be null ${process.env.VECTORCAST_DIR}`);
-    expect(`${process.env.VECTORCAST_DIR}`).toBeNull();
+    expect(process.env.VECTORCAST_DIR).toBeUndefined();
 
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
