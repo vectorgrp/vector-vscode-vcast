@@ -1,11 +1,7 @@
 import * as vscode from "vscode";
 import * as jsonc from "jsonc-parser";
 
-import {
-  sendVPythonCommandToLanguageServer,
-  updateVMockStatus,
-  sendClicastCommandToLanguageServer,
-} from "./client";
+import { updateVMockStatus, sendVCDirCommandToLanguageServer } from "./client";
 
 import { openMessagePane, vectorMessage } from "./messagePane";
 
@@ -245,6 +241,46 @@ function checkForATG(vcastInstallationPath: string) {
   }
 }
 
+export function getVectorCastInstallationLocation(): string | undefined {
+  // Priority 1: extension option
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const installationOptionString = settings.get(
+    "vectorcastInstallationLocation",
+    ""
+  );
+
+  if (installationOptionString.length > 0) {
+    const candidatePath = path.join(
+      installationOptionString,
+      exeFilename("vpython")
+    );
+    if (fs.existsSync(candidatePath)) {
+      return installationOptionString;
+    }
+  }
+
+  // Priority 2: VECTORCAST_DIR environment variable
+  const VECTORCAST_DIR = process.env["VECTORCAST_DIR"];
+  if (VECTORCAST_DIR) {
+    const candidatePath = path.join(VECTORCAST_DIR, exeFilename("vpython"));
+    if (fs.existsSync(candidatePath)) {
+      return VECTORCAST_DIR;
+    }
+  }
+
+  // Priority 3: system PATH
+  const pathDirs = process.env["PATH"]?.split(path.delimiter) || [];
+  for (const dir of pathDirs) {
+    const candidatePath = path.join(dir, exeFilename("vpython"));
+    if (fs.existsSync(candidatePath)) {
+      // Resolve up to the install root (vpython is under the install dir)
+      return path.dirname(candidatePath);
+    }
+  }
+
+  return undefined; // not found
+}
+
 function findVcastTools(): boolean {
   // This function will set global paths to vpython, clicast and vcastqt
   // by sequentially looking for vpython in the directory set via the
@@ -277,7 +313,7 @@ function findVcastTools(): boolean {
     if (fs.existsSync(candidatePath)) {
       vcastInstallationPath = installationOptionString;
       vPythonCommandToUse = candidatePath;
-      sendVPythonCommandToLanguageServer(candidatePath);
+      sendVCDirCommandToLanguageServer(vcastInstallationPath);
       vectorMessage(
         `   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`
       );
@@ -410,7 +446,6 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
 
   if (fs.existsSync(clicastCommandToUse)) {
     vectorMessage(`   found '${clicastName}' here: ${vcastInstallationPath}`);
-    sendClicastCommandToLanguageServer(clicastCommandToUse);
     vcastCommandToUse = path.join(
       vcastInstallationPath,
       exeFilename(vcastqtName)

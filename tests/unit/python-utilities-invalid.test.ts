@@ -1,4 +1,3 @@
-import process from "node:process";
 import path from "node:path";
 import {
   describe,
@@ -39,8 +38,7 @@ describe("Testing pythonUtilities (invalid)", () => {
     async () => {
       const invalidPath = path.join("some", "invalid", "path");
 
-      const clicastPath = path.join(`${process.env.VECTORCAST_DIR}`, "clicast");
-      initializePaths(invalidPath, "someAction", true, clicastPath);
+      initializePaths(invalidPath, "someAction", true);
       const invalidPathToTestEditorInterface = path.join(
         invalidPath,
         "python",
