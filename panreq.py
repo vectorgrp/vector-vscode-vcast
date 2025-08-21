@@ -1,4 +1,4 @@
-from autoreq.reqs2excel import cli
+from autoreq.panreq import cli
 
 if __name__ == '__main__':
     cli()

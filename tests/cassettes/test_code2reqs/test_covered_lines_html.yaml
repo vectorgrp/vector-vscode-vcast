@@ -19,7 +19,7 @@ interactions:
       for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
       {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
       < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
-      (int i = 0; password[i] != ''\u0000''; i++) {\n        if (isupper(password[i]))
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
       {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
       has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
       Test with password shorter than 8 characters\n3. Test with password of 8+ characters
@@ -81,12 +81,12 @@ interactions:
       of this task is critical. If you do not generate exactly one test case and requirement
       for each semantic part of the code, you have failed.\n", "role": "user"}], "model":
       "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
-      "schema": {"$defs": {"Requirement": {"additionalProperties": false, "properties":
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
       {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
-      "title": "Requirement", "type": "object"}, "TestCase": {"additionalProperties":
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
       false, "properties": {"description": {"title": "Description", "type": "string"}},
       "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
-      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/Requirement"},
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
       "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
       "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
       "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
@@ -103,13 +103,13 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7424'
+      - '7439'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.77.0
+      - AsyncAzureOpenAI/Python 1.58.1
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -121,9 +121,7 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.77.0
-      x-stainless-read-timeout:
-      - '600'
+      - 1.58.1
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -134,27 +132,27 @@ interactions:
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
     body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Test
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Test
         that the function returns the correct check total for a given table index
-        by providing a table index for which the check total is known.\"},\"requirement_for_part_1\":{\"statement\":\"The
-        system shall return the check total associated with the specified table index.\"}}","refusal":null,"role":"assistant"}}],"created":1751552374,"id":"chatcmpl-BpF4g14N0MuWlYq0CzJRZv6zRXHS5","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":63,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1443,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1408},"total_tokens":1506}}
+        by verifying that the returned value matches the Check_Total field of the
+        table record retrieved for that index.\"},\"requirement_for_part_1\":{\"statement\":\"The
+        system shall return the check total associated with the table record identified
+        by the provided table index.\"}}","refusal":null,"role":"assistant"}}],"created":1754379876,"id":"chatcmpl-C16dYd2B2kH2YrFkfdzyGMW76qfX8","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":75,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1446,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1408},"total_tokens":1521}}
 
         '
     headers:
       Content-Length:
-      - '1534'
+      - '1614'
       Content-Type:
       - application/json
       Date:
-      - Thu, 03 Jul 2025 14:19:34 GMT
+      - Tue, 05 Aug 2025 07:44:38 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 306e1e73-2464-46e7-9866-2577646c1d66
+      - cc0df779-6834-4e2a-8334-2f8b3ebe023a
       azureml-model-session:
-      - d073-20250625145402
-      cmp-upstream-response-duration:
-      - '936'
+      - d130-20250726064847
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -170,11 +168,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '961'
+      - '996'
       x-ratelimit-remaining-tokens:
-      - '800895'
+      - '986236'
       x-request-id:
-      - a43bab2e-72ba-434c-b124-709dd1d0b323
+      - 6f46a0c3-d37c-40d9-a004-25bd439317bb
     status:
       code: 200
       message: OK
@@ -198,7 +196,7 @@ interactions:
       for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
       {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
       < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
-      (int i = 0; password[i] != ''\u0000''; i++) {\n        if (isupper(password[i]))
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
       {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
       has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
       Test with password shorter than 8 characters\n3. Test with password of 8+ characters
@@ -253,12 +251,12 @@ interactions:
       of this task is critical. If you do not generate exactly one test case and requirement
       for each semantic part of the code, you have failed.\n", "role": "user"}], "model":
       "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
-      "schema": {"$defs": {"Requirement": {"additionalProperties": false, "properties":
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
       {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
-      "title": "Requirement", "type": "object"}, "TestCase": {"additionalProperties":
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
       false, "properties": {"description": {"title": "Description", "type": "string"}},
       "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
-      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/Requirement"},
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
       "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
       "test_case_for_part", "test_case_for_part", "requirement_for_part", "requirement_for_part",
       "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
@@ -276,13 +274,13 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7153'
+      - '7180'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.77.0
+      - AsyncAzureOpenAI/Python 1.58.1
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -294,9 +292,7 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.77.0
-      x-stainless-read-timeout:
-      - '600'
+      - 1.58.1
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -309,35 +305,33 @@ interactions:
     body:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
         {\n    \"description\": \"Test when the waiting list index is greater than
-        9 before calling the function, and verify that the index is reset to 0 before
+        9 before calling the function. Verify that the index is reset to 0 before
         accessing the waiting list.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
-        \"Test when the waiting list index is 9 or less before calling the function,
-        and verify that the index is not reset.\"\n  },\n  \"test_case_for_part_3\":
-        {\n    \"description\": \"Test that the function returns the party at the
-        current waiting list index and increments the index after returning.\"\n  },\n  \"requirement_for_part_1\":
+        \"Test when the waiting list index is 9 or less before calling the function.
+        Verify that the index is not reset.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
+        \"Test that the function returns the party at the current waiting list index
+        and increments the index after returning.\"\n  },\n  \"requirement_for_part_1\":
         {\n    \"statement\": \"The system shall reset the waiting list index to 0
-        if it is greater than 9 before accessing the waiting list.\"\n  },\n  \"requirement_for_part_2\":
-        {\n    \"statement\": \"The system shall not reset the waiting list index
-        if it is 9 or less before accessing the waiting list.\"\n  },\n  \"requirement_for_part_3\":
+        if the index is greater than 9 before accessing the waiting list.\"\n  },\n  \"requirement_for_part_2\":
+        {\n    \"statement\": \"The system shall not modify the waiting list index
+        if the index is 9 or less before accessing the waiting list.\"\n  },\n  \"requirement_for_part_3\":
         {\n    \"statement\": \"The system shall return the party at the current waiting
-        list index and increment the index after returning the party.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1751552374,"id":"chatcmpl-BpF4gza8EYr4BSbmgIVWoXPxrlItj","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":249,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1387,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1152},"total_tokens":1636}}
+        list index and increment the index after returning the party.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754379877,"id":"chatcmpl-C16dZQK2RSOiz13UZfXP9L8a2XPSs","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":249,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1392,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1280},"total_tokens":1641}}
 
         '
     headers:
       Content-Length:
-      - '2316'
+      - '2323'
       Content-Type:
       - application/json
       Date:
-      - Thu, 03 Jul 2025 14:19:36 GMT
+      - Tue, 05 Aug 2025 07:44:39 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 756591b4-a1f5-4230-9d1b-c9f8c2525585
+      - 384fa9bf-2e5e-40b9-8cfb-e65543d39ce4
       azureml-model-session:
-      - d070-20250625125619
-      cmp-upstream-response-duration:
-      - '2014'
+      - d128-20250726053925
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -353,11 +347,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '961'
+      - '996'
       x-ratelimit-remaining-tokens:
-      - '801038'
+      - '986298'
       x-request-id:
-      - ec8c275e-8578-4fbe-a82e-e874aa7cfcda
+      - 69fab568-cca8-4d81-aae4-9834dd0d07d8
     status:
       code: 200
       message: OK
@@ -381,7 +375,7 @@ interactions:
       for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
       {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
       < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
-      (int i = 0; password[i] != ''\u0000''; i++) {\n        if (isupper(password[i]))
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
       {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
       has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
       Test with password shorter than 8 characters\n3. Test with password of 8+ characters
@@ -448,12 +442,12 @@ interactions:
       do not generate exactly one test case and requirement for each semantic part
       of the code, you have failed.\n", "role": "user"}], "model": "gpt-4.1", "response_format":
       {"json_schema": {"name": "RequirementGenerationResult", "schema": {"$defs":
-      {"Requirement": {"additionalProperties": false, "properties": {"statement":
+      {"RequirementSchema": {"additionalProperties": false, "properties": {"statement":
       {"title": "Statement", "type": "string"}}, "required": ["statement"], "title":
-      "Requirement", "type": "object"}, "TestCase": {"additionalProperties": false,
-      "properties": {"description": {"title": "Description", "type": "string"}}, "required":
-      ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
-      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/Requirement"},
+      "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
       "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
       "test_case_for_part", "test_case_for_part", "requirement_for_part", "requirement_for_part",
       "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
@@ -471,13 +465,13 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '8085'
+      - '8112'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.77.0
+      - AsyncAzureOpenAI/Python 1.58.1
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -489,9 +483,7 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.77.0
-      x-stainless-read-timeout:
-      - '600'
+      - 1.58.1
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -502,41 +494,35 @@ interactions:
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
     body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
-        {\n    \"description\": \"Given an order with Entree set to STEAK, Salad set
-        to CAESAR, and Beverage set to MIXED_DRINK, verify that the Dessert is set
-        to PIE after calling Add_Included_Dessert.\"\n  },\n  \"test_case_for_part_2\":
-        {\n    \"description\": \"Given an order with Entree set to LOBSTER, Salad
-        set to GREEN, and Beverage set to WINE, and not matching the first condition,
-        verify that the Dessert is set to CAKE after calling Add_Included_Dessert.\"\n  },\n  \"test_case_for_part_3\":
-        {\n    \"description\": \"Given an order that does not match either the first
-        or second condition (e.g., Entree is CHICKEN, Salad is NO_SALAD, Beverage
-        is SODA), verify that the Dessert remains unchanged after calling Add_Included_Dessert.\"\n  },\n  \"requirement_for_part_1\":
-        {\n    \"statement\": \"The system shall set the dessert to PIE when the order
-        includes STEAK as the entree, CAESAR as the salad, and MIXED_DRINK as the
-        beverage.\"\n  },\n  \"requirement_for_part_2\": {\n    \"statement\": \"The
-        system shall set the dessert to CAKE when the order includes LOBSTER as the
-        entree, GREEN as the salad, and WINE as the beverage, and the first condition
-        is not met.\"\n  },\n  \"requirement_for_part_3\": {\n    \"statement\": \"The
-        system shall leave the dessert unchanged when the order does not meet either
-        of the specified entree, salad, and beverage combinations.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1751552374,"id":"chatcmpl-BpF4gqpECUkIgAfT2j5p7kl0ffO3g","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":348,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1675,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1664},"total_tokens":2023}}
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Test
+        with an order where the entree is STEAK, the salad is CAESAR, and the beverage
+        is MIXED_DRINK. Verify that the dessert is set to PIE.\"},\"test_case_for_part_2\":{\"description\":\"Test
+        with an order where the entree is LOBSTER, the salad is GREEN, and the beverage
+        is WINE. Verify that the dessert is set to CAKE.\"},\"test_case_for_part_3\":{\"description\":\"Test
+        with an order where the entree, salad, and beverage do not match either (STEAK,
+        CAESAR, MIXED_DRINK) or (LOBSTER, GREEN, WINE). Verify that the dessert is
+        not changed by the function.\"},\"requirement_for_part_1\":{\"statement\":\"The
+        system shall set the dessert to PIE when the entree is STEAK, the salad is
+        CAESAR, and the beverage is MIXED_DRINK.\"},\"requirement_for_part_2\":{\"statement\":\"The
+        system shall set the dessert to CAKE when the entree is LOBSTER, the salad
+        is GREEN, and the beverage is WINE.\"},\"requirement_for_part_3\":{\"statement\":\"The
+        system shall not modify the dessert when the entree, salad, and beverage do
+        not match either (STEAK, CAESAR, MIXED_DRINK) or (LOBSTER, GREEN, WINE).\"}}","refusal":null,"role":"assistant"}}],"created":1754379876,"id":"chatcmpl-C16dYdXOpG8J5DM03mLk29IQsEaxO","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":284,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1680,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1964}}
 
         '
     headers:
       Content-Length:
-      - '2630'
+      - '2345'
       Content-Type:
       - application/json
       Date:
-      - Thu, 03 Jul 2025 14:19:36 GMT
+      - Tue, 05 Aug 2025 07:44:41 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - d1474ce2-d794-4b1e-90fb-495cda6f3339
+      - 2d4902a9-0841-4c97-88c0-62b76fc03dba
       azureml-model-session:
-      - d078-20250625161808
-      cmp-upstream-response-duration:
-      - '2577'
+      - d135-20250726103158
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -552,11 +538,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '961'
+      - '1005'
       x-ratelimit-remaining-tokens:
-      - '800811'
+      - '1004090'
       x-request-id:
-      - d9f5f1cf-a552-49d0-be0f-dd0e45fdb83f
+      - ab5ad259-d3e1-40c5-8f86-843f7961bf4f
     status:
       code: 200
       message: OK
@@ -580,7 +566,7 @@ interactions:
       for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
       {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
       < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
-      (int i = 0; password[i] != ''\u0000''; i++) {\n        if (isupper(password[i]))
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
       {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
       has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
       Test with password shorter than 8 characters\n3. Test with password of 8+ characters
@@ -653,12 +639,12 @@ interactions:
       not generate exactly one test case and requirement for each semantic part of
       the code, you have failed.\n", "role": "user"}], "model": "gpt-4.1", "response_format":
       {"json_schema": {"name": "RequirementGenerationResult", "schema": {"$defs":
-      {"Requirement": {"additionalProperties": false, "properties": {"statement":
+      {"RequirementSchema": {"additionalProperties": false, "properties": {"statement":
       {"title": "Statement", "type": "string"}}, "required": ["statement"], "title":
-      "Requirement", "type": "object"}, "TestCase": {"additionalProperties": false,
-      "properties": {"description": {"title": "Description", "type": "string"}}, "required":
-      ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
-      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/Requirement"},
+      "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
       "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
       "test_case_for_part", "test_case_for_part", "test_case_for_part", "requirement_for_part",
       "requirement_for_part", "requirement_for_part", "requirement_for_part"], "title":
@@ -676,13 +662,13 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '8944'
+      - '8977'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.77.0
+      - AsyncAzureOpenAI/Python 1.58.1
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -694,9 +680,7 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.77.0
-      x-stainless-read-timeout:
-      - '600'
+      - 1.58.1
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -708,40 +692,40 @@ interactions:
   response:
     body:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
-        {\n    \"description\": \"Test clearing a table and verify that the table
-        is marked as unoccupied and the number in party is set to 1.\"\n  },\n  \"test_case_for_part_2\":
-        {\n    \"description\": \"Test clearing a table and verify that for each seat
-        (0 to 3), all order fields (Soup, Salad, Entree, Dessert, Beverage) are set
+        {\n    \"description\": \"Test clearing a table: After calling the function,
+        the table''s occupied status should be set to false and the number in party
+        should be set to 1.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
+        \"Test clearing a table: After calling the function, all order fields (soup,
+        salad, entree, dessert, beverage) for each of the four seats should be set
         to their respective ''no'' values.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
-        \"Test clearing a table and verify that the order clearing loop executes exactly
-        four times, once for each seat.\"\n  },\n  \"test_case_for_part_4\": {\n    \"description\":
-        \"Test clearing a table and verify that the check total is set to zero, the
-        updated table data is saved, and the function returns 0.\"\n  },\n  \"requirement_for_part_1\":
-        {\n    \"statement\": \"The system shall mark the table as unoccupied and
-        set the number in party to one when clearing a table.\"\n  },\n  \"requirement_for_part_2\":
+        \"Test clearing a table: The function should process exactly four seats, no
+        more and no less, when resetting the order fields.\"\n  },\n  \"test_case_for_part_4\":
+        {\n    \"description\": \"Test clearing a table: After calling the function,
+        the check total should be set to zero, the updated table record should be
+        saved, and the function should return zero.\"\n  },\n  \"requirement_for_part_1\":
+        {\n    \"statement\": \"The system shall set the table''s occupied status
+        to false and the number in party to one when clearing a table.\"\n  },\n  \"requirement_for_part_2\":
         {\n    \"statement\": \"The system shall set all order fields for each seat
         at the table to their respective ''no'' values when clearing a table.\"\n  },\n  \"requirement_for_part_3\":
-        {\n    \"statement\": \"The system shall clear the order fields for exactly
+        {\n    \"statement\": \"The system shall reset the order fields for exactly
         four seats when clearing a table.\"\n  },\n  \"requirement_for_part_4\": {\n    \"statement\":
         \"The system shall set the check total to zero, update the table record, and
-        return a success indicator when clearing a table.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1751552374,"id":"chatcmpl-BpF4gZVSsNsAuyw3EchHs2CFbLOsz","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":343,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1855,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1792},"total_tokens":2198}}
+        return zero when clearing a table.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754379876,"id":"chatcmpl-C16dYyY1F0oO4TlBZqlAeYYi9KQFQ","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":359,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1861,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1792},"total_tokens":2220}}
 
         '
     headers:
       Content-Length:
-      - '2669'
+      - '2773'
       Content-Type:
       - application/json
       Date:
-      - Thu, 03 Jul 2025 14:19:37 GMT
+      - Tue, 05 Aug 2025 07:44:43 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 5787cf78-307b-47bd-b0e2-83bea1e2bdc5
+      - 183c8c8f-7a58-46d1-9f27-a53f14b3cb41
       azureml-model-session:
-      - d073-20250625145402
-      cmp-upstream-response-duration:
-      - '3317'
+      - d096-20250726095201
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -757,11 +741,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '962'
+      - '997'
       x-ratelimit-remaining-tokens:
-      - '802298'
+      - '987699'
       x-request-id:
-      - 5f65bae5-9d9a-4f2f-95a8-26335cdcb7e4
+      - 71fd7c1a-35dd-4a4c-a5fb-fdedf5cbdf71
     status:
       code: 200
       message: OK
@@ -785,7 +769,7 @@ interactions:
       for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
       {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
       < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
-      (int i = 0; password[i] != ''\u0000''; i++) {\n        if (isupper(password[i]))
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
       {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
       has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
       Test with password shorter than 8 characters\n3. Test with password of 8+ characters
@@ -843,12 +827,12 @@ interactions:
       task is critical. If you do not generate exactly one test case and requirement
       for each semantic part of the code, you have failed.\n", "role": "user"}], "model":
       "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
-      "schema": {"$defs": {"Requirement": {"additionalProperties": false, "properties":
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
       {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
-      "title": "Requirement", "type": "object"}, "TestCase": {"additionalProperties":
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
       false, "properties": {"description": {"title": "Description", "type": "string"}},
       "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
-      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/Requirement"},
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
       "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
       "test_case_for_part", "test_case_for_part", "test_case_for_part", "test_case_for_part",
       "requirement_for_part", "requirement_for_part", "requirement_for_part", "requirement_for_part",
@@ -867,13 +851,13 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7765'
+      - '7804'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.77.0
+      - AsyncAzureOpenAI/Python 1.58.1
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -885,9 +869,7 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.77.0
-      x-stainless-read-timeout:
-      - '600'
+      - 1.58.1
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -899,42 +881,45 @@ interactions:
   response:
     body:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
-        {\n    \"description\": \"Test adding a party when the waiting list is full
-        (WaitingListSize \u003e 9).\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
-        \"Test adding a party when the waiting list is not full (WaitingListSize \u003c=
-        9).\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\": \"Test adding
-        a party with a non-NULL, non-empty name (Name is not NULL and *Name is not
-        0).\"\n  },\n  \"test_case_for_part_4\": {\n    \"description\": \"Test adding
-        a party with a NULL or empty name (Name is NULL or *Name is 0).\"\n  },\n  \"test_case_for_part_5\":
-        {\n    \"description\": \"Test that the party name is properly null-terminated
-        in the waiting list after addition.\"\n  },\n  \"requirement_for_part_1\":
-        {\n    \"statement\": \"The system shall reset the waiting list index to zero
-        when the waiting list is full before adding a new party.\"\n  },\n  \"requirement_for_part_2\":
-        {\n    \"statement\": \"The system shall add a new party to the next available
-        position in the waiting list when the list is not full.\"\n  },\n  \"requirement_for_part_3\":
-        {\n    \"statement\": \"The system shall copy each character of a non-empty,
-        non-NULL party name into the waiting list entry.\"\n  },\n  \"requirement_for_part_4\":
-        {\n    \"statement\": \"The system shall not copy any characters if the provided
-        party name is NULL or empty.\"\n  },\n  \"requirement_for_part_5\": {\n    \"statement\":
-        \"The system shall ensure that each party name added to the waiting list is
-        null-terminated.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1751552374,"id":"chatcmpl-BpF4gLU7nqmhL6uobOmyBE0f1DbOB","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":380,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1554,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1934}}
+        {\n    \"description\": \"Test by calling Add_Party_To_Waiting_List with WaitingListSize
+        set to 10 and a valid non-empty Name. Verify that WaitingListSize is reset
+        to 0 before adding the new name.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
+        \"Test by calling Add_Party_To_Waiting_List with WaitingListSize set to a
+        value less than or equal to 9 and a valid non-empty Name. Verify that WaitingListSize
+        is not reset.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
+        \"Test by calling Add_Party_To_Waiting_List with a non-NULL, non-empty Name.
+        Verify that each character of Name is copied into the WaitingList entry.\"\n  },\n  \"test_case_for_part_4\":
+        {\n    \"description\": \"Test by calling Add_Party_To_Waiting_List with Name
+        as NULL or an empty string. Verify that no characters are copied into the
+        WaitingList entry.\"\n  },\n  \"test_case_for_part_5\": {\n    \"description\":
+        \"Test by calling Add_Party_To_Waiting_List with any Name and verify that
+        the WaitingList entry is null-terminated and WaitingListSize is incremented
+        by 1.\"\n  },\n  \"requirement_for_part_1\": {\n    \"statement\": \"The system
+        shall reset the waiting list index to zero when the waiting list is full before
+        adding a new entry.\"\n  },\n  \"requirement_for_part_2\": {\n    \"statement\":
+        \"The system shall retain the current waiting list index when the waiting
+        list is not full.\"\n  },\n  \"requirement_for_part_3\": {\n    \"statement\":
+        \"The system shall copy each character from the provided name into the next
+        available waiting list entry when a non-empty name is provided.\"\n  },\n  \"requirement_for_part_4\":
+        {\n    \"statement\": \"The system shall not copy any characters into the
+        waiting list entry when the provided name is null or empty.\"\n  },\n  \"requirement_for_part_5\":
+        {\n    \"statement\": \"The system shall null-terminate the new waiting list
+        entry and increment the waiting list size after adding a name.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754379876,"id":"chatcmpl-C16dY9OxgcprhkYAcOWDaZWUUj4if","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":467,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1561,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2028}}
 
         '
     headers:
       Content-Length:
-      - '2763'
+      - '3200'
       Content-Type:
       - application/json
       Date:
-      - Thu, 03 Jul 2025 14:19:37 GMT
+      - Tue, 05 Aug 2025 07:44:45 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 005c6427-fa0e-4784-82c5-4fd615e2e69d
+      - dc86e645-2d77-423d-bd20-434c8cf5b79a
       azureml-model-session:
-      - d071-20250625125619
-      cmp-upstream-response-duration:
-      - '3403'
+      - d096-20250726095201
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -950,11 +935,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '961'
+      - '997'
       x-ratelimit-remaining-tokens:
-      - '800969'
+      - '987981'
       x-request-id:
-      - 8a4043bb-6529-4760-a066-b7131c535b78
+      - 7df4f3a8-cef7-4440-8610-9b6b401ab499
     status:
       code: 200
       message: OK
@@ -978,7 +963,7 @@ interactions:
       for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
       {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
       < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
-      (int i = 0; password[i] != ''\u0000''; i++) {\n        if (isupper(password[i]))
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
       {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
       has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
       Test with password shorter than 8 characters\n3. Test with password of 8+ characters
@@ -1064,12 +1049,12 @@ interactions:
       success of this task is critical. If you do not generate exactly one test case
       and requirement for each semantic part of the code, you have failed.\n", "role":
       "user"}], "model": "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
-      "schema": {"$defs": {"Requirement": {"additionalProperties": false, "properties":
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
       {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
-      "title": "Requirement", "type": "object"}, "TestCase": {"additionalProperties":
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
       false, "properties": {"description": {"title": "Description", "type": "string"}},
       "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
-      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/Requirement"},
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
       "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
       "test_case_for_part", "test_case_for_part", "test_case_for_part", "test_case_for_part",
       "test_case_for_part", "test_case_for_part", "test_case_for_part", "requirement_for_part",
@@ -1089,13 +1074,13 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '10825'
+      - '10882'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.77.0
+      - AsyncAzureOpenAI/Python 1.58.1
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -1107,9 +1092,7 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.77.0
-      x-stainless-read-timeout:
-      - '600'
+      - 1.58.1
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -1120,54 +1103,49 @@ interactions:
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
     body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Test
-        placing an order for a table and seat, and verify that the table record is
-        retrieved, the table is marked as occupied, the party size is incremented,
-        the order is stored for the seat, and any included dessert is added if applicable.\"},\"test_case_for_part_2\":{\"description\":\"Test
-        placing an order where the entree is NO_ENTREE and verify that no amount is
-        added to the check total.\"},\"test_case_for_part_3\":{\"description\":\"Test
-        placing an order where the entree is STEAK and verify that 14.0 is added to
-        the check total.\"},\"test_case_for_part_4\":{\"description\":\"Test placing
-        an order where the entree is CHICKEN and verify that 10.0 is added to the
-        check total.\"},\"test_case_for_part_5\":{\"description\":\"Test placing an
-        order where the entree is LOBSTER and verify that 18.0 is added to the check
-        total.\"},\"test_case_for_part_6\":{\"description\":\"Test placing an order
-        where the entree is PASTA and verify that 12.0 is added to the check total.\"},\"test_case_for_part_7\":{\"description\":\"Test
-        placing an order where the entree value does not match any defined entree
-        (should not occur with valid input), and verify that no amount is added to
-        the check total.\"},\"test_case_for_part_8\":{\"description\":\"Test that
-        after processing the order, the updated table record is stored and the function
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Place
+        an order for a table and seat with any valid order; verify that the table
+        record is retrieved, the table is marked as occupied, the party size is incremented,
+        the order is stored for the seat, and the included dessert is added if applicable.\"},\"test_case_for_part_2\":{\"description\":\"Place
+        an order where the entree is NO_ENTREE; verify that the check total does not
+        change.\"},\"test_case_for_part_3\":{\"description\":\"Place an order where
+        the entree is STEAK; verify that 14.0 is added to the check total.\"},\"test_case_for_part_4\":{\"description\":\"Place
+        an order where the entree is CHICKEN; verify that 10.0 is added to the check
+        total.\"},\"test_case_for_part_5\":{\"description\":\"Place an order where
+        the entree is LOBSTER; verify that 18.0 is added to the check total.\"},\"test_case_for_part_6\":{\"description\":\"Place
+        an order where the entree is PASTA; verify that 12.0 is added to the check
+        total.\"},\"test_case_for_part_7\":{\"description\":\"Place an order with
+        an entree value that does not match any defined entree; verify that the check
+        total does not change.\"},\"test_case_for_part_8\":{\"description\":\"Place
+        an order and verify that the updated table record is saved and the function
         returns 0.\"},\"requirement_for_part_1\":{\"statement\":\"The system shall
         retrieve the table record, mark the table as occupied, increment the party
-        size, store the order for the specified seat, and add any included dessert
-        as appropriate when an order is placed.\"},\"requirement_for_part_2\":{\"statement\":\"The
-        system shall not add any amount to the check total when the entree is not
-        ordered.\"},\"requirement_for_part_3\":{\"statement\":\"The system shall add
-        14.0 to the check total when the entree ordered is steak.\"},\"requirement_for_part_4\":{\"statement\":\"The
-        system shall add 10.0 to the check total when the entree ordered is chicken.\"},\"requirement_for_part_5\":{\"statement\":\"The
-        system shall add 18.0 to the check total when the entree ordered is lobster.\"},\"requirement_for_part_6\":{\"statement\":\"The
-        system shall add 12.0 to the check total when the entree ordered is pasta.\"},\"requirement_for_part_7\":{\"statement\":\"The
-        system shall not add any amount to the check total when the entree value does
-        not match any defined entree.\"},\"requirement_for_part_8\":{\"statement\":\"The
+        size, store the order for the specified seat, and add an included dessert
+        to the order if the order qualifies.\"},\"requirement_for_part_2\":{\"statement\":\"The
+        system shall not change the check total when the order''s entree is ''no entree''.\"},\"requirement_for_part_3\":{\"statement\":\"The
+        system shall add 14.0 to the check total when the order''s entree is steak.\"},\"requirement_for_part_4\":{\"statement\":\"The
+        system shall add 10.0 to the check total when the order''s entree is chicken.\"},\"requirement_for_part_5\":{\"statement\":\"The
+        system shall add 18.0 to the check total when the order''s entree is lobster.\"},\"requirement_for_part_6\":{\"statement\":\"The
+        system shall add 12.0 to the check total when the order''s entree is pasta.\"},\"requirement_for_part_7\":{\"statement\":\"The
+        system shall not change the check total when the order''s entree does not
+        match any defined entree value.\"},\"requirement_for_part_8\":{\"statement\":\"The
         system shall update the table record with the new data and return a success
-        indicator after processing the order.\"}}","refusal":null,"role":"assistant"}}],"created":1751552374,"id":"chatcmpl-BpF4g9xg92c34NPhbwsr3CV5B3NYA","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":565,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":2294,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2859}}
+        indicator.\"}}","refusal":null,"role":"assistant"}}],"created":1754379877,"id":"chatcmpl-C16dZC3Bs8uMUyI35UORm7lQHeL4A","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":549,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":2304,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2853}}
 
         '
     headers:
       Content-Length:
-      - '3822'
+      - '3681'
       Content-Type:
       - application/json
       Date:
-      - Thu, 03 Jul 2025 14:19:38 GMT
+      - Tue, 05 Aug 2025 07:44:57 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - e1531247-23fc-4dde-9444-f0e09cc914a1
+      - 3ea1740e-a638-43bc-a40d-de400bf9ccdc
       azureml-model-session:
-      - d071-20250625125619
-      cmp-upstream-response-duration:
-      - '4528'
+      - d131-20250726064847
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -1183,11 +1161,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '961'
+      - '990'
       x-ratelimit-remaining-tokens:
-      - '800351'
+      - '974459'
       x-request-id:
-      - 46492d31-9f54-4f16-9f43-822f56743d34
+      - e41b6071-2e36-44e5-9f92-79ca8affb0c7
     status:
       code: 200
       message: OK

@@ -6,22 +6,26 @@ import openai
 from pydantic import BaseModel
 from autoreq.llm_client import LLMClient
 from autoreq.util import average_set
+from autoreq.requirements_collection import (
+    RequirementsCollection,
+    DecomposedRequirement,
+)
 
 
-class DecomposedRequirement(BaseModel):
+class DecomposedRequirementSchema(BaseModel):
     original_requirement: str
     original_requirement_index: int
     atomic_requirements: List[str]
 
 
-class RequirementDescription(BaseModel):
-    nonatomic_requirements: List[DecomposedRequirement]
+class RequirementDescriptionSchema(BaseModel):
+    nonatomic_requirements: List[DecomposedRequirementSchema]
 
 
 async def decompose_requirements_batched(requirements, llm_client):
     try:
         requirements_text = '\n'.join(
-            f'{i + 1}. ' + r for i, r in enumerate(requirements)
+            f'{i + 1}. ' + req.description for i, req in enumerate(requirements)
         )
 
         result = await llm_client.call_model(
@@ -67,7 +71,7 @@ Remember:
 """,
                 },
             ],
-            schema=RequirementDescription,
+            schema=RequirementDescriptionSchema,
             extended_reasoning=True,
         )
     except openai.BadRequestError as e:
@@ -80,15 +84,30 @@ Remember:
     }
 
     decomposed_requirements = []
-    for i, unprocessed_requirement in enumerate(requirements):
-        potential_decomposition = req_mapping.get(i + 1, [unprocessed_requirement])
+    for i, original_req in enumerate(requirements):
+        potential_decomposition = req_mapping.get(i + 1, [original_req.description])
 
         # If potential_decomposition is an empty list (e.g., LLM returned [] for atomic_requirements),
         # fall back to the original requirement. Otherwise, use the LLM's output.
         if not potential_decomposition:  # An empty list is falsy
-            decomposed_requirements.append([unprocessed_requirement])
+            decomposed_requirements.append([original_req])
+        elif len(potential_decomposition) == 1:
+            # No decomposition occurred, keep original requirement
+            decomposed_requirements.append([original_req])
         else:
-            decomposed_requirements.append(potential_decomposition)
+            # Create DecomposedRequirement objects for each atomic requirement
+            atomic_reqs = []
+            for j, atomic_desc in enumerate(potential_decomposition):
+                atomic_req = DecomposedRequirement(
+                    key=f'{original_req.key}.{j + 1}',
+                    id=f'{original_req.id}.{j + 1}',
+                    title=f'{original_req.title} (Subrequirement {j + 1})',
+                    description=atomic_desc,
+                    location=original_req.location,
+                    original_key=original_req.key,
+                )
+                atomic_reqs.append(atomic_req)
+            decomposed_requirements.append(atomic_reqs)
 
     return decomposed_requirements
 
@@ -127,31 +146,44 @@ Testability using a single test case is explicitly not the given if you expect t
 
 
 # For requirement decomposition
-class RequirementDescriptionIndividual(BaseModel):
+class RequirementDescriptionIndividualSchema(BaseModel):
     atomic_requirements: list[str]
 
 
-async def decompose_requirement(requirement, llm_client):
+async def decompose_requirement(requirement_obj, llm_client):
     try:
         result = await llm_client.call_model(
             messages=[
                 {'role': 'system', 'content': SYSTEM_PROMPT},
                 {
                     'role': 'user',
-                    'content': f'Create atomic requirements given this customer description: {requirement}',
+                    'content': f'Create atomic requirements given this customer description: {requirement_obj.description}',
                 },
             ],
-            schema=RequirementDescriptionIndividual,
+            schema=RequirementDescriptionIndividualSchema,
             extended_reasoning=True,
         )
     except openai.BadRequestError as e:
         logging.error(f'Bad request error: {e}')
-        return [requirement]
+        return [requirement_obj]
 
     if len(result.atomic_requirements) <= 1:
-        return [requirement]
+        return [requirement_obj]
 
-    return result.atomic_requirements
+    # Create DecomposedRequirement objects for each atomic requirement
+    atomic_reqs = []
+    for j, atomic_desc in enumerate(result.atomic_requirements):
+        atomic_req = DecomposedRequirement(
+            key=f'{requirement_obj.key}.{j + 1}',
+            id=f'{requirement_obj.id}.{j + 1}',
+            title=f'{requirement_obj.title} (Subrequirement {j + 1})',
+            description=atomic_desc,
+            location=requirement_obj.location,
+            original_key=requirement_obj.key,
+        )
+        atomic_reqs.append(atomic_req)
+
+    return atomic_reqs
 
 
 async def decompose_requirements_individual(requirements, llm_client):
@@ -181,9 +213,16 @@ async def decompose_requirements(
 
     decompositions = await asyncio.gather(*tasks)
 
-    return _merge_decompositions(
+    merged_decomposition = _merge_decompositions(
         decompositions, threshold_frequency=threshold_frequency
     )
+
+    # Flatten the decomposition results into a single list
+    all_requirements = []
+    for req_list in merged_decomposition:
+        all_requirements.extend(req_list)
+
+    return RequirementsCollection(all_requirements)
 
 
 def _merge_decompositions(decompositions, threshold_frequency=0.5):
@@ -218,14 +257,14 @@ def _merge_decompositions(decompositions, threshold_frequency=0.5):
     for attempt_idx, decomposition_attempt in enumerate(decompositions):
         decomposed_requirements_by_attempt[attempt_idx] = []
 
-        for req_idx, atomic_reqs in enumerate(decomposition_attempt):
-            if len(atomic_reqs) > 1:
+        for req_idx, req_list in enumerate(decomposition_attempt):
+            if len(req_list) > 1:
                 # This requirement was decomposed into multiple atomic requirements
-                non_trivial_decompositions[req_idx] = atomic_reqs
+                non_trivial_decompositions[req_idx] = req_list
                 decomposed_requirements_by_attempt[attempt_idx].append(req_idx)
             else:
                 # This requirement was kept as-is
-                trivial_decompositions[req_idx] = atomic_reqs
+                trivial_decompositions[req_idx] = req_list
 
     # Step 2: Find requirements that were frequently decomposed across multiple attempts
     # (using the specified threshold frequency)

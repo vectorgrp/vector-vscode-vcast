@@ -26,8 +26,8 @@ class VerificationOutput(BaseModel):
 
 
 class TestVerifier:
-    def __init__(self, requirements_manager, environment, allow_partial=False):
-        self.requirements_manager = requirements_manager
+    def __init__(self, requirements, environment, allow_partial=False):
+        self.requirements = requirements
         self.environment = environment
         self.allow_partial = allow_partial
         self.context_builder = VcastContextBuilder(self.environment)
@@ -52,7 +52,7 @@ class TestVerifier:
                 analysis='No requirement ID provided or found in test case',
             )
 
-        requirement_text = self.requirements_manager.get_description(req_id)
+        requirement_text = self.requirements[req_id].description
         if not requirement_text:
             logging.warning(f'Requirement {req_id} not found.')
             return VerificationOutput(
@@ -61,7 +61,7 @@ class TestVerifier:
                 analysis='Requirement not found in database',
             )
 
-        function_name = self.requirements_manager.get_function(req_id)
+        function_name = self.requirements[req_id].location.function
         if not function_name:
             logging.warning(f'Function not found for requirement {req_id}.')
             return VerificationOutput(

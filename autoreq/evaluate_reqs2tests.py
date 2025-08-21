@@ -13,10 +13,8 @@ import traceback
 
 from autoreq.test_generation.requirement_decomposition import decompose_requirements
 
-from autoreq.requirements_manager import (
-    ID_FIELD,
-    DecomposingRequirementsManager,
-    RequirementsManager,
+from autoreq.requirements_collection import (
+    RequirementsCollection,
 )
 from autoreq.test_generation.generation import TestGenerator
 from autoreq.test_generation.environment import Environment
@@ -489,7 +487,7 @@ class EvaluationResult(BaseModel):
 
 async def evaluate_environment(
     env_path: str,
-    rm: RequirementsManager,
+    requirements: RequirementsCollection,
     output_dir: Path,
     requirement_ids: List[str] = None,
     extended_reasoning: bool = False,
@@ -511,10 +509,12 @@ async def evaluate_environment(
     env.build()
 
     if not requirement_ids:
-        requirement_ids = rm.requirement_ids
+        requirement_ids = requirements.requirement_keys
+
+    # Filter requirements to only those specified
+    filtered_requirements = requirements.filter(lambda req: req.key in requirement_ids)
 
     test_generator = TestGenerator(
-        rm,
         env,
         use_extended_reasoning=extended_reasoning,
         min_prune_lines=min_pruning_lines,
@@ -522,13 +522,11 @@ async def evaluate_environment(
         blackbox=blackbox,
     )
     test_verifier = TestVerifier(
-        rm, env, allow_partial=allow_partial or allow_batch_partial
+        requirements, env, allow_partial=allow_partial or allow_batch_partial
     )
 
     # Collect requirements data
-    requirements_data = {
-        req_id: rm.get_requirement(req_id) for req_id in requirement_ids
-    }
+    requirements_data = {req.key: req.to_flat_dict() for req in filtered_requirements}
 
     # Get ATG coverage before running our tests
     try:
@@ -555,7 +553,7 @@ async def evaluate_environment(
     async def perform_test_generation():
         nonlocal test_cases, generation_error
         async for test_case in test_generator.generate_test_cases(
-            requirement_ids,
+            filtered_requirements,
             batched=batched,
             allow_partial=allow_partial,
             batch_size=batch_size,
@@ -700,7 +698,7 @@ async def evaluate_environment(
             'Requirement coverage calculation is disabled. Skipping requirement coverage.'
         )
     else:
-        rc = RequirementCoverage(env, rm)
+        rc = RequirementCoverage(env, requirements)
         requirement_coverage_results = []
         for test_case in tqdm(test_cases, desc='Calculating requirement coverage'):
             if test_case is None:
@@ -922,47 +920,33 @@ async def process_envs(
         # Load environment-specific requirements
         env = Environment(env_path)
         try:
+            # Load requirements using RequirementsCollection
+            requirements = RequirementsCollection.from_csv(req_path)
+
             if not args.no_decomposition:
-                rm = RequirementsManager(req_path)
-                x = {
-                    req_id: rm.get_description(req_id) for req_id in rm.requirement_ids
-                }
-                decomposed = await decompose_requirements(
-                    list(x.values()),
+                logging.info(
+                    f'Decomposing {len(requirements)} requirements for {env_name}...'
+                )
+
+                # Decompose requirements using the new interface
+                requirements = await decompose_requirements(
+                    requirements,
                     individual=args.individual_decomposition,
                     k=5,
                     threshold_frequency=0.2,
                 )
-                decomposed_req_map = {
-                    req_id: reqs for req_id, reqs in zip(rm.requirement_ids, decomposed)
-                }
 
-                async def decomposer(req):
-                    req_template = req.copy()
-                    # decomposed_req_descriptions = await decompose_requirement(req['Description'])
-                    decomposed_req_descriptions = decomposed_req_map[req[ID_FIELD]]
-                    decomposed_reqs = []
-                    for i, decomposed_req_description in enumerate(
-                        decomposed_req_descriptions
-                    ):
-                        decomposed_req = req_template.copy()
-                        decomposed_req[ID_FIELD] = f'{req[ID_FIELD]}.{i + 1}'
-                        decomposed_req['Description'] = decomposed_req_description
-                        decomposed_reqs.append(decomposed_req)
-                    print('Original:', req['Description'])
-                    print('Decomposed:', [r['Description'] for r in decomposed_reqs])
-                    return decomposed_reqs
-
-                rm = await DecomposingRequirementsManager.from_file(
-                    req_path, decomposer=decomposer
+                # Log decomposition results
+                decomposed_count = len(requirements)
+                logging.info(
+                    f'Decomposition completed: {decomposed_count} total requirements'
                 )
-            else:
-                rm = RequirementsManager(req_path)
 
-            # TODO: Add some information about original requirements in evaluation result in case we decompose requirements here
-
+            # Filter requirements if specified
             if args.filter:
-                rm = rm.filter(lambda r: rm.get_function(r) in args.filter)
+                requirements = requirements.filter(
+                    lambda req: req.location.function in args.filter
+                )
         except Exception as e:
             import traceback
 
@@ -973,7 +957,7 @@ async def process_envs(
 
         result = await evaluate_environment(
             env_path,
-            rm,
+            requirements,
             output_dir,
             args.requirement_ids,
             args.extended_reasoning,

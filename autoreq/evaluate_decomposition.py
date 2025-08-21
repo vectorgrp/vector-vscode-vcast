@@ -1,5 +1,5 @@
 import asyncio
-from autoreq.requirements_manager import RequirementsManager
+from autoreq.requirements_collection import RequirementsManager
 from autoreq.test_generation.requirement_decomposition import decompose_requirements
 
 

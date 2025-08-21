@@ -58,7 +58,7 @@ ext_modules = (
             'autoreq/cache.py',
             'autoreq/replay.py',
             'autoreq/llm_client.py',
-            'autoreq/requirements_manager.py',
+            'autoreq/requirements_collection.py',
             'autoreq/search.py',
             'autoreq/constants.py',
             'autoreq/util.py',
@@ -79,9 +79,8 @@ ext_modules = (
             'autoreq/reqs2tests.py',
             'autoreq/code2reqs.py',
             'autoreq/trace_reqs2code.py',
-            'autoreq/reqs2excel.py',
-            'autoreq/reqs2rgw.py',
             'autoreq/r2xreport.py',
+            'autoreq/panreq.py',
         ],
         compiler_directives={
             'language_level': '3',
@@ -115,6 +114,7 @@ setup(
             'reqs2excel = autoreq.reqs2excel:cli',
             'reqs2rgw = autoreq.reqs2rgw:cli',
             'r2xreport = autoreq.r2xreport:cli',
+            'panreq = autoreq.panreq:cli',
         ]
     },
     install_requires=base_requirements,

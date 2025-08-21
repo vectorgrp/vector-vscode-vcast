@@ -1,0 +1,3 @@
+manager.<<GLOBAL>>.(cl).Manager.Manager.<<constructor>>.Manager().<<call>>
+manager.Manager::ClearTable.Table
+uut_prototype_stubs.DataBase::DeleteRecord.Table

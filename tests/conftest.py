@@ -11,6 +11,9 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
+# Global variable to store pytest config for access in matcher functions
+_pytest_config = None
+
 
 class BaseFileRecorder:
     """Base class for recording and comparing test output files."""
@@ -111,8 +114,9 @@ class RequirementsFileRecorder(BaseFileRecorder):
                 actual_df.to_dict().items(), expected_df.to_dict().items()
             ):
                 assert k1 == k2, f'Column names do not match: {k1} != {k2}'
-                sorted_v1 = sorted(v1.values())
-                sorted_v2 = sorted(v2.values())
+                # Convert all values to strings to handle mixed types (float/string)
+                sorted_v1 = sorted([str(val) for val in v1.values()])
+                sorted_v2 = sorted([str(val) for val in v2.values()])
                 assert sorted_v1 == sorted_v2, (
                     f'Column values do not match for {k1}: {sorted_v1} != {sorted_v2}'
                 )
@@ -302,6 +306,24 @@ def pytest_addoption(parser):
         default=False,
         help='Enable cythonization of the project before running tests',
     )
+    parser.addoption(
+        '--min-closeness',
+        type=float,
+        default=0.99,
+        help='Set the closeness ratio for similar request comparison (default: 0.99)',
+    )
+    parser.addoption(
+        '--print-close-schemas',
+        action='store_true',
+        default=False,
+        help='Enable printing of schema differences in addition to prompt differences',
+    )
+    parser.addoption(
+        '--print-close-prompts',
+        action='store_true',
+        default=False,
+        help='Enable printing of prompt differences in addition to schema differences',
+    )
 
 
 def pytest_configure(config):
@@ -309,6 +331,10 @@ def pytest_configure(config):
     if config.getoption('--record'):
         # Set record mode to 'rewrite' for pytest-recording
         config.option.record_mode = 'rewrite'
+
+    # Store config globally for access in close_call_matcher
+    global _pytest_config
+    _pytest_config = config
 
 
 @pytest.fixture
@@ -365,6 +391,80 @@ def download_and_extract_all(tmp_path_factory):
     print('Done.')
 
 
+def close_call_matcher(r1, r2):
+    import difflib
+
+    # Configuration from CLI options (with env vars as fallback)
+    global _pytest_config
+    min_closeness = _pytest_config.getoption(
+        '--min-closeness',
+        default=0.99,
+    )
+    print_schemas = _pytest_config.getoption(
+        '--print-close-schemas',
+        default=False,
+    )
+    print_close_prompts = _pytest_config.getoption(
+        '--print-close-prompts',
+        default=False,
+    )
+
+    def get_prompt(body):
+        prompt = ''
+        for message in body['messages']:
+            prompt += message['content']
+
+        return prompt
+
+    def get_response_format(body):
+        return json.dumps(_normalize_schema_names(body['response_format']), indent=4)
+
+    def print_similar_but_different_string_differences(
+        str1, str2, label='request strings'
+    ):
+        lines1, lines2 = str1.split('\n'), str2.split('\n')
+
+        ratio = difflib.SequenceMatcher(None, lines1, lines2).ratio()
+
+        if min_closeness <= ratio < 1.0:
+            diffs = difflib.Differ().compare(lines1, lines2)
+
+            print(f'Found similar {label} (but not identical):')
+            print('=' * 30)
+            for diff in diffs:
+                if not diff.startswith(' '):
+                    print(diff)
+            print('=' * 30)
+
+    try:
+        body1, body2 = json.loads(r1.body), json.loads(r2.body)
+        prompt1, prompt2 = get_prompt(body1), get_prompt(body2)
+        resp_format1, resp_format2 = (
+            get_response_format(body1),
+            get_response_format(body2),
+        )
+
+        if print_close_prompts:
+            print_similar_but_different_string_differences(prompt1, prompt2, 'prompts')
+
+        if print_schemas:
+            print_similar_but_different_string_differences(
+                resp_format1, resp_format2, 'schemas'
+            )
+
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        pass
+
+    return True
+
+
+def pytest_recording_configure(config, vcr):
+    vcr.register_matcher('close_call', close_call_matcher)
+
+
 @pytest.fixture(scope='session')
 def vcr_config():
     return {
@@ -374,7 +474,7 @@ def vcr_config():
         # TODO: This implictly also assumes that we only send model requests, which is true for now but not generally
         # TODO: This also assumes that we never send the same request to different models, which is also true for now
         # TODO: A better way to deal with this (also to allow more general models) is to detect which deployments/models are used during recording and always preprocess the request to replace those by consistent placeholders
-        'match_on': ['method', 'scheme', 'query', 'raw_body'],
+        'match_on': ['method', 'scheme', 'query', 'close_call', 'raw_body'],
     }
 
 

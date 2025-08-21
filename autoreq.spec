@@ -138,8 +138,8 @@ reqs2excel_a = Analysis(
     optimize=0,
 )
 
-reqs2rgw_a = Analysis(
-    ['reqs2rgw.py'],
+panreq_a = Analysis(
+    ['panreq.py'],
     pathex=[],
     binaries=filter_binaries(
         collect_dynamic_libs(
@@ -215,7 +215,7 @@ r2xreport_a = Analysis(
 reqs2tests_pyz = PYZ(reqs2tests_a.pure)
 code2reqs_pyz = PYZ(code2reqs_a.pure)
 reqs2excel_pyz = PYZ(reqs2excel_a.pure)
-reqs2rgw_pyz = PYZ(reqs2rgw_a.pure)
+panreq_pyz = PYZ(panreq_a.pure)
 r2xreport_pyz = PYZ(r2xreport_a.pure)
 
 reqs2tests_exe = EXE(
@@ -272,12 +272,12 @@ reqs2excel_exe = EXE(
     entitlements_file=None,
 )
 
-reqs2rgw_exe = EXE(
-    reqs2rgw_pyz,
-    reqs2rgw_a.scripts,
+panreq_exe = EXE(
+    panreq_pyz,
+    panreq_a.scripts,
     [('u', None, 'OPTION')],
     exclude_binaries=True,
-    name='reqs2rgw',
+    name='panreq',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -319,9 +319,9 @@ coll = COLLECT(
     reqs2excel_exe,
     reqs2excel_a.binaries,
     reqs2excel_a.datas,
-    reqs2rgw_exe,
-    reqs2rgw_a.binaries,
-    reqs2rgw_a.datas,
+    panreq_exe,
+    panreq_a.binaries,
+    panreq_a.datas,
     r2xreport_exe,
     r2xreport_a.binaries,
     r2xreport_a.datas,

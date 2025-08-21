@@ -254,7 +254,7 @@ def _extract_uncovered_lines(result: EvaluationResult) -> List[Dict[str, str]]:
                     'line_number': start_line + line_n + 1,
                     'requirement_id': req_id,
                     'source_line': source_line,
-                    'requirement_text': result.requirements_data[req_id]['Title'],
+                    'requirement_text': result.requirements_data[req_id]['title'],
                 }
             )
 
@@ -1302,7 +1302,7 @@ def create_html_report(
             content_env.append(ul_uncov)
             for req in uncovered_reqs:
                 req_id = req['requirement_id']
-                req_text = result.requirements_data[req_id]['Title']
+                req_text = result.requirements_data[req_id]['title']
                 link_to_req = f'./{env_name}/coverage_reports/{req_id}_coverage.html'
                 test_case = test_cases.get(env_name, {}).get(
                     req_id, 'Test case not found'

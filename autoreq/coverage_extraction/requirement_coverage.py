@@ -21,9 +21,9 @@ class RequirementCoverageInfo(BaseModel):
 
 
 class RequirementCoverage:
-    def __init__(self, environment, requirements_manager):
+    def __init__(self, environment, requirements):
         self.environment = environment
-        self.requirements_manager = requirements_manager
+        self.requirements = requirements
 
     @lru_cache(maxsize=None)
     def _get_function_header_info(self, tu_file):
@@ -97,8 +97,15 @@ class RequirementCoverage:
         return final_mapping
 
     def _requirement_coverage_info(self, coverage_dict, requirement_id):
-        func = self.requirements_manager.get_function(requirement_id)
-        required_lines = self.requirements_manager.get_lines(requirement_id)
+        # Find the requirement by key
+        requirement = next(
+            (req for req in self.requirements if req.key == requirement_id), None
+        )
+        if requirement is None:
+            return None
+
+        func = requirement.location.function
+        required_lines = requirement.location.lines
 
         if required_lines is None:
             return None
@@ -160,7 +167,7 @@ class RequirementCoverage:
         )
         stdout, stderr = proc.communicate(json.dumps(input_data))
         if proc.returncode != 0:
-            raise stderr
+            raise RuntimeError(stderr)
 
         # Result: list of lists
         result = json.loads(stdout)

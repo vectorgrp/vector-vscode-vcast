@@ -421,35 +421,33 @@ interactions:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_description\":\"To
         test the requirement that CAKE is included as the dessert when the order consists
         of LOBSTER as the entree, GREEN as the salad, and WINE as the beverage, we
-        need to create an order with these exact values. The function should then
-        set the Dessert field to CAKE. We will allocate a single order, set Entree
-        to LOBSTER, Salad to GREEN, Beverage to WINE, and Dessert to NO_DESSERT (to
-        ensure it is changed by the function). After calling the function, we expect
-        Dessert to be set to CAKE, while the other fields remain unchanged.\",\"test_mapping_analysis\":\"The
+        need to create an order with these specific values. The function should then
+        set the Dessert field to CAKE. We will allocate an order, set Entree to LOBSTER,
+        Salad to GREEN, Beverage to WINE, and Dessert to NO_DESSERT (to ensure it
+        is not already CAKE). After calling the function, we expect Dessert to be
+        set to CAKE, confirming the requirement is met.\",\"test_mapping_analysis\":\"The
         requirement specifies a precise combination of entree, salad, and beverage
-        that should result in Dessert being set to CAKE. The code implements this
-        logic in the second branch of the if-else statement. By setting the input
-        values to match this combination and checking that Dessert is set to CAKE,
-        we directly test the requirement. All input fields are set, and only the Dessert
-        field is expected to change, as per the requirement.\",\"test_case\":{\"test_name\":\"Test_AddIncludedDessert_LobsterGreenWine_CakeDessert\",\"test_description\":\"Tests
+        that should result in the dessert being set to CAKE. The code checks for this
+        combination and sets Dessert to CAKE. The test sets up this combination and
+        verifies the output, directly mapping to the requirement.\",\"test_case\":{\"test_name\":\"Test_AddIncludedDessert_LobsterGreenWine_CakeDessert\",\"test_description\":\"Tests
         that Add_Included_Dessert sets Dessert to CAKE when Entree is LOBSTER, Salad
-        is GREEN, and Beverage is WINE.\",\"requirement_id\":\"Add_Included_Dessert.2\",\"unit_name\":\"manager\",\"subprogram_name\":\"Add_Included_Dessert\",\"input_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order\",\"value\":\"\u003c\u003cmalloc
-        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1753289599,"id":"chatcmpl-BwX0RfsHvUMq5NPWHT9owJ9J18WVY","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_07e970ab25","usage":{"completion_tokens":438,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":8025,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":8463}}
+        is GREEN, and Beverage is WINE, as required.\",\"requirement_id\":\"Add_Included_Dessert.2\",\"unit_name\":\"manager\",\"subprogram_name\":\"Add_Included_Dessert\",\"input_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order\",\"value\":\"\u003c\u003cmalloc
+        1\u003e\u003e\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Salad\",\"value\":\"GREEN\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Entree\",\"value\":\"LOBSTER\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"NO_DESSERT\"},{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Beverage\",\"value\":\"WINE\"}],\"expected_values\":[{\"identifier\":\"manager.Add_Included_Dessert.Order[0].Dessert\",\"value\":\"CAKE\"}]}}","refusal":null,"role":"assistant"}}],"created":1754315841,"id":"chatcmpl-C0pyjZcGPBX9YblFqfK4r3pPp7KzC","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":408,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":8025,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":8433}}
 
         '
     headers:
       Content-Length:
-      - '3160'
+      - '3012'
       Content-Type:
       - application/json
       Date:
-      - Wed, 23 Jul 2025 16:53:23 GMT
+      - Mon, 04 Aug 2025 13:57:37 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 8192a5c3-3d45-4088-8b8f-318d7cff1137
+      - f3672745-a07f-4669-ac52-1d90cd3da293
       azureml-model-session:
-      - d025-20250625125617
+      - d134-20250726085033
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -469,7 +467,7 @@ interactions:
       x-ratelimit-remaining-tokens:
       - '998068'
       x-request-id:
-      - 578fb0bd-9d28-493e-9464-37401a35c66e
+      - 84bdbfea-0fe6-4e53-bca9-13474c3cce1d
     status:
       code: 200
       message: OK

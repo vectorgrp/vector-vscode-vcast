@@ -14,7 +14,7 @@ import traceback
 from autoreq.requirement_generation.generation import RequirementsGenerator
 from autoreq.requirement_verification.verification import RequirementsVerifier
 
-from .requirements_manager import RequirementsManager
+from .requirements_collection import RequirementsManager
 from .test_generation.environment import Environment
 from .util import (
     expand_environment_args,

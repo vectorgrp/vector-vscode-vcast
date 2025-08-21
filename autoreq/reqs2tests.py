@@ -11,83 +11,72 @@ from autoreq.test_generation.requirement_decomposition import decompose_requirem
 from autoreq.aq_logging import configure_logging
 from .test_generation.generation import TestGenerator
 from .test_generation.environment import Environment  # Ensure Environment is imported
-from .requirements_manager import (
-    ID_FIELD,
-    RequirementsManager,
-    DecomposingRequirementsManager,
+from .requirements_collection import (
+    RequirementsCollection,
 )
 
 
-async def init_requirements_manager(args: argparse.Namespace):
-    if not args.no_decomposition:
-        rm = RequirementsManager(args.requirements_file)
-        x = {req_id: rm.get_description(req_id) for req_id in rm.requirement_ids}
+async def init_requirements(args: argparse.Namespace):
+    # Load requirements from CSV/Excel file
+    requirements = RequirementsCollection.from_path(args.requirements_file).filter(
+        lambda req: req.location.function is not None
+    )
 
-        decomposed = await decompose_requirements(
-            list(x.values()),
+    if not args.no_decomposition:
+        logging.info(f'Decomposing {len(requirements)} requirements...')
+
+        # Decompose requirements using the new interface
+        decomposed_requirements = await decompose_requirements(
+            requirements,
             individual=args.individual_decomposition,
             k=5,
             threshold_frequency=0.2,
         )
-        decomposed_req_map = {
-            req_id: reqs for req_id, reqs in zip(rm.requirement_ids, decomposed)
-        }
 
-        async def decomposer(req):
-            req_template = req.copy()
-            # decomposed_req_descriptions = await decompose_requirement(req['Description'])
-            decomposed_req_descriptions = decomposed_req_map[req[ID_FIELD]]
-            decomposed_reqs = []
-            for i, decomposed_req_description in enumerate(decomposed_req_descriptions):
-                decomposed_req = req_template.copy()
-                decomposed_req[ID_FIELD] = f'{req[ID_FIELD]}.{i + 1}'
-                decomposed_req['Description'] = decomposed_req_description
-                decomposed_reqs.append(decomposed_req)
-            logging.info(
-                'Requirement decomposition',
-                extra={
-                    'requirement_id': req[ID_FIELD],
-                    'decomposed_count': len(decomposed_reqs),
-                    'original_requirement': req['Description'],
-                    'decomposed_requirements': [
-                        r['Description'] for r in decomposed_reqs
-                    ],
-                },
-            )
+        # Log decomposition results
+        original_count = len(requirements)
+        decomposed_count = len(decomposed_requirements)
 
-            if len(decomposed_reqs) > 1:
-                print('Decomposed requirement:')
-                print('Original:', req['Description'])
-                print(
-                    'Decomposed:',
-                    [r['Description'] for r in decomposed_reqs],
-                )
-
-            return decomposed_reqs
-
-        return await DecomposingRequirementsManager.from_file(
-            args.requirements_file, decomposer=decomposer
+        logging.info(
+            'Requirements decomposition completed',
+            extra={
+                'original_count': original_count,
+                'decomposed_count': decomposed_count,
+                'expansion_ratio': decomposed_count / original_count
+                if original_count > 0
+                else 0,
+            },
         )
 
-    return RequirementsManager(args.requirements_file)
+        # Print decomposition info for user
+        for req in decomposed_requirements:
+            if hasattr(req, 'original_key'):
+                original_req = requirements[req.original_key]
+                print(f'Decomposed requirement from {req.original_key}:')
+                print(f'  Original: {original_req.description}')
+                print(f'  Atomic: {req.description}')
+
+        return decomposed_requirements
+
+    return requirements
 
 
-def get_requirement_ids(rm, args: argparse.Namespace):
+def get_requirement_ids(requirements, args: argparse.Namespace):
     if len(args.requirement_ids) == 0:
-        return rm.requirement_ids
+        return requirements.requirement_keys
 
     # Filter for direct matches or prefix matches as before
     matched_ids = []
     for rid in args.requirement_ids:
-        # Instead of building a local dict, track requirement IDs
+        # Match by key, or by function/unit location
         matched_ids.extend(
             [
-                req_id
-                for req_id in rm.requirement_ids
-                if req_id == rid
-                or req_id.startswith(rid)
-                or rm.get_function(req_id) == rid
-                or rm.get_module(req_id) == rid
+                req.key
+                for req in requirements
+                if req.key == rid
+                or req.key.startswith(rid)
+                or (req.location.function and req.location.function == rid)
+                or (req.location.unit and req.location.unit == rid)
             ]
         )
     return matched_ids
@@ -97,15 +86,19 @@ async def generate_tests(
     test_generator: TestGenerator,
     environment: Environment,
     requirement_ids: list,
-    rm,
+    requirements,
     args: argparse.Namespace,
 ):
     vectorcast_test_cases = []
-    pbar = tqdm(total=len(requirement_ids), desc='Generating tests')
+
+    # Filter requirements to only those with matching IDs
+    filtered_requirements = requirements.filter(lambda req: req.key in requirement_ids)
+
+    pbar = tqdm(total=len(filtered_requirements), desc='Generating tests')
 
     try:
         async for test_case in test_generator.generate_test_cases(
-            requirement_ids,
+            filtered_requirements,
             max_retries=args.retries,
             batched=args.batched,
             allow_partial=args.allow_partial,
@@ -131,12 +124,19 @@ async def generate_tests(
                 },
             )
 
-            # Map back to original requirement ID
-            if not args.no_decomposition:
-                original_req_id = rm.get_original_requirement_id(
-                    test_case.requirement_id
+            # Map back to original requirement ID if this is a decomposed requirement
+            if not args.no_decomposition and hasattr(test_case, 'requirement_id'):
+                # Find the requirement object to check if it's decomposed
+                req = next(
+                    (
+                        r
+                        for r in filtered_requirements
+                        if r.key == test_case.requirement_id
+                    ),
+                    None,
                 )
-                test_case.requirement_id = original_req_id
+                if req and hasattr(req, 'original_key'):
+                    test_case.requirement_id = req.original_key
 
             vectorcast_test_cases.append(
                 test_case.to_vectorcast(
@@ -296,15 +296,14 @@ async def main():
         logging.info('Environment is not built. Building it now...')
         environment.build()
 
-    # Instantiate the requirements manager
-    rm = await init_requirements_manager(args)
+    # Load and process requirements
+    requirements = await init_requirements(args)
 
-    # Retrieve requirement IDs from the manager
-    requirement_ids = get_requirement_ids(rm, args)
+    # Retrieve requirement IDs from the collection
+    requirement_ids = get_requirement_ids(requirements, args)
 
     test_generator = TestGenerator(
-        rm,  # Pass the RequirementsManager instead of raw requirements
-        environment=environment,
+        environment,
         use_extended_reasoning=args.extended_reasoning,
         min_prune_lines=args.min_pruning_lines,
         use_test_examples=not args.no_test_examples,
@@ -312,7 +311,7 @@ async def main():
     )
 
     vectorcast_test_cases = await generate_tests(
-        test_generator, environment, requirement_ids, rm, args
+        test_generator, environment, requirement_ids, requirements, args
     )
 
     if args.export_tst:

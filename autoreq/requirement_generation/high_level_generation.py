@@ -6,7 +6,11 @@ from typing import List
 
 from ..llm_client import LLMClient
 from ..test_generation.environment import Environment
-from ..requirements_manager import ID_FIELD, RequirementsManager
+from ..requirements_collection import (
+    RequirementsCollection,
+    Requirement,
+    RequirementLocation,
+)
 from ..info_logger import HighLevelRequirementGenerationInfoLogger
 
 
@@ -30,7 +34,7 @@ class HighLevelRequirementsGenerator:
     def __init__(
         self,
         environment: Environment,
-        low_level_requirements: RequirementsManager,
+        low_level_requirements: RequirementsCollection,
         extended_reasoning: bool = False,
     ):
         self.llm_client = LLMClient()
@@ -39,28 +43,20 @@ class HighLevelRequirementsGenerator:
         self.extended_reasoning = extended_reasoning
         self.info_logger = HighLevelRequirementGenerationInfoLogger()
 
-    async def generate(
-        self, unit_name: str, return_raw: bool = False
-    ) -> List[AbstractRequirement]:
+    async def generate(self, unit_name: str) -> RequirementsCollection:
         """Generate high-level requirements for a given unit/module."""
 
         module_input_data = {}
-        all_low_level_reqs_list = self.low_level_requirements.requirements_to_dict()
 
         unit_specific_reqs = {}
         req_count = 0
-        for req_data in all_low_level_reqs_list:
-            if (
-                req_data.get('Module') == unit_name
-                and req_data.get(ID_FIELD)
-                and req_data.get('Description')
-            ):
-                if req_data.get('Function') != 'None':
-                    unit_specific_reqs[req_data[ID_FIELD]] = req_data['Description']
-                    req_count += 1
+        for req in self.low_level_requirements:
+            if req.location and req.location.unit == unit_name:
+                unit_specific_reqs[req.id] = req.description
+                req_count += 1
 
         if not unit_specific_reqs:
-            return []
+            return RequirementsCollection([])
 
         module_input_data[unit_name] = {
             'count': req_count,
@@ -69,7 +65,7 @@ class HighLevelRequirementsGenerator:
 
         system_prompt_content = """
 You are a senior software–requirements engineer and editor.
-Your sole task is to transform many fine-grained “Atomic” requirements into a shorter set of higher-level “Abstract” requirements.
+Your sole task is to transform many fine-grained "Atomic" requirements into a shorter set of higher-level "Abstract" requirements.
 
 **INPUT FORMAT**
 
@@ -238,18 +234,28 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
                 extended_reasoning=self.extended_reasoning,
             )
 
-            if response_model and response_model.requirements:
-                return [
-                    req if return_raw else req.text
-                    for req in response_model.requirements
-                    if req.module_name == unit_name
-                ]
-
-            return []
+            hl_reqs = []
+            for i, req in enumerate(response_model.requirements):
+                if req.module_name == unit_name:
+                    req_id = f'{unit_name}_HL.{i + 1}'
+                    hl_reqs.append(
+                        Requirement(
+                            key=req_id,
+                            id=req_id,
+                            title=req.text,
+                            description=req.text,
+                            location=RequirementLocation(
+                                unit=unit_name,
+                            ),
+                        )
+                    )
+            return RequirementsCollection(hl_reqs)
         except Exception as e:
             logging.exception(
                 f'High-level requirement generation failed for unit {unit_name}: {e}'
             )
             self.info_logger.set_high_level_generation_failed(unit_name)
             self.info_logger.add_exception(unit_name, traceback.format_exc())
-            return []
+            return RequirementsCollection([])
+
+        return RequirementsCollection([])

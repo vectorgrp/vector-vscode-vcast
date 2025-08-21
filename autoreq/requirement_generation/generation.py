@@ -1,11 +1,16 @@
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, cast
 from pydantic import BaseModel, create_model
 import traceback
 
-from autoreq.util import get_executable_statement_groups
+from autoreq.util import get_executable_statement_groups, StatementGroup
 from autoreq.info_logger import RequirementGenerationInfoLogger
 
+from ..requirements_collection import (
+    Requirement,
+    RequirementLocation,
+    RequirementsCollection,
+)
 from ..llm_client import LLMClient
 from ..test_generation.vcast_context_builder import VcastContextBuilder
 
@@ -51,15 +56,18 @@ def _derive_requirement_schema(num_parts):
     class TestCase(BaseModel):
         description: str
 
-    class Requirement(BaseModel):
+    class RequirementSchema(BaseModel):
         statement: str
 
     # Create fields for each semantic part
-    result_keys = {
+    result_keys: Dict[str, Any] = {
         f'test_case_for_part_{i + 1}': (TestCase, ...) for i in range(num_parts)
     }
     result_keys.update(
-        {f'requirement_for_part_{i + 1}': (Requirement, ...) for i in range(num_parts)}
+        {
+            f'requirement_for_part_{i + 1}': (RequirementSchema, ...)
+            for i in range(num_parts)
+        }
     )
 
     return create_model('RequirementGenerationResult', **result_keys)
@@ -86,7 +94,7 @@ class RequirementsGenerator:
         self.context_builder = VcastContextBuilder(environment)
         self.info_logger = RequirementGenerationInfoLogger()
 
-    def extract_semantic_parts(self, function_name: str) -> List[Dict[str, Any]]:
+    def extract_semantic_parts(self, function_name: str) -> List[StatementGroup]:
         function_body = self.environment.tu_codebase.find_definitions_by_name(
             function_name
         )[0]
@@ -97,7 +105,7 @@ class RequirementsGenerator:
 
     async def _postprocess_requirements(
         self, function_name: str, requirements: List[str], allow_merge=True
-    ) -> List[Dict[str, Any]]:
+    ) -> List[str]:
         function_body = self.environment.tu_codebase.find_definitions_by_name(
             function_name
         )[0]
@@ -140,7 +148,7 @@ Notes:
             response = await self.llm_client.call_model(
                 [{'role': 'user', 'content': prompt}], ReworkedRequirementsResult
             )
-            return response.reworked_requirements
+            return cast(ReworkedRequirementsResult, response).reworked_requirements
         except Exception as e:
             logging.exception(
                 f'Postprocessing failed for function {function_name}: {e}'
@@ -150,16 +158,16 @@ Notes:
 
             # Return original requirements if postprocessing fails
             return requirements
+        return []
 
     async def generate(
         self,
         function_name: str,
         post_process_requirements=True,
-        return_covered_semantic_parts=False,
-    ):
+    ) -> RequirementsCollection:
         """Generate requirements based on function name."""
 
-        if post_process_requirements and return_covered_semantic_parts:
+        if post_process_requirements:
             logging.warning(
                 'Semantic parts will not correspond to the requirements if you ask for them to be post-processed.'
             )
@@ -224,7 +232,7 @@ bool validate_password(const char* password) {{
         return false;
     }}
     bool has_uppercase = false;
-    for (int i = 0; password[i] != '\0'; i++) {{
+    for (int i = 0; password[i] != '\\0'; i++) {{
         if (isupper(password[i])) {{
             has_uppercase = true;
             break;
@@ -320,10 +328,7 @@ The success of this task is critical. If you do not generate exactly one test ca
                     self.info_logger.add_exception(
                         function_name, traceback.format_exc()
                     )
-                    # Return empty list if generation fails
-                    if return_covered_semantic_parts:
-                        return [], semantic_parts
-                    return []
+                    return RequirementsCollection([])
             requirements = all_requirements
         else:
             try:
@@ -345,10 +350,7 @@ The success of this task is critical. If you do not generate exactly one test ca
                 self.info_logger.set_requirement_generation_failed(function_name)
                 self.info_logger.add_exception(function_name, traceback.format_exc())
 
-                # Return empty list if generation fails
-                if return_covered_semantic_parts:
-                    return [], semantic_parts
-                return []
+                return RequirementsCollection([])
 
         if post_process_requirements:
             requirements = await self._postprocess_requirements(
@@ -357,7 +359,45 @@ The success of this task is critical. If you do not generate exactly one test ca
                 allow_merge=self.combine_related_requirements,
             )
 
-        if return_covered_semantic_parts:
-            return requirements, semantic_parts
+        final_reqs = []
+        unit_name = self._get_function_unit(function_name)
 
-        return requirements
+        for i, req_text in enumerate(requirements):
+            req_id = f'{function_name}.{i + 1}'
+
+            if post_process_requirements:
+                req_location = RequirementLocation(
+                    unit=unit_name,
+                    function=function_name,
+                    lines=None,  # Lines are not available after post-processing
+                )
+            else:
+                semantic_part = semantic_parts[i]
+                req_location = RequirementLocation(
+                    unit=unit_name,
+                    function=function_name,
+                    lines=semantic_part.line_numbers,
+                )
+
+            final_reqs.append(
+                Requirement(
+                    key=req_id,
+                    id=req_id,
+                    title=req_text,
+                    description=req_text,
+                    location=req_location,
+                )
+            )
+
+        req_collection = RequirementsCollection(final_reqs)
+
+        return req_collection
+
+    def _get_function_unit(self, function_name):
+        matching_func_info = next(
+            func_info
+            for func_info in self.environment.testable_functions
+            if func_info['name'] == function_name
+        )
+
+        return matching_func_info['unit_name']

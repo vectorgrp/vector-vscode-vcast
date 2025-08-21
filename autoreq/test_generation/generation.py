@@ -7,6 +7,7 @@ from pydantic import create_model
 from dotenv import load_dotenv
 import logging
 
+from autoreq.requirements_collection import RequirementsCollection
 from autoreq.test_generation.test_patcher import TestPatcher
 from autoreq.util import get_relevant_statement_groups
 
@@ -24,7 +25,6 @@ load_dotenv()
 class TestGenerator:
     def __init__(
         self,
-        requirements_manager,
         environment,
         use_extended_reasoning=False,
         min_prune_lines=1000,
@@ -34,7 +34,6 @@ class TestGenerator:
         blackbox=False,
         with_test_patcher=True,
     ):
-        self.requirements_manager = requirements_manager
         self.environment = environment
         self.llm_client = LLMClient()
         self.atg_context_builder = ATGContextBuilder(self.environment)
@@ -57,39 +56,33 @@ class TestGenerator:
         else:
             self.test_patcher = None
 
-    def _group_requirements_into_batches(self, requirement_ids, batch_size):
+    def _group_requirements_into_batches(self, requirements, batch_size):
         """Group requirements by function and split into batches of specified size."""
-        # Group by function
-        by_function = {}
-        for req_id in requirement_ids:
-            func = self.requirements_manager.get_function(req_id)
-            if func not in by_function:
-                by_function[func] = []
-            by_function[func].append(req_id)
+        by_function_reqs = requirements.group_by(lambda r: r.location.function)
 
         # Split each function's requirements into batches
         batches = []
-        for func_reqs in by_function.values():
+        for func_reqs in by_function_reqs.values():
             for i in range(0, len(func_reqs), batch_size):
                 batches.append(func_reqs[i : i + batch_size])
 
-        return batches
+        return list(map(RequirementsCollection, batches))
 
     async def generate_test_cases(
         self,
-        requirement_ids,
+        requirements,
         batched=True,
         allow_partial=False,
         allow_batch_partial=False,
         batch_size=8,
         **kwargs,
     ):
-        if not requirement_ids:
+        if not requirements:
             return
 
         if batched:
             # Split requirements into appropriate batches
-            batches = self._group_requirements_into_batches(requirement_ids, batch_size)
+            batches = self._group_requirements_into_batches(requirements, batch_size)
 
             # Create generators
             generators = [
@@ -107,32 +100,32 @@ class TestGenerator:
 
         else:
             routines = [
-                self.generate_test_case(req_id, allow_partial=allow_partial, **kwargs)
-                for req_id in requirement_ids
+                self.generate_test_case(
+                    requirement, allow_partial=allow_partial, **kwargs
+                )
+                for requirement in requirements
             ]
             for test_case in asyncio.as_completed(routines):
                 yield await test_case
 
     async def generate_batched_test_cases(
-        self, requirement_ids, allow_partial=False, individual_partial=False, **kwargs
+        self, requirements, allow_partial=False, individual_partial=False, **kwargs
     ):
-        logging.info(f'Generating batched test cases: {requirement_ids}')
-        if not requirement_ids:
+        logging.info(f'Generating batched test cases: {requirements.requirement_keys}')
+        if not requirements:
             return
 
-        for req_id in requirement_ids:
-            self.info_logger.start_requirement(req_id)
+        for req in requirements:
+            self.info_logger.start_requirement(req.key)
 
         # Verify all requirements belong to the same function using requirements_manager
-        functions = {
-            self.requirements_manager.get_function(req_id) for req_id in requirement_ids
-        }
+        functions = {req.location.function for req in requirements}
         if len(functions) != 1:
             logging.warning(
                 'Requirements from different functions detected in batch. Falling back to individual generation.'
             )
             async for test_case in self.generate_test_cases(
-                requirement_ids,
+                requirements,
                 batched=False,
                 allow_partial=individual_partial,
                 **kwargs,
@@ -149,23 +142,16 @@ class TestGenerator:
 
         # Extract relevant function lines
         if num_lines >= self.min_prune_lines:
-            requirement_relevant_lines_map = (
-                await self._relevant_lines_for_all_func_requirements(function_name)
-            )
-            relevant_lines = tuple(
-                set(
-                    line
-                    for req_id in requirement_ids
-                    for line in requirement_relevant_lines_map[req_id]
-                )
+            relevant_lines = await self._get_relevant_lines_for_requirements(
+                requirements
             )
         else:
             relevant_lines = None
 
         requirements_text = '\n'.join(
             [
-                f'{i + 1}. {req_id}: {self.requirements_manager.get_description(req_id)}'
-                for i, req_id in enumerate(requirement_ids)
+                f'{i + 1}. {req.key}: {req.description}'
+                for i, req in enumerate(requirements)
             ]
         )
 
@@ -177,8 +163,8 @@ class TestGenerator:
             focus_lines=relevant_lines,
             blackbox=self.blackbox,
         )
-        for req_id in requirement_ids:
-            self.info_logger.set_used_code_context_fallback(req_id, used_fallback)
+        for req in requirements:
+            self.info_logger.set_used_code_context_fallback(req.key, used_fallback)
 
         # Build ATG context
         context_lines = len(context.strip().split('\n'))
@@ -191,8 +177,8 @@ class TestGenerator:
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(
             function_name, k=num_examples, basis_path=basis_path
         )
-        for req_id in requirement_ids:
-            self.info_logger.set_no_atg_examples(req_id, len(atg_examples) == 0)
+        for req in requirements:
+            self.info_logger.set_no_atg_examples(req.key, len(atg_examples) == 0)
 
         if num_examples > 0 and self.use_test_examples:
             example_test_cases_section = f"""
@@ -210,17 +196,17 @@ Example Test Cases:
         schema, gen_info = self.schema_builder.derive_completion_schema(
             function_name=function_name,
             batched=True,
-            batch_size=len(requirement_ids),
+            batch_size=len(requirements),
             focus_lines=relevant_lines,
             return_schema_gen_info=True,
         )
 
-        for req_id in requirement_ids:
+        for req in requirements:
             self.info_logger.set_schema_exceeded_size(
-                req_id, gen_info.too_many_identifiers
+                req.key, gen_info.too_many_identifiers
             )
             self.info_logger.set_found_no_allowed_identifiers(
-                req_id, gen_info.no_identifiers_found
+                req.key, gen_info.no_identifiers_found
             )
 
         # If we prune, we can also give identifiers
@@ -299,11 +285,11 @@ Return your answer in the following format:
                 'Failed to generate batched test cases because model call failed. Falling back to individual generation.'
             )
 
-            for req_id in requirement_ids:
-                self.info_logger.add_exception(req_id, traceback.format_exc())
+            for req in requirements:
+                self.info_logger.add_exception(req.key, traceback.format_exc())
 
             async for test_case in self.generate_test_cases(
-                requirement_ids,
+                requirements,
                 batched=False,
                 allow_partial=individual_partial,
                 **kwargs,
@@ -312,23 +298,24 @@ Return your answer in the following format:
             return
 
         test_cases = []
-        for i, req_id in enumerate(requirement_ids):
+        for i, _ in enumerate(requirements):
             test_case = getattr(
                 test_generation_result, f'test_case_for_requirement_{i + 1}'
             )
             test_cases.append(test_case)
 
-        unseen_requirements = set(requirement_ids)
+        unseen_requirement_keys = requirements.requirement_keys
 
         async def process_generated_test_case(test_case):
-            nonlocal unseen_requirements
+            nonlocal unseen_requirement_keys
 
-            if test_case.requirement_id in unseen_requirements:
-                unseen_requirements.remove(test_case.requirement_id)
+            if test_case.requirement_id in unseen_requirement_keys:
+                unseen_requirement_keys.remove(test_case.requirement_id)
             else:
                 logging.warning(
-                    f'Requirement {test_case.requirement_id} was generated multiple times or was not requested.'
+                    f'Requirement {test_case.requirement_id} was generated multiple times or was not requested. Aborting generation.'
                 )
+                return
 
             errors, test_failures = self._run_test_case_and_report(test_case)
 
@@ -341,7 +328,7 @@ Return your answer in the following format:
                 #    self.info_logger.set_test_run_failure_feedback(test_case.requirement_id)
 
                 return await self.generate_test_case(
-                    test_case.requirement_id,
+                    requirements[test_case.requirement_id],
                     already_started=True,
                     allow_partial=individual_partial,
                     **kwargs,
@@ -360,37 +347,37 @@ Return your answer in the following format:
         ):
             yield await test_case
 
-        if unseen_requirements:
+        if unseen_requirement_keys:
             routines = [
                 self.generate_test_case(
-                    req_id,
+                    requirements[req_key],
                     already_started=True,
                     allow_partial=individual_partial,
                     **kwargs,
                 )
-                for req_id in unseen_requirements
+                for req_key in unseen_requirement_keys
             ]
             for test_case in asyncio.as_completed(routines):
                 yield await test_case
 
     async def generate_test_case(
-        self, requirement_id, already_started=False, max_retries=1, allow_partial=False
+        self, requirement, already_started=False, max_retries=1, allow_partial=False
     ):
         try:
             if not already_started:
-                self.info_logger.start_requirement(requirement_id)
+                self.info_logger.start_requirement(requirement.key)
 
-            self.info_logger.set_individual_test_generation_needed(requirement_id)
+            self.info_logger.set_individual_test_generation_needed(requirement.key)
 
             first_try = True
             for i in range(max_retries):
-                self.info_logger.increment_retries_used(requirement_id)
+                self.info_logger.increment_retries_used(requirement.key)
                 # temperature = 0.0 if first_try else 1.0
                 temperature = 0.0
                 # extended_reasoning = self.use_extended_reasoning and not first_try
                 extended_reasoning = self.use_extended_reasoning
                 result = await self._generate_test_case_no_retries(
-                    requirement_id,
+                    requirement,
                     temperature=temperature,
                     extended_reasoning=extended_reasoning,
                     allow_partial=allow_partial,
@@ -398,36 +385,35 @@ Return your answer in the following format:
                     relax_schema=not first_try,
                 )
                 if result:
-                    self.info_logger.set_test_generated(requirement_id)
+                    self.info_logger.set_test_generated(requirement.key)
                     return self._patch_test_case(result)
                 else:
                     first_try = False
         except Exception:
             import traceback
 
-            self.info_logger.add_exception(requirement_id, traceback.format_exc())
+            self.info_logger.add_exception(requirement.key, traceback.format_exc())
             logging.exception(
-                f'Failed to generate test case for requirement {requirement_id}: {traceback.format_exc()}'
+                f'Failed to generate test case for requirement {requirement.key}: {traceback.format_exc()}'
             )
 
         return None
 
     async def _generate_test_case_no_retries(
         self,
-        requirement_id,
+        requirement,
         temperature=0.0,
         extended_reasoning=False,
         allow_partial=False,
         reword_requirement=None,
         relax_schema=False,
     ):
-        requirement_text = self.requirements_manager.get_description(requirement_id)
-        if not requirement_text:
-            logging.warning(f'Requirement {requirement_id} not found.')
-            return None
+        requirement_text = requirement.description
 
         if reword_requirement:
-            logging.info(f'Original requirement ({requirement_id}): {requirement_text}')
+            logging.info(
+                f'Original requirement ({requirement.key}): {requirement_text}'
+            )
             requirement_text = await self.llm_client.call_model(
                 messages=[
                     {
@@ -446,15 +432,12 @@ Return your answer in the following format:
                 temperature=temperature,
             )
             requirement_text = requirement_text.reworded_requirement
-            logging.info(f'Reworded requirement ({requirement_id}): {requirement_text}')
-
-        function_name = self.requirements_manager.get_function(requirement_id)
-        if not function_name:
-            logging.warning(f'Function not found for requirement {requirement_id}.')
-            return None
+            logging.info(
+                f'Reworded requirement ({requirement.key}): {requirement_text}'
+            )
 
         # Extract basic function info
-        function_name = self.requirements_manager.get_function(requirement_id)
+        function_name = requirement.location.function
         func_body = self.environment.tu_codebase.find_definitions_by_name(
             function_name
         )[0]
@@ -463,10 +446,9 @@ Return your answer in the following format:
         # Extract relevant lines
         # TODO: Maybe have this lower than for batch
         if num_lines >= self.min_prune_lines:
-            requirement_relevant_lines_map = (
-                await self._relevant_lines_for_all_func_requirements(function_name)
+            relevant_lines = await self._get_relevant_lines_for_requirements(
+                RequirementsCollection([requirement])
             )
-            relevant_lines = requirement_relevant_lines_map[requirement_id]
         else:
             relevant_lines = None
 
@@ -480,10 +462,10 @@ Return your answer in the following format:
         )
 
         self.info_logger.set_schema_exceeded_size(
-            requirement_id, gen_info.too_many_identifiers
+            requirement.key, gen_info.too_many_identifiers
         )
         self.info_logger.set_found_no_allowed_identifiers(
-            requirement_id, gen_info.no_identifiers_found
+            requirement.key, gen_info.no_identifiers_found
         )
 
         # If we prune, we can also give identifiers
@@ -501,20 +483,8 @@ Return your answer in the following format:
             focus_lines=relevant_lines,
             blackbox=self.blackbox,
         )
-        self.info_logger.set_used_code_context_fallback(requirement_id, used_fallback)
+        self.info_logger.set_used_code_context_fallback(requirement.key, used_fallback)
         logging.debug('Generated code context: %s', context)
-
-        """
-        func_code = self.environment.tu_codebase.find_definitions_by_name(function_name)[0]
-        relevant_groups = await get_relevant_statement_groups(func_code, requirement_text)
-
-        prettified_groups = []
-        for i, part in enumerate(relevant_groups):
-            index_prefix = f"{i+1}. "
-            prettified_groups.append(index_prefix + str(part))
-
-        groups_text = "\n".join(prettified_groups)
-        """
 
         # Determine number of example test cases based on context length
         context_lines = len(context.strip().split('\n'))
@@ -532,7 +502,7 @@ Return your answer in the following format:
         )
         logging.debug('Retrieved ATG examples: %s', atg_examples)
 
-        self.info_logger.set_no_atg_examples(requirement_id, len(atg_examples) == 0)
+        self.info_logger.set_no_atg_examples(requirement.key, len(atg_examples) == 0)
 
         with open(TEST_FRAMEWORK_REFERENCE_PATH, 'r') as f:
             test_framework_reference = f.read()
@@ -565,7 +535,7 @@ Relevant Code:
 {context}
 ```
 {example_test_cases_section}
-Requirement ID: {requirement_id}
+Requirement ID: {requirement.key}
 Requirement Text: {requirement_text}
 
 Detailed task description:
@@ -606,14 +576,14 @@ Notes:
         except Exception as e:
             import traceback
 
-            self.info_logger.add_exception(requirement_id, traceback.format_exc())
+            self.info_logger.add_exception(requirement.key, traceback.format_exc())
             logging.exception(
-                f'Call to model failed for requirement {requirement_id}: {e}'
+                f'Call to model failed for requirement {requirement.key}: {e}'
             )
             return None
 
         test_generation_result = await self._iterative_error_correction(
-            requirement_id,
+            requirement,
             test_generation_result,
             messages,
             schema,
@@ -631,29 +601,30 @@ Notes:
         return test_generation_result.test_case
 
     @alru_cache(maxsize=4096)
-    async def _relevant_lines_for_all_func_requirements(self, function_name):
-        func_requirements = {
-            req: self.requirements_manager.get_description(req)
-            for req in self.requirements_manager.get_requirements_for_function(
-                function_name
-            )
-        }
-        func_body = self.environment.tu_codebase.find_definitions_by_name(
-            function_name
-        )[0]
+    async def _get_relevant_lines_for_requirements(self, requirements):
+        func_names = {req.location.function for req in requirements}
 
-        relevant_semantic_parts = await get_relevant_statement_groups(
-            func_body, func_requirements.values(), llm_client=self.llm_client
+        if len(func_names) != 1:
+            raise ValueError(
+                'Can only get relevant lines for requirements of a single function'
+            )
+
+        func_name = func_names.pop()
+        func_body = self.environment.tu_codebase.find_definitions_by_name(func_name)[0]
+
+        req_descriptions = [req.description for req in requirements]
+
+        relevant_semantic_parts_list = await get_relevant_statement_groups(
+            func_body, req_descriptions, llm_client=self.llm_client
         )
 
-        result = {}
-        for req, parts in zip(func_requirements, relevant_semantic_parts):
-            relevant_line_numbers = tuple(
-                set(line for group in parts for line in group.line_numbers)
-            )
-            result[req] = relevant_line_numbers
+        all_relevant_lines = set()
+        for relevant_parts in relevant_semantic_parts_list:
+            for relevant_part in relevant_parts:
+                for line in relevant_part.line_numbers:
+                    all_relevant_lines.add(line)
 
-        return result
+        return tuple(sorted(all_relevant_lines))
 
     def _build_identifier_section(
         self, input_identifiers, expected_identifiers, num_lines
@@ -819,7 +790,7 @@ An expected value is not required for all identifiers. Only for those relevant t
 
     async def _iterative_error_correction(
         self,
-        requirement_id,
+        requirement,
         test_generation_result,
         messages,
         schema,
@@ -851,10 +822,10 @@ An expected value is not required for all identifiers. Only for those relevant t
 
             # Set test_run_failure_feedback only if test failures are detected
             if test_failures:
-                self.info_logger.set_test_run_failure_feedback(requirement_id)
+                self.info_logger.set_test_run_failure_feedback(requirement.key)
 
             if errors or test_failures:
-                self.info_logger.set_error_correction_needed(requirement_id)
+                self.info_logger.set_error_correction_needed(requirement.key)
                 # Prepare new messages with errors for the model
                 logging.info('Errors detected in test case. Iteration %d', iteration)
                 fix_messages += [
@@ -906,10 +877,10 @@ Tip:
                     import traceback
 
                     self.info_logger.add_exception(
-                        requirement_id, traceback.format_exc()
+                        requirement.key, traceback.format_exc()
                     )
                     logging.exception(
-                        f'Call to model failed for requirement {requirement_id} (during error correction): {e}'
+                        f'Call to model failed for requirement {requirement.key} (during error correction): {e}'
                     )
                     return None
 

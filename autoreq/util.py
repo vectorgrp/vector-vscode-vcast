@@ -1,4 +1,5 @@
 from __future__ import annotations
+import contextlib
 import typing as t
 import re
 import glob
@@ -1565,3 +1566,15 @@ def execute_vectorcast_command(
         check=False,
         shell=False,
     )
+
+
+@contextlib.contextmanager
+def temporary_working_directory(path):
+    previous_wd = os.getcwd()
+
+    os.chdir(os.path.abspath(path))
+
+    try:
+        yield
+    finally:
+        os.chdir(previous_wd)
