@@ -16,7 +16,7 @@ import { enviroDataType } from "../src-common/commonUtilities";
 import { vectorMessage } from "./messagePane";
 import {
   vcastInstallationDirectory,
-  resolveVectorCastInstallationLocation,
+  getVectorCastInstallationLocation,
 } from "./vcastInstallation";
 
 let client: LanguageClient;
@@ -35,7 +35,7 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   let vcDir: string | undefined =
     vcastInstallationDirectory != null
       ? vcastInstallationDirectory
-      : resolveVectorCastInstallationLocation(false);
+      : getVectorCastInstallationLocation();
 
   if (vcDir) {
     let serverOptions: ServerOptions = {
