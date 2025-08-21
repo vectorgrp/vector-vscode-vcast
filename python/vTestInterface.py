@@ -784,7 +784,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
                 enviro_list.append(
                     {
-                        "vcePath": vce_path,
+                        "vcePath": normalize_path(vce_path),
                         "testData": test_data,
                         "unitData": unit_data,
                         "mockingSupport": mocking_support,
@@ -1004,6 +1004,29 @@ def getMCDCLines(enviroPath):
             returnText = f"Error: {str(e)}\n"
 
         return returnText
+
+
+def normalize_path(path: str) -> str:
+    """
+    Normalize a path so it matches the behavior of the TS normalizePath function.
+    - On Windows: force lowercase drive letter + convert backslashes to forward slashes.
+    - On other OS: return unchanged.
+    """
+    if not path:
+        return ""
+
+    return_path = path
+
+    if os.name == "nt":  # Windows
+        # Handle drive letter
+        if len(path) > 1 and path[1] == ":":
+            drive_letter = path[0].lower()
+            return_path = drive_letter + path[1:]
+
+        # Replace backslashes with forward slashes
+        return_path = return_path.replace("\\", "/")
+
+    return return_path
 
 
 def main():
