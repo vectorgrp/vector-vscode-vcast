@@ -37,6 +37,7 @@ class commandType(str, Enum):
     choiceListCT = "choiceList-ct"
     mcdcReport = "mcdcReport"
     mcdcLines = "mcdcLines"
+    atgLineTst = "atgLineTst"
 
 
 class clientRequest:

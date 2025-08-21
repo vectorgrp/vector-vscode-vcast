@@ -16,6 +16,7 @@ import {
 } from "./testData";
 
 import {
+  getEnvPathForFilePath,
   jsoncModificationOptions,
   jsoncParseErrors,
   jsoncParseOptions,
@@ -24,6 +25,7 @@ import {
 
 import {
   dumpTestScriptFile,
+  getATGLineTest,
   openProjectInVcast,
   runATGCommands,
   runBasisPathCommands,
@@ -32,8 +34,10 @@ import {
 import { cleanProjectEnvironment } from "./manage/manageSrc/manageCommands";
 
 import {
+  atgCommandToUse,
   clicastCommandToUse,
   configFileContainsCorrectInclude,
+  globalATGLineLoaderPath,
   globalIncludePath,
   globalMCDCReportPath,
   globalTestInterfacePath,
@@ -821,4 +825,24 @@ export function getLevelFromNodeId(path: string) {
   const level = path.substring(remainderStart);
 
   return { projectName, level };
+}
+
+export async function loadATGLineTest(sourceFile: string, lineNumber: number) {
+  const enviroPath = getEnvPathForFilePath(sourceFile);
+  const enclosingDirectory = path.dirname(enviroPath);
+  const timeStamp = Date.now().toString();
+  const tempScriptPath = path.join(
+    enclosingDirectory,
+    `vcast-${timeStamp}.tst`
+  );
+  if (enviroPath) {
+    await getATGLineTest(lineNumber, tempScriptPath, enviroPath);
+  } else {
+    vectorMessage(`No Environment found for ${sourceFile}`);
+  }
+}
+
+export function getATGLineTestCommand(scriptPath: string, lineNumber: number) {
+  const commandToRun = `${vPythonCommandToUse} ${globalATGLineLoaderPath} VCAST_ATG_GET_ME_HERE=${lineNumber} ${atgCommandToUse} ${scriptPath}`;
+  return commandToRun;
 }

@@ -134,6 +134,7 @@ import {
   getEnviroNameFromFile,
   getLevelFromNodeId,
   getVcmRoot,
+  loadATGLineTest,
   openProjectFromEnviroPath,
   openTestScript,
 } from "./vcastUtilities";
@@ -1855,6 +1856,124 @@ async function installPreActivationEventHandlers(
            window.compilerData = ${compilerList};
          </script>\n</head>`
       );
+
+    return html;
+  }
+
+  const getATGTestForLineCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.getATGTestForLine",
+    async (args) => {
+      const activeEditor = vscode.window.activeTextEditor;
+      let filePath =
+        activeEditor?.document.uri.fsPath ?? args?.uri?.fsPath ?? "";
+      let lineNumber =
+        args?.lineNumber ??
+        (activeEditor ? activeEditor.selection.active.line + 1 : "");
+
+      if (!filePath || !lineNumber) {
+        vscode.window.showErrorMessage("No file or line number available.");
+        return;
+      }
+
+      // Create webview panel
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "getATGTestForLine",
+        "Get ATG Test for Line",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      panel.webview.html = await getATGWebviewContent(
+        context,
+        panel,
+        filePath,
+        lineNumber
+      );
+
+      panel.webview.onDidReceiveMessage(
+        async (msg) => {
+          switch (msg.command) {
+            case "submit": {
+              const { sourceFile, line, testScriptName } = msg;
+
+              // Validation checks
+              if (!sourceFile || sourceFile.trim() === "") {
+                vscode.window.showErrorMessage("Source file path is required.");
+                return;
+              }
+              if (!fs.existsSync(sourceFile)) {
+                vscode.window.showErrorMessage(`File not found: ${sourceFile}`);
+                return;
+              }
+              if (!line || isNaN(Number(line)) || Number(line) <= 0) {
+                vscode.window.showErrorMessage(
+                  "Line number must be a positive integer."
+                );
+                return;
+              }
+
+              // Continue if valid
+              await loadATGLineTest(sourceFile, lineNumber);
+              vscode.window.showInformationMessage(
+                `Fetching ATG test '${testScriptName}' for ${sourceFile}:${line}`
+              );
+              panel.dispose();
+              break;
+            }
+            case "cancel":
+              panel.dispose();
+              break;
+          }
+        },
+        undefined,
+        context.subscriptions
+      );
+    }
+  );
+
+  context.subscriptions.push(getATGTestForLineCmd);
+
+  async function getATGWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    sourceFile: string,
+    lineNumber: number
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "getATGTestForLine.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "getATGTestForLine.js")
+    );
+    const htmlPath = path.join(base, "html", "getATGTestForLine.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+    html = html.replace(
+      /<head>/,
+      `<head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
+          panel.webview.cspSource
+        }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+        <script nonce="${nonce}">
+          window.defaultSourceFile = ${JSON.stringify(sourceFile)};
+          window.defaultLineNumber = ${JSON.stringify(lineNumber)};
+        </script>`
+    );
+    html = html.replace("{{ cssUri }}", cssUri.toString());
+    html = html.replace(
+      "{{ scriptUri }}",
+      `<script nonce="${nonce}" src="${scriptUri}"></script>`
+    );
 
     return html;
   }

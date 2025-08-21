@@ -43,6 +43,7 @@ import {
 } from "./vcastInstallation";
 
 import {
+  getATGLineTestCommand,
   getClientRequestObject,
   getMCDCLineCoverageCommand,
   getRebuildOptionsString,
@@ -1028,5 +1029,27 @@ async function getMCDCCoverageLinesFromServer(
     await transmitCommand(requestObject);
 
   const commandStatus = convertServerResponseToCommandStatus(transmitResponse);
+  return cleanVectorcastOutput(commandStatus.stdout);
+}
+
+export async function getATGLineTest(
+  lineNumber: number,
+  tstScriptPath: string,
+  enviroPath: string
+): Promise<string> {
+  return getATGLineTestFromPython(lineNumber, tstScriptPath, enviroPath);
+}
+
+function getATGLineTestFromPython(
+  lineNumber: number,
+  tstScriptPath: string,
+  enviroPath: string
+): string {
+  //
+  const commandToRun = getATGLineTestCommand(tstScriptPath, lineNumber);
+  const commandStatus: commandStatusType = executeCommandSync(
+    commandToRun,
+    process.cwd()
+  );
   return cleanVectorcastOutput(commandStatus.stdout);
 }

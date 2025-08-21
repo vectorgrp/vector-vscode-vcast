@@ -46,6 +46,7 @@ if (process.platform == "linux") {
 
 export let globalTestInterfacePath: string | undefined = undefined;
 export let globalMCDCReportPath: string | undefined = undefined;
+export let globalATGLineLoaderPath: string | undefined = undefined;
 let globalEnviroDataServerPath: string;
 
 export function getGlobalEnviroDataServerPath() {
@@ -82,6 +83,19 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
   if (fs.existsSync(pathToTestInterface)) {
     vectorMessage("Found vTestInterface here: " + pathToTestInterface);
     globalTestInterfacePath = `${pathToTestInterface}`;
+  }
+
+  if (fs.existsSync(pathToMCDCReport)) {
+    vectorMessage("Found mcdcReport here: " + pathToMCDCReport);
+    globalMCDCReportPath = `${pathToMCDCReport}`;
+  }
+
+  const pathToATGLineLoader = context.asAbsolutePath(
+    "./python/atgLineLoader.py"
+  );
+  if (fs.existsSync(pathToATGLineLoader)) {
+    vectorMessage("Found atgLineLoader here: " + pathToATGLineLoader);
+    globalATGLineLoaderPath = `${pathToATGLineLoader}`;
   }
 
   if (fs.existsSync(pathToMCDCReport)) {
