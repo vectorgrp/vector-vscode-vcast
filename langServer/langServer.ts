@@ -16,12 +16,7 @@ import { setGLobalServerState, setServerPort } from "../src-common/vcastServer";
 
 import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 
-import {
-  generateDiagnosticForTest,
-  initializePaths,
-  updateVPythonCommandForLanguageServer,
-  updateClicastCommandForLanguageServer,
-} from "./pythonUtilities";
+import { generateDiagnosticForTest, initializePaths } from "./pythonUtilities";
 
 import {
   buildCompletionList,

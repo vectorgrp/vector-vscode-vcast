@@ -3,9 +3,9 @@ import path from "node:path";
 import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import {
+  updateVPythonCommandForLanguageServer,
   getVPythonCommand,
   generateDiagnosticForTest,
-  updateVPythonCommandForLanguageServer,
 } from "../../langServer/pythonUtilities";
 import { setupDiagnosticTest } from "./utils";
 

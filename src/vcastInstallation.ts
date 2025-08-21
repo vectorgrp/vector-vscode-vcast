@@ -18,7 +18,6 @@ import { executeCommandSync, executeVPythonScript } from "./vcastCommandRunner";
 
 const fs = require("fs");
 const path = require("path");
-const which = require("which");
 
 export let vcastInstallationDirectory: string = "";
 export let vcastInstallationVersion: toolVersionType = {
@@ -32,7 +31,6 @@ export const manageName = "manage";
 export let manageCommandToUse: string;
 
 const vPythonName = "vpython";
-const vpythonFromPath = which.sync(vPythonName, { nothrow: true });
 export let vPythonCommandToUse: string;
 
 const vcastqtName = "vcastqt";
@@ -241,44 +239,100 @@ function checkForATG(vcastInstallationPath: string) {
   }
 }
 
-export function getVectorCastInstallationLocation(): string | undefined {
-  // Priority 1: extension option
+export function resolveVectorCastInstallationLocation(
+  includeLogs: boolean
+): string | undefined {
+  let vcastInstallationPath: string | undefined;
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   const installationOptionString = settings.get(
     "vectorcastInstallationLocation",
     ""
   );
+  const VECTORCAST_DIR = process.env["VECTORCAST_DIR"];
+  const pathDirs = process.env["PATH"]?.split(path.delimiter) || [];
 
+  // --- Priority 1: extension option ---
   if (installationOptionString.length > 0) {
     const candidatePath = path.join(
       installationOptionString,
       exeFilename("vpython")
     );
     if (fs.existsSync(candidatePath)) {
-      return installationOptionString;
+      vcastInstallationPath = installationOptionString;
+      if (includeLogs) {
+        vPythonCommandToUse = candidatePath;
+        sendVCDirCommandToLanguageServer(vcastInstallationPath);
+        vectorMessage(
+          `   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`
+        );
+      }
+    } else if (includeLogs) {
+      vectorMessage(
+        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}`
+      );
+      vectorMessage(
+        "   use the extension options to provide a valid VectorCAST installation directory."
+      );
+      showSettings();
     }
   }
 
-  // Priority 2: VECTORCAST_DIR environment variable
-  const VECTORCAST_DIR = process.env["VECTORCAST_DIR"];
-  if (VECTORCAST_DIR) {
+  // --- Priority 2: VECTORCAST_DIR ---
+  else if (VECTORCAST_DIR) {
     const candidatePath = path.join(VECTORCAST_DIR, exeFilename("vpython"));
     if (fs.existsSync(candidatePath)) {
-      return VECTORCAST_DIR;
+      vcastInstallationPath = VECTORCAST_DIR;
+      if (includeLogs) {
+        vPythonCommandToUse = candidatePath;
+        vectorMessage(
+          `   found '${vPythonName}' using VECTORCAST_DIR [${VECTORCAST_DIR}]`
+        );
+      }
+    } else if (includeLogs) {
+      vectorMessage(
+        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}`
+      );
+      showSettings();
     }
   }
 
-  // Priority 3: system PATH
-  const pathDirs = process.env["PATH"]?.split(path.delimiter) || [];
-  for (const dir of pathDirs) {
-    const candidatePath = path.join(dir, exeFilename("vpython"));
-    if (fs.existsSync(candidatePath)) {
-      // Resolve up to the install root (vpython is under the install dir)
-      return path.dirname(candidatePath);
+  // --- Priority 3: system PATH ---
+  else {
+    for (const dir of pathDirs) {
+      const candidatePath = path.join(dir, exeFilename("vpython"));
+      if (fs.existsSync(candidatePath)) {
+        vcastInstallationPath = path.dirname(candidatePath);
+        if (includeLogs) {
+          vPythonCommandToUse = candidatePath;
+          vectorMessage(
+            `   found '${vPythonName}' on the system path [${vcastInstallationPath}]`
+          );
+        }
+        break;
+      }
     }
   }
 
-  return undefined; // not found
+  // --- Not found ---
+  if (!vcastInstallationPath) {
+    if (includeLogs) {
+      vectorMessage(
+        `   '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set`
+      );
+      vectorMessage(
+        "   use the extension options to provide a valid VectorCAST Installation Location."
+      );
+      showSettings();
+    } else {
+      vectorMessage(
+        "Unable to start the Language Server: VectorCAST installation not found. " +
+          "Please set the VECTORCAST_DIR environment variable, or open the extension settings " +
+          "and configure 'VectorCAST Installation Location' to point to your VectorCAST install directory."
+      );
+    }
+  }
+
+  return vcastInstallationPath;
 }
 
 function findVcastTools(): boolean {
@@ -291,79 +345,8 @@ function findVcastTools(): boolean {
   // return value
   let foundAllvcastTools = false;
 
-  // value of the extension option
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  const installationOptionString = settings.get(
-    "vectorcastInstallationLocation",
-    ""
-  );
-
-  // value of VECTORCAST_DIR
-  const VECTORCAST_DIR = process.env["VECTORCAST_DIR"];
-
-  // VectorCAST installation location
-  let vcastInstallationPath: string | undefined = undefined;
-
-  // priority 1 is the option value, since this lets the user over-ride PATH or VECTORCAST_DIR
-  if (installationOptionString.length > 0) {
-    const candidatePath = path.join(
-      installationOptionString,
-      exeFilename(vPythonName)
-    );
-    if (fs.existsSync(candidatePath)) {
-      vcastInstallationPath = installationOptionString;
-      vPythonCommandToUse = candidatePath;
-      sendVCDirCommandToLanguageServer(vcastInstallationPath);
-      vectorMessage(
-        `   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`
-      );
-    } else {
-      vectorMessage(
-        `   the installation path provided: '${installationOptionString}' does not contain ${vPythonName}`
-      );
-      vectorMessage(
-        "   use the extension options to provide a valid VectorCAST installation directory."
-      );
-      showSettings();
-    }
-  }
-
-  // priority 2 is VECTORCAST_DIR, while this is no longer required, it is still widely used
-  else if (VECTORCAST_DIR) {
-    const candidatePath = path.join(VECTORCAST_DIR, exeFilename(vPythonName));
-    if (fs.existsSync(candidatePath)) {
-      vcastInstallationPath = VECTORCAST_DIR;
-      vPythonCommandToUse = candidatePath;
-      vectorMessage(
-        `   found '${vPythonName}' using VECTORCAST_DIR [${VECTORCAST_DIR}]`
-      );
-    } else {
-      vectorMessage(
-        `   the installation path provided via VECTORCAST_DIR does not contain ${vPythonName}`
-      );
-      vectorMessage(
-        "   use the extension options to provide a valid VectorCAST installation directory."
-      );
-      showSettings();
-    }
-  }
-
-  // priority 3 is the system path
-  else if (vpythonFromPath) {
-    vcastInstallationPath = path.dirname(vpythonFromPath);
-    vPythonCommandToUse = vpythonFromPath;
-    vectorMessage(
-      `   found '${vPythonName}' on the system path [${vcastInstallationPath}]`
-    );
-  } else {
-    vectorMessage(
-      `   '${vPythonName}' is not on the system PATH, and VECTORCAST_DIR is not set`
-    );
-    vectorMessage(
-      "   use the extension options to provide a valid VectorCAST Installation Location."
-    );
-    showSettings();
-  }
+  // Full setup with logs + globals
+  const vcastInstallationPath = resolveVectorCastInstallationLocation(true);
 
   // if we found a vpython somewhere ...
   // we assume the other executables are there too,  but we check anyway :)
