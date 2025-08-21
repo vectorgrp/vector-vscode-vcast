@@ -14,7 +14,7 @@ import {
 
 import { enviroDataType } from "../src-common/commonUtilities";
 import { vectorMessage } from "./messagePane";
-import { vPythonCommandToUse } from "./vcastInstallation";
+import { vPythonCommandToUse, clicastCommandToUse } from "./vcastInstallation";
 
 let client: LanguageClient;
 let globalvMockAvailable: boolean = false;
@@ -30,6 +30,8 @@ export function activateLanguageServerClient(context: ExtensionContext) {
   // Otherwise the run options are used
   const vpythonPath: string =
     vPythonCommandToUse != null ? vPythonCommandToUse : "vpython";
+  const clicastPath: string =
+    clicastCommandToUse != null ? clicastCommandToUse : "clicast";
   let serverOptions: ServerOptions = {
     run: {
       module: serverModule,
@@ -37,6 +39,7 @@ export function activateLanguageServerClient(context: ExtensionContext) {
         context.asAbsolutePath("."),
         vpythonPath,
         globalEnviroDataServerActive.toString(),
+        clicastPath,
       ],
       transport: TransportKind.ipc,
     },
@@ -46,6 +49,7 @@ export function activateLanguageServerClient(context: ExtensionContext) {
         context.asAbsolutePath("."),
         vpythonPath,
         globalEnviroDataServerActive.toString(),
+        clicastPath,
       ],
       transport: TransportKind.ipc,
       options: debugOptions,
@@ -160,12 +164,29 @@ export function updateVMockStatus(vmockAvailable: boolean) {
 }
 
 // This function is used to send an updated path to vPython to the server
-export function sendVPythonCommandToServer(vPythonCommand: string) {
+export function sendVPythonCommandToLanguageServer(vPythonCommand: string) {
   if (client) {
     client.onReady().then(() => {
-      client.sendNotification("vcasttesteditor/updateVPythonCommand", {
-        vPythonCommand,
-      });
+      client.sendNotification(
+        "vcasttesteditor/updateVPythonCommandForLanguageServer",
+        {
+          vPythonCommand,
+        }
+      );
+    });
+  }
+}
+
+// This function is used to send an updated clicast command to the server
+export function sendClicastCommandToLanguageServer(clicastCommand: string) {
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification(
+        "vcasttesteditor/updateClicastCommandForLanguageServer",
+        {
+          clicastCommand,
+        }
+      );
     });
   }
 }

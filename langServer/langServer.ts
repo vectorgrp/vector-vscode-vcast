@@ -19,7 +19,8 @@ import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 import {
   generateDiagnosticForTest,
   initializePaths,
-  updateVPythonCommand,
+  updateVPythonCommandForLanguageServer,
+  updateClicastCommandForLanguageServer,
 } from "./pythonUtilities";
 
 import {
@@ -53,7 +54,8 @@ connection.onInitialize((params: InitializeParams) => {
   initializePaths(
     process.argv[2], // extensionRoot
     process.argv[3], // vpythonPath
-    process.argv[4].toLowerCase() === "true" // useServer
+    process.argv[4].toLowerCase() === "true", // useServer
+    process.argv[5] // clicast
   );
 
   return {
@@ -114,9 +116,16 @@ connection.onNotification("vcasttesteditor/vmockstatus", (data) => {
 });
 
 connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
-  updateVPythonCommand(data.vPythonCommand);
+  updateVPythonCommandForLanguageServer(data.vPythonCommand);
   connection.console.log(
     "Notification received: vPython Path: " + data.vPythonCommand
+  );
+});
+
+connection.onNotification("vcasttesteditor/updateClicastCommand", (data) => {
+  updateClicastCommandForLanguageServer(data.clicastCommand);
+  connection.console.log(
+    "Notification received: Clicast Command: " + data.clicastCommand
   );
 });
 

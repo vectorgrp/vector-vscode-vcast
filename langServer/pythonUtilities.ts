@@ -18,8 +18,9 @@ import { getDiagnosticObject } from "./tstValidation";
 
 let testEditorScriptPath: string | undefined = undefined;
 let vPythonCommandToUse: string;
+export let clicastCommandToUse: string;
 
-export function updateVPythonCommand(newPath: string) {
+export function updateVPythonCommandForLanguageServer(newPath: string) {
   vPythonCommandToUse = newPath;
 }
 
@@ -27,10 +28,19 @@ export function getVPythonCommand() {
   return vPythonCommandToUse;
 }
 
+export function updateClicastCommandForLanguageServer(newCommand: string) {
+  clicastCommandToUse = newCommand;
+}
+
+export function getClicastCommand() {
+  return clicastCommandToUse;
+}
+
 export function initializePaths(
   extensionRoot: string,
   vpythonPath: string,
-  useServer: boolean
+  useServer: boolean,
+  clicastPath: string
 ) {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
@@ -39,7 +49,9 @@ export function initializePaths(
   console.log(`  using vpython: ${vpythonPath}`);
   console.log(`  using VectorCAST data server: ${useServer}`);
 
-  vPythonCommandToUse = vpythonPath;
+  updateVPythonCommandForLanguageServer(vpythonPath);
+  updateClicastCommandForLanguageServer(clicastPath);
+
   // set the server instance of the globalEnviroDataServerActive flag
   // based on the value passed to us by the client.
   setGLobalServerState(useServer);

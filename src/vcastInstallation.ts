@@ -1,7 +1,11 @@
 import * as vscode from "vscode";
 import * as jsonc from "jsonc-parser";
 
-import { sendVPythonCommandToServer, updateVMockStatus } from "./client";
+import {
+  sendVPythonCommandToLanguageServer,
+  updateVMockStatus,
+  sendClicastCommandToLanguageServer,
+} from "./client";
 
 import { openMessagePane, vectorMessage } from "./messagePane";
 
@@ -287,7 +291,7 @@ function findVcastTools(): boolean {
     if (fs.existsSync(candidatePath)) {
       vcastInstallationPath = installationOptionString;
       vPythonCommandToUse = candidatePath;
-      sendVPythonCommandToServer(candidatePath);
+      sendVPythonCommandToLanguageServer(candidatePath);
       vectorMessage(
         `   found '${vPythonName}' using the 'Vectorcast Installation Location' option [${installationOptionString}].`
       );
@@ -420,6 +424,7 @@ function initializeVcastUtilities(vcastInstallationPath: string) {
 
   if (fs.existsSync(clicastCommandToUse)) {
     vectorMessage(`   found '${clicastName}' here: ${vcastInstallationPath}`);
+    sendClicastCommandToLanguageServer(clicastCommandToUse);
     vcastCommandToUse = path.join(
       vcastInstallationPath,
       exeFilename(vcastqtName)

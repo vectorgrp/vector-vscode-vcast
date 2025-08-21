@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { TextDocument, TextDocuments } from "vscode-languageserver";
 import URI from "vscode-uri";
 import { checkClicastOption } from "../../langServer/tstCompletion";
+import { updateClicastCommandForLanguageServer } from "../../langServer/pythonUtilities";
 import {
   getCompletionPositionForLine,
   generateCompletionData,
@@ -1384,6 +1385,12 @@ describe("Text Completion", () => {
   test(
     "validate completion for TEST.CODED_TEST_FILE with codedTestsEnabled and codedTestsDriverInSubprogram",
     async () => {
+      // Because we do not start the extension, the clicast command does not get initialized.
+      // So we need to do this here manually.
+      updateClicastCommandForLanguageServer(
+        `${process.env.VECTORCAST_DIR}/clicast`
+      );
+
       const testEnvPath = path.join(
         process.env.PACKAGE_PATH as string,
         "tests",
@@ -1442,6 +1449,21 @@ describe("Text Completion", () => {
         ];
 
         expect(generatedCompletionData).toEqual(expectedCompletionData);
+
+        // Do it once again, because we cache the option for an env when it's processed once
+        // With that, we should cover the cached lines and it should return the same result.
+        const completionPosition2 = getCompletionPositionForLine(
+          lineToComplete,
+          tstText
+        );
+
+        const generatedCompletionData2 = await generateCompletionData(
+          tstText,
+          completionPosition2,
+          triggerCharacter
+        );
+
+        expect(generatedCompletionData2).toEqual(expectedCompletionData);
       }
     },
     timeout
