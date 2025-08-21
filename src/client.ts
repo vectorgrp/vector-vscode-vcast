@@ -174,7 +174,8 @@ export function updateVMockStatus(vmockAvailable: boolean) {
   }
 }
 
-// This function is used to send an updated path to vPython to the server
+// Sends the updated VectorCAST installation directory to the server.
+// This ensures the language server uses the correct vPython and Clicast executables.
 export function sendVCDirCommandToLanguageServer(vcDirCommand: string) {
   if (client) {
     client.onReady().then(() => {
@@ -182,34 +183,6 @@ export function sendVCDirCommandToLanguageServer(vcDirCommand: string) {
         "vcasttesteditor/updateVCDirCommandForLanguageServer",
         {
           vcDirCommand,
-        }
-      );
-    });
-  }
-}
-
-// This function is used to send an updated path to vPython to the server
-export function sendVPythonCommandToLanguageServer(vPythonCommand: string) {
-  if (client) {
-    client.onReady().then(() => {
-      client.sendNotification(
-        "vcasttesteditor/updateVPythonCommandForLanguageServer",
-        {
-          vPythonCommand,
-        }
-      );
-    });
-  }
-}
-
-// This function is used to send an updated clicast command to the server
-export function sendClicastCommandToLanguageServer(clicastCommand: string) {
-  if (client) {
-    client.onReady().then(() => {
-      client.sendNotification(
-        "vcasttesteditor/updateClicastCommandForLanguageServer",
-        {
-          clicastCommand,
         }
       );
     });
