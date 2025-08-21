@@ -13,13 +13,13 @@ import { vi } from "vitest";
 import { getHoverString } from "../../langServer/tstHover";
 import { getTstCompletionData } from "../../langServer/tstCompletion";
 import { validateTextDocument } from "../../langServer/tstValidation";
-import { initializePaths } from "../../langServer/pythonUtilities";
 import { getCodedTestCompletionData } from "../../langServer/ctCompletions";
 import {
   buildCompletionList,
   convertKind,
   getEnviroNameFromTestScript,
 } from "../../langServer/serverUtilities";
+import { initializePaths } from "../../langServer/pythonUtilities";
 
 export type HoverPosition = {
   line: number;
@@ -55,7 +55,7 @@ export async function generateHoverData(
 
   const extensionRoot: string = process.env.PACKAGE_PATH || "";
   const useServer: boolean = process.env.USE_SERVER !== undefined;
-  initializePaths(extensionRoot, "vpython", useServer, "clicast");
+  initializePaths(extensionRoot, `${process.env.VECTORCAST_DIR}`, useServer);
 
   if (textDocument) {
     console.log(`Input .tst script: \n ${textDocument.getText()} \n`);
@@ -127,7 +127,7 @@ export async function generateCompletionData(
 
   const extensionRoot: string = process.env.PACKAGE_PATH || "";
   const useServer: boolean = process.env.USE_SERVER !== undefined;
-  initializePaths(extensionRoot, "vpython", useServer, "clicast");
+  initializePaths(extensionRoot, `${process.env.VECTORCAST_DIR}`, useServer);
 
   // Coded test
   if (optParameters?.cppTest && optParameters?.lineSoFar) {

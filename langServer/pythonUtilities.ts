@@ -17,8 +17,30 @@ import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 import { getDiagnosticObject } from "./tstValidation";
 
 let testEditorScriptPath: string | undefined = undefined;
+let vcDirInstallationLocation: string;
 let vPythonCommandToUse: string;
 export let clicastCommandToUse: string;
+
+export function updateVCDirCommandForLanguageServer(newPath: string) {
+  vcDirInstallationLocation = newPath;
+  const newVPython = path.join(vcDirInstallationLocation, "vpython");
+  const newClicast = path.join(vcDirInstallationLocation, "clicast");
+  if (fs.existsSync(newVPython)) {
+    updateVPythonCommandForLanguageServer(newVPython);
+  } else {
+    console.log(
+      `Could not find vPython for the VectorCAST Installation Location: ${vcDirInstallationLocation}`
+    );
+  }
+
+  if (fs.existsSync(newClicast)) {
+    updateClicastCommandForLanguageServer(newClicast);
+  } else {
+    console.log(
+      `Could not find clicast for the VectorCAST Installation Location: ${vcDirInstallationLocation}`
+    );
+  }
+}
 
 export function updateVPythonCommandForLanguageServer(newPath: string) {
   vPythonCommandToUse = newPath;
@@ -38,19 +60,22 @@ export function getClicastCommand() {
 
 export function initializePaths(
   extensionRoot: string,
-  vpythonPath: string,
-  useServer: boolean,
-  clicastPath: string
+  vcDir: string,
+  useServer: boolean
 ) {
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
+  const vPythonPath = path.join(vcDir, "vpython");
   console.log("VectorCAST Language Server is Active ...");
-  console.log(`  using vpython: ${vpythonPath}`);
+  if (fs.existsSync(vPythonPath)) {
+    console.log(`  using vpython: ${vPythonPath}`);
+  } else {
+    console.log(`  unable to find vpython in: ${vPythonPath}`);
+  }
   console.log(`  using VectorCAST data server: ${useServer}`);
 
-  updateVPythonCommandForLanguageServer(vpythonPath);
-  updateClicastCommandForLanguageServer(clicastPath);
+  updateVCDirCommandForLanguageServer(vcDir);
 
   // set the server instance of the globalEnviroDataServerActive flag
   // based on the value passed to us by the client.

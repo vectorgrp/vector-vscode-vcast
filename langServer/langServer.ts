@@ -53,9 +53,8 @@ connection.onInitialize((params: InitializeParams) => {
   // and initializes globals for vpyton path etc.
   initializePaths(
     process.argv[2], // extensionRoot
-    process.argv[3], // vpythonPath
-    process.argv[4].toLowerCase() === "true", // useServer
-    process.argv[5] // clicast
+    process.argv[3], // vcDir
+    process.argv[4].toLowerCase() === "true" // useServer
   );
 
   return {
