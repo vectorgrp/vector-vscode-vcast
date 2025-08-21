@@ -37,10 +37,6 @@ export function activateLanguageServerClient(context: ExtensionContext) {
       ? vcastInstallationDirectory
       : getVectorCastInstallationLocation();
 
-  // const vpythonPath: string =
-  //   vPythonCommandToUse != null ? vPythonCommandToUse : "vpython";
-  // const clicastPath: string =
-  //   clicastCommandToUse != null ? clicastCommandToUse : "clicast";
   if (vcDir) {
     let serverOptions: ServerOptions = {
       run: {

@@ -114,20 +114,6 @@ connection.onNotification("vcasttesteditor/vmockstatus", (data) => {
   );
 });
 
-connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
-  updateVPythonCommandForLanguageServer(data.vPythonCommand);
-  connection.console.log(
-    "Notification received: vPython Path: " + data.vPythonCommand
-  );
-});
-
-connection.onNotification("vcasttesteditor/updateClicastCommand", (data) => {
-  updateClicastCommandForLanguageServer(data.clicastCommand);
-  connection.console.log(
-    "Notification received: Clicast Command: " + data.clicastCommand
-  );
-});
-
 connection.onNotification("vcasttesteditor/updateServerPort", (data) => {
   setServerPort(data.portNumber);
   connection.console.log(
