@@ -36,3 +36,4 @@ autoreq/*.c
 !tests/**/*.csv
 !tests/**/*.xlsx
 !tests/**/*.html
+python-3.11.13

@@ -103,41 +103,6 @@ code2reqs_a = Analysis(
     optimize=0,
 )
 
-reqs2excel_a = Analysis(
-    ['reqs2excel.py'],
-    binaries=filter_binaries(
-        collect_dynamic_libs(
-            package='autoreq', search_patterns=['*.dll', '*.dylib', '*.so', '*.pyd']
-        )
-    ),
-    datas=[
-        ('autoreq/resources', 'autoreq/resources'),
-        (
-            'monitors4codegen/multilspy/language_servers/ccls_language/runtime_dependencies.json',
-            'monitors4codegen/multilspy/language_servers/ccls_language',
-        ),
-        (
-            'monitors4codegen/multilspy/language_servers/ccls_language/initialize_params.json',
-            'monitors4codegen/multilspy/language_servers/ccls_language',
-        ),
-        (
-            'monitors4codegen/multilspy/language_servers/clangd_language/runtime_dependencies.json',
-            'monitors4codegen/multilspy/language_servers/clangd_language',
-        ),
-        (
-            'monitors4codegen/multilspy/language_servers/clangd_language/initialize_params.json',
-            'monitors4codegen/multilspy/language_servers/clangd_language',
-        ),
-    ],
-    hiddenimports=hiddenimports,
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=['runtime_hook_fix_exit.py'],
-    excludes=excluded_modules,
-    noarchive=False,
-    optimize=0,
-)
-
 panreq_a = Analysis(
     ['panreq.py'],
     pathex=[],
@@ -214,7 +179,7 @@ r2xreport_a = Analysis(
 
 reqs2tests_pyz = PYZ(reqs2tests_a.pure)
 code2reqs_pyz = PYZ(code2reqs_a.pure)
-reqs2excel_pyz = PYZ(reqs2excel_a.pure)
+
 panreq_pyz = PYZ(panreq_a.pure)
 r2xreport_pyz = PYZ(r2xreport_a.pure)
 
@@ -254,23 +219,6 @@ code2reqs_exe = EXE(
     entitlements_file=None,
 )
 
-reqs2excel_exe = EXE(
-    reqs2excel_pyz,
-    reqs2excel_a.scripts,
-    [('u', None, 'OPTION')],
-    exclude_binaries=True,
-    name='reqs2excel',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-)
 
 panreq_exe = EXE(
     panreq_pyz,
@@ -316,9 +264,6 @@ coll = COLLECT(
     code2reqs_exe,
     code2reqs_a.binaries,
     code2reqs_a.datas,
-    reqs2excel_exe,
-    reqs2excel_a.binaries,
-    reqs2excel_a.datas,
     panreq_exe,
     panreq_a.binaries,
     panreq_a.datas,
