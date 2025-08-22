@@ -236,7 +236,7 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     baseUri,
     "resources",
     "distribution",
-    "reqs2excel"
+    "panreq"
   ).fsPath;
 }
 function setHardcodedEnvVars() {
