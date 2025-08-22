@@ -61,6 +61,7 @@ import {
 } from "../src-common/vcastServer";
 import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 import { refreshAllExtensionData, removeNodeFromTestPane } from "./testPane";
+import { normalizePath } from "./utilities";
 
 const path = require("path");
 
