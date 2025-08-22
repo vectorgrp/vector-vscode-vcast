@@ -19,7 +19,8 @@ import { getCodedTestCompletionData, vmockStubRegex } from "./ctCompletions";
 import {
   generateDiagnosticForTest,
   initializePaths,
-  updateVPythonCommand,
+  updateVPythonCommandForLanguageServer,
+  updateClicastCommandForLanguageServer,
 } from "./pythonUtilities";
 
 import {
@@ -52,7 +53,7 @@ connection.onInitialize((params: InitializeParams) => {
   // and initializes globals for vpyton path etc.
   initializePaths(
     process.argv[2], // extensionRoot
-    process.argv[3], // vpythonPath
+    process.argv[3], // vcDir
     process.argv[4].toLowerCase() === "true" // useServer
   );
 
@@ -110,13 +111,6 @@ connection.onNotification("vcasttesteditor/vmockstatus", (data) => {
   globalVMockAvailable = data.vmockAvailable;
   connection.console.log(
     "Notification received: vMock Available: " + data.vmockAvailable
-  );
-});
-
-connection.onNotification("vcasttesteditor/updateVPythonCommand", (data) => {
-  updateVPythonCommand(data.vPythonCommand);
-  connection.console.log(
-    "Notification received: vPython Path: " + data.vPythonCommand
   );
 });
 
