@@ -183,3 +183,8 @@ This option is new for VectorCAST 23 sp2
 ### Code Maintenance
 - Improved performance when initializing the extension
 
+
+## [1.0.19] - 2025-08-22
+
+### Bug Fixes
+- Resolved path normalization issue when initializing environment data on Windows.
