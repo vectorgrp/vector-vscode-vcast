@@ -288,7 +288,10 @@ export function executeWithRealTimeEchoWithProgress(
     async (progress, token) => {
       progress.report({ increment: 10 });
 
-      let processHandle = spawn(command, argList, { cwd: CWD });
+      let processHandle = spawn(command, argList, {
+        cwd: CWD,
+        windowsHide: true,
+      });
       vectorMessage("-".repeat(100));
       vectorMessage("-".repeat(100));
       let messageFragment: string = "";

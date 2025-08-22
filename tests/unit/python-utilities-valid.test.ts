@@ -3,9 +3,9 @@ import path from "node:path";
 import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { type Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import {
-  updateVPythonCommand,
   getVPythonCommand,
   generateDiagnosticForTest,
+  updateVPythonCommandForLanguageServer,
 } from "../../langServer/pythonUtilities";
 import { setupDiagnosticTest } from "./utils";
 
@@ -32,7 +32,9 @@ vi.mock("child_process", async () => {
 
 describe("Testing pythonUtilities (valid)", () => {
   beforeEach(() => {
-    updateVPythonCommand(path.join(`${process.env.VECTORCAST_DIR}`, "vpython"));
+    updateVPythonCommandForLanguageServer(
+      path.join(`${process.env.VECTORCAST_DIR}`, "vpython")
+    );
   });
 
   afterEach(() => {
@@ -40,10 +42,10 @@ describe("Testing pythonUtilities (valid)", () => {
   });
 
   test(
-    "validate updateVPythonCommand",
+    "validate updateVPythonCommandForLanguageServer",
     async () => {
       const newPath = "some/other/path/to/change";
-      updateVPythonCommand(newPath);
+      updateVPythonCommandForLanguageServer(newPath);
       expect(getVPythonCommand()).toBe(newPath);
     },
     timeout
