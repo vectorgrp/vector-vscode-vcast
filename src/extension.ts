@@ -1899,7 +1899,7 @@ async function installPreActivationEventHandlers(
         async (msg) => {
           switch (msg.command) {
             case "submit": {
-              const { sourceFile, line, testScriptName } = msg;
+              const { sourceFile, line } = msg;
 
               // Validation checks
               if (!sourceFile || sourceFile.trim() === "") {
@@ -1920,7 +1920,7 @@ async function installPreActivationEventHandlers(
               // Continue if valid
               await loadATGLineTest(sourceFile, lineNumber);
               vscode.window.showInformationMessage(
-                `Fetching ATG test '${testScriptName}' for ${sourceFile}:${line}`
+                `Fetching ATG test for ${sourceFile}:${line}`
               );
               panel.dispose();
               break;

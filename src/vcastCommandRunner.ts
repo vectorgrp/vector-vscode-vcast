@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { execSync, spawn } from "child_process";
+import { ChildProcess, execSync, spawn } from "child_process";
 
 import {
   errorLevel,
@@ -18,6 +18,7 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 import { pythonErrorCodes } from "../src-common/vcastServerTypes";
+import { loadScriptCallBack } from "./callbacks";
 
 const path = require("path");
 
@@ -474,6 +475,170 @@ export function executeWithRealTimeEchoWithProgressSequential(
           });
         });
       }
+    }
+  );
+}
+
+/**
+ * Execute a single shell command (usually your "cd ... && VCAST_... atg ..." string)
+ * showing a cancellable VSCode progress notification, streaming output to vectorMessage,
+ * and when finished calling `loadTestScript(statusCode, enviroName, scriptPath)`.
+ *
+ * Minimal, single-purpose: command, working-directory, enviroPath and scriptPath are required.
+ *
+ * Assumes these functions are available in module scope:
+ *  - vectorMessage(msg: string): void
+ *  - loadTestScript(statusCode: number, enviroName: string, scriptPath: string): Promise<void> | void
+ */
+export async function executeATGLineForScript(
+  command: string,
+  cwd: string,
+  enviroPath: string,
+  scriptPath: string
+): Promise<void> {
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Running ATG: ${path.basename(scriptPath)}`,
+      cancellable: true,
+    },
+    async (progress, token) => {
+      // initial progress
+      progress.report({ increment: 0 });
+
+      vectorMessage("-".repeat(60));
+      vectorMessage(`Executing: ${command}`);
+      vectorMessage(`cwd: ${cwd}`);
+      vectorMessage("-".repeat(60));
+
+      const proc: ChildProcess = spawn(command, [], {
+        cwd,
+        shell: true,
+        windowsHide: true,
+        env: process.env,
+      });
+
+      let stdoutBuffer = "";
+      let stderrBuffer = "";
+      let stdoutFragment = "";
+
+      // animate progress until completion
+      let animVal = 0;
+      const progressInterval = setInterval(() => {
+        try {
+          // small increments to keep the UI alive
+          progress.report({ increment: 5 });
+          animVal = (animVal + 5) % 95;
+        } catch {
+          /* ignore progress errors */
+        }
+      }, 2000);
+
+      let cancelled = false;
+
+      token.onCancellationRequested(() => {
+        cancelled = true;
+        try {
+          if (proc && !proc.killed) {
+            vectorMessage("User cancelled — sending SIGTERM to process.");
+            proc.kill("SIGTERM");
+          }
+        } catch (e) {
+          vectorMessage(
+            `Failed to terminate process on cancel: ${(e as Error).message}`
+          );
+        } finally {
+          if (progressInterval) clearInterval(progressInterval);
+        }
+      });
+
+      if (proc.stdout) {
+        proc.stdout.on("data", (chunk: Buffer | string) => {
+          const s = chunk.toString();
+          stdoutBuffer += s;
+
+          // break into lines, keep partial lines between events
+          const parts = s.split(/[\r\n]+/);
+          if (stdoutFragment.length > 0) {
+            parts[0] = stdoutFragment + parts[0];
+            stdoutFragment = "";
+          }
+          if (!s.endsWith("\n") && !s.endsWith("\r")) {
+            stdoutFragment = parts.pop() || "";
+          }
+          for (const line of parts) {
+            if (line.length) vectorMessage(line);
+          }
+        });
+      }
+
+      if (proc.stderr) {
+        proc.stderr.on("data", (chunk: Buffer | string) => {
+          const s = chunk.toString();
+          stderrBuffer += s;
+          // echo errors as they arrive
+          s.split(/[\r\n]+/).forEach((line) => {
+            if (line.length) vectorMessage(line);
+          });
+        });
+      }
+
+      await new Promise<void>((resolve) => {
+        const cleanupAndResolve = () => {
+          try {
+            if (progressInterval) clearInterval(progressInterval);
+          } catch {}
+          try {
+            progress.report({ increment: 100 });
+          } catch {}
+          resolve();
+        };
+
+        proc.on("close", async (exitCode: number | null) => {
+          const code = exitCode === null ? 1 : Number(exitCode);
+          vectorMessage("-".repeat(60));
+          vectorMessage(
+            `Process finished with exit code: ${code}${cancelled ? " (cancelled)" : ""}`
+          );
+          vectorMessage("-".repeat(60));
+
+          const status: commandStatusType = {
+            errorCode: code,
+            stdout: stdoutBuffer,
+          };
+
+          const enviroName = path.basename(enviroPath || "");
+
+          try {
+            await loadScriptCallBack(status, enviroName, scriptPath);
+          } catch (cbErr) {
+            vectorMessage(
+              `loadScriptCallBack threw: ${(cbErr as Error).message}`
+            );
+          } finally {
+            cleanupAndResolve();
+          }
+        });
+
+        proc.on("error", async (err) => {
+          vectorMessage(`Failed to spawn process: ${err.message}`);
+
+          const status: commandStatusType = {
+            errorCode: "spawn_error",
+            stdout: stdoutBuffer,
+          };
+          const enviroName = path.basename(enviroPath || "");
+          try {
+            await loadScriptCallBack(status, enviroName, scriptPath);
+          } catch (cbErr) {
+            vectorMessage(
+              `loadScriptCallBack threw after spawn error: ${(cbErr as Error).message}`
+            );
+          } finally {
+            cleanupAndResolve();
+          }
+        });
+      });
     }
   );
 }

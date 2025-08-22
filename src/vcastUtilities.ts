@@ -37,7 +37,6 @@ import {
   atgCommandToUse,
   clicastCommandToUse,
   configFileContainsCorrectInclude,
-  globalATGLineLoaderPath,
   globalIncludePath,
   globalMCDCReportPath,
   globalTestInterfacePath,
@@ -827,7 +826,10 @@ export function getLevelFromNodeId(path: string) {
   return { projectName, level };
 }
 
-export async function loadATGLineTest(sourceFile: string, lineNumber: number) {
+export async function loadATGLineTest(
+  sourceFile: string,
+  lineNumber: number
+): Promise<void> {
   const enviroPath = getEnvPathForFilePath(sourceFile);
   const enclosingDirectory = path.dirname(enviroPath);
   const timeStamp = Date.now().toString();
@@ -842,7 +844,11 @@ export async function loadATGLineTest(sourceFile: string, lineNumber: number) {
   }
 }
 
-export function getATGLineTestCommand(scriptPath: string, lineNumber: number) {
-  const commandToRun = `${vPythonCommandToUse} ${globalATGLineLoaderPath} VCAST_ATG_GET_ME_HERE=${lineNumber} ${atgCommandToUse} ${scriptPath}`;
+export function getATGLineTestCommand(
+  scriptPath: string,
+  lineNumber: number,
+  enviroPath: string
+) {
+  const commandToRun = `cd ${enviroPath} && VCAST_ATG_GET_ME_HERE=${lineNumber} ${atgCommandToUse} ${scriptPath}`;
   return commandToRun;
 }

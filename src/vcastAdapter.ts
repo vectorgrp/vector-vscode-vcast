@@ -33,6 +33,7 @@ import {
   executeWithRealTimeEcho,
   getJsonDataFromTestInterface,
   executeWithRealTimeEchoWithProgress,
+  executeATGLineForScript,
 } from "./vcastCommandRunner";
 
 import {
@@ -1036,20 +1037,21 @@ export async function getATGLineTest(
   lineNumber: number,
   tstScriptPath: string,
   enviroPath: string
-): Promise<string> {
-  return getATGLineTestFromPython(lineNumber, tstScriptPath, enviroPath);
-}
-
-function getATGLineTestFromPython(
-  lineNumber: number,
-  tstScriptPath: string,
-  enviroPath: string
-): string {
-  //
-  const commandToRun = getATGLineTestCommand(tstScriptPath, lineNumber);
-  const commandStatus: commandStatusType = executeCommandSync(
-    commandToRun,
-    process.cwd()
+): Promise<void> {
+  const commandToRun = getATGLineTestCommand(
+    tstScriptPath,
+    lineNumber,
+    enviroPath
   );
-  return cleanVectorcastOutput(commandStatus.stdout);
+
+  // Use enviroPath as the working directory (cwd) for the command
+  const cwd = enviroPath;
+
+  try {
+    await executeATGLineForScript(commandToRun, cwd, enviroPath, tstScriptPath);
+  } catch (err) {
+    // keep logging minimal but helpful
+    const msg = err instanceof Error ? err.message : String(err);
+    vectorMessage(`getATGLineTest failed: ${msg}`);
+  }
 }
