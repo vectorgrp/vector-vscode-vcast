@@ -534,7 +534,12 @@ class RequirementsCollection:
         rgw_path = Path(rgw_path)
         rgw_path.mkdir(parents=True, exist_ok=True)
 
-        with NamedTemporaryFile(mode='w', suffix='.csv') as temp_file:
+        temp_file = NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+
+        # Explicitly close the file handle to avoid problems on windows
+
+        temp_file.close()
+        try:
             self.to_csv(temp_file.name)
 
             rgw_prep_commands = [
@@ -593,6 +598,10 @@ class RequirementsCollection:
 
             for cmd in rgw_prep_commands:
                 execute_command(cmd)
+
+        finally:
+            # Clean up the temporary file
+            Path(temp_file.name).unlink(missing_ok=True)
 
     @staticmethod
     def from_rgw(rgw_path):
