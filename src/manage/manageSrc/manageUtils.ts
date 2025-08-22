@@ -181,7 +181,7 @@ export function addManagedEnvironments(
   workspaceRoot: string
 ): void {
   for (const [projectPath, projectData] of globalProjectDataCache) {
-    vectorMessage(`Processing project: ${normalizePath(projectPath)} ...`);
+    vectorMessage(`Processing project: ${path.basename(projectPath)} ...`);
     projectPathDirList.push(projectPath.split(".vcm")[0]);
     for (const [buildDirectory, enviroData] of projectData) {
       environmentList.push({

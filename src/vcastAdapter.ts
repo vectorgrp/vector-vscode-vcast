@@ -61,7 +61,6 @@ import {
 } from "../src-common/vcastServer";
 import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 import { refreshAllExtensionData, removeNodeFromTestPane } from "./testPane";
-import { normalizePath } from "./utilities";
 
 const path = require("path");
 
@@ -708,9 +707,7 @@ export async function getWorkspaceEnvDataVPython(
   );
   let jsonData = getJsonDataFromTestInterface(commandToRun, workspaceDir);
 
-  vectorMessage(
-    `Building environments data for workspace: ${normalizePath(workspaceDir)}`
-  );
+  vectorMessage("Building environments data for workspace...");
 
   return jsonData;
 }
