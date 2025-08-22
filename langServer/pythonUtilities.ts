@@ -9,6 +9,7 @@ import {
   vcastCommandType,
 } from "../src-common/vcastServer";
 
+import * as os from "os";
 import fs = require("fs");
 import path = require("path");
 
@@ -21,10 +22,27 @@ let vcDirInstallationLocation: string;
 let vPythonCommandToUse: string;
 export let clicastCommandToUse: string;
 
+export function exeFilename(base: string): string {
+  // We assume it's windows --> .exe, if it's not, we remove the .exe
+  // THis lets the unit tests succeed with 100%
+  let name = base;
+  if (os.platform() !== "win32") {
+    // normalize for non-Windows
+    name = name.replace(/\.exe$/i, "");
+  }
+  return name;
+}
+
 export function updateVCDirCommandForLanguageServer(newPath: string) {
   vcDirInstallationLocation = newPath;
-  const newVPython = path.join(vcDirInstallationLocation, "vpython");
-  const newClicast = path.join(vcDirInstallationLocation, "clicast");
+  const newVPython = path.join(
+    vcDirInstallationLocation,
+    exeFilename("vpython.exe")
+  );
+  const newClicast = path.join(
+    vcDirInstallationLocation,
+    exeFilename("clicast.exe")
+  );
   if (fs.existsSync(newVPython)) {
     updateVPythonCommandForLanguageServer(newVPython);
   } else {
@@ -66,7 +84,7 @@ export function initializePaths(
   // The client passes the extensionRoot and vpython command in the args to the server
   // see: client.ts:activateLanguageServerClient()
 
-  const vPythonPath = path.join(vcDir, "vpython");
+  const vPythonPath = path.join(vcDir, exeFilename("vpython.exe"));
   console.log("VectorCAST Language Server is Active ...");
   if (fs.existsSync(vPythonPath)) {
     console.log(`  using vpython: ${vPythonPath}`);

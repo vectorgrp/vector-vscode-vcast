@@ -541,7 +541,9 @@ export async function buildProjectDataCache(
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
     // See python function vTestInterface.py:getProjectData()
     if (progress) {
-      progress.report({ message: `Processing project: ${projectFile}` });
+      progress.report({
+        message: `Processing project: ${path.basename(projectFile)}`,
+      });
       // allow UI to catch up
       await new Promise((r) => setTimeout(r, 0));
     }
