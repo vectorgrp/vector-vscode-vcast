@@ -484,8 +484,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const workspaceFolderSection = await explorerSideBarView
       .getContent()
       .getSection(workspaceFolderName.toUpperCase());
-    const cppFolder = workspaceFolderSection.findItem("cpp");
-    await (await cppFolder).select();
 
     const managerCpp = workspaceFolderSection.findItem("manager.cpp");
     await (await managerCpp).select();
