@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Get ATG Test for Line</title>
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal">
+    <h2>Get ATG Test for Line</h2>
+  
+    <label for="sourceFileInput">Source File Path:</label>
+    <input type="text" id="sourceFileInput" aria-label="Source File Path Input" />
+  
+    <label for="lineNumberInput">Line Number:</label>
+    <input type="text" id="lineNumberInput" aria-label="Line Number Input" />
+  
+    <div class="button-container">
+      <button id="btnCancel" class="cancel-button">Cancel</button>
+      <button id="btnSubmit" class="primary-button">Fetch Test</button>
+    </div>
+  </div>
+
+  {{ scriptUri }}
+</body>
+</html>
