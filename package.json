@@ -293,6 +293,11 @@
         "command": "vectorcastTestExplorer.viewMCDCReport",
         "category": "VectorCAST Test Explorer",
         "title": "VectorCAST MC/DC Report"
+      },
+      {
+        "command": "vectorcastTestExplorer.getATGTestForLine",
+        "category": "VectorCAST Test Explorer",
+        "title": "ATG Test for Line"
       }
     ],
     "keybindings": [
@@ -595,6 +600,10 @@
         {
           "command": "vectorcastTestExplorer.viewMCDCReport",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.getATGTestForLine",
+          "when": "never"
         }
       ],
       "view/title": [
@@ -679,6 +688,14 @@
         {
           "command": "vectorcastTestExplorer.viewMCDCReport",
           "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
+          "args": [
+            "${lineNumber}"
+          ],
+          "group": "navigation"
+        },
+        {
+          "command": "vectorcastTestExplorer.getATGTestForLine",
+          "when": "vectorcastTestExplorer.configured",
           "args": [
             "${lineNumber}"
           ],

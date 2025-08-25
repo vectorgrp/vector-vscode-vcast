@@ -849,6 +849,7 @@ export function getATGLineTestCommand(
   lineNumber: number,
   enviroPath: string
 ) {
-  const commandToRun = `cd ${enviroPath} && VCAST_ATG_GET_ME_HERE=${lineNumber} ${atgCommandToUse} ${scriptPath}`;
+  // TODO: FIX THE SCRIPT PATH, DONT MERGE VCAST_ATG_PATH
+  const commandToRun = `cd ${enviroPath} && VCAST_ATG_PATH=/home/denis/vector/pyatg/get_me_here_with_val_llm/atg/main.py VCAST_ATG_PATH_TO_LINE_NUMBER=${lineNumber} ${atgCommandToUse} ${scriptPath}`;
   return commandToRun;
 }
