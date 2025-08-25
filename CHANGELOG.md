@@ -188,3 +188,9 @@ This option is new for VectorCAST 23 sp2
 
 ### Bug Fixes
 - Resolved path normalization issue when initializing environment data on Windows.
+
+
+## [1.0.20] - 2025-08-25
+
+### Bug Fixes
+- Fixed an issue where `.tst` scripts were being deleted after manual edits.

@@ -21,7 +21,10 @@ import {
 import { removeFilePattern } from "./utilities";
 import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
-import { removeCoverageDataForEnviro } from "./vcastTestInterface";
+import {
+  removeCoverageDataForEnviro,
+  tempScriptCache,
+} from "./vcastTestInterface";
 import {
   closeConnection,
   globalEnviroDataServerActive,
@@ -152,7 +155,13 @@ export async function loadScriptCallBack(
     vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
     await updateTestPane(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-    fs.unlinkSync(scriptPath);
+
+    // If it's a temporary tst file (from create new test script), we delete it.
+    // Otherwise it's a manually editing of an already existing tst file
+    if (tempScriptCache.has(scriptPath)) {
+      fs.unlinkSync(scriptPath);
+      tempScriptCache.delete(scriptPath); // cleanup
+    }
   } else {
     vscode.window.showInformationMessage(
       `Error generating tests, see log for details`
