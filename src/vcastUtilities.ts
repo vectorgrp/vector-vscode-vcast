@@ -51,6 +51,7 @@ import {
   nodeKind,
   vcastTestItem,
 } from "./testPane";
+import { tempScriptCache } from "./vcastTestInterface";
 
 const fs = require("fs");
 const os = require("os");
@@ -253,6 +254,9 @@ export async function generateAndLoadBasisPathTests(testNode: testNodeType) {
     `vcast-${timeStamp}.tst`
   );
 
+  // cache this path so we know it’s temporary
+  tempScriptCache.add(tempScriptPath);
+
   vectorMessage("Generating Basis Path script file ...");
   // ignore the testName (if any)
   testNode.testName = "";
@@ -276,6 +280,9 @@ export async function generateAndLoadATGTests(testNode: testNodeType) {
     enclosingDirectory,
     `vcast-${timeStamp}.tst`
   );
+
+  // cache this path so we know it’s temporary
+  tempScriptCache.add(tempScriptPath);
 
   vectorMessage("Generating ATG script file ...");
   // ignore the testName (if any)

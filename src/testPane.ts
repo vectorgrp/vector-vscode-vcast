@@ -72,6 +72,7 @@ import {
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
+  tempScriptCache,
   testDataType,
   updateGlobalDataForFile,
   vcastEnviroFile,
@@ -1687,7 +1688,13 @@ export async function loadTestScript() {
       // we are reading the data back from the environment with this call
       updateTestPane(enviroPath);
       if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-      fs.unlinkSync(scriptPath);
+
+      // If it's a temporary tst file (from create new test script), we delete it.
+      // Otherwise it's a manually editing of an already existing tst file
+      if (tempScriptCache.has(scriptPath)) {
+        fs.unlinkSync(scriptPath);
+        tempScriptCache.delete(scriptPath);
+      }
     } else if (!isTheEnvTestScript) {
       // Only show the messagt when it's NOT the whole ENV.tst
       vscode.window.showErrorMessage(
