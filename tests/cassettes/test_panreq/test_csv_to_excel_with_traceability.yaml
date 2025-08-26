@@ -109,25 +109,27 @@ interactions:
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.101.0
       x-stainless-arch:
       - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-helper-method:
-      - beta.chat.completions.parse
+      - chat.completions.parse
       x-stainless-lang:
       - python
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.10.12
+      - 3.12.3
     method: POST
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
@@ -135,24 +137,24 @@ interactions:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
         {\n    \"description\": \"Test that the function returns the correct check
         total for a given table index by verifying that the returned value matches
-        the Check_Total field of the table data record retrieved for that table index.\"\n  },\n  \"requirement_for_part_1\":
+        the Check_Total field of the table data record retrieved for that table.\"\n  },\n  \"requirement_for_part_1\":
         {\n    \"statement\": \"The system shall return the check total associated
-        with the table record identified by the provided table index.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754380314,"id":"chatcmpl-C16kcjtPWDdUEGa6ToFf0no1rQENc","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":92,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1446,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1538}}
+        with the table record identified by the provided table index.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1756212657,"id":"chatcmpl-C8nQX6Ht9Un3gbIToVSQ7rqXDybbI","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":91,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1446,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1537}}
 
         '
     headers:
       Content-Length:
-      - '1656'
+      - '1650'
       Content-Type:
       - application/json
       Date:
-      - Tue, 05 Aug 2025 07:51:56 GMT
+      - Tue, 26 Aug 2025 12:50:57 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 17e77eeb-4063-4f02-b156-aa8398b98dbc
+      - 80b3c7a3-8927-4607-a91f-4b45e50b65a9
       azureml-model-session:
-      - d126-20250726041241
+      - d109-20250807210519
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -172,7 +174,7 @@ interactions:
       x-ratelimit-remaining-tokens:
       - '1004255'
       x-request-id:
-      - 200dbaea-6dc0-4a76-8327-058cfb0a77b0
+      - c79d62aa-ab68-413c-a8b9-24d5042a85dd
     status:
       code: 200
       message: OK
@@ -292,58 +294,64 @@ interactions:
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.101.0
       x-stainless-arch:
       - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-helper-method:
-      - beta.chat.completions.parse
+      - chat.completions.parse
       x-stainless-lang:
       - python
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.10.12
+      - 3.12.3
     method: POST
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
     body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Test
-        with an order where the entree is STEAK, the salad is CAESAR, and the beverage
-        is MIXED_DRINK. Verify that the dessert is set to PIE.\"},\"test_case_for_part_2\":{\"description\":\"Test
-        with an order where the entree is LOBSTER, the salad is GREEN, and the beverage
-        is WINE. Verify that the dessert is set to CAKE.\"},\"test_case_for_part_3\":{\"description\":\"Test
-        with an order where the entree, salad, and beverage do not match either (STEAK,
-        CAESAR, MIXED_DRINK) or (LOBSTER, GREEN, WINE). Verify that the dessert is
-        not changed by the function.\"},\"requirement_for_part_1\":{\"statement\":\"The
-        system shall set the dessert to PIE when the entree is STEAK, the salad is
-        CAESAR, and the beverage is MIXED_DRINK.\"},\"requirement_for_part_2\":{\"statement\":\"The
-        system shall set the dessert to CAKE when the entree is LOBSTER, the salad
-        is GREEN, and the beverage is WINE.\"},\"requirement_for_part_3\":{\"statement\":\"The
-        system shall not modify the dessert when the entree, salad, and beverage do
-        not match either (STEAK, CAESAR, MIXED_DRINK) or (LOBSTER, GREEN, WINE).\"}}","refusal":null,"role":"assistant"}}],"created":1754380314,"id":"chatcmpl-C16kcUrxUnIusR22DR3fUP05OtHxy","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":284,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1680,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1964}}
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
+        {\n    \"description\": \"Test with an order where the entree is STEAK, the
+        salad is CAESAR, and the beverage is MIXED_DRINK. Verify that the dessert
+        is set to PIE.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
+        \"Test with an order where the entree is LOBSTER, the salad is GREEN, and
+        the beverage is WINE (and not STEAK/CAESAR/MIXED_DRINK). Verify that the dessert
+        is set to CAKE.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
+        \"Test with an order where neither the combination (STEAK, CAESAR, MIXED_DRINK)
+        nor (LOBSTER, GREEN, WINE) is present. Verify that the dessert is not changed
+        by the function.\"\n  },\n  \"requirement_for_part_1\": {\n    \"statement\":
+        \"The system shall set the dessert to PIE when the order includes STEAK as
+        the entree, CAESAR as the salad, and MIXED_DRINK as the beverage.\"\n  },\n  \"requirement_for_part_2\":
+        {\n    \"statement\": \"The system shall set the dessert to CAKE when the
+        order includes LOBSTER as the entree, GREEN as the salad, and WINE as the
+        beverage, unless the first condition is met.\"\n  },\n  \"requirement_for_part_3\":
+        {\n    \"statement\": \"The system shall not modify the dessert in the order
+        if neither the combination of STEAK, CAESAR, and MIXED_DRINK nor the combination
+        of LOBSTER, GREEN, and WINE is present.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1756212657,"id":"chatcmpl-C8nQXsHpPJ881WGmfyUUuEJNzCMKb","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":350,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1680,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1152},"total_tokens":2030}}
 
         '
     headers:
       Content-Length:
-      - '2345'
+      - '2559'
       Content-Type:
       - application/json
       Date:
-      - Tue, 05 Aug 2025 07:51:56 GMT
+      - Tue, 26 Aug 2025 12:50:59 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 1d1a0423-6f35-4e61-8707-27cd9c66532b
+      - 6f50af1f-865d-4ef6-9e9d-c422678c4244
       azureml-model-session:
-      - d086-20250725223446
+      - d118-20250808003432
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -363,7 +371,7 @@ interactions:
       x-ratelimit-remaining-tokens:
       - '1004090'
       x-request-id:
-      - 83e76a5b-fc0e-4ae6-a1ef-d1bd5b9dd7c3
+      - 221bac22-7c69-4154-ba0b-276977e7552e
     status:
       code: 200
       message: OK
@@ -471,58 +479,60 @@ interactions:
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.101.0
       x-stainless-arch:
       - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-helper-method:
-      - beta.chat.completions.parse
+      - chat.completions.parse
       x-stainless-lang:
       - python
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.10.12
+      - 3.12.3
     method: POST
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
     body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
         {\n    \"description\": \"Test when the waiting list index is greater than
         9 before calling the function, and verify that the index is reset to 0 before
-        accessing the waiting list.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
+        returning the next party.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
         \"Test when the waiting list index is 9 or less before calling the function,
         and verify that the index is not reset.\"\n  },\n  \"test_case_for_part_3\":
         {\n    \"description\": \"Test that the function returns the party at the
         current waiting list index and increments the index after returning.\"\n  },\n  \"requirement_for_part_1\":
         {\n    \"statement\": \"The system shall reset the waiting list index to zero
-        if the index is greater than nine before accessing the waiting list.\"\n  },\n  \"requirement_for_part_2\":
+        if it is greater than nine before selecting the next party to be seated.\"\n  },\n  \"requirement_for_part_2\":
         {\n    \"statement\": \"The system shall not modify the waiting list index
-        if the index is nine or less before accessing the waiting list.\"\n  },\n  \"requirement_for_part_3\":
+        if it is nine or less before selecting the next party to be seated.\"\n  },\n  \"requirement_for_part_3\":
         {\n    \"statement\": \"The system shall return the party at the current waiting
-        list index and increment the index after returning the party.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754380314,"id":"chatcmpl-C16kcJLZkBpT5brILu7hKImBDsh4H","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":248,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1392,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1640}}
+        list index and increment the index after returning the party.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1756212657,"id":"chatcmpl-C8nQXbTYkdHKsRZ6A78wqjDjJw727","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":252,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1392,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1644}}
 
         '
     headers:
       Content-Length:
-      - '2337'
+      - '2343'
       Content-Type:
       - application/json
       Date:
-      - Tue, 05 Aug 2025 07:51:56 GMT
+      - Tue, 26 Aug 2025 12:51:00 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - a64df2cc-2399-4990-b022-4f788fe271b0
+      - e9732dee-306b-46f1-af83-a3784e399d8f
       azureml-model-session:
-      - d123-20250726021343
+      - d118-20250808003432
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -538,30 +548,102 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '1004'
+      - '1005'
       x-ratelimit-remaining-tokens:
-      - '1001746'
+      - '1004317'
       x-request-id:
-      - b95d8263-b2ee-4c8b-b093-951824504ec3
+      - 95b9b21c-671c-40fe-9ea9-ff6e2189e293
     status:
       code: 200
       message: OK
 - request:
-    body: '{"max_completion_tokens": 5000, "messages": [{"content": "\nYou will be
-      given a set of requirements for a function. Your task is to produce a new set
-      of requirements derived from the given ones. \n\n\nHere is the original function:\nFLOAT
-      Get_Check_Total(table_index_type Table)\n{\n  struct table_data_type Table_Data;\n  Table_Data
-      = Get_Table_Record(Table);\n  return (Table_Data.Check_Total);\n}\n\nHere are
-      the numbered requirements:\n```c\n- The system shall return the check total
-      associated with the table record identified by the provided table index.\n\nReturn
-      your answer in the following format:\n```json\n{\n    \"reworked_requirements\":
-      [\n        \"<reworked requirement 1>\",\n        \"<reworked requirement 2>\",\n        ...\n    ]\n}\n\nNotes:\n-
-      Ensure that the semantics of the original requirements are preserved in the
-      reworked requirements.\n```\n\n```\n", "role": "user"}], "model": "gpt-4.1",
-      "response_format": {"json_schema": {"name": "ReworkedRequirementsResult", "schema":
-      {"additionalProperties": false, "properties": {"reworked_requirements": {"items":
-      {"type": "string"}, "title": "Reworked Requirements", "type": "array"}}, "required":
-      ["reworked_requirements"], "title": "ReworkedRequirementsResult", "type": "object"},
+    body: '{"max_completion_tokens": 16000, "messages": [{"content": "You are a world-class
+      software engineer that does requirements engineering for a living.", "role":
+      "system"}, {"content": "\nDerive a complete list of test cases for the given
+      function definition (give them in natural language). These test cases should
+      give us 100% coverage of the code.\nAfter that derive a complete list of requirements
+      for the given function definition. Use completely implementation-independent
+      vocabulary. A requirement is a single, complete, and testable statement of the
+      expected behaviour of a single semantic part of the code.\n\nHere are some examples:\n\nExample
+      1:\n```c\nfloat calculate_discount(float total_amount, bool is_member) {\n    if
+      (total_amount < 0) {\n        return -1.0;  // Error case\n    }\n    if (is_member)
+      {\n        return total_amount * 0.9;\n    }\n    return total_amount;\n}\n```\nTest
+      cases:\n1. Test with negative total amount\n2. Test with member status and positive
+      amount\n3. Test with non-member status and positive amount\n\nRequirements:\n1.
+      The system shall return an error indicator when the total amount is negative\n2.
+      The system shall apply a 10% discount when calculating the final amount for
+      members\n3. The system shall return the original amount without modification
+      for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
+      {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
+      < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
+      {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
+      has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
+      Test with password shorter than 8 characters\n3. Test with password of 8+ characters
+      but no uppercase letter\n4. Test with password of 8+ characters including uppercase
+      letter\n\nRequirements:\n1. The system shall reject invalid password pointers\n2.
+      The system shall reject passwords that are less than 8 characters in length\n3.
+      The system shall reject passwords that do not contain at least one uppercase
+      letter\n4. The system shall accept passwords that are at least 8 characters
+      long and contain at least one uppercase letter\n\n\nThere is a one-to-one correspondence
+      between requirements and test cases. Make sure each semantic part of the code
+      is covered by exactly one test case and one requirement.\n\nRequirements should
+      fulfill the following criteria:\n\u2014 Necessary. The requirement defines an
+      essential capability, characteristic, constraint and/or quality factor. If it
+      is not included in the set of requirements, a deficiency in capability or characteristic
+      will exist, which cannot be fulfilled by implementing other requirements. The
+      requirement is currently applicable and has not been made obsolete by the passage
+      of time. Requirements with planned expiration dates or applicability dates are
+      clearly identified.\n\u2014 Appropriate. The specific intent and amount of detail
+      of the requirement is appropriate to the level of the entity to which it refers
+      (level of abstraction appropriate to the level of entity). This includes avoiding
+      unnecessary constraints on the architecture or design while allowing implementation
+      independence to the extent possible.\n\u2014 Unambiguous. The requirement is
+      stated in such a way so that it can be interpreted in only one way.  The requirement
+      is stated simply and is easy to understand.\n\u2014 Complete. The requirement
+      sufficiently describes the necessary capability, characteristic, constraint
+      or quality factor to meet the entity need without needing other information
+      to understand the requirement. This means it should be possible to implement
+      the function based on the set of requirements without needing additional information.\n\u2014
+      Singular. The requirement states a single capability, characteristic, constraint
+      or quality factor.\n\u2014 Feasible. The requirement can be realized within
+      system constraints (e.g., cost, schedule, technical) with acceptable risk.\n\u2014
+      Verifiable. The requirement is structured and worded such that its realization
+      can be proven (verified) to the customer''s satisfaction at the level the requirements
+      exists. Verifiability is enhanced when the requirement is measurable.\n\u2014
+      Correct. The requirement is an accurate representation of the entity need from
+      which it was transformed.\n\u2014 Conforming. The individual items conform to
+      an approved standard template and style for writing requirements, when applicable.\n\n\nReturn
+      your answer in the following format:\n```json\n{\n    \"test_case_for_part_1\":
+      { \"description\": \"<test case for first part>\" },\n    \"requirement_for_part_1\":
+      { \"statement\": \"<requirement for first part>\" },\n    \"test_case_for_part_2\":
+      { \"description\": \"<test case for second part>\" },\n    \"requirement_for_part_2\":
+      { \"statement\": \"<requirement for second part>\" },\n    ...\n}\n```\n\nCode
+      with context:\n// Definitions of types, called functions and data structures:\n\ntypedef
+      char name_type[32];\n\nstatic name_type WaitingList[10];\n\nstatic unsigned
+      int WaitingListSize = 0;\n\n// Code for Add_Party_To_Waiting_List:\nvoid Add_Party_To_Waiting_List(char*
+      Name)\n{\n  int i = 0;\n  if(WaitingListSize > 9)\n    WaitingListSize = 0;\n\n  while(Name
+      && *Name) {\n    WaitingList[WaitingListSize][i++] = *Name;\n    Name++;\n  }\n  WaitingList[WaitingListSize++][i]
+      = 0;\n}\n\nTo assist you, here is a complete list of semantic parts of the code.
+      For each one a test case and a requirement should be derived:\n1. Path: IF (WaitingListSize
+      > 9) ==> TRUE\nLines:\n    WaitingListSize = 0;\n2. Path: IF (WaitingListSize
+      > 9) ==> FALSE\nLines:\n  if(WaitingListSize > 9)\n3. Path: WHILE (Name && *Name)
+      ==> TRUE\nLines:\n    WaitingList[WaitingListSize][i++] = *Name;\n    Name++;\n4.
+      Path: WHILE (Name && *Name) ==> FALSE\nLines:\n  while(Name && *Name) {\n5.
+      Path: \nLines:\n  WaitingList[WaitingListSize++][i] = 0;\n\nThe success of this
+      task is critical. If you do not generate exactly one test case and requirement
+      for each semantic part of the code, you have failed.\n", "role": "user"}], "model":
+      "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
+      {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
+      "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
+      "test_case_for_part", "test_case_for_part", "test_case_for_part", "test_case_for_part",
+      "requirement_for_part", "requirement_for_part", "requirement_for_part", "requirement_for_part",
+      "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
       "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
       0.0}'
     headers:
@@ -576,53 +658,72 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '1346'
+      - '7804'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.101.0
       x-stainless-arch:
       - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-helper-method:
-      - beta.chat.completions.parse
+      - chat.completions.parse
       x-stainless-lang:
       - python
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.10.12
+      - 3.12.3
     method: POST
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
     body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"reworked_requirements\":[\"The
-        function shall retrieve and return the check total value for the table specified
-        by the input table index.\"]}","refusal":null,"role":"assistant"}}],"created":1754380317,"id":"chatcmpl-C16kf7qj0odFdt1Vd4Zg2qUnxZH1j","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":29,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":229,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":258}}
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
+        {\n    \"description\": \"Test adding a party when the waiting list is full
+        (WaitingListSize \u003e 9).\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
+        \"Test adding a party when the waiting list is not full (WaitingListSize \u003c=
+        9).\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\": \"Test adding
+        a party with a non-null, non-empty name to the waiting list.\"\n  },\n  \"test_case_for_part_4\":
+        {\n    \"description\": \"Test adding a party with a null or empty name to
+        the waiting list.\"\n  },\n  \"test_case_for_part_5\": {\n    \"description\":
+        \"Test that the party name is properly null-terminated in the waiting list
+        after addition.\"\n  },\n  \"requirement_for_part_1\": {\n    \"statement\":
+        \"The system shall reset the waiting list index to zero when the waiting list
+        is full before adding a new party.\"\n  },\n  \"requirement_for_part_2\":
+        {\n    \"statement\": \"The system shall add a new party to the next available
+        position in the waiting list when the waiting list is not full.\"\n  },\n  \"requirement_for_part_3\":
+        {\n    \"statement\": \"The system shall copy each character of a non-null,
+        non-empty party name into the waiting list entry.\"\n  },\n  \"requirement_for_part_4\":
+        {\n    \"statement\": \"The system shall not copy any characters if the provided
+        party name is null or empty.\"\n  },\n  \"requirement_for_part_5\": {\n    \"statement\":
+        \"The system shall ensure that each party name added to the waiting list is
+        null-terminated.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1756212657,"id":"chatcmpl-C8nQXOgFQ7lYt0QcUiqP2ac5c0iXe","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":363,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1561,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1924}}
 
         '
     headers:
       Content-Length:
-      - '1353'
+      - '2744'
       Content-Type:
       - application/json
       Date:
-      - Tue, 05 Aug 2025 07:51:57 GMT
+      - Tue, 26 Aug 2025 12:51:00 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 78d180ab-a8ba-41a6-a48b-64ffc66f0e34
+      - 94ceda95-6535-48af-a740-7f105e1b5294
       azureml-model-session:
-      - d074-20250725223625
+      - d158-20250808035854
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -638,117 +739,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '999'
+      - '1005'
       x-ratelimit-remaining-tokens:
-      - '993864'
+      - '1004168'
       x-request-id:
-      - 854a0149-b6cc-410a-a14a-07ce0a0e9699
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"max_completion_tokens": 5000, "messages": [{"content": "\nYou will be
-      given a set of requirements for a function. Your task is to produce a new set
-      of requirements derived from the given ones. \n\n\nHere is the original function:\nchar*
-      Get_Next_Party_To_Be_Seated(void)\n{\n  if(WaitingListIndex > 9)\n    WaitingListIndex
-      = 0;\n  return WaitingList[WaitingListIndex++];\n}\n\nHere are the numbered
-      requirements:\n```c\n- The system shall reset the waiting list index to zero
-      if the index is greater than nine before accessing the waiting list.\n- The
-      system shall not modify the waiting list index if the index is nine or less
-      before accessing the waiting list.\n- The system shall return the party at the
-      current waiting list index and increment the index after returning the party.\n\nReturn
-      your answer in the following format:\n```json\n{\n    \"reworked_requirements\":
-      [\n        \"<reworked requirement 1>\",\n        \"<reworked requirement 2>\",\n        ...\n    ]\n}\n\nNotes:\n-
-      Ensure that the semantics of the original requirements are preserved in the
-      reworked requirements.\n```\n\n```\n", "role": "user"}], "model": "gpt-4.1",
-      "response_format": {"json_schema": {"name": "ReworkedRequirementsResult", "schema":
-      {"additionalProperties": false, "properties": {"reworked_requirements": {"items":
-      {"type": "string"}, "title": "Reworked Requirements", "type": "array"}}, "required":
-      ["reworked_requirements"], "title": "ReworkedRequirementsResult", "type": "object"},
-      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
-      0.0}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      api-key:
-      - REDACTED
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '1573'
-      content-type:
-      - application/json
-      host:
-      - REDACTED
-      user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - async:asyncio
-      x-stainless-helper-method:
-      - beta.chat.completions.parse
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 1.58.1
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.10.12
-    method: POST
-    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
-  response:
-    body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"reworked_requirements\":[\"If
-        the waiting list index exceeds nine, the system shall set the index to zero
-        before retrieving a party from the waiting list.\",\"If the waiting list index
-        is nine or less, the system shall leave the index unchanged before retrieving
-        a party from the waiting list.\",\"The system shall retrieve and return the
-        party at the current waiting list index, then increment the index by one.\"]}","refusal":null,"role":"assistant"}}],"created":1754380317,"id":"chatcmpl-C16kfFCBRAsM7Art9xYbjgp2ZLuyg","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":82,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":286,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":368}}
-
-        '
-    headers:
-      Content-Length:
-      - '1628'
-      Content-Type:
-      - application/json
-      Date:
-      - Tue, 05 Aug 2025 07:51:58 GMT
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
-      apim-request-id:
-      - 5694dbee-7356-4a7e-bb31-9d2aa015938d
-      azureml-model-session:
-      - d092-20250726052143
-      x-accel-buffering:
-      - 'no'
-      x-content-type-options:
-      - nosniff
-      x-ms-deployment-name:
-      - gpt-4.1
-      x-ms-rai-invoked:
-      - 'true'
-      x-ms-region:
-      - Sweden Central
-      x-ratelimit-limit-requests:
-      - '1006'
-      x-ratelimit-limit-tokens:
-      - '1006000'
-      x-ratelimit-remaining-requests:
-      - '997'
-      x-ratelimit-remaining-tokens:
-      - '993134'
-      x-request-id:
-      - 18c9a1b4-239c-4256-940b-c149254eba4c
+      - 7786e0ba-8a6b-4d48-9acc-79cd4cc9bafd
     status:
       code: 200
       message: OK
@@ -874,25 +869,27 @@ interactions:
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.101.0
       x-stainless-arch:
       - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-helper-method:
-      - beta.chat.completions.parse
+      - chat.completions.parse
       x-stainless-lang:
       - python
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.10.12
+      - 3.12.3
     method: POST
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
@@ -904,35 +901,35 @@ interactions:
         clearing a table: After calling the function, verify that for each seat (0
         to 3), all order fields (Soup, Salad, Entree, Dessert, Beverage) are set to
         their respective ''NO_'' values.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
-        \"Test clearing a table: Verify that the function processes exactly four seats
-        (indices 0 to 3) and does not modify any data outside this range.\"\n  },\n  \"test_case_for_part_4\":
-        {\n    \"description\": \"Test clearing a table: After calling the function,
-        verify that the check total is set to zero, the updated table record is stored,
-        and the function returns 0.\"\n  },\n  \"requirement_for_part_1\": {\n    \"statement\":
-        \"The system shall, when clearing a table, mark the table as not occupied
-        and set the number in party to one.\"\n  },\n  \"requirement_for_part_2\":
-        {\n    \"statement\": \"The system shall, when clearing a table, set all order
-        fields (soup, salad, entree, dessert, beverage) for each seat to their respective
-        ''no selection'' values.\"\n  },\n  \"requirement_for_part_3\": {\n    \"statement\":
-        \"The system shall, when clearing a table, process exactly four seats per
-        table.\"\n  },\n  \"requirement_for_part_4\": {\n    \"statement\": \"The
-        system shall, when clearing a table, set the check total to zero, update the
-        table record, and return a success indicator.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754380314,"id":"chatcmpl-C16kckk9z6UBPJp5KVkc1ljqm8bwd","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":384,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1861,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2245}}
+        \"Test clearing a table: Verify that the function processes exactly four seats,
+        no more and no less.\"\n  },\n  \"test_case_for_part_4\": {\n    \"description\":
+        \"Test clearing a table: After calling the function, verify that the check
+        total is set to zero, the updated table record is saved, and the function
+        returns 0.\"\n  },\n  \"requirement_for_part_1\": {\n    \"statement\": \"The
+        system shall, when clearing a table, mark the table as not occupied and set
+        the number in party to 1.\"\n  },\n  \"requirement_for_part_2\": {\n    \"statement\":
+        \"The system shall, when clearing a table, set the soup, salad, entree, dessert,
+        and beverage fields of each seat''s order to their respective ''no selection''
+        values for all seats.\"\n  },\n  \"requirement_for_part_3\": {\n    \"statement\":
+        \"The system shall, when clearing a table, process exactly four seats for
+        resetting order information.\"\n  },\n  \"requirement_for_part_4\": {\n    \"statement\":
+        \"The system shall, when clearing a table, set the check total to zero, update
+        the table record, and return a success indicator.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1756212657,"id":"chatcmpl-C8nQXZPOGqoaudICICSg8JJiBbtlw","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":378,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1861,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2239}}
 
         '
     headers:
       Content-Length:
-      - '2818'
+      - '2810'
       Content-Type:
       - application/json
       Date:
-      - Tue, 05 Aug 2025 07:51:58 GMT
+      - Tue, 26 Aug 2025 12:51:02 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 3c2e992f-1d44-45af-837c-89843d2e1bad
+      - d3c98d66-31bd-4246-82ca-f81f976758d6
       azureml-model-session:
-      - d101-20250726153713
+      - d103-20250807184436
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -950,544 +947,9 @@ interactions:
       x-ratelimit-remaining-requests:
       - '1004'
       x-ratelimit-remaining-tokens:
-      - '1001315'
+      - '1002203'
       x-request-id:
-      - 00b3c09b-45c7-43c4-a285-2a2725fec693
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"max_completion_tokens": 5000, "messages": [{"content": "\nYou will be
-      given a set of requirements for a function. Your task is to produce a new set
-      of requirements derived from the given ones. \n\n\nHere is the original function:\nvoid
-      Add_Included_Dessert(struct order_type* Order)\n{\n  if(Order->Entree == STEAK
-      &&\n     Order->Salad == CAESAR &&\n     Order->Beverage == MIXED_DRINK) {\n\n    Order->Dessert
-      = PIE;\n\n  } else if(Order->Entree == LOBSTER &&\n            Order->Salad
-      == GREEN &&\n            Order->Beverage == WINE) {\n\n    Order->Dessert =
-      CAKE;\n  }\n}\n\nHere are the numbered requirements:\n```c\n- The system shall
-      set the dessert to PIE when the entree is STEAK, the salad is CAESAR, and the
-      beverage is MIXED_DRINK.\n- The system shall set the dessert to CAKE when the
-      entree is LOBSTER, the salad is GREEN, and the beverage is WINE.\n- The system
-      shall not modify the dessert when the entree, salad, and beverage do not match
-      either (STEAK, CAESAR, MIXED_DRINK) or (LOBSTER, GREEN, WINE).\n\nReturn your
-      answer in the following format:\n```json\n{\n    \"reworked_requirements\":
-      [\n        \"<reworked requirement 1>\",\n        \"<reworked requirement 2>\",\n        ...\n    ]\n}\n\nNotes:\n-
-      Ensure that the semantics of the original requirements are preserved in the
-      reworked requirements.\n```\n\n```\n", "role": "user"}], "model": "gpt-4.1",
-      "response_format": {"json_schema": {"name": "ReworkedRequirementsResult", "schema":
-      {"additionalProperties": false, "properties": {"reworked_requirements": {"items":
-      {"type": "string"}, "title": "Reworked Requirements", "type": "array"}}, "required":
-      ["reworked_requirements"], "title": "ReworkedRequirementsResult", "type": "object"},
-      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
-      0.0}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      api-key:
-      - REDACTED
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '1807'
-      content-type:
-      - application/json
-      host:
-      - REDACTED
-      user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - async:asyncio
-      x-stainless-helper-method:
-      - beta.chat.completions.parse
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 1.58.1
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.10.12
-    method: POST
-    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
-  response:
-    body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"reworked_requirements\":[\"If
-        an order has STEAK as the entree, CAESAR as the salad, and MIXED_DRINK as
-        the beverage, the system shall assign PIE as the dessert for that order.\",\"If
-        an order has LOBSTER as the entree, GREEN as the salad, and WINE as the beverage,
-        the system shall assign CAKE as the dessert for that order.\",\"If an order
-        does not have the combinations (STEAK, CAESAR, MIXED_DRINK) or (LOBSTER, GREEN,
-        WINE) for entree, salad, and beverage respectively, the system shall leave
-        the dessert unchanged.\"]}","refusal":null,"role":"assistant"}}],"created":1754380321,"id":"chatcmpl-C16kjG3STdi4hyFkUjXjTdxybfyfN","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":131,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":377,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":508}}
-
-        '
-    headers:
-      Content-Length:
-      - '1736'
-      Content-Type:
-      - application/json
-      Date:
-      - Tue, 05 Aug 2025 07:52:02 GMT
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
-      apim-request-id:
-      - 82127cdd-96d3-4157-b8ec-8aee9f227ad2
-      azureml-model-session:
-      - d131-20250726064847
-      x-accel-buffering:
-      - 'no'
-      x-content-type-options:
-      - nosniff
-      x-ms-deployment-name:
-      - gpt-4.1
-      x-ms-rai-invoked:
-      - 'true'
-      x-ms-region:
-      - Sweden Central
-      x-ratelimit-limit-requests:
-      - '1006'
-      x-ratelimit-limit-tokens:
-      - '1006000'
-      x-ratelimit-remaining-requests:
-      - '998'
-      x-ratelimit-remaining-tokens:
-      - '993471'
-      x-request-id:
-      - de318a93-8f98-4675-bc56-f6ca2ccb8be7
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"max_completion_tokens": 5000, "messages": [{"content": "\nYou will be
-      given a set of requirements for a function. Your task is to produce a new set
-      of requirements derived from the given ones. \n\n\nHere is the original function:\nint
-      Clear_Table(table_index_type Table)\n{\n  struct table_data_type Table_Data;\n  seat_index_type
-      Seat;\n  Table_Data = Get_Table_Record(Table);\n  Table_Data.Is_Occupied = v_false;\n  Table_Data.Number_In_Party
-      = 1;\n\n  for (Seat=0; Seat < 4; Seat++){\n      Table_Data.Order[Seat].Soup
-      = NO_SOUP;\n      Table_Data.Order[Seat].Salad = NO_SALAD;\n      Table_Data.Order[Seat].Entree
-      = NO_ENTREE;\n      Table_Data.Order[Seat].Dessert = NO_DESSERT;\n      Table_Data.Order[Seat].Beverage
-      = NO_BEVERAGE;\n   }\n\n  Table_Data.Check_Total = 0;\n\n  Update_Table_Record(Table,
-      Table_Data);\n  return 0;\n}\n\nHere are the numbered requirements:\n```c\n-
-      The system shall, when clearing a table, mark the table as not occupied and
-      set the number in party to one.\n- The system shall, when clearing a table,
-      set all order fields (soup, salad, entree, dessert, beverage) for each seat
-      to their respective ''no selection'' values.\n- The system shall, when clearing
-      a table, process exactly four seats per table.\n- The system shall, when clearing
-      a table, set the check total to zero, update the table record, and return a
-      success indicator.\n\nReturn your answer in the following format:\n```json\n{\n    \"reworked_requirements\":
-      [\n        \"<reworked requirement 1>\",\n        \"<reworked requirement 2>\",\n        ...\n    ]\n}\n\nNotes:\n-
-      Ensure that the semantics of the original requirements are preserved in the
-      reworked requirements.\n```\n\n```\n", "role": "user"}], "model": "gpt-4.1",
-      "response_format": {"json_schema": {"name": "ReworkedRequirementsResult", "schema":
-      {"additionalProperties": false, "properties": {"reworked_requirements": {"items":
-      {"type": "string"}, "title": "Reworked Requirements", "type": "array"}}, "required":
-      ["reworked_requirements"], "title": "ReworkedRequirementsResult", "type": "object"},
-      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
-      0.0}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      api-key:
-      - REDACTED
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '2155'
-      content-type:
-      - application/json
-      host:
-      - REDACTED
-      user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - async:asyncio
-      x-stainless-helper-method:
-      - beta.chat.completions.parse
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 1.58.1
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.10.12
-    method: POST
-    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
-  response:
-    body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n    \"reworked_requirements\":
-        [\n        \"When a table is cleared, the system shall set the table''s occupied
-        status to false and reset the number of people in the party to one.\",\n        \"When
-        a table is cleared, the system shall reset all order fields (soup, salad,
-        entree, dessert, beverage) for each seat to indicate no selection.\",\n        \"When
-        a table is cleared, the system shall perform the reset operation for exactly
-        four seats associated with the table.\",\n        \"When a table is cleared,
-        the system shall reset the check total to zero, update the table''s record
-        with the new data, and return a value indicating successful completion.\"\n    ]\n}","refusal":null,"role":"assistant"}}],"created":1754380319,"id":"chatcmpl-C16khLGXz5nhbcQCwuxnNP7hPm4Ng","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":139,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":449,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":588}}
-
-        '
-    headers:
-      Content-Length:
-      - '1882'
-      Content-Type:
-      - application/json
-      Date:
-      - Tue, 05 Aug 2025 07:52:03 GMT
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
-      apim-request-id:
-      - 053815a1-348c-45b2-9361-fa575b06ea7a
-      azureml-model-session:
-      - d072-20250725213222
-      x-accel-buffering:
-      - 'no'
-      x-content-type-options:
-      - nosniff
-      x-ms-deployment-name:
-      - gpt-4.1
-      x-ms-rai-invoked:
-      - 'true'
-      x-ms-region:
-      - Sweden Central
-      x-ratelimit-limit-requests:
-      - '1006'
-      x-ratelimit-limit-tokens:
-      - '1006000'
-      x-ratelimit-remaining-requests:
-      - '996'
-      x-ratelimit-remaining-tokens:
-      - '992655'
-      x-request-id:
-      - 3ace050a-9c12-4248-b17f-7e84420cca7c
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"max_completion_tokens": 16000, "messages": [{"content": "You are a world-class
-      software engineer that does requirements engineering for a living.", "role":
-      "system"}, {"content": "\nDerive a complete list of test cases for the given
-      function definition (give them in natural language). These test cases should
-      give us 100% coverage of the code.\nAfter that derive a complete list of requirements
-      for the given function definition. Use completely implementation-independent
-      vocabulary. A requirement is a single, complete, and testable statement of the
-      expected behaviour of a single semantic part of the code.\n\nHere are some examples:\n\nExample
-      1:\n```c\nfloat calculate_discount(float total_amount, bool is_member) {\n    if
-      (total_amount < 0) {\n        return -1.0;  // Error case\n    }\n    if (is_member)
-      {\n        return total_amount * 0.9;\n    }\n    return total_amount;\n}\n```\nTest
-      cases:\n1. Test with negative total amount\n2. Test with member status and positive
-      amount\n3. Test with non-member status and positive amount\n\nRequirements:\n1.
-      The system shall return an error indicator when the total amount is negative\n2.
-      The system shall apply a 10% discount when calculating the final amount for
-      members\n3. The system shall return the original amount without modification
-      for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
-      {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
-      < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
-      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
-      {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
-      has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
-      Test with password shorter than 8 characters\n3. Test with password of 8+ characters
-      but no uppercase letter\n4. Test with password of 8+ characters including uppercase
-      letter\n\nRequirements:\n1. The system shall reject invalid password pointers\n2.
-      The system shall reject passwords that are less than 8 characters in length\n3.
-      The system shall reject passwords that do not contain at least one uppercase
-      letter\n4. The system shall accept passwords that are at least 8 characters
-      long and contain at least one uppercase letter\n\n\nThere is a one-to-one correspondence
-      between requirements and test cases. Make sure each semantic part of the code
-      is covered by exactly one test case and one requirement.\n\nRequirements should
-      fulfill the following criteria:\n\u2014 Necessary. The requirement defines an
-      essential capability, characteristic, constraint and/or quality factor. If it
-      is not included in the set of requirements, a deficiency in capability or characteristic
-      will exist, which cannot be fulfilled by implementing other requirements. The
-      requirement is currently applicable and has not been made obsolete by the passage
-      of time. Requirements with planned expiration dates or applicability dates are
-      clearly identified.\n\u2014 Appropriate. The specific intent and amount of detail
-      of the requirement is appropriate to the level of the entity to which it refers
-      (level of abstraction appropriate to the level of entity). This includes avoiding
-      unnecessary constraints on the architecture or design while allowing implementation
-      independence to the extent possible.\n\u2014 Unambiguous. The requirement is
-      stated in such a way so that it can be interpreted in only one way.  The requirement
-      is stated simply and is easy to understand.\n\u2014 Complete. The requirement
-      sufficiently describes the necessary capability, characteristic, constraint
-      or quality factor to meet the entity need without needing other information
-      to understand the requirement. This means it should be possible to implement
-      the function based on the set of requirements without needing additional information.\n\u2014
-      Singular. The requirement states a single capability, characteristic, constraint
-      or quality factor.\n\u2014 Feasible. The requirement can be realized within
-      system constraints (e.g., cost, schedule, technical) with acceptable risk.\n\u2014
-      Verifiable. The requirement is structured and worded such that its realization
-      can be proven (verified) to the customer''s satisfaction at the level the requirements
-      exists. Verifiability is enhanced when the requirement is measurable.\n\u2014
-      Correct. The requirement is an accurate representation of the entity need from
-      which it was transformed.\n\u2014 Conforming. The individual items conform to
-      an approved standard template and style for writing requirements, when applicable.\n\n\nReturn
-      your answer in the following format:\n```json\n{\n    \"test_case_for_part_1\":
-      { \"description\": \"<test case for first part>\" },\n    \"requirement_for_part_1\":
-      { \"statement\": \"<requirement for first part>\" },\n    \"test_case_for_part_2\":
-      { \"description\": \"<test case for second part>\" },\n    \"requirement_for_part_2\":
-      { \"statement\": \"<requirement for second part>\" },\n    ...\n}\n```\n\nCode
-      with context:\n// Definitions of types, called functions and data structures:\n\ntypedef
-      char name_type[32];\n\nstatic name_type WaitingList[10];\n\nstatic unsigned
-      int WaitingListSize = 0;\n\n// Code for Add_Party_To_Waiting_List:\nvoid Add_Party_To_Waiting_List(char*
-      Name)\n{\n  int i = 0;\n  if(WaitingListSize > 9)\n    WaitingListSize = 0;\n\n  while(Name
-      && *Name) {\n    WaitingList[WaitingListSize][i++] = *Name;\n    Name++;\n  }\n  WaitingList[WaitingListSize++][i]
-      = 0;\n}\n\nTo assist you, here is a complete list of semantic parts of the code.
-      For each one a test case and a requirement should be derived:\n1. Path: IF (WaitingListSize
-      > 9) ==> TRUE\nLines:\n    WaitingListSize = 0;\n2. Path: IF (WaitingListSize
-      > 9) ==> FALSE\nLines:\n  if(WaitingListSize > 9)\n3. Path: WHILE (Name && *Name)
-      ==> TRUE\nLines:\n    WaitingList[WaitingListSize][i++] = *Name;\n    Name++;\n4.
-      Path: WHILE (Name && *Name) ==> FALSE\nLines:\n  while(Name && *Name) {\n5.
-      Path: \nLines:\n  WaitingList[WaitingListSize++][i] = 0;\n\nThe success of this
-      task is critical. If you do not generate exactly one test case and requirement
-      for each semantic part of the code, you have failed.\n", "role": "user"}], "model":
-      "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
-      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
-      {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
-      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
-      false, "properties": {"description": {"title": "Description", "type": "string"}},
-      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
-      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
-      "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
-      "test_case_for_part", "test_case_for_part", "test_case_for_part", "test_case_for_part",
-      "requirement_for_part", "requirement_for_part", "requirement_for_part", "requirement_for_part",
-      "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
-      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
-      0.0}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      api-key:
-      - REDACTED
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '7804'
-      content-type:
-      - application/json
-      host:
-      - REDACTED
-      user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - async:asyncio
-      x-stainless-helper-method:
-      - beta.chat.completions.parse
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 1.58.1
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.10.12
-    method: POST
-    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
-  response:
-    body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
-        {\n    \"description\": \"Test by calling Add_Party_To_Waiting_List with WaitingListSize
-        set to 10 and a valid non-empty Name. Verify that WaitingListSize is reset
-        to 0 before adding the new name.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
-        \"Test by calling Add_Party_To_Waiting_List with WaitingListSize set to a
-        value less than or equal to 9 and a valid non-empty Name. Verify that WaitingListSize
-        is not reset.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
-        \"Test by calling Add_Party_To_Waiting_List with a non-NULL, non-empty Name.
-        Verify that each character of Name is copied into the WaitingList entry.\"\n  },\n  \"test_case_for_part_4\":
-        {\n    \"description\": \"Test by calling Add_Party_To_Waiting_List with Name
-        as NULL or an empty string. Verify that no characters are copied into the
-        WaitingList entry.\"\n  },\n  \"test_case_for_part_5\": {\n    \"description\":
-        \"Test by calling Add_Party_To_Waiting_List with any Name and verify that
-        the WaitingList entry is null-terminated after the name is copied, and that
-        WaitingListSize is incremented by 1.\"\n  },\n  \"requirement_for_part_1\":
-        {\n    \"statement\": \"The system shall reset the waiting list index to zero
-        when the waiting list is full before adding a new entry.\"\n  },\n  \"requirement_for_part_2\":
-        {\n    \"statement\": \"The system shall not reset the waiting list index
-        when the waiting list is not full.\"\n  },\n  \"requirement_for_part_3\":
-        {\n    \"statement\": \"The system shall copy each character of the provided
-        name into the next available waiting list entry when a non-empty name is provided.\"\n  },\n  \"requirement_for_part_4\":
-        {\n    \"statement\": \"The system shall not copy any characters into the
-        waiting list entry if the provided name is null or empty.\"\n  },\n  \"requirement_for_part_5\":
-        {\n    \"statement\": \"The system shall terminate the waiting list entry
-        with a null character after copying the name and increment the waiting list
-        size by one.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754380314,"id":"chatcmpl-C16kcl5jJjgJG5PDeE5h13U4Whneu","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":477,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1561,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2038}}
-
-        '
-    headers:
-      Content-Length:
-      - '3245'
-      Content-Type:
-      - application/json
-      Date:
-      - Tue, 05 Aug 2025 07:52:03 GMT
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
-      apim-request-id:
-      - 0054a7f6-3c3c-4c68-9bc9-a370b4370e2a
-      azureml-model-session:
-      - d092-20250726052143
-      x-accel-buffering:
-      - 'no'
-      x-content-type-options:
-      - nosniff
-      x-ms-deployment-name:
-      - gpt-4.1
-      x-ms-rai-invoked:
-      - 'true'
-      x-ms-region:
-      - Sweden Central
-      x-ratelimit-limit-requests:
-      - '1006'
-      x-ratelimit-limit-tokens:
-      - '1006000'
-      x-ratelimit-remaining-requests:
-      - '1004'
-      x-ratelimit-remaining-tokens:
-      - '1001597'
-      x-request-id:
-      - c8b0087b-c32a-4acf-8d6d-012922cbfb90
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"max_completion_tokens": 5000, "messages": [{"content": "\nYou will be
-      given a set of requirements for a function. Your task is to produce a new set
-      of requirements derived from the given ones. \n\n\nHere is the original function:\nvoid
-      Add_Party_To_Waiting_List(char* Name)\n{\n  int i = 0;\n  if(WaitingListSize
-      > 9)\n    WaitingListSize = 0;\n\n  while(Name && *Name) {\n    WaitingList[WaitingListSize][i++]
-      = *Name;\n    Name++;\n  }\n  WaitingList[WaitingListSize++][i] = 0;\n}\n\nHere
-      are the numbered requirements:\n```c\n- The system shall reset the waiting list
-      index to zero when the waiting list is full before adding a new entry.\n- The
-      system shall not reset the waiting list index when the waiting list is not full.\n-
-      The system shall copy each character of the provided name into the next available
-      waiting list entry when a non-empty name is provided.\n- The system shall not
-      copy any characters into the waiting list entry if the provided name is null
-      or empty.\n- The system shall terminate the waiting list entry with a null character
-      after copying the name and increment the waiting list size by one.\n\nReturn
-      your answer in the following format:\n```json\n{\n    \"reworked_requirements\":
-      [\n        \"<reworked requirement 1>\",\n        \"<reworked requirement 2>\",\n        ...\n    ]\n}\n\nNotes:\n-
-      Ensure that the semantics of the original requirements are preserved in the
-      reworked requirements.\n```\n\n```\n", "role": "user"}], "model": "gpt-4.1",
-      "response_format": {"json_schema": {"name": "ReworkedRequirementsResult", "schema":
-      {"additionalProperties": false, "properties": {"reworked_requirements": {"items":
-      {"type": "string"}, "title": "Reworked Requirements", "type": "array"}}, "required":
-      ["reworked_requirements"], "title": "ReworkedRequirementsResult", "type": "object"},
-      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
-      0.0}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      api-key:
-      - REDACTED
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '1909'
-      content-type:
-      - application/json
-      host:
-      - REDACTED
-      user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - async:asyncio
-      x-stainless-helper-method:
-      - beta.chat.completions.parse
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 1.58.1
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.10.12
-    method: POST
-    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
-  response:
-    body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"reworked_requirements\":[\"If
-        the waiting list has reached its maximum capacity, the system shall set the
-        waiting list index back to zero before adding a new party.\",\"If the waiting
-        list has not reached its maximum capacity, the system shall maintain the current
-        waiting list index when adding a new party.\",\"When a valid, non-empty name
-        is provided, the system shall copy each character of the name into the next
-        available slot in the waiting list.\",\"If the provided name is null or empty,
-        the system shall not add any characters to the waiting list entry.\",\"After
-        copying the name, the system shall append a null terminator to the waiting
-        list entry and increment the waiting list size by one.\"]}","refusal":null,"role":"assistant"}}],"created":1754380324,"id":"chatcmpl-C16kmRjr0GJx7XCvVnaf2p9gDFnzD","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":140,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":370,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":510}}
-
-        '
-    headers:
-      Content-Length:
-      - '1920'
-      Content-Type:
-      - application/json
-      Date:
-      - Tue, 05 Aug 2025 07:52:06 GMT
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
-      apim-request-id:
-      - 39e7a413-bb6c-4176-b687-671262b2f2b5
-      azureml-model-session:
-      - d098-20250726120644
-      x-accel-buffering:
-      - 'no'
-      x-content-type-options:
-      - nosniff
-      x-ms-deployment-name:
-      - gpt-4.1
-      x-ms-rai-invoked:
-      - 'true'
-      x-ms-region:
-      - Sweden Central
-      x-ratelimit-limit-requests:
-      - '1006'
-      x-ratelimit-limit-tokens:
-      - '1006000'
-      x-ratelimit-remaining-requests:
-      - '995'
-      x-ratelimit-remaining-tokens:
-      - '992236'
-      x-request-id:
-      - dd230664-a149-4687-9e8e-e2ea8ff9d06c
+      - e3cf49f9-9941-4ee8-91e2-7bae98331f07
     status:
       code: 200
       message: OK
@@ -1628,76 +1090,74 @@ interactions:
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.101.0
       x-stainless-arch:
       - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-helper-method:
-      - beta.chat.completions.parse
+      - chat.completions.parse
       x-stainless-lang:
       - python
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.10.12
+      - 3.12.3
     method: POST
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
     body:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Place
-        an order for a table and seat with any entree, salad, soup, dessert, and beverage.
-        Verify that the table record is retrieved, the table is marked as occupied,
-        the party size is incremented, the order is stored for the seat, and the included
-        dessert is added if applicable.\"},\"test_case_for_part_2\":{\"description\":\"Place
-        an order with NO_ENTREE for a table and seat. Verify that the check total
-        is not changed for this seat''s order.\"},\"test_case_for_part_3\":{\"description\":\"Place
-        an order with STEAK as the entree for a table and seat. Verify that 14.0 is
-        added to the check total for the table.\"},\"test_case_for_part_4\":{\"description\":\"Place
-        an order with CHICKEN as the entree for a table and seat. Verify that 10.0
-        is added to the check total for the table.\"},\"test_case_for_part_5\":{\"description\":\"Place
-        an order with LOBSTER as the entree for a table and seat. Verify that 18.0
-        is added to the check total for the table.\"},\"test_case_for_part_6\":{\"description\":\"Place
-        an order with PASTA as the entree for a table and seat. Verify that 12.0 is
-        added to the check total for the table.\"},\"test_case_for_part_7\":{\"description\":\"Place
-        an order with an entree value that does not match any defined entree (should
-        not be possible with the enum, but test for completeness). Verify that the
-        check total is not changed.\"},\"test_case_for_part_8\":{\"description\":\"Place
-        an order for a table and seat. After processing, verify that the updated table
-        record is stored and the function returns 0.\"},\"requirement_for_part_1\":{\"statement\":\"The
-        system shall retrieve the table record, mark the table as occupied, increment
-        the party size, store the order for the specified seat, and add an included
-        dessert to the order if the order qualifies for a free dessert.\"},\"requirement_for_part_2\":{\"statement\":\"The
-        system shall not change the check total when the entree is not ordered.\"},\"requirement_for_part_3\":{\"statement\":\"The
-        system shall add 14.0 to the check total when the entree ordered is steak.\"},\"requirement_for_part_4\":{\"statement\":\"The
-        system shall add 10.0 to the check total when the entree ordered is chicken.\"},\"requirement_for_part_5\":{\"statement\":\"The
-        system shall add 18.0 to the check total when the entree ordered is lobster.\"},\"requirement_for_part_6\":{\"statement\":\"The
-        system shall add 12.0 to the check total when the entree ordered is pasta.\"},\"requirement_for_part_7\":{\"statement\":\"The
-        system shall not change the check total when the entree value does not match
-        any defined entree.\"},\"requirement_for_part_8\":{\"statement\":\"The system
-        shall update the table record with the new data and return a success indicator
-        after processing the order.\"}}","refusal":null,"role":"assistant"}}],"created":1754380314,"id":"chatcmpl-C16kcByGPTFTTC6QXdJPx0LOtbEHX","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":615,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":2304,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2919}}
+        an order for a table and seat with any valid order; verify that the table
+        record is retrieved, the table is marked as occupied, the party size is incremented,
+        the order is stored for the seat, and the included dessert is added if applicable.\"},\"test_case_for_part_2\":{\"description\":\"Place
+        an order where the entree is NO_ENTREE; verify that the check total is not
+        changed.\"},\"test_case_for_part_3\":{\"description\":\"Place an order where
+        the entree is STEAK; verify that 14.0 is added to the check total.\"},\"test_case_for_part_4\":{\"description\":\"Place
+        an order where the entree is CHICKEN; verify that 10.0 is added to the check
+        total.\"},\"test_case_for_part_5\":{\"description\":\"Place an order where
+        the entree is LOBSTER; verify that 18.0 is added to the check total.\"},\"test_case_for_part_6\":{\"description\":\"Place
+        an order where the entree is PASTA; verify that 12.0 is added to the check
+        total.\"},\"test_case_for_part_7\":{\"description\":\"Place an order with
+        an entree value that does not match any defined entree; verify that the check
+        total is not changed.\"},\"test_case_for_part_8\":{\"description\":\"Place
+        an order and verify that the updated table record is saved and the function
+        returns 0.\"},\"requirement_for_part_1\":{\"statement\":\"The system shall
+        retrieve the table record, mark the table as occupied, increment the party
+        size, store the order for the specified seat, and add an included dessert
+        to the order if the order qualifies.\"},\"requirement_for_part_2\":{\"statement\":\"The
+        system shall not change the check total when the order''s entree is not specified.\"},\"requirement_for_part_3\":{\"statement\":\"The
+        system shall add 14.0 to the check total when the order''s entree is steak.\"},\"requirement_for_part_4\":{\"statement\":\"The
+        system shall add 10.0 to the check total when the order''s entree is chicken.\"},\"requirement_for_part_5\":{\"statement\":\"The
+        system shall add 18.0 to the check total when the order''s entree is lobster.\"},\"requirement_for_part_6\":{\"statement\":\"The
+        system shall add 12.0 to the check total when the order''s entree is pasta.\"},\"requirement_for_part_7\":{\"statement\":\"The
+        system shall not change the check total when the order''s entree does not
+        match any defined entree.\"},\"requirement_for_part_8\":{\"statement\":\"The
+        system shall save the updated table record and return a success indicator
+        after processing the order.\"}}","refusal":null,"role":"assistant"}}],"created":1756212657,"id":"chatcmpl-C8nQXIA079oYD0TYD6lDyOLrVBakI","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":547,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":2304,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2851}}
 
         '
     headers:
       Content-Length:
-      - '4007'
+      - '3690'
       Content-Type:
       - application/json
       Date:
-      - Tue, 05 Aug 2025 07:52:16 GMT
+      - Tue, 26 Aug 2025 12:51:09 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 45da0b56-a085-4c78-85e3-c05cec35a1fc
+      - f2a907d6-f65e-474e-b4e3-325ca68cfa27
       azureml-model-session:
-      - d123-20250726021343
+      - d175-20250808120511
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -1717,137 +1177,7 @@ interactions:
       x-ratelimit-remaining-tokens:
       - '1003429'
       x-request-id:
-      - ef40351b-2cd3-411b-96ec-09aba87312ef
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"max_completion_tokens": 5000, "messages": [{"content": "\nYou will be
-      given a set of requirements for a function. Your task is to produce a new set
-      of requirements derived from the given ones. \n\n\nHere is the original function:\nint
-      Place_Order(table_index_type Table,\n                seat_index_type Seat,\n                struct
-      order_type Order)\n{\n  struct table_data_type Table_Data;\n\n  Table_Data =
-      Get_Table_Record(Table);\n\n  Table_Data.Is_Occupied = v_true;\n  Table_Data.Number_In_Party
-      = Table_Data.Number_In_Party + 1;\n  Table_Data.Order[Seat] = Order;\n\n  /*
-      Add a free dessert in some cases */\n  Add_Included_Dessert(&Table_Data.Order[Seat]);\n\n  switch(Order.Entree)\n    {\n    case
-      NO_ENTREE :\n       break;\n    case STEAK :\n       Table_Data.Check_Total
-      = Table_Data.Check_Total + 14.0;\n       break;\n    case CHICKEN :\n       Table_Data.Check_Total
-      = Table_Data.Check_Total + 10.0;\n       break;\n    case LOBSTER :\n       Table_Data.Check_Total
-      = Table_Data.Check_Total + 18.0;\n       break;\n    case PASTA :\n       Table_Data.Check_Total
-      = Table_Data.Check_Total + 12.0;\n       break;\n    }\n\n  Update_Table_Record(Table,
-      Table_Data);\n  return 0;\n}\n\nHere are the numbered requirements:\n```c\n-
-      The system shall retrieve the table record, mark the table as occupied, increment
-      the party size, store the order for the specified seat, and add an included
-      dessert to the order if the order qualifies for a free dessert.\n- The system
-      shall not change the check total when the entree is not ordered.\n- The system
-      shall add 14.0 to the check total when the entree ordered is steak.\n- The system
-      shall add 10.0 to the check total when the entree ordered is chicken.\n- The
-      system shall add 18.0 to the check total when the entree ordered is lobster.\n-
-      The system shall add 12.0 to the check total when the entree ordered is pasta.\n-
-      The system shall not change the check total when the entree value does not match
-      any defined entree.\n- The system shall update the table record with the new
-      data and return a success indicator after processing the order.\n\nReturn your
-      answer in the following format:\n```json\n{\n    \"reworked_requirements\":
-      [\n        \"<reworked requirement 1>\",\n        \"<reworked requirement 2>\",\n        ...\n    ]\n}\n\nNotes:\n-
-      Ensure that the semantics of the original requirements are preserved in the
-      reworked requirements.\n```\n\n```\n", "role": "user"}], "model": "gpt-4.1",
-      "response_format": {"json_schema": {"name": "ReworkedRequirementsResult", "schema":
-      {"additionalProperties": false, "properties": {"reworked_requirements": {"items":
-      {"type": "string"}, "title": "Reworked Requirements", "type": "array"}}, "required":
-      ["reworked_requirements"], "title": "ReworkedRequirementsResult", "type": "object"},
-      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
-      0.0}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      api-key:
-      - REDACTED
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '2890'
-      content-type:
-      - application/json
-      host:
-      - REDACTED
-      user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - async:asyncio
-      x-stainless-helper-method:
-      - beta.chat.completions.parse
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 1.58.1
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.10.12
-    method: POST
-    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
-  response:
-    body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n    \"reworked_requirements\":
-        [\n        \"The system shall obtain the current data for the specified table,
-        set its status to occupied, increase the number of people in the party by
-        one, assign the provided order to the given seat, and apply a complimentary
-        dessert to the order if eligible.\",\n        \"If no entree is ordered, the
-        system shall leave the check total unchanged.\",\n        \"If the ordered
-        entree is steak, the system shall increase the check total by 14.0.\",\n        \"If
-        the ordered entree is chicken, the system shall increase the check total by
-        10.0.\",\n        \"If the ordered entree is lobster, the system shall increase
-        the check total by 18.0.\",\n        \"If the ordered entree is pasta, the
-        system shall increase the check total by 12.0.\",\n        \"If the entree
-        specified does not correspond to any recognized entree, the system shall not
-        modify the check total.\",\n        \"After processing the order, the system
-        shall save the updated table data and return a value indicating successful
-        completion.\"\n    ]\n}","refusal":null,"role":"assistant"}}],"created":1754380337,"id":"chatcmpl-C16kzhb13c6XVEa56lV2OUxEhGu4d","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":215,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":592,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":807}}
-
-        '
-    headers:
-      Content-Length:
-      - '2268'
-      Content-Type:
-      - application/json
-      Date:
-      - Tue, 05 Aug 2025 07:52:21 GMT
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
-      apim-request-id:
-      - 28007d62-1693-4718-9afb-902a6e77c390
-      azureml-model-session:
-      - d127-20250726053925
-      x-accel-buffering:
-      - 'no'
-      x-content-type-options:
-      - nosniff
-      x-ms-deployment-name:
-      - gpt-4.1
-      x-ms-rai-invoked:
-      - 'true'
-      x-ms-region:
-      - Sweden Central
-      x-ratelimit-limit-requests:
-      - '1006'
-      x-ratelimit-limit-tokens:
-      - '1006000'
-      x-ratelimit-remaining-requests:
-      - '994'
-      x-ratelimit-remaining-tokens:
-      - '991578'
-      x-request-id:
-      - ef4c68cf-04ab-4305-8430-8b842aa14798
+      - 3fa32eec-3478-4298-905b-a4cbe768f4cb
     status:
       code: 200
       message: OK
@@ -1857,54 +1187,51 @@ interactions:
       "role": "system"}, {"content": "Given a low-level atomic requirement \"This
       is the first sample requirement for testing.\", you need to determine which
       function is it most likely to be coming from. You will be given a mapping between
-      low-level requirements and function names.\n        Here is the mapping:\n        {''If
-      an order has STEAK as the entree, CAESAR as the salad, and MIXED_DRINK as the
-      beverage, the system shall assign PIE as the dessert for that order.'': ''Add_Included_Dessert'',
-      ''If an order has LOBSTER as the entree, GREEN as the salad, and WINE as the
-      beverage, the system shall assign CAKE as the dessert for that order.'': ''Add_Included_Dessert'',
-      ''If an order does not have the combinations (STEAK, CAESAR, MIXED_DRINK) or
-      (LOBSTER, GREEN, WINE) for entree, salad, and beverage respectively, the system
-      shall leave the dessert unchanged.'': ''Add_Included_Dessert'', ''The system
-      shall obtain the current data for the specified table, set its status to occupied,
-      increase the number of people in the party by one, assign the provided order
-      to the given seat, and apply a complimentary dessert to the order if eligible.'':
-      ''Place_Order'', ''If no entree is ordered, the system shall leave the check
-      total unchanged.'': ''Place_Order'', ''If the ordered entree is steak, the system
-      shall increase the check total by 14.0.'': ''Place_Order'', ''If the ordered
-      entree is chicken, the system shall increase the check total by 10.0.'': ''Place_Order'',
-      ''If the ordered entree is lobster, the system shall increase the check total
-      by 18.0.'': ''Place_Order'', ''If the ordered entree is pasta, the system shall
-      increase the check total by 12.0.'': ''Place_Order'', ''If the entree specified
-      does not correspond to any recognized entree, the system shall not modify the
-      check total.'': ''Place_Order'', ''After processing the order, the system shall
-      save the updated table data and return a value indicating successful completion.'':
-      ''Place_Order'', \"When a table is cleared, the system shall set the table''s
-      occupied status to false and reset the number of people in the party to one.\":
-      ''Clear_Table'', ''When a table is cleared, the system shall reset all order
-      fields (soup, salad, entree, dessert, beverage) for each seat to indicate no
-      selection.'': ''Clear_Table'', ''When a table is cleared, the system shall perform
-      the reset operation for exactly four seats associated with the table.'': ''Clear_Table'',
-      \"When a table is cleared, the system shall reset the check total to zero, update
-      the table''s record with the new data, and return a value indicating successful
-      completion.\": ''Clear_Table'', ''The function shall retrieve and return the
-      check total value for the table specified by the input table index.'': ''Get_Check_Total'',
-      ''If the waiting list has reached its maximum capacity, the system shall set
-      the waiting list index back to zero before adding a new party.'': ''Add_Party_To_Waiting_List'',
-      ''If the waiting list has not reached its maximum capacity, the system shall
-      maintain the current waiting list index when adding a new party.'': ''Add_Party_To_Waiting_List'',
-      ''When a valid, non-empty name is provided, the system shall copy each character
-      of the name into the next available slot in the waiting list.'': ''Add_Party_To_Waiting_List'',
-      ''If the provided name is null or empty, the system shall not add any characters
-      to the waiting list entry.'': ''Add_Party_To_Waiting_List'', ''After copying
-      the name, the system shall append a null terminator to the waiting list entry
-      and increment the waiting list size by one.'': ''Add_Party_To_Waiting_List'',
-      ''If the waiting list index exceeds nine, the system shall set the index to
-      zero before retrieving a party from the waiting list.'': ''Get_Next_Party_To_Be_Seated'',
-      ''If the waiting list index is nine or less, the system shall leave the index
-      unchanged before retrieving a party from the waiting list.'': ''Get_Next_Party_To_Be_Seated'',
-      ''The system shall retrieve and return the party at the current waiting list
-      index, then increment the index by one.'': ''Get_Next_Party_To_Be_Seated''}
-      \n        This task is critical, make sure to give the best possible answer.\n        Format
+      low-level requirements and function names.\n        Here is the mapping:\n        {''The
+      system shall set the dessert to PIE when the order includes STEAK as the entree,
+      CAESAR as the salad, and MIXED_DRINK as the beverage.'': ''Add_Included_Dessert'',
+      ''The system shall set the dessert to CAKE when the order includes LOBSTER as
+      the entree, GREEN as the salad, and WINE as the beverage, unless the first condition
+      is met.'': ''Add_Included_Dessert'', ''The system shall not modify the dessert
+      in the order if neither the combination of STEAK, CAESAR, and MIXED_DRINK nor
+      the combination of LOBSTER, GREEN, and WINE is present.'': ''Add_Included_Dessert'',
+      ''The system shall retrieve the table record, mark the table as occupied, increment
+      the party size, store the order for the specified seat, and add an included
+      dessert to the order if the order qualifies.'': ''Place_Order'', \"The system
+      shall not change the check total when the order''s entree is not specified.\":
+      ''Place_Order'', \"The system shall add 14.0 to the check total when the order''s
+      entree is steak.\": ''Place_Order'', \"The system shall add 10.0 to the check
+      total when the order''s entree is chicken.\": ''Place_Order'', \"The system
+      shall add 18.0 to the check total when the order''s entree is lobster.\": ''Place_Order'',
+      \"The system shall add 12.0 to the check total when the order''s entree is pasta.\":
+      ''Place_Order'', \"The system shall not change the check total when the order''s
+      entree does not match any defined entree.\": ''Place_Order'', ''The system shall
+      save the updated table record and return a success indicator after processing
+      the order.'': ''Place_Order'', ''The system shall, when clearing a table, mark
+      the table as not occupied and set the number in party to 1.'': ''Clear_Table'',
+      \"The system shall, when clearing a table, set the soup, salad, entree, dessert,
+      and beverage fields of each seat''s order to their respective ''no selection''
+      values for all seats.\": ''Clear_Table'', ''The system shall, when clearing
+      a table, process exactly four seats for resetting order information.'': ''Clear_Table'',
+      ''The system shall, when clearing a table, set the check total to zero, update
+      the table record, and return a success indicator.'': ''Clear_Table'', ''The
+      system shall return the check total associated with the table record identified
+      by the provided table index.'': ''Get_Check_Total'', ''The system shall reset
+      the waiting list index to zero when the waiting list is full before adding a
+      new party.'': ''Add_Party_To_Waiting_List'', ''The system shall add a new party
+      to the next available position in the waiting list when the waiting list is
+      not full.'': ''Add_Party_To_Waiting_List'', ''The system shall copy each character
+      of a non-null, non-empty party name into the waiting list entry.'': ''Add_Party_To_Waiting_List'',
+      ''The system shall not copy any characters if the provided party name is null
+      or empty.'': ''Add_Party_To_Waiting_List'', ''The system shall ensure that each
+      party name added to the waiting list is null-terminated.'': ''Add_Party_To_Waiting_List'',
+      ''The system shall reset the waiting list index to zero if it is greater than
+      nine before selecting the next party to be seated.'': ''Get_Next_Party_To_Be_Seated'',
+      ''The system shall not modify the waiting list index if it is nine or less before
+      selecting the next party to be seated.'': ''Get_Next_Party_To_Be_Seated'', ''The
+      system shall return the party at the current waiting list index and increment
+      the index after returning the party.'': ''Get_Next_Party_To_Be_Seated''} \n        This
+      task is critical, make sure to give the best possible answer.\n        Format
       your output according to the following pydantic model\n        class CorrespondingFunction(BaseModel):\n            reasoning:
       str\n            corresponding_function: str\n        ", "role": "user"}], "model":
       "gpt-4.1", "response_format": {"json_schema": {"name": "CorrespondingFunction",
@@ -1925,31 +1252,33 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '4936'
+      - '4635'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.101.0
       x-stainless-arch:
       - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-helper-method:
-      - beta.chat.completions.parse
+      - chat.completions.parse
       x-stainless-lang:
       - python
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.10.12
+      - 3.12.3
     method: POST
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
@@ -1958,26 +1287,25 @@ interactions:
         given requirement ''This is the first sample requirement for testing.'' is
         a generic placeholder and does not contain any domain-specific keywords or
         actions that match the detailed requirements in the mapping. However, since
-        the majority of the requirements in the mapping are related to the ''Place_Order''
-        function, and ''Place_Order'' is a central function in restaurant order management,
-        it is most likely that a generic sample requirement for testing would be associated
-        with this function. This is a best guess based on the prevalence and centrality
-        of ''Place_Order'' in the mapping.\",\"corresponding_function\":\"Place_Order\"}","refusal":null,"role":"assistant"}}],"created":1754380342,"id":"chatcmpl-C16l4CG3baaRTAsNu2wBD4rjy2CJ9","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":123,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1047,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1170}}
+        the majority of the requirements in the mapping are related to processing
+        orders, setting desserts, or managing tables, the most generic and likely
+        function it could be associated with is ''Place_Order'', as it is the central
+        function for handling orders and is the most common in the mapping.\",\"corresponding_function\":\"Place_Order\"}","refusal":null,"role":"assistant"}}],"created":1756212670,"id":"chatcmpl-C8nQkCOsTHCXkoyGzqxp0GabmqstZ","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":107,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":988,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1095}}
 
         '
     headers:
       Content-Length:
-      - '1862'
+      - '1793'
       Content-Type:
       - application/json
       Date:
-      - Tue, 05 Aug 2025 07:52:24 GMT
+      - Tue, 26 Aug 2025 12:51:11 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - ad78e15f-4418-4168-a830-ed52fdcc2f6d
+      - c58e8966-3a36-4989-8d5f-9a3c79761f1d
       azureml-model-session:
-      - d074-20250725223625
+      - d155-20250808022325
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -1993,165 +1321,11 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '993'
+      - '998'
       x-ratelimit-remaining-tokens:
-      - '990403'
+      - '991949'
       x-request-id:
-      - 2a3bd3da-2b22-4a59-8025-51a51388e73a
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"max_completion_tokens": 5000, "messages": [{"content": "You are a helpful
-      assistant and an expert in requirements engineering and semantic similarity",
-      "role": "system"}, {"content": "Given a low-level atomic requirement \"This
-      is the third sample requirement for testing.\", you need to determine which
-      function is it most likely to be coming from. You will be given a mapping between
-      low-level requirements and function names.\n        Here is the mapping:\n        {''If
-      an order has STEAK as the entree, CAESAR as the salad, and MIXED_DRINK as the
-      beverage, the system shall assign PIE as the dessert for that order.'': ''Add_Included_Dessert'',
-      ''If an order has LOBSTER as the entree, GREEN as the salad, and WINE as the
-      beverage, the system shall assign CAKE as the dessert for that order.'': ''Add_Included_Dessert'',
-      ''If an order does not have the combinations (STEAK, CAESAR, MIXED_DRINK) or
-      (LOBSTER, GREEN, WINE) for entree, salad, and beverage respectively, the system
-      shall leave the dessert unchanged.'': ''Add_Included_Dessert'', ''The system
-      shall obtain the current data for the specified table, set its status to occupied,
-      increase the number of people in the party by one, assign the provided order
-      to the given seat, and apply a complimentary dessert to the order if eligible.'':
-      ''Place_Order'', ''If no entree is ordered, the system shall leave the check
-      total unchanged.'': ''Place_Order'', ''If the ordered entree is steak, the system
-      shall increase the check total by 14.0.'': ''Place_Order'', ''If the ordered
-      entree is chicken, the system shall increase the check total by 10.0.'': ''Place_Order'',
-      ''If the ordered entree is lobster, the system shall increase the check total
-      by 18.0.'': ''Place_Order'', ''If the ordered entree is pasta, the system shall
-      increase the check total by 12.0.'': ''Place_Order'', ''If the entree specified
-      does not correspond to any recognized entree, the system shall not modify the
-      check total.'': ''Place_Order'', ''After processing the order, the system shall
-      save the updated table data and return a value indicating successful completion.'':
-      ''Place_Order'', \"When a table is cleared, the system shall set the table''s
-      occupied status to false and reset the number of people in the party to one.\":
-      ''Clear_Table'', ''When a table is cleared, the system shall reset all order
-      fields (soup, salad, entree, dessert, beverage) for each seat to indicate no
-      selection.'': ''Clear_Table'', ''When a table is cleared, the system shall perform
-      the reset operation for exactly four seats associated with the table.'': ''Clear_Table'',
-      \"When a table is cleared, the system shall reset the check total to zero, update
-      the table''s record with the new data, and return a value indicating successful
-      completion.\": ''Clear_Table'', ''The function shall retrieve and return the
-      check total value for the table specified by the input table index.'': ''Get_Check_Total'',
-      ''If the waiting list has reached its maximum capacity, the system shall set
-      the waiting list index back to zero before adding a new party.'': ''Add_Party_To_Waiting_List'',
-      ''If the waiting list has not reached its maximum capacity, the system shall
-      maintain the current waiting list index when adding a new party.'': ''Add_Party_To_Waiting_List'',
-      ''When a valid, non-empty name is provided, the system shall copy each character
-      of the name into the next available slot in the waiting list.'': ''Add_Party_To_Waiting_List'',
-      ''If the provided name is null or empty, the system shall not add any characters
-      to the waiting list entry.'': ''Add_Party_To_Waiting_List'', ''After copying
-      the name, the system shall append a null terminator to the waiting list entry
-      and increment the waiting list size by one.'': ''Add_Party_To_Waiting_List'',
-      ''If the waiting list index exceeds nine, the system shall set the index to
-      zero before retrieving a party from the waiting list.'': ''Get_Next_Party_To_Be_Seated'',
-      ''If the waiting list index is nine or less, the system shall leave the index
-      unchanged before retrieving a party from the waiting list.'': ''Get_Next_Party_To_Be_Seated'',
-      ''The system shall retrieve and return the party at the current waiting list
-      index, then increment the index by one.'': ''Get_Next_Party_To_Be_Seated''}
-      \n        This task is critical, make sure to give the best possible answer.\n        Format
-      your output according to the following pydantic model\n        class CorrespondingFunction(BaseModel):\n            reasoning:
-      str\n            corresponding_function: str\n        ", "role": "user"}], "model":
-      "gpt-4.1", "response_format": {"json_schema": {"name": "CorrespondingFunction",
-      "schema": {"additionalProperties": false, "properties": {"corresponding_function":
-      {"title": "Corresponding Function", "type": "string"}, "reasoning": {"title":
-      "Reasoning", "type": "string"}}, "required": ["reasoning", "corresponding_function"],
-      "title": "CorrespondingFunction", "type": "object"}, "strict": true}, "type":
-      "json_schema"}, "seed": 42, "stream": false, "temperature": 0}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      api-key:
-      - REDACTED
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '4936'
-      content-type:
-      - application/json
-      host:
-      - REDACTED
-      user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - async:asyncio
-      x-stainless-helper-method:
-      - beta.chat.completions.parse
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 1.58.1
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.10.12
-    method: POST
-    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
-  response:
-    body:
-      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"reasoning\":\"The
-        given requirement ''This is the third sample requirement for testing.'' is
-        a generic placeholder and does not contain any domain-specific keywords or
-        context that directly match any of the detailed requirements in the mapping.
-        However, since it is labeled as a ''third sample requirement'', and considering
-        the mapping, the only function that has a third requirement (i.e., three requirements
-        listed) is ''Clear_Table''. The three requirements for ''Clear_Table'' are:
-        resetting the table''s occupied status, resetting all order fields, and performing
-        the reset for exactly four seats. Therefore, by process of elimination and
-        the hint from the word ''third'', it is most likely associated with the third
-        requirement under ''Clear_Table'', which is ''When a table is cleared, the
-        system shall perform the reset operation for exactly four seats associated
-        with the table.'' Thus, the corresponding function is ''Clear_Table''.\",\"corresponding_function\":\"Clear_Table\"}","refusal":null,"role":"assistant"}}],"created":1754380342,"id":"chatcmpl-C16l4Jl08MiDZOgIG7sYTYid6hrQ7","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":187,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1047,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1234}}
-
-        '
-    headers:
-      Content-Length:
-      - '2187'
-      Content-Type:
-      - application/json
-      Date:
-      - Tue, 05 Aug 2025 07:52:25 GMT
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
-      apim-request-id:
-      - 1f395d11-f25d-4c72-bf47-0f5a20c46b17
-      azureml-model-session:
-      - d071-20250725213222
-      x-accel-buffering:
-      - 'no'
-      x-content-type-options:
-      - nosniff
-      x-ms-deployment-name:
-      - gpt-4.1
-      x-ms-rai-invoked:
-      - 'true'
-      x-ms-region:
-      - Sweden Central
-      x-ratelimit-limit-requests:
-      - '1006'
-      x-ratelimit-limit-tokens:
-      - '1006000'
-      x-ratelimit-remaining-requests:
-      - '993'
-      x-ratelimit-remaining-tokens:
-      - '990403'
-      x-request-id:
-      - c28a35c4-419d-4a8d-ab43-aee4b7e95a22
+      - 7eacc8be-8f5a-4214-a0ba-242dcb703bfc
     status:
       code: 200
       message: OK
@@ -2161,54 +1335,51 @@ interactions:
       "role": "system"}, {"content": "Given a low-level atomic requirement \"This
       is the second sample requirement for testing.\", you need to determine which
       function is it most likely to be coming from. You will be given a mapping between
-      low-level requirements and function names.\n        Here is the mapping:\n        {''If
-      an order has STEAK as the entree, CAESAR as the salad, and MIXED_DRINK as the
-      beverage, the system shall assign PIE as the dessert for that order.'': ''Add_Included_Dessert'',
-      ''If an order has LOBSTER as the entree, GREEN as the salad, and WINE as the
-      beverage, the system shall assign CAKE as the dessert for that order.'': ''Add_Included_Dessert'',
-      ''If an order does not have the combinations (STEAK, CAESAR, MIXED_DRINK) or
-      (LOBSTER, GREEN, WINE) for entree, salad, and beverage respectively, the system
-      shall leave the dessert unchanged.'': ''Add_Included_Dessert'', ''The system
-      shall obtain the current data for the specified table, set its status to occupied,
-      increase the number of people in the party by one, assign the provided order
-      to the given seat, and apply a complimentary dessert to the order if eligible.'':
-      ''Place_Order'', ''If no entree is ordered, the system shall leave the check
-      total unchanged.'': ''Place_Order'', ''If the ordered entree is steak, the system
-      shall increase the check total by 14.0.'': ''Place_Order'', ''If the ordered
-      entree is chicken, the system shall increase the check total by 10.0.'': ''Place_Order'',
-      ''If the ordered entree is lobster, the system shall increase the check total
-      by 18.0.'': ''Place_Order'', ''If the ordered entree is pasta, the system shall
-      increase the check total by 12.0.'': ''Place_Order'', ''If the entree specified
-      does not correspond to any recognized entree, the system shall not modify the
-      check total.'': ''Place_Order'', ''After processing the order, the system shall
-      save the updated table data and return a value indicating successful completion.'':
-      ''Place_Order'', \"When a table is cleared, the system shall set the table''s
-      occupied status to false and reset the number of people in the party to one.\":
-      ''Clear_Table'', ''When a table is cleared, the system shall reset all order
-      fields (soup, salad, entree, dessert, beverage) for each seat to indicate no
-      selection.'': ''Clear_Table'', ''When a table is cleared, the system shall perform
-      the reset operation for exactly four seats associated with the table.'': ''Clear_Table'',
-      \"When a table is cleared, the system shall reset the check total to zero, update
-      the table''s record with the new data, and return a value indicating successful
-      completion.\": ''Clear_Table'', ''The function shall retrieve and return the
-      check total value for the table specified by the input table index.'': ''Get_Check_Total'',
-      ''If the waiting list has reached its maximum capacity, the system shall set
-      the waiting list index back to zero before adding a new party.'': ''Add_Party_To_Waiting_List'',
-      ''If the waiting list has not reached its maximum capacity, the system shall
-      maintain the current waiting list index when adding a new party.'': ''Add_Party_To_Waiting_List'',
-      ''When a valid, non-empty name is provided, the system shall copy each character
-      of the name into the next available slot in the waiting list.'': ''Add_Party_To_Waiting_List'',
-      ''If the provided name is null or empty, the system shall not add any characters
-      to the waiting list entry.'': ''Add_Party_To_Waiting_List'', ''After copying
-      the name, the system shall append a null terminator to the waiting list entry
-      and increment the waiting list size by one.'': ''Add_Party_To_Waiting_List'',
-      ''If the waiting list index exceeds nine, the system shall set the index to
-      zero before retrieving a party from the waiting list.'': ''Get_Next_Party_To_Be_Seated'',
-      ''If the waiting list index is nine or less, the system shall leave the index
-      unchanged before retrieving a party from the waiting list.'': ''Get_Next_Party_To_Be_Seated'',
-      ''The system shall retrieve and return the party at the current waiting list
-      index, then increment the index by one.'': ''Get_Next_Party_To_Be_Seated''}
-      \n        This task is critical, make sure to give the best possible answer.\n        Format
+      low-level requirements and function names.\n        Here is the mapping:\n        {''The
+      system shall set the dessert to PIE when the order includes STEAK as the entree,
+      CAESAR as the salad, and MIXED_DRINK as the beverage.'': ''Add_Included_Dessert'',
+      ''The system shall set the dessert to CAKE when the order includes LOBSTER as
+      the entree, GREEN as the salad, and WINE as the beverage, unless the first condition
+      is met.'': ''Add_Included_Dessert'', ''The system shall not modify the dessert
+      in the order if neither the combination of STEAK, CAESAR, and MIXED_DRINK nor
+      the combination of LOBSTER, GREEN, and WINE is present.'': ''Add_Included_Dessert'',
+      ''The system shall retrieve the table record, mark the table as occupied, increment
+      the party size, store the order for the specified seat, and add an included
+      dessert to the order if the order qualifies.'': ''Place_Order'', \"The system
+      shall not change the check total when the order''s entree is not specified.\":
+      ''Place_Order'', \"The system shall add 14.0 to the check total when the order''s
+      entree is steak.\": ''Place_Order'', \"The system shall add 10.0 to the check
+      total when the order''s entree is chicken.\": ''Place_Order'', \"The system
+      shall add 18.0 to the check total when the order''s entree is lobster.\": ''Place_Order'',
+      \"The system shall add 12.0 to the check total when the order''s entree is pasta.\":
+      ''Place_Order'', \"The system shall not change the check total when the order''s
+      entree does not match any defined entree.\": ''Place_Order'', ''The system shall
+      save the updated table record and return a success indicator after processing
+      the order.'': ''Place_Order'', ''The system shall, when clearing a table, mark
+      the table as not occupied and set the number in party to 1.'': ''Clear_Table'',
+      \"The system shall, when clearing a table, set the soup, salad, entree, dessert,
+      and beverage fields of each seat''s order to their respective ''no selection''
+      values for all seats.\": ''Clear_Table'', ''The system shall, when clearing
+      a table, process exactly four seats for resetting order information.'': ''Clear_Table'',
+      ''The system shall, when clearing a table, set the check total to zero, update
+      the table record, and return a success indicator.'': ''Clear_Table'', ''The
+      system shall return the check total associated with the table record identified
+      by the provided table index.'': ''Get_Check_Total'', ''The system shall reset
+      the waiting list index to zero when the waiting list is full before adding a
+      new party.'': ''Add_Party_To_Waiting_List'', ''The system shall add a new party
+      to the next available position in the waiting list when the waiting list is
+      not full.'': ''Add_Party_To_Waiting_List'', ''The system shall copy each character
+      of a non-null, non-empty party name into the waiting list entry.'': ''Add_Party_To_Waiting_List'',
+      ''The system shall not copy any characters if the provided party name is null
+      or empty.'': ''Add_Party_To_Waiting_List'', ''The system shall ensure that each
+      party name added to the waiting list is null-terminated.'': ''Add_Party_To_Waiting_List'',
+      ''The system shall reset the waiting list index to zero if it is greater than
+      nine before selecting the next party to be seated.'': ''Get_Next_Party_To_Be_Seated'',
+      ''The system shall not modify the waiting list index if it is nine or less before
+      selecting the next party to be seated.'': ''Get_Next_Party_To_Be_Seated'', ''The
+      system shall return the party at the current waiting list index and increment
+      the index after returning the party.'': ''Get_Next_Party_To_Be_Seated''} \n        This
+      task is critical, make sure to give the best possible answer.\n        Format
       your output according to the following pydantic model\n        class CorrespondingFunction(BaseModel):\n            reasoning:
       str\n            corresponding_function: str\n        ", "role": "user"}], "model":
       "gpt-4.1", "response_format": {"json_schema": {"name": "CorrespondingFunction",
@@ -2229,61 +1400,61 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '4937'
+      - '4636'
       content-type:
       - application/json
       host:
       - REDACTED
       user-agent:
-      - AsyncAzureOpenAI/Python 1.58.1
+      - AsyncAzureOpenAI/Python 1.101.0
       x-stainless-arch:
       - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-helper-method:
-      - beta.chat.completions.parse
+      - chat.completions.parse
       x-stainless-lang:
       - python
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.58.1
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.10.12
+      - 3.12.3
     method: POST
     uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
   response:
     body:
       string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"reasoning\":\"The
         requirement ''This is the second sample requirement for testing.'' is a generic
-        placeholder and does not contain any domain-specific keywords or context that
-        directly match any of the detailed requirements in the mapping. However, since
-        the mapping is about restaurant order management, and the sample requirement
-        is labeled as a ''second sample'', it is likely meant to be a placeholder
-        for a real requirement. Without any specific content, the best approach is
-        to select the function that has the most requirements associated with it,
-        as a generic sample is more likely to be associated with a function that has
-        many requirements. In the mapping, ''Place_Order'' has the most associated
-        requirements, making it the most probable candidate.\",\"corresponding_function\":\"Place_Order\"}","refusal":null,"role":"assistant"}}],"created":1754380342,"id":"chatcmpl-C16l445f6InlaTWSdpNoKxPQIJ8cx","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":148,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1047,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1195}}
+        placeholder and does not contain any domain-specific keywords or actions.
+        However, based on the mapping provided, the majority of requirements are related
+        to order processing, such as setting desserts, adding to check totals, or
+        managing tables. Since the requirement is a sample and does not specify any
+        action, the best guess is to associate it with the most general or default
+        function, which in this context appears to be ''Place_Order'', as it covers
+        a wide range of order-related actions.\",\"corresponding_function\":\"Place_Order\"}","refusal":null,"role":"assistant"}}],"created":1756212670,"id":"chatcmpl-C8nQkvut0i4Xcm6f4ft4KYrDvGcza","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":122,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":988,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1110}}
 
         '
     headers:
       Content-Length:
-      - '2014'
+      - '1848'
       Content-Type:
       - application/json
       Date:
-      - Tue, 05 Aug 2025 07:52:26 GMT
+      - Tue, 26 Aug 2025 12:51:12 GMT
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
       apim-request-id:
-      - 36718240-fb14-4e97-aebe-207355c1ecb2
+      - 46a6eb9a-505a-48d1-8525-279052f63fc5
       azureml-model-session:
-      - d135-20250726103158
+      - d163-20250808063346
       x-accel-buffering:
       - 'no'
       x-content-type-options:
@@ -2299,11 +1470,162 @@ interactions:
       x-ratelimit-limit-tokens:
       - '1006000'
       x-ratelimit-remaining-requests:
-      - '993'
+      - '999'
       x-ratelimit-remaining-tokens:
-      - '990402'
+      - '993047'
       x-request-id:
-      - 18c4b1ae-1448-482f-949f-6db83326e7b1
+      - f527e617-191e-430e-a81d-f6d3c6402397
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"max_completion_tokens": 5000, "messages": [{"content": "You are a helpful
+      assistant and an expert in requirements engineering and semantic similarity",
+      "role": "system"}, {"content": "Given a low-level atomic requirement \"This
+      is the third sample requirement for testing.\", you need to determine which
+      function is it most likely to be coming from. You will be given a mapping between
+      low-level requirements and function names.\n        Here is the mapping:\n        {''The
+      system shall set the dessert to PIE when the order includes STEAK as the entree,
+      CAESAR as the salad, and MIXED_DRINK as the beverage.'': ''Add_Included_Dessert'',
+      ''The system shall set the dessert to CAKE when the order includes LOBSTER as
+      the entree, GREEN as the salad, and WINE as the beverage, unless the first condition
+      is met.'': ''Add_Included_Dessert'', ''The system shall not modify the dessert
+      in the order if neither the combination of STEAK, CAESAR, and MIXED_DRINK nor
+      the combination of LOBSTER, GREEN, and WINE is present.'': ''Add_Included_Dessert'',
+      ''The system shall retrieve the table record, mark the table as occupied, increment
+      the party size, store the order for the specified seat, and add an included
+      dessert to the order if the order qualifies.'': ''Place_Order'', \"The system
+      shall not change the check total when the order''s entree is not specified.\":
+      ''Place_Order'', \"The system shall add 14.0 to the check total when the order''s
+      entree is steak.\": ''Place_Order'', \"The system shall add 10.0 to the check
+      total when the order''s entree is chicken.\": ''Place_Order'', \"The system
+      shall add 18.0 to the check total when the order''s entree is lobster.\": ''Place_Order'',
+      \"The system shall add 12.0 to the check total when the order''s entree is pasta.\":
+      ''Place_Order'', \"The system shall not change the check total when the order''s
+      entree does not match any defined entree.\": ''Place_Order'', ''The system shall
+      save the updated table record and return a success indicator after processing
+      the order.'': ''Place_Order'', ''The system shall, when clearing a table, mark
+      the table as not occupied and set the number in party to 1.'': ''Clear_Table'',
+      \"The system shall, when clearing a table, set the soup, salad, entree, dessert,
+      and beverage fields of each seat''s order to their respective ''no selection''
+      values for all seats.\": ''Clear_Table'', ''The system shall, when clearing
+      a table, process exactly four seats for resetting order information.'': ''Clear_Table'',
+      ''The system shall, when clearing a table, set the check total to zero, update
+      the table record, and return a success indicator.'': ''Clear_Table'', ''The
+      system shall return the check total associated with the table record identified
+      by the provided table index.'': ''Get_Check_Total'', ''The system shall reset
+      the waiting list index to zero when the waiting list is full before adding a
+      new party.'': ''Add_Party_To_Waiting_List'', ''The system shall add a new party
+      to the next available position in the waiting list when the waiting list is
+      not full.'': ''Add_Party_To_Waiting_List'', ''The system shall copy each character
+      of a non-null, non-empty party name into the waiting list entry.'': ''Add_Party_To_Waiting_List'',
+      ''The system shall not copy any characters if the provided party name is null
+      or empty.'': ''Add_Party_To_Waiting_List'', ''The system shall ensure that each
+      party name added to the waiting list is null-terminated.'': ''Add_Party_To_Waiting_List'',
+      ''The system shall reset the waiting list index to zero if it is greater than
+      nine before selecting the next party to be seated.'': ''Get_Next_Party_To_Be_Seated'',
+      ''The system shall not modify the waiting list index if it is nine or less before
+      selecting the next party to be seated.'': ''Get_Next_Party_To_Be_Seated'', ''The
+      system shall return the party at the current waiting list index and increment
+      the index after returning the party.'': ''Get_Next_Party_To_Be_Seated''} \n        This
+      task is critical, make sure to give the best possible answer.\n        Format
+      your output according to the following pydantic model\n        class CorrespondingFunction(BaseModel):\n            reasoning:
+      str\n            corresponding_function: str\n        ", "role": "user"}], "model":
+      "gpt-4.1", "response_format": {"json_schema": {"name": "CorrespondingFunction",
+      "schema": {"additionalProperties": false, "properties": {"corresponding_function":
+      {"title": "Corresponding Function", "type": "string"}, "reasoning": {"title":
+      "Reasoning", "type": "string"}}, "required": ["reasoning", "corresponding_function"],
+      "title": "CorrespondingFunction", "type": "object"}, "strict": true}, "type":
+      "json_schema"}, "seed": 42, "stream": false, "temperature": 0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      api-key:
+      - REDACTED
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '4635'
+      content-type:
+      - application/json
+      host:
+      - REDACTED
+      user-agent:
+      - AsyncAzureOpenAI/Python 1.101.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-helper-method:
+      - chat.completions.parse
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.101.0
+      x-stainless-read-timeout:
+      - '600'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
+  response:
+    body:
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"reasoning\":\"The
+        given requirement ''This is the third sample requirement for testing.'' is
+        a generic placeholder and does not contain any domain-specific keywords or
+        phrases that match the detailed requirements in the mapping. However, since
+        it is labeled as a ''third sample requirement'', and considering the mapping,
+        the third requirement in the mapping is: ''The system shall not modify the
+        dessert in the order if neither the combination of STEAK, CAESAR, and MIXED_DRINK
+        nor the combination of LOBSTER, GREEN, and WINE is present.'' This requirement
+        is mapped to the function ''Add_Included_Dessert''. Therefore, by position
+        and the context of being a sample requirement, it is most likely associated
+        with ''Add_Included_Dessert''.\",\"corresponding_function\":\"Add_Included_Dessert\"}","refusal":null,"role":"assistant"}}],"created":1756212670,"id":"chatcmpl-C8nQkbJOMzryOwViSKKAKt4bihEaV","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_c79ab13e31","usage":{"completion_tokens":166,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":988,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1154}}
+
+        '
+    headers:
+      Content-Length:
+      - '1998'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 26 Aug 2025 12:51:13 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      apim-request-id:
+      - a35ffa31-7aa6-4d94-a27f-95692466f748
+      azureml-model-session:
+      - d155-20250808022325
+      x-accel-buffering:
+      - 'no'
+      x-content-type-options:
+      - nosniff
+      x-ms-deployment-name:
+      - gpt-4.1
+      x-ms-rai-invoked:
+      - 'true'
+      x-ms-region:
+      - Sweden Central
+      x-ratelimit-limit-requests:
+      - '1006'
+      x-ratelimit-limit-tokens:
+      - '1006000'
+      x-ratelimit-remaining-requests:
+      - '998'
+      x-ratelimit-remaining-tokens:
+      - '991949'
+      x-request-id:
+      - 89de780e-1bc0-4e8a-8251-abf9b2162bca
     status:
       code: 200
       message: OK

@@ -46,7 +46,9 @@ class Reqs2CodeMapper:
         )
 
         tasks = [
-            req_generator.generate(func['name'])
+            req_generator.generate(
+                function_name=func['name'], post_process_requirements=False
+            )
             for func in self.environment.testable_functions
         ]
         results = await asyncio.gather(*tasks)
