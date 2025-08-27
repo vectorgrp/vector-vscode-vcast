@@ -243,15 +243,17 @@ export async function expandAllSubprogramsFor(subprogramGroup: CustomTreeItem) {
 export async function retrieveTestingTopItems(
   vcastTestingViewContent: ViewContent
 ) {
-  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
-    if (!(await vcastTestingViewSection.isExpanded())) {
-      await vcastTestingViewSection.expand();
-    }
-    // Get all top-level items (ENV_01, ENV_02, etc.)
-    return await vcastTestingViewSection.getVisibleItems();
+  const sections = await vcastTestingViewContent.getSections();
+  if (!sections.length) {
+    return undefined;
   }
 
-  return undefined;
+  const firstSection = sections[0];
+  if (!(await firstSection.isExpanded())) {
+    await firstSection.expand();
+  }
+
+  return await firstSection.getVisibleItems();
 }
 
 /**
@@ -694,7 +696,39 @@ export async function generateAndValidateAllTestsFor(
   envName: string,
   testGenMethod: string
 ) {
+  let workbench = await browser.getWorkbench();
+  let bottomBar = workbench.getBottomBar();
+  const outputView = await bottomBar.openOutputView();
+  await outputView.clearText();
   await generateAllTestsForEnv(envName, testGenMethod);
+
+  await bottomBar.maximize();
+
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for:"),
+    { timeout: TIMEOUT }
+  );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
+
+  await browser.pause(5000);
 
   const vcastTestingViewContent = await getViewContent("Testing");
   const expectedTests = await getAllExpectedTests(testGenMethod);
@@ -1038,6 +1072,7 @@ export async function generateAllTestsForUnit(
   let bottomBar = workbench.getBottomBar();
   await bottomBar.toggle(true);
   const outputView = await bottomBar.openOutputView();
+  await outputView.clearText();
   const menuItemLabel = `Insert ${testGenMethod} Tests`;
   let subprogram: TreeItem;
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -1067,9 +1102,18 @@ export async function generateAllTestsForUnit(
     async () =>
       (await outputView.getText())
         .toString()
-        .includes("Processing environment data for"),
+        .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
 }
 
 export async function generateAllTestsForFunction(
@@ -1081,6 +1125,7 @@ export async function generateAllTestsForFunction(
   let bottomBar = workbench.getBottomBar();
   await bottomBar.toggle(true);
   const outputView = await bottomBar.openOutputView();
+  await outputView.clearText();
   const menuItemLabel = `Insert ${testGenMethod} Tests`;
   let subprogram: TreeItem;
   const vcastTestingViewContent = await getViewContent("Testing");
@@ -1112,9 +1157,18 @@ export async function generateAllTestsForFunction(
     async () =>
       (await outputView.getText())
         .toString()
-        .includes("Processing environment data for"),
+        .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
+  if (process.env.VCAST_USE_PYTHON) {
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--mode=getEnviroData"),
+      { timeout: TIMEOUT }
+    );
+  }
 }
 
 export async function deleteAllTestsForUnit(
@@ -1746,6 +1800,144 @@ export async function insertStringToInput(
   console.log(
     `Inserted "${stringToInsert}" into input with ARIA label "${divName}".`
   );
+}
+
+/**
+ * Inserts a string into an input field. Basically the same like insertStringToInput, but for the autocompletion
+ * input field when creating a new compiler, we need a different logic.
+ * @param stringToInsert Value for the input field
+ * @param ariaLabel Label of the element to find it
+ * @param shouldTabToCreate Boolean to control if it should tab its way to the correct button
+ * @returns
+ */
+export async function insertStringIntoAutocompletionInput(
+  stringToInsert: string,
+  ariaLabel: string,
+  shouldTabToCreate: boolean = false
+): Promise<boolean> {
+  // open webview (same flow you already have)
+  const workbench = await browser.getWorkbench();
+  workbench.getEditorView();
+
+  const webviews = await workbench.getAllWebviews();
+  if (webviews.length !== 1) {
+    console.error(`Expected 1 webview but found ${webviews.length}`);
+    return false;
+  }
+  const webview = webviews[0];
+  await webview.open();
+
+  // locate the container/input by aria
+  const selector = `div[aria-label="${ariaLabel}"], [aria-label="${ariaLabel}"], div[aria-labelledby="${ariaLabel}"], [aria-labelledby="${ariaLabel}"]`;
+  const candidate = await $(selector);
+  try {
+    await candidate.waitForExist({ timeout: 5000 });
+  } catch {
+    console.error(`No element found for aria label "${ariaLabel}"`);
+    return false;
+  }
+
+  // pick the nested input or the element itself
+  let target = candidate;
+  const tag = await target.getTagName().catch(() => null);
+  if (!tag || !["input", "textarea"].includes(tag.toLowerCase())) {
+    const nested = await candidate.$(
+      'input, textarea, [contenteditable="true"], [contenteditable]'
+    );
+    if (await nested.isExisting()) {
+      target = nested;
+    } else {
+      const inputByAttr = await $(
+        `input[aria-label="${ariaLabel}"], textarea[aria-label="${ariaLabel}"]`
+      );
+      if (await inputByAttr.isExisting()) {
+        target = inputByAttr;
+      } else {
+        console.error(`No editable found for aria "${ariaLabel}"`);
+        return false;
+      }
+    }
+  }
+
+  // focus + clear + set
+  try {
+    await target.scrollIntoView();
+    await target.click();
+    if (typeof (target as any).clearValue === "function") {
+      await (target as any).clearValue();
+    } else {
+      await browser.keys(["Control", "a"]);
+      await browser.keys(["Backspace"]);
+    }
+    await target.setValue(stringToInsert);
+    console.log(`Inserted "${stringToInsert}" into "${ariaLabel}"`);
+  } catch (err) {
+    console.error("Failed to set value on target:", err);
+    return false;
+  }
+
+  if (shouldTabToCreate) {
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Enter"]);
+    return true;
+  } else {
+    // Dismiss suggestions / blur
+    try {
+      await browser.keys(["Escape"]);
+      await browser.pause(80);
+      await browser.keys(["Tab"]);
+      await browser.pause(80);
+
+      // click a safe element inside the webview (projectNameDisplay) to ensure dropdown closed
+      await browser.execute(() => {
+        const safe =
+          document.getElementById("projectNameDisplay") || document.body;
+        if (safe) {
+          safe.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+          safe.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+          safe.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        }
+      });
+      await browser.pause(120);
+
+      // wait for suggestions to collapse (best-effort)
+      const suggestions = await $("ul.suggestions");
+      if (await suggestions.isExisting()) {
+        try {
+          await suggestions.waitUntil(
+            async function () {
+              const html = await this.getHTML(false);
+              return !/\<li\b/.test(html);
+            },
+            { timeout: 1200 }
+          );
+        } catch {}
+      }
+    } catch (dismissErr) {
+      console.warn("Error while dismissing suggestions:", dismissErr);
+    }
+
+    try {
+      await browser.executeWorkbench(() => {
+        const host = document.querySelector<HTMLElement>(".monaco-workbench");
+        if (host) {
+          host.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+          host.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+          host.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        }
+      });
+    } catch (e) {
+      console.warn(
+        "Unable to re-focus workbench after webview interaction:",
+        e
+      );
+      return false;
+    }
+  }
+
+  await browser.pause(80);
+  return true;
 }
 
 export async function clickButtonBasedOnAriaLabel(ariaLabel: string) {

@@ -306,8 +306,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(problemMarkers.length).toBe(0);
 
     console.log("Running template test managerTests.ExampleTestCase");
-    const runButton = await testHandle.getActionButton("Run Test");
-    await runButton.elem.click();
+    await (await (await testHandle.getActionButton("Run Test")).elem).click();
 
     console.log("Checking the test report");
     // It is expected that the VectorCast Report WebView is the only existing WebView at the moment
@@ -818,9 +817,11 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("Processing environment data"),
+          .includes("Processing environment data for:"),
       { timeout: TIMEOUT }
     );
+    // Wait a little bit before clearing
+    browser.pause(3000);
     await outputView.clearText();
   });
 
@@ -959,8 +960,11 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     console.log("Running managerTests.realTest");
-    const runButton = await currentTestHandle.getActionButton("Run Test");
-    await runButton.elem.click();
+    await (
+      await (
+        await currentTestHandle.getActionButton("Run Test")
+      ).elem
+    ).click();
 
     console.log("Checking test report");
     // It is expected that the VectorCast Report WebView is the only existing WebView at the moment

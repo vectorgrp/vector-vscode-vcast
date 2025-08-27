@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.17",
+  "version": "1.0.20",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -44,6 +44,10 @@
       }
     ],
     "commands": [
+      {
+        "command": "vectorcastTestExplorer.createNewProject",
+        "title": "VectorCAST: Create New Project"
+      },
       {
         "command": "vectorcastTestExplorer.configure",
         "category": "VectorCAST Test Explorer",
@@ -94,6 +98,11 @@
         "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
         "category": "VectorCAST Test Explorer",
         "title": "Add Testsuite to Compiler"
+      },
+      {
+        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
+        "category": "VectorCAST Test Explorer",
+        "title": "Create new Compiler in Project"
       },
       {
         "command": "vectorcastTestExplorer.addEnviroToProject",
@@ -437,6 +446,12 @@
       }
     ],
     "menus": {
+      "file/newFile": [
+        {
+          "command": "vectorcastTestExplorer.createNewProject",
+          "group": "1_createnew"
+        }
+      ],
       "commandPalette": [
         {
           "command": "vectorcastTestExplorer.configure"
@@ -471,6 +486,10 @@
         },
         {
           "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
           "when": "never"
         },
         {
@@ -771,6 +790,11 @@
       },
       {
         "command": "vectorcastTestExplorer.addEnviroToProject",
+        "group": "vcast.project",
+        "when": "testId =~ /\\.vcm$/"
+      },
+      {
+        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
         "group": "vcast.project",
         "when": "testId =~ /\\.vcm$/"
       },

@@ -146,7 +146,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     // Need to wait because there are more than one "Processing environment data for" messages
-    await browser.pause(4000);
+    await browser.pause(3000);
 
     console.log("Finished creating vcast environment");
     await browser.takeScreenshot();
@@ -163,6 +163,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const envName = "DATABASE-MANAGER";
     console.log("Generating all BASIS PATH tests for unit database");
     await generateAllTestsForUnit("database", testGenMethod.BasisPath);
+    await browser.pause(5000);
     await validateGeneratedTestsForUnit(
       envName,
       "database",

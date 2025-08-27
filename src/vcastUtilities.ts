@@ -51,6 +51,7 @@ import {
   nodeKind,
   vcastTestItem,
 } from "./testPane";
+import { tempScriptCache } from "./vcastTestInterface";
 
 const fs = require("fs");
 const os = require("os");
@@ -253,6 +254,9 @@ export async function generateAndLoadBasisPathTests(testNode: testNodeType) {
     `vcast-${timeStamp}.tst`
   );
 
+  // cache this path so we know it’s temporary
+  tempScriptCache.add(tempScriptPath);
+
   vectorMessage("Generating Basis Path script file ...");
   // ignore the testName (if any)
   testNode.testName = "";
@@ -276,6 +280,9 @@ export async function generateAndLoadATGTests(testNode: testNodeType) {
     enclosingDirectory,
     `vcast-${timeStamp}.tst`
   );
+
+  // cache this path so we know it’s temporary
+  tempScriptCache.add(tempScriptPath);
 
   vectorMessage("Generating ATG script file ...");
   // ignore the testName (if any)
@@ -669,39 +676,59 @@ export async function deleteOtherBuildFolders(
  */
 export function ensureTestsuiteNodes() {
   globalUnusedTestsuiteList.forEach((item) => {
-    // Expecting a format like "GNU/Banana"
     const parts = item.displayName.split("/");
     if (parts.length !== 2) {
       vectorMessage(`Invalid testsuite format: ${item.displayName}`);
       return;
     }
+
     const compilerName = parts[0];
     const testsuiteName = parts[1];
+    const projectFile = item.projectFile;
 
-    // Search for the compiler node across all top-level items.
-    let compilerNode: vcastTestItem | undefined;
-    globalController.items.forEach((topItem) => {
-      const node = findNodeByKindAndLabel(
-        topItem as vcastTestItem,
-        nodeKind.compiler,
-        compilerName
+    if (!projectFile) {
+      vectorMessage(
+        `Testsuite "${testsuiteName}" could not be connected with a Project`
       );
-      if (node) {
-        compilerNode = node;
-      }
-    });
-    if (!compilerNode) {
-      vectorMessage(`No compiler node found for "${compilerName}"`);
       return;
     }
 
-    // Compute the expected testsuite node id.
+    // Find the project node from the projectFile
+    let projectNode: vcastTestItem | undefined =
+      globalProjectMap.get(projectFile);
+
+    if (!projectNode) {
+      vectorMessage(`No project node found for "${projectFile}"`);
+      return;
+    }
+
+    // Search for the compiler node only inside this project node
+    let compilerNode: vcastTestItem | undefined;
+    projectNode.children.forEach((child) => {
+      const testItem = child as vcastTestItem;
+      if (
+        testItem.nodeKind === nodeKind.compiler &&
+        typeof testItem.label === "string" &&
+        testItem.label === compilerName
+      ) {
+        compilerNode = testItem;
+      }
+    });
+
+    if (!compilerNode) {
+      vectorMessage(
+        `No compiler node found for "${compilerName}" in project "${projectNode.label}"`
+      );
+      return;
+    }
+
+    // Create the testsuite node if it doesn’t exist
     const testsuiteNodeId = `${compilerNode.id}/${testsuiteName}`;
     let testsuiteNode = compilerNode.children.get(
       testsuiteNodeId
     ) as vcastTestItem;
+
     if (!testsuiteNode) {
-      // Create the testsuite node under the found compiler.
       testsuiteNode = globalController.createTestItem(
         testsuiteNodeId,
         testsuiteName
@@ -728,12 +755,16 @@ export function ensureCompilerNodes() {
     let projectNode: vcastTestItem | undefined =
       globalProjectMap.get(projectFile);
     if (!projectNode) {
-      // Alternatively, you can search among top-level nodes if needed.
-      globalController.items.forEach((topItem) => {
-        if ((topItem as vcastTestItem).id === projectFile) {
-          projectNode = topItem as vcastTestItem;
-        }
-      });
+      // If project node doesn't exist, create a new one.
+      // This gets triggered when we have a project without envs but with a compiler
+      const projectDisplayName = path.basename(projectFile);
+      projectNode = globalController.createTestItem(
+        projectFile,
+        projectDisplayName
+      ) as vcastTestItem;
+      projectNode.nodeKind = nodeKind.project;
+      globalController.items.add(projectNode);
+      globalProjectMap.set(projectFile, projectNode);
     }
 
     // If no project node exists, do nothing.
@@ -769,32 +800,6 @@ export function ensureCompilerNodes() {
       projectNode.children.add(compilerNode);
     }
   });
-}
-
-/**
- * Retruns the node with the given kind and label or undefined if not found
- * @returns node if found, undefined otherwise
- */
-function findNodeByKindAndLabel(
-  node: vcastTestItem,
-  kind: nodeKind,
-  label: string
-): vcastTestItem | undefined {
-  if (
-    node.nodeKind === kind &&
-    typeof node.label === "string" &&
-    node.label === label
-  ) {
-    return node;
-  }
-  let found: vcastTestItem | undefined;
-  node.children.forEach((child) => {
-    const result = findNodeByKindAndLabel(child as vcastTestItem, kind, label);
-    if (result) {
-      found = result;
-    }
-  });
-  return found;
 }
 
 export function getLevelFromNodeId(path: string) {

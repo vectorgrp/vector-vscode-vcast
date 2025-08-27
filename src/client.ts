@@ -14,7 +14,10 @@ import {
 
 import { enviroDataType } from "../src-common/commonUtilities";
 import { vectorMessage } from "./messagePane";
-import { vPythonCommandToUse } from "./vcastInstallation";
+import {
+  vcastInstallationDirectory,
+  getVectorCastInstallationLocation,
+} from "./vcastInstallation";
 
 let client: LanguageClient;
 let globalvMockAvailable: boolean = false;
@@ -28,58 +31,70 @@ export function activateLanguageServerClient(context: ExtensionContext) {
 
   // If the extension is launched in debug mode then the debug server options are used
   // Otherwise the run options are used
-  const vpythonPath: string =
-    vPythonCommandToUse != null ? vPythonCommandToUse : "vpython";
-  let serverOptions: ServerOptions = {
-    run: {
-      module: serverModule,
-      args: [
-        context.asAbsolutePath("."),
-        vpythonPath,
-        globalEnviroDataServerActive.toString(),
+
+  let vcDir: string | undefined =
+    vcastInstallationDirectory != null
+      ? vcastInstallationDirectory
+      : getVectorCastInstallationLocation();
+
+  if (vcDir) {
+    let serverOptions: ServerOptions = {
+      run: {
+        module: serverModule,
+        args: [
+          context.asAbsolutePath("."),
+          vcDir,
+          globalEnviroDataServerActive.toString(),
+        ],
+        transport: TransportKind.ipc,
+      },
+      debug: {
+        module: serverModule,
+        args: [
+          context.asAbsolutePath("."),
+          vcDir,
+          globalEnviroDataServerActive.toString(),
+        ],
+        transport: TransportKind.ipc,
+        options: debugOptions,
+      },
+    };
+
+    // Options to control the language client
+    // we register for .tst and c|cpp files, and do the right thing in the callback
+    // depending on the extension of the file
+    let clientOptions: LanguageClientOptions = {
+      documentSelector: [
+        { scheme: "file", pattern: "**/*.tst" },
+        { scheme: "file", language: "c" },
+        { scheme: "file", language: "cpp" },
+        { scheme: "file", language: "cuda-cpp" },
       ],
-      transport: TransportKind.ipc,
-    },
-    debug: {
-      module: serverModule,
-      args: [
-        context.asAbsolutePath("."),
-        vpythonPath,
-        globalEnviroDataServerActive.toString(),
-      ],
-      transport: TransportKind.ipc,
-      options: debugOptions,
-    },
-  };
+    };
 
-  // Options to control the language client
-  // we register for .tst and c|cpp files, and do the right thing in the callback
-  // depending on the extension of the file
-  let clientOptions: LanguageClientOptions = {
-    documentSelector: [
-      { scheme: "file", pattern: "**/*.tst" },
-      { scheme: "file", language: "c" },
-      { scheme: "file", language: "cpp" },
-      { scheme: "file", language: "cuda-cpp" },
-    ],
-  };
+    // Create the language client and start the client.
+    client = new LanguageClient(
+      "vcasttesteditor",
+      "VectorCAST Test Editor",
+      serverOptions,
+      clientOptions
+    );
 
-  // Create the language client and start the client.
-  client = new LanguageClient(
-    "vcasttesteditor",
-    "VectorCAST Test Editor",
-    serverOptions,
-    clientOptions
-  );
+    // Start the client. This will also launch the server
+    vectorMessage(
+      "Starting the language server client for test script editing ..."
+    );
+    client.start();
 
-  // Start the client. This will also launch the server
-  vectorMessage(
-    "Starting the language server client for test script editing ..."
-  );
-  client.start();
-
-  // initialize the vMock status to the value set during activation
-  updateVMockStatus(globalvMockAvailable);
+    // initialize the vMock status to the value set during activation
+    updateVMockStatus(globalvMockAvailable);
+  } else {
+    vectorMessage(
+      "Unable to start the Language Server: VectorCAST installation not found. " +
+        "Please set the VECTORCAST_DIR environment variable, or open the extension settings " +
+        "and configure 'VectorCAST Installation Location' to point to your VectorCAST install directory."
+    );
+  }
 }
 
 // we keep a cache of what we have sent to the server so we don't
@@ -159,13 +174,17 @@ export function updateVMockStatus(vmockAvailable: boolean) {
   }
 }
 
-// This function is used to send an updated path to vPython to the server
-export function sendVPythonCommandToServer(vPythonCommand: string) {
+// Sends the updated VectorCAST installation directory to the server.
+// This ensures the language server uses the correct vPython and Clicast executables.
+export function sendVCDirCommandToLanguageServer(vcDirCommand: string) {
   if (client) {
     client.onReady().then(() => {
-      client.sendNotification("vcasttesteditor/updateVPythonCommand", {
-        vPythonCommand,
-      });
+      client.sendNotification(
+        "vcasttesteditor/updateVCDirCommandForLanguageServer",
+        {
+          vcDirCommand,
+        }
+      );
     });
   }
 }

@@ -3,3 +3,4 @@ tests/unit/vcast
 *.tar.gz
 coverage
 .vscode/launch.json
+out/

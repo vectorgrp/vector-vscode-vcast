@@ -121,6 +121,7 @@ describe("vTypeCheck VS Code Extension", () => {
         QUOTES_EXAMPLE_FUNCTION,
         testGenMethod.ATG
       );
+      await browser.pause(5000);
       await validateGeneratedTestsForFunction(
         QUOTES_ENV,
         QUOTES_EXAMPLE_UNIT,

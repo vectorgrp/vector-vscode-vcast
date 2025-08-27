@@ -11,21 +11,27 @@ import { getEnviroPathFromID, removeNodeFromCache } from "./testData";
 
 import {
   buildTestPaneContents,
-  refreshAllExtensionData,
   removeCBTfilesCacheForEnviro,
   removeNodeFromTestPane,
   updateDataForEnvironment,
+  updateTestPane,
   vcastUnbuiltEnviroList,
 } from "./testPane";
 
 import { removeFilePattern } from "./utilities";
 import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
-import { removeCoverageDataForEnviro } from "./vcastTestInterface";
+import {
+  removeCoverageDataForEnviro,
+  tempScriptCache,
+} from "./vcastTestInterface";
 import {
   closeConnection,
   globalEnviroDataServerActive,
 } from "../src-common/vcastServer";
+import { updateDisplayedCoverage } from "./coverage";
+import { updateExploreDecorations } from "./fileDecorator";
+import { updateTestDecorator } from "./editorDecorator";
 
 const fs = require("fs");
 const path = require("path");
@@ -45,7 +51,6 @@ export async function buildEnvironmentCallback(
   if (code == 0) {
     await buildTestPaneContents();
     await updateDataForEnvironment(enviroPath);
-    await refreshAllExtensionData();
   } else {
     try {
       // remove the environment directory, as well as the .vce file
@@ -121,7 +126,9 @@ export async function deleteEnvironmentCallback(
     }
 
     removeCoverageDataForEnviro(enviroPath);
-    await refreshAllExtensionData();
+    updateDisplayedCoverage();
+    updateExploreDecorations();
+    updateTestDecorator();
     removeNodeFromCache(enviroNodeID);
 
     // vcast does not delete the ENVIRO-NAME.* files so we clean those up here
@@ -144,11 +151,16 @@ export async function loadScriptCallBack(
     await loadTestScriptIntoEnvironment(enviroName, scriptPath);
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
-
-    vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
-    await refreshAllExtensionData();
+    await updateTestPane(enviroPath);
     if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-    fs.unlinkSync(scriptPath);
+
+    // If it's a temporary tst file (from create new test script), we delete it.
+    // Otherwise it's a manually editing of an already existing tst file
+    if (tempScriptCache.has(scriptPath)) {
+      vectorMessage(`Deleting script file: ${path.basename(scriptPath)}`);
+      fs.unlinkSync(scriptPath);
+      tempScriptCache.delete(scriptPath); // cleanup
+    }
   } else {
     vscode.window.showInformationMessage(
       `Error generating tests, see log for details`

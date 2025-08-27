@@ -51,6 +51,7 @@ class UsageError(Exception):
 
 
 modeChoices = [
+    "getWorkspaceEnviroData",
     "getProjectData",
     "getEnviroData",
     "executeTest",
@@ -709,6 +710,21 @@ def getProjectCompilerData(api):
     return compilerList
 
 
+def find_vce_files(root_dir):
+    vce_files = []
+
+    def scan_dir(path):
+        with os.scandir(path) as entries:
+            for entry in entries:
+                if entry.is_file() and entry.name.endswith(".vce"):
+                    vce_files.append(entry.path)
+                elif entry.is_dir(follow_symlinks=False):
+                    scan_dir(entry.path)
+
+    scan_dir(root_dir)
+    return vce_files
+
+
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     """
     This function does the actual work of processing a vTestInterface command,
@@ -752,6 +768,40 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         api.close()
         returnObject = topLevel
 
+    elif mode == "getWorkspaceEnviroData":
+        enviro_list = []
+        errors = []
+        topLevel = {}
+        vce_files = find_vce_files(pathToUse)
+
+        for vce_path in vce_files:
+            try:
+                api = UnitTestApi(vce_path)
+                test_data = getTestDataVCAST(api, vce_path)
+                unit_data = getUnitData(api)
+                mocking_support = getEnviroSupportsMock(api)
+                api.close()
+
+                enviro_list.append(
+                    {
+                        "vcePath": normalize_path(vce_path),
+                        "testData": test_data,
+                        "unitData": unit_data,
+                        "mockingSupport": mocking_support,
+                    }
+                )
+
+            except Exception as err:
+                errors.append(f"{vce_path}: {str(err)}")
+
+        topLevel["testData"] = enviro_list[0]["testData"] if enviro_list else []
+        topLevel["unitData"] = enviro_list[0]["unitData"] if enviro_list else []
+        topLevel["enviro"] = enviro_list
+        if errors:
+            topLevel["errors"] = errors
+
+        returnObject = topLevel
+
     elif mode == "getEnviroData":
         topLevel = dict()
 
@@ -765,7 +815,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         topLevel["testData"] = getTestDataVCAST(api, pathToUse)
         topLevel["unitData"] = getUnitData(api)
         topLevel["enviro"] = dict()
-        topLevel["enviro"]["mockingSupport"] = getEnviroSupportsMock(api)
+        topLevel["mockingSupport"] = getEnviroSupportsMock(api)
 
         api.close()
         returnObject = topLevel
@@ -954,6 +1004,29 @@ def getMCDCLines(enviroPath):
             returnText = f"Error: {str(e)}\n"
 
         return returnText
+
+
+def normalize_path(path: str) -> str:
+    """
+    Normalize a path so it matches the behavior of the TS normalizePath function.
+    - On Windows: force lowercase drive letter + convert backslashes to forward slashes.
+    - On other OS: return unchanged.
+    """
+    if not path:
+        return ""
+
+    return_path = path
+
+    if os.name == "nt":  # Windows
+        # Handle drive letter
+        if len(path) > 1 and path[1] == ":":
+            drive_letter = path[0].lower()
+            return_path = drive_letter + path[1:]
+
+        # Replace backslashes with forward slashes
+        return_path = return_path.replace("\\", "/")
+
+    return return_path
 
 
 def main():

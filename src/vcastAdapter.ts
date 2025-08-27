@@ -146,7 +146,6 @@ export async function deleteLevel(projectPath: string, level: string) {
   );
 
   const nodeId = path.join(projectPath, level);
-
   await refreshAllExtensionData();
   removeNodeFromTestPane(nodeId);
 }
@@ -614,13 +613,7 @@ export async function getDataForProject(projectFilePath: string): Promise<any> {
 
   // strip the .vcm extension from the project file path
   let projectDirectoryPath = projectFilePath.slice(0, -4);
-
-  let jsonData: any;
-  if (globalEnviroDataServerActive) {
-    jsonData = await getProjectDataFromServer(projectDirectoryPath);
-  } else {
-    jsonData = getProjectDataFromPython(projectDirectoryPath);
-  }
+  const jsonData = getProjectDataFromPython(projectDirectoryPath);
 
   return jsonData;
 }
@@ -638,38 +631,6 @@ function getProjectDataFromPython(projectDirectoryPath: string): any {
     projectDirectoryPath
   );
   return jsonData;
-}
-
-// Server Logic
-async function getProjectDataFromServer(
-  projectDirectoryPath: string
-): Promise<any> {
-  //
-  const requestObject: clientRequestType = {
-    command: vcastCommandType.getProjectData,
-    path: projectDirectoryPath,
-  };
-
-  let transmitResponse: transmitResponseType =
-    await transmitCommand(requestObject);
-
-  // transmitResponse.returnData is an object with exitCode and data properties
-  // for getProjectData we might have a version miss-match if the enviro is newer
-  // than the version of vcast we are using, so handle that here
-  if (!transmitResponse.success) {
-    await vectorMessage(transmitResponse.statusText);
-    openMessagePane();
-    return undefined;
-  }
-
-  const { exitCode, data } = transmitResponse.returnData;
-
-  if (exitCode !== 0) {
-    vectorMessage(data.text.join("\n"));
-    return;
-  }
-
-  return data;
 }
 
 // Get Environment Data ---------------------------------------------------------------
@@ -728,6 +689,27 @@ async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
     openMessagePane();
     return undefined;
   }
+}
+
+// Get Environment Data ---------------------------------------------------------------
+// Server logic is in a separate function below
+export async function getWorkspaceEnvDataVPython(
+  workspaceDir: string
+): Promise<any> {
+  // what we get back is a JSON formatted string (if the command works)
+  // that has two sub-fields: testData, and unitData
+
+  // This function will return the environment data for a single directory
+  // by calling vpython with the appropriate command
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.getWorkspaceEnviroData,
+    workspaceDir
+  );
+  let jsonData = getJsonDataFromTestInterface(commandToRun, workspaceDir);
+
+  vectorMessage("Building environments data for workspace...");
+
+  return jsonData;
 }
 
 // Execute Test ------------------------------------------------------------------------

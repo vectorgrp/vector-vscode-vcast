@@ -653,7 +653,7 @@ function createVcastEnvironmentScript(
   fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
 }
 
-function buildEnvironmentVCAST(
+async function buildEnvironmentVCAST(
   fileList: string[],
   unitTestLocation: string,
   enviroName: string,
@@ -683,7 +683,7 @@ function buildEnvironmentVCAST(
 
     createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
 
-    buildEnvironmentFromScript(unitTestLocation, enviroName);
+    await buildEnvironmentFromScript(unitTestLocation, enviroName);
   }
 }
 
@@ -752,7 +752,7 @@ async function configureWorkspaceAndBuildEnviro(
   // If we have project params, we want to create an env within a project
   if (projectEnvParameters) {
     // Create the environment using the provided file list
-    commonEnvironmentSetup(fileList, envLocation, false);
+    await commonEnvironmentSetup(fileList, envLocation, false);
 
     const envName = createEnvNameFromFiles(fileList);
     const envFilePath = path.join(envLocation, `${envName}.env`);
@@ -787,7 +787,7 @@ async function configureWorkspaceAndBuildEnviro(
     }
   } else if (fs.existsSync(envLocation)) {
     // If no project params but the folder already exists, just do the common setup
-    commonEnvironmentSetup(fileList, envLocation);
+    await commonEnvironmentSetup(fileList, envLocation);
   } else {
     // Otherwise prompt the user to create it
     const message =
@@ -806,7 +806,7 @@ async function configureWorkspaceAndBuildEnviro(
     if (answer === "Yes") {
       try {
         fs.mkdirSync(envLocation, { recursive: true });
-        commonEnvironmentSetup(fileList, envLocation);
+        await commonEnvironmentSetup(fileList, envLocation);
       } catch (error: any) {
         vscode.window.showErrorMessage(
           `Error creating directory: ${envLocation} [${error.message}].  Update the 'Unit Test Location' option to a valid value`
@@ -884,7 +884,12 @@ async function commonEnvironmentSetup(
   }
 
   // Build the environment with the valid name
-  buildEnvironmentVCAST(fileList, envLocation, enviroName, shouldBuildEnviro);
+  await buildEnvironmentVCAST(
+    fileList,
+    envLocation,
+    enviroName,
+    shouldBuildEnviro
+  );
 }
 
 // Improvement needed: get the language extensions automatically, don't hard-code
@@ -1018,9 +1023,10 @@ function createScriptTemplate(testNode: testNodeType): string {
   return scriptTemplateLines.join("\n");
 }
 
-export async function newTestScript(testNode: testNodeType) {
-  // This can be called for any subprogram node other than an environment node
+// Keep track of temporary test scripts created via "newTestScript"
+export const tempScriptCache: Set<string> = new Set();
 
+export async function newTestScript(testNode: testNodeType) {
   const contents = createScriptTemplate(testNode);
   const scriptPath = path.join(
     path.dirname(testNode.enviroPath),
@@ -1029,6 +1035,9 @@ export async function newTestScript(testNode: testNodeType) {
 
   // create the template file
   fs.writeFileSync(scriptPath, contents);
+
+  // cache this path so we know it’s temporary
+  tempScriptCache.add(scriptPath);
 
   let scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
   vscode.workspace.openTextDocument(scriptUri).then(
