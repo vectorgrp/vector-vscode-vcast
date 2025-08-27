@@ -1,0 +1,51 @@
+# escape=`
+FROM mcr.microsoft.com/dotnet/framework/sdk:4.8-windowsservercore-ltsc2019
+
+ARG USERNAME=vcast_user
+ENV IMG_USERNAME=$USERNAME
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
+
+ENV HTTP_PROXY=http://gateway.zscloud.net:10402 `
+    HTTPS_PROXY=http://gateway.zscloud.net:10402 `
+    NO_PROXY=localhost,127.0.0.1,localaddress,.localdomain.com,0.0.0.0,::1,.vector.int,10.0.0.0/8,vistrrdeart1.vi.vector.int,vistradpart1.vi.vector.int,rds-ml-project-docker-dev.vegistry.vg.vector.int
+
+RUN New-Item -ItemType Directory -Force -Path "C:\Users\certs"
+
+ADD https://vistrrdeart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Issuing_2.0.crt C:/Users/certs/
+ADD https://vistrrdeart1.vi.vector.int/artifactory/adp-globaltools-generic-prod/Vector_Root_2.0.crt C:/Users/certs/
+ADD https://rds-ml-project-docker-dev.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/ca-bundle.crt C:/Users/certs
+
+RUN Import-Certificate -FilePath "C:\Users\certs\Vector_Root_2.0.crt" -CertStoreLocation Cert:\LocalMachine\Root; `
+    Import-Certificate -FilePath "C:\Users\certs\Vector_Issuing_2.0.crt" -CertStoreLocation Cert:\LocalMachine\Root; `
+    Import-Certificate -FilePath "C:\Users\certs\ca-bundle.crt" -CertStoreLocation Cert:\LocalMachine\Root
+
+RUN Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe" -Proxy ${env:HTTPS_PROXY} -OutFile "C:\python-3.10.11-amd64.exe"; `
+    Start-Process -FilePath "C:\python-3.10.11-amd64.exe" -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait; `
+    Remove-Item "C:\python-3.10.11-amd64.exe" -Force
+
+RUN mkdir C:\pip; `
+    New-Item C:\pip\pip.ini; Set-Content -Path C:\pip\pip.ini -Value '[global]'; `
+    Add-Content -Path C:\pip\pip.ini -Value 'cert = C:\Users\certs\ca-bundle.crt'; `
+    Add-Content -Path C:\pip\pip.ini -Value 'proxy = http://gateway.zscloud.net:10402'; `
+    Add-Content -Path C:\pip\pip.ini -Value 'trusted-host = pypi.org\npypi.python.org\nfiles.pythonhosted.org';
+ENV PIP_CONFIG_FILE=C:\pip\pip.ini
+
+RUN Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile "C:\BuildTools.exe"; `
+    Start-Process -FilePath "C:\BuildTools.exe" -ArgumentList '--quiet', '--wait', '--norestart', '--nocache', '--installPath', 'C:\BuildTools', '--add', 'Microsoft.VisualStudio.Workload.VCTools', '--includeRecommended' -Wait; `
+    Remove-Item "C:\BuildTools.exe" -Force
+
+RUN Invoke-WebRequest -Uri "https://github.com/brechtsanders/winlibs_mingw/releases/download/10.2.0-11.0.0-8.0.0-r7/winlibs-x86_64-posix-seh-gcc-10.2.0-mingw-w64-8.0.0-r7.zip" -Proxy ${env:HTTPS_PROXY}  -OutFile "C:\gcc10.zip"; `
+    Expand-Archive -Path "C:\gcc10.zip" -DestinationPath "C:\mingw64"; `
+    Remove-Item "C:\gcc10.zip" -Force
+
+RUN cmd /S /C "net user %IMG_USERNAME% /add"
+RUN cmd /S /C "net localgroup Administrators %IMG_USERNAME% /add"
+RUN powershell -Command 'Set-LocalUser -Name $Env:IMG_USERNAME -PasswordNeverExpires $true'
+
+RUN "setx /M PATH \"$Env:PATH;C:\\mingw64\\mingw64\\bin;\""
+USER ${IMG_USERNAME}
+
+COPY entrypoint.cmd C:\entrypoint.cmd
+ENTRYPOINT ["C:\\entrypoint.cmd"]
+CMD ["powershell", "-Command", "while ($true) { Start-Sleep -Seconds 3600 }"]

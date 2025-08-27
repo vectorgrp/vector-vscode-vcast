@@ -1,0 +1,3 @@
+manager.<<GLOBAL>>.WaitingListSize
+manager.<<GLOBAL>>.WaitingList[0]
+manager.Add_Party_To_Waiting_List.Name

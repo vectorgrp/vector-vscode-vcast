@@ -1,0 +1,7 @@
+manager.<<GLOBAL>>.(cl).Manager.Manager.<<constructor>>.Manager().<<call>>
+manager.Manager::AddIncludedDessert.Order
+manager.Manager::AddIncludedDessert.Order[0].Beverage
+manager.Manager::AddIncludedDessert.Order[0].Dessert
+manager.Manager::AddIncludedDessert.Order[0].Entree
+manager.Manager::AddIncludedDessert.Order[0].Salad
+manager.Manager::AddIncludedDessert.Order[0].Soup

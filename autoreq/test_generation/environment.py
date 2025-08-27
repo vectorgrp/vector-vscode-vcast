@@ -1,0 +1,1105 @@
+from functools import cached_property, lru_cache
+from dataclasses import dataclass
+from glob import glob
+import json
+import os
+from pathlib import Path
+import re
+from typing import List, Optional
+import subprocess
+import tempfile
+import sqlite3
+import logging
+import charset_normalizer
+import traceback
+
+from autoreq.test_generation.type_resolver import TypeResolver, VectorcastIdentifierTree
+from autoreq.util import (
+    are_paths_equal,
+    extract_code_symbols,
+    prune_code,
+    sanitize_subprogram_name,
+    get_vectorcast_cmd,
+    execute_vectorcast_command,
+)
+
+from autoreq.constants import (
+    MAX_IDENTIFIER_DEPTH_LIMIT,
+    SOURCE_FILE_EXTENSIONS,
+    TEST_COVERAGE_SCRIPT_PATH,
+)
+
+from typing import Union
+from ..codebase import Codebase
+
+
+@dataclass
+class ValueMapping:
+    identifier: str
+    value: str
+
+    def to_dict(self):
+        return {'identifier': self.identifier, 'value': self.value}
+
+
+@dataclass
+class TestCase:
+    test_name: str
+    test_description: str
+    unit_name: str
+    subprogram_name: str
+    input_values: List[ValueMapping]
+    expected_values: List[ValueMapping]
+    requirement_id: Optional[str] = None
+
+    @property
+    def path(self) -> str:
+        # Use regex to find lines containing (number) patterns
+        path_pattern = re.compile(r'.*\(\d+\).*')
+        path_lines = [
+            line.split(')', 1)[1].strip()
+            for line in self.test_description.split('\n')
+            if path_pattern.match(line)
+        ]
+        return '\n'.join(path_lines)
+
+    def to_dict(self):
+        return {
+            'test_name': self.test_name,
+            'test_description': self.test_description,
+            'unit_name': self.unit_name,
+            'subprogram_name': self.subprogram_name,
+            'input_values': [v.to_dict() for v in self.input_values],
+            'expected_values': [v.to_dict() for v in self.expected_values],
+            'requirement_id': self.requirement_id,
+        }
+
+    def to_identifier(self):
+        return f'{self.unit_name}.{sanitize_subprogram_name(self.subprogram_name)}.{self.test_name}'
+
+
+class Environment:
+    def __init__(self, env_file_path: str, use_sandbox: bool = True):
+        env_file_path = os.path.abspath(env_file_path)
+        self.env_file_path = env_file_path
+        self.env_name = os.path.basename(env_file_path).replace('.env', '')
+        env_dir = os.path.dirname(env_file_path)
+
+        # Create a separate temporary directory for temporary files
+        self.temp_files_dir = tempfile.mkdtemp(prefix=f'vcast_{self.env_name}_')
+
+        if use_sandbox:
+            import shutil
+
+            self.temp_dir = tempfile.TemporaryDirectory()
+            self.env_dir = self.temp_dir.name
+            shutil.copytree(env_dir, self.env_dir, dirs_exist_ok=True)
+        else:
+            self.env_dir = env_dir
+        self._tu_codebase_paths = None
+        self._used_atg_testable_functions_fallback = False
+
+    def _get_temporary_file_path(self, filename: str) -> str:
+        """Generate a path for a temporary file in the temporary files directory."""
+        return os.path.join(self.temp_files_dir, filename)
+
+    @property
+    def is_built(self) -> bool:
+        db_path = os.path.join(self.env_dir, self.env_name, 'master.db')
+        return os.path.exists(db_path)
+
+    def build(self):
+        """Build the VectorCAST environment."""
+        logging.debug(f'Building environment: {self.env_name}')
+
+        result = self._run_vectorcast_command(
+            'enviroedg',
+            [f'{self.env_name}.env'],
+            timeout=120,
+            extra_env={'VCAST_FORCE_OVERWRITE_ENV_DIR': '1'},
+        )
+
+        if result is None:
+            raise RuntimeError(
+                f"Build command for environment '{self.env_name}' failed. "
+                'Please check your VectorCAST installation and environment.'
+            )
+
+    def run_tests(self, test_cases: List[str], **kwargs) -> Optional[str]:
+        tst_file_path = self._get_temporary_file_path(f'temp_tests_{self.env_name}.tst')
+        with open(tst_file_path, 'w', encoding='utf-8') as temp_tst_file:
+            temp_tst_file.write('-- VectorCAST 6.4s (05/01/17)\n')
+            temp_tst_file.write('-- Test Case Script\n')
+            temp_tst_file.write(f'-- Environment    : {self.env_name}\n')
+            temp_tst_file.write(f'-- Unit(s) Under Test: {", ".join(self.units)}\n')
+            temp_tst_file.write('-- \n')
+            temp_tst_file.write('-- Script Features\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:C_DIRECT_ARRAY_INDEXING\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:CPP_CLASS_OBJECT_REVISION\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:MULTIPLE_UUT_SUPPORT\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:MIXED_CASE_NAMES\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:STATIC_HEADER_FUNCS_IN_UUTS\n')
+            temp_tst_file.write('--\n\n')
+            for test_case in test_cases:
+                temp_tst_file.write(test_case + '\n')
+
+            temp_tst_file.flush()
+
+            output = self.run_test_script(tst_file_path, **kwargs)
+
+            return output
+
+    def _get_coverage_info(self, tests: List[TestCase]) -> Optional[dict]:
+        """Get coverage information for the given tests."""
+        logging.debug(f'Getting coverage info for {len(tests)} tests')
+
+        result = self._run_vectorcast_command(
+            'vpython',
+            [
+                str(TEST_COVERAGE_SCRIPT_PATH),
+                self.env_name,
+                *(t.to_identifier() for t in tests),
+            ],
+            timeout=30,
+        )
+
+        if result is None:
+            logging.error('Coverage command failed')
+            return None
+
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            stacktrace = traceback.format_exc()
+            logging.error(
+                'Failed to parse coverage data',
+                extra={
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                },
+            )
+            return None
+
+    def run_test_script(
+        self, tst_file_path: str, with_coverage=False, post_run_callback=None
+    ) -> Optional[Union[str, tuple[str, Optional[dict]]]]:
+        tst_file_path = os.path.abspath(tst_file_path)
+
+        with open(tst_file_path, 'r') as f:
+            content = f.read()
+
+        if 'MIXED_CASE_NAMES' not in content:
+            logging.warning(
+                'The MIXED_CASE_NAMES script feature is not enabled in your script, watch out when trying to run tests with mixed case names'
+            )
+
+        tests = self.parse_test_script(tst_file_path)
+
+        commands = [
+            get_vectorcast_cmd(
+                'clicast',
+                ['-lc', '-e', self.env_name, 'Test', 'Script', 'Run', tst_file_path],
+            ),
+            *[
+                get_vectorcast_cmd(
+                    'clicast',
+                    [
+                        '-lc',
+                        '-e',
+                        self.env_name,
+                        '-u',
+                        test.unit_name,
+                        '-s',
+                        sanitize_subprogram_name(test.subprogram_name),
+                        '-t',
+                        test.test_name,
+                        'Execute',
+                        'Run',
+                    ],
+                )
+                for test in tests
+            ],
+        ]
+
+        removal_commands = [
+            get_vectorcast_cmd(
+                'clicast',
+                [
+                    '-lc',
+                    '-e',
+                    self.env_name,
+                    '-u',
+                    test.unit_name,
+                    '-s',
+                    sanitize_subprogram_name(test.subprogram_name),
+                    '-t',
+                    test.test_name,
+                    'Test',
+                    'Delete',
+                ],
+            )
+            for test in tests
+        ]
+
+        output = ''
+        env_vars = os.environ.copy()
+        result = None
+
+        try:
+            # Execute the commands using subprocess and capture the outputs
+            for cmd in commands:
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        cwd=self.env_dir,
+                        env=env_vars,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        timeout=30,
+                        check=False,
+                    )
+                except subprocess.TimeoutExpired:
+                    logging.error(
+                        'Commands timed out after 30 seconds',
+                        extra={
+                            'command': ' '.join(cmd),
+                        },
+                    )
+                    continue
+
+                logging.debug(
+                    'Command executed',
+                    extra={
+                        'command': ' '.join(cmd),
+                        'return_code': result.returncode,
+                        'stdout': result.stdout,
+                    },
+                )
+
+                # TODO: Maybe add special output if timed out?
+                if result is not None:
+                    output += result.stdout
+
+            if with_coverage:
+                coverage_data = self._get_coverage_info(tests)
+                output = (output, coverage_data)
+
+            if post_run_callback and callable(post_run_callback):
+                try:
+                    post_run_callback()
+                except Exception as e:
+                    stacktrace = traceback.format_exc()
+                    logging.error(
+                        'Error during post_run_callback',
+                        extra={
+                            'stacktrace': stacktrace,
+                            'error': str(e),
+                        },
+                    )
+
+        finally:
+            # Remove the test cases - this will always execute
+            for cmd in removal_commands:
+                try:
+                    cleanup_result = subprocess.run(
+                        cmd,
+                        cwd=self.env_dir,
+                        env=env_vars,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        timeout=30,
+                        check=False,
+                    )
+                    logging.debug(
+                        'Running cleanup command',
+                        extra={
+                            'command': ' '.join(cmd),
+                            'return_code': cleanup_result.returncode,
+                            'stdout': cleanup_result.stdout,
+                        },
+                    )
+                except subprocess.TimeoutExpired:
+                    logging.error(
+                        'Commands timed out after 30 seconds',
+                        extra={
+                            'command': ' '.join(cmd),
+                        },
+                    )
+
+        return output
+
+    @cached_property
+    def type_resolver(self):
+        param_file = os.path.join(self.env_dir, self.env_name, 'param.xml')
+        types_file = os.path.join(self.env_dir, self.env_name, 'types.xml')
+
+        return TypeResolver(param_file, types_file)
+
+    @cached_property
+    def raw_template_identifiers(self) -> List[str]:
+        """Get allowed identifiers for test generation in case the type resolver does not work."""
+        tst_file_path = self._get_temporary_file_path(
+            f'identifiers_template_{self.env_name}.tst'
+        )
+
+        # Try to generate test script template
+        logging.debug('Generating test script template for identifiers')
+        result = self._run_vectorcast_command(
+            'clicast',
+            ['-e', self.env_name, 'test', 'script', 'template', tst_file_path],
+            timeout=30,
+            check_output_file=tst_file_path,
+        )
+
+        if result is not None:
+            # Read the generated test script template
+            with open(tst_file_path, 'r') as f:
+                content = f.read()
+
+            # Extract identifiers from TEST.VALUE and TEST.EXPECTED lines
+            identifiers = []
+            lines = content.splitlines()
+            for line in lines:
+                if line.startswith('TEST.VALUE') or line.startswith('TEST.EXPECTED'):
+                    identifier = line.split(':', 1)[1].rsplit(':', 1)[0]
+                    if identifier not in identifiers:
+                        identifiers.append(identifier)
+
+            return identifiers
+
+        logging.warning('Failed to generate test script template')
+
+        return []
+
+    def get_allowed_identifiers_for_function(
+        self,
+        function_name,
+        focus_lines=None,
+        max_identifier_index=None,
+        remove_surely_stubbed_returns=False,
+        remove_surely_stubbed_inputs=False,
+        depth_limit=MAX_IDENTIFIER_DEPTH_LIMIT,
+    ):
+        try:
+            function_type = self.type_resolver.resolve(function_name)
+            all_identifiers = function_type.to_vectorcast_identifiers(
+                top_level=True,
+                return_raw=True,
+                max_array_index=max_identifier_index,
+                max_pointer_index=max_identifier_index,
+                depth_limit=depth_limit,
+            )
+        except Exception as e:
+            stacktrace = traceback.format_exc()
+            logging.debug(
+                'Failed to resolve identifiers',
+                extra={
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                    'function_name': function_name,
+                },
+            )
+            logging.warning(
+                f'Failed to resolve identifiers for function {function_name}.'
+            )
+            return []
+
+        main_function_definition = self.tu_codebase.find_definitions_by_name(
+            function_name
+        )[0]
+
+        if focus_lines:
+            main_function_definition = prune_code(main_function_definition, focus_lines)
+
+        main_code_symbols = extract_code_symbols(main_function_definition)
+        descendant_function_to_include_in_symbols = set()
+        for called_func in function_type.called_functions.values():
+            if called_func.sanitized_name not in main_code_symbols:
+                continue
+
+            descendant_function_to_include_in_symbols.add(
+                called_func.sanitized_name
+            )  # TODO: This is slightly unsafe to use over .name, but it should be mostly fine (although it would be good if we can fix up lsp symbol nmaing)
+            descendant_function_to_include_in_symbols |= {
+                descendant_func.sanitized_name
+                for descendant_func in called_func.descendant_functions.values()
+            }
+
+        relevant_symbols = main_code_symbols.copy()
+        for des_func in descendant_function_to_include_in_symbols:
+            des_func_def = self.tu_codebase.find_definitions_by_name(des_func)[0]
+            # TODO: Maybe we want to treat the search symbols as all search terms in related identifiers for stubbed functions
+            des_func_symbols = extract_code_symbols(des_func_def)
+            relevant_symbols.update(des_func_symbols)
+
+        relevant_functions = {
+            function_type.sanitized_name
+        } | descendant_function_to_include_in_symbols
+
+        # Add main identifiers
+        relevant_identifiers = []
+        for identifier in all_identifiers:
+            ident_func = identifier.metadata.get('function_type', None)
+
+            if ident_func.sanitized_name not in relevant_functions:
+                continue
+
+            if (
+                ident_func.unit == 'uut_prototype_stubs'
+            ):  # TODO: ...That would also allow to simplify this away
+                search_term = ident_func.sanitized_name
+            else:
+                search_term = identifier.metadata.get('search_term', None)
+
+            if (
+                search_term is None or search_term in relevant_symbols
+            ):  # TODO: Come up with a better solution here than None as "always include"
+                relevant_identifiers.append(identifier)
+
+        # Add ancestors
+        relevant_identifiers_tree = VectorcastIdentifierTree(relevant_identifiers)
+        all_identifiers_tree = VectorcastIdentifierTree(all_identifiers)
+        ancestor_relevant_identifiers = []
+        for identifier in relevant_identifiers:
+            ancestors = all_identifiers_tree.get_ancestors(identifier)
+
+            for ancestor in ancestors:
+                if not relevant_identifiers_tree.search(ancestor):
+                    ancestor_relevant_identifiers.append(ancestor)
+                    relevant_identifiers_tree.insert(ancestor)
+
+        relevant_identifiers.extend(ancestor_relevant_identifiers)
+
+        # Reorder by rebuilding from the original sorted list (so ancestors and children are together)
+        relevant_identifiers = [
+            ident
+            for ident in all_identifiers
+            if relevant_identifiers_tree.search(ident)
+        ]
+
+        relevant_identifiers = list(map(str, relevant_identifiers))
+
+        logging.debug(
+            'Relevant identifiers found',
+            extra={
+                'function_name': function_name,
+                'tot_relevant_identifiers': len(relevant_identifiers),
+                'relevant_identifiers': relevant_identifiers,
+                'focus_lines': focus_lines,
+                'max_identifier_index': max_identifier_index,
+                'remove_surely_stubbed_returns': remove_surely_stubbed_returns,
+                'remove_surely_stubbed_inputs': remove_surely_stubbed_inputs,
+            },
+        )
+
+        if not relevant_identifiers and focus_lines:
+            logging.warning(
+                'No relevant identifiers found for pruned function. Using identifiers for unpruned function.',
+                extra={
+                    'function_name': function_name,
+                    'focus_lines': focus_lines,
+                    'max_identifier_index': max_identifier_index,
+                    'remove_surely_stubbed_returns': remove_surely_stubbed_returns,
+                    'remove_surely_stubbed_inputs': remove_surely_stubbed_inputs,
+                },
+            )
+            relevant_identifiers = self.get_allowed_identifiers_for_function(
+                function_name,
+                focus_lines=None,
+                max_identifier_index=max_identifier_index,
+                depth_limit=depth_limit,
+            )
+
+        return relevant_identifiers
+
+    @cached_property
+    def source_files(self) -> List[str]:
+        db_path = os.path.join(self.env_dir, self.env_name, 'master.db')
+
+        if not os.path.exists(db_path):
+            raise FileNotFoundError(
+                f"Database file '{db_path}' not found. Ensure the environment is built."
+            )
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        query = """
+        SELECT path 
+        FROM sourcefiles 
+        WHERE path NOT LIKE '%vcast_preprocess%' 
+          AND path NOT LIKE '%S0000008%' 
+          AND (type = 'CPP_FILE' OR type = 'C_FILE');
+        """
+
+        cursor.execute(query)
+        results = cursor.fetchall()
+
+        conn.close()
+
+        source_files = [row[0] for row in results]
+        return source_files
+
+    @cached_property
+    def units(self) -> List[str]:
+        source_files = self.source_files
+        units = [os.path.splitext(os.path.basename(file))[0] for file in source_files]
+
+        return units
+
+    # ============================================================================
+    # VectorCAST Command Execution
+    # ============================================================================
+
+    def _run_vectorcast_command(
+        self,
+        tool: str,
+        args: List[str],
+        timeout: int = 30,
+        check_output_file: Optional[str] = None,
+        extra_env: Optional[dict] = None,
+    ) -> Optional[subprocess.CompletedProcess]:
+        """
+        Run a VectorCAST command with consistent error handling.
+
+        Args:
+            tool: The VectorCAST tool to run (e.g., 'atg', 'clicast')
+            args: Arguments to pass to the tool
+            timeout: Timeout in seconds
+            check_output_file: If provided, check that this file exists after command execution
+            extra_env: Additional environment variables to set
+
+        Returns:
+            CompletedProcess if successful, None if failed
+        """
+        return execute_vectorcast_command(
+            tool=tool,
+            args=args,
+            timeout=timeout,
+            cwd=self.env_dir,
+            check_output_file=check_output_file,
+            extra_env=extra_env,
+        )
+
+    # ============================================================================
+    # ATG Test Generation (with Fallback Strategies)
+    # ============================================================================
+
+    def _try_atg_with_baselining(
+        self, atg_file: str
+    ) -> Optional[subprocess.CompletedProcess]:
+        """Try to run ATG with baselining."""
+
+        logging.debug('Clearing unapplied test data before running ATG with baselining')
+        self._run_vectorcast_command(
+            'clicast',
+            ['-e', self.env_name, 'test', 'unapplied', 'clear'],
+            timeout=30,
+        )
+        logging.debug('Trying ATG with baselining')
+        return self._run_vectorcast_command(
+            'atg',
+            ['-e', self.env_name, '--baselining', atg_file],
+            timeout=60,
+            check_output_file=atg_file,
+        )
+
+    def _try_atg_without_baselining(
+        self, atg_file: str
+    ) -> Optional[subprocess.CompletedProcess]:
+        """Try to run ATG without baselining."""
+        logging.debug('Trying ATG without baselining')
+        return self._run_vectorcast_command(
+            'atg',
+            ['-e', self.env_name, atg_file],
+            timeout=60,
+            check_output_file=atg_file,
+        )
+
+    def _try_clicast_auto_atg_test(
+        self, atg_file: str
+    ) -> Optional[subprocess.CompletedProcess]:
+        """Try to run clicast tools auto_atg_test as fallback."""
+        logging.debug('Trying clicast auto_atg_test fallback')
+        return self._run_vectorcast_command(
+            'clicast',
+            ['-e', self.env_name, 'tools', 'auto_atg_test', atg_file],
+            timeout=60,
+            check_output_file=atg_file,
+        )
+
+    @cached_property
+    def atg_tests(self) -> List[TestCase]:
+        """Generate ATG tests using multiple fallback strategies."""
+        atg_file = self._get_temporary_file_path('atg_for_regular_use.tst')
+
+        # Strategy 1: Try ATG with baselining
+        logging.debug('Attempting ATG with baselining')
+        result = self._try_atg_with_baselining(atg_file)
+
+        if result is None:
+            # Strategy 2: Try ATG without baselining
+            logging.debug('Attempting ATG without baselining')
+            result = self._try_atg_without_baselining(atg_file)
+
+        if result is None:
+            # Strategy 3: Try clicast auto_atg_test as fallback
+            logging.debug('Attempting clicast auto_atg_test fallback')
+            result = self._try_clicast_auto_atg_test(atg_file)
+
+        if result is None:
+            logging.error('All ATG generation strategies failed')
+            return []
+
+        return self.parse_test_script(atg_file)
+
+    @cached_property
+    def atg_coverage(self):
+        """Generate ATG coverage using fallback strategies."""
+        atg_file = self._get_temporary_file_path('atg_for_coverage.tst')
+
+        # Try the same fallback strategies as atg_tests
+        logging.debug('Attempting ATG generation for coverage analysis')
+        result = self._try_atg_without_baselining(
+            atg_file
+        )  # Start without baselining for coverage
+
+        if result is None:
+            result = self._try_atg_with_baselining(atg_file)
+
+        if result is None:
+            result = self._try_clicast_auto_atg_test(atg_file)
+
+        if result is None:
+            logging.error('All ATG generation strategies failed for coverage analysis')
+            return None
+
+        # Get the coverage
+        try:
+            result, coverage = self.run_test_script(atg_file, with_coverage=True)
+            return coverage
+        except Exception as e:
+            stacktrace = traceback.format_exc()
+            logging.error(
+                'Failed to run test script for coverage',
+                extra={
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                    'atg_file': atg_file,
+                },
+            )
+            return None
+
+    @cached_property
+    def basis_path_tests(self) -> List[TestCase]:
+        """Generate basis path tests."""
+        basis_test_file = self._get_temporary_file_path('basis.tst')
+
+        logging.debug('Generating basis path tests')
+        result = self._run_vectorcast_command(
+            'clicast',
+            ['-e', self.env_name, 'tool', 'auto_test', basis_test_file],
+            timeout=60,
+            check_output_file=basis_test_file,
+        )
+
+        if result is None:
+            logging.error('Basis path test generation failed')
+            return []
+
+        return self.parse_test_script(basis_test_file)
+
+    @cached_property
+    def tu_codebase(self):
+        if self._tu_codebase_paths is None:
+            self._tu_codebase_paths = []
+
+        for unit_name in self.units:
+            content, encoding = self.get_tu_content(
+                unit_name=unit_name, reduction_level='medium', return_encoding=True
+            )
+
+            # Sanitize unit_name for filename to avoid issues with special characters.
+            safe_unit_name = re.sub(r'[^\w\-_\.]', '_', unit_name)
+            temp_file_path = self._get_temporary_file_path(
+                f'tu_code_{safe_unit_name}_{self.env_name}.cpp'
+            )
+
+            with open(temp_file_path, 'w', encoding=encoding) as temp_file:
+                temp_file.write(content)
+                temp_file.flush()
+
+            self._tu_codebase_paths.append(temp_file_path)
+
+        return Codebase(self._tu_codebase_paths)
+
+    @cached_property
+    def tu_codebase_paths(self):
+        if self._tu_codebase_paths is None:
+            self.tu_codebase
+        return self._tu_codebase_paths
+
+    @cached_property
+    def source_codebase(self):
+        return Codebase(self.source_files)
+
+    @cached_property
+    def testable_functions(self):
+        all_functions_from_tus = self.tu_codebase.get_all_functions()
+
+        assert len(self._tu_codebase_paths) == len(self.units), (
+            'Mismatch in number of TUs and units.'
+        )
+
+        temp_path_to_info_map = {}
+        for i, temp_abs_path in enumerate(self._tu_codebase_paths):
+            unit_name = self.units[i]
+            original_source_file = self.source_files[i]
+            temp_path_to_info_map[temp_abs_path] = {
+                'unit_name': unit_name,
+                'original_source_file': original_source_file,
+            }
+
+        testable_functions = []
+        for function in all_functions_from_tus:
+            logging.debug(f'Checking if function {function["name"]} is testable')
+            abs_temp_tu_file_path = function['file']
+
+            info = None
+            for temp_tu_path, path_info in temp_path_to_info_map.items():
+                if are_paths_equal(temp_tu_path, abs_temp_tu_file_path):
+                    info = path_info
+                    break
+
+            if info:
+                unit_name = info['unit_name']
+                original_source_file = info['original_source_file']
+
+                reduced_content = self.get_tu_content(
+                    unit_name=unit_name, reduction_level='high'
+                )
+                if function['definition'].replace('\r', '') in reduced_content.replace(
+                    '\r', ''
+                ):
+                    func_copy = function.copy()
+                    func_copy['file'] = original_source_file
+                    func_copy['unit_name'] = unit_name
+                    testable_functions.append(func_copy)
+                    logging.debug(
+                        f'Function {function["name"]} in unit {unit_name} is testable. Adding to output.'
+                    )
+                else:
+                    logging.debug(
+                        f'Function {function["name"]} in unit {unit_name} is not testable due to content mismatch.',
+                        extra={
+                            'unit_name': unit_name,
+                            'function_name': function['name'],
+                            'file': original_source_file,
+                            'function_definition': function['definition'],
+                            'reduced_content': reduced_content,
+                        },
+                    )
+            else:
+                logging.debug(
+                    f'No matching temporary TU file found for function {function["name"]}. Skipping.',
+                    extra={
+                        'function_name': function['name'],
+                        'tu_file': abs_temp_tu_file_path,
+                        'available_tus': list(temp_path_to_info_map.keys()),
+                    },
+                )
+
+        if testable_functions:
+            return testable_functions
+
+        logging.warning(
+            'No testable functions found in the translation units using primary method.'
+        )
+        logging.warning('Falling back to scraping from ATG tests.')
+        self._used_atg_testable_functions_fallback = True
+
+        # Fallback logic:
+        # Map unit names to their source files
+        unit_to_source_file_map = {
+            unit: src_file for unit, src_file in zip(self.units, self.source_files)
+        }
+
+        atg_derived_functions = []
+        # Keep track of added subprograms per unit to avoid duplicates
+        added_subprograms = set()
+
+        for test_case in self.atg_tests:
+            unit_name = test_case.unit_name
+            subprogram_name = test_case.subprogram_name
+
+            if (unit_name, subprogram_name) not in added_subprograms:
+                original_source_file = unit_to_source_file_map.get(unit_name)
+                if original_source_file:
+                    # Structure matches what the primary method would produce if it only had name and file.
+                    atg_derived_functions.append(
+                        {
+                            'name': subprogram_name,
+                            'file': original_source_file,
+                            'unit_name': unit_name,
+                        }
+                    )
+                    added_subprograms.add((unit_name, subprogram_name))
+                else:
+                    logging.warning(
+                        f'ATG test case for unit "{unit_name}" but unit not found in environment\'s source files. Skipping.',
+                        extra={
+                            'unit_name': unit_name,
+                            'subprogram_name': subprogram_name,
+                            'file': original_source_file,
+                        },
+                    )
+
+        return atg_derived_functions
+
+    @property
+    def modules(self) -> List[str]:
+        return self.units
+
+    @lru_cache(maxsize=128)
+    def functions_info(self) -> dict:
+        tu_content = self.get_tu_content(reduction_level='high')
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(Path(tmpdir) / 'tu.c', 'w') as f:
+                f.write(tu_content)
+            # Create a temporary codebase to extract functions information
+            codebase = Codebase([tmpdir])
+            return {f['name']: f for f in codebase.get_all_functions()}
+
+    @lru_cache(maxsize=128)
+    def get_tu_content(
+        self,
+        unit_name=None,
+        reduction_level='medium',
+        return_encoding=False,
+        return_mapping=False,
+    ):
+        """Get the content of the translation unit file.for the specified unit name.
+
+        Args:
+            unit_name (str, optional): The name of the unit, if not specified and there are multiple units, an error will be raised. If there is only one unit, it will be used.
+            reduction_level (str, optional): The level of reduction to apply to the translation unit content.
+                The levels are:
+                - low: The entire translation unit content is returned.
+                - medium: Build-in definitions and declarations are removed.
+                - high: Only the processed code from the actual source file is returned.
+            return_encoding (bool, optional): If True, the encoding of the content is returned.
+
+        Raises:
+            FileNotFoundError: If the translation unit file is not found.
+
+        Returns:
+            str: The content of the translation unit file.
+        """
+        if unit_name is None and len(self.units) > 1:
+            raise ValueError('Multiple units found. Please specify a unit name.')
+
+        if unit_name is None:
+            unit_name = self.units[0]
+            unit_path = self.source_files[0]
+        else:
+            unit_index = self.units.index(unit_name)
+
+            if unit_index == -1:
+                raise ValueError(f'Unit name {unit_name} not found in the environment.')
+
+            unit_path = self.source_files[unit_index]
+
+        tu_path = self._get_tu_path(unit_name)
+
+        try:
+            encoding = 'utf-8'
+            with open(tu_path, 'r', encoding=encoding) as f:
+                content = f.read()
+        except UnicodeError:
+            detected = charset_normalizer.from_path(tu_path).best()
+
+            if detected is None:
+                raise ValueError(
+                    'Failed to detect encoding for the translation unit file.'
+                )
+
+            encoding = detected.encoding
+            content = str(detected)
+
+        if reduction_level == 'low':
+            if return_encoding:
+                return content, encoding
+            return content
+
+        lines = content.splitlines()
+
+        relevant_lines = []
+        in_relevant_context = False
+        marker_pattern = re.compile(r'^#\s+\d+\s+"(.+)"')
+
+        original_line_mapping = []
+
+        for i, line in enumerate(lines):
+            stripped_line = line.strip()
+            match = marker_pattern.match(stripped_line)
+            if match:
+                file_path_in_marker = os.path.abspath(match.group(1))
+
+                # This is a bit less robust if there are files with the same name in different directories
+                # (compared to checking the entire path)
+                # However it gets around issues of moving environments around without forcing the user to rebuild
+                if Path(file_path_in_marker).name == Path(unit_path).name:
+                    in_relevant_context = True
+                elif (
+                    match.group(1).startswith('vcast_preprocess')
+                    or reduction_level == 'high'
+                ):
+                    in_relevant_context = False
+            elif in_relevant_context:
+                relevant_lines.append(line)
+                original_line_mapping.append(i + 1)
+
+        relevant_content = '\n'.join(relevant_lines)
+
+        if return_encoding:
+            return relevant_content, encoding
+
+        if return_mapping:
+            return relevant_content, original_line_mapping
+
+        return relevant_content
+
+    def _get_tu_path(self, unit_name: str) -> str:
+        """Get the path to the translation unit file for the specified unit name."""
+        candidate_paths = glob(
+            os.path.join(self.env_dir, self.env_name, f'{unit_name}.tu.*'),
+        )
+
+        candidate_paths = [
+            path
+            for path in candidate_paths
+            if any(
+                path.lower().endswith('.tu.' + ext.lower())
+                for ext in SOURCE_FILE_EXTENSIONS
+            )
+        ]
+
+        if not candidate_paths:
+            raise FileNotFoundError(
+                f'Translation unit file not found for unit {unit_name} in environment {self.env_name}'
+            )
+
+        if len(candidate_paths) > 1:
+            logging.warning(
+                'Multiple translation unit files found for unit. Using the first one.',
+                extra={
+                    'unit_name': unit_name,
+                    'candidate_paths': candidate_paths,
+                },
+            )
+
+        return candidate_paths[0]
+
+    @staticmethod
+    def parse_test_script(tst_file_path: Union[str, os.PathLike]) -> List[TestCase]:
+        # with open(tst_file_path, 'r') as f:
+        #    content = f.readlines()
+        content = str(charset_normalizer.from_path(tst_file_path).best()).splitlines()
+
+        test_cases = []
+        current_test = None
+        current_unit = None
+        current_subprogram = None
+        description_lines = []
+        continue_reading = False
+
+        for _line in content:
+            line = _line.strip()
+
+            # Skip empty lines and comments that don't start with TEST
+            if not line or (line.startswith('--') and not line.startswith('TEST')):
+                continue
+
+            if line.startswith('TEST.UNIT:'):
+                current_unit = line.split(':', 1)[1].strip()
+
+            elif line.startswith('TEST.SUBPROGRAM:'):
+                current_subprogram = line.split(':', 1)[1].strip()
+
+            elif line.startswith('TEST.NAME:'):
+                if current_test:
+                    test_cases.append(current_test)
+
+                test_name = line.split(':', 1)[1].strip()
+                current_test = TestCase(
+                    test_name=test_name,
+                    test_description='',
+                    unit_name=current_unit,
+                    subprogram_name=current_subprogram,
+                    input_values=[],
+                    expected_values=[],
+                )
+
+            elif line.startswith('TEST.VALUE:'):
+                if not current_test:
+                    continue
+
+                _, rest = line.split(':', 1)
+                identifier, value = rest.rsplit(':', 1)
+                current_test.input_values.append(
+                    ValueMapping(identifier=identifier.strip(), value=value.strip())
+                )
+
+            elif line.startswith('TEST.NOTES:'):
+                if current_test:
+                    description_lines = []
+                    continue_reading = True
+
+            elif line.startswith('TEST.END_NOTES:'):
+                if current_test and description_lines:
+                    current_test.test_description = '\n'.join(description_lines)
+                continue_reading = False
+
+            elif line.startswith('TEST.EXPECTED:'):
+                if not current_test:
+                    continue
+
+                _, rest = line.split(':', 1)
+                identifier, value = rest.rsplit(':', 1)
+                current_test.expected_values.append(
+                    ValueMapping(identifier=identifier.strip(), value=value.strip())
+                )
+
+            elif continue_reading:
+                description_lines.append(line)
+
+            elif line.startswith('TEST.END'):
+                if current_test:
+                    test_cases.append(current_test)
+                    current_test = None
+
+        # Add the last test if exists
+        if current_test:
+            test_cases.append(current_test)
+        return test_cases
+
+    def cleanup(self):
+        """Clean up all temporary files and directories."""
+        # Clean up translation unit files
+        if self._tu_codebase_paths:
+            for path in self._tu_codebase_paths:
+                if os.path.exists(path):
+                    os.remove(path)
+
+        # Clean up the temporary files directory
+        if os.path.exists(self.temp_files_dir):
+            import shutil
+
+            shutil.rmtree(self.temp_files_dir)
+
+        # Clean up the environment sandbox if it exists
+        if hasattr(self, 'temp_dir'):
+            self.temp_dir.cleanup()

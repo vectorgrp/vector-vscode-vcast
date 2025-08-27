@@ -1,0 +1,130 @@
+% !TEX root =TechnicalReference_example.tex
+%========================================================================================
+% Document style / template
+%========================================================================================
+\input{Style_TechnicalReference}
+%========================================================================================
+% Additional packages
+%========================================================================================
+\usepackage[most]{tcolorbox}
+\usepackage[simplified]{pgf-umlcd}
+\usepackage{lastpage}
+\usepackage{float}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{keystroke}
+\newcommand{\keystrokeup}[1]{\raisebox{0.2ex}{\keystroke{#1}}}
+
+\usepackage[T1]{fontenc}
+
+\lstset{
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    rulecolor=\color{gray!80},
+    framerule=0.5pt,
+    framesep=5pt,
+    xleftmargin=5pt,
+    xrightmargin=5pt,
+    aboveskip=10pt,
+    belowskip=10pt,
+    showstringspaces=false,
+    basicstyle=\ttfamily\footnotesize,
+    upquote=true,
+    columns=fullflexible
+}
+
+%========================================================================================
+% Custom Definitions
+%========================================================================================
+
+\definecolor{exampleBackgroundColor}{RGB}{255,249,227}
+% highlight environment for examples in this template
+\newenvironment{example}
+               [0]
+               {\begin{tcolorbox}[enhanced jigsaw,colback=exampleBackgroundColor,boxrule=0pt,arc=0pt]}
+               {\end{tcolorbox}}
+
+\newcommand{\toBeReplaced}[1]{\textcolor{blue}{#1}}
+\newcommand{\templateExplanation}[1]{\toBeReplaced{<{#1}>}}
+\newcommand{\templateTerm}[1]{\toBeReplaced{[{#1}]}}
+\newcommand{\templateExample}[1]{\colorbox{exampleBackgroundColor}{#1}}
+% Define and override aggregation for pgf-umlcd package to make custom line and label positioning
+\newcommand{\aggregation}[4]{}
+\renewcommand{\aggregation}[4]
+{
+    \draw[umlcd style, diamond-] (#1) -- (#4)
+    node[near end, auto]{#2}
+    node[near end, auto, swap]{#3};
+}
+
+% New commands for Tip and Warning
+\newcommand{\Tip}[1]{%
+    \smallbreak%
+    \textbf{Tip:} #1%
+}
+
+\newcommand{\Warning}[1]{%
+    \begin{iconBox}[frametitle=Warning, icontype=caution]
+    #1%
+    \end{iconBox}
+}
+
+%========================================================================================
+% Document properties: Title, Version, Author, Status
+%========================================================================================
+\documentTitle{VectorCAST-Reqs2Tests: Getting started}                             % Document title
+\documentSubTitle{}              % Document sub-title
+\documentSubSubTitle{}             % Document sub-sub-title
+% Document version -- will be replaced within the post-merge job in Gitlab
+\documentVersion{v0.1}                         % Document version
+\documentAuthor{Igor Martinovic, Andrew Teylu, Patrick Bareiß}                % Document author
+\documentStatus{Released}                       % Status: Released / Not Released
+
+
+\begin{document}
+% General glossary and abbreviations
+\include{GlossaryAbbreviations}
+
+%========================================================================================
+% Document Information
+%========================================================================================
+\maketitle
+%\include{DocInfo}
+
+%========================================================================================
+% Table of contents
+%========================================================================================
+% \tableofcontents % Print the table of contents
+
+%========================================================================================
+% List of illustrations / tables / listings
+%========================================================================================
+%\newpage
+%\makelistofillustrations
+%\makelistoftables
+%\makelistoflistings
+
+%========================================================================================
+% Chapters
+%========================================================================================
+\include{CLI}
+% \newpage\null\thispagestyle{empty}\newpage
+% \include{Extension}
+
+%========================================================================================
+% Glossary and Abbreviations
+%========================================================================================
+%\chapter{Glossary and Abbreviations}
+%\printglossary[title=Glossary, style=TechRef] % glossary
+%\printglossary[type=\acronymtype, title=Abbreviations, style=TechRef] %  abbreviations section
+
+%========================================================================================
+% Contacts page
+%========================================================================================
+%\makecontactpage
+
+%========================================================================================
+% End of file
+%========================================================================================
+\end{document}

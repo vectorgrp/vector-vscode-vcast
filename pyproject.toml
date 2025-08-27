@@ -1,0 +1,37 @@
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+exclude = [
+    ".git/**/*",
+    ".venv/**/*",
+    "venv/**/*",
+    "__pycache__/**/*",
+    "build/**/*",
+    "dist/**/*",
+    "monitors4codegen/**/*",
+    "evaluation/**/*",
+]
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+docstring-code-format = false
+[tool.ruff.lint]
+select = ["F", "E", "PL"]
+ignore = ["E501", "PLR0913", "PLR2004", "PLW0602", "PLW0603"]
+[tool.ruff.lint.pylint]
+max-statements = 120
+max-branches = 25
+[tool.pyright]
+include = ["autoreq"]
+exclude = [
+    ".git/**/*",
+    ".venv/**/*",
+    "venv/**/*",
+    "__pycache__/**/*",
+    "build/**/*",
+    "dist/**/*",
+    "monitors4codegen/**/*",
+]
+pythonVersion = "3.10"
+venvPath = "."
+venv = ".venv"

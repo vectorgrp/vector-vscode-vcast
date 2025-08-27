@@ -1,0 +1,8 @@
+FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+
+RUN sudo apt-get update && \
+    sudo apt-get install -y texlive-full latexmk && \
+    sudo rm -rf /var/lib/apt/lists/*
+
+WORKDIR /project
+SHELL ["/bin/bash", "--login", "-c"]

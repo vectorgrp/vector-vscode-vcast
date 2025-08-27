@@ -1,80 +1,19 @@
-FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vector_ubuntu24:latest
+FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
 
 ARG USERNAME=vcast_user
-RUN groupadd --gid 1006 ${USERNAME} && useradd -m --uid 1006 --gid 1006 --shell /bin/bash -d /home/${USERNAME} ${USERNAME} && \
-    apt-get update && apt-get install -y sudo && touch /etc/sudoers.d/$USERNAME && \
-    echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME && \
-    chmod 0440 /etc/sudoers.d/$USERNAME
-
-USER $USERNAME
-RUN mkdir -p /home/${USERNAME}/.config && \
-    sudo chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.config && \
-    sudo chown ${USERNAME} /etc/ssl/certs/ca-certificates.crt
-
-SHELL ["/bin/bash", "-c"]
-RUN echo "export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> /home/${USERNAME}/.bashrc && \
-    echo "export CC=/usr/bin/gcc-10" >> /home/${USERNAME}/.bashrc && \
-    echo "export CXX=/usr/bin/g++-10" >> /home/${USERNAME}/.bashrc
-
-SHELL ["/bin/bash", "--login", "-c"]
-
-USER $USERNAME
-RUN sudo apt-get update && \
-    sudo apt-get install -y openssl libssl-dev libbz2-dev libffi-dev liblzma-dev libsecret-1-dev make && \
-    sudo apt-get clean
-
 WORKDIR /home/${USERNAME}
-SHELL ["/bin/bash", "--login", "-c"]
-
-# installing node
-ENV N_PREFIX=/home/${USERNAME}/.n
-ENV PATH=$N_PREFIX/bin:$PATH
-RUN sudo apt-get update && \
-    sudo apt install -y nodejs && \
-    sudo apt-get install -y npm && \
-    sudo npm install -g n && \
-    n 20 && \
-    n 18.15.0 && \
-    npm set -g cafile /etc/ssl/certs/ca-certificates.crt && \
-    npm set -g noproxy $NO_PROXY && \
-    npm set -g proxy $HTTP_PROXY && \
-    npm set -g https-proxy $HTTPS_PROXY && \
-    npm set -g registry http://registry.npmjs.org/ && \
-    npm i -g yo && \
-    npm install -g typescript && \
-    npm install -g esbuild && \
-    npm install -g tsx
 
 # python
-ARG PY_VERSION=3.8.18
+ARG PY_VERSION=3.10.12
+ARG PY_VERSION_SHORT=3.10
+
+RUN sudo apt-get update && sudo apt-get install libsqlite3-dev -y
 RUN wget https://www.python.org/ftp/python/${PY_VERSION}/Python-${PY_VERSION}.tgz && \
     tar xvf Python-${PY_VERSION}.tgz && cd Python-${PY_VERSION} && sed -i 's/PKG_CONFIG openssl /PKG_CONFIG openssl /g' configure && \
-    ./configure --enable-optimizations && sudo make altinstall && cd .. && sudo rm -rf Python-${PY_VERSION}* && \
-    sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1 && mkdir ".pip" && \
-    echo -e '[global]\ntrusted-host = pypi.org\n               pypi.python.org\n               files.pythonhosted.org' >> .pip/pip.conf && \
-    python3 -m venv .venv && source .venv/bin/activate && pip install black && deactivate
-
-RUN sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libexpat1-dev gettext libz-dev perl libperl-dev autoconf && cd && \
-    wget https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.18.0.tar.gz && tar xf git-2.18.0.tar.gz && cd git-2.18.0/ && \
-    make configure && ./configure --prefix=/usr/local && make all && sudo make install && \
-    cd .. && sudo rm -rf git-2.18.0* && \
-    sudo apt-get clean
-
-SHELL ["/bin/bash", "--login", "-c"]
-
-RUN sudo apt-get update && \
-    sudo apt-get install -y libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev libxcb\* libxkbcommon-x11-0 && \
-    sudo apt-get update && sudo apt-get install -y libasound2-dev && \
-    sudo apt-get install -y xvfb chromium-browser && \
-    sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && \
-    mkdir -p /home/${USERNAME}/software/vcast/
-
-ENV TESTING_IN_CONTAINER=True \
-    RUNNING_ON_SERVER=False \
-    PIP_CONFIG_FILE=/home/${USERNAME}/.pip/pip.conf
-
-RUN sudo mkdir /vcast && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /vcast
-
-RUN sudo mkdir -m 1777 /__w && sudo chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
+    ./configure --enable-loadable-sqlite-extensions --enable-optimizations --enable-shared && sudo make && sudo make altinstall && \
+    cd .. && sudo rm -rf Python-${PY_VERSION}* && \
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python${PY_VERSION_SHORT} 1 && \
+    rm -rf .venv
+ENV LD_LIBRARY_PATH=/usr/local/lib
 
 SHELL ["/bin/bash", "--login", "-c"]

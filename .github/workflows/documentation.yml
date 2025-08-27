@@ -1,0 +1,68 @@
+name: Documentation
+run-name: ${{ github.ref_name }} is generating documentation
+on:
+  workflow_dispatch:
+    inputs:
+      latex-template-url:
+        description: 'URL to the LaTeX template to use for the documentation'
+        required: false
+        default: 'https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/documentation/latex-template3.tar.gz'
+env:
+  NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+  REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+  VCAST_USER_HOME: /home/vcast_user
+jobs:
+  reqs2tests_documentation:
+    permissions: write-all
+    runs-on: [self-hosted, reqs2tests, Linux]
+    env:
+      LATEX_TEMPLATE_URL: ${{ github.event.inputs.latex-template-url || 'https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/documentation/latex-template3.tar.gz' }}
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/latex2pdf:latest
+      options: --user vcast_user
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: PDF generation
+        shell: bash
+        run: |
+          CURRENT_DIRECTORY=$(pwd)
+          mkdir -p ${{ env.VCAST_USER_HOME }}/.latex
+          cd ${{ env.VCAST_USER_HOME }}/.latex
+          wget $LATEX_TEMPLATE_URL -O latex-template.tar.gz
+          tar -xzf latex-template.tar.gz && rm latex-template.tar.gz
+          cp $CURRENT_DIRECTORY/docs/* .
+          latexmk -pdf -interaction=nonstopmode TechnicalReference_example.tex
+          if [[ ! -f TechnicalReference_example.pdf ]] ; then
+            echo "PDF generation failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload docs
+        if: always()
+        run: |
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/documentation/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/"
+          
+          echo "## Documentation" >> $GITHUB_STEP_SUMMARY
+          PDF_URL=$BASE_ARTIFACTORY_URL/TechnicalReference.pdf
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $PDF_URL -T ${{ env.VCAST_USER_HOME }}/.latex/TechnicalReference_example.pdf
+          echo "[Download PDF]($PDF_URL)" >> $GITHUB_STEP_SUMMARY
+        shell: bash

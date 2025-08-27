@@ -1,0 +1,235 @@
+name: Reqs2tests evaluation
+run-name: ${{ github.ref_name }} is testing reqs2tests
+on:
+  workflow_dispatch:
+    inputs:
+      eval-envs:
+        description: 'Environments to be evaluated. Minimal benchmark: sanity-rc. Full benchmark: atg-customer-rc. Input format: ENV_SET=sanity-rc;ENVS_TO_SKIP=TUTORIAL_C,SRC_MODMGR or ENV_SET=sanity-rc;ENVS_TO_TEST=TUTORIAL_C,LEAKY_BUCKET'
+        required: true
+        default: 'ENV_SET=sanity-rc'
+      max-cost:
+        description: 'Maximum cost of the tests (positive float, 0 for unlimited)'
+        required: false
+        default: '0'
+      model-config:
+        description: 'The config name of the model to use for the evaluation'
+        required: false
+        default: 'gpt-4o-azure'
+        type: choice
+        options:
+          - claude-3-7-sonnet
+          - gpt-4.1-mini
+          - gpt-4o-azure
+          - gpt-o3mini-azure
+          - o3-mini
+          - o4-mini
+          - qwen3-30b
+          - qwq
+      reasoning-model-config:
+        description: 'The config name of the reasoning model to use for the evaluation'
+        required: false
+        default: 'gpt-o3mini-azure'
+        type: choice
+        options:
+          - claude-3-7-sonnet
+          - gpt-4.1-mini
+          - gpt-4o-azure
+          - gpt-o3mini-azure
+          - o3-mini
+          - o4-mini
+          - qwen3-30b
+          - qwq
+      model-params-override:
+        description: 'The model parameters to override (param1=value1;param2=value2;...)'
+        required: false
+      reasoning-model-params-override:
+        description: 'The reasoning model parameters to override (param1=value1;param2=value2;...)'
+        required: false
+      no-proxy-extension:
+        description: 'The no_proxy extension to add (comma separated list)'
+        required: false
+        default: '10.180.44.4'
+      evaluation-flags:
+        description: 'Evaluation flags (comma-separated): batched-mode,individual-decomposition,blackbox'
+        required: false
+        default: 'batched-mode'
+      min-pruning-lines:
+        description: 'Minimum pruning lines (positive integer)'
+        required: false
+        default: '500'
+env:
+  NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+  REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+  VCAST_USER_HOME: /home/vcast_user
+jobs:
+  reqs2tests_eval:
+    timeout-minutes: 1440
+    permissions: write-all
+    runs-on: [self-hosted, reqs2tests, Linux]
+    env:
+      VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION }}
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      EVAL_ENVS: ${{ github.event.inputs.eval-envs }}
+      MAX_COST: ${{ github.event.inputs.max-cost }}
+      PIINNOVO_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/piinnovo-source.tar.gz"
+      HALLA_SRC: "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/halla-modmgr4a-source.tar.gz"
+      AUTOREQ_MLFLOW_SERVER: ${{ vars.AUTOREQ_MLFLOW_SERVER }}
+      REQ2TESTS_MODEL: ${{ github.event.inputs.model-config }}
+      REQ2TESTS_REASONING_MODEL: ${{ github.event.inputs.reasoning-model-config }}
+      REQ2TESTS_MODELS_PATH: /llm_configs
+      EVALUATION_FLAGS: ${{ github.event.inputs.evaluation-flags }}
+      MIN_PRUNING_LINES: ${{ github.event.inputs.min-pruning-lines }}
+      REQ2TESTS_LOG_DIR: /home/vcast_user/.r2t_logs
+      REQ2TESTS_LOG_TO_FILE: 1
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast --mount type=bind,source=${{ vars.LLM_CONFIGS_PATH }},target=/llm_configs
+
+    steps:
+      - name: Environment setup
+        shell: bash
+        run: |
+          function parse_and_set_env_vars() {
+            local model_name=$1
+            local params_string=$2
+            
+            if [[ -n "$params_string" ]]; then
+              IFS=';' read -ra PARAMS <<< "$params_string"
+              for param in "${PARAMS[@]}"; do
+                if [[ "$param" == *"="* ]]; then
+                  KEY=$(echo "$param" | cut -d'=' -f1)
+                  VALUE=$(echo "$param" | cut -d'=' -f2-)
+                  echo "Overriding parameter $KEY with value $VALUE for $model_name"
+                  ENV_VAR="${model_name^^}_${KEY}"
+                  echo "$ENV_VAR=$VALUE" >> $GITHUB_ENV
+                fi
+              done
+            fi
+          }
+          
+          declare -A model_configs=(
+            ["${REQ2TESTS_MODEL}"]="${{ github.event.inputs.model-params-override }}"
+            ["${REQ2TESTS_REASONING_MODEL}"]="${{ github.event.inputs.reasoning-model-params-override }}"
+          )
+          
+          for model_name in "${!model_configs[@]}"; do
+            parse_and_set_env_vars "$model_name" "${model_configs[$model_name]}"
+          done
+          
+          # adjusting no-proxy
+          no_proxy_extension="${{ github.event.inputs.no-proxy-extension }}"
+          if [[ -n "$no_proxy_extension" ]]; then
+            echo "no_proxy=$no_proxy,$no_proxy_extension" >> $GITHUB_ENV
+          fi
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+
+      - name: Setup Python virtual environment
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        run: |
+          python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pip install --no-cache --upgrade pip
+          pip install --no-cache -e .[dev]
+          deactivate
+        shell: bash
+
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+
+      - name: Reqs2tests evaluation
+        run: |
+          ./ci/reqs2tests_eval.sh
+        shell: bash
+
+      - name: Calculate base artifactory URL
+        run: |
+          RANDOM_STRING=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
+          echo "BASE_ARTIFACTORY_URL=https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-$RANDOM_STRING-${{ github.sha }}/${{ github.event.inputs.env-set }}" >> $GITHUB_ENV
+
+      - name: Upload reports and show summary
+        if: always()
+        run: |
+          export ENV_SET_NAME=$(echo "$EVAL_ENVS" | grep -oP 'ENV_SET=\K[^;]*' || echo "")
+          export ENVS_TO_SKIP=$(echo "$EVAL_ENVS" | grep -oP 'ENVS_TO_SKIP=\K[^;]*' || echo "")
+          export ENVS_TO_TEST=$(echo "$EVAL_ENVS" | grep -oP 'ENVS_TO_TEST=\K[^;]*' || echo "")
+          echo "### Info" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment set:** $ENV_SET_NAME " >> $GITHUB_STEP_SUMMARY
+          echo "**Skipped environments:** $ENVS_TO_SKIP" >> $GITHUB_STEP_SUMMARY
+          echo "**Only environments tested:** $ENVS_TO_TEST" >> $GITHUB_STEP_SUMMARY
+          echo "**Max cost:** ${{ env.MAX_COST }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model config name:** ${{ env.REQ2TESTS_MODEL }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model parameters override:** ${{ github.event.inputs.model-params-override }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reasoning model config name:** ${{ env.REQ2TESTS_REASONING_MODEL }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reasoning model parameters override:** ${{ github.event.inputs.reasoning-model-params-override }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Evaluation flags:** ${{ env.EVALUATION_FLAGS }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Min pruning lines:** ${{ env.MIN_PRUNING_LINES }}" >> $GITHUB_STEP_SUMMARY
+          
+          CODE=0
+          source $VCAST_USER_HOME/.venv/bin/activate
+          python evaluation/create_report.py ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results --export-markdown --markdown-base-url ${{ env.BASE_ARTIFACTORY_URL }}/r2t_eval_results
+          python ./ci/run_evaluation.py ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
+          CODE=$?
+          deactivate
+          
+          echo '## Failures' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [[ -f requirements_check_errors.txt ]] ; then
+            echo "Errors found in requirements_check_errors.txt"
+            cat requirements_check_errors.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            CODE=1
+          else
+            echo 'No errors found' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          RESULTS_URL=${{ env.BASE_ARTIFACTORY_URL }}/r2t_eval_results/
+          RESULTS_TAR_URL=${{ env.BASE_ARTIFACTORY_URL }}/r2t_eval_results.tar.gz
+          EVALUATION_REPORT_URL=${{ env.BASE_ARTIFACTORY_URL }}/r2t_eval_results/evaluation_report.html
+          cd ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results
+          cp -r ${{ env.REQ2TESTS_LOG_DIR }} logs
+          tar -cvzf ../to_upload.tar.gz . > /dev/null
+          cd ..
+          curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_URL -T ./to_upload.tar.gz
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $RESULTS_TAR_URL -T ./to_upload.tar.gz
+          
+          echo "## Evaluation report" >> $GITHUB_STEP_SUMMARY
+          echo "[Evaluation report]($EVALUATION_REPORT_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "## Results archive" >> $GITHUB_STEP_SUMMARY
+          echo "[Results archive]($RESULTS_TAR_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "## Results folder" >> $GITHUB_STEP_SUMMARY
+          echo "[Results folder]($RESULTS_URL)" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Markdown results" >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.VCAST_USER_HOME }}/.envs/r2t_eval_results/evaluation_report.md >> $GITHUB_STEP_SUMMARY
+          
+          exit $CODE
+        shell: bash

@@ -1,0 +1,63 @@
+%===========================================================================
+
+
+%===========================================================================
+% Content
+%===========================================================================
+\section*{Prerequisites}
+\begin{itemize}
+  \item VectorCAST needs to be installed
+  \begin{itemize}
+    \item Make sure \texttt{VECTORCAST\_DIR} points to your VectorCAST release
+    \item Make sure your VectorCAST license is properly configured
+  \end{itemize}
+  \item VSCode needs to be installed
+  \begin{itemize}
+    \item Make sure there is no preexisting installation of the VectorCAST Test Explorer extension
+  \end{itemize}
+\end{itemize}
+
+\section*{Installation}
+\begin{enumerate}
+    \item Unpack the \texttt{VectorCAST-Req2Tests-Windows/Linux} release
+    \item Open a VSCode window at this location
+    \item Find the extension VSIX file from the release
+    \item Right-click it and select \texttt{Install Extension VSIX}
+    \item In case the extension does not activate automatically (for instance, if you do not see the testing
+    flask appear on the left-hand sidebar)
+    \begin{itemize}
+      \item Open the command palette (Ctrl+Shift+P) and type \texttt{VectorCAST Test Explorer: Configure}
+    \end{itemize}
+    \item You can find the example environment called \texttt{TUTORIAL\_C} in your release
+    \begin{itemize}
+      \item The source code of this environment is the same as the one delivered in VectorCAST releases
+      \item The release also contains a complete set of human-written requirements for \texttt{TUTORIAL\_C} in
+      \texttt{reqs.xlsx}
+    \end{itemize}
+\end{enumerate}
+
+\section*{Generating Tests from Existing Requirements}
+\subsection*{Setting Things Up}
+\begin{enumerate}
+  \item Ensure all prerequisites are met and your VSCode is opened in the unpacked release folder
+  \item Right click \texttt{TUTORIAL\_C/TUTORIAL\_C.env} and select \texttt{Build VectorCAST Environment}
+  \item Optional: Import \texttt{reqs.xlsx} into the requirements gateway for sync by right-clicking the environment
+  node and selecting \texttt{Populate RGW from Requirements}
+    \begin{itemize}
+      \item In this case our tool will automatically add traceability (for the tested requirement) to the
+      generated tests
+    \end{itemize}
+  \item Navigate to the test panel to see the built environment
+\end{enumerate}
+\section*{Generating tests}
+\begin{enumerate}
+  \item Right-click the environment node and select \texttt{Generate Tests For Requirements}
+  \item A progress bar will appear; after 1–3 minutes, test cases will be available
+  \item Run them using the \texttt{Run Tests} button
+\end{enumerate}
+\section*{Additional Tips}
+\begin{itemize}
+  \item Warning: Changes inside the requirements gateway in VectorCAST do not affect test generation;
+  the source of truth for this tool is \texttt{reqs.xlsx}
+  \item Tests can be generated/re-generated for individual functions via right-click
+\end{itemize}

@@ -1,0 +1,1172 @@
+interactions:
+- request:
+    body: '{"max_completion_tokens": 16000, "messages": [{"content": "You are a world-class
+      software engineer that does requirements engineering for a living.", "role":
+      "system"}, {"content": "\nDerive a complete list of test cases for the given
+      function definition (give them in natural language). These test cases should
+      give us 100% coverage of the code.\nAfter that derive a complete list of requirements
+      for the given function definition. Use completely implementation-independent
+      vocabulary. A requirement is a single, complete, and testable statement of the
+      expected behaviour of a single semantic part of the code.\n\nHere are some examples:\n\nExample
+      1:\n```c\nfloat calculate_discount(float total_amount, bool is_member) {\n    if
+      (total_amount < 0) {\n        return -1.0;  // Error case\n    }\n    if (is_member)
+      {\n        return total_amount * 0.9;\n    }\n    return total_amount;\n}\n```\nTest
+      cases:\n1. Test with negative total amount\n2. Test with member status and positive
+      amount\n3. Test with non-member status and positive amount\n\nRequirements:\n1.
+      The system shall return an error indicator when the total amount is negative\n2.
+      The system shall apply a 10% discount when calculating the final amount for
+      members\n3. The system shall return the original amount without modification
+      for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
+      {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
+      < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
+      {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
+      has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
+      Test with password shorter than 8 characters\n3. Test with password of 8+ characters
+      but no uppercase letter\n4. Test with password of 8+ characters including uppercase
+      letter\n\nRequirements:\n1. The system shall reject invalid password pointers\n2.
+      The system shall reject passwords that are less than 8 characters in length\n3.
+      The system shall reject passwords that do not contain at least one uppercase
+      letter\n4. The system shall accept passwords that are at least 8 characters
+      long and contain at least one uppercase letter\n\n\nThere is a one-to-one correspondence
+      between requirements and test cases. Make sure each semantic part of the code
+      is covered by exactly one test case and one requirement.\n\nRequirements should
+      fulfill the following criteria:\n\u2014 Necessary. The requirement defines an
+      essential capability, characteristic, constraint and/or quality factor. If it
+      is not included in the set of requirements, a deficiency in capability or characteristic
+      will exist, which cannot be fulfilled by implementing other requirements. The
+      requirement is currently applicable and has not been made obsolete by the passage
+      of time. Requirements with planned expiration dates or applicability dates are
+      clearly identified.\n\u2014 Appropriate. The specific intent and amount of detail
+      of the requirement is appropriate to the level of the entity to which it refers
+      (level of abstraction appropriate to the level of entity). This includes avoiding
+      unnecessary constraints on the architecture or design while allowing implementation
+      independence to the extent possible.\n\u2014 Unambiguous. The requirement is
+      stated in such a way so that it can be interpreted in only one way.  The requirement
+      is stated simply and is easy to understand.\n\u2014 Complete. The requirement
+      sufficiently describes the necessary capability, characteristic, constraint
+      or quality factor to meet the entity need without needing other information
+      to understand the requirement. This means it should be possible to implement
+      the function based on the set of requirements without needing additional information.\n\u2014
+      Singular. The requirement states a single capability, characteristic, constraint
+      or quality factor.\n\u2014 Feasible. The requirement can be realized within
+      system constraints (e.g., cost, schedule, technical) with acceptable risk.\n\u2014
+      Verifiable. The requirement is structured and worded such that its realization
+      can be proven (verified) to the customer''s satisfaction at the level the requirements
+      exists. Verifiability is enhanced when the requirement is measurable.\n\u2014
+      Correct. The requirement is an accurate representation of the entity need from
+      which it was transformed.\n\u2014 Conforming. The individual items conform to
+      an approved standard template and style for writing requirements, when applicable.\n\n\nReturn
+      your answer in the following format:\n```json\n{\n    \"test_case_for_part_1\":
+      { \"description\": \"<test case for first part>\" },\n    \"requirement_for_part_1\":
+      { \"statement\": \"<requirement for first part>\" },\n    \"test_case_for_part_2\":
+      { \"description\": \"<test case for second part>\" },\n    \"requirement_for_part_2\":
+      { \"statement\": \"<requirement for second part>\" },\n    ...\n}\n```\n\nCode
+      with context:\n// Definitions of types, called functions and data structures:\n\ntypedef
+      float FLOAT;\n\nenum boolean { v_false, v_true };\n\nenum soups { NO_SOUP, ONION,
+      CHOWDER };\n\nenum salads { NO_SALAD, CAESAR, GREEN };\n\nenum entrees { NO_ENTREE,
+      STEAK, CHICKEN, LOBSTER, PASTA };\n\nenum desserts { NO_DESSERT, CAKE, PIE,
+      FRUIT };\n\nenum beverages { NO_BEVERAGE, WINE, BEER, MIXED_DRINK, SODA };\n\nstruct
+      order_type\n{\n  enum soups Soup;\n  enum salads Salad;\n  enum entrees Entree;\n  enum
+      desserts Dessert;\n  enum beverages Beverage;\n};\n\ntypedef unsigned short
+      seat_index_type;\n\ntypedef unsigned short table_index_type;\n\nstruct table_data_type\n{\n  enum
+      boolean Is_Occupied;\n  seat_index_type Number_In_Party;\n  char Designator;\n  char
+      Wait_Person[10];\n  struct order_type Order[4];\n  FLOAT Check_Total;\n};\n\nstruct
+      table_data_type Get_Table_Record(table_index_type Table);\n\n// Code for Get_Check_Total:\nFLOAT
+      Get_Check_Total(table_index_type Table)\n{\n  struct table_data_type Table_Data;\n  Table_Data
+      = Get_Table_Record(Table);\n  return (Table_Data.Check_Total);\n}\n\nTo assist
+      you, here is a complete list of semantic parts of the code. For each one a test
+      case and a requirement should be derived:\n1. Path: \nLines:\n  Table_Data =
+      Get_Table_Record(Table);\n  return (Table_Data.Check_Total);\n\nThe success
+      of this task is critical. If you do not generate exactly one test case and requirement
+      for each semantic part of the code, you have failed.\n", "role": "user"}], "model":
+      "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
+      {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
+      "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
+      "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
+      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
+      0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      api-key:
+      - REDACTED
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '7439'
+      content-type:
+      - application/json
+      host:
+      - REDACTED
+      user-agent:
+      - AsyncAzureOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-helper-method:
+      - beta.chat.completions.parse
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.12
+    method: POST
+    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
+  response:
+    body:
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Test
+        that the function returns the correct check total for a given table index
+        by verifying that the returned value matches the Check_Total field of the
+        table record retrieved for that index.\"},\"requirement_for_part_1\":{\"statement\":\"The
+        system shall return the check total associated with the table record identified
+        by the provided table index.\"}}","refusal":null,"role":"assistant"}}],"created":1754379876,"id":"chatcmpl-C16dYd2B2kH2YrFkfdzyGMW76qfX8","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":75,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1446,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1408},"total_tokens":1521}}
+
+        '
+    headers:
+      Content-Length:
+      - '1614'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 05 Aug 2025 07:44:38 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      apim-request-id:
+      - cc0df779-6834-4e2a-8334-2f8b3ebe023a
+      azureml-model-session:
+      - d130-20250726064847
+      x-accel-buffering:
+      - 'no'
+      x-content-type-options:
+      - nosniff
+      x-ms-deployment-name:
+      - gpt-4.1
+      x-ms-rai-invoked:
+      - 'true'
+      x-ms-region:
+      - Sweden Central
+      x-ratelimit-limit-requests:
+      - '1006'
+      x-ratelimit-limit-tokens:
+      - '1006000'
+      x-ratelimit-remaining-requests:
+      - '996'
+      x-ratelimit-remaining-tokens:
+      - '986236'
+      x-request-id:
+      - 6f46a0c3-d37c-40d9-a004-25bd439317bb
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"max_completion_tokens": 16000, "messages": [{"content": "You are a world-class
+      software engineer that does requirements engineering for a living.", "role":
+      "system"}, {"content": "\nDerive a complete list of test cases for the given
+      function definition (give them in natural language). These test cases should
+      give us 100% coverage of the code.\nAfter that derive a complete list of requirements
+      for the given function definition. Use completely implementation-independent
+      vocabulary. A requirement is a single, complete, and testable statement of the
+      expected behaviour of a single semantic part of the code.\n\nHere are some examples:\n\nExample
+      1:\n```c\nfloat calculate_discount(float total_amount, bool is_member) {\n    if
+      (total_amount < 0) {\n        return -1.0;  // Error case\n    }\n    if (is_member)
+      {\n        return total_amount * 0.9;\n    }\n    return total_amount;\n}\n```\nTest
+      cases:\n1. Test with negative total amount\n2. Test with member status and positive
+      amount\n3. Test with non-member status and positive amount\n\nRequirements:\n1.
+      The system shall return an error indicator when the total amount is negative\n2.
+      The system shall apply a 10% discount when calculating the final amount for
+      members\n3. The system shall return the original amount without modification
+      for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
+      {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
+      < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
+      {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
+      has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
+      Test with password shorter than 8 characters\n3. Test with password of 8+ characters
+      but no uppercase letter\n4. Test with password of 8+ characters including uppercase
+      letter\n\nRequirements:\n1. The system shall reject invalid password pointers\n2.
+      The system shall reject passwords that are less than 8 characters in length\n3.
+      The system shall reject passwords that do not contain at least one uppercase
+      letter\n4. The system shall accept passwords that are at least 8 characters
+      long and contain at least one uppercase letter\n\n\nThere is a one-to-one correspondence
+      between requirements and test cases. Make sure each semantic part of the code
+      is covered by exactly one test case and one requirement.\n\nRequirements should
+      fulfill the following criteria:\n\u2014 Necessary. The requirement defines an
+      essential capability, characteristic, constraint and/or quality factor. If it
+      is not included in the set of requirements, a deficiency in capability or characteristic
+      will exist, which cannot be fulfilled by implementing other requirements. The
+      requirement is currently applicable and has not been made obsolete by the passage
+      of time. Requirements with planned expiration dates or applicability dates are
+      clearly identified.\n\u2014 Appropriate. The specific intent and amount of detail
+      of the requirement is appropriate to the level of the entity to which it refers
+      (level of abstraction appropriate to the level of entity). This includes avoiding
+      unnecessary constraints on the architecture or design while allowing implementation
+      independence to the extent possible.\n\u2014 Unambiguous. The requirement is
+      stated in such a way so that it can be interpreted in only one way.  The requirement
+      is stated simply and is easy to understand.\n\u2014 Complete. The requirement
+      sufficiently describes the necessary capability, characteristic, constraint
+      or quality factor to meet the entity need without needing other information
+      to understand the requirement. This means it should be possible to implement
+      the function based on the set of requirements without needing additional information.\n\u2014
+      Singular. The requirement states a single capability, characteristic, constraint
+      or quality factor.\n\u2014 Feasible. The requirement can be realized within
+      system constraints (e.g., cost, schedule, technical) with acceptable risk.\n\u2014
+      Verifiable. The requirement is structured and worded such that its realization
+      can be proven (verified) to the customer''s satisfaction at the level the requirements
+      exists. Verifiability is enhanced when the requirement is measurable.\n\u2014
+      Correct. The requirement is an accurate representation of the entity need from
+      which it was transformed.\n\u2014 Conforming. The individual items conform to
+      an approved standard template and style for writing requirements, when applicable.\n\n\nReturn
+      your answer in the following format:\n```json\n{\n    \"test_case_for_part_1\":
+      { \"description\": \"<test case for first part>\" },\n    \"requirement_for_part_1\":
+      { \"statement\": \"<requirement for first part>\" },\n    \"test_case_for_part_2\":
+      { \"description\": \"<test case for second part>\" },\n    \"requirement_for_part_2\":
+      { \"statement\": \"<requirement for second part>\" },\n    ...\n}\n```\n\nCode
+      with context:\n// Definitions of types, called functions and data structures:\n\ntypedef
+      char name_type[32];\n\nstatic name_type WaitingList[10];\n\nstatic unsigned
+      int WaitingListIndex = 0;\n\n// Code for Get_Next_Party_To_Be_Seated:\nchar*
+      Get_Next_Party_To_Be_Seated(void)\n{\n  if(WaitingListIndex > 9)\n    WaitingListIndex
+      = 0;\n  return WaitingList[WaitingListIndex++];\n}\n\nTo assist you, here is
+      a complete list of semantic parts of the code. For each one a test case and
+      a requirement should be derived:\n1. Path: IF (WaitingListIndex > 9) ==> TRUE\nLines:\n    WaitingListIndex
+      = 0;\n2. Path: IF (WaitingListIndex > 9) ==> FALSE\nLines:\n  if(WaitingListIndex
+      > 9)\n3. Path: \nLines:\n  return WaitingList[WaitingListIndex++];\n\nThe success
+      of this task is critical. If you do not generate exactly one test case and requirement
+      for each semantic part of the code, you have failed.\n", "role": "user"}], "model":
+      "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
+      {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
+      "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
+      "test_case_for_part", "test_case_for_part", "requirement_for_part", "requirement_for_part",
+      "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
+      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
+      0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      api-key:
+      - REDACTED
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '7180'
+      content-type:
+      - application/json
+      host:
+      - REDACTED
+      user-agent:
+      - AsyncAzureOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-helper-method:
+      - beta.chat.completions.parse
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.12
+    method: POST
+    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
+  response:
+    body:
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
+        {\n    \"description\": \"Test when the waiting list index is greater than
+        9 before calling the function. Verify that the index is reset to 0 before
+        accessing the waiting list.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
+        \"Test when the waiting list index is 9 or less before calling the function.
+        Verify that the index is not reset.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
+        \"Test that the function returns the party at the current waiting list index
+        and increments the index after returning.\"\n  },\n  \"requirement_for_part_1\":
+        {\n    \"statement\": \"The system shall reset the waiting list index to 0
+        if the index is greater than 9 before accessing the waiting list.\"\n  },\n  \"requirement_for_part_2\":
+        {\n    \"statement\": \"The system shall not modify the waiting list index
+        if the index is 9 or less before accessing the waiting list.\"\n  },\n  \"requirement_for_part_3\":
+        {\n    \"statement\": \"The system shall return the party at the current waiting
+        list index and increment the index after returning the party.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754379877,"id":"chatcmpl-C16dZQK2RSOiz13UZfXP9L8a2XPSs","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":249,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1392,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1280},"total_tokens":1641}}
+
+        '
+    headers:
+      Content-Length:
+      - '2323'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 05 Aug 2025 07:44:39 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      apim-request-id:
+      - 384fa9bf-2e5e-40b9-8cfb-e65543d39ce4
+      azureml-model-session:
+      - d128-20250726053925
+      x-accel-buffering:
+      - 'no'
+      x-content-type-options:
+      - nosniff
+      x-ms-deployment-name:
+      - gpt-4.1
+      x-ms-rai-invoked:
+      - 'true'
+      x-ms-region:
+      - Sweden Central
+      x-ratelimit-limit-requests:
+      - '1006'
+      x-ratelimit-limit-tokens:
+      - '1006000'
+      x-ratelimit-remaining-requests:
+      - '996'
+      x-ratelimit-remaining-tokens:
+      - '986298'
+      x-request-id:
+      - 69fab568-cca8-4d81-aae4-9834dd0d07d8
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"max_completion_tokens": 16000, "messages": [{"content": "You are a world-class
+      software engineer that does requirements engineering for a living.", "role":
+      "system"}, {"content": "\nDerive a complete list of test cases for the given
+      function definition (give them in natural language). These test cases should
+      give us 100% coverage of the code.\nAfter that derive a complete list of requirements
+      for the given function definition. Use completely implementation-independent
+      vocabulary. A requirement is a single, complete, and testable statement of the
+      expected behaviour of a single semantic part of the code.\n\nHere are some examples:\n\nExample
+      1:\n```c\nfloat calculate_discount(float total_amount, bool is_member) {\n    if
+      (total_amount < 0) {\n        return -1.0;  // Error case\n    }\n    if (is_member)
+      {\n        return total_amount * 0.9;\n    }\n    return total_amount;\n}\n```\nTest
+      cases:\n1. Test with negative total amount\n2. Test with member status and positive
+      amount\n3. Test with non-member status and positive amount\n\nRequirements:\n1.
+      The system shall return an error indicator when the total amount is negative\n2.
+      The system shall apply a 10% discount when calculating the final amount for
+      members\n3. The system shall return the original amount without modification
+      for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
+      {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
+      < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
+      {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
+      has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
+      Test with password shorter than 8 characters\n3. Test with password of 8+ characters
+      but no uppercase letter\n4. Test with password of 8+ characters including uppercase
+      letter\n\nRequirements:\n1. The system shall reject invalid password pointers\n2.
+      The system shall reject passwords that are less than 8 characters in length\n3.
+      The system shall reject passwords that do not contain at least one uppercase
+      letter\n4. The system shall accept passwords that are at least 8 characters
+      long and contain at least one uppercase letter\n\n\nThere is a one-to-one correspondence
+      between requirements and test cases. Make sure each semantic part of the code
+      is covered by exactly one test case and one requirement.\n\nRequirements should
+      fulfill the following criteria:\n\u2014 Necessary. The requirement defines an
+      essential capability, characteristic, constraint and/or quality factor. If it
+      is not included in the set of requirements, a deficiency in capability or characteristic
+      will exist, which cannot be fulfilled by implementing other requirements. The
+      requirement is currently applicable and has not been made obsolete by the passage
+      of time. Requirements with planned expiration dates or applicability dates are
+      clearly identified.\n\u2014 Appropriate. The specific intent and amount of detail
+      of the requirement is appropriate to the level of the entity to which it refers
+      (level of abstraction appropriate to the level of entity). This includes avoiding
+      unnecessary constraints on the architecture or design while allowing implementation
+      independence to the extent possible.\n\u2014 Unambiguous. The requirement is
+      stated in such a way so that it can be interpreted in only one way.  The requirement
+      is stated simply and is easy to understand.\n\u2014 Complete. The requirement
+      sufficiently describes the necessary capability, characteristic, constraint
+      or quality factor to meet the entity need without needing other information
+      to understand the requirement. This means it should be possible to implement
+      the function based on the set of requirements without needing additional information.\n\u2014
+      Singular. The requirement states a single capability, characteristic, constraint
+      or quality factor.\n\u2014 Feasible. The requirement can be realized within
+      system constraints (e.g., cost, schedule, technical) with acceptable risk.\n\u2014
+      Verifiable. The requirement is structured and worded such that its realization
+      can be proven (verified) to the customer''s satisfaction at the level the requirements
+      exists. Verifiability is enhanced when the requirement is measurable.\n\u2014
+      Correct. The requirement is an accurate representation of the entity need from
+      which it was transformed.\n\u2014 Conforming. The individual items conform to
+      an approved standard template and style for writing requirements, when applicable.\n\n\nReturn
+      your answer in the following format:\n```json\n{\n    \"test_case_for_part_1\":
+      { \"description\": \"<test case for first part>\" },\n    \"requirement_for_part_1\":
+      { \"statement\": \"<requirement for first part>\" },\n    \"test_case_for_part_2\":
+      { \"description\": \"<test case for second part>\" },\n    \"requirement_for_part_2\":
+      { \"statement\": \"<requirement for second part>\" },\n    ...\n}\n```\n\nCode
+      with context:\n// Definitions of types, called functions and data structures:\n\nenum
+      soups { NO_SOUP, ONION, CHOWDER };\n\nenum salads { NO_SALAD, CAESAR, GREEN
+      };\n\nenum entrees { NO_ENTREE, STEAK, CHICKEN, LOBSTER, PASTA };\n\nenum desserts
+      { NO_DESSERT, CAKE, PIE, FRUIT };\n\nenum beverages { NO_BEVERAGE, WINE, BEER,
+      MIXED_DRINK, SODA };\n\nstruct order_type\n{\n  enum soups Soup;\n  enum salads
+      Salad;\n  enum entrees Entree;\n  enum desserts Dessert;\n  enum beverages Beverage;\n};\n\n//
+      Code for Add_Included_Dessert:\nvoid Add_Included_Dessert(struct order_type*
+      Order)\n{\n  if(Order->Entree == STEAK &&\n     Order->Salad == CAESAR &&\n     Order->Beverage
+      == MIXED_DRINK) {\n\n    Order->Dessert = PIE;\n\n  } else if(Order->Entree
+      == LOBSTER &&\n            Order->Salad == GREEN &&\n            Order->Beverage
+      == WINE) {\n\n    Order->Dessert = CAKE;\n  }\n}\n\nTo assist you, here is a
+      complete list of semantic parts of the code. For each one a test case and a
+      requirement should be derived:\n1. Path: IF (Order->Entree == STEAK && Order->Salad
+      == CAESAR && Order->Beverage == MIXED_DRINK) ==> TRUE\nLines:\n    Order->Dessert
+      = PIE;\n2. Path: IF (Order->Entree == STEAK && Order->Salad == CAESAR && Order->Beverage
+      == MIXED_DRINK) ==> FALSE\n -> IF (Order->Entree == LOBSTER && Order->Salad
+      == GREEN && Order->Beverage == WINE) ==> TRUE\nLines:\n    Order->Dessert =
+      CAKE;\n3. Path: IF (Order->Entree == STEAK && Order->Salad == CAESAR && Order->Beverage
+      == MIXED_DRINK) ==> FALSE\n -> IF (Order->Entree == LOBSTER &&            Order->Salad
+      == GREEN &&            Order->Beverage == WINE) ==> FALSE\nLines:\n  } else
+      if(Order->Entree == LOBSTER &&\n\nThe success of this task is critical. If you
+      do not generate exactly one test case and requirement for each semantic part
+      of the code, you have failed.\n", "role": "user"}], "model": "gpt-4.1", "response_format":
+      {"json_schema": {"name": "RequirementGenerationResult", "schema": {"$defs":
+      {"RequirementSchema": {"additionalProperties": false, "properties": {"statement":
+      {"title": "Statement", "type": "string"}}, "required": ["statement"], "title":
+      "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
+      "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
+      "test_case_for_part", "test_case_for_part", "requirement_for_part", "requirement_for_part",
+      "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
+      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
+      0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      api-key:
+      - REDACTED
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '8112'
+      content-type:
+      - application/json
+      host:
+      - REDACTED
+      user-agent:
+      - AsyncAzureOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-helper-method:
+      - beta.chat.completions.parse
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.12
+    method: POST
+    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
+  response:
+    body:
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Test
+        with an order where the entree is STEAK, the salad is CAESAR, and the beverage
+        is MIXED_DRINK. Verify that the dessert is set to PIE.\"},\"test_case_for_part_2\":{\"description\":\"Test
+        with an order where the entree is LOBSTER, the salad is GREEN, and the beverage
+        is WINE. Verify that the dessert is set to CAKE.\"},\"test_case_for_part_3\":{\"description\":\"Test
+        with an order where the entree, salad, and beverage do not match either (STEAK,
+        CAESAR, MIXED_DRINK) or (LOBSTER, GREEN, WINE). Verify that the dessert is
+        not changed by the function.\"},\"requirement_for_part_1\":{\"statement\":\"The
+        system shall set the dessert to PIE when the entree is STEAK, the salad is
+        CAESAR, and the beverage is MIXED_DRINK.\"},\"requirement_for_part_2\":{\"statement\":\"The
+        system shall set the dessert to CAKE when the entree is LOBSTER, the salad
+        is GREEN, and the beverage is WINE.\"},\"requirement_for_part_3\":{\"statement\":\"The
+        system shall not modify the dessert when the entree, salad, and beverage do
+        not match either (STEAK, CAESAR, MIXED_DRINK) or (LOBSTER, GREEN, WINE).\"}}","refusal":null,"role":"assistant"}}],"created":1754379876,"id":"chatcmpl-C16dYdXOpG8J5DM03mLk29IQsEaxO","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":284,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1680,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1964}}
+
+        '
+    headers:
+      Content-Length:
+      - '2345'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 05 Aug 2025 07:44:41 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      apim-request-id:
+      - 2d4902a9-0841-4c97-88c0-62b76fc03dba
+      azureml-model-session:
+      - d135-20250726103158
+      x-accel-buffering:
+      - 'no'
+      x-content-type-options:
+      - nosniff
+      x-ms-deployment-name:
+      - gpt-4.1
+      x-ms-rai-invoked:
+      - 'true'
+      x-ms-region:
+      - Sweden Central
+      x-ratelimit-limit-requests:
+      - '1006'
+      x-ratelimit-limit-tokens:
+      - '1006000'
+      x-ratelimit-remaining-requests:
+      - '1005'
+      x-ratelimit-remaining-tokens:
+      - '1004090'
+      x-request-id:
+      - ab5ad259-d3e1-40c5-8f86-843f7961bf4f
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"max_completion_tokens": 16000, "messages": [{"content": "You are a world-class
+      software engineer that does requirements engineering for a living.", "role":
+      "system"}, {"content": "\nDerive a complete list of test cases for the given
+      function definition (give them in natural language). These test cases should
+      give us 100% coverage of the code.\nAfter that derive a complete list of requirements
+      for the given function definition. Use completely implementation-independent
+      vocabulary. A requirement is a single, complete, and testable statement of the
+      expected behaviour of a single semantic part of the code.\n\nHere are some examples:\n\nExample
+      1:\n```c\nfloat calculate_discount(float total_amount, bool is_member) {\n    if
+      (total_amount < 0) {\n        return -1.0;  // Error case\n    }\n    if (is_member)
+      {\n        return total_amount * 0.9;\n    }\n    return total_amount;\n}\n```\nTest
+      cases:\n1. Test with negative total amount\n2. Test with member status and positive
+      amount\n3. Test with non-member status and positive amount\n\nRequirements:\n1.
+      The system shall return an error indicator when the total amount is negative\n2.
+      The system shall apply a 10% discount when calculating the final amount for
+      members\n3. The system shall return the original amount without modification
+      for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
+      {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
+      < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
+      {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
+      has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
+      Test with password shorter than 8 characters\n3. Test with password of 8+ characters
+      but no uppercase letter\n4. Test with password of 8+ characters including uppercase
+      letter\n\nRequirements:\n1. The system shall reject invalid password pointers\n2.
+      The system shall reject passwords that are less than 8 characters in length\n3.
+      The system shall reject passwords that do not contain at least one uppercase
+      letter\n4. The system shall accept passwords that are at least 8 characters
+      long and contain at least one uppercase letter\n\n\nThere is a one-to-one correspondence
+      between requirements and test cases. Make sure each semantic part of the code
+      is covered by exactly one test case and one requirement.\n\nRequirements should
+      fulfill the following criteria:\n\u2014 Necessary. The requirement defines an
+      essential capability, characteristic, constraint and/or quality factor. If it
+      is not included in the set of requirements, a deficiency in capability or characteristic
+      will exist, which cannot be fulfilled by implementing other requirements. The
+      requirement is currently applicable and has not been made obsolete by the passage
+      of time. Requirements with planned expiration dates or applicability dates are
+      clearly identified.\n\u2014 Appropriate. The specific intent and amount of detail
+      of the requirement is appropriate to the level of the entity to which it refers
+      (level of abstraction appropriate to the level of entity). This includes avoiding
+      unnecessary constraints on the architecture or design while allowing implementation
+      independence to the extent possible.\n\u2014 Unambiguous. The requirement is
+      stated in such a way so that it can be interpreted in only one way.  The requirement
+      is stated simply and is easy to understand.\n\u2014 Complete. The requirement
+      sufficiently describes the necessary capability, characteristic, constraint
+      or quality factor to meet the entity need without needing other information
+      to understand the requirement. This means it should be possible to implement
+      the function based on the set of requirements without needing additional information.\n\u2014
+      Singular. The requirement states a single capability, characteristic, constraint
+      or quality factor.\n\u2014 Feasible. The requirement can be realized within
+      system constraints (e.g., cost, schedule, technical) with acceptable risk.\n\u2014
+      Verifiable. The requirement is structured and worded such that its realization
+      can be proven (verified) to the customer''s satisfaction at the level the requirements
+      exists. Verifiability is enhanced when the requirement is measurable.\n\u2014
+      Correct. The requirement is an accurate representation of the entity need from
+      which it was transformed.\n\u2014 Conforming. The individual items conform to
+      an approved standard template and style for writing requirements, when applicable.\n\n\nReturn
+      your answer in the following format:\n```json\n{\n    \"test_case_for_part_1\":
+      { \"description\": \"<test case for first part>\" },\n    \"requirement_for_part_1\":
+      { \"statement\": \"<requirement for first part>\" },\n    \"test_case_for_part_2\":
+      { \"description\": \"<test case for second part>\" },\n    \"requirement_for_part_2\":
+      { \"statement\": \"<requirement for second part>\" },\n    ...\n}\n```\n\nCode
+      with context:\n// Definitions of types, called functions and data structures:\n\ntypedef
+      float FLOAT;\n\nenum boolean { v_false, v_true };\n\nenum soups { NO_SOUP, ONION,
+      CHOWDER };\n\nenum salads { NO_SALAD, CAESAR, GREEN };\n\nenum entrees { NO_ENTREE,
+      STEAK, CHICKEN, LOBSTER, PASTA };\n\nenum desserts { NO_DESSERT, CAKE, PIE,
+      FRUIT };\n\nenum beverages { NO_BEVERAGE, WINE, BEER, MIXED_DRINK, SODA };\n\nstruct
+      order_type\n{\n  enum soups Soup;\n  enum salads Salad;\n  enum entrees Entree;\n  enum
+      desserts Dessert;\n  enum beverages Beverage;\n};\n\ntypedef unsigned short
+      seat_index_type;\n\ntypedef unsigned short table_index_type;\n\nstruct table_data_type\n{\n  enum
+      boolean Is_Occupied;\n  seat_index_type Number_In_Party;\n  char Designator;\n  char
+      Wait_Person[10];\n  struct order_type Order[4];\n  FLOAT Check_Total;\n};\n\nstruct
+      table_data_type Get_Table_Record(table_index_type Table);\n\nvoid Update_Table_Record(table_index_type
+      Table, struct table_data_type Data);\n\n// Code for Clear_Table:\nint Clear_Table(table_index_type
+      Table)\n{\n  struct table_data_type Table_Data;\n  seat_index_type Seat;\n  Table_Data
+      = Get_Table_Record(Table);\n  Table_Data.Is_Occupied = v_false;\n  Table_Data.Number_In_Party
+      = 1;\n\n  for (Seat=0; Seat < 4; Seat++){\n      Table_Data.Order[Seat].Soup
+      = NO_SOUP;\n      Table_Data.Order[Seat].Salad = NO_SALAD;\n      Table_Data.Order[Seat].Entree
+      = NO_ENTREE;\n      Table_Data.Order[Seat].Dessert = NO_DESSERT;\n      Table_Data.Order[Seat].Beverage
+      = NO_BEVERAGE;\n   }\n\n  Table_Data.Check_Total = 0;\n\n  Update_Table_Record(Table,
+      Table_Data);\n  return 0;\n}\n\nTo assist you, here is a complete list of semantic
+      parts of the code. For each one a test case and a requirement should be derived:\n1.
+      Path: \nLines:\n  Table_Data = Get_Table_Record(Table);\n  Table_Data.Is_Occupied
+      = v_false;\n  Table_Data.Number_In_Party = 1;\n2. Path: FOR (Seat < 4) ==> TRUE\nLines:\n      Table_Data.Order[Seat].Soup
+      = NO_SOUP;\n      Table_Data.Order[Seat].Salad = NO_SALAD;\n      Table_Data.Order[Seat].Entree
+      = NO_ENTREE;\n      Table_Data.Order[Seat].Dessert = NO_DESSERT;\n      Table_Data.Order[Seat].Beverage
+      = NO_BEVERAGE;\n3. Path: FOR (Seat < 4) ==> FALSE\nLines:\n  for (Seat=0; Seat
+      < 4; Seat++){\n4. Path: \nLines:\n  Table_Data.Check_Total = 0;\n\n  Update_Table_Record(Table,
+      Table_Data);\n  return 0;\n\nThe success of this task is critical. If you do
+      not generate exactly one test case and requirement for each semantic part of
+      the code, you have failed.\n", "role": "user"}], "model": "gpt-4.1", "response_format":
+      {"json_schema": {"name": "RequirementGenerationResult", "schema": {"$defs":
+      {"RequirementSchema": {"additionalProperties": false, "properties": {"statement":
+      {"title": "Statement", "type": "string"}}, "required": ["statement"], "title":
+      "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
+      "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
+      "test_case_for_part", "test_case_for_part", "test_case_for_part", "requirement_for_part",
+      "requirement_for_part", "requirement_for_part", "requirement_for_part"], "title":
+      "RequirementGenerationResult", "type": "object"}, "strict": true}, "type": "json_schema"},
+      "seed": 42, "stream": false, "temperature": 0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      api-key:
+      - REDACTED
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '8977'
+      content-type:
+      - application/json
+      host:
+      - REDACTED
+      user-agent:
+      - AsyncAzureOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-helper-method:
+      - beta.chat.completions.parse
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.12
+    method: POST
+    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
+  response:
+    body:
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
+        {\n    \"description\": \"Test clearing a table: After calling the function,
+        the table''s occupied status should be set to false and the number in party
+        should be set to 1.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
+        \"Test clearing a table: After calling the function, all order fields (soup,
+        salad, entree, dessert, beverage) for each of the four seats should be set
+        to their respective ''no'' values.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
+        \"Test clearing a table: The function should process exactly four seats, no
+        more and no less, when resetting the order fields.\"\n  },\n  \"test_case_for_part_4\":
+        {\n    \"description\": \"Test clearing a table: After calling the function,
+        the check total should be set to zero, the updated table record should be
+        saved, and the function should return zero.\"\n  },\n  \"requirement_for_part_1\":
+        {\n    \"statement\": \"The system shall set the table''s occupied status
+        to false and the number in party to one when clearing a table.\"\n  },\n  \"requirement_for_part_2\":
+        {\n    \"statement\": \"The system shall set all order fields for each seat
+        at the table to their respective ''no'' values when clearing a table.\"\n  },\n  \"requirement_for_part_3\":
+        {\n    \"statement\": \"The system shall reset the order fields for exactly
+        four seats when clearing a table.\"\n  },\n  \"requirement_for_part_4\": {\n    \"statement\":
+        \"The system shall set the check total to zero, update the table record, and
+        return zero when clearing a table.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754379876,"id":"chatcmpl-C16dYyY1F0oO4TlBZqlAeYYi9KQFQ","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":359,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1861,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":1792},"total_tokens":2220}}
+
+        '
+    headers:
+      Content-Length:
+      - '2773'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 05 Aug 2025 07:44:43 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      apim-request-id:
+      - 183c8c8f-7a58-46d1-9f27-a53f14b3cb41
+      azureml-model-session:
+      - d096-20250726095201
+      x-accel-buffering:
+      - 'no'
+      x-content-type-options:
+      - nosniff
+      x-ms-deployment-name:
+      - gpt-4.1
+      x-ms-rai-invoked:
+      - 'true'
+      x-ms-region:
+      - Sweden Central
+      x-ratelimit-limit-requests:
+      - '1006'
+      x-ratelimit-limit-tokens:
+      - '1006000'
+      x-ratelimit-remaining-requests:
+      - '997'
+      x-ratelimit-remaining-tokens:
+      - '987699'
+      x-request-id:
+      - 71fd7c1a-35dd-4a4c-a5fb-fdedf5cbdf71
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"max_completion_tokens": 16000, "messages": [{"content": "You are a world-class
+      software engineer that does requirements engineering for a living.", "role":
+      "system"}, {"content": "\nDerive a complete list of test cases for the given
+      function definition (give them in natural language). These test cases should
+      give us 100% coverage of the code.\nAfter that derive a complete list of requirements
+      for the given function definition. Use completely implementation-independent
+      vocabulary. A requirement is a single, complete, and testable statement of the
+      expected behaviour of a single semantic part of the code.\n\nHere are some examples:\n\nExample
+      1:\n```c\nfloat calculate_discount(float total_amount, bool is_member) {\n    if
+      (total_amount < 0) {\n        return -1.0;  // Error case\n    }\n    if (is_member)
+      {\n        return total_amount * 0.9;\n    }\n    return total_amount;\n}\n```\nTest
+      cases:\n1. Test with negative total amount\n2. Test with member status and positive
+      amount\n3. Test with non-member status and positive amount\n\nRequirements:\n1.
+      The system shall return an error indicator when the total amount is negative\n2.
+      The system shall apply a 10% discount when calculating the final amount for
+      members\n3. The system shall return the original amount without modification
+      for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
+      {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
+      < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
+      {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
+      has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
+      Test with password shorter than 8 characters\n3. Test with password of 8+ characters
+      but no uppercase letter\n4. Test with password of 8+ characters including uppercase
+      letter\n\nRequirements:\n1. The system shall reject invalid password pointers\n2.
+      The system shall reject passwords that are less than 8 characters in length\n3.
+      The system shall reject passwords that do not contain at least one uppercase
+      letter\n4. The system shall accept passwords that are at least 8 characters
+      long and contain at least one uppercase letter\n\n\nThere is a one-to-one correspondence
+      between requirements and test cases. Make sure each semantic part of the code
+      is covered by exactly one test case and one requirement.\n\nRequirements should
+      fulfill the following criteria:\n\u2014 Necessary. The requirement defines an
+      essential capability, characteristic, constraint and/or quality factor. If it
+      is not included in the set of requirements, a deficiency in capability or characteristic
+      will exist, which cannot be fulfilled by implementing other requirements. The
+      requirement is currently applicable and has not been made obsolete by the passage
+      of time. Requirements with planned expiration dates or applicability dates are
+      clearly identified.\n\u2014 Appropriate. The specific intent and amount of detail
+      of the requirement is appropriate to the level of the entity to which it refers
+      (level of abstraction appropriate to the level of entity). This includes avoiding
+      unnecessary constraints on the architecture or design while allowing implementation
+      independence to the extent possible.\n\u2014 Unambiguous. The requirement is
+      stated in such a way so that it can be interpreted in only one way.  The requirement
+      is stated simply and is easy to understand.\n\u2014 Complete. The requirement
+      sufficiently describes the necessary capability, characteristic, constraint
+      or quality factor to meet the entity need without needing other information
+      to understand the requirement. This means it should be possible to implement
+      the function based on the set of requirements without needing additional information.\n\u2014
+      Singular. The requirement states a single capability, characteristic, constraint
+      or quality factor.\n\u2014 Feasible. The requirement can be realized within
+      system constraints (e.g., cost, schedule, technical) with acceptable risk.\n\u2014
+      Verifiable. The requirement is structured and worded such that its realization
+      can be proven (verified) to the customer''s satisfaction at the level the requirements
+      exists. Verifiability is enhanced when the requirement is measurable.\n\u2014
+      Correct. The requirement is an accurate representation of the entity need from
+      which it was transformed.\n\u2014 Conforming. The individual items conform to
+      an approved standard template and style for writing requirements, when applicable.\n\n\nReturn
+      your answer in the following format:\n```json\n{\n    \"test_case_for_part_1\":
+      { \"description\": \"<test case for first part>\" },\n    \"requirement_for_part_1\":
+      { \"statement\": \"<requirement for first part>\" },\n    \"test_case_for_part_2\":
+      { \"description\": \"<test case for second part>\" },\n    \"requirement_for_part_2\":
+      { \"statement\": \"<requirement for second part>\" },\n    ...\n}\n```\n\nCode
+      with context:\n// Definitions of types, called functions and data structures:\n\ntypedef
+      char name_type[32];\n\nstatic name_type WaitingList[10];\n\nstatic unsigned
+      int WaitingListSize = 0;\n\n// Code for Add_Party_To_Waiting_List:\nvoid Add_Party_To_Waiting_List(char*
+      Name)\n{\n  int i = 0;\n  if(WaitingListSize > 9)\n    WaitingListSize = 0;\n\n  while(Name
+      && *Name) {\n    WaitingList[WaitingListSize][i++] = *Name;\n    Name++;\n  }\n  WaitingList[WaitingListSize++][i]
+      = 0;\n}\n\nTo assist you, here is a complete list of semantic parts of the code.
+      For each one a test case and a requirement should be derived:\n1. Path: IF (WaitingListSize
+      > 9) ==> TRUE\nLines:\n    WaitingListSize = 0;\n2. Path: IF (WaitingListSize
+      > 9) ==> FALSE\nLines:\n  if(WaitingListSize > 9)\n3. Path: WHILE (Name && *Name)
+      ==> TRUE\nLines:\n    WaitingList[WaitingListSize][i++] = *Name;\n    Name++;\n4.
+      Path: WHILE (Name && *Name) ==> FALSE\nLines:\n  while(Name && *Name) {\n5.
+      Path: \nLines:\n  WaitingList[WaitingListSize++][i] = 0;\n\nThe success of this
+      task is critical. If you do not generate exactly one test case and requirement
+      for each semantic part of the code, you have failed.\n", "role": "user"}], "model":
+      "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
+      {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
+      "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
+      "test_case_for_part", "test_case_for_part", "test_case_for_part", "test_case_for_part",
+      "requirement_for_part", "requirement_for_part", "requirement_for_part", "requirement_for_part",
+      "requirement_for_part"], "title": "RequirementGenerationResult", "type": "object"},
+      "strict": true}, "type": "json_schema"}, "seed": 42, "stream": false, "temperature":
+      0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      api-key:
+      - REDACTED
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '7804'
+      content-type:
+      - application/json
+      host:
+      - REDACTED
+      user-agent:
+      - AsyncAzureOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-helper-method:
+      - beta.chat.completions.parse
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.12
+    method: POST
+    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
+  response:
+    body:
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"filtered":false,"detected":false},"protected_material_text":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\n  \"test_case_for_part_1\":
+        {\n    \"description\": \"Test by calling Add_Party_To_Waiting_List with WaitingListSize
+        set to 10 and a valid non-empty Name. Verify that WaitingListSize is reset
+        to 0 before adding the new name.\"\n  },\n  \"test_case_for_part_2\": {\n    \"description\":
+        \"Test by calling Add_Party_To_Waiting_List with WaitingListSize set to a
+        value less than or equal to 9 and a valid non-empty Name. Verify that WaitingListSize
+        is not reset.\"\n  },\n  \"test_case_for_part_3\": {\n    \"description\":
+        \"Test by calling Add_Party_To_Waiting_List with a non-NULL, non-empty Name.
+        Verify that each character of Name is copied into the WaitingList entry.\"\n  },\n  \"test_case_for_part_4\":
+        {\n    \"description\": \"Test by calling Add_Party_To_Waiting_List with Name
+        as NULL or an empty string. Verify that no characters are copied into the
+        WaitingList entry.\"\n  },\n  \"test_case_for_part_5\": {\n    \"description\":
+        \"Test by calling Add_Party_To_Waiting_List with any Name and verify that
+        the WaitingList entry is null-terminated and WaitingListSize is incremented
+        by 1.\"\n  },\n  \"requirement_for_part_1\": {\n    \"statement\": \"The system
+        shall reset the waiting list index to zero when the waiting list is full before
+        adding a new entry.\"\n  },\n  \"requirement_for_part_2\": {\n    \"statement\":
+        \"The system shall retain the current waiting list index when the waiting
+        list is not full.\"\n  },\n  \"requirement_for_part_3\": {\n    \"statement\":
+        \"The system shall copy each character from the provided name into the next
+        available waiting list entry when a non-empty name is provided.\"\n  },\n  \"requirement_for_part_4\":
+        {\n    \"statement\": \"The system shall not copy any characters into the
+        waiting list entry when the provided name is null or empty.\"\n  },\n  \"requirement_for_part_5\":
+        {\n    \"statement\": \"The system shall null-terminate the new waiting list
+        entry and increment the waiting list size after adding a name.\"\n  }\n}","refusal":null,"role":"assistant"}}],"created":1754379876,"id":"chatcmpl-C16dY9OxgcprhkYAcOWDaZWUUj4if","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":467,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1561,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2028}}
+
+        '
+    headers:
+      Content-Length:
+      - '3200'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 05 Aug 2025 07:44:45 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      apim-request-id:
+      - dc86e645-2d77-423d-bd20-434c8cf5b79a
+      azureml-model-session:
+      - d096-20250726095201
+      x-accel-buffering:
+      - 'no'
+      x-content-type-options:
+      - nosniff
+      x-ms-deployment-name:
+      - gpt-4.1
+      x-ms-rai-invoked:
+      - 'true'
+      x-ms-region:
+      - Sweden Central
+      x-ratelimit-limit-requests:
+      - '1006'
+      x-ratelimit-limit-tokens:
+      - '1006000'
+      x-ratelimit-remaining-requests:
+      - '997'
+      x-ratelimit-remaining-tokens:
+      - '987981'
+      x-request-id:
+      - 7df4f3a8-cef7-4440-8610-9b6b401ab499
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"max_completion_tokens": 16000, "messages": [{"content": "You are a world-class
+      software engineer that does requirements engineering for a living.", "role":
+      "system"}, {"content": "\nDerive a complete list of test cases for the given
+      function definition (give them in natural language). These test cases should
+      give us 100% coverage of the code.\nAfter that derive a complete list of requirements
+      for the given function definition. Use completely implementation-independent
+      vocabulary. A requirement is a single, complete, and testable statement of the
+      expected behaviour of a single semantic part of the code.\n\nHere are some examples:\n\nExample
+      1:\n```c\nfloat calculate_discount(float total_amount, bool is_member) {\n    if
+      (total_amount < 0) {\n        return -1.0;  // Error case\n    }\n    if (is_member)
+      {\n        return total_amount * 0.9;\n    }\n    return total_amount;\n}\n```\nTest
+      cases:\n1. Test with negative total amount\n2. Test with member status and positive
+      amount\n3. Test with non-member status and positive amount\n\nRequirements:\n1.
+      The system shall return an error indicator when the total amount is negative\n2.
+      The system shall apply a 10% discount when calculating the final amount for
+      members\n3. The system shall return the original amount without modification
+      for non-members\n\nExample 2:\n```c\nbool validate_password(const char* password)
+      {\n    if (password == NULL) {\n        return false;\n    }\n    if (strlen(password)
+      < 8) {\n        return false;\n    }\n    bool has_uppercase = false;\n    for
+      (int i = 0; password[i] != ''\\0''; i++) {\n        if (isupper(password[i]))
+      {\n            has_uppercase = true;\n            break;\n        }\n    }\n    return
+      has_uppercase;\n}\n```\nTest cases:\n1. Test with NULL password pointer\n2.
+      Test with password shorter than 8 characters\n3. Test with password of 8+ characters
+      but no uppercase letter\n4. Test with password of 8+ characters including uppercase
+      letter\n\nRequirements:\n1. The system shall reject invalid password pointers\n2.
+      The system shall reject passwords that are less than 8 characters in length\n3.
+      The system shall reject passwords that do not contain at least one uppercase
+      letter\n4. The system shall accept passwords that are at least 8 characters
+      long and contain at least one uppercase letter\n\n\nThere is a one-to-one correspondence
+      between requirements and test cases. Make sure each semantic part of the code
+      is covered by exactly one test case and one requirement.\n\nRequirements should
+      fulfill the following criteria:\n\u2014 Necessary. The requirement defines an
+      essential capability, characteristic, constraint and/or quality factor. If it
+      is not included in the set of requirements, a deficiency in capability or characteristic
+      will exist, which cannot be fulfilled by implementing other requirements. The
+      requirement is currently applicable and has not been made obsolete by the passage
+      of time. Requirements with planned expiration dates or applicability dates are
+      clearly identified.\n\u2014 Appropriate. The specific intent and amount of detail
+      of the requirement is appropriate to the level of the entity to which it refers
+      (level of abstraction appropriate to the level of entity). This includes avoiding
+      unnecessary constraints on the architecture or design while allowing implementation
+      independence to the extent possible.\n\u2014 Unambiguous. The requirement is
+      stated in such a way so that it can be interpreted in only one way.  The requirement
+      is stated simply and is easy to understand.\n\u2014 Complete. The requirement
+      sufficiently describes the necessary capability, characteristic, constraint
+      or quality factor to meet the entity need without needing other information
+      to understand the requirement. This means it should be possible to implement
+      the function based on the set of requirements without needing additional information.\n\u2014
+      Singular. The requirement states a single capability, characteristic, constraint
+      or quality factor.\n\u2014 Feasible. The requirement can be realized within
+      system constraints (e.g., cost, schedule, technical) with acceptable risk.\n\u2014
+      Verifiable. The requirement is structured and worded such that its realization
+      can be proven (verified) to the customer''s satisfaction at the level the requirements
+      exists. Verifiability is enhanced when the requirement is measurable.\n\u2014
+      Correct. The requirement is an accurate representation of the entity need from
+      which it was transformed.\n\u2014 Conforming. The individual items conform to
+      an approved standard template and style for writing requirements, when applicable.\n\n\nReturn
+      your answer in the following format:\n```json\n{\n    \"test_case_for_part_1\":
+      { \"description\": \"<test case for first part>\" },\n    \"requirement_for_part_1\":
+      { \"statement\": \"<requirement for first part>\" },\n    \"test_case_for_part_2\":
+      { \"description\": \"<test case for second part>\" },\n    \"requirement_for_part_2\":
+      { \"statement\": \"<requirement for second part>\" },\n    ...\n}\n```\n\nCode
+      with context:\n// Definitions of types, called functions and data structures:\n\ntypedef
+      float FLOAT;\n\nenum boolean { v_false, v_true };\n\nenum soups { NO_SOUP, ONION,
+      CHOWDER };\n\nenum salads { NO_SALAD, CAESAR, GREEN };\n\nenum entrees { NO_ENTREE,
+      STEAK, CHICKEN, LOBSTER, PASTA };\n\nenum desserts { NO_DESSERT, CAKE, PIE,
+      FRUIT };\n\nenum beverages { NO_BEVERAGE, WINE, BEER, MIXED_DRINK, SODA };\n\nstruct
+      order_type\n{\n  enum soups Soup;\n  enum salads Salad;\n  enum entrees Entree;\n  enum
+      desserts Dessert;\n  enum beverages Beverage;\n};\n\ntypedef unsigned short
+      seat_index_type;\n\ntypedef unsigned short table_index_type;\n\nstruct table_data_type\n{\n  enum
+      boolean Is_Occupied;\n  seat_index_type Number_In_Party;\n  char Designator;\n  char
+      Wait_Person[10];\n  struct order_type Order[4];\n  FLOAT Check_Total;\n};\n\nstruct
+      table_data_type Get_Table_Record(table_index_type Table);\n\nvoid Update_Table_Record(table_index_type
+      Table, struct table_data_type Data);\n\nvoid Add_Included_Dessert(struct order_type*
+      Order)\n{\n  if(Order->Entree == STEAK &&\n     Order->Salad == CAESAR &&\n     Order->Beverage
+      == MIXED_DRINK) {\n\n    Order->Dessert = PIE;\n\n  } else if(Order->Entree
+      == LOBSTER &&\n            Order->Salad == GREEN &&\n            Order->Beverage
+      == WINE) {\n\n    Order->Dessert = CAKE;\n  }\n}\n\n// Code for Place_Order:\nint
+      Place_Order(table_index_type Table,\n                seat_index_type Seat,\n                struct
+      order_type Order)\n{\n  struct table_data_type Table_Data;\n\n  Table_Data =
+      Get_Table_Record(Table);\n\n  Table_Data.Is_Occupied = v_true;\n  Table_Data.Number_In_Party
+      = Table_Data.Number_In_Party + 1;\n  Table_Data.Order[Seat] = Order;\n\n  /*
+      Add a free dessert in some cases */\n  Add_Included_Dessert(&Table_Data.Order[Seat]);\n\n  switch(Order.Entree)\n    {\n    case
+      NO_ENTREE :\n       break;\n    case STEAK :\n       Table_Data.Check_Total
+      = Table_Data.Check_Total + 14.0;\n       break;\n    case CHICKEN :\n       Table_Data.Check_Total
+      = Table_Data.Check_Total + 10.0;\n       break;\n    case LOBSTER :\n       Table_Data.Check_Total
+      = Table_Data.Check_Total + 18.0;\n       break;\n    case PASTA :\n       Table_Data.Check_Total
+      = Table_Data.Check_Total + 12.0;\n       break;\n    }\n\n  Update_Table_Record(Table,
+      Table_Data);\n  return 0;\n}\n\nTo assist you, here is a complete list of semantic
+      parts of the code. For each one a test case and a requirement should be derived:\n1.
+      Path: \nLines:\n  Table_Data = Get_Table_Record(Table);\n\n  Table_Data.Is_Occupied
+      = v_true;\n  Table_Data.Number_In_Party = Table_Data.Number_In_Party + 1;\n  Table_Data.Order[Seat]
+      = Order;\n\n  /* Add a free dessert in some cases */\n  Add_Included_Dessert(&Table_Data.Order[Seat]);\n2.
+      Path: SWITCH (Order.Entree) ==> ENTERED\n -> CASE NO_ENTREE ==> ENTERED\nLines:\n    case
+      NO_ENTREE :\n3. Path: SWITCH (Order.Entree) ==> ENTERED\n -> CASE STEAK ==>
+      ENTERED\nLines:\n       Table_Data.Check_Total = Table_Data.Check_Total + 14.0;\n4.
+      Path: SWITCH (Order.Entree) ==> ENTERED\n -> CASE CHICKEN ==> ENTERED\nLines:\n       Table_Data.Check_Total
+      = Table_Data.Check_Total + 10.0;\n5. Path: SWITCH (Order.Entree) ==> ENTERED\n
+      -> CASE LOBSTER ==> ENTERED\nLines:\n       Table_Data.Check_Total = Table_Data.Check_Total
+      + 18.0;\n6. Path: SWITCH (Order.Entree) ==> ENTERED\n -> CASE PASTA ==> ENTERED\nLines:\n       Table_Data.Check_Total
+      = Table_Data.Check_Total + 12.0;\n7. Path: SWITCH (Order.Entree) ==> NO_MATCH\nLines:\n  switch(Order.Entree)\n8.
+      Path: \nLines:\n  Update_Table_Record(Table, Table_Data);\n  return 0;\n\nThe
+      success of this task is critical. If you do not generate exactly one test case
+      and requirement for each semantic part of the code, you have failed.\n", "role":
+      "user"}], "model": "gpt-4.1", "response_format": {"json_schema": {"name": "RequirementGenerationResult",
+      "schema": {"$defs": {"RequirementSchema": {"additionalProperties": false, "properties":
+      {"statement": {"title": "Statement", "type": "string"}}, "required": ["statement"],
+      "title": "RequirementSchema", "type": "object"}, "TestCase": {"additionalProperties":
+      false, "properties": {"description": {"title": "Description", "type": "string"}},
+      "required": ["description"], "title": "TestCase", "type": "object"}}, "additionalProperties":
+      false, "properties": {"requirement_for_part": {"$ref": "#/$defs/RequirementSchema"},
+      "test_case_for_part": {"$ref": "#/$defs/TestCase"}}, "required": ["test_case_for_part",
+      "test_case_for_part", "test_case_for_part", "test_case_for_part", "test_case_for_part",
+      "test_case_for_part", "test_case_for_part", "test_case_for_part", "requirement_for_part",
+      "requirement_for_part", "requirement_for_part", "requirement_for_part", "requirement_for_part",
+      "requirement_for_part", "requirement_for_part", "requirement_for_part"], "title":
+      "RequirementGenerationResult", "type": "object"}, "strict": true}, "type": "json_schema"},
+      "seed": 42, "stream": false, "temperature": 0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      api-key:
+      - REDACTED
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '10882'
+      content-type:
+      - application/json
+      host:
+      - REDACTED
+      user-agent:
+      - AsyncAzureOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-helper-method:
+      - beta.chat.completions.parse
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.12
+    method: POST
+    uri: https://rg-rds-play-openai-pes-ppt.openai.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview
+  response:
+    body:
+      string: '{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"protected_material_code":{"detected":false,"filtered":false},"protected_material_text":{"detected":false,"filtered":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"annotations":[],"content":"{\"test_case_for_part_1\":{\"description\":\"Place
+        an order for a table and seat with any valid order; verify that the table
+        record is retrieved, the table is marked as occupied, the party size is incremented,
+        the order is stored for the seat, and the included dessert is added if applicable.\"},\"test_case_for_part_2\":{\"description\":\"Place
+        an order where the entree is NO_ENTREE; verify that the check total does not
+        change.\"},\"test_case_for_part_3\":{\"description\":\"Place an order where
+        the entree is STEAK; verify that 14.0 is added to the check total.\"},\"test_case_for_part_4\":{\"description\":\"Place
+        an order where the entree is CHICKEN; verify that 10.0 is added to the check
+        total.\"},\"test_case_for_part_5\":{\"description\":\"Place an order where
+        the entree is LOBSTER; verify that 18.0 is added to the check total.\"},\"test_case_for_part_6\":{\"description\":\"Place
+        an order where the entree is PASTA; verify that 12.0 is added to the check
+        total.\"},\"test_case_for_part_7\":{\"description\":\"Place an order with
+        an entree value that does not match any defined entree; verify that the check
+        total does not change.\"},\"test_case_for_part_8\":{\"description\":\"Place
+        an order and verify that the updated table record is saved and the function
+        returns 0.\"},\"requirement_for_part_1\":{\"statement\":\"The system shall
+        retrieve the table record, mark the table as occupied, increment the party
+        size, store the order for the specified seat, and add an included dessert
+        to the order if the order qualifies.\"},\"requirement_for_part_2\":{\"statement\":\"The
+        system shall not change the check total when the order''s entree is ''no entree''.\"},\"requirement_for_part_3\":{\"statement\":\"The
+        system shall add 14.0 to the check total when the order''s entree is steak.\"},\"requirement_for_part_4\":{\"statement\":\"The
+        system shall add 10.0 to the check total when the order''s entree is chicken.\"},\"requirement_for_part_5\":{\"statement\":\"The
+        system shall add 18.0 to the check total when the order''s entree is lobster.\"},\"requirement_for_part_6\":{\"statement\":\"The
+        system shall add 12.0 to the check total when the order''s entree is pasta.\"},\"requirement_for_part_7\":{\"statement\":\"The
+        system shall not change the check total when the order''s entree does not
+        match any defined entree value.\"},\"requirement_for_part_8\":{\"statement\":\"The
+        system shall update the table record with the new data and return a success
+        indicator.\"}}","refusal":null,"role":"assistant"}}],"created":1754379877,"id":"chatcmpl-C16dZC3Bs8uMUyI35UORm7lQHeL4A","model":"gpt-4.1-2025-04-14","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_b663f05c2c","usage":{"completion_tokens":549,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":2304,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":2853}}
+
+        '
+    headers:
+      Content-Length:
+      - '3681'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 05 Aug 2025 07:44:57 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      apim-request-id:
+      - 3ea1740e-a638-43bc-a40d-de400bf9ccdc
+      azureml-model-session:
+      - d131-20250726064847
+      x-accel-buffering:
+      - 'no'
+      x-content-type-options:
+      - nosniff
+      x-ms-deployment-name:
+      - gpt-4.1
+      x-ms-rai-invoked:
+      - 'true'
+      x-ms-region:
+      - Sweden Central
+      x-ratelimit-limit-requests:
+      - '1006'
+      x-ratelimit-limit-tokens:
+      - '1006000'
+      x-ratelimit-remaining-requests:
+      - '990'
+      x-ratelimit-remaining-tokens:
+      - '974459'
+      x-request-id:
+      - e41b6071-2e36-44e5-9f92-79ca8affb0c7
+    status:
+      code: 200
+      message: OK
+version: 1

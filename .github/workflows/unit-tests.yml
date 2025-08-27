@@ -1,0 +1,200 @@
+name: Reqs2tests unit tests
+run-name: ${{ github.ref_name }} is unit-testing reqs2tests
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+env:
+  NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+  REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+  VCAST_USER_HOME: /home/vcast_user
+jobs:
+  reqs2tests_unit_tests:
+    permissions: write-all
+    runs-on: [self-hosted, reqs2tests, Linux]
+    env:
+      VECTORCAST_DIR: /vcast/${{ vars.VCAST_VERSION }}
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      REQ2TESTS_MODEL: "gpt-4.1"
+      REQ2TESTS_REASONING_MODEL: "o4-mini"
+      REQ2TESTS_MODELS_PATH: /llm_configs
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast --mount type=bind,source=${{ vars.LLM_CONFIGS_PATH }},target=/llm_configs
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+
+      - name: Setup Python virtual environment
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        run: |
+          python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pip install --no-cache --upgrade pip
+          pip install --no-cache -e .[dev]
+          deactivate
+        shell: bash
+
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          CLANGD_LANGUAGE_DIR=$PWD/monitors4codegen/multilspy/language_servers/clangd_language
+          mkdir -p $CLANGD_LANGUAGE_DIR/clangd
+          wget --no-proxy https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/clangd/clangd-linux-18.1.3.zip
+          unzip clangd-linux-18.1.3.zip -d $CLANGD_LANGUAGE_DIR
+          mv $CLANGD_LANGUAGE_DIR/clangd_18.1.3 $CLANGD_LANGUAGE_DIR/clangd/clangd_18.1.3
+          rm clangd-linux-18.1.3.zip
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pytest
+          deactivate
+
+      - name: Upload reports to Artifactory and show summary
+        if: always()
+        run: |
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          BASE_ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/code2reqs2tests/tests-results/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/unit-tests"
+          REPORT_URL=$BASE_ARTIFACTORY_URL/report.html
+          COVERAGE_URL=$BASE_ARTIFACTORY_URL/coverage/
+          
+          # Extract coverage data
+          STATEMENT_COVERAGE_PCT=$(grep -o '<span class="pc_cov">[0-9]*%</span>' htmlcov/index.html | head -1 | grep -o '[0-9]*%')
+          BRANCH_COVERAGE=$(grep -o 'branch-rate="[0-9]*\.[0-9]*"' coverage.xml | head -1 | grep -o '[0-9]*\.[0-9]*')
+          # Convert branch coverage to percentage using bash arithmetic
+          BRANCH_COVERAGE_INT=$(echo $BRANCH_COVERAGE | awk '{printf "%.1f", $1 * 100}')
+          BRANCH_COVERAGE_PCT="${BRANCH_COVERAGE_INT}%"
+          
+          # Upload test report
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $REPORT_URL -T report.html
+          
+          # Upload coverage report as a tar file
+          cd htmlcov
+          tar -cvzf ../coverage_to_upload.tar.gz . > /dev/null
+          cd ..
+          
+          # Upload the tar file directly
+          COVERAGE_TAR_URL="${BASE_ARTIFACTORY_URL}/coverage.tar.gz"
+          echo "Uploading coverage tar to $COVERAGE_TAR_URL"
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" \
+               -H "Content-Type: application/gzip" \
+               -X PUT "$COVERAGE_TAR_URL" -T ./coverage_to_upload.tar.gz
+          
+          # Add links to summary
+          echo '## Test HTML Report' >> $GITHUB_STEP_SUMMARY
+          echo "[See test report]($REPORT_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage Type | Percentage |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Statement | ${STATEMENT_COVERAGE_PCT} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | ${BRANCH_COVERAGE_PCT} |" >> $GITHUB_STEP_SUMMARY
+          echo "[Download complete coverage report]($COVERAGE_TAR_URL)" >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
+      - name: Results summary
+        if: always()
+        uses: actions-mirror/pmeier-pytest-results-action@main
+        with:
+          path: test-results.xml
+          summary: true
+          fail-on-empty: true
+          title: Unit test results
+
+  pyright:
+    permissions: write-all
+    runs-on: [self-hosted, reqs2tests, Linux]
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/reqs2tests_ci:latest
+      options: --user vcast_user
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Virtual environment restore from cache
+        uses: actions/cache/restore@v4
+        id: cache-venv-restore
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+
+      - name: Setup Python virtual environment
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        run: |
+          python3.10 -m venv ${{ env.VCAST_USER_HOME }}/.venv
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pip install --no-cache --upgrade pip
+          pip install --no-cache -e .[dev]
+          deactivate
+        shell: bash
+
+      - name: Virtual environment save cache
+        if: steps.cache-venv-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCAST_USER_HOME }}/.venv/
+          key: ${{ runner.os }}-venv-${{ hashFiles('./setup.py') }}-${{ hashFiles('./autoreq/**/*') }}
+
+      - name: Run Pyright
+        env:
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set +e
+          source ${{ env.VCAST_USER_HOME }}/.venv/bin/activate
+          pyright --venvpath ${{ env.VCAST_USER_HOME }} --outputjson > pyright_output.json
+          python ci/pyright_output_parser.py pyright_output.json
+          CODE=$?
+          deactivate
+          set -e
+          cat pyright_output.md >> $GITHUB_STEP_SUMMARY
+          # exit $CODE      Uncomment this line to fail the job on Pyright errors
+        shell: bash

@@ -1,0 +1,12 @@
+manager.<<GLOBAL>>.WaitingListIndex
+manager.<<GLOBAL>>.WaitingList[0]
+manager.<<GLOBAL>>.WaitingList[1]
+manager.<<GLOBAL>>.WaitingList[2]
+manager.<<GLOBAL>>.WaitingList[3]
+manager.<<GLOBAL>>.WaitingList[4]
+manager.<<GLOBAL>>.WaitingList[5]
+manager.<<GLOBAL>>.WaitingList[6]
+manager.<<GLOBAL>>.WaitingList[7]
+manager.<<GLOBAL>>.WaitingList[8]
+manager.<<GLOBAL>>.WaitingList[9]
+manager.Get_Next_Party_To_Be_Seated.return
