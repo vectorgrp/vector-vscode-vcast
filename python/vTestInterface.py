@@ -273,18 +273,23 @@ def getTestDataVCAST(api, enviroPath):
 
 
 def getUnitData(api):
-    """
-    This function will return info about the units in an environment
-    """
+    """This function will return info about the units in an environment"""
     unitList = list()
-
     sourceObjects = api.SourceFile.all()
+
     for sourceObject in sourceObjects:
         sourcePath = sourceObject.display_path
+
         if sourceObject.is_instrumented:
-            covered, uncovered, partiallyCovered, checksum = getCoverageData(
-                sourceObject
-            )
+            (
+                covered,
+                uncovered,
+                partiallyCovered,
+                checksum,
+                allStatements,
+                allBranches,
+            ) = getCoverageData(sourceObject)
+
             unitInfo = dict()
             unitInfo["path"] = sourcePath
             unitInfo["functionList"] = getFunctionData(sourceObject)
@@ -292,6 +297,9 @@ def getUnitData(api):
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
             unitInfo["partiallyCovered"] = partiallyCovered
+            unitInfo["allStatements"] = allStatements  # NEW
+            unitInfo["allBranches"] = allBranches  # NEW
+
             unitList.append(unitInfo)
 
         elif len(sourcePath) > 0:
@@ -305,6 +313,9 @@ def getUnitData(api):
             unitInfo["covered"] = ""
             unitInfo["uncovered"] = ""
             unitInfo["partiallyCovered"] = ""
+            unitInfo["allStatements"] = []  # NEW
+            unitInfo["allBranches"] = []  # NEW
+
             unitList.append(unitInfo)
 
     return unitList
@@ -381,16 +392,15 @@ def getCoverageKind(sourceObject):
 
 
 def getCoverageData(sourceObject):
-    """
-    This function will use the data interface to
-    get the coverage data for a single file
-    """
+    """This function will use the data interface to get the coverage data for a single file"""
     coveredString = ""
     uncoveredString = ""
     partiallyCoveredString = ""
+    allStatements = []  # list of all statement lines
+    allBranches = []  # list of all branch lines
     checksum = 0
-    if sourceObject and sourceObject.is_instrumented:
 
+    if sourceObject and sourceObject.is_instrumented:
         # Unit name with deleted extension.
         # Normally i would do it with sourceObject.unit_name but release 21 does not have this method.
         unitFile = sourceObject.cover_data.name
@@ -404,20 +414,41 @@ def getCoverageData(sourceObject):
         checksum = sourceObject.checksum
         coverageKind = getCoverageKind(sourceObject)
         mcdc_line_dic = coverageGutter.getMCDCLineDic(sourceObject)
+
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
+                metrics = line.metrics
+                line_number = line.line_number
+
+                # Collect all statement/branch lines (covered or not)
+                # We do that for the Get ATG Line button so that we do not
+                # show the button on empty lines
+
+                # All Statement Lines
+                if getattr(metrics, "statements", 0) > 0:
+                    if line_number not in allStatements:
+                        allStatements.append(line_number)
+
+                # All Branch Lines
+                # use mcdc_branches if available (>0), else normal branches
+                use_mcdc = getattr(metrics, "mcdc_branches", 0) > 0
+                branch_total = (
+                    metrics.mcdc_branches
+                    if use_mcdc
+                    else getattr(metrics, "branches", 0)
+                )
+                if branch_total > 0 and line_number not in functionLineList:
+                    if line_number not in allBranches:
+                        allBranches.append(line_number)
 
                 # STATEMENT
                 if coverageKind == CoverageKind.statement:
                     coveredString, uncoveredString = (
                         coverageGutter.handleStatementCoverage(
-                            line,
-                            coveredString,
-                            uncoveredString,
+                            line, coveredString, uncoveredString
                         )
                     )
-
                 # MCDC
                 elif coverageKind == CoverageKind.mcdc:
                     coveredString, partiallyCoveredString, uncoveredString = (
@@ -430,7 +461,6 @@ def getCoverageData(sourceObject):
                             uncoveredString,
                         )
                     )
-
                 # STATEMENT + MCDC
                 elif coverageKind == CoverageKind.statementMcdc:
                     coveredString, partiallyCoveredString, uncoveredString = (
@@ -443,7 +473,6 @@ def getCoverageData(sourceObject):
                             uncoveredString,
                         )
                     )
-
                 # STATEMENT + BRANCH
                 elif coverageKind == CoverageKind.statementBranch:
                     coveredString, partiallyCoveredString, uncoveredString = (
@@ -454,7 +483,6 @@ def getCoverageData(sourceObject):
                             uncoveredString,
                         )
                     )
-
                 # BRANCH
                 elif coverageKind == CoverageKind.branch:
                     coveredString, partiallyCoveredString, uncoveredString = (
@@ -467,12 +495,20 @@ def getCoverageData(sourceObject):
                         )
                     )
 
-            # print, but drop the last colon
-            coveredString = coveredString[:-1]
-            uncoveredString = uncoveredString[:-1]
-            partiallyCoveredString = partiallyCoveredString[:-1]
+        # print, but drop the last colon
+        coveredString = coveredString[:-1]
+        uncoveredString = uncoveredString[:-1]
+        partiallyCoveredString = partiallyCoveredString[:-1]
 
-    return coveredString, uncoveredString, partiallyCoveredString, checksum
+    # return the new arrays too
+    return (
+        coveredString,
+        uncoveredString,
+        partiallyCoveredString,
+        checksum,
+        allStatements,
+        allBranches,
+    )
 
 
 def executeVCtest(enviroPath, testIDObject):

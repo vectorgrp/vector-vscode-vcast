@@ -161,6 +161,11 @@ export interface testStatusArrayType {
 
 export var globalTestStatusArray = <testStatusArrayType>{};
 
+// Variables to control the ATG Line button in the package.json so that we only enable that button on Statement and
+// Branch lines and not on empty lines
+export let allStatementLinesForActiveFile: number[] = [];
+export let allBranchLinesForActiveFile: number[] = [];
+
 export function getGlobalCoverageData() {
   return globalCoverageData;
 }
@@ -187,12 +192,14 @@ export function clearTestDataFromStatusArray(): void {
 }
 
 // List of source file from all local environments
-interface coverageDataType {
+export type coverageDataType = {
   crc32Checksum: number;
   covered: number[];
   uncovered: number[];
   partiallyCovered: number[];
-}
+  allStatements: number[];
+  allBranches: number[];
+};
 
 interface fileCoverageType {
   hasCoverage: boolean;
@@ -214,6 +221,8 @@ interface coverageSummaryType {
   covered: number[];
   uncovered: number[];
   partiallyCovered: number[];
+  allStatements: number[];
+  allBranches: number[];
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -235,6 +244,8 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
     covered: [],
     uncovered: [],
     partiallyCovered: [],
+    allStatements: [],
+    allBranches: [],
   };
 
   const dataForThisFile = globalCoverageData.get(filePath);
@@ -247,6 +258,8 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
       let coveredList: number[] = [];
       let uncoveredList: number[] = [];
       let partiallyCoveredList: number[] = [];
+      let allStatementsList: number[] = [];
+      let allBranchesList: number[] = [];
       for (const enviroData of dataForThisFile.enviroList.values()) {
         if (enviroData.crc32Checksum == checksum) {
           coveredList = coveredList.concat(enviroData.covered);
@@ -254,6 +267,10 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
           partiallyCoveredList = partiallyCoveredList.concat(
             enviroData.partiallyCovered
           );
+          allStatementsList = allStatementsList.concat(
+            enviroData.allStatements
+          );
+          allBranchesList = allBranchesList.concat(enviroData.allBranches);
         }
       }
 
@@ -267,6 +284,8 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
         returnData.covered = [...new Set(coveredList)];
         returnData.uncovered = [...new Set(uncoveredList)];
         returnData.partiallyCovered = [...new Set(partiallyCoveredList)];
+        returnData.allStatements = [...new Set(allStatementsList)];
+        returnData.allBranches = [...new Set(allBranchesList)];
       }
     } else {
       // This status is for files that are part of
@@ -343,6 +362,8 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
       covered: coveredList,
       uncovered: uncoveredList,
       partiallyCovered: partiallyCoveredList,
+      allStatements: fileList[fileIndex].allStatements || [],
+      allBranches: fileList[fileIndex].allBranches || [],
     };
 
     let fileData: fileCoverageType | undefined =
@@ -376,6 +397,42 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     );
   }
   enviroFileList.set(enviroPath, filePathList);
+}
+
+/**
+ * Updates global statement and branch line arrays for the given file
+ * and sets VS Code context keys for use in the extension.
+ *
+ * @param filePath - Absolute path of the file to update coverage for.
+ */
+export function updateGlobalStatementsAndBranchesForFile(filePath: string) {
+  const fileData = globalCoverageData.get(filePath);
+
+  let allStatements: number[] = [];
+  let allBranches: number[] = [];
+
+  if (fileData) {
+    for (const [, coverageData] of fileData.enviroList.entries()) {
+      if (coverageData) {
+        allStatements = allStatements.concat(coverageData.allStatements || []);
+        allBranches = allBranches.concat(coverageData.allBranches || []);
+      }
+    }
+  }
+
+  allStatementLinesForActiveFile = allStatements;
+  allBranchLinesForActiveFile = allBranches;
+
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.allStatementLinesForActiveFile",
+    allStatementLinesForActiveFile
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.allBranchLinesForActiveFile",
+    allBranchLinesForActiveFile
+  );
 }
 
 export function removeCoverageDataForEnviro(enviroPath: string) {

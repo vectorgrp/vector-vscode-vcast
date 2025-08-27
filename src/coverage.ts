@@ -7,6 +7,7 @@ import {
 import {
   getCoverageDataForFile,
   getListOfFilesWithCoverage,
+  updateGlobalStatementsAndBranchesForFile,
 } from "./vcastTestInterface";
 
 import { getRangeOption } from "./utilities";
@@ -253,6 +254,7 @@ export async function updateCOVdecorations() {
         uncoveredDecorationsWithMCDC.length +
         partiallyCoveredDecorationsWithMCDC.length;
       let percentage: number;
+
       if (coverable == 0) {
         percentage = 0;
       } else {
@@ -261,6 +263,11 @@ export async function updateCOVdecorations() {
       const statusBarText = `Coverage: ${covered}/${coverable} (${percentage}%)`;
       coverageStatusBarObject.text = statusBarText;
       coverageStatusBarObject.show();
+
+      // update the current cache for all statements and branches for the active file
+      // We do that for the Get ATG Line button so that we do not show the button on empty lines
+      // But only on Statement + Branch Lines.
+      updateGlobalStatementsAndBranchesForFile(filePath);
     } else if (coverageData.statusString.length > 0) {
       // this handles the case where coverage is out of date (for example)
       coverageStatusBarObject.text = coverageData.statusString;
