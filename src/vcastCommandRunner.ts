@@ -505,7 +505,6 @@ export async function executeATGLineForScript(
     async (progress, token) => {
       // initial progress
       progress.report({ increment: 0 });
-
       vectorMessage("-".repeat(60));
       vectorMessage(`Executing: ${command}`);
       vectorMessage(`cwd: ${cwd}`);
@@ -519,7 +518,7 @@ export async function executeATGLineForScript(
       });
 
       let stdoutBuffer = "";
-      let stderrBuffer = "";
+      let stderrBuffer = ""; // ✅ keep stderr
       let stdoutFragment = "";
 
       // animate progress until completion
@@ -535,7 +534,6 @@ export async function executeATGLineForScript(
       }, 2000);
 
       let cancelled = false;
-
       token.onCancellationRequested(() => {
         cancelled = true;
         try {
@@ -556,7 +554,6 @@ export async function executeATGLineForScript(
         proc.stdout.on("data", (chunk: Buffer | string) => {
           const s = chunk.toString();
           stdoutBuffer += s;
-
           // break into lines, keep partial lines between events
           const parts = s.split(/[\r\n]+/);
           if (stdoutFragment.length > 0) {
@@ -598,17 +595,19 @@ export async function executeATGLineForScript(
           const code = exitCode === null ? 1 : Number(exitCode);
           vectorMessage("-".repeat(60));
           vectorMessage(
-            `Process finished with exit code: ${code}${cancelled ? " (cancelled)" : ""}`
+            `Process finished with exit code: ${code}${
+              cancelled ? " (cancelled)" : ""
+            }`
           );
           vectorMessage("-".repeat(60));
 
           const status: commandStatusType = {
             errorCode: code,
-            stdout: stdoutBuffer,
+            // merge stderr into stdout if present
+            stdout: stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
           };
 
           const enviroName = path.basename(enviroPath || "");
-
           try {
             await loadScriptCallBack(status, enviroName, scriptPath);
           } catch (cbErr) {
@@ -622,17 +621,18 @@ export async function executeATGLineForScript(
 
         proc.on("error", async (err) => {
           vectorMessage(`Failed to spawn process: ${err.message}`);
-
           const status: commandStatusType = {
             errorCode: "spawn_error",
-            stdout: stdoutBuffer,
+            stdout: stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
           };
           const enviroName = path.basename(enviroPath || "");
           try {
             await loadScriptCallBack(status, enviroName, scriptPath);
           } catch (cbErr) {
             vectorMessage(
-              `loadScriptCallBack threw after spawn error: ${(cbErr as Error).message}`
+              `loadScriptCallBack threw after spawn error: ${
+                (cbErr as Error).message
+              }`
             );
           } finally {
             cleanupAndResolve();
