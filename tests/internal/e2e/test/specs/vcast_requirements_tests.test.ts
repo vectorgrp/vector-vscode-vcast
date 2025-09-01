@@ -281,7 +281,47 @@ describe("vTypeCheck VS Code Extension", () => {
       3,
       "Test_Loop_Not_Entered_When_Condition_False-REVIEW-NEEDED"
     );
+    const testNode2 = await findTreeNodeAtLevel(
+      3,
+      "Test_Skip_Inner_Block_ComplexConditionFalse_A_False_B_False-REVIEW-NEEDED"
+    );
+    const testNode3 = await findTreeNodeAtLevel(
+      3,
+      "Test_Skip_Inner_Block_ComplexConditionFalse_A_False_B_True-REVIEW-NEEDED"
+    );
+    const testNode4 = await findTreeNodeAtLevel(
+      3,
+      "Test_Inner_Block_Skipped_When_a_True_b_False_Complex_Condition_True-REVIEW-NEEDED"
+    );
+    const testNode5 = await findTreeNodeAtLevel(
+      3,
+      "Test_Inner_Block_Skipped_When_a_False_b_False_Complex_Condition_True-REVIEW-NEEDED"
+    );
+    const testNode6 = await findTreeNodeAtLevel(
+      3,
+      "Test_Inner_Block_Skipped_When_a_False_b_True_Complex_Condition_True-REVIEW-NEEDED"
+    );
+    const testNode7 = await findTreeNodeAtLevel(
+      3,
+      "Test_Inner_Block_Executed_When_Complex_Condition_True_And_a_b_True-REVIEW-NEEDED"
+    );
+    const testNode8 = await findTreeNodeAtLevel(
+      3,
+      "Test_Skip_Inner_Block_ComplexConditionFalse_A_True_B_False-REVIEW-NEEDED"
+    );
+    const testNode9 = await findTreeNodeAtLevel(
+      3,
+      "Test_Skip_Inner_Block_ComplexConditionFalse_A_True_B_True-REVIEW-NEEDED"
+    );
     expect(testNode1).toBeDefined();
+    expect(testNode2).toBeDefined();
+    expect(testNode3).toBeDefined();
+    expect(testNode4).toBeDefined();
+    expect(testNode5).toBeDefined();
+    expect(testNode6).toBeDefined();
+    expect(testNode7).toBeDefined();
+    expect(testNode8).toBeDefined();
+    expect(testNode9).toBeDefined();
 
     console.log(outputView.getText());
   });
