@@ -203,11 +203,24 @@ describe("vTypeCheck VS Code Extension", () => {
         )) as TextEditor;
 
         // Expect some HTML stuff to be present
-        expect(await checkElementExistsInHTML("extreme")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme 1")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme 2")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme 3")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme 4")).toBe(true);
+        expect(await checkElementExistsInHTML("Manager::ClearTable")).toBe(
+          true
+        );
+        expect(await checkElementExistsInHTML("Manager::GetCheckTotal")).toBe(
+          true
+        );
+        expect(
+          await checkElementExistsInHTML("Manager::GetNextPartyToBeSeated")
+        ).toBe(true);
+        expect(
+          await checkElementExistsInHTML("Manager::AddIncludedDessert")
+        ).toBe(true);
+        expect(
+          await checkElementExistsInHTML("Manager::AddPartyToWaitingList")
+        ).toBe(true);
+        expect(await checkElementExistsInHTML("Manager::PlaceOrder")).toBe(
+          true
+        );
 
         await editorView.closeEditor("Requirements Report", 0);
       }
@@ -232,7 +245,7 @@ describe("vTypeCheck VS Code Extension", () => {
         console.log(await vcastTestingViewContentSection.getTitle());
         await vcastTestingViewContentSection.expand();
         subprogram = await findSubprogram(
-          "moo",
+          "manager",
           vcastTestingViewContentSection
         );
         if (subprogram) {
@@ -243,12 +256,15 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     if (!subprogram) {
-      throw new Error("Subprogram 'moo' not found");
+      throw new Error("Subprogram 'manager' not found");
     }
 
-    const subprogramMethod = await findSubprogramMethod(subprogram, "extreme");
+    const subprogramMethod = await findSubprogramMethod(
+      subprogram,
+      "Manager::PlaceOrder"
+    );
     if (!subprogramMethod) {
-      throw new Error("Subprogram method 'extreme' not found");
+      throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
     }
 
     if (!subprogramMethod.isExpanded()) {
@@ -277,51 +293,56 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Processing environment data for:"),
       { timeout: 180_000 }
     );
-    const testNode1 = await findTreeNodeAtLevel(
-      3,
-      "Test_Loop_Not_Entered_When_Condition_False-REVIEW-NEEDED"
-    );
-    const testNode2 = await findTreeNodeAtLevel(
-      3,
-      "Test_Skip_Inner_Block_ComplexConditionFalse_A_False_B_False-REVIEW-NEEDED"
-    );
-    const testNode3 = await findTreeNodeAtLevel(
-      3,
-      "Test_Skip_Inner_Block_ComplexConditionFalse_A_False_B_True-REVIEW-NEEDED"
-    );
-    const testNode4 = await findTreeNodeAtLevel(
-      3,
-      "Test_Inner_Block_Skipped_When_a_True_b_False_Complex_Condition_True-REVIEW-NEEDED"
-    );
-    const testNode5 = await findTreeNodeAtLevel(
-      3,
-      "Test_Inner_Block_Skipped_When_a_False_b_False_Complex_Condition_True-REVIEW-NEEDED"
-    );
-    const testNode6 = await findTreeNodeAtLevel(
-      3,
-      "Test_Inner_Block_Skipped_When_a_False_b_True_Complex_Condition_True-REVIEW-NEEDED"
-    );
-    const testNode7 = await findTreeNodeAtLevel(
-      3,
-      "Test_Inner_Block_Executed_When_Complex_Condition_True_And_a_b_True-REVIEW-NEEDED"
-    );
-    const testNode8 = await findTreeNodeAtLevel(
-      3,
-      "Test_Skip_Inner_Block_ComplexConditionFalse_A_True_B_False-REVIEW-NEEDED"
-    );
-    const testNode9 = await findTreeNodeAtLevel(
-      3,
-      "Test_Skip_Inner_Block_ComplexConditionFalse_A_True_B_True-REVIEW-NEEDED"
-    );
-    expect(testNode1).toBeDefined();
-    expect(testNode2).toBeDefined();
-    expect(testNode3).toBeDefined();
-    expect(testNode4).toBeDefined();
-    expect(testNode5).toBeDefined();
-    expect(testNode6).toBeDefined();
-    expect(testNode7).toBeDefined();
-    expect(testNode8).toBeDefined();
-    expect(testNode9).toBeDefined();
+
+    await (
+      await (
+        await subprogramMethod.getActionButton("Run Test")
+      ).elem
+    ).click();
+
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    const explorerSideBarView = await explorerView?.openView();
+
+    const workspaceFolderName = "vcastTutorial";
+    const workspaceFolderSection = await explorerSideBarView
+      .getContent()
+      .getSection(workspaceFolderName.toUpperCase());
+
+    const managerCpp = workspaceFolderSection.findItem("manager.cpp");
+    await (await managerCpp).select();
+
+    // open manager.cpp in editor
+    const editorView = workbench.getEditorView();
+    const tab = (await editorView.openEditor("manager.cpp")) as TextEditor;
+
+    // coverage gutter validation
+    const RED_GUTTER = "/no-cover-icon";
+    const GREEN_GUTTER = "/cover-icon";
+
+    for (let line = 36; line <= 66; line++) {
+      await tab.moveCursor(line, 1); // ensure gutter is in view
+      console.log(`Validating coverage gutter for line ${line} in manager.cpp`);
+
+      const lineNumberElement = await $(`.line-numbers=${line}`);
+      const coverageDecoElement = await (
+        await lineNumberElement.parentElement()
+      ).$(".cgmr.codicon");
+
+      if (await coverageDecoElement.isExisting()) {
+        const backgroundImageCSS =
+          await coverageDecoElement.getCSSProperty("background-image");
+        const backgroundImageURL = backgroundImageCSS.value;
+
+        // must not be red
+        expect(backgroundImageURL.includes(RED_GUTTER)).toBe(false);
+        // if it exists, it should be green
+        expect(backgroundImageURL.includes(GREEN_GUTTER)).toBe(true);
+      } else {
+        // no gutter is also valid
+        console.log(`Line ${line} has no gutter (allowed)`);
+      }
+    }
 
     console.log(outputView.getText());
   });
