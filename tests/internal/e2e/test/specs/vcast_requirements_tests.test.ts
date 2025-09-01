@@ -8,6 +8,7 @@ import {
 import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
+  checkForGutterAndGenerateReport,
   findSubprogram,
   findSubprogramMethod,
   findTreeNodeAtLevel,
@@ -278,13 +279,13 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    // await browser.waitUntil(
-    //   async () =>
-    //     (await (await bottomBar.openOutputView()).getText())
-    //       .toString()
-    //       .includes("reqs2tests completed successfully with code 0"),
-    //   { timeout: 180_000 }
-    // );
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("reqs2tests completed successfully with code 0"),
+      { timeout: 180_000 }
+    );
 
     await browser.waitUntil(
       async () =>
@@ -300,48 +301,41 @@ describe("vTypeCheck VS Code Extension", () => {
       ).elem
     ).click();
 
-    const activityBar = workbench.getActivityBar();
-    const explorerView = await activityBar.getViewControl("Explorer");
-    const explorerSideBarView = await explorerView?.openView();
+    // -------- Coverage validation --------
+    const GREEN_GUTTER = "cover-icon";
 
-    const workspaceFolderName = "vcastTutorial";
-    const workspaceFolderSection = await explorerSideBarView
-      .getContent()
-      .getSection(workspaceFolderName.toUpperCase());
+    const requiredGreenLines = new Set<number>([
+      38, 39, 40, 42, 43, 44, 47, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
+      60, 61, 62, 63, 65,
+    ]);
 
-    const managerCpp = workspaceFolderSection.findItem("manager.cpp");
-    await (await managerCpp).select();
-
-    // open manager.cpp in editor
-    const editorView = workbench.getEditorView();
-    const tab = (await editorView.openEditor("manager.cpp")) as TextEditor;
-
-    // coverage gutter validation
-    const RED_GUTTER = "/no-cover-icon";
-    const GREEN_GUTTER = "/cover-icon";
+    const missingRequired: number[] = [];
 
     for (let line = 36; line <= 66; line++) {
-      await tab.moveCursor(line, 1); // ensure gutter is in view
-      console.log(`Validating coverage gutter for line ${line} in manager.cpp`);
+      console.log(`Checking gutter on line ${line} in manager.cpp`);
 
-      const lineNumberElement = await $(`.line-numbers=${line}`);
-      const coverageDecoElement = await (
-        await lineNumberElement.parentElement()
-      ).$(".cgmr.codicon");
-
-      if (await coverageDecoElement.isExisting()) {
-        const backgroundImageCSS =
-          await coverageDecoElement.getCSSProperty("background-image");
-        const backgroundImageURL = backgroundImageCSS.value;
-
-        // must not be red
-        expect(backgroundImageURL.includes(RED_GUTTER)).toBe(false);
-        // if it exists, it should be green
-        expect(backgroundImageURL.includes(GREEN_GUTTER)).toBe(true);
-      } else {
-        // no gutter is also valid
-        console.log(`Line ${line} has no gutter (allowed)`);
+      try {
+        await checkForGutterAndGenerateReport(
+          line,
+          "manager.cpp",
+          GREEN_GUTTER,
+          true, // move cursor so line is visible
+          false // don't generate report
+        );
+        console.log(`Line ${line} has a green gutter ✅`);
+      } catch (err) {
+        if (requiredGreenLines.has(line)) {
+          missingRequired.push(line);
+        } else {
+          console.log(`Line ${line} has no gutter (allowed)`);
+        }
       }
+    }
+
+    if (missingRequired.length > 0) {
+      throw new Error(
+        `Missing required green gutters on lines: ${missingRequired.join(", ")}`
+      );
     }
 
     console.log(outputView.getText());
