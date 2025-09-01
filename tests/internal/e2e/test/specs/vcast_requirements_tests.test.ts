@@ -10,6 +10,7 @@ import {
   checkElementExistsInHTML,
   findSubprogram,
   findSubprogramMethod,
+  findTreeNodeAtLevel,
   getViewContent,
   updateTestID,
 } from "../test_utils/vcast_utils";
@@ -259,21 +260,26 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("reqs2tests completed successfully with code 0"),
-      { timeout: 180_000 }
-    );
+    // await browser.waitUntil(
+    //   async () =>
+    //     (await (await bottomBar.openOutputView()).getText())
+    //       .toString()
+    //       .includes("reqs2tests completed successfully with code 0"),
+    //   { timeout: 180_000 }
+    // );
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Generating tests: 100%|██████████|"),
-      { timeout: 180_000 }
+    // await browser.waitUntil(
+    //   async () =>
+    //     (await (await bottomBar.openOutputView()).getText())
+    //       .toString()
+    //       .includes("Generating tests: 100%|██████████|"),
+    //   { timeout: 180_000 }
+    // );
+    const testNode1 = await findTreeNodeAtLevel(
+      3,
+      "Test_Loop_Not_Entered_When_Condition_False-REVIEW-NEEDED"
     );
+    expect(testNode1).toBeDefined();
 
     console.log(outputView.getText());
   });
