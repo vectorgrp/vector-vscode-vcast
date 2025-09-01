@@ -255,6 +255,8 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    await outputView.clearText();
+
     const contextMenu = await subprogramMethod.openContextMenu();
     await contextMenu.select("VectorCAST");
     const menuElement = await $("aria/Generate Tests from Requirements");
@@ -268,13 +270,13 @@ describe("vTypeCheck VS Code Extension", () => {
     //   { timeout: 180_000 }
     // );
 
-    // await browser.waitUntil(
-    //   async () =>
-    //     (await (await bottomBar.openOutputView()).getText())
-    //       .toString()
-    //       .includes("Generating tests: 100%|██████████|"),
-    //   { timeout: 180_000 }
-    // );
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: 180_000 }
+    );
     const testNode1 = await findTreeNodeAtLevel(
       3,
       "Test_Loop_Not_Entered_When_Condition_False-REVIEW-NEEDED"
