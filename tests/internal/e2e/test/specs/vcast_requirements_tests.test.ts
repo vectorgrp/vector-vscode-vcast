@@ -302,6 +302,11 @@ describe("vTypeCheck VS Code Extension", () => {
     ).click();
 
     // -------- Coverage validation --------
+
+    // Because ATG generates tests with different names, we cannot "hard check" for existing tests.
+    // Only checking for the log is not enough. So we iterate thorugh the function for which we generated the tests
+    // And expect to have only green icons or no icons (empty lines, brackets, ...)
+    console.log("Validating Coverage icons for Manager::PlaceOrder");
     const GREEN_GUTTER = "cover-icon";
 
     const requiredGreenLines = new Set<number>([
@@ -322,7 +327,7 @@ describe("vTypeCheck VS Code Extension", () => {
           true, // move cursor so line is visible
           false // don't generate report
         );
-        console.log(`Line ${line} has a green gutter ✅`);
+        console.log(`Line ${line} has a green gutter`);
       } catch (err) {
         if (requiredGreenLines.has(line)) {
           missingRequired.push(line);
