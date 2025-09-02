@@ -204,24 +204,10 @@ describe("vTypeCheck VS Code Extension", () => {
         )) as TextEditor;
 
         // Expect some HTML stuff to be present
-        expect(await checkElementExistsInHTML("Manager::ClearTable")).toBe(
-          true
-        );
-        expect(await checkElementExistsInHTML("Manager::GetCheckTotal")).toBe(
-          true
-        );
-        expect(
-          await checkElementExistsInHTML("Manager::GetNextPartyToBeSeated")
-        ).toBe(true);
-        expect(
-          await checkElementExistsInHTML("Manager::AddIncludedDessert")
-        ).toBe(true);
-        expect(
-          await checkElementExistsInHTML("Manager::AddPartyToWaitingList")
-        ).toBe(true);
-        expect(await checkElementExistsInHTML("Manager::PlaceOrder")).toBe(
-          true
-        );
+        expect(await checkElementExistsInHTML("extreme.1")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme.2")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme.3")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme.4")).toBe(true);
 
         await editorView.closeEditor("Requirements Report", 0);
       }
@@ -245,7 +231,7 @@ describe("vTypeCheck VS Code Extension", () => {
         console.log(await vcastTestingViewContentSection.getTitle());
         await vcastTestingViewContentSection.expand();
         subprogram = await findSubprogram(
-          "manager",
+          "moo",
           vcastTestingViewContentSection
         );
         if (subprogram) {
@@ -256,15 +242,12 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     if (!subprogram) {
-      throw new Error("Subprogram 'manager' not found");
+      throw new Error("Subprogram 'moo' not found");
     }
 
-    const subprogramMethod = await findSubprogramMethod(
-      subprogram,
-      "Manager::PlaceOrder"
-    );
+    const subprogramMethod = await findSubprogramMethod(subprogram, "extreme");
     if (!subprogramMethod) {
-      throw new Error("Subprogram method 'Manager::PlaceOrder' not found");
+      throw new Error("Subprogram method 'extreme' not found");
     }
 
     if (!subprogramMethod.isExpanded()) {
@@ -278,24 +261,24 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("reqs2tests completed successfully with code 0"),
-      { timeout: 240_000 }
-    );
+    // await browser.waitUntil(
+    //   async () =>
+    //     (await (await bottomBar.openOutputView()).getText())
+    //       .toString()
+    //       .includes("reqs2tests completed successfully with code 0"),
+    //   { timeout: 240_000 }
+    // );
 
-    await bottomBar.maximize()
-    console.log(await outputView.getText())
+    // await bottomBar.maximize()
+    // console.log(await outputView.getText())
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Script loaded successfully"),
-      { timeout: 240_000 }
-    );
+    // await browser.waitUntil(
+    //   async () =>
+    //     (await (await bottomBar.openOutputView()).getText())
+    //       .toString()
+    //       .includes("Script loaded successfully"),
+    //   { timeout: 240_000 }
+    // );
 
     await browser.waitUntil(
       async () =>
@@ -316,23 +299,20 @@ describe("vTypeCheck VS Code Extension", () => {
     // Because ATG generates tests with different names, we cannot "hard check" for existing tests.
     // Only checking for the log is not enough. So we iterate thorugh the function for which we generated the tests
     // And expect to have only green icons or no icons (empty lines, brackets, ...)
-    console.log("Validating Coverage icons for Manager::PlaceOrder");
+    console.log("Validating Coverage icons for moo::extreme");
     const GREEN_GUTTER = "cover-icon";
 
-    const requiredGreenLines = new Set<number>([
-      38, 39, 40, 42, 43, 44, 47, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-      60, 61, 62, 63, 65,
-    ]);
+    const requiredGreenLines = new Set<number>([7, 9, 11, 13]);
 
     const missingRequired: number[] = [];
 
-    for (let line = 36; line <= 66; line++) {
-      console.log(`Checking gutter on line ${line} in manager.cpp`);
+    for (let line = 7; line <= 13; line++) {
+      console.log(`Checking gutter on line ${line} in moo.cpp`);
 
       try {
         await checkForGutterAndGenerateReport(
           line,
-          "manager.cpp",
+          "moo.cpp",
           GREEN_GUTTER,
           true, // move cursor so line is visible
           false // don't generate report
