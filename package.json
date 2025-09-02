@@ -401,7 +401,7 @@
           "vectorcastTestExplorer.outputDebugInfo": {
             "type": "boolean",
             "order": 10,
-            "default": true,
+            "default": false,
             "description": "Output debug information to the console"
           },
           "vectorcastTestExplorer.requirementsLanguage": {
