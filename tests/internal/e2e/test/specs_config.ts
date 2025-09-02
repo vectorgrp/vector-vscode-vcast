@@ -51,7 +51,7 @@ export function getSpecGroups(useVcast24: boolean) {
     },
     requirements: {
       specs: [
-        "./**/**/vcast.build_env_requirements.test.ts",
+        "./**/**/vcast_build_env_requirements.test.ts",
         "./**/**/vcast_requirements_tests.test.ts",
       ],
       env: { REQS2X_PCT_RELEASE: "True", VCAST_USE_PYTHON: "True" },
@@ -122,7 +122,7 @@ export function getSpecGroups(useVcast24: boolean) {
 
     specGroups["requirements"] = {
       specs: [
-        "./**/**/vcast.build_env_requirements.test.ts",
+        "./**/**/vcast_build_env_requirements.test.ts",
         "./**/**/vcast_requirements_tests.test.ts",
       ],
       env: {
