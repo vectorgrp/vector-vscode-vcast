@@ -2714,12 +2714,16 @@ function createProcessEnvironment(vcastInstallDir?: string): NodeJS.ProcessEnv {
     processEnv.VSCODE_VECTORCAST_DIR = vcastInstallDir;
   }
 
-  const outputDebugInfo = vscode.workspace
-    .getConfiguration("vectorcastTestExplorer")
-    .get<boolean>("outputDebugInfo", false);
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  
+  const outputDebugInfo = config.get<boolean>("outputDebugInfo", false);
   if (outputDebugInfo) {
     processEnv.REQ2TESTS_LOG_LEVEL = "debug";
   }
+
+  // Set the language for requirements generation
+  const languageCode = config.get<string>("requirementsLanguage", "en");
+  processEnv.REQ2TESTS_RESPONSE_LANGUAGE = languageCode;
 
   return processEnv;
 }
