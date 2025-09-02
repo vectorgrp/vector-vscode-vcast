@@ -18,22 +18,22 @@ def test_batched_mode_no_reqs_keys(
     current_workdir = os.getcwd()
     with tempfile.TemporaryDirectory() as out_folder:
         os.chdir(out_folder)
-        copy_folder(envs_dir / "TUTORIAL_C", Path(out_folder))
+        copy_folder(envs_dir / 'TUTORIAL_C', Path(out_folder))
         test_args = [
-            "reqs2tests",
-            "./TUTORIAL_C.env",
-            "./reqs.xlsx",
-            "--batched",
-            "--no-requirement-keys",
-            "--export-tst",
-            "tests.tst",
+            'reqs2tests',
+            './TUTORIAL_C.env',
+            './reqs.xlsx',
+            '--batched',
+            '--no-requirement-keys',
+            '--export-tst',
+            'tests.tst',
         ]
-        monkeypatch.setattr("sys.argv", test_args)
+        monkeypatch.setattr('sys.argv', test_args)
 
         cli()
 
         test_output_recorder.record_or_compare(
-            "tests.tst", "test_batched_mode_no_reqs_keys.tst"
+            'tests.tst', 'test_batched_mode_no_reqs_keys.tst'
         )
 
     os.chdir(current_workdir)
@@ -49,26 +49,26 @@ def test_no_decomposition_no_reqs_keys(
 ):
     current_workdir = os.getcwd()
     with tempfile.TemporaryDirectory() as out_folder:
-        copy_folder(envs_dir / "TUTORIAL_C", Path(out_folder))
+        copy_folder(envs_dir / 'TUTORIAL_C', Path(out_folder))
         os.chdir(out_folder)
         test_args = [
-            "reqs2tests",
-            "./TUTORIAL_C.env",
-            "./perfect_reqs.csv",
-            "Add_Included_Dessert.2",
-            "--export-tst",
-            "tests.tst",
-            "--no-requirement-keys",
-            "--no-decomposition",
-            "--retries",
-            "1",
+            'reqs2tests',
+            './TUTORIAL_C.env',
+            './perfect_reqs.csv',
+            'Add_Included_Dessert.2',
+            '--export-tst',
+            'tests.tst',
+            '--no-requirement-keys',
+            '--no-decomposition',
+            '--retries',
+            '1',
         ]
-        monkeypatch.setattr("sys.argv", test_args)
+        monkeypatch.setattr('sys.argv', test_args)
 
         cli()
 
         test_output_recorder.record_or_compare(
-            "tests.tst", "test_no_decomposition_no_reqs_keys.tst"
+            'tests.tst', 'test_no_decomposition_no_reqs_keys.tst'
         )
 
     os.chdir(current_workdir)
@@ -84,23 +84,23 @@ def test_custom_batch_size(
     current_workdir = os.getcwd()
     with tempfile.TemporaryDirectory() as out_folder:
         os.chdir(out_folder)
-        copy_folder(envs_dir / "TUTORIAL_C", Path(out_folder))
+        copy_folder(envs_dir / 'TUTORIAL_C', Path(out_folder))
         test_args = [
-            "reqs2tests",
-            "./TUTORIAL_C.env",
-            "./reqs.xlsx",
-            "--batched",
-            "--batch-size",
-            "2",
-            "--export-tst",
-            "tests.tst",
+            'reqs2tests',
+            './TUTORIAL_C.env',
+            './reqs.xlsx',
+            '--batched',
+            '--batch-size',
+            '2',
+            '--export-tst',
+            'tests.tst',
         ]
-        monkeypatch.setattr("sys.argv", test_args)
+        monkeypatch.setattr('sys.argv', test_args)
 
         cli()
 
         test_output_recorder.record_or_compare(
-            "tests.tst", "test_custom_batch_size.tst"
+            'tests.tst', 'test_custom_batch_size.tst'
         )
 
     os.chdir(current_workdir)
@@ -116,21 +116,21 @@ def test_individual_decomposition(
     current_workdir = os.getcwd()
     with tempfile.TemporaryDirectory() as out_folder:
         os.chdir(out_folder)
-        copy_folder(envs_dir / "TUTORIAL_C", Path(out_folder))
+        copy_folder(envs_dir / 'TUTORIAL_C', Path(out_folder))
         test_args = [
-            "reqs2tests",
-            "./TUTORIAL_C.env",
-            "./reqs.xlsx",
-            "--individual-decomposition",
-            "--export-tst",
-            "tests.tst",
+            'reqs2tests',
+            './TUTORIAL_C.env',
+            './reqs.xlsx',
+            '--individual-decomposition',
+            '--export-tst',
+            'tests.tst',
         ]
-        monkeypatch.setattr("sys.argv", test_args)
+        monkeypatch.setattr('sys.argv', test_args)
 
         cli()
 
         test_output_recorder.record_or_compare(
-            "tests.tst", "test_individual_decomposition.tst"
+            'tests.tst', 'test_individual_decomposition.tst'
         )
 
     os.chdir(current_workdir)

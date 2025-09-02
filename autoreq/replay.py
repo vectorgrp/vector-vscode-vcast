@@ -22,7 +22,7 @@ class RequestCache(JSONCache):
 
     def _make_json_serializable(self, obj):
         if isinstance(obj, BaseModel):
-            return self._make_json_serializable(obj.model_dump(mode="json"))
+            return self._make_json_serializable(obj.model_dump(mode='json'))
         if isinstance(obj, ModelMetaclass):
             return self._normalize_schema_names(
                 self._make_json_serializable(obj.schema())
@@ -43,10 +43,10 @@ class RequestCache(JSONCache):
         elif isinstance(schema, list):
             return [self._normalize_schema_names(item) for item in schema]
         elif isinstance(schema, str):
-            parts = schema.split("_")
+            parts = schema.split('_')
 
             if parts[-1].isdigit():
-                return "_".join(parts[:-1])
+                return '_'.join(parts[:-1])
             return schema
         else:
             return schema
@@ -62,10 +62,10 @@ class RequestReplay:
         input_hash = self.cache.input_hash(inputs)
         cache_data = self.cache.load(inputs)
 
-        if cache_data is None or "responses" not in cache_data:
+        if cache_data is None or 'responses' not in cache_data:
             return None
 
-        responses = cache_data["responses"]
+        responses = cache_data['responses']
         if not responses:
             return None
 
@@ -73,7 +73,7 @@ class RequestReplay:
         current_position = self._replay_counters.get(input_hash, 0)
 
         # Get the response at current position (cycling if we've reached the end)
-        result_data = responses[current_position % len(responses)]["result"]
+        result_data = responses[current_position % len(responses)]['result']
 
         # Increment position for next replay
         self._replay_counters[input_hash] = current_position + 1
@@ -86,14 +86,14 @@ class RequestReplay:
 
     def store(self, inputs, result):
         """Store a response for the given inputs, appending to existing responses."""
-        cache_data = self.cache.load(inputs) or {"responses": []}
+        cache_data = self.cache.load(inputs) or {'responses': []}
 
         # Simplified storage - just store the JSON result
         response_entry = {
-            "schema_class": f"{result.__class__.__module__}.{result.__class__.__name__}",
-            "schema": result.__class__.model_json_schema(),
-            "result": result.model_dump(),
+            'schema_class': f'{result.__class__.__module__}.{result.__class__.__name__}',
+            'schema': result.__class__.model_json_schema(),
+            'result': result.model_dump(),
         }
 
-        cache_data["responses"].append(response_entry)
+        cache_data['responses'].append(response_entry)
         self.cache.save(inputs, cache_data)

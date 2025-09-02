@@ -54,7 +54,7 @@ class EvaluationResult(BaseModel):
 
     @computed_field
     def average_score(self) -> float:
-        return sum(result["score"] for result in self.verification_results) / len(
+        return sum(result['score'] for result in self.verification_results) / len(
             self.verification_results
         )
 
@@ -64,33 +64,33 @@ class EvaluationResult(BaseModel):
 
         # Header for the environment
         lines.append(f'\n{"=" * 50}')
-        lines.append(f"Environment: {self.environment_path}")
+        lines.append(f'Environment: {self.environment_path}')
         lines.append(f'{"=" * 50}')
 
         # Verification Information
-        lines.append("\nVerification Information:")
-        lines.append(f"Average Score: {self.average_score:.4f}")
+        lines.append('\nVerification Information:')
+        lines.append(f'Average Score: {self.average_score:.4f}')
 
         # Execution Information
-        lines.append("\nExecution Information:")
-        lines.append(f"Execution Time: {format_time(self.execution_time)}")
+        lines.append('\nExecution Information:')
+        lines.append(f'Execution Time: {format_time(self.execution_time)}')
         if self.timed_out:
             lines.append(
-                f"STATUS: TIMED OUT after {self.execution_time / 60:.2f} minutes"
+                f'STATUS: TIMED OUT after {self.execution_time / 60:.2f} minutes'
             )
 
         # Cost information
-        lines.append("\nCost Information:")
-        lines.append(f"Generation Cost: ${self.total_generation_cost:.4f}")
-        lines.append(f"Verification Cost: ${self.total_verification_cost:.4f}")
-        lines.append(f"Total Cost: ${self.total_cost:.4f}")
+        lines.append('\nCost Information:')
+        lines.append(f'Generation Cost: ${self.total_generation_cost:.4f}')
+        lines.append(f'Verification Cost: ${self.total_verification_cost:.4f}')
+        lines.append(f'Total Cost: ${self.total_cost:.4f}')
 
         # Error information
         if self.generation_error:
-            lines.append("\nGeneration Error:")
+            lines.append('\nGeneration Error:')
             lines.append(self.generation_error)
 
-        return "\n".join(lines)
+        return '\n'.join(lines)
 
     class Config:
         populate_by_name = True
@@ -121,7 +121,7 @@ async def evaluate_environment(
     generation_error = None
     pbar = tqdm(
         total=len(env.testable_functions),
-        desc=f"Generating requirements for {Path(env_path).stem}",
+        desc=f'Generating requirements for {Path(env_path).stem}',
     )
 
     async def generate_requirements(func_name):
@@ -137,13 +137,13 @@ async def evaluate_environment(
         try:
             await asyncio.gather(
                 *[
-                    generate_requirements(func["name"])
+                    generate_requirements(func['name'])
                     for func in env.testable_functions
                 ]
             )
         except Exception as e:
             generation_error = f'Requirement generation failed: {str(e)}\n{"".join(traceback.format_exc())}'
-            logging.error(f"Requirement generation failed for {env_path}: {str(e)}")
+            logging.error(f'Requirement generation failed for {env_path}: {str(e)}')
         finally:
             pbar.close()
 
@@ -153,20 +153,20 @@ async def evaluate_environment(
         )
     except asyncio.TimeoutError:
         generation_error = (
-            f"Requirement generation timed out after {max_generation_time} seconds"
+            f'Requirement generation timed out after {max_generation_time} seconds'
         )
         logging.error(
-            f"Requirement generation timed out for {env_path} after {max_generation_time} seconds"
+            f'Requirement generation timed out for {env_path} after {max_generation_time} seconds'
         )
     except Exception as e:
         generation_error = f'Requirement generation failed: {str(e)}\n{"".join(traceback.format_exc())}'
-        logging.error(f"Requirement generation failed for {env_path}: {str(e)}")
+        logging.error(f'Requirement generation failed for {env_path}: {str(e)}')
     finally:
         pbar.close()
 
     # Capture generation costs before verification
     generation_token_usage = requirement_generator.llm_client.get_token_usage()
-    generation_total_cost = requirement_generator.llm_client.total_cost["total_cost"]
+    generation_total_cost = requirement_generator.llm_client.total_cost['total_cost']
 
     print(
         [
@@ -184,7 +184,7 @@ async def evaluate_environment(
         requirement_verifier.evaluate_requirements(
             func_name,
             requirements,
-            mode="gt_similarity",
+            mode='gt_similarity',
             ground_truth=[
                 ground_truth_rm.get_description(req_id)
                 for req_id in ground_truth_rm.get_requirements_for_function(func_name)
@@ -195,11 +195,11 @@ async def evaluate_environment(
 
     # Wait for all verifications to complete while preserving order
     verification_results = await tqdm_asyncio.gather(
-        *verification_tasks, desc=f"Verifying requirements for {Path(env_path).stem}"
+        *verification_tasks, desc=f'Verifying requirements for {Path(env_path).stem}'
     )
 
     # Capture verification cost
-    verification_total_cost = requirement_verifier.llm_client.total_cost["total_cost"]
+    verification_total_cost = requirement_verifier.llm_client.total_cost['total_cost']
 
     # Export results
     env_output_dir = output_dir / Path(env_path).stem
@@ -208,7 +208,7 @@ async def evaluate_environment(
     # Export verification results
     verification_results_data = [result.dict() for result in verification_results]
 
-    with open(env_output_dir / "verification_results.json", "w") as f:
+    with open(env_output_dir / 'verification_results.json', 'w') as f:
         json.dump(verification_results_data, f, indent=2)
 
     token_usage = generation_token_usage
@@ -225,10 +225,10 @@ async def evaluate_environment(
         # Raw data needed for calculations
         requirements_data={func: reqs for func, reqs in requirement_sets.items()},
         ground_truth_data={
-            func["name"]: [
+            func['name']: [
                 ground_truth_rm.get_description(req_id)
                 for req_id in ground_truth_rm.get_requirements_for_function(
-                    func["name"]
+                    func['name']
                 )
             ]
             for func in env.testable_functions
@@ -247,13 +247,13 @@ async def evaluate_environment(
 
 def parse_env_req_pair(pair: str) -> tuple[str, str]:
     """Parse environment:requirements pair, defaulting to reqs.csv in env directory."""
-    if ":" in pair:
-        env_path, req_path = pair.split(":", 1)
+    if ':' in pair:
+        env_path, req_path = pair.split(':', 1)
         return env_path, req_path
     else:
         env_path = pair
         env_dir = str(Path(env_path).parent)
-        return env_path, str(Path(env_dir) / "reqs.csv")
+        return env_path, str(Path(env_dir) / 'reqs.csv')
 
 
 def log_result_to_mlflow(mlflow, result: EvaluationResult, env_name: str) -> None:
@@ -264,23 +264,23 @@ def log_result_to_mlflow(mlflow, result: EvaluationResult, env_name: str) -> Non
     # Create a metrics dictionary with all available computed metrics
     metrics = {
         # Core metrics
-        f"{env_name}/average_score": result.average_score,
+        f'{env_name}/average_score': result.average_score,
         # Cost and performance metrics
-        f"{env_name}/generation_cost": result.total_generation_cost,
-        f"{env_name}/verification_cost": result.total_verification_cost,
-        f"{env_name}/total_cost": result.total_cost,
-        f"{env_name}/execution_time": result.execution_time,
-        f"{env_name}/timed_out": int(result.timed_out),
+        f'{env_name}/generation_cost': result.total_generation_cost,
+        f'{env_name}/verification_cost': result.total_verification_cost,
+        f'{env_name}/total_cost': result.total_cost,
+        f'{env_name}/execution_time': result.execution_time,
+        f'{env_name}/timed_out': int(result.timed_out),
     }
 
     # Log all metrics
     mlflow.log_metrics(metrics)
 
     # Create environment directory structure for artifacts
-    env_artifact_dir = f"environments/{env_name}"
+    env_artifact_dir = f'environments/{env_name}'
 
     # Log the full result as a JSON artifact
-    mlflow.log_dict(result.model_dump(by_alias=True), f"{env_artifact_dir}/result.json")
+    mlflow.log_dict(result.model_dump(by_alias=True), f'{env_artifact_dir}/result.json')
 
 
 async def process_envs(
@@ -296,11 +296,11 @@ async def process_envs(
     total_generation_cost = 0.0
     total_cost = 0.0
 
-    env_pbar = tqdm(expanded_env_req_pairs, desc="Processing environments")
+    env_pbar = tqdm(expanded_env_req_pairs, desc='Processing environments')
     for pair in env_pbar:
         if total_cost >= args.max_cost:
             print(
-                f"\nStopping: Cost limit of ${args.max_cost:.2f} reached (current: ${total_cost:.2f})"
+                f'\nStopping: Cost limit of ${args.max_cost:.2f} reached (current: ${total_cost:.2f})'
             )
             break
 
@@ -309,20 +309,20 @@ async def process_envs(
 
         # Skip if already processed
         if env_name in processed_envs and not args.no_skip_existing:
-            env_pbar.set_description(f"Skipping {env_name}")
+            env_pbar.set_description(f'Skipping {env_name}')
             # Load existing result
-            with open(output_dir / f"{env_name}_result.json") as f:
+            with open(output_dir / f'{env_name}_result.json') as f:
                 result_dict = json.load(f)
                 # Add cost from previous run - account for older format that might not have verification cost
-                total_generation_cost += result_dict.get("total_generation_cost", 0)
-                total_cost += result_dict.get("total_cost")
+                total_generation_cost += result_dict.get('total_generation_cost', 0)
+                total_cost += result_dict.get('total_cost')
             continue
 
-        env_pbar.set_description(f"Processing {env_name}")
+        env_pbar.set_description(f'Processing {env_name}')
 
         if not os.path.exists(req_path):
             print(
-                f"Warning: Requirements file not found at {req_path}, skipping {env_path}..."
+                f'Warning: Requirements file not found at {req_path}, skipping {env_path}...'
             )
             continue
 
@@ -331,7 +331,7 @@ async def process_envs(
         try:
             rm = RequirementsManager(req_path)
         except Exception as e:
-            print(f"Error loading requirements for {env_path}: {e}")
+            print(f'Error loading requirements for {env_path}: {e}')
             env.cleanup()
             continue
 
@@ -352,11 +352,11 @@ async def process_envs(
         all_results.append(result)
         total_generation_cost += result.total_generation_cost
         total_cost += result.total_cost
-        print(f"Current generation cost: ${total_generation_cost:.2f}")
-        print(f"Current total cost: ${total_cost:.2f}")
-        print(f"Execution time: {format_time(result.execution_time)}")
+        print(f'Current generation cost: ${total_generation_cost:.2f}')
+        print(f'Current total cost: ${total_cost:.2f}')
+        print(f'Execution time: {format_time(result.execution_time)}')
         if result.timed_out:
-            print(f"WARNING: Evaluation timed out after {args.timeout} minutes")
+            print(f'WARNING: Evaluation timed out after {args.timeout} minutes')
         env.cleanup()
 
     return all_results, total_generation_cost, total_cost
@@ -364,46 +364,46 @@ async def process_envs(
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Evaluate test generation and verification for given environments."
+        description='Evaluate test generation and verification for given environments.'
     )
     parser.add_argument(
-        "env_req_pairs",
-        nargs="+",
-        help="Paths to VectorCAST environment files, optionally followed by :path/to/reqs.csv. "
-        "If no requirements path is specified, looks for reqs.csv in the environment directory. "
-        "You can also use @filepath to include environments listed in a file, one per line.",
+        'env_req_pairs',
+        nargs='+',
+        help='Paths to VectorCAST environment files, optionally followed by :path/to/reqs.csv. '
+        'If no requirements path is specified, looks for reqs.csv in the environment directory. '
+        'You can also use @filepath to include environments listed in a file, one per line.',
     )
-    parser.add_argument("output_dir", help="Directory to store evaluation results.")
+    parser.add_argument('output_dir', help='Directory to store evaluation results.')
     parser.add_argument(
-        "--extended-reasoning", action="store_true", help="Use extended reasoning."
-    )
-    parser.add_argument(
-        "--combine-related-requirements",
-        action="store_true",
-        help="Combine related requirements into a single requirement after initial generation.",
+        '--extended-reasoning', action='store_true', help='Use extended reasoning.'
     )
     parser.add_argument(
-        "--max-cost",
+        '--combine-related-requirements',
+        action='store_true',
+        help='Combine related requirements into a single requirement after initial generation.',
+    )
+    parser.add_argument(
+        '--max-cost',
         type=float,
-        help="Maximum cost limit in dollar. Processing stops if exceeded.",
-        default=float("inf"),
+        help='Maximum cost limit in dollar. Processing stops if exceeded.',
+        default=float('inf'),
     )
     parser.add_argument(
-        "--timeout",
+        '--timeout',
         type=float,
         default=30.0,
-        help="Maximum time in minutes to wait for environment evaluation (default: 30)",
+        help='Maximum time in minutes to wait for environment evaluation (default: 30)',
     )
     parser.add_argument(
-        "--no-skip-existing",
-        action="store_true",
-        help="Re-process environments even if they have already been evaluated.",
+        '--no-skip-existing',
+        action='store_true',
+        help='Re-process environments even if they have already been evaluated.',
     )
     parser.add_argument(
-        "--mlflow",
+        '--mlflow',
         nargs=2,
-        metavar=("EXPERIMENT_NAME", "RUN_NAME"),
-        help="Enable MLflow tracking with specified experiment and run name",
+        metavar=('EXPERIMENT_NAME', 'RUN_NAME'),
+        help='Enable MLflow tracking with specified experiment and run name',
     )
     args = parser.parse_args()
 
@@ -417,7 +417,7 @@ async def main():
     mlflow = setup_mlflow(args.mlflow) if args.mlflow else None
     if mlflow:
         # Log parameters - expanded to include all CLI args
-        params = {k: v for k, v in vars(args).items() if k != "mlflow"}
+        params = {k: v for k, v in vars(args).items() if k != 'mlflow'}
         setup_mlflow_params(mlflow, params, expanded_env_req_pairs)
 
     # Process environments
@@ -430,13 +430,13 @@ async def main():
 
     # Log summary metrics to MLflow if enabled
     if mlflow:
-        mlflow.log_metric("total_generation_cost", total_generation_cost)
-        mlflow.log_metric("total_cost", total_cost)
+        mlflow.log_metric('total_generation_cost', total_generation_cost)
+        mlflow.log_metric('total_cost', total_cost)
         mlflow.end_run()
 
-    print("\nEvaluation Summary:")
-    print(f"Total generation cost: ${total_generation_cost:.2f}")
-    print(f"Total cost: ${total_cost:.2f}")
+    print('\nEvaluation Summary:')
+    print(f'Total generation cost: ${total_generation_cost:.2f}')
+    print(f'Total cost: ${total_cost:.2f}')
     for result in all_results:
         print(result)
 
@@ -445,5 +445,5 @@ def cli():
     asyncio.run(main())
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     cli()

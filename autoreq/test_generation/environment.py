@@ -39,7 +39,7 @@ class ValueMapping:
     value: str
 
     def to_dict(self):
-        return {"identifier": self.identifier, "value": self.value}
+        return {'identifier': self.identifier, 'value': self.value}
 
 
 @dataclass
@@ -55,38 +55,38 @@ class TestCase:
     @property
     def path(self) -> str:
         # Use regex to find lines containing (number) patterns
-        path_pattern = re.compile(r".*\(\d+\).*")
+        path_pattern = re.compile(r'.*\(\d+\).*')
         path_lines = [
-            line.split(")", 1)[1].strip()
-            for line in self.test_description.split("\n")
+            line.split(')', 1)[1].strip()
+            for line in self.test_description.split('\n')
             if path_pattern.match(line)
         ]
-        return "\n".join(path_lines)
+        return '\n'.join(path_lines)
 
     def to_dict(self):
         return {
-            "test_name": self.test_name,
-            "test_description": self.test_description,
-            "unit_name": self.unit_name,
-            "subprogram_name": self.subprogram_name,
-            "input_values": [v.to_dict() for v in self.input_values],
-            "expected_values": [v.to_dict() for v in self.expected_values],
-            "requirement_id": self.requirement_id,
+            'test_name': self.test_name,
+            'test_description': self.test_description,
+            'unit_name': self.unit_name,
+            'subprogram_name': self.subprogram_name,
+            'input_values': [v.to_dict() for v in self.input_values],
+            'expected_values': [v.to_dict() for v in self.expected_values],
+            'requirement_id': self.requirement_id,
         }
 
     def to_identifier(self):
-        return f"{self.unit_name}.{sanitize_subprogram_name(self.subprogram_name)}.{self.test_name}"
+        return f'{self.unit_name}.{sanitize_subprogram_name(self.subprogram_name)}.{self.test_name}'
 
 
 class Environment:
     def __init__(self, env_file_path: str, use_sandbox: bool = True):
         env_file_path = os.path.abspath(env_file_path)
         self.env_file_path = env_file_path
-        self.env_name = os.path.basename(env_file_path).replace(".env", "")
+        self.env_name = os.path.basename(env_file_path).replace('.env', '')
         env_dir = os.path.dirname(env_file_path)
 
         # Create a separate temporary directory for temporary files
-        self.temp_files_dir = tempfile.mkdtemp(prefix=f"vcast_{self.env_name}_")
+        self.temp_files_dir = tempfile.mkdtemp(prefix=f'vcast_{self.env_name}_')
 
         if use_sandbox:
             import shutil
@@ -105,43 +105,43 @@ class Environment:
 
     @property
     def is_built(self) -> bool:
-        db_path = os.path.join(self.env_dir, self.env_name, "master.db")
+        db_path = os.path.join(self.env_dir, self.env_name, 'master.db')
         return os.path.exists(db_path)
 
     def build(self):
         """Build the VectorCAST environment."""
-        logging.debug(f"Building environment: {self.env_name}")
+        logging.debug(f'Building environment: {self.env_name}')
 
         result = self._run_vectorcast_command(
-            "enviroedg",
-            [f"{self.env_name}.env"],
+            'enviroedg',
+            [f'{self.env_name}.env'],
             timeout=120,
-            extra_env={"VCAST_FORCE_OVERWRITE_ENV_DIR": "1"},
+            extra_env={'VCAST_FORCE_OVERWRITE_ENV_DIR': '1'},
         )
 
         if result is None:
             raise RuntimeError(
                 f"Build command for environment '{self.env_name}' failed. "
-                "Please check your VectorCAST installation and environment."
+                'Please check your VectorCAST installation and environment.'
             )
 
     def run_tests(self, test_cases: List[str], **kwargs) -> Optional[str]:
-        tst_file_path = self._get_temporary_file_path(f"temp_tests_{self.env_name}.tst")
-        with open(tst_file_path, "w", encoding="utf-8") as temp_tst_file:
-            temp_tst_file.write("-- VectorCAST 6.4s (05/01/17)\n")
-            temp_tst_file.write("-- Test Case Script\n")
-            temp_tst_file.write(f"-- Environment    : {self.env_name}\n")
+        tst_file_path = self._get_temporary_file_path(f'temp_tests_{self.env_name}.tst')
+        with open(tst_file_path, 'w', encoding='utf-8') as temp_tst_file:
+            temp_tst_file.write('-- VectorCAST 6.4s (05/01/17)\n')
+            temp_tst_file.write('-- Test Case Script\n')
+            temp_tst_file.write(f'-- Environment    : {self.env_name}\n')
             temp_tst_file.write(f'-- Unit(s) Under Test: {", ".join(self.units)}\n')
-            temp_tst_file.write("-- \n")
-            temp_tst_file.write("-- Script Features\n")
-            temp_tst_file.write("TEST.SCRIPT_FEATURE:C_DIRECT_ARRAY_INDEXING\n")
-            temp_tst_file.write("TEST.SCRIPT_FEATURE:CPP_CLASS_OBJECT_REVISION\n")
-            temp_tst_file.write("TEST.SCRIPT_FEATURE:MULTIPLE_UUT_SUPPORT\n")
-            temp_tst_file.write("TEST.SCRIPT_FEATURE:MIXED_CASE_NAMES\n")
-            temp_tst_file.write("TEST.SCRIPT_FEATURE:STATIC_HEADER_FUNCS_IN_UUTS\n")
-            temp_tst_file.write("--\n\n")
+            temp_tst_file.write('-- \n')
+            temp_tst_file.write('-- Script Features\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:C_DIRECT_ARRAY_INDEXING\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:CPP_CLASS_OBJECT_REVISION\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:MULTIPLE_UUT_SUPPORT\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:MIXED_CASE_NAMES\n')
+            temp_tst_file.write('TEST.SCRIPT_FEATURE:STATIC_HEADER_FUNCS_IN_UUTS\n')
+            temp_tst_file.write('--\n\n')
             for test_case in test_cases:
-                temp_tst_file.write(test_case + "\n")
+                temp_tst_file.write(test_case + '\n')
 
             temp_tst_file.flush()
 
@@ -151,10 +151,10 @@ class Environment:
 
     def _get_coverage_info(self, tests: List[TestCase]) -> Optional[dict]:
         """Get coverage information for the given tests."""
-        logging.debug(f"Getting coverage info for {len(tests)} tests")
+        logging.debug(f'Getting coverage info for {len(tests)} tests')
 
         result = self._run_vectorcast_command(
-            "vpython",
+            'vpython',
             [
                 str(TEST_COVERAGE_SCRIPT_PATH),
                 self.env_name,
@@ -164,7 +164,7 @@ class Environment:
         )
 
         if result is None:
-            logging.error("Coverage command failed")
+            logging.error('Coverage command failed')
             return None
 
         try:
@@ -172,10 +172,10 @@ class Environment:
         except json.JSONDecodeError as e:
             stacktrace = traceback.format_exc()
             logging.error(
-                "Failed to parse coverage data",
+                'Failed to parse coverage data',
                 extra={
-                    "stacktrace": stacktrace,
-                    "error": str(e),
+                    'stacktrace': stacktrace,
+                    'error': str(e),
                 },
             )
             return None
@@ -185,36 +185,36 @@ class Environment:
     ) -> Optional[Union[str, tuple[str, Optional[dict]]]]:
         tst_file_path = os.path.abspath(tst_file_path)
 
-        with open(tst_file_path, "r") as f:
+        with open(tst_file_path, 'r') as f:
             content = f.read()
 
-        if "MIXED_CASE_NAMES" not in content:
+        if 'MIXED_CASE_NAMES' not in content:
             logging.warning(
-                "The MIXED_CASE_NAMES script feature is not enabled in your script, watch out when trying to run tests with mixed case names"
+                'The MIXED_CASE_NAMES script feature is not enabled in your script, watch out when trying to run tests with mixed case names'
             )
 
         tests = self.parse_test_script(tst_file_path)
 
         commands = [
             get_vectorcast_cmd(
-                "clicast",
-                ["-lc", "-e", self.env_name, "Test", "Script", "Run", tst_file_path],
+                'clicast',
+                ['-lc', '-e', self.env_name, 'Test', 'Script', 'Run', tst_file_path],
             ),
             *[
                 get_vectorcast_cmd(
-                    "clicast",
+                    'clicast',
                     [
-                        "-lc",
-                        "-e",
+                        '-lc',
+                        '-e',
                         self.env_name,
-                        "-u",
+                        '-u',
                         test.unit_name,
-                        "-s",
+                        '-s',
                         sanitize_subprogram_name(test.subprogram_name),
-                        "-t",
+                        '-t',
                         test.test_name,
-                        "Execute",
-                        "Run",
+                        'Execute',
+                        'Run',
                     ],
                 )
                 for test in tests
@@ -223,25 +223,25 @@ class Environment:
 
         removal_commands = [
             get_vectorcast_cmd(
-                "clicast",
+                'clicast',
                 [
-                    "-lc",
-                    "-e",
+                    '-lc',
+                    '-e',
                     self.env_name,
-                    "-u",
+                    '-u',
                     test.unit_name,
-                    "-s",
+                    '-s',
                     sanitize_subprogram_name(test.subprogram_name),
-                    "-t",
+                    '-t',
                     test.test_name,
-                    "Test",
-                    "Delete",
+                    'Test',
+                    'Delete',
                 ],
             )
             for test in tests
         ]
 
-        output = ""
+        output = ''
         env_vars = os.environ.copy()
         result = None
 
@@ -261,19 +261,19 @@ class Environment:
                     )
                 except subprocess.TimeoutExpired:
                     logging.error(
-                        "Commands timed out after 30 seconds",
+                        'Commands timed out after 30 seconds',
                         extra={
-                            "command": " ".join(cmd),
+                            'command': ' '.join(cmd),
                         },
                     )
                     continue
 
                 logging.debug(
-                    "Command executed",
+                    'Command executed',
                     extra={
-                        "command": " ".join(cmd),
-                        "return_code": result.returncode,
-                        "stdout": result.stdout,
+                        'command': ' '.join(cmd),
+                        'return_code': result.returncode,
+                        'stdout': result.stdout,
                     },
                 )
 
@@ -291,10 +291,10 @@ class Environment:
                 except Exception as e:
                     stacktrace = traceback.format_exc()
                     logging.error(
-                        "Error during post_run_callback",
+                        'Error during post_run_callback',
                         extra={
-                            "stacktrace": stacktrace,
-                            "error": str(e),
+                            'stacktrace': stacktrace,
+                            'error': str(e),
                         },
                     )
 
@@ -313,18 +313,18 @@ class Environment:
                         check=False,
                     )
                     logging.debug(
-                        "Running cleanup command",
+                        'Running cleanup command',
                         extra={
-                            "command": " ".join(cmd),
-                            "return_code": cleanup_result.returncode,
-                            "stdout": cleanup_result.stdout,
+                            'command': ' '.join(cmd),
+                            'return_code': cleanup_result.returncode,
+                            'stdout': cleanup_result.stdout,
                         },
                     )
                 except subprocess.TimeoutExpired:
                     logging.error(
-                        "Commands timed out after 30 seconds",
+                        'Commands timed out after 30 seconds',
                         extra={
-                            "command": " ".join(cmd),
+                            'command': ' '.join(cmd),
                         },
                     )
 
@@ -332,8 +332,8 @@ class Environment:
 
     @cached_property
     def type_resolver(self):
-        param_file = os.path.join(self.env_dir, self.env_name, "param.xml")
-        types_file = os.path.join(self.env_dir, self.env_name, "types.xml")
+        param_file = os.path.join(self.env_dir, self.env_name, 'param.xml')
+        types_file = os.path.join(self.env_dir, self.env_name, 'types.xml')
 
         return TypeResolver(param_file, types_file)
 
@@ -341,35 +341,35 @@ class Environment:
     def raw_template_identifiers(self) -> List[str]:
         """Get allowed identifiers for test generation in case the type resolver does not work."""
         tst_file_path = self._get_temporary_file_path(
-            f"identifiers_template_{self.env_name}.tst"
+            f'identifiers_template_{self.env_name}.tst'
         )
 
         # Try to generate test script template
-        logging.debug("Generating test script template for identifiers")
+        logging.debug('Generating test script template for identifiers')
         result = self._run_vectorcast_command(
-            "clicast",
-            ["-e", self.env_name, "test", "script", "template", tst_file_path],
+            'clicast',
+            ['-e', self.env_name, 'test', 'script', 'template', tst_file_path],
             timeout=30,
             check_output_file=tst_file_path,
         )
 
         if result is not None:
             # Read the generated test script template
-            with open(tst_file_path, "r") as f:
+            with open(tst_file_path, 'r') as f:
                 content = f.read()
 
             # Extract identifiers from TEST.VALUE and TEST.EXPECTED lines
             identifiers = []
             lines = content.splitlines()
             for line in lines:
-                if line.startswith("TEST.VALUE") or line.startswith("TEST.EXPECTED"):
-                    identifier = line.split(":", 1)[1].rsplit(":", 1)[0]
+                if line.startswith('TEST.VALUE') or line.startswith('TEST.EXPECTED'):
+                    identifier = line.split(':', 1)[1].rsplit(':', 1)[0]
                     if identifier not in identifiers:
                         identifiers.append(identifier)
 
             return identifiers
 
-        logging.warning("Failed to generate test script template")
+        logging.warning('Failed to generate test script template')
 
         return []
 
@@ -394,15 +394,15 @@ class Environment:
         except Exception as e:
             stacktrace = traceback.format_exc()
             logging.debug(
-                "Failed to resolve identifiers",
+                'Failed to resolve identifiers',
                 extra={
-                    "stacktrace": stacktrace,
-                    "error": str(e),
-                    "function_name": function_name,
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                    'function_name': function_name,
                 },
             )
             logging.warning(
-                f"Failed to resolve identifiers for function {function_name}."
+                f'Failed to resolve identifiers for function {function_name}.'
             )
             return []
 
@@ -441,17 +441,17 @@ class Environment:
         # Add main identifiers
         relevant_identifiers = []
         for identifier in all_identifiers:
-            ident_func = identifier.metadata.get("function_type", None)
+            ident_func = identifier.metadata.get('function_type', None)
 
             if ident_func.sanitized_name not in relevant_functions:
                 continue
 
             if (
-                ident_func.unit == "uut_prototype_stubs"
+                ident_func.unit == 'uut_prototype_stubs'
             ):  # TODO: ...That would also allow to simplify this away
                 search_term = ident_func.sanitized_name
             else:
-                search_term = identifier.metadata.get("search_term", None)
+                search_term = identifier.metadata.get('search_term', None)
 
             if (
                 search_term is None or search_term in relevant_symbols
@@ -482,27 +482,27 @@ class Environment:
         relevant_identifiers = list(map(str, relevant_identifiers))
 
         logging.debug(
-            "Relevant identifiers found",
+            'Relevant identifiers found',
             extra={
-                "function_name": function_name,
-                "tot_relevant_identifiers": len(relevant_identifiers),
-                "relevant_identifiers": relevant_identifiers,
-                "focus_lines": focus_lines,
-                "max_identifier_index": max_identifier_index,
-                "remove_surely_stubbed_returns": remove_surely_stubbed_returns,
-                "remove_surely_stubbed_inputs": remove_surely_stubbed_inputs,
+                'function_name': function_name,
+                'tot_relevant_identifiers': len(relevant_identifiers),
+                'relevant_identifiers': relevant_identifiers,
+                'focus_lines': focus_lines,
+                'max_identifier_index': max_identifier_index,
+                'remove_surely_stubbed_returns': remove_surely_stubbed_returns,
+                'remove_surely_stubbed_inputs': remove_surely_stubbed_inputs,
             },
         )
 
         if not relevant_identifiers and focus_lines:
             logging.warning(
-                "No relevant identifiers found for pruned function. Using identifiers for unpruned function.",
+                'No relevant identifiers found for pruned function. Using identifiers for unpruned function.',
                 extra={
-                    "function_name": function_name,
-                    "focus_lines": focus_lines,
-                    "max_identifier_index": max_identifier_index,
-                    "remove_surely_stubbed_returns": remove_surely_stubbed_returns,
-                    "remove_surely_stubbed_inputs": remove_surely_stubbed_inputs,
+                    'function_name': function_name,
+                    'focus_lines': focus_lines,
+                    'max_identifier_index': max_identifier_index,
+                    'remove_surely_stubbed_returns': remove_surely_stubbed_returns,
+                    'remove_surely_stubbed_inputs': remove_surely_stubbed_inputs,
                 },
             )
             relevant_identifiers = self.get_allowed_identifiers_for_function(
@@ -516,7 +516,7 @@ class Environment:
 
     @cached_property
     def source_files(self) -> List[str]:
-        db_path = os.path.join(self.env_dir, self.env_name, "master.db")
+        db_path = os.path.join(self.env_dir, self.env_name, 'master.db')
 
         if not os.path.exists(db_path):
             raise FileNotFoundError(
@@ -592,16 +592,16 @@ class Environment:
     ) -> Optional[subprocess.CompletedProcess]:
         """Try to run ATG with baselining."""
 
-        logging.debug("Clearing unapplied test data before running ATG with baselining")
+        logging.debug('Clearing unapplied test data before running ATG with baselining')
         self._run_vectorcast_command(
-            "clicast",
-            ["-e", self.env_name, "test", "unapplied", "clear"],
+            'clicast',
+            ['-e', self.env_name, 'test', 'unapplied', 'clear'],
             timeout=30,
         )
-        logging.debug("Trying ATG with baselining")
+        logging.debug('Trying ATG with baselining')
         return self._run_vectorcast_command(
-            "atg",
-            ["-e", self.env_name, "--baselining", atg_file],
+            'atg',
+            ['-e', self.env_name, '--baselining', atg_file],
             timeout=60,
             check_output_file=atg_file,
         )
@@ -610,10 +610,10 @@ class Environment:
         self, atg_file: str
     ) -> Optional[subprocess.CompletedProcess]:
         """Try to run ATG without baselining."""
-        logging.debug("Trying ATG without baselining")
+        logging.debug('Trying ATG without baselining')
         return self._run_vectorcast_command(
-            "atg",
-            ["-e", self.env_name, atg_file],
+            'atg',
+            ['-e', self.env_name, atg_file],
             timeout=60,
             check_output_file=atg_file,
         )
@@ -622,10 +622,10 @@ class Environment:
         self, atg_file: str
     ) -> Optional[subprocess.CompletedProcess]:
         """Try to run clicast tools auto_atg_test as fallback."""
-        logging.debug("Trying clicast auto_atg_test fallback")
+        logging.debug('Trying clicast auto_atg_test fallback')
         return self._run_vectorcast_command(
-            "clicast",
-            ["-e", self.env_name, "tools", "auto_atg_test", atg_file],
+            'clicast',
+            ['-e', self.env_name, 'tools', 'auto_atg_test', atg_file],
             timeout=60,
             check_output_file=atg_file,
         )
@@ -633,24 +633,24 @@ class Environment:
     @cached_property
     def atg_tests(self) -> List[TestCase]:
         """Generate ATG tests using multiple fallback strategies."""
-        atg_file = self._get_temporary_file_path("atg_for_regular_use.tst")
+        atg_file = self._get_temporary_file_path('atg_for_regular_use.tst')
 
         # Strategy 1: Try ATG with baselining
-        logging.debug("Attempting ATG with baselining")
+        logging.debug('Attempting ATG with baselining')
         result = self._try_atg_with_baselining(atg_file)
 
         if result is None:
             # Strategy 2: Try ATG without baselining
-            logging.debug("Attempting ATG without baselining")
+            logging.debug('Attempting ATG without baselining')
             result = self._try_atg_without_baselining(atg_file)
 
         if result is None:
             # Strategy 3: Try clicast auto_atg_test as fallback
-            logging.debug("Attempting clicast auto_atg_test fallback")
+            logging.debug('Attempting clicast auto_atg_test fallback')
             result = self._try_clicast_auto_atg_test(atg_file)
 
         if result is None:
-            logging.error("All ATG generation strategies failed")
+            logging.error('All ATG generation strategies failed')
             return []
 
         return self.parse_test_script(atg_file)
@@ -658,10 +658,10 @@ class Environment:
     @cached_property
     def atg_coverage(self):
         """Generate ATG coverage using fallback strategies."""
-        atg_file = self._get_temporary_file_path("atg_for_coverage.tst")
+        atg_file = self._get_temporary_file_path('atg_for_coverage.tst')
 
         # Try the same fallback strategies as atg_tests
-        logging.debug("Attempting ATG generation for coverage analysis")
+        logging.debug('Attempting ATG generation for coverage analysis')
         result = self._try_atg_without_baselining(
             atg_file
         )  # Start without baselining for coverage
@@ -673,7 +673,7 @@ class Environment:
             result = self._try_clicast_auto_atg_test(atg_file)
 
         if result is None:
-            logging.error("All ATG generation strategies failed for coverage analysis")
+            logging.error('All ATG generation strategies failed for coverage analysis')
             return None
 
         # Get the coverage
@@ -683,11 +683,11 @@ class Environment:
         except Exception as e:
             stacktrace = traceback.format_exc()
             logging.error(
-                "Failed to run test script for coverage",
+                'Failed to run test script for coverage',
                 extra={
-                    "stacktrace": stacktrace,
-                    "error": str(e),
-                    "atg_file": atg_file,
+                    'stacktrace': stacktrace,
+                    'error': str(e),
+                    'atg_file': atg_file,
                 },
             )
             return None
@@ -695,18 +695,18 @@ class Environment:
     @cached_property
     def basis_path_tests(self) -> List[TestCase]:
         """Generate basis path tests."""
-        basis_test_file = self._get_temporary_file_path("basis.tst")
+        basis_test_file = self._get_temporary_file_path('basis.tst')
 
-        logging.debug("Generating basis path tests")
+        logging.debug('Generating basis path tests')
         result = self._run_vectorcast_command(
-            "clicast",
-            ["-e", self.env_name, "tool", "auto_test", basis_test_file],
+            'clicast',
+            ['-e', self.env_name, 'tool', 'auto_test', basis_test_file],
             timeout=60,
             check_output_file=basis_test_file,
         )
 
         if result is None:
-            logging.error("Basis path test generation failed")
+            logging.error('Basis path test generation failed')
             return []
 
         return self.parse_test_script(basis_test_file)
@@ -718,16 +718,16 @@ class Environment:
 
         for unit_name in self.units:
             content, encoding = self.get_tu_content(
-                unit_name=unit_name, reduction_level="medium", return_encoding=True
+                unit_name=unit_name, reduction_level='medium', return_encoding=True
             )
 
             # Sanitize unit_name for filename to avoid issues with special characters.
-            safe_unit_name = re.sub(r"[^\w\-_\.]", "_", unit_name)
+            safe_unit_name = re.sub(r'[^\w\-_\.]', '_', unit_name)
             temp_file_path = self._get_temporary_file_path(
-                f"tu_code_{safe_unit_name}_{self.env_name}.cpp"
+                f'tu_code_{safe_unit_name}_{self.env_name}.cpp'
             )
 
-            with open(temp_file_path, "w", encoding=encoding) as temp_file:
+            with open(temp_file_path, 'w', encoding=encoding) as temp_file:
                 temp_file.write(content)
                 temp_file.flush()
 
@@ -749,23 +749,23 @@ class Environment:
     def testable_functions(self):
         all_functions_from_tus = self.tu_codebase.get_all_functions()
 
-        assert len(self._tu_codebase_paths) == len(
-            self.units
-        ), "Mismatch in number of TUs and units."
+        assert len(self._tu_codebase_paths) == len(self.units), (
+            'Mismatch in number of TUs and units.'
+        )
 
         temp_path_to_info_map = {}
         for i, temp_abs_path in enumerate(self._tu_codebase_paths):
             unit_name = self.units[i]
             original_source_file = self.source_files[i]
             temp_path_to_info_map[temp_abs_path] = {
-                "unit_name": unit_name,
-                "original_source_file": original_source_file,
+                'unit_name': unit_name,
+                'original_source_file': original_source_file,
             }
 
         testable_functions = []
         for function in all_functions_from_tus:
             logging.debug(f'Checking if function {function["name"]} is testable')
-            abs_temp_tu_file_path = function["file"]
+            abs_temp_tu_file_path = function['file']
 
             info = None
             for temp_tu_path, path_info in temp_path_to_info_map.items():
@@ -774,18 +774,18 @@ class Environment:
                     break
 
             if info:
-                unit_name = info["unit_name"]
-                original_source_file = info["original_source_file"]
+                unit_name = info['unit_name']
+                original_source_file = info['original_source_file']
 
                 reduced_content = self.get_tu_content(
-                    unit_name=unit_name, reduction_level="high"
+                    unit_name=unit_name, reduction_level='high'
                 )
-                if function["definition"].replace("\r", "") in reduced_content.replace(
-                    "\r", ""
+                if function['definition'].replace('\r', '') in reduced_content.replace(
+                    '\r', ''
                 ):
                     func_copy = function.copy()
-                    func_copy["file"] = original_source_file
-                    func_copy["unit_name"] = unit_name
+                    func_copy['file'] = original_source_file
+                    func_copy['unit_name'] = unit_name
                     testable_functions.append(func_copy)
                     logging.debug(
                         f'Function {function["name"]} in unit {unit_name} is testable. Adding to output.'
@@ -794,20 +794,20 @@ class Environment:
                     logging.debug(
                         f'Function {function["name"]} in unit {unit_name} is not testable due to content mismatch.',
                         extra={
-                            "unit_name": unit_name,
-                            "function_name": function["name"],
-                            "file": original_source_file,
-                            "function_definition": function["definition"],
-                            "reduced_content": reduced_content,
+                            'unit_name': unit_name,
+                            'function_name': function['name'],
+                            'file': original_source_file,
+                            'function_definition': function['definition'],
+                            'reduced_content': reduced_content,
                         },
                     )
             else:
                 logging.debug(
                     f'No matching temporary TU file found for function {function["name"]}. Skipping.',
                     extra={
-                        "function_name": function["name"],
-                        "tu_file": abs_temp_tu_file_path,
-                        "available_tus": list(temp_path_to_info_map.keys()),
+                        'function_name': function['name'],
+                        'tu_file': abs_temp_tu_file_path,
+                        'available_tus': list(temp_path_to_info_map.keys()),
                     },
                 )
 
@@ -815,9 +815,9 @@ class Environment:
             return testable_functions
 
         logging.warning(
-            "No testable functions found in the translation units using primary method."
+            'No testable functions found in the translation units using primary method.'
         )
-        logging.warning("Falling back to scraping from ATG tests.")
+        logging.warning('Falling back to scraping from ATG tests.')
         self._used_atg_testable_functions_fallback = True
 
         # Fallback logic:
@@ -840,9 +840,9 @@ class Environment:
                     # Structure matches what the primary method would produce if it only had name and file.
                     atg_derived_functions.append(
                         {
-                            "name": subprogram_name,
-                            "file": original_source_file,
-                            "unit_name": unit_name,
+                            'name': subprogram_name,
+                            'file': original_source_file,
+                            'unit_name': unit_name,
                         }
                     )
                     added_subprograms.add((unit_name, subprogram_name))
@@ -850,9 +850,9 @@ class Environment:
                     logging.warning(
                         f'ATG test case for unit "{unit_name}" but unit not found in environment\'s source files. Skipping.',
                         extra={
-                            "unit_name": unit_name,
-                            "subprogram_name": subprogram_name,
-                            "file": original_source_file,
+                            'unit_name': unit_name,
+                            'subprogram_name': subprogram_name,
+                            'file': original_source_file,
                         },
                     )
 
@@ -864,20 +864,20 @@ class Environment:
 
     @lru_cache(maxsize=128)
     def functions_info(self) -> dict:
-        tu_content = self.get_tu_content(reduction_level="high")
+        tu_content = self.get_tu_content(reduction_level='high')
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            with open(Path(tmpdir) / "tu.c", "w") as f:
+            with open(Path(tmpdir) / 'tu.c', 'w') as f:
                 f.write(tu_content)
             # Create a temporary codebase to extract functions information
             codebase = Codebase([tmpdir])
-            return {f["name"]: f for f in codebase.get_all_functions()}
+            return {f['name']: f for f in codebase.get_all_functions()}
 
     @lru_cache(maxsize=128)
     def get_tu_content(
         self,
         unit_name=None,
-        reduction_level="medium",
+        reduction_level='medium',
         return_encoding=False,
         return_mapping=False,
     ):
@@ -899,7 +899,7 @@ class Environment:
             str: The content of the translation unit file.
         """
         if unit_name is None and len(self.units) > 1:
-            raise ValueError("Multiple units found. Please specify a unit name.")
+            raise ValueError('Multiple units found. Please specify a unit name.')
 
         if unit_name is None:
             unit_name = self.units[0]
@@ -908,28 +908,28 @@ class Environment:
             unit_index = self.units.index(unit_name)
 
             if unit_index == -1:
-                raise ValueError(f"Unit name {unit_name} not found in the environment.")
+                raise ValueError(f'Unit name {unit_name} not found in the environment.')
 
             unit_path = self.source_files[unit_index]
 
         tu_path = self._get_tu_path(unit_name)
 
         try:
-            encoding = "utf-8"
-            with open(tu_path, "r", encoding=encoding) as f:
+            encoding = 'utf-8'
+            with open(tu_path, 'r', encoding=encoding) as f:
                 content = f.read()
         except UnicodeError:
             detected = charset_normalizer.from_path(tu_path).best()
 
             if detected is None:
                 raise ValueError(
-                    "Failed to detect encoding for the translation unit file."
+                    'Failed to detect encoding for the translation unit file.'
                 )
 
             encoding = detected.encoding
             content = str(detected)
 
-        if reduction_level == "low":
+        if reduction_level == 'low':
             if return_encoding:
                 return content, encoding
             return content
@@ -954,15 +954,15 @@ class Environment:
                 if Path(file_path_in_marker).name == Path(unit_path).name:
                     in_relevant_context = True
                 elif (
-                    match.group(1).startswith("vcast_preprocess")
-                    or reduction_level == "high"
+                    match.group(1).startswith('vcast_preprocess')
+                    or reduction_level == 'high'
                 ):
                     in_relevant_context = False
             elif in_relevant_context:
                 relevant_lines.append(line)
                 original_line_mapping.append(i + 1)
 
-        relevant_content = "\n".join(relevant_lines)
+        relevant_content = '\n'.join(relevant_lines)
 
         if return_encoding:
             return relevant_content, encoding
@@ -975,29 +975,29 @@ class Environment:
     def _get_tu_path(self, unit_name: str) -> str:
         """Get the path to the translation unit file for the specified unit name."""
         candidate_paths = glob(
-            os.path.join(self.env_dir, self.env_name, f"{unit_name}.tu.*"),
+            os.path.join(self.env_dir, self.env_name, f'{unit_name}.tu.*'),
         )
 
         candidate_paths = [
             path
             for path in candidate_paths
             if any(
-                path.lower().endswith(".tu." + ext.lower())
+                path.lower().endswith('.tu.' + ext.lower())
                 for ext in SOURCE_FILE_EXTENSIONS
             )
         ]
 
         if not candidate_paths:
             raise FileNotFoundError(
-                f"Translation unit file not found for unit {unit_name} in environment {self.env_name}"
+                f'Translation unit file not found for unit {unit_name} in environment {self.env_name}'
             )
 
         if len(candidate_paths) > 1:
             logging.warning(
-                "Multiple translation unit files found for unit. Using the first one.",
+                'Multiple translation unit files found for unit. Using the first one.',
                 extra={
-                    "unit_name": unit_name,
-                    "candidate_paths": candidate_paths,
+                    'unit_name': unit_name,
+                    'candidate_paths': candidate_paths,
                 },
             )
 
@@ -1020,55 +1020,55 @@ class Environment:
             line = _line.strip()
 
             # Skip empty lines and comments that don't start with TEST
-            if not line or (line.startswith("--") and not line.startswith("TEST")):
+            if not line or (line.startswith('--') and not line.startswith('TEST')):
                 continue
 
-            if line.startswith("TEST.UNIT:"):
-                current_unit = line.split(":", 1)[1].strip()
+            if line.startswith('TEST.UNIT:'):
+                current_unit = line.split(':', 1)[1].strip()
 
-            elif line.startswith("TEST.SUBPROGRAM:"):
-                current_subprogram = line.split(":", 1)[1].strip()
+            elif line.startswith('TEST.SUBPROGRAM:'):
+                current_subprogram = line.split(':', 1)[1].strip()
 
-            elif line.startswith("TEST.NAME:"):
+            elif line.startswith('TEST.NAME:'):
                 if current_test:
                     test_cases.append(current_test)
 
-                test_name = line.split(":", 1)[1].strip()
+                test_name = line.split(':', 1)[1].strip()
                 current_test = TestCase(
                     test_name=test_name,
-                    test_description="",
+                    test_description='',
                     unit_name=current_unit,
                     subprogram_name=current_subprogram,
                     input_values=[],
                     expected_values=[],
                 )
 
-            elif line.startswith("TEST.VALUE:"):
+            elif line.startswith('TEST.VALUE:'):
                 if not current_test:
                     continue
 
-                _, rest = line.split(":", 1)
-                identifier, value = rest.rsplit(":", 1)
+                _, rest = line.split(':', 1)
+                identifier, value = rest.rsplit(':', 1)
                 current_test.input_values.append(
                     ValueMapping(identifier=identifier.strip(), value=value.strip())
                 )
 
-            elif line.startswith("TEST.NOTES:"):
+            elif line.startswith('TEST.NOTES:'):
                 if current_test:
                     description_lines = []
                     continue_reading = True
 
-            elif line.startswith("TEST.END_NOTES:"):
+            elif line.startswith('TEST.END_NOTES:'):
                 if current_test and description_lines:
-                    current_test.test_description = "\n".join(description_lines)
+                    current_test.test_description = '\n'.join(description_lines)
                 continue_reading = False
 
-            elif line.startswith("TEST.EXPECTED:"):
+            elif line.startswith('TEST.EXPECTED:'):
                 if not current_test:
                     continue
 
-                _, rest = line.split(":", 1)
-                identifier, value = rest.rsplit(":", 1)
+                _, rest = line.split(':', 1)
+                identifier, value = rest.rsplit(':', 1)
                 current_test.expected_values.append(
                     ValueMapping(identifier=identifier.strip(), value=value.strip())
                 )
@@ -1076,7 +1076,7 @@ class Environment:
             elif continue_reading:
                 description_lines.append(line)
 
-            elif line.startswith("TEST.END"):
+            elif line.startswith('TEST.END'):
                 if current_test:
                     test_cases.append(current_test)
                     current_test = None
@@ -1101,5 +1101,5 @@ class Environment:
             shutil.rmtree(self.temp_files_dir)
 
         # Clean up the environment sandbox if it exists
-        if hasattr(self, "temp_dir"):
+        if hasattr(self, 'temp_dir'):
             self.temp_dir.cleanup()

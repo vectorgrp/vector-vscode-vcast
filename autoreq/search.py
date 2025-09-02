@@ -19,18 +19,18 @@ class SearchEngine:
 
     async def search(self, query: str, return_ranges=False):
         # Add line numbers to the text
-        numbered_text = "\n".join(
-            f"{i + 1}: {line}" for i, line in enumerate(self.reference.splitlines())
+        numbered_text = '\n'.join(
+            f'{i + 1}: {line}' for i, line in enumerate(self.reference.splitlines())
         )
 
         messages = [
             {
-                "role": "system",
-                "content": "You are an assistant that finds relevant parts of a text based on a query.",
+                'role': 'system',
+                'content': 'You are an assistant that finds relevant parts of a text based on a query.',
             },
             {
-                "role": "user",
-                "content": f"""
+                'role': 'user',
+                'content': f"""
 Please retrieve all relevant text ranges in the large reference to address the information need for the input user query.
 
 Reference:
@@ -80,18 +80,18 @@ Notes:
         relevant_text_parts = []
         for text_range in merged_ranges:
             relevant_text_parts.append(
-                "\n".join(
+                '\n'.join(
                     self.reference.splitlines()[
                         max(text_range.start_line - 1, 0) : max(
                             text_range.end_line + 1, 0
                         )
                     ]
                 )
-                + "\n"
+                + '\n'
             )
 
         # Merge the parts into a single string
-        relevant_text = "\n\n...\n\n".join(relevant_text_parts)
+        relevant_text = '\n\n...\n\n'.join(relevant_text_parts)
 
         if return_ranges:
             return relevant_text, merged_ranges

@@ -18,12 +18,12 @@ class PseudocodeDecompositionStrategy(DecompositionStrategy):
     def decompose(self, func_def, n=1, return_messages=False):
         messages = [
             {
-                "role": "system",
-                "content": "You are an AI assistant proficient in requirements engineering.",
+                'role': 'system',
+                'content': 'You are an AI assistant proficient in requirements engineering.',
             },
             {
-                "role": "user",
-                "content": f"""
+                'role': 'user',
+                'content': f"""
 Derive a complete list of functional requirements for the given function definition.
 
 You are given the following inputs:
@@ -93,7 +93,7 @@ The success of this task is critical. The purpose is to derive unit tests, exact
         ]
 
         completion = self.client.beta.chat.completions.parse(
-            model="gpt-4o",
+            model='gpt-4o',
             messages=messages,
             response_format=DesignDecompositionResultWithPseudocode,
             temperature=0.0 if n == 1 else 0.5,

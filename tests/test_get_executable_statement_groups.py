@@ -20,7 +20,7 @@ class TestGetExecutableStatementGroups:
 
         assert len(groups) == 1
         assert len(groups[0].line_numbers) == 1
-        assert "x" in groups[0].symbols
+        assert 'x' in groups[0].symbols
         assert groups[0].path == []
 
     def test_multiple_expression_statements(self):
@@ -36,7 +36,7 @@ class TestGetExecutableStatementGroups:
 
         assert len(groups) == 1  # Should be grouped together as same path
         assert len(groups[0].line_numbers) == 3
-        assert all(symbol in groups[0].symbols for symbol in ["x", "y", "z"])
+        assert all(symbol in groups[0].symbols for symbol in ['x', 'y', 'z'])
         assert groups[0].path == []
 
     def test_return_statement(self):
@@ -77,8 +77,8 @@ class TestGetExecutableStatementGroups:
         groups = get_executable_statement_groups(code)
 
         assert len(groups) == 1
-        assert "IF (x > 0) ==> TRUE" in groups[0].path[0]
-        assert "printf" in groups[0].symbols
+        assert 'IF (x > 0) ==> TRUE' in groups[0].path[0]
+        assert 'printf' in groups[0].symbols
 
     def test_if_else_statement(self):
         """Test with if-else statement."""
@@ -97,8 +97,8 @@ class TestGetExecutableStatementGroups:
 
         # Check that one group is for the if branch and one for the else branch
         paths = [group.path[0] for group in groups]
-        assert any("TRUE" in path for path in paths)
-        assert any("FALSE" in path for path in paths)
+        assert any('TRUE' in path for path in paths)
+        assert any('FALSE' in path for path in paths)
 
     def test_nested_if_statements(self):
         """Test with nested if statements."""
@@ -115,8 +115,8 @@ class TestGetExecutableStatementGroups:
 
         assert len(groups) == 1
         assert len(groups[0].path) == 2  # Two levels of nesting
-        assert "TRUE" in groups[0].path[0]
-        assert "TRUE" in groups[0].path[1]
+        assert 'TRUE' in groups[0].path[0]
+        assert 'TRUE' in groups[0].path[1]
 
     def test_while_loop(self):
         """Test with while loop."""
@@ -130,8 +130,8 @@ class TestGetExecutableStatementGroups:
         groups = get_executable_statement_groups(code)
 
         assert len(groups) == 1
-        assert "WHILE (i < 10) ==> TRUE" in groups[0].path[0]
-        assert "i" in groups[0].symbols
+        assert 'WHILE (i < 10) ==> TRUE' in groups[0].path[0]
+        assert 'i' in groups[0].symbols
 
     def test_for_loop(self):
         """Test with for loop."""
@@ -145,8 +145,8 @@ class TestGetExecutableStatementGroups:
         groups = get_executable_statement_groups(code)
 
         assert len(groups) == 1
-        assert "FOR" in groups[0].path[0] and "TRUE" in groups[0].path[0]
-        assert "i" in groups[0].symbols
+        assert 'FOR' in groups[0].path[0] and 'TRUE' in groups[0].path[0]
+        assert 'i' in groups[0].symbols
 
     def test_do_while_loop(self):
         """Test with do-while loop."""
@@ -160,8 +160,8 @@ class TestGetExecutableStatementGroups:
         groups = get_executable_statement_groups(code)
 
         assert len(groups) == 1
-        assert "DO-WHILE (i < 10) ==> TRUE" in groups[0].path[0]
-        assert "i" in groups[0].symbols
+        assert 'DO-WHILE (i < 10) ==> TRUE' in groups[0].path[0]
+        assert 'i' in groups[0].symbols
 
     def test_switch_statement(self):
         """Test with switch statement."""
@@ -182,9 +182,9 @@ class TestGetExecutableStatementGroups:
         assert len(groups) == 2
 
         # Check that we have case-specific paths
-        paths = [" ".join(group.path) for group in groups]
-        assert any("CASE 1" in path for path in paths)
-        assert any("CASE 2" in path for path in paths)
+        paths = [' '.join(group.path) for group in groups]
+        assert any('CASE 1' in path for path in paths)
+        assert any('CASE 2' in path for path in paths)
 
     def test_switch_with_default(self):
         """Test with switch statement including default case."""
@@ -204,9 +204,9 @@ class TestGetExecutableStatementGroups:
 
         assert len(groups) == 2
 
-        paths = [" ".join(group.path) for group in groups]
-        assert any("CASE 1" in path for path in paths)
-        assert any("DEFAULT" in path for path in paths)
+        paths = [' '.join(group.path) for group in groups]
+        assert any('CASE 1' in path for path in paths)
+        assert any('DEFAULT' in path for path in paths)
 
     def test_empty_if_block(self):
         """Test with empty if block."""
@@ -256,9 +256,9 @@ class TestGetExecutableStatementGroups:
         assert len(groups) == 3  # Multiple execution paths
 
         # Check for various path combinations
-        paths = [" ".join(group.path) for group in groups]
+        paths = [' '.join(group.path) for group in groups]
         assert any(
-            "TRUE" in path and "FOR" in path and "TRUE" in path for path in paths
+            'TRUE' in path and 'FOR' in path and 'TRUE' in path for path in paths
         )
 
     def test_complex_nested_structure_with_virtual_groups(self):
@@ -324,9 +324,9 @@ class TestGetExecutableStatementGroups:
 
         # Should have groups for both TRUE and FALSE paths
         assert len(groups) == 2
-        paths = [" ".join(group.path) for group in groups]
-        assert any("TRUE" in path for path in paths)
-        assert any("FALSE" in path for path in paths)
+        paths = [' '.join(group.path) for group in groups]
+        assert any('TRUE' in path for path in paths)
+        assert any('FALSE' in path for path in paths)
 
     def test_virtual_groups_while_loop(self):
         """Test virtual groups for while loop."""
@@ -341,9 +341,9 @@ class TestGetExecutableStatementGroups:
 
         # Should have groups for both loop entry and non-entry
         assert len(groups) == 2
-        paths = [" ".join(group.path) for group in groups]
-        assert any("TRUE" in path for path in paths)
-        assert any("FALSE" in path for path in paths)
+        paths = [' '.join(group.path) for group in groups]
+        assert any('TRUE' in path for path in paths)
+        assert any('FALSE' in path for path in paths)
 
     def test_virtual_groups_for_loop(self):
         """Test virtual groups for for loop."""
@@ -357,9 +357,9 @@ class TestGetExecutableStatementGroups:
         groups = get_executable_statement_groups(code, include_virtual_groups=True)
 
         assert len(groups) == 2
-        paths = [" ".join(group.path) for group in groups]
-        assert any("TRUE" in path for path in paths)
-        assert any("FALSE" in path for path in paths)
+        paths = [' '.join(group.path) for group in groups]
+        assert any('TRUE' in path for path in paths)
+        assert any('FALSE' in path for path in paths)
 
     def test_virtual_groups_switch_without_default(self):
         """Test virtual groups for switch without default case."""
@@ -377,9 +377,9 @@ class TestGetExecutableStatementGroups:
         groups = get_executable_statement_groups(code, include_virtual_groups=True)
 
         assert len(groups) == 3
-        paths = [" ".join(group.path) for group in groups]
-        assert any("CASE 1" in path for path in paths)
-        assert any("NO_MATCH" in path for path in paths)
+        paths = [' '.join(group.path) for group in groups]
+        assert any('CASE 1' in path for path in paths)
+        assert any('NO_MATCH' in path for path in paths)
 
     def test_symbol_extraction_identifiers(self):
         """Test that symbols are correctly extracted from statements."""
@@ -395,12 +395,12 @@ class TestGetExecutableStatementGroups:
 
         # Check that various types of symbols are extracted
         symbols = groups[0].symbols
-        assert "a" in symbols
-        assert "b" in symbols
-        assert "c" in symbols
-        assert "field" in symbols
-        assert "obj" in symbols
-        assert "method" in symbols
+        assert 'a' in symbols
+        assert 'b' in symbols
+        assert 'c' in symbols
+        assert 'field' in symbols
+        assert 'obj' in symbols
+        assert 'method' in symbols
 
     def test_symbol_extraction_complex_expressions(self):
         """Test symbol extraction from complex expressions."""
@@ -415,13 +415,13 @@ class TestGetExecutableStatementGroups:
 
         symbols = groups[0].symbols
         expected_symbols = [
-            "result",
-            "func",
-            "param1",
-            "param2",
-            "array",
-            "index",
-            "variable",
+            'result',
+            'func',
+            'param1',
+            'param2',
+            'array',
+            'index',
+            'variable',
         ]
         for symbol in expected_symbols:
             assert symbol in symbols
@@ -441,8 +441,8 @@ class TestGetExecutableStatementGroups:
         assert len(groups) == 1
 
         # Condition should have newlines removed in path
-        path_str = " ".join(groups[0].path)
-        assert "\n" not in path_str
+        path_str = ' '.join(groups[0].path)
+        assert '\n' not in path_str
 
     def test_case_statement_default_handling(self):
         """Test handling of default case in switch statements."""
@@ -458,8 +458,8 @@ class TestGetExecutableStatementGroups:
         groups = get_executable_statement_groups(code)
 
         assert len(groups) == 1
-        path_str = " ".join(groups[0].path)
-        assert "DEFAULT" in path_str
+        path_str = ' '.join(groups[0].path)
+        assert 'DEFAULT' in path_str
 
     def test_invalid_c_code(self):
         """Test with syntactically invalid C code."""
@@ -516,8 +516,8 @@ class TestGetExecutableStatementGroups:
         all_symbols = []
         for group in groups:
             all_symbols.extend(group.symbols)
-        assert "x" in all_symbols
-        assert "y" in all_symbols
+        assert 'x' in all_symbols
+        assert 'y' in all_symbols
 
     def test_statements_before_and_after_control_structure(self):
         """Test statements before and after control structures."""
@@ -539,9 +539,9 @@ class TestGetExecutableStatementGroups:
         all_symbols = []
         for group in groups:
             all_symbols.extend(group.symbols)
-        assert "x" in all_symbols
-        assert "y" in all_symbols
-        assert "z" in all_symbols
+        assert 'x' in all_symbols
+        assert 'y' in all_symbols
+        assert 'z' in all_symbols
 
     def test_empty_function(self):
         """Test with empty function body."""
@@ -597,9 +597,9 @@ class TestGetExecutableStatementGroups:
 
         # Test that string representation works without crashing
         str_repr = str(groups[0])
-        assert "Path:" in str_repr
-        assert "Lines:" in str_repr
-        assert "printf" in str_repr
+        assert 'Path:' in str_repr
+        assert 'Lines:' in str_repr
+        assert 'printf' in str_repr
 
     def test_statement_group_lines_property(self):
         """Test the lines property of statement groups."""
@@ -614,5 +614,5 @@ class TestGetExecutableStatementGroups:
 
         lines = groups[0].lines
         assert len(lines) == 1
-        assert "printf" in lines[0]
-        assert "hello world" in lines[0]
+        assert 'printf' in lines[0]
+        assert 'hello world' in lines[0]

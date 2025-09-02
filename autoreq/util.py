@@ -47,22 +47,22 @@ class StatementGroup(BaseModel):
 
     def __str__(self):
         # First, construct the path
-        path_str = "\n -> ".join(self.path)
+        path_str = '\n -> '.join(self.path)
 
         code_lines = self.code.splitlines()
 
         start_line = min(self.line_numbers)
         end_line = max(self.line_numbers)
 
-        lines_str = "\n".join(code_lines[i] for i in range(start_line, end_line + 1))
+        lines_str = '\n'.join(code_lines[i] for i in range(start_line, end_line + 1))
 
-        return f"Path: {path_str}\nLines:\n{lines_str}"
+        return f'Path: {path_str}\nLines:\n{lines_str}'
 
     @staticmethod
     def from_collected_nodes(collected_nodes, code: str):
-        assert (
-            len(set(tuple(node.path) for node in collected_nodes)) == 1
-        ), "All collected nodes must have the same path"
+        assert len(set(tuple(node.path) for node in collected_nodes)) == 1, (
+            'All collected nodes must have the same path'
+        )
         return StatementGroup(
             line_numbers=[
                 line for node in collected_nodes for line in node.line_numbers
@@ -75,7 +75,7 @@ class StatementGroup(BaseModel):
         )
 
 
-def paths_to_files(paths, file_extensions=["c"]):
+def paths_to_files(paths, file_extensions=['c']):
     """
     Recursively identifies all file paths in the given directory and file paths.
 
@@ -96,7 +96,7 @@ def paths_to_files(paths, file_extensions=["c"]):
                 p
                 for ext in file_extensions
                 for p in glob.glob(
-                    os.path.join(path, "**", "*") + "." + ext, recursive=True
+                    os.path.join(path, '**', '*') + '.' + ext, recursive=True
                 )
             )
 
@@ -127,18 +127,18 @@ class TempCopy:
         # Find a unique filename by appending numbers
         counter = 1
         while True:
-            temp_name = f"{base}_temp_{counter}{ext}"
+            temp_name = f'{base}_temp_{counter}{ext}'
             self.temp_path = os.path.join(source_dir, temp_name)
             if not os.path.exists(self.temp_path):
                 break
             counter += 1
 
         # Copy content with optional transformation
-        with open(self.source_path, "r") as src:
+        with open(self.source_path, 'r') as src:
             content = src.read()
             if self.transform:
                 content = self.transform(content)
-            with open(self.temp_path, "w") as dst:
+            with open(self.temp_path, 'w') as dst:
                 dst.write(content)
 
         return self.temp_path
@@ -149,8 +149,8 @@ class TempCopy:
 
 
 def replace_func_and_var(code: str):
-    FUNC_REGEX = re.compile(r"FUNC\((\w+?), ?\w+?\)")
-    VAR_REGEX = re.compile(r"VAR\((\w+?), ?\w+?\)")
+    FUNC_REGEX = re.compile(r'FUNC\((\w+?), ?\w+?\)')
+    VAR_REGEX = re.compile(r'VAR\((\w+?), ?\w+?\)')
 
     def replace(match):
         return match.group(1)
@@ -177,7 +177,7 @@ def ensure_env(required_keys, fallback, force_fallback=False):
 class EnvStore:
     def __init__(self):
         self._cache_dir = Path(user_cache_dir(APP_NAME))
-        self._cache_file = self._cache_dir / "env_cache.enc"
+        self._cache_file = self._cache_dir / 'env_cache.enc'
         self._cache: Dict[str, str] = {}
         self._fernet = self._setup_encryption()
         self._load_cache()
@@ -186,7 +186,7 @@ class EnvStore:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=b"secure_env_manager_salt",
+            salt=b'secure_env_manager_salt',
             iterations=100000,
         )
         key = base64.urlsafe_b64encode(kdf.derive(APP_NAME.encode()))
@@ -247,10 +247,10 @@ ENV_STORE = EnvStore()
 
 def parse_code(code):
     parser = Parser()
-    CPP_LANGUAGE = Language(ts_cpp.language(), "cpp")
+    CPP_LANGUAGE = Language(ts_cpp.language(), 'cpp')
     parser.set_language(CPP_LANGUAGE)
 
-    tree = parser.parse(bytes(code, "utf-8"))
+    tree = parser.parse(bytes(code, 'utf-8'))
     root_node = tree.root_node
 
     return root_node
@@ -269,13 +269,13 @@ def setup_mlflow(mlflow_arg: t.Tuple[str, str]) -> t.Optional[t.Any]:
     try:
         import mlflow
     except ImportError:
-        print("Warning: mlflow is not installed. MLflow tracking is disabled.")
+        print('Warning: mlflow is not installed. MLflow tracking is disabled.')
         return None
 
     # Set longer timeout for artifact uploads
-    os.environ["MLFLOW_ARTIFACT_UPLOAD_DOWNLOAD_TIMEOUT"] = "1800"
+    os.environ['MLFLOW_ARTIFACT_UPLOAD_DOWNLOAD_TIMEOUT'] = '1800'
 
-    mlflow_server = os.environ.get("AUTOREQ_MLFLOW_SERVER")
+    mlflow_server = os.environ.get('AUTOREQ_MLFLOW_SERVER')
     # Use server from config if available
     if mlflow_server:
         mlflow.set_tracking_uri(mlflow_server)
@@ -285,7 +285,7 @@ def setup_mlflow(mlflow_arg: t.Tuple[str, str]) -> t.Optional[t.Any]:
 
     mlflow.set_experiment(experiment_name)
     mlflow.start_run(run_name=run_name)
-    mlflow.set_tag("mlflow.runName", run_name)
+    mlflow.set_tag('mlflow.runName', run_name)
 
     return mlflow
 
@@ -296,17 +296,17 @@ def setup_mlflow_params(
     # Convert lists and other non-string types to strings for MLflow
     for k, v in params.items():
         if isinstance(v, list):
-            params[k] = ",".join(map(str, v))
+            params[k] = ','.join(map(str, v))
         elif not isinstance(v, (str, int, float, bool)):
             params[k] = str(v)
     mlflow.log_params(params)
 
     # Log information about the environments being processed
     mlflow.log_param(
-        "environments",
-        ",".join([Path(pair.split(":")[0]).stem for pair in expanded_env_req_pairs]),
+        'environments',
+        ','.join([Path(pair.split(':')[0]).stem for pair in expanded_env_req_pairs]),
     )
-    mlflow.log_param("num_environments", len(expanded_env_req_pairs))
+    mlflow.log_param('num_environments', len(expanded_env_req_pairs))
 
 
 def expand_environment_args(env_args: t.List[str]) -> t.List[str]:
@@ -316,13 +316,13 @@ def expand_environment_args(env_args: t.List[str]) -> t.List[str]:
     """
     expanded_args = []
     for arg in env_args:
-        if arg.startswith("@"):
+        if arg.startswith('@'):
             filepath = arg[1:]  # Remove the @ prefix
             try:
                 file_envs = read_environments_from_file(filepath)
                 expanded_args.extend(file_envs)
             except Exception as e:
-                print(f"Error reading environments from file {filepath}: {e}")
+                print(f'Error reading environments from file {filepath}: {e}')
         else:
             expanded_args.append(arg)
     return expanded_args
@@ -331,28 +331,28 @@ def expand_environment_args(env_args: t.List[str]) -> t.List[str]:
 def read_environments_from_file(filepath: str) -> t.List[str]:
     """Read environment paths from a file, one per line."""
     if not os.path.exists(filepath):
-        raise FileNotFoundError(f"Environment list file not found: {filepath}")
+        raise FileNotFoundError(f'Environment list file not found: {filepath}')
 
-    with open(filepath, "r") as f:
+    with open(filepath, 'r') as f:
         # Read all lines and strip whitespace, skipping empty lines and comments
         return [
             line.strip()
             for line in f.readlines()
-            if line.strip() and not line.strip().startswith("#")
+            if line.strip() and not line.strip().startswith('#')
         ]
 
 
 def write_env_result(result, output_dir: Path) -> None:
     """Write individual environment results to a JSON file."""
     env_name = Path(result.environment_path).stem
-    result_path = output_dir / f"{env_name}_result.json"
-    with open(result_path, "w") as f:
+    result_path = output_dir / f'{env_name}_result.json'
+    with open(result_path, 'w') as f:
         json.dump(result.model_dump(by_alias=True), f, indent=2)
 
 
 def get_processed_environments(output_dir: Path) -> set:
     """Get set of environment names that have already been processed."""
-    return {p.stem.replace("_result", "") for p in output_dir.glob("*_result.json")}
+    return {p.stem.replace('_result', '') for p in output_dir.glob('*_result.json')}
 
 
 def format_time(seconds):
@@ -360,13 +360,13 @@ def format_time(seconds):
     one_minute = 60
     one_hour = 3600
     if seconds < one_minute:
-        return f"{seconds:.2f} seconds"
+        return f'{seconds:.2f} seconds'
     elif seconds < one_hour:
         minutes = seconds / one_minute
-        return f"{minutes:.2f} minutes"
+        return f'{minutes:.2f} minutes'
     else:
         hours = seconds / one_hour
-        return f"{hours:.2f} hours"
+        return f'{hours:.2f} hours'
 
 
 def average_set(sets, threshold_frequency=0.5):
@@ -387,38 +387,38 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
         Pruned source code as string
     """
     PROTECTED_CHILDREN = {
-        "if_statement": ["condition"],
-        "for_statement": ["initializer", "condition", "update"],
-        "while_statement": ["condition"],
-        "switch_statement": ["condition"],
-        "case_statement": ["value", "break_statement"],
-        "do_statement": ["condition"],
-        "function_definition": ["type", "declarator", "parameters"],
-        "else_clause": ["condition"],
-        "expression_statement": "*",
-        "return_statement": "*",
-        "throw_statement": "*",
-        "break_statement": "*",
-        "continue_statement": "*",
-        "comment": "*",
+        'if_statement': ['condition'],
+        'for_statement': ['initializer', 'condition', 'update'],
+        'while_statement': ['condition'],
+        'switch_statement': ['condition'],
+        'case_statement': ['value', 'break_statement'],
+        'do_statement': ['condition'],
+        'function_definition': ['type', 'declarator', 'parameters'],
+        'else_clause': ['condition'],
+        'expression_statement': '*',
+        'return_statement': '*',
+        'throw_statement': '*',
+        'break_statement': '*',
+        'continue_statement': '*',
+        'comment': '*',
     }
 
     PROTECTED_LEAFS = [
-        ":",
-        ",",
-        ";",
-        "{",
-        "}",
-        "(",
-        ")",
-        "if",
-        "else",
-        "for",
-        "while",
-        "do",
-        "switch",
-        "case",
-        "default",
+        ':',
+        ',',
+        ';',
+        '{',
+        '}',
+        '(',
+        ')',
+        'if',
+        'else',
+        'for',
+        'while',
+        'do',
+        'switch',
+        'case',
+        'default',
     ]
 
     def node_contains_line(node, line_number):
@@ -430,7 +430,7 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
     def is_protected(node, parent):
         protected_roles = PROTECTED_CHILDREN.get(parent.type, [])
 
-        if protected_roles == "*":
+        if protected_roles == '*':
             return True
 
         return any(
@@ -439,12 +439,12 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
         )
 
     def removable_ranges(node):
-        if node.type == "for_statement":
+        if node.type == 'for_statement':
             # print(node.sexp())
             pass
 
         # Just pass through compount statements in case we would remove something here
-        if node.type == "compound_statement":
+        if node.type == 'compound_statement':
             return [r for child in node.children for r in removable_ranges(child)]
 
         if not node_contains_any_line(node) and node.type not in PROTECTED_LEAFS:
@@ -492,15 +492,15 @@ def prune_code(code: str, line_numbers_to_keep: List[int]) -> str:
             end_pos = to_str_position(code, end[0], end[1])
             code = code[:start_pos] + code[end_pos:]
 
-        code = re.sub(r"(\n\s*)+\n", "\n", code)
+        code = re.sub(r'(\n\s*)+\n', '\n', code)
 
         return code
 
     parser = Parser()
-    CPP_LANGUAGE = Language(ts_cpp.language(), "cpp")
+    CPP_LANGUAGE = Language(ts_cpp.language(), 'cpp')
     parser.set_language(CPP_LANGUAGE)
 
-    code_bytes = code.encode("utf-8")
+    code_bytes = code.encode('utf-8')
     tree = parser.parse(code_bytes)
 
     ranges = merge_ranges(removable_ranges(tree.root_node))
@@ -522,27 +522,27 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
     # print(root_node.sexp())
 
     COLLECTED_NODE_TYPES = [
-        "expression_statement",
-        "return_statement",
-        "throw_statement",
+        'expression_statement',
+        'return_statement',
+        'throw_statement',
         #'break_statement',
         #'continue_statement',
     ]
 
     IGNORED_NODE_TYPES = [
-        "comment",
+        'comment',
     ]
 
     PATH_NODE_CHILD_PATH_LABELS = {
-        "if_statement": {
-            "consequence": "IF {} ==> TRUE",
-            "alternative": "IF {} ==> FALSE",
+        'if_statement': {
+            'consequence': 'IF {} ==> TRUE',
+            'alternative': 'IF {} ==> FALSE',
         },
-        "while_statement": {"body": "WHILE {} ==> TRUE"},
-        "for_statement": {"body": "FOR ({}) ==> TRUE"},
-        "do_statement": {"body": "DO-WHILE {} ==> TRUE"},
-        "switch_statement": {"body": "SWITCH {} ==> ENTERED"},
-        "case_statement": {"*": "CASE {} ==> ENTERED"},
+        'while_statement': {'body': 'WHILE {} ==> TRUE'},
+        'for_statement': {'body': 'FOR ({}) ==> TRUE'},
+        'do_statement': {'body': 'DO-WHILE {} ==> TRUE'},
+        'switch_statement': {'body': 'SWITCH {} ==> ENTERED'},
+        'case_statement': {'*': 'CASE {} ==> ENTERED'},
         #'try_statement': {
         #    'body': 'ENTERED'
         # },
@@ -553,21 +553,21 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
     }
 
     PATH_NODE_CHILD_PATH_CONDITION = {
-        "if_statement": "condition",
-        "while_statement": "condition",
-        "for_statement": "condition",
-        "do_statement": "condition",
-        "switch_statement": "condition",
-        "case_statement": "value",
+        'if_statement': 'condition',
+        'while_statement': 'condition',
+        'for_statement': 'condition',
+        'do_statement': 'condition',
+        'switch_statement': 'condition',
+        'case_statement': 'value',
     }
 
     # Define non-entry path labels for each construct type
     PATH_NODE_NON_ENTRY_LABELS = {
-        "if_statement": "IF {condition} ==> FALSE",
-        "while_statement": "WHILE {condition} ==> FALSE",
-        "for_statement": "FOR ({condition}) ==> FALSE",
-        "do_statement": "DO-WHILE {condition} ==> FALSE",
-        "switch_statement": "SWITCH {condition} ==> NO_MATCH",
+        'if_statement': 'IF {condition} ==> FALSE',
+        'while_statement': 'WHILE {condition} ==> FALSE',
+        'for_statement': 'FOR ({condition}) ==> FALSE',
+        'do_statement': 'DO-WHILE {condition} ==> FALSE',
+        'switch_statement': 'SWITCH {condition} ==> NO_MATCH',
     }
 
     class CollectedNode(BaseModel):
@@ -580,8 +580,8 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
         symbols = set()
 
         def visit_node(node):
-            if node.type in ("identifier", "type_identifier", "field_identifier"):
-                symbols.add(node.text.decode("utf-8"))
+            if node.type in ('identifier', 'type_identifier', 'field_identifier'):
+                symbols.add(node.text.decode('utf-8'))
             for child in node.children:
                 visit_node(child)
 
@@ -611,20 +611,20 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
             condition = node.child_by_field_name(
                 PATH_NODE_CHILD_PATH_CONDITION[node.type]
             )
-            if not condition and node.type == "case_statement":
+            if not condition and node.type == 'case_statement':
                 path_labels = {
-                    field: re.sub(r"\s{2,}", " ", "DEFAULT ==> ENTERED")
+                    field: re.sub(r'\s{2,}', ' ', 'DEFAULT ==> ENTERED')
                     for field in PATH_NODE_CHILD_PATH_LABELS[node.type]
                 }
-                condition_text = "default"
+                condition_text = 'default'
             else:
-                condition_text = condition.text.decode("utf-8") if condition else "None"
+                condition_text = condition.text.decode('utf-8') if condition else 'None'
                 path_labels = {
                     field: re.sub(
-                        r"\s{2,}",
-                        " ",
+                        r'\s{2,}',
+                        ' ',
                         PATH_NODE_CHILD_PATH_LABELS[node.type][field].format(
-                            condition_text.replace("\n", "")
+                            condition_text.replace('\n', '')
                         ),
                     )
                     for field in PATH_NODE_CHILD_PATH_LABELS[node.type]
@@ -656,7 +656,7 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
                 ),
                 None,
             )
-            path_label = path_labels.get(field_name) or path_labels.get("*")
+            path_label = path_labels.get(field_name) or path_labels.get('*')
 
             if path_label:
                 new_path = [*curr_path, path_label]
@@ -671,7 +671,7 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
             # For everything except case statements, we can create virtual groups for each individual child independently
             # For case statements, we only create a virtual group if it's the last child (as the children are flat inside the ast)
             other_children_disallow_virtual_group = (
-                node.type == "case_statement" and any_prior_child_had_groups
+                node.type == 'case_statement' and any_prior_child_had_groups
             ) or i != len(node.children) - 1
 
             if (
@@ -703,33 +703,33 @@ def get_executable_statement_groups(code: str, include_virtual_groups: bool = Fa
 
             # Special handling for if/switch - don't create non-entry if there's else/default
             create_non_entry = True
-            if node.type == "if_statement":
+            if node.type == 'if_statement':
                 # Check if there's an else clause
-                alternative = node.child_by_field_name("alternative")
+                alternative = node.child_by_field_name('alternative')
                 if alternative:
                     create_non_entry = False
-            elif node.type == "switch_statement":
+            elif node.type == 'switch_statement':
                 # Check if there's a default case in the switch body
-                switch_body = node.child_by_field_name("body")
+                switch_body = node.child_by_field_name('body')
                 if switch_body:
                     for child in switch_body.children:
-                        if child.type == "case_statement":
-                            case_value = child.child_by_field_name("value")
+                        if child.type == 'case_statement':
+                            case_value = child.child_by_field_name('value')
                             if not case_value:  # This indicates a default case
                                 create_non_entry = False
                                 break
-            elif node.type == "case_statement":
+            elif node.type == 'case_statement':
                 # For case statements, we don't create non-entry paths
                 create_non_entry = False
 
             if create_non_entry:
                 # Create non-entry path using the template
-                condition_clean = (condition_text or "").replace("\n", "")
+                condition_clean = (condition_text or '').replace('\n', '')
                 template = PATH_NODE_NON_ENTRY_LABELS.get(node.type)
 
-                assert (
-                    template
-                ), f"No non-entry path label template defined for {node.type}"
+                assert template, (
+                    f'No non-entry path label template defined for {node.type}'
+                )
 
                 non_entry_path_label = template.format(condition=condition_clean)
 
@@ -797,12 +797,12 @@ async def get_relevant_statement_groups(
         return results_first100 + results_rest
 
     result_keys = {
-        f"group_indices_for_requirement_{i + 1}": (List[int], ...)
+        f'group_indices_for_requirement_{i + 1}': (List[int], ...)
         for i in range(len(requirements))
     }
-    schema = create_model("GenerationResult", **result_keys)
+    schema = create_model('GenerationResult', **result_keys)
 
-    requirements_text = "\n".join([f"{i + 1}. {r}" for i, r in enumerate(requirements)])
+    requirements_text = '\n'.join([f'{i + 1}. {r}' for i, r in enumerate(requirements)])
 
     all_groups = get_executable_statement_groups(
         function_body, include_virtual_groups=True
@@ -810,19 +810,19 @@ async def get_relevant_statement_groups(
 
     prettified_groups = []
     for i, part in enumerate(all_groups):
-        index_prefix = f"{i + 1}. "
+        index_prefix = f'{i + 1}. '
         prettified_groups.append(index_prefix + str(part))
 
-    groups_text = "\n".join(prettified_groups)
+    groups_text = '\n'.join(prettified_groups)
 
     messages = [
         {
-            "role": "system",
-            "content": "You are a world-class software engineer specializing in requirements engineering.",
+            'role': 'system',
+            'content': 'You are a world-class software engineer specializing in requirements engineering.',
         },
         {
-            "role": "user",
-            "content": f"""
+            'role': 'user',
+            'content': f"""
 Given the following code and a list of semantic parts of the code, identify the relevant parts of the code that are necessary to test the following requiremens. Return a list of indices of the relevant parts of the code for each requirement.
 
 Code:
@@ -889,40 +889,40 @@ def is_prefix(prefix, lst):
 
 def get_vectorcast_cmd(executable: str, args: List[str] = None) -> List[str]:
     """Generate a properly formatted VectorCAST command based on the OS."""
-    is_windows = platform.system() == "Windows"
-    exe_ext = ".exe" if is_windows else ""
-    exe_name = f"{executable}{exe_ext}"
+    is_windows = platform.system() == 'Windows'
+    exe_ext = '.exe' if is_windows else ''
+    exe_name = f'{executable}{exe_ext}'
 
     # Priority 1: Check VSCODE_VECTORCAST_DIR
-    vscode_vectorcast_dir = os.environ.get("VSCODE_VECTORCAST_DIR")
+    vscode_vectorcast_dir = os.environ.get('VSCODE_VECTORCAST_DIR')
     if vscode_vectorcast_dir:
         exe_path = os.path.join(vscode_vectorcast_dir, exe_name)
         if os.path.exists(exe_path):
             logging.debug(
-                f"Using VectorCAST {exe_name} from VSCODE_VECTORCAST_DIR: {exe_path}"
+                f'Using VectorCAST {exe_name} from VSCODE_VECTORCAST_DIR: {exe_path}'
             )
             return [exe_path] + (args or [])
 
     # Priority 2: Check VECTORCAST_DIR
-    vectorcast_dir = os.environ.get("VECTORCAST_DIR")
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR')
     if vectorcast_dir:
         exe_path = os.path.join(vectorcast_dir, exe_name)
         if os.path.exists(exe_path):
             logging.debug(
-                f"Using VectorCAST {exe_name} from VECTORCAST_DIR: {exe_path}"
+                f'Using VectorCAST {exe_name} from VECTORCAST_DIR: {exe_path}'
             )
             return [exe_path] + (args or [])
 
     # Priority 3: Check if executable is available on PATH
     path_exe = shutil.which(exe_name)
     if path_exe:
-        logging.debug(f"Using VectorCAST {exe_name} from PATH: {path_exe}")
+        logging.debug(f'Using VectorCAST {exe_name} from PATH: {path_exe}')
         return [path_exe] + (args or [])
 
     # Fallback: Return VECTORCAST_DIR path even if it doesn't exist
-    vectorcast_dir = os.environ.get("VECTORCAST_DIR", "")
+    vectorcast_dir = os.environ.get('VECTORCAST_DIR', '')
     exe_path = os.path.join(vectorcast_dir, exe_name)
-    logging.debug(f"Falling back to VECTORCAST_DIR (may not exist): {exe_path}")
+    logging.debug(f'Falling back to VECTORCAST_DIR (may not exist): {exe_path}')
     return [exe_path] + (args or [])
 
 
@@ -931,16 +931,16 @@ def sanitize_subprogram_name(subprogram_name: str) -> str:
     Sanitize a subprogram name by removing any template or overloading parts.
     """
 
-    last_name = ""
+    last_name = ''
     while last_name != subprogram_name:
         last_name = subprogram_name
 
-        sanitized_name = re.sub(r"<[^<>]*?>", "", subprogram_name)
+        sanitized_name = re.sub(r'<[^<>]*?>', '', subprogram_name)
 
         subprogram_name = sanitized_name
 
     # Now remove overloading parts
-    subprogram_name = subprogram_name.split("(")[
+    subprogram_name = subprogram_name.split('(')[
         0
     ]  # Remove everything after the first '('
 
@@ -949,7 +949,7 @@ def sanitize_subprogram_name(subprogram_name: str) -> str:
 
 def expand_env_paths(env_dirs) -> t.List[str]:
     def extract_from_file(file_path: str) -> t.List[Path]:
-        with open(os.path.expandvars(file_path), "r") as f:
+        with open(os.path.expandvars(file_path), 'r') as f:
             return [
                 Path(os.path.expandvars(line.strip()))
                 for line in f.readlines()
@@ -957,23 +957,23 @@ def expand_env_paths(env_dirs) -> t.List[str]:
             ]
 
     if isinstance(env_dirs, list):
-        if env_dirs[0].startswith("@"):
+        if env_dirs[0].startswith('@'):
             envs = extract_from_file(env_dirs[0][1:])
         else:
             envs = [Path(os.path.expandvars(env_dir)) for env_dir in env_dirs]
     elif isinstance(env_dirs, str):
-        if env_dirs.startswith("@"):
+        if env_dirs.startswith('@'):
             envs = extract_from_file(env_dirs[1:])
         else:
             envs = [Path(os.path.expandvars(env_dirs))]
     elif isinstance(env_dirs, Path):
         envs = [Path(os.path.expandvars(str(env_dirs)))]
     else:
-        raise ValueError("Invalid input for environment directories.")
+        raise ValueError('Invalid input for environment directories.')
 
-    assert all(
-        env.is_file() and env.suffix == ".env" for env in envs
-    ), "One or more environment paths are not valid .env files."
+    assert all(env.is_file() and env.suffix == '.env' for env in envs), (
+        'One or more environment paths are not valid .env files.'
+    )
     return [str(env) for env in envs]
 
 
@@ -983,24 +983,24 @@ def generate_clicast_html_coverage_report(env) -> t.Optional[Path]:
     """
     cmds = [
         get_vectorcast_cmd(
-            "clicast",
+            'clicast',
             [
-                "-lc",
-                "option",
-                "VCAST_CUSTOM_REPORT_FORMAT",
-                "HTML",
+                '-lc',
+                'option',
+                'VCAST_CUSTOM_REPORT_FORMAT',
+                'HTML',
             ],
         ),
         get_vectorcast_cmd(
-            "clicast",
+            'clicast',
             [
-                "-lc",
-                "-e",
+                '-lc',
+                '-e',
                 env.env_name,
-                "REports",
-                "Custom",
-                "Coverage",
-                "coverage.html",
+                'REports',
+                'Custom',
+                'Coverage',
+                'coverage.html',
             ],
         ),
     ]
@@ -1013,58 +1013,58 @@ def generate_clicast_html_coverage_report(env) -> t.Optional[Path]:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    coverage_file = Path(env.env_dir, "coverage.html")
+    coverage_file = Path(env.env_dir, 'coverage.html')
     if not coverage_file.exists():
-        logging.warning(f"Coverage report generation failed for {env.env_name}")
+        logging.warning(f'Coverage report generation failed for {env.env_name}')
         return None
     return coverage_file
 
 
 def _create_source_table(soup: BeautifulSoup):
-    table = soup.new_tag("table", attrs={"class": "table table-small sfp-table"})
+    table = soup.new_tag('table', attrs={'class': 'table table-small sfp-table'})
 
-    thead = soup.new_tag("thead")
-    tr = soup.new_tag("tr")
+    thead = soup.new_tag('thead')
+    tr = soup.new_tag('tr')
 
     th_cursor = soup.new_tag(
-        "th",
+        'th',
         attrs={
-            "class": "sfp_cursor",
-            "onclick": "collapsibleFile(this, 'file2', 'ips_file2')",
+            'class': 'sfp_cursor',
+            'onclick': "collapsibleFile(this, 'file2', 'ips_file2')",
         },
     )
     span_plus = soup.new_tag(
-        "span",
+        'span',
         attrs={
-            "class": "sfp-span expansion_row_icon_plus",
-            "id": "expansion_file_icon_plus_file2",
+            'class': 'sfp-span expansion_row_icon_plus',
+            'id': 'expansion_file_icon_plus_file2',
         },
     )
-    span_plus.string = "+"
+    span_plus.string = '+'
     span_minus = soup.new_tag(
-        "span",
+        'span',
         attrs={
-            "class": "sfp-span expansion_row_icon_minus",
-            "id": "expansion_file_icon_minus_file2",
+            'class': 'sfp-span expansion_row_icon_minus',
+            'id': 'expansion_file_icon_minus_file2',
         },
     )
-    span_minus.string = "-"
+    span_minus.string = '-'
 
     th_cursor.append(span_plus)
     th_cursor.append(span_minus)
 
-    th_line = soup.new_tag("th", attrs={"class": "sfp_number"})
-    th_line.string = "Line"
+    th_line = soup.new_tag('th', attrs={'class': 'sfp_number'})
+    th_line.string = 'Line'
 
-    th_color = soup.new_tag("th", attrs={"class": "sfp_color"})
+    th_color = soup.new_tag('th', attrs={'class': 'sfp_color'})
 
-    th_st = soup.new_tag("th", attrs={"class": "sfp_coverage"})
-    th_st.string = "St"
+    th_st = soup.new_tag('th', attrs={'class': 'sfp_coverage'})
+    th_st.string = 'St'
 
-    th_br = soup.new_tag("th", attrs={"class": "sfp_coverage"})
-    th_br.string = "Br"
+    th_br = soup.new_tag('th', attrs={'class': 'sfp_coverage'})
+    th_br.string = 'Br'
 
-    th_empty = soup.new_tag("th")
+    th_empty = soup.new_tag('th')
 
     for th_element in (th_cursor, th_line, th_color, th_st, th_br, th_empty):
         tr.append(th_element)
@@ -1090,65 +1090,65 @@ def generate_custom_coverage_reports(
     Source content comes from the TU content of the environment, which is the same content used to
     generate the requirements.
     """
-    tu_content = env.get_tu_content(reduction_level="high")
+    tu_content = env.get_tu_content(reduction_level='high')
     all_funcs = env.functions_info()
 
-    with open(original_coverage_report, "r") as f:
-        cov_html = BeautifulSoup(f, "html.parser")
+    with open(original_coverage_report, 'r') as f:
+        cov_html = BeautifulSoup(f, 'html.parser')
 
     # Remove the Metrics section from the coverage report's bottom
-    metrics_link = cov_html.find("a", href="#Metrics")
+    metrics_link = cov_html.find('a', href='#Metrics')
     if metrics_link:
-        metrics_li = metrics_link.find_parent("li")
+        metrics_li = metrics_link.find_parent('li')
         if metrics_li:
             metrics_li.decompose()
-    metrics_section = cov_html.find("a", id="Metrics")
+    metrics_section = cov_html.find('a', id='Metrics')
     if metrics_section:
-        report_block = metrics_section.find_parent("div", class_="report-block")
+        report_block = metrics_section.find_parent('div', class_='report-block')
         if report_block:
             report_block.decompose()
 
     # Cleaning up the coverage report
-    coverage_div = cov_html.find("div", class_="report-block-coverage")
+    coverage_div = cov_html.find('div', class_='report-block-coverage')
     for children in coverage_div.find_all(recursive=False):
-        if children.name == "div" and children.get("class") == ["row"]:
+        if children.name == 'div' and children.get('class') == ['row']:
             continue
         children.decompose()
 
     source_table = _create_source_table(cov_html)
     coverage_div.append(source_table)
 
-    uncovered_required_color = "#e93939"
-    covered_required_color = "#6ee96e"
-    covered_color = "#c8f0c8"
-    td_style = "width: 2em;min-width: 2em;background-color: {color}"
+    uncovered_required_color = '#e93939'
+    covered_required_color = '#6ee96e'
+    covered_color = '#c8f0c8'
+    td_style = 'width: 2em;min-width: 2em;background-color: {color}'
 
     for rcr in requirement_coverage_results:
-        if not full_coverage_report and rcr["fully_covered"]:
+        if not full_coverage_report and rcr['fully_covered']:
             continue
 
-        tbody = cov_html.new_tag("tbody")
+        tbody = cov_html.new_tag('tbody')
         source_table.append(tbody)
 
         all_table_rows = []  # List to hold all HTML lines for source code
-        for i, line in enumerate(tu_content.split("\n")):
-            tr = cov_html.new_tag("tr")
+        for i, line in enumerate(tu_content.split('\n')):
+            tr = cov_html.new_tag('tr')
             cells = [
-                ("sfp_coverage", " "),
-                ("sfp_number", str(i + 1)),
-                ("sfp_color", None),
-                ("sfp_coverage", " "),
-                ("sfp_coverage", "   "),
+                ('sfp_coverage', ' '),
+                ('sfp_number', str(i + 1)),
+                ('sfp_color', None),
+                ('sfp_coverage', ' '),
+                ('sfp_coverage', '   '),
             ]
             for cls, text in cells:
-                td = cov_html.new_tag("td", attrs={"class": cls})
+                td = cov_html.new_tag('td', attrs={'class': cls})
                 if text is not None:
                     td.string = text
                 tr.append(td)
 
-            td = cov_html.new_tag("td")
-            code = cov_html.new_tag("code", attrs={"class": "sfp-code"})
-            span = cov_html.new_tag("span")
+            td = cov_html.new_tag('td')
+            code = cov_html.new_tag('code', attrs={'class': 'sfp-code'})
+            span = cov_html.new_tag('span')
             span.string = line
             code.append(span)
             td.append(code)
@@ -1157,24 +1157,24 @@ def generate_custom_coverage_reports(
             tbody.append(tr)
             all_table_rows.append(tr)
 
-        req_id = rcr["requirement_id"]
-        func_info = all_funcs[rcr["function"]]
-        start_line = func_info["start_line"]
-        for line in rcr["covered_lines"]:
-            all_table_rows[start_line + line].find_all("td")[2]["style"] = (
+        req_id = rcr['requirement_id']
+        func_info = all_funcs[rcr['function']]
+        start_line = func_info['start_line']
+        for line in rcr['covered_lines']:
+            all_table_rows[start_line + line].find_all('td')[2]['style'] = (
                 td_style.format(color=covered_color)
             )
-        for line in rcr["required_lines"]:
+        for line in rcr['required_lines']:
             c = (
                 covered_required_color
-                if line in rcr["covered_lines"]
+                if line in rcr['covered_lines']
                 else uncovered_required_color
             )
-            all_table_rows[start_line + line].find_all("td")[2]["style"] = (
+            all_table_rows[start_line + line].find_all('td')[2]['style'] = (
                 td_style.format(color=c)
             )
 
-        with open(output_dir / f"{req_id}_coverage.html", "w") as f:
+        with open(output_dir / f'{req_id}_coverage.html', 'w') as f:
             f.write(str(cov_html))
 
         tbody.decompose()
@@ -1399,8 +1399,8 @@ def extract_code_symbols(code):
     symbols = set()
 
     def visit_node(node):
-        if node.type in ("identifier", "type_identifier", "field_identifier"):
-            symbols.add(node.text.decode("utf-8"))
+        if node.type in ('identifier', 'type_identifier', 'field_identifier'):
+            symbols.add(node.text.decode('utf-8'))
         for child in node.children:
             visit_node(child)
 
@@ -1443,23 +1443,23 @@ def execute_command(
     try:
         # Prepare subprocess.run arguments
         run_kwargs = {
-            "cwd": cwd,
-            "env": env_vars,
-            "timeout": timeout,
-            "check": check,
-            "shell": shell,
+            'cwd': cwd,
+            'env': env_vars,
+            'timeout': timeout,
+            'check': check,
+            'shell': shell,
         }
 
         if capture_output:
             run_kwargs.update(
                 {
-                    "stdout": subprocess.PIPE,
-                    "stderr": subprocess.PIPE,
+                    'stdout': subprocess.PIPE,
+                    'stderr': subprocess.PIPE,
                 }
             )
 
         if text:
-            run_kwargs["text"] = True
+            run_kwargs['text'] = True
 
         result = subprocess.run(cmd, **run_kwargs)  # noqa: PLW1510
 
@@ -1472,60 +1472,60 @@ def execute_command(
                 )
                 if not output_path.exists():
                     logging.warning(
-                        "Command succeeded but expected output file not found",
+                        'Command succeeded but expected output file not found',
                         extra={
-                            "command": (
-                                " ".join(cmd) if isinstance(cmd, list) else str(cmd)
-                            ),
-                            "output_file": str(output_path),
+                            'command': ' '.join(cmd)
+                            if isinstance(cmd, list)
+                            else str(cmd),
+                            'output_file': str(output_path),
                         },
                     )
                     return None
             logging.debug(
-                "Command executed successfully",
+                'Command executed successfully',
                 extra={
-                    "command": " ".join(cmd) if isinstance(cmd, list) else str(cmd),
-                    "return_code": result.returncode,
-                    "stdout": getattr(result, "stdout", None),
-                    "stderr": getattr(result, "stderr", None),
+                    'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+                    'return_code': result.returncode,
+                    'stdout': getattr(result, 'stdout', None),
+                    'stderr': getattr(result, 'stderr', None),
                 },
             )
             return result
         else:
             logging.debug(
-                "Command failed",
+                'Command failed',
                 extra={
-                    "command": " ".join(cmd) if isinstance(cmd, list) else str(cmd),
-                    "return_code": result.returncode,
-                    "stdout": getattr(result, "stdout", None),
-                    "stderr": getattr(result, "stderr", None),
+                    'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+                    'return_code': result.returncode,
+                    'stdout': getattr(result, 'stdout', None),
+                    'stderr': getattr(result, 'stderr', None),
                 },
             )
             return None
 
     except subprocess.TimeoutExpired:
         logging.error(
-            "Command timed out",
+            'Command timed out',
             extra={
-                "command": " ".join(cmd) if isinstance(cmd, list) else str(cmd),
-                "timeout": timeout,
+                'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+                'timeout': timeout,
             },
         )
         return None
     except FileNotFoundError:
         logging.debug(
-            "Command executable not found",
+            'Command executable not found',
             extra={
-                "command": " ".join(cmd) if isinstance(cmd, list) else str(cmd),
+                'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
             },
         )
         return None
     except Exception as e:
         logging.error(
-            "Unexpected error executing command",
+            'Unexpected error executing command',
             extra={
-                "command": " ".join(cmd) if isinstance(cmd, list) else str(cmd),
-                "error": str(e),
+                'command': ' '.join(cmd) if isinstance(cmd, list) else str(cmd),
+                'error': str(e),
             },
         )
         return None

@@ -24,19 +24,19 @@ class RequirementDescriptionSchema(BaseModel):
 
 async def decompose_requirements_batched(requirements, llm_client):
     try:
-        requirements_text = "\n".join(
-            f"{i + 1}. " + req.description for i, req in enumerate(requirements)
+        requirements_text = '\n'.join(
+            f'{i + 1}. ' + req.description for i, req in enumerate(requirements)
         )
 
         result = await llm_client.call_model(
             messages=[
                 {
-                    "role": "system",
-                    "content": "You are a world-class software engineer specializing in requirements engineering.",
+                    'role': 'system',
+                    'content': 'You are a world-class software engineer specializing in requirements engineering.',
                 },
                 {
-                    "role": "user",
-                    "content": f"""
+                    'role': 'user',
+                    'content': f"""
 Find non-atomic requirements in the given set of requirements and decompose them.
 
 An atomic requirement is a singular, verifiable, and testable statement. It can be be directly validated by a single test case, following a unique execution path in the software.
@@ -75,7 +75,7 @@ Remember:
             extended_reasoning=True,
         )
     except openai.BadRequestError as e:
-        logging.error(f"Bad request error: {e}")
+        logging.error(f'Bad request error: {e}')
         return requirements
 
     req_mapping = {
@@ -99,9 +99,9 @@ Remember:
             atomic_reqs = []
             for j, atomic_desc in enumerate(potential_decomposition):
                 atomic_req = DecomposedRequirement(
-                    key=f"{original_req.key}.{j + 1}",
-                    id=f"{original_req.id}.{j + 1}",
-                    title=f"{original_req.title} (Subrequirement {j + 1})",
+                    key=f'{original_req.key}.{j + 1}',
+                    id=f'{original_req.id}.{j + 1}',
+                    title=f'{original_req.title} (Subrequirement {j + 1})',
                     description=atomic_desc,
                     location=original_req.location,
                     original_key=original_req.key,
@@ -154,17 +154,17 @@ async def decompose_requirement(requirement_obj, llm_client):
     try:
         result = await llm_client.call_model(
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {'role': 'system', 'content': SYSTEM_PROMPT},
                 {
-                    "role": "user",
-                    "content": f"Create atomic requirements given this customer description: {requirement_obj.description}",
+                    'role': 'user',
+                    'content': f'Create atomic requirements given this customer description: {requirement_obj.description}',
                 },
             ],
             schema=RequirementDescriptionIndividualSchema,
             extended_reasoning=True,
         )
     except openai.BadRequestError as e:
-        logging.error(f"Bad request error: {e}")
+        logging.error(f'Bad request error: {e}')
         return [requirement_obj]
 
     if len(result.atomic_requirements) <= 1:
@@ -174,9 +174,9 @@ async def decompose_requirement(requirement_obj, llm_client):
     atomic_reqs = []
     for j, atomic_desc in enumerate(result.atomic_requirements):
         atomic_req = DecomposedRequirement(
-            key=f"{requirement_obj.key}.{j + 1}",
-            id=f"{requirement_obj.id}.{j + 1}",
-            title=f"{requirement_obj.title} (Subrequirement {j + 1})",
+            key=f'{requirement_obj.key}.{j + 1}',
+            id=f'{requirement_obj.id}.{j + 1}',
+            title=f'{requirement_obj.title} (Subrequirement {j + 1})',
             description=atomic_desc,
             location=requirement_obj.location,
             original_key=requirement_obj.key,
@@ -195,7 +195,7 @@ async def decompose_requirements_individual(requirements, llm_client):
 async def decompose_requirements(
     requirements, individual=False, k=1, threshold_frequency=0.5, llm_client=None
 ):
-    assert k > 0, "k must be greater than 0"
+    assert k > 0, 'k must be greater than 0'
 
     if llm_client is None:
         llm_client = _get_default_llm_client()
@@ -250,15 +250,9 @@ def _merge_decompositions(decompositions, threshold_frequency=0.5):
     """
     # Step 1: Find non-trivial decompositions (requirements that were split into multiple parts)
     # and collect representative decompositions for each requirement
-    non_trivial_decompositions = (
-        {}
-    )  # Maps requirement index -> a decomposition that split it
-    trivial_decompositions = (
-        {}
-    )  # Maps requirement index -> a decomposition that kept it whole
-    decomposed_requirements_by_attempt = (
-        {}
-    )  # Tracks which requirements were decomposed in each attempt
+    non_trivial_decompositions = {}  # Maps requirement index -> a decomposition that split it
+    trivial_decompositions = {}  # Maps requirement index -> a decomposition that kept it whole
+    decomposed_requirements_by_attempt = {}  # Tracks which requirements were decomposed in each attempt
 
     for attempt_idx, decomposition_attempt in enumerate(decompositions):
         decomposed_requirements_by_attempt[attempt_idx] = []

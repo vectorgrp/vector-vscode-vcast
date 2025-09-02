@@ -27,7 +27,7 @@ async def main(
 ):
     if export_line_number:
         logging.warning(
-            "Disabling post-processing of requirements to allow export of covered line numbers"
+            'Disabling post-processing of requirements to allow export of covered line numbers'
         )
 
     environment = Environment(env_path, use_sandbox=False)
@@ -35,11 +35,11 @@ async def main(
     if not environment.is_built:
         if no_automatic_build:
             logging.error(
-                "Environment is not built and --no-automatic-build is set. Exiting."
+                'Environment is not built and --no-automatic-build is set. Exiting.'
             )
             return
         else:
-            logging.info("Environment is not built. Building it now...")
+            logging.info('Environment is not built. Building it now...')
             environment.build()
 
     functions = environment.testable_functions
@@ -58,7 +58,7 @@ async def main(
 
     async def generate_requirements(func):
         nonlocal processed_functions
-        func_name = func["name"]
+        func_name = func['name']
         result = await generator.generate(
             func_name,
             post_process_requirements=not export_line_number,
@@ -67,7 +67,7 @@ async def main(
         progress = processed_functions / total_functions
 
         if json_events:
-            print(json.dumps({"event": "progress", "value": progress}), flush=True)
+            print(json.dumps({'event': 'progress', 'value': progress}), flush=True)
 
         low_level_requirements.extend(result)
 
@@ -97,15 +97,15 @@ async def main(
     failed_functions = [
         req_id
         for req_id, data in info_data.items()
-        if data["requirement_generation_failed"]
+        if data['requirement_generation_failed']
     ]
 
     if failed_functions:
         logging.warning(
-            "Requirement generation failed for functions",
+            'Requirement generation failed for functions',
             extra={
-                "failed_functions": failed_functions,
-                "count": len(failed_functions),
+                'failed_functions': failed_functions,
+                'count': len(failed_functions),
             },
         )
 
@@ -116,15 +116,15 @@ async def main(
         failed_units = [
             unit_name
             for unit_name, data in high_level_info_data.items()
-            if data["high_level_generation_failed"]
+            if data['high_level_generation_failed']
         ]
 
         if failed_units:
             logging.warning(
-                "High-level requirement generation failed for units",
+                'High-level requirement generation failed for units',
                 extra={
-                    "failed_units": failed_units,
-                    "count": len(failed_units),
+                    'failed_units': failed_units,
+                    'count': len(failed_units),
                 },
             )
 
@@ -144,68 +144,68 @@ async def main(
 
     environment.cleanup()
 
-    return generator.llm_client.total_cost["total_cost"], low_level_requirements
+    return generator.llm_client.total_cost['total_cost'], low_level_requirements
 
 
 def cli():
     parser = argparse.ArgumentParser(
-        description="Decompose design of functions into requirements."
+        description='Decompose design of functions into requirements.'
     )
     parser.add_argument(
-        "env_path", help="Path to the VectorCAST environment directory."
+        'env_path', help='Path to the VectorCAST environment directory.'
     )
     parser.add_argument(
-        "--export-csv", help="Path to the output CSV file for requirements."
+        '--export-csv', help='Path to the output CSV file for requirements.'
     )
     parser.add_argument(
-        "--export-html",
-        help="Optional path to the output HTML file for pretty-printed requirements.",
+        '--export-html',
+        help='Optional path to the output HTML file for pretty-printed requirements.',
     )
     parser.add_argument(
-        "--export-excel",
-        help="Path to the output Excel file for requirements.",
+        '--export-excel',
+        help='Path to the output Excel file for requirements.',
     )
     parser.add_argument(
-        "--export-repository",
-        help="Path to the VCAST_REPOSITORY for registering requirements.",
+        '--export-repository',
+        help='Path to the VCAST_REPOSITORY for registering requirements.',
     )
     parser.add_argument(
-        "--json-events", action="store_true", help="Output events in JSON format."
+        '--json-events', action='store_true', help='Output events in JSON format.'
     )
     parser.add_argument(
-        "--overwrite-env",
-        action="store_true",
-        help="Prompt user for environment variables even if they are already set.",
+        '--overwrite-env',
+        action='store_true',
+        help='Prompt user for environment variables even if they are already set.',
     )
     parser.add_argument(
-        "--combine-related-requirements",
-        action="store_true",
-        help="Combine related requirements into a single requirement after initial generation.",
+        '--combine-related-requirements',
+        action='store_true',
+        help='Combine related requirements into a single requirement after initial generation.',
     )
     parser.add_argument(
-        "--extended-reasoning",
-        action="store_true",
-        help="Use extended reasoning for test generation.",
+        '--extended-reasoning',
+        action='store_true',
+        help='Use extended reasoning for test generation.',
     )
     parser.add_argument(
-        "--no-automatic-build",
-        action="store_true",
-        help="If the environment is not built, do not build it automatically.",
+        '--no-automatic-build',
+        action='store_true',
+        help='If the environment is not built, do not build it automatically.',
     )
     parser.add_argument(
-        "--export-covered-lines",
-        action="store_true",
+        '--export-covered-lines',
+        action='store_true',
         help=argparse.SUPPRESS,  # Controls if lines covered by the requirement are exported
     )
     parser.add_argument(
-        "--generate-high-level-requirements",
-        action="store_true",
-        help="Also generate high-level requirements.",
+        '--generate-high-level-requirements',
+        action='store_true',
+        help='Also generate high-level requirements.',
     )
 
     args = parser.parse_args()
 
-    configure_logging("code2reqs")
+    configure_logging('code2reqs')
 
     asyncio.run(
         main(
@@ -223,5 +223,5 @@ def cli():
     )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     cli()

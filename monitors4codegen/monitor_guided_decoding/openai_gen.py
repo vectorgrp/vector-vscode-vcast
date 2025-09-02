@@ -14,7 +14,7 @@ from monitors4codegen.monitor_guided_decoding.tokenizer_wrapper import TikTokenW
 
 
 class OpenAI_Models(Enum):
-    TD3 = "text-davinci-003"
+    TD3 = 'text-davinci-003'
 
 
 def openai_mgd(
@@ -34,7 +34,7 @@ def openai_mgd(
     assert len(prompt_tokenized.shape) == 1
 
     all_tokens: torch.Tensor = prompt_tokenized
-    gen_text: bytes = b""
+    gen_text: bytes = b''
 
     gen_tokens: List[int] = []
 
@@ -100,7 +100,7 @@ def openai_mgd(
         exponential_backoff_wait = 1
         while True:
             try:
-                prompt_arg: str = all_text_bytes.decode("utf-8", errors="strict")
+                prompt_arg: str = all_text_bytes.decode('utf-8', errors='strict')
             except UnicodeDecodeError:
                 prompt_arg: List[int] = all_tokens.tolist()
 
@@ -111,7 +111,7 @@ def openai_mgd(
                     temperature=temp,
                     max_tokens=num_toks_to_gen if len(logit_bias) <= 1 else 1,
                     top_p=top_p,
-                    stop=["."],
+                    stop=['.'],
                     logit_bias=logit_bias,
                     logprobs=5,
                 )
@@ -126,8 +126,8 @@ def openai_mgd(
         assert len(response.choices) == 1
 
         def convert_bytesrep_to_bytes(x: str) -> bytes:
-            if x.startswith("bytes:"):
-                return bytes.fromhex(x.replace("bytes:", "").replace("\\x", ""))
+            if x.startswith('bytes:'):
+                return bytes.fromhex(x.replace('bytes:', '').replace('\\x', ''))
             else:
                 return x.encode()
 
@@ -140,7 +140,7 @@ def openai_mgd(
             gen_text += token_bytes
             all_text_bytes += token_bytes
             tokens_gen_bytes.append(token_bytes)
-            if b"." in token_bytes:
+            if b'.' in token_bytes:
                 dot_found = True
                 break
 
@@ -148,15 +148,15 @@ def openai_mgd(
         # However, when it stops because of the "stop" sequence, the returned text does not contain the stop sequence, and only includes
         # text upto the stop sequence. So, the following code determines if the stop sequence "." needs to be added manually.
         should_manually_add_dot = None
-        if response.choices[0].finish_reason == "stop":
+        if response.choices[0].finish_reason == 'stop':
             if dot_found:
                 should_manually_add_dot = False
             else:
                 should_manually_add_dot = True
-        elif response.choices[0].finish_reason == "length":
+        elif response.choices[0].finish_reason == 'length':
             should_manually_add_dot = False
         else:
-            raise Exception("Unknown finish reason", response.choices[0].finish_reason)
+            raise Exception('Unknown finish reason', response.choices[0].finish_reason)
 
         tokens_gen = list(
             map(lambda x: tokenizer.tokenizer.encode_single_token(x), tokens_gen_bytes)
@@ -164,9 +164,9 @@ def openai_mgd(
 
         assert should_manually_add_dot is not None
         if should_manually_add_dot:
-            gen_text += b"."
-            all_text_bytes += b"."
-            tokens_gen.append(tokenizer.tokenizer.encode_single_token("."))
+            gen_text += b'.'
+            all_text_bytes += b'.'
+            tokens_gen.append(tokenizer.tokenizer.encode_single_token('.'))
 
         if len(logit_bias) > 1:
             assert len(tokens_gen) == 1, (

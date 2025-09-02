@@ -28,7 +28,7 @@ class SwitchEnumMonitor(DereferencesMonitor):
         super().__init__(
             tokenizer, monitor_file_buffer, responsible_for_file_buffer_state
         )
-        self.all_break_chars.remove(".")
+        self.all_break_chars.remove('.')
 
     async def pre(self) -> None:
         cursor_idx = TextUtils.get_index_from_line_col(
@@ -43,7 +43,7 @@ class SwitchEnumMonitor(DereferencesMonitor):
         )[:cursor_idx]
 
         # TODO: pre can be improved by checking for r"switch.*case", and obtaining completions, and then prefixing a whitespace
-        if not text_upto_cursor.endswith("case "):
+        if not text_upto_cursor.endswith('case '):
             self.decoder_state = DecoderStates.S0
             return
 
@@ -63,9 +63,9 @@ class SwitchEnumMonitor(DereferencesMonitor):
                 relative_file_path, line, column
             )
             legal_completions = [
-                completion["completionText"]
+                completion['completionText']
                 for completion in legal_completions
-                if completion["kind"] == multilspy_types.CompletionItemKind.EnumMember
+                if completion['kind'] == multilspy_types.CompletionItemKind.EnumMember
             ]
 
             return legal_completions

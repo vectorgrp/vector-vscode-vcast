@@ -17,53 +17,53 @@ def find_project_modules(base_package_name):
         base_package = importlib.import_module(base_package_name)
         modules.add(base_package_name)
 
-        if hasattr(base_package, "__path__"):
+        if hasattr(base_package, '__path__'):
             base_dir = base_package.__path__[0]
     except Exception as e:
-        print(f"Warning: Could not import {base_package_name}: {e}")
+        print(f'Warning: Could not import {base_package_name}: {e}')
         # Try to find the package directory manually
         for path in sys.path:
             potential_dir = os.path.join(path, base_package_name)
             if os.path.isdir(potential_dir) and os.path.exists(
-                os.path.join(potential_dir, "__init__.py")
+                os.path.join(potential_dir, '__init__.py')
             ):
                 base_dir = potential_dir
                 break
 
     if not base_dir:
-        print(f"Could not find directory for package {base_package_name}")
+        print(f'Could not find directory for package {base_package_name}')
         return modules
 
     # Walk the directory structure to find all Python files
     for root, dirs, files in os.walk(base_dir):
         # Skip __pycache__ directories
-        if "__pycache__" in root:
+        if '__pycache__' in root:
             continue
 
         # Process Python files
         for file in files:
-            if not file.endswith(".py"):
+            if not file.endswith('.py'):
                 continue
 
             # Convert file path to module path
             rel_path = os.path.relpath(
                 os.path.join(root, file), os.path.dirname(base_dir)
             )
-            if file == "__init__.py":
+            if file == '__init__.py':
                 # For __init__.py files, use directory name
-                module_path = os.path.dirname(rel_path).replace(os.sep, ".")
+                module_path = os.path.dirname(rel_path).replace(os.sep, '.')
             else:
                 # For regular files, remove .py extension
-                module_path = rel_path.replace(os.sep, ".").replace(".py", "")
+                module_path = rel_path.replace(os.sep, '.').replace('.py', '')
 
             # Ensure it starts with the base package name
             if not module_path.startswith(base_package_name):
-                module_path = f"{base_package_name}.{module_path}"
+                module_path = f'{base_package_name}.{module_path}'
 
             # Remove any empty package references
-            module_path = module_path.replace("..", ".")
-            while ".." in module_path:
-                module_path = module_path.replace("..", ".")
+            module_path = module_path.replace('..', '.')
+            while '..' in module_path:
+                module_path = module_path.replace('..', '.')
 
             modules.add(module_path)
 
@@ -71,7 +71,7 @@ def find_project_modules(base_package_name):
             try:
                 importlib.import_module(module_path)
             except Exception as e:
-                print(f"Warning: Could not import {module_path}: {e}")
+                print(f'Warning: Could not import {module_path}: {e}')
 
     return modules
 
@@ -85,7 +85,7 @@ def collect_imports_from_source(file_path):
     specific_imports = set()  # Specific imports like module.Class
 
     try:
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             source = file.read()
 
         tree = ast.parse(source)
@@ -105,28 +105,28 @@ def collect_imports_from_source(file_path):
                     from_import_bases.add(module_name)
 
                     # Also add top-level module for third-party packages
-                    if "." in module_name:
+                    if '.' in module_name:
                         # Add top module
-                        top_module = module_name.split(".")[0]
+                        top_module = module_name.split('.')[0]
                         from_import_bases.add(top_module)
 
                         # Add each part of the module hierarchy
-                        parts = module_name.split(".")
+                        parts = module_name.split('.')
                         for i in range(1, len(parts)):
-                            intermediate_module = ".".join(parts[: i + 1])
+                            intermediate_module = '.'.join(parts[: i + 1])
                             from_imports.add(intermediate_module)
 
                     # Add the specific imports
                     for name in node.names:
                         # Add specific class/function imports (module.Class)
 
-                        specific_import = f"{module_name}.{name.name}"
+                        specific_import = f'{module_name}.{name.name}'
                         specific_imports.add(specific_import)
                         from_imports.add(specific_import)
-                    if "llm_client" in file_path:
+                    if 'llm_client' in file_path:
                         print(node.names)
     except Exception as e:
-        print(f"Error parsing {file_path}: {e}")
+        print(f'Error parsing {file_path}: {e}')
 
     return direct_imports, from_imports, from_import_bases, specific_imports
 
@@ -144,9 +144,9 @@ def collect_runtime_imports(modules):
 
             # Get the source file
             if (
-                hasattr(module, "__file__")
+                hasattr(module, '__file__')
                 and module.__file__
-                and module.__file__.endswith(".py")
+                and module.__file__.endswith('.py')
             ):
                 print(module.__file__)
                 # Get imports from AST analysis of source code
@@ -162,17 +162,17 @@ def collect_runtime_imports(modules):
             for name, obj in inspect.getmembers(module):
                 # Look for imported modules
                 if inspect.ismodule(obj):
-                    if hasattr(obj, "__name__"):
+                    if hasattr(obj, '__name__'):
                         mod_name = obj.__name__
                         direct_imports.add(mod_name)
 
                         # For modules with dot notation, also add the base module
-                        if "." in mod_name:
-                            parts = mod_name.split(".")
+                        if '.' in mod_name:
+                            parts = mod_name.split('.')
                             base_modules.add(parts[0])
 
         except Exception as e:
-            print(f"Warning: Error processing imports for {module_name}: {e}")
+            print(f'Warning: Error processing imports for {module_name}: {e}')
 
     return direct_imports, from_imports, base_modules, specific_imports
 
@@ -187,7 +187,7 @@ def collect_all_imports(source_dirs=None, base_package_name=None):
     # Process package modules if specified
     if base_package_name:
         modules = find_project_modules(base_package_name)
-        print(f"Found {len(modules)} modules in {base_package_name} package")
+        print(f'Found {len(modules)} modules in {base_package_name} package')
 
         d_imp, f_imp, b_mod, s_imp = collect_runtime_imports(modules)
         direct_imports.update(d_imp)
@@ -200,10 +200,10 @@ def collect_all_imports(source_dirs=None, base_package_name=None):
         for directory in source_dirs:
             directory_path = Path(directory)
             if directory_path.exists() and directory_path.is_dir():
-                print(f"Processing directory: {directory}")
-                for file_path in directory_path.glob("**/*.py"):
-                    if "__pycache__" not in str(file_path):
-                        print(f"Analyzing: {file_path}")
+                print(f'Processing directory: {directory}')
+                for file_path in directory_path.glob('**/*.py'):
+                    if '__pycache__' not in str(file_path):
+                        print(f'Analyzing: {file_path}')
                         d_imp, f_imp, b_mod, s_imp = collect_imports_from_source(
                             str(file_path)
                         )
@@ -221,12 +221,12 @@ def main():
     sys.path.insert(0, str(project_root))
 
     # Find all modules in autoreq package and additional source files
-    print("Scanning for modules and imports...")
+    print('Scanning for modules and imports...')
 
     # You can specify both package and directories to scan
     direct_imports, from_imports, base_modules, specific_imports = collect_all_imports(
-        base_package_name="autoreq",
-        source_dirs=[project_root / "autoreq"],  # Add any extra directories to scan
+        base_package_name='autoreq',
+        source_dirs=[project_root / 'autoreq'],  # Add any extra directories to scan
     )
 
     all_imports = (
@@ -240,16 +240,16 @@ def main():
             [
                 module_to_skip in imp
                 for module_to_skip in [
-                    "autoreq",
-                    "llm_client",
-                    "mlflow",
-                    "code2reqs",
-                    "test_generation",
-                    "requirement_generation",
-                    "verification",
-                    "summary",
-                    "trace_reqs2code",
-                    "vector",  # cause it's vpython only
+                    'autoreq',
+                    'llm_client',
+                    'mlflow',
+                    'code2reqs',
+                    'test_generation',
+                    'requirement_generation',
+                    'verification',
+                    'summary',
+                    'trace_reqs2code',
+                    'vector',  # cause it's vpython only
                 ]
             ]
         )
@@ -257,32 +257,32 @@ def main():
 
     # this is the one that's not getting cythonated
     known_missing_imports = [
-        "autoreq.test_generation.identifier_type_gen",
+        'autoreq.test_generation.identifier_type_gen',
     ]
     all_imports.extend(known_missing_imports)
     # Sort for readability
     sorted_imports = sorted(all_imports)
 
-    print(f"\nCollected {len(sorted_imports)} imports and submodules")
-    print(f"  - {len(direct_imports)} direct imports")
-    print(f"  - {len(from_imports)} from-imports (submodules)")
-    print(f"  - {len(base_modules)} base modules")
-    print(f"  - {len(specific_imports)} specific class/function imports")
+    print(f'\nCollected {len(sorted_imports)} imports and submodules')
+    print(f'  - {len(direct_imports)} direct imports')
+    print(f'  - {len(from_imports)} from-imports (submodules)')
+    print(f'  - {len(base_modules)} base modules')
+    print(f'  - {len(specific_imports)} specific class/function imports')
 
-    print("\nHiddenimports for PyInstaller:")
-    print("hiddenimports = [")
+    print('\nHiddenimports for PyInstaller:')
+    print('hiddenimports = [')
     for imp in sorted_imports:
         print(f"    '{imp}',")
-    print("]")
-    output_path = Path("autoreq/autoreq_hiddenimports.py")
-    with open(output_path, "w") as f:
-        f.write("hiddenimports = [\n")
+    print(']')
+    output_path = Path('autoreq/autoreq_hiddenimports.py')
+    with open(output_path, 'w') as f:
+        f.write('hiddenimports = [\n')
         for imp in sorted_imports:
             f.write(f"    '{imp}',\n")
-        f.write("]\n")
+        f.write(']\n')
 
-    print("\nImports saved to autoreq_hiddenimports.py")
+    print('\nImports saved to autoreq_hiddenimports.py')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

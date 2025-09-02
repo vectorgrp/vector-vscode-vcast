@@ -61,7 +61,7 @@ class HFTokenizerWrapper(TokenizerWrapper):
             decoded_token = tokenizer.decode(
                 v, clean_up_tokenization_spaces=False, skip_special_tokens=True
             )
-            if decoded_token != "":
+            if decoded_token != '':
                 self.tokenizer_char_set.update(decoded_token)
                 self.vocab_trie[decoded_token] = v
         self.all_token_ids = set(tokenizer.vocab.values())
@@ -101,7 +101,7 @@ class TikTokenWrapper(TokenizerWrapper):
         for k_ in tokenizer.token_byte_values():
             v = tokenizer.encode_single_token(k_)
             decoded_token = tokenizer.decode([tokenizer.encode_single_token(k_)])
-            if decoded_token != "":
+            if decoded_token != '':
                 self.tokenizer_char_set.update(decoded_token)
                 self.vocab_trie[decoded_token] = v
                 self.all_token_ids.add(v)
@@ -120,10 +120,10 @@ class TikTokenWrapper(TokenizerWrapper):
 
         if clean_up_tokenization_spaces is None:
             clean_up_tokenization_spaces = kwargs.get(
-                "clean_up_tokenization_spaces", True
+                'clean_up_tokenization_spaces', True
             )
         if skip_special_tokens is None:
-            skip_special_tokens = kwargs.get("skip_special_tokens", False)
+            skip_special_tokens = kwargs.get('skip_special_tokens', False)
 
         assert not clean_up_tokenization_spaces
         assert skip_special_tokens
@@ -144,4 +144,4 @@ class TikTokenWrapper(TokenizerWrapper):
         """
         Converts the given list of tokens to a string
         """
-        return "".join(x)
+        return ''.join(x)

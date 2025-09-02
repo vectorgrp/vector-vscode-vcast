@@ -77,7 +77,7 @@ class NumMethodArgumentsMonitor(Monitor):
         text_upto_cursor = self.monitor_file_buffer.lsp.get_open_file_text(
             self.monitor_file_buffer.file_path
         )[:cursor_idx]
-        if text_upto_cursor[-1] != "(":
+        if text_upto_cursor[-1] != '(':
             return
 
         num_args_for_currently_opened_func = await self.a_phi()
@@ -90,7 +90,7 @@ class NumMethodArgumentsMonitor(Monitor):
             self.monitor_file_buffer.current_lc[0],
             self.monitor_file_buffer.current_lc[1],
         )
-        assert lsp_text[pos_idx - 1] == "("
+        assert lsp_text[pos_idx - 1] == '('
 
         if num_args_for_currently_opened_func is None:
             self.open_method_calls.append(
@@ -121,13 +121,13 @@ class NumMethodArgumentsMonitor(Monitor):
         """
         Checks if the token is in violation with the current state of the decoder
         """
-        num_closeable = len(state.split("o")[0])
+        num_closeable = len(state.split('o')[0])
         num_token_closes = 0
         stack = []
         for c in token:
-            if c == "(":
-                stack.append("(")
-            elif c == ")":
+            if c == '(':
+                stack.append('(')
+            elif c == ')':
                 if len(stack) == 0:
                     num_token_closes += 1
                 else:
@@ -169,15 +169,15 @@ class NumMethodArgumentsMonitor(Monitor):
 
             await self.update(new_gen_text)
 
-        state = ""
+        state = ''
         for open_method_call in self.open_method_calls[::-1]:
             if open_method_call.num_args_left is None:
-                state += "c"
+                state += 'c'
             else:
                 if open_method_call.num_args_left == 0:
-                    state += "c"
+                    state += 'c'
                 else:
-                    state += "o"
+                    state += 'o'
 
         blacklisted_ids = []
         for token, token_id in self.tokenizer.vocab_trie.iteritems():
@@ -201,14 +201,14 @@ class NumMethodArgumentsMonitor(Monitor):
 
         lsp_text = self.monitor_file_buffer.lsp.get_open_file_text(relative_file_path)
         request_idx = TextUtils.get_index_from_line_col(lsp_text, line, column)
-        assert lsp_text[request_idx - 1] == "("
+        assert lsp_text[request_idx - 1] == '('
 
         deleted_text = self.monitor_file_buffer.lsp.delete_text_between_positions(
             relative_file_path,
             Position(line=line, character=column - 1),
             Position(line=line, character=column),
         )
-        assert deleted_text == "("
+        assert deleted_text == '('
 
         completions = await self.monitor_file_buffer.lsp.request_completions(
             relative_file_path, line, column - 1
@@ -218,25 +218,25 @@ class NumMethodArgumentsMonitor(Monitor):
             relative_file_path,
             line=line,
             column=column - 1,
-            text_to_be_inserted="(",
+            text_to_be_inserted='(',
         )
 
         # TODO: Handle the case of multiple overloaded methods
         if len(completions) != 1:
             return None
 
-        signature = completions[0]["detail"]
-        regex = r".*\((.*)\) : .*"
+        signature = completions[0]['detail']
+        regex = r'.*\((.*)\) : .*'
         match = re.match(regex, signature)
         num_args = None
         if match is not None:
             args = match.group(1)
-            if args == "":
+            if args == '':
                 num_args = 0
-            elif "," not in args:
+            elif ',' not in args:
                 num_args = 1
             else:
-                num_args = len(args.split(","))
+                num_args = len(args.split(','))
 
         return num_args
 
@@ -245,22 +245,22 @@ class NumMethodArgumentsMonitor(Monitor):
         Converts a nested method call to a flat method call
         """
         depth = 0
-        new_s = ""
+        new_s = ''
         for c in s:
-            if c == "(":
+            if c == '(':
                 depth += 1
-                new_s += "."
-            elif c == ")":
+                new_s += '.'
+            elif c == ')':
                 depth -= 1
-                new_s += "."
-            elif c == ",":
+                new_s += '.'
+            elif c == ',':
                 if depth == 0:
-                    new_s += ","
+                    new_s += ','
                 else:
-                    new_s += "."
+                    new_s += '.'
             else:
-                if c.strip() != "":
-                    new_s += "."
+                if c.strip() != '':
+                    new_s += '.'
         return new_s
 
     def check_if_method_call_closed(self, s: str) -> bool:
@@ -269,12 +269,12 @@ class NumMethodArgumentsMonitor(Monitor):
         True for "(...)", "(...))", "(...)))", etc.
         False for "(...(", "(...(()", etc.
         """
-        assert s[0] == "("
+        assert s[0] == '('
         depth = 1
         for c in s[1:]:
-            if c == "(":
+            if c == '(':
                 depth += 1
-            elif c == ")":
+            elif c == ')':
                 depth -= 1
 
             if depth == 0:
@@ -305,7 +305,7 @@ class NumMethodArgumentsMonitor(Monitor):
                 current_text[open_method_call.opening_idx + 1 :]
             )
             assert len(view_for_this_method_call) != 0
-            splits = view_for_this_method_call.split(",")
+            splits = view_for_this_method_call.split(',')
             if open_method_call.num_tot_args is None:
                 continue
             num_args_left = open_method_call.num_tot_args - len(splits)

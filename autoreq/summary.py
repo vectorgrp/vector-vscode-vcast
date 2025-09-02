@@ -16,12 +16,12 @@ class SummaryEngine:
     ) -> str:
         messages = [
             {
-                "role": "system",
-                "content": "You are an assistant that summarizes text according to specific instructions.",
+                'role': 'system',
+                'content': 'You are an assistant that summarizes text according to specific instructions.',
             },
             {
-                "role": "user",
-                "content": f"""
+                'role': 'user',
+                'content': f"""
 Please summarize the following context according to these specific instructions:
 
 {instruction}
