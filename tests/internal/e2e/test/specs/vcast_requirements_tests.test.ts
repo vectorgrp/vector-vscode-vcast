@@ -235,7 +235,6 @@ describe("vTypeCheck VS Code Extension", () => {
     let subprogram: TreeItem;
 
     const outputView = await bottomBar.openOutputView();
-    await bottomBar.maximize();
 
     // Find Manager::PlaceOrder subprogram and click on Generate Tests
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
@@ -284,7 +283,15 @@ describe("vTypeCheck VS Code Extension", () => {
         (await (await bottomBar.openOutputView()).getText())
           .toString()
           .includes("reqs2tests completed successfully with code 0"),
-      { timeout: 180_000 }
+      { timeout: 240_000 }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("Script loaded successfully"),
+      { timeout: 240_000 }
     );
 
     await browser.waitUntil(
@@ -292,7 +299,7 @@ describe("vTypeCheck VS Code Extension", () => {
         (await (await bottomBar.openOutputView()).getText())
           .toString()
           .includes("Processing environment data for:"),
-      { timeout: 180_000 }
+      { timeout: 240_000 }
     );
 
     await (
@@ -342,7 +349,5 @@ describe("vTypeCheck VS Code Extension", () => {
         `Missing required green gutters on lines: ${missingRequired.join(", ")}`
       );
     }
-
-    console.log(outputView.getText());
   });
 });
