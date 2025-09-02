@@ -286,6 +286,9 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: 240_000 }
     );
 
+    await bottomBar.maximize()
+    console.log(await outputView.getText())
+
     await browser.waitUntil(
       async () =>
         (await (await bottomBar.openOutputView()).getText())
