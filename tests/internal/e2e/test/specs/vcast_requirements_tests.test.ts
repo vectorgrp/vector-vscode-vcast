@@ -306,7 +306,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const missingRequired: number[] = [];
 
-    for (let line = 7; line <= 13; line++) {
+    for (let line = 6; line <= 13; line++) {
       console.log(`Checking gutter on line ${line} in moo.cpp`);
 
       try {
