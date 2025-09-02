@@ -44,7 +44,7 @@ class ClassInstantiationMonitor(DereferencesMonitor):
         )[:cursor_idx]
 
         # TODO: pre can be improved by checking for "new", and obtaining completions, and then prefixing a whitespace
-        if not text_upto_cursor.endswith('new '):
+        if not text_upto_cursor.endswith("new "):
             self.decoder_state = DecoderStates.S0
             return
 
@@ -66,7 +66,7 @@ class ClassInstantiationMonitor(DereferencesMonitor):
         repository_root_path = self.monitor_file_buffer.lsp.repository_root_path
         for path, _, files in os.walk(repository_root_path):
             for file in files:
-                if file.endswith('.java'):
+                if file.endswith(".java"):
                     filecontents = FileUtils.read_file(
                         self.monitor_file_buffer.lsp.logger, str(PurePath(path, file))
                     )
@@ -84,21 +84,21 @@ class ClassInstantiationMonitor(DereferencesMonitor):
                         relative_file_path
                     )
                     for symbol in document_symbols:
-                        if symbol['kind'] != multilspy_types.SymbolKind.Class:
+                        if symbol["kind"] != multilspy_types.SymbolKind.Class:
                             continue
                         decl_start_idx = TextUtils.get_index_from_line_col(
                             filecontents,
-                            symbol['range']['start']['line'],
-                            symbol['range']['start']['character'],
+                            symbol["range"]["start"]["line"],
+                            symbol["range"]["start"]["character"],
                         )
                         decl_end_idx = TextUtils.get_index_from_line_col(
                             filecontents,
-                            symbol['selectionRange']['end']['line'],
-                            symbol['selectionRange']['end']['character'],
+                            symbol["selectionRange"]["end"]["line"],
+                            symbol["selectionRange"]["end"]["character"],
                         )
                         decl_text = filecontents[decl_start_idx:decl_end_idx]
-                        if 'abstract' not in decl_text:
-                            legal_completions.append(symbol['name'])
+                        if "abstract" not in decl_text:
+                            legal_completions.append(symbol["name"])
 
         return legal_completions
 

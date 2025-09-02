@@ -10,8 +10,8 @@ from ..constants import TEST_FRAMEWORK_REFERENCE_PATH
 
 
 class VerificationResult(str, Enum):
-    YES = 'yes'
-    NO = 'no'
+    YES = "yes"
+    NO = "no"
 
 
 class TestVerificationResult(BaseModel):
@@ -40,52 +40,52 @@ class TestVerifier:
 
         if test_case is None:
             return VerificationOutput(
-                requirement_id=req_id or 'unknown',
+                requirement_id=req_id or "unknown",
                 tests_requirement=False,
-                analysis='No test case provided',
+                analysis="No test case provided",
             )
 
         if not req_id:
             return VerificationOutput(
-                requirement_id='unknown',
+                requirement_id="unknown",
                 tests_requirement=False,
-                analysis='No requirement ID provided or found in test case',
+                analysis="No requirement ID provided or found in test case",
             )
 
         requirement_text = self.requirements[req_id].description
         if not requirement_text:
-            logging.warning(f'Requirement {req_id} not found.')
+            logging.warning(f"Requirement {req_id} not found.")
             return VerificationOutput(
                 requirement_id=req_id,
                 tests_requirement=False,
-                analysis='Requirement not found in database',
+                analysis="Requirement not found in database",
             )
 
         function_name = self.requirements[req_id].location.function
         if not function_name:
-            logging.warning(f'Function not found for requirement {req_id}.')
+            logging.warning(f"Function not found for requirement {req_id}.")
             return VerificationOutput(
                 requirement_id=req_id,
                 tests_requirement=False,
-                analysis='Function not found for requirement',
+                analysis="Function not found for requirement",
             )
 
         # Build code context
         context = await self.context_builder.build_code_context(function_name)
 
-        with open(TEST_FRAMEWORK_REFERENCE_PATH, 'r') as f:
+        with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
 
         test_case_json = test_case.model_dump_json(indent=2)
 
         messages = [
             {
-                'role': 'system',
-                'content': 'You are an AI assistant that verifies if test cases properly test their associated requirements.',
+                "role": "system",
+                "content": "You are an AI assistant that verifies if test cases properly test their associated requirements.",
             },
             {
-                'role': 'user',
-                'content': f"""
+                "role": "user",
+                "content": f"""
 Please analyze if the following test case properly tests the given requirement.
 
 Test framework reference:
@@ -134,10 +134,10 @@ Note:
                 tests_requirement=result.tests_requirement == VerificationResult.YES,
             )
         except Exception as e:
-            logging.exception('Failed to verify test case')
+            logging.exception("Failed to verify test case")
             return VerificationOutput(
                 requirement_id=req_id,
-                analysis=f'Verification failed due to error: {str(e)}',
+                analysis=f"Verification failed due to error: {str(e)}",
                 tests_requirement=False,
             )
 

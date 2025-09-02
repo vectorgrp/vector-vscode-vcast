@@ -17,11 +17,11 @@ class ErrorCorrectionFeedback(BaseModel):
 
 
 class DecompositionStrategy(Enum):
-    SIMPLE = 'simple'
-    ANDREW = 'andrew'
-    PSEUDOCODE = 'pseudocode'
-    TEST_CASES = 'test_cases'
-    PATHS = 'paths'
+    SIMPLE = "simple"
+    ANDREW = "andrew"
+    PSEUDOCODE = "pseudocode"
+    TEST_CASES = "test_cases"
+    PATHS = "paths"
 
 
 class DesignDecomposer:
@@ -30,10 +30,10 @@ class DesignDecomposer:
         import os
 
         self.client = openai.AzureOpenAI(
-            api_key=os.getenv('OPENAI_API_KEY'),
-            api_version='2024-08-01-preview',
-            azure_endpoint=os.getenv('OPENAI_API_BASE'),
-            azure_deployment=os.getenv('OPENAI_GENERATION_DEPLOYMENT'),
+            api_key=os.getenv("OPENAI_API_KEY"),
+            api_version="2024-08-01-preview",
+            azure_endpoint=os.getenv("OPENAI_API_BASE"),
+            azure_deployment=os.getenv("OPENAI_GENERATION_DEPLOYMENT"),
         )
 
     def decompose_design(
@@ -71,12 +71,12 @@ class DesignDecomposer:
     def _combine_requirements(self, func_def, decomposition_results):
         messages = [
             {
-                'role': 'system',
-                'content': 'You are a world-class software engineer specializing in requirements engineering.',
+                "role": "system",
+                "content": "You are a world-class software engineer specializing in requirements engineering.",
             },
             {
-                'role': 'user',
-                'content': f"""
+                "role": "user",
+                "content": f"""
 Combine multiple sets of requirements for the same function. A requirement is a single, complete, independent and testable statement of the expected behaviour of a single path through the code. It should only use vocabulary mentioned in the design, not the code. 
 Choose the best aspects of each design, e.g., where they follow the definitions of a requirement most closely and cleverly merge them to address any problems the individual sets might have.
 
@@ -94,12 +94,12 @@ The success of this task is critical. The purpose is to derive unit tests, exact
             },
         ]
 
-        with open('combine_requirements_messages.txt', 'w') as f:
+        with open("combine_requirements_messages.txt", "w") as f:
             for message in messages:
                 f.write(f'{message["role"]}: {message["content"]}\n\n')
 
         completion = self.client.beta.chat.completions.parse(
-            model='gpt-4o',
+            model="gpt-4o",
             messages=messages,
             response_format=DesignDecompositionResult,
             temperature=0.0,
@@ -128,12 +128,12 @@ The success of this task is critical. The purpose is to derive unit tests, exact
             # Prepare feedback messages
             feedback_messages = messages + [
                 {
-                    'role': 'assistant',
-                    'content': decomposition_result.model_dump_json(indent=4),
+                    "role": "assistant",
+                    "content": decomposition_result.model_dump_json(indent=4),
                 },
                 {
-                    'role': 'user',
-                    'content': f"""
+                    "role": "user",
+                    "content": f"""
 The following issues were found with the requirements:
 
 {chr(10).join(f'- {problem}' for problem in problems)}
@@ -143,13 +143,13 @@ Please revise the requirements to address these problems. If you encountered a s
                 },
             ]
 
-            with open('feedback_messages.txt', 'w') as f:
+            with open("feedback_messages.txt", "w") as f:
                 for message in feedback_messages:
                     f.write(f'{message["role"]}: {message["content"]}\n\n')
 
             # Get revised requirements from the language model
             completion = self.client.beta.chat.completions.parse(
-                model='gpt-4o',
+                model="gpt-4o",
                 messages=feedback_messages,
                 response_format=DesignDecompositionResult,
                 temperature=0.0,
@@ -167,12 +167,12 @@ Please revise the requirements to address these problems. If you encountered a s
     def _find_problems(self, func_def, decomposition_result, history=[]):
         problem_finding_messages = [
             {
-                'role': 'system',
-                'content': 'You are a world-class software engineer specializing in requirements engineering.',
+                "role": "system",
+                "content": "You are a world-class software engineer specializing in requirements engineering.",
             },
             {
-                'role': 'user',
-                'content': f"""
+                "role": "user",
+                "content": f"""
 Given a list of low-level functional requirements based on the given design, identify any issues that may be present.
 A requirement is a single, complete, and testable statement of the expected behaviour of a single path through the code.
 
@@ -194,16 +194,16 @@ Do not invent problems if no serious ones exist. If you do it anyways you have f
 """,
             },
             *[history_item for history_item in history],
-            {'role': 'user', 'content': decomposition_result.model_dump_json(indent=4)},
+            {"role": "user", "content": decomposition_result.model_dump_json(indent=4)},
         ]
 
-        with open('problem_finding_messages.txt', 'w') as f:
+        with open("problem_finding_messages.txt", "w") as f:
             for message in problem_finding_messages:
                 f.write(f'{message["role"]}: {message["content"]}\n\n')
 
         # Call the LLM to find problems
         completion = self.client.beta.chat.completions.parse(
-            model='gpt-4o',
+            model="gpt-4o",
             messages=problem_finding_messages,
             response_format=ErrorCorrectionFeedback,
             temperature=0.0,
@@ -212,13 +212,13 @@ Do not invent problems if no serious ones exist. If you do it anyways you have f
         )
 
         history.append(
-            {'role': 'user', 'content': decomposition_result.model_dump_json(indent=4)}
+            {"role": "user", "content": decomposition_result.model_dump_json(indent=4)}
         )
 
         history.append(
             {
-                'role': 'assistant',
-                'content': completion.choices[0].message.parsed.model_dump_json(
+                "role": "assistant",
+                "content": completion.choices[0].message.parsed.model_dump_json(
                     indent=4
                 ),
             }

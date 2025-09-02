@@ -14,7 +14,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-BLACKLISTED_DIRS = ['.ccls-cache']
+BLACKLISTED_DIRS = [".ccls-cache"]
 
 
 class Codebase:
@@ -41,25 +41,25 @@ class Codebase:
     def _find_common_prefix(self, paths: List[str]) -> str:
         """Find the longest common prefix of all paths"""
         if not paths:
-            return ''
+            return ""
         abs_paths = [self._make_absolute(p) for p in paths]
         return os.path.commonpath(abs_paths)
 
     def __init__(self, source_dirs: List[str]):
         logger.debug(
-            f'Initializing Codebase with {len(source_dirs)} source directories: {[os.path.basename(d) for d in source_dirs]}'
+            f"Initializing Codebase with {len(source_dirs)} source directories: {[os.path.basename(d) for d in source_dirs]}"
         )
 
         # Initialize tree-sitter parser
-        logger.debug('Setting up tree-sitter parser for C/C++')
+        logger.debug("Setting up tree-sitter parser for C/C++")
         self.ts_parser = Parser()
-        CPP_LANGUAGE = Language(ts_cpp.language(), 'cpp')
+        CPP_LANGUAGE = Language(ts_cpp.language(), "cpp")
         self.ts_parser.set_language(CPP_LANGUAGE)
 
         # Convert all source directories to absolute paths
         self.source_dirs = [self._make_absolute(d) for d in source_dirs]
         logger.debug(
-            f'Converted to absolute paths: {len(self.source_dirs)} directories'
+            f"Converted to absolute paths: {len(self.source_dirs)} directories"
         )
 
         # Find common prefix for LSP server
@@ -69,27 +69,27 @@ class Codebase:
             if os.path.isdir(common_prefix)
             else os.path.dirname(common_prefix)
         )
-        logger.debug(f'Common prefix directory for LSP: {common_prefix_dir}')
+        logger.debug(f"Common prefix directory for LSP: {common_prefix_dir}")
 
         self.config = MultilspyConfig.from_dict(
             {
-                'code_language': 'c',
-                'trace_lsp_communication': True,
+                "code_language": "c",
+                "trace_lsp_communication": True,
             }
         )  # Uses clangd for C/C++. code_language cpp chooses ccls instead.
         self.logger = MultilspyLogger()
 
-        logger.debug('Creating SyncLanguageServer')
+        logger.debug("Creating SyncLanguageServer")
         self.lsp = SyncLanguageServer.create(
             self.config, self.logger, common_prefix_dir
         )
 
         # Index mapping names to their definitions
         self._definition_index: Dict[str, List[Dict]] = {}
-        logger.debug('Starting definition index construction')
+        logger.debug("Starting definition index construction")
         self._build_definition_index()
         logger.info(
-            f'Definition index built with {len(self._definition_index)} unique symbols'
+            f"Definition index built with {len(self._definition_index)} unique symbols"
         )
 
         # Cache for file contents
@@ -102,16 +102,16 @@ class Codebase:
 
     def _build_definition_index(self):
         """Build an index mapping symbol names to their definitions"""
-        logger.debug('Building definition index...')
+        logger.debug("Building definition index...")
         total_files_processed = 0
         total_symbols_found = 0
 
         with self.lsp.start_server():
-            logger.debug('LSP server started successfully')
+            logger.debug("LSP server started successfully")
 
             for i, source_dir in enumerate(self.source_dirs):
                 logger.debug(
-                    f'Processing source directory {i + 1}/{len(self.source_dirs)}: {os.path.basename(source_dir)}'
+                    f"Processing source directory {i + 1}/{len(self.source_dirs)}: {os.path.basename(source_dir)}"
                 )
                 path = Path(source_dir)
 
@@ -122,34 +122,34 @@ class Codebase:
                     )
                 else:
                     files = []
-                    for pattern in ['*.' + ext for ext in SOURCE_FILE_EXTENSIONS]:
+                    for pattern in ["*." + ext for ext in SOURCE_FILE_EXTENSIONS]:
                         pattern_files = list(path.rglob(pattern))
                         non_blacklisted = [
                             f for f in pattern_files if not self._is_blacklisted(str(f))
                         ]
                         files.extend(non_blacklisted)
                         logger.debug(
-                            f'Pattern {pattern}: found {len(pattern_files)} files, {len(non_blacklisted)} after filtering'
+                            f"Pattern {pattern}: found {len(pattern_files)} files, {len(non_blacklisted)} after filtering"
                         )
 
                 logger.debug(
-                    f'Total files to process in {os.path.basename(source_dir)}: {len(files)}'
+                    f"Total files to process in {os.path.basename(source_dir)}: {len(files)}"
                 )
 
                 for j, file in enumerate(files):
                     abs_file = self._make_absolute(str(file))
                     logger.debug(
-                        f'Processing file {j + 1}/{len(files)}: {os.path.basename(abs_file)}'
+                        f"Processing file {j + 1}/{len(files)}: {os.path.basename(abs_file)}"
                     )
 
                     try:
                         with open(
-                            abs_file, 'r', encoding='utf-8', errors='ignore'
+                            abs_file, "r", encoding="utf-8", errors="ignore"
                         ) as f:
                             file_content = f.read()
                             lines = file_content.splitlines()
 
-                        logger.debug(f'File read successfully: {len(lines)} lines')
+                        logger.debug(f"File read successfully: {len(lines)} lines")
 
                         symbols = self.lsp.request_document_symbols(abs_file)
                         if symbols and isinstance(symbols, tuple):
@@ -160,21 +160,21 @@ class Codebase:
 
                         for symbol in symbols or []:
                             file_symbols_count += 1
-                            if symbol.get('kind') in self.INDEXABLE_KINDS:
+                            if symbol.get("kind") in self.INDEXABLE_KINDS:
                                 indexable_symbols_count += 1
-                                qualified_name = '::'.join(
-                                    symbol['namespaces'] + [symbol['name']]
+                                qualified_name = "::".join(
+                                    symbol["namespaces"] + [symbol["name"]]
                                 )
-                                unqualified_name = symbol['name']
+                                unqualified_name = symbol["name"]
                                 classless_unqualified_name = unqualified_name.split(
-                                    '::'
+                                    "::"
                                 )[-1]
-                                start_line = symbol['range']['start']['line']
-                                end_line = symbol['range']['end']['line']
+                                start_line = symbol["range"]["start"]["line"]
+                                end_line = symbol["range"]["end"]["line"]
 
                                 # Extract the actual definition text
                                 definition_lines = lines[start_line : end_line + 1]
-                                definition_text = '\n'.join(definition_lines)
+                                definition_text = "\n".join(definition_lines)
 
                                 for name in {
                                     qualified_name,
@@ -185,26 +185,26 @@ class Codebase:
                                         self._definition_index[name] = []
                                     self._definition_index[name].append(
                                         {
-                                            'name': qualified_name,
-                                            'unqualified_name': unqualified_name,
-                                            'classless_unqualified_name': classless_unqualified_name,
-                                            'kind': symbol['kind'],
-                                            'file': abs_file,
-                                            'start_line': start_line,
-                                            'end_line': end_line,
-                                            'definition': definition_text,
+                                            "name": qualified_name,
+                                            "unqualified_name": unqualified_name,
+                                            "classless_unqualified_name": classless_unqualified_name,
+                                            "kind": symbol["kind"],
+                                            "file": abs_file,
+                                            "start_line": start_line,
+                                            "end_line": end_line,
+                                            "definition": definition_text,
                                         }
                                     )
 
                         logger.debug(
-                            f'File processed: {file_symbols_count} total symbols, {indexable_symbols_count} indexable'
+                            f"File processed: {file_symbols_count} total symbols, {indexable_symbols_count} indexable"
                         )
                         total_symbols_found += indexable_symbols_count
                         total_files_processed += 1
 
                     except Exception as e:
                         logger.error(
-                            f'Failed to process file {os.path.basename(abs_file)}: {e}'
+                            f"Failed to process file {os.path.basename(abs_file)}: {e}"
                         )
 
         # Now reverse the order of the definitions to make sure that the most recent definition is used
@@ -215,24 +215,24 @@ class Codebase:
                 multi_def_count += 1
             self._definition_index[name] = list(reversed(definitions))
 
-        logger.info('Definition index construction complete:')
-        logger.info(f'  - Files processed: {total_files_processed}')
-        logger.info(f'  - Total symbols indexed: {total_symbols_found}')
-        logger.info(f'  - Unique symbol names: {len(self._definition_index)}')
-        logger.info(f'  - Symbols with multiple definitions: {multi_def_count}')
+        logger.info("Definition index construction complete:")
+        logger.info(f"  - Files processed: {total_files_processed}")
+        logger.info(f"  - Total symbols indexed: {total_symbols_found}")
+        logger.info(f"  - Unique symbol names: {len(self._definition_index)}")
+        logger.info(f"  - Symbols with multiple definitions: {multi_def_count}")
 
     def _has_function_body(self, definition_text: str) -> bool:
         """Check if a function definition contains a body (implementation)"""
         # Remove any trailing semicolon and whitespace
-        definition_text = definition_text.strip().rstrip(';')
+        definition_text = definition_text.strip().rstrip(";")
         # Check if it contains curly braces (indicating a body)
-        return '{' in definition_text and '}' in definition_text
+        return "{" in definition_text and "}" in definition_text
 
     def _collapse_function_body(self, definition_text: str) -> str:
         """Remove the body of a function definition"""
         # Find the opening and closing braces
-        open_brace_index = definition_text.find('{')
-        close_brace_index = definition_text.rfind('}')
+        open_brace_index = definition_text.find("{")
+        close_brace_index = definition_text.rfind("}")
 
         if (
             open_brace_index != -1
@@ -242,7 +242,7 @@ class Codebase:
             # Keep everything up to the opening brace and after the closing brace
             return (
                 definition_text[: open_brace_index + 1]
-                + ' ... '
+                + " ... "
                 + definition_text[close_brace_index:]
             )
 
@@ -253,36 +253,36 @@ class Codebase:
     ) -> List[Dict]:
         """Get all functions and methods from all files in the codebase"""
         logger.debug(
-            f'Getting all functions (only_with_body={only_with_body}, collapse_function_body={collapse_function_body})'
+            f"Getting all functions (only_with_body={only_with_body}, collapse_function_body={collapse_function_body})"
         )
 
         functions = [
             def_info
             for query_term, defs in self._definition_index.items()
             for def_info in defs
-            if def_info['kind'] in self.FUNCTION_KINDS
+            if def_info["kind"] in self.FUNCTION_KINDS
             and query_term
-            == def_info['name']  # Only take original qualified definition
+            == def_info["name"]  # Only take original qualified definition
         ]
-        logger.debug(f'Found {len(functions)} total functions/methods')
+        logger.debug(f"Found {len(functions)} total functions/methods")
 
         if only_with_body:
             functions_with_body = [
-                f for f in functions if self._has_function_body(f['definition'])
+                f for f in functions if self._has_function_body(f["definition"])
             ]
             logger.debug(
-                f'Filtered to {len(functions_with_body)} functions with body (removed {len(functions) - len(functions_with_body)} declarations)'
+                f"Filtered to {len(functions_with_body)} functions with body (removed {len(functions) - len(functions_with_body)} declarations)"
             )
             functions = functions_with_body
 
         if collapse_function_body:
-            logger.debug('Collapsing function bodies')
+            logger.debug("Collapsing function bodies")
             # Create deep copies to avoid mutating original data
             functions = deepcopy(functions)
             for func in functions:
-                func['definition'] = self._collapse_function_body(func['definition'])
+                func["definition"] = self._collapse_function_body(func["definition"])
 
-        logger.debug(f'Returning {len(functions)} functions')
+        logger.debug(f"Returning {len(functions)} functions")
         return functions
 
     def get_functions_in_file(
@@ -294,33 +294,33 @@ class Codebase:
         """Get all functions and methods from a specific file"""
         abs_path = self._make_absolute(filepath)
         logger.debug(
-            f'Getting functions in file: {os.path.basename(abs_path)} (only_with_body={only_with_body}, collapse_function_body={collapse_function_body})'
+            f"Getting functions in file: {os.path.basename(abs_path)} (only_with_body={only_with_body}, collapse_function_body={collapse_function_body})"
         )
 
         functions = [
             def_info
             for defs in self._definition_index.values()
             for def_info in defs
-            if def_info['kind'] in self.FUNCTION_KINDS
-            and are_paths_equal(def_info['file'], abs_path)
+            if def_info["kind"] in self.FUNCTION_KINDS
+            and are_paths_equal(def_info["file"], abs_path)
         ]
-        logger.debug(f'Found {len(functions)} total functions/methods in file')
+        logger.debug(f"Found {len(functions)} total functions/methods in file")
 
         if only_with_body:
             functions_with_body = [
-                f for f in functions if self._has_function_body(f['definition'])
+                f for f in functions if self._has_function_body(f["definition"])
             ]
-            logger.debug(f'Filtered to {len(functions_with_body)} functions with body')
+            logger.debug(f"Filtered to {len(functions_with_body)} functions with body")
             functions = functions_with_body
 
         if collapse_function_body:
-            logger.debug('Collapsing function bodies')
+            logger.debug("Collapsing function bodies")
             # Create deep copies to avoid mutating original data
             functions = deepcopy(functions)
             for func in functions:
-                func['definition'] = self._collapse_function_body(func['definition'])
+                func["definition"] = self._collapse_function_body(func["definition"])
 
-        logger.debug(f'Returning {len(functions)} functions from file')
+        logger.debug(f"Returning {len(functions)} functions from file")
         return functions
 
     def find_definitions_by_name(
@@ -339,17 +339,17 @@ class Codebase:
         logger.debug(f"Found {len(definitions)} definitions for '{identifier}'")
 
         if collapse_function_body:
-            logger.debug('Collapsing function bodies in definitions')
+            logger.debug("Collapsing function bodies in definitions")
             definitions = deepcopy(definitions)
             collapsed_count = 0
             for d in definitions:
-                if d['kind'] in self.FUNCTION_KINDS:
-                    d['definition'] = self._collapse_function_body(d['definition'])
+                if d["kind"] in self.FUNCTION_KINDS:
+                    d["definition"] = self._collapse_function_body(d["definition"])
                     collapsed_count += 1
-            logger.debug(f'Collapsed {collapsed_count} function bodies')
+            logger.debug(f"Collapsed {collapsed_count} function bodies")
 
         if return_raw:
-            logger.debug(f'Returning raw definitions: {len(definitions)} items')
+            logger.debug(f"Returning raw definitions: {len(definitions)} items")
             return definitions
 
         if filepath:
@@ -358,14 +358,14 @@ class Codebase:
             definitions = [
                 d
                 for d in definitions
-                if are_paths_equal(self._make_absolute(d['file']), abs_filepath)
+                if are_paths_equal(self._make_absolute(d["file"]), abs_filepath)
             ]
             logger.debug(
-                f'Filtered by filepath: {len(definitions)} definitions (removed {original_count - len(definitions)})'
+                f"Filtered by filepath: {len(definitions)} definitions (removed {original_count - len(definitions)})"
             )
 
-        result = [d['definition'] for d in definitions]
-        logger.debug(f'Returning {len(result)} definition texts')
+        result = [d["definition"] for d in definitions]
+        logger.debug(f"Returning {len(result)} definition texts")
         return result
 
     def find_definition_by_location(
@@ -377,7 +377,7 @@ class Codebase:
     ) -> Optional[str]:
         """Find definition of an identifier at a specific location"""
         logger.debug(
-            f'Finding definition by location: {os.path.basename(referencing_file)}:{line}:{character} (collapse_function_body={collapse_function_body})'
+            f"Finding definition by location: {os.path.basename(referencing_file)}:{line}:{character} (collapse_function_body={collapse_function_body})"
         )
 
         with self.lsp.start_server():
@@ -391,37 +391,37 @@ class Codebase:
                     definition = definition[0]
 
                 if definition:
-                    logger.debug('Definition found via LSP')
+                    logger.debug("Definition found via LSP")
                     # Get the file content and extract the definition text
-                    target_file = definition['absolutePath']
-                    logger.debug(f'Target file: {os.path.basename(target_file)}')
+                    target_file = definition["absolutePath"]
+                    logger.debug(f"Target file: {os.path.basename(target_file)}")
 
-                    with open(target_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    with open(target_file, "r", encoding="utf-8", errors="ignore") as f:
                         file_content = f.read()
 
-                    start_line = definition['range']['start']['line']
-                    end_line = definition['range']['end']['line']
+                    start_line = definition["range"]["start"]["line"]
+                    end_line = definition["range"]["end"]["line"]
                     definition_lines = file_content.splitlines()[
                         start_line : end_line + 1
                     ]
-                    definition_text = '\n'.join(definition_lines)
+                    definition_text = "\n".join(definition_lines)
 
                     logger.debug(
-                        f'Extracted definition: lines {start_line}-{end_line}, {len(definition_text)} characters'
+                        f"Extracted definition: lines {start_line}-{end_line}, {len(definition_text)} characters"
                     )
 
                     if (
                         collapse_function_body
-                        and definition['kind'] in self.FUNCTION_KINDS
+                        and definition["kind"] in self.FUNCTION_KINDS
                     ):
-                        logger.debug('Collapsing function body')
+                        logger.debug("Collapsing function body")
                         return self._collapse_function_body(definition_text)
 
                     return definition_text
                 else:
-                    logger.debug('No definition found via LSP')
+                    logger.debug("No definition found via LSP")
             except Exception as e:
-                logger.error(f'LSP definition request failed: {e}')
+                logger.error(f"LSP definition request failed: {e}")
 
         return None
 
@@ -440,10 +440,10 @@ class Codebase:
         symbols = set()
 
         def visit_node(node):
-            if node.type in ('identifier', 'type_identifier', 'field_identifier'):
+            if node.type in ("identifier", "type_identifier", "field_identifier"):
                 node_start_line = node.start_point[0]
                 if start_line <= node_start_line <= end_line:
-                    symbols.add(node.text.decode('utf-8'))
+                    symbols.add(node.text.decode("utf-8"))
             for child in node.children:
                 visit_node(child)
 
@@ -453,7 +453,7 @@ class Codebase:
     @lru_cache(maxsize=32)  # Cache for file contents
     def _read_file_bytes(self, filepath: str) -> bytes:
         """Reads and caches file content in bytes."""
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             return f.read()
 
     def get_definitions_for_window(
@@ -468,34 +468,34 @@ class Codebase:
         """Get definitions for all symbols referenced in a window of code"""
         abs_path = self._make_absolute(filepath)
         logger.debug(
-            f'Getting definitions for window: {os.path.basename(abs_path)}:{start_line}-{end_line} (depth={depth}, collapse_function_body={collapse_function_body}, return_dict={return_dict})'
+            f"Getting definitions for window: {os.path.basename(abs_path)}:{start_line}-{end_line} (depth={depth}, collapse_function_body={collapse_function_body}, return_dict={return_dict})"
         )
 
         # Read the file content using the cached method
         code_bytes = self._read_file_bytes(abs_path)
-        logger.debug(f'File content loaded: {len(code_bytes)} bytes')
+        logger.debug(f"File content loaded: {len(code_bytes)} bytes")
 
         definitions = self._get_definitions_for_window(
             code_bytes, start_line, end_line, collapse_function_body, depth
         )
-        logger.debug(f'Found definitions for {len(definitions)} symbols')
+        logger.debug(f"Found definitions for {len(definitions)} symbols")
 
         # Sort them by line number
         definitions = {
             k: v
             for k, v in sorted(
-                definitions.items(), key=lambda item: item[1]['start_line']
+                definitions.items(), key=lambda item: item[1]["start_line"]
             )
         }
-        logger.debug('Definitions sorted by line number')
+        logger.debug("Definitions sorted by line number")
 
         if return_dict:
-            result = {k: v['definition'] for k, v in definitions.items()}
-            logger.debug(f'Returning dictionary with {len(result)} symbol definitions')
+            result = {k: v["definition"] for k, v in definitions.items()}
+            logger.debug(f"Returning dictionary with {len(result)} symbol definitions")
             return result
 
-        unique_definitions = list(set(v['definition'] for v in definitions.values()))
-        logger.debug(f'Returning {len(unique_definitions)} unique definitions')
+        unique_definitions = list(set(v["definition"] for v in definitions.values()))
+        logger.debug(f"Returning {len(unique_definitions)} unique definitions")
         return unique_definitions
 
     def _get_definitions_for_window(
@@ -508,14 +508,14 @@ class Codebase:
     ) -> Dict[str, List[str]]:
         """Get definitions for all symbols referenced in a window of code"""
         logger.debug(
-            f'Internal window processing: lines {start_line}-{end_line}, depth={depth}'
+            f"Internal window processing: lines {start_line}-{end_line}, depth={depth}"
         )
 
         # Get all symbol references in the window
         symbols = self._get_symbol_references_in_window(
             code_bytes, start_line, end_line
         )
-        logger.debug(f'Found {len(symbols)} symbol references in window')
+        logger.debug(f"Found {len(symbols)} symbol references in window")
 
         # Return dictionary mapping symbols to their definitions
         definitions = {}
@@ -534,8 +534,8 @@ class Codebase:
                     # Recursively get definitions for symbols in the definition
                     recursive_defs = self._get_definitions_for_window(
                         code_bytes,
-                        definition['start_line'],
-                        definition['end_line'],
+                        definition["start_line"],
+                        definition["end_line"],
                         collapse_function_body,
                         depth - 1,
                     )
@@ -545,11 +545,11 @@ class Codebase:
                 definitions[symbol] = definition
 
         logger.debug(
-            f'Window processing complete: {symbols_with_definitions}/{len(symbols)} symbols have definitions'
+            f"Window processing complete: {symbols_with_definitions}/{len(symbols)} symbols have definitions"
         )
         if depth > 1:
             logger.debug(
-                f'Recursive processing added {recursive_definitions} additional definitions'
+                f"Recursive processing added {recursive_definitions} additional definitions"
             )
 
         return definitions
@@ -577,9 +577,9 @@ class Codebase:
         if filepath is None:
             if len(definitions) > 0:
                 target = definitions[0]
-                filepath = self._make_absolute(target['file'])
+                filepath = self._make_absolute(target["file"])
                 logger.debug(
-                    f'Using first definition from file: {os.path.basename(filepath)}'
+                    f"Using first definition from file: {os.path.basename(filepath)}"
                 )
         else:
             abs_filepath = self._make_absolute(filepath)
@@ -587,26 +587,26 @@ class Codebase:
                 (
                     d
                     for d in definitions
-                    if are_paths_equal(self._make_absolute(d['file']), abs_filepath)
+                    if are_paths_equal(self._make_absolute(d["file"]), abs_filepath)
                 ),
                 None,
             )
             if target:
                 logger.debug(
-                    f'Found definition in specified file: {os.path.basename(abs_filepath)}'
+                    f"Found definition in specified file: {os.path.basename(abs_filepath)}"
                 )
             else:
                 logger.debug(
-                    f'No definition found in specified file: {os.path.basename(abs_filepath)}'
+                    f"No definition found in specified file: {os.path.basename(abs_filepath)}"
                 )
 
         if not target:
-            logger.debug('No target definition found, returning empty result')
+            logger.debug("No target definition found, returning empty result")
             return {} if return_dict else []
 
-        start_line = target['start_line']
-        end_line = target['end_line']
-        logger.debug(f'Target definition spans lines {start_line}-{end_line}')
+        start_line = target["start_line"]
+        end_line = target["end_line"]
+        logger.debug(f"Target definition spans lines {start_line}-{end_line}")
 
         # Use the window-based definition lookup
         return self.get_definitions_for_window(

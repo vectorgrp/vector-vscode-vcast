@@ -29,28 +29,28 @@ class RequirementsVerifier:
         self,
         function_name: str,
         requirements: List[str],
-        mode: Literal['exhaustiveness', 'gt_similarity'] = 'exhaustiveness',
+        mode: Literal["exhaustiveness", "gt_similarity"] = "exhaustiveness",
         ground_truth: Optional[List[str]] = None,
     ) -> RequirementEvaluationResult:
-        if mode == 'gt_similarity' and not ground_truth:
+        if mode == "gt_similarity" and not ground_truth:
             raise ValueError(
-                'Ground truth requirements must be provided for similarity comparison.'
+                "Ground truth requirements must be provided for similarity comparison."
             )
 
-        requirements_text = '\n'.join('- ' + r for r in requirements)
+        requirements_text = "\n".join("- " + r for r in requirements)
 
-        if mode == 'exhaustiveness':
+        if mode == "exhaustiveness":
             # Build code context
             code = await self.context_builder.build_code_context(function_name)
 
             messages = [
                 {
-                    'role': 'system',
-                    'content': 'You are a world-class software engineer specializing in requirements engineering.',
+                    "role": "system",
+                    "content": "You are a world-class software engineer specializing in requirements engineering.",
                 },
                 {
-                    'role': 'user',
-                    'content': f"""
+                    "role": "user",
+                    "content": f"""
 Assess how exhaustively the provided requirements describe the given code. Return a grade between 0 and 10, where 10 means the requirements fully describe all paths through the code, and 0 means they describe nothing at all.
 
 Code:
@@ -62,17 +62,17 @@ Requirements:
                 },
             ]
 
-        elif mode == 'gt_similarity':
-            ground_truth_text = '\n'.join('- ' + r for r in ground_truth)
+        elif mode == "gt_similarity":
+            ground_truth_text = "\n".join("- " + r for r in ground_truth)
 
             messages = [
                 {
-                    'role': 'system',
-                    'content': 'You are a world-class software engineer specializing in requirements engineering.',
+                    "role": "system",
+                    "content": "You are a world-class software engineer specializing in requirements engineering.",
                 },
                 {
-                    'role': 'user',
-                    'content': f"""
+                    "role": "user",
+                    "content": f"""
 Compare the following two sets of requirements and determine if all behaviors described in Set 1 are present in Set 2. Return a grade between 0 and 10 indicating the degree to which Set 1 is a subset of Set 2, where 10 means Set 1 is completely a subset of Set 2 and 0 means there is no overlap.
 
 Set 1:
@@ -84,7 +84,7 @@ Set 2:
                 },
             ]
         else:
-            raise ValueError(f'Invalid evaluation mode: {mode}')
+            raise ValueError(f"Invalid evaluation mode: {mode}")
 
         result = await self.llm_client.call_model(
             messages,
@@ -107,7 +107,7 @@ Set 2:
         self,
         function_names: List[str],
         requirements: List[List[str]],
-        mode: Literal['exhaustiveness', 'gt_similarity'] = 'exhaustiveness',
+        mode: Literal["exhaustiveness", "gt_similarity"] = "exhaustiveness",
         ground_truth: List[List[str]] = None,
     ) -> List[RequirementEvaluationResult]:
         tasks = []

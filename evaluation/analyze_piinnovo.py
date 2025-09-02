@@ -7,13 +7,13 @@ import shutil
 import os
 from evaluation.create_report import create_report
 
-RESULT_FOLDER = 'results/piinnovo'
-DERIVED_RESULTS_FOLDER = 'results/piinnovo_derived'
+RESULT_FOLDER = "results/piinnovo"
+DERIVED_RESULTS_FOLDER = "results/piinnovo_derived"
 
 
 def load_results(folder_path: str) -> List[EvaluationResult]:
     """Load all evaluation results from the specified folder"""
-    result_paths = glob.glob(f'{folder_path}/*_result.json')
+    result_paths = glob.glob(f"{folder_path}/*_result.json")
     results = []
     for result_path in result_paths:
         with open(result_path) as f:
@@ -30,7 +30,7 @@ results = load_results(RESULT_FOLDER)
 
 def is_big(result: EvaluationResult, max_size=100) -> bool:
     """Determine if the environment is big"""
-    return result.atg_coverage['branches']['total'] > max_size
+    return result.atg_coverage["branches"]["total"] > max_size
 
 
 big_results = [result for result in results if is_big(result)]
@@ -64,8 +64,8 @@ no_fallback_results = [result for result in results if not uses_fallback(result)
 def has_large_disparity(result: EvaluationResult, max_disparity=0.5) -> bool:
     """Determine if the environment has a large disparity in ATG coverage and our coverage"""
     return (
-        result.atg_coverage['branches']['percentage']
-        - result.coverage['branches']['percentage']
+        result.atg_coverage["branches"]["percentage"]
+        - result.coverage["branches"]["percentage"]
     ) > max_disparity
 
 
@@ -100,7 +100,7 @@ def copy_results_to_derived_folder(result_list: List[EvaluationResult], subfolde
     Path(target_folder).mkdir(parents=True, exist_ok=True)
 
     # Get all result files in the source folder
-    all_result_files = glob.glob(f'{RESULT_FOLDER}/*_result.json')
+    all_result_files = glob.glob(f"{RESULT_FOLDER}/*_result.json")
 
     # For each result in our list, find the matching file and copy it
     for result in result_list:
@@ -116,12 +116,12 @@ def copy_results_to_derived_folder(result_list: List[EvaluationResult], subfolde
                         target_folder, os.path.basename(file_path)
                     )
                     shutil.copy2(file_path, target_file)
-                    print(f'Copied {file_path} to {target_file}')
+                    print(f"Copied {file_path} to {target_file}")
                     found = True
                     break
 
         if not found:
-            print('Warning: Source file for a result not found.')
+            print("Warning: Source file for a result not found.")
 
     # Return the created folder path
     return target_folder
@@ -129,12 +129,12 @@ def copy_results_to_derived_folder(result_list: List[EvaluationResult], subfolde
 
 # Dictionary to hold category names and their result lists
 categories = {
-    'big': big_results,
-    'small': small_results,
-    'uses_fallback': uses_fallback_results,
-    'no_fallback': no_fallback_results,
-    'large_disparity': large_disparity_results,
-    'bottom_20_f1': low_f1_results,
+    "big": big_results,
+    "small": small_results,
+    "uses_fallback": uses_fallback_results,
+    "no_fallback": no_fallback_results,
+    "large_disparity": large_disparity_results,
+    "bottom_20_f1": low_f1_results,
 }
 
 # Create derived folders and generate reports for each category
@@ -143,12 +143,12 @@ for category_name, result_list in categories.items():
     target_folder = copy_results_to_derived_folder(result_list, category_name)
 
     # Generate report for this category
-    report_path = os.path.join(target_folder, f'report_{category_name}.html')
+    report_path = os.path.join(target_folder, f"report_{category_name}.html")
     create_report(target_folder, report_path)
-    print(f'Generated report for {category_name} category at {report_path}')
+    print(f"Generated report for {category_name} category at {report_path}")
 
 # Also generate a report for all results in the original folder
-create_report(RESULT_FOLDER, os.path.join(RESULT_FOLDER, 'report.html'))
+create_report(RESULT_FOLDER, os.path.join(RESULT_FOLDER, "report.html"))
 
-print(f'Results copied to subfolders in {DERIVED_RESULTS_FOLDER}')
-print('Generated reports for all categories')
+print(f"Results copied to subfolders in {DERIVED_RESULTS_FOLDER}")
+print("Generated reports for all categories")

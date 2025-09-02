@@ -18,12 +18,12 @@ async def gen_requirements(env_path, allow_existing=False):
     """Generate requirements for a given environment file."""
     env_file_folder_path = Path(env_path).parent
 
-    if allow_existing and (env_file_folder_path / 'reqs.csv').exists():
-        print(f'Requirements already exist for {env_path}')
+    if allow_existing and (env_file_folder_path / "reqs.csv").exists():
+        print(f"Requirements already exist for {env_path}")
         return True
 
-    reqs_csv_path = env_file_folder_path / 'reqs.csv'
-    reqs_html_path = env_file_folder_path / 'reqs.html'
+    reqs_csv_path = env_file_folder_path / "reqs.csv"
+    reqs_html_path = env_file_folder_path / "reqs.html"
 
     try:
         total_cost, _ = await gen_reqs(
@@ -62,13 +62,13 @@ async def process_environments(
             continue
 
         if cost is False:
-            print(f'Failed to generate requirements for {env_file}')
+            print(f"Failed to generate requirements for {env_file}")
             continue
 
         total_cost += cost
         selected_envs.append(env_file)
-        print(f'Total cost: {total_cost}')
-        print(f'Processed: {len(selected_envs)}/{len(env_files)}')
+        print(f"Total cost: {total_cost}")
+        print(f"Processed: {len(selected_envs)}/{len(env_files)}")
 
         # Write progress to file
         if output_file:
@@ -76,57 +76,57 @@ async def process_environments(
             if output_dir and not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
-            with open(output_file, 'w') as f:
-                f.write('\n'.join(selected_envs))
+            with open(output_file, "w") as f:
+                f.write("\n".join(selected_envs))
 
     return selected_envs, total_cost
 
 
 async def main():
     parser = argparse.ArgumentParser(
-        description='Generate requirements from environment files'
+        description="Generate requirements from environment files"
     )
     parser.add_argument(
-        '--env-list',
+        "--env-list",
         required=True,
-        help='File containing list of environment files or directory to scan for .env files',
+        help="File containing list of environment files or directory to scan for .env files",
     )
     parser.add_argument(
-        '--max-n',
+        "--max-n",
         type=int,
         default=100,
-        help='Maximum number of environments to process',
+        help="Maximum number of environments to process",
     )
-    parser.add_argument('--max-cost', type=int, default=100, help='Maximum total cost')
+    parser.add_argument("--max-cost", type=int, default=100, help="Maximum total cost")
     parser.add_argument(
-        '--output', help='Output file to save processed environment list'
+        "--output", help="Output file to save processed environment list"
     )
     parser.add_argument(
-        '--allow-existing',
-        action='store_true',
-        help='Skip generation if requirements already exist',
+        "--allow-existing",
+        action="store_true",
+        help="Skip generation if requirements already exist",
     )
-    parser.add_argument('--seed', type=int, default=42, help='Random seed')
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
 
     args = parser.parse_args()
     random.seed(args.seed)
 
     # Get environment files
     if os.path.isdir(args.env_list):
-        env_files = glob.glob(f'{args.env_list}/**/*.env', recursive=True)
+        env_files = glob.glob(f"{args.env_list}/**/*.env", recursive=True)
     else:
         with open(args.env_list) as f:
             env_files = f.read().splitlines()
 
-    print(f'Found {len(env_files)} environment files')
+    print(f"Found {len(env_files)} environment files")
 
     selected_envs, total_cost = await process_environments(
         env_files, args.max_n, args.max_cost, args.output, args.allow_existing
     )
 
-    print(f'Processed {len(selected_envs)} environments')
-    print(f'Total cost: {total_cost}')
+    print(f"Processed {len(selected_envs)} environments")
+    print(f"Total cost: {total_cost}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

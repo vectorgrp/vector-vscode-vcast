@@ -261,25 +261,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    // await browser.waitUntil(
-    //   async () =>
-    //     (await (await bottomBar.openOutputView()).getText())
-    //       .toString()
-    //       .includes("reqs2tests completed successfully with code 0"),
-    //   { timeout: 240_000 }
-    // );
-
-    // await bottomBar.maximize()
-    // console.log(await outputView.getText())
-
-    // await browser.waitUntil(
-    //   async () =>
-    //     (await (await bottomBar.openOutputView()).getText())
-    //       .toString()
-    //       .includes("Script loaded successfully"),
-    //   { timeout: 240_000 }
-    // );
-
     await browser.waitUntil(
       async () =>
         (await (await bottomBar.openOutputView()).getText())

@@ -39,8 +39,8 @@ from .lsp_types import ErrorCodes
 
 StringDict = Dict[str, Any]
 PayloadLike = Union[List[StringDict], StringDict, None]
-CONTENT_LENGTH = 'Content-Length: '
-ENCODING = 'utf-8'
+CONTENT_LENGTH = "Content-Length: "
+ENCODING = "utf-8"
 
 
 @dataclasses.dataclass
@@ -65,30 +65,30 @@ class Error(Exception):
         self.code = code
 
     def to_lsp(self) -> StringDict:
-        return {'code': self.code, 'message': super().__str__()}
+        return {"code": self.code, "message": super().__str__()}
 
     @classmethod
-    def from_lsp(cls, d: StringDict) -> 'Error':
-        return Error(d['code'], d['message'])
+    def from_lsp(cls, d: StringDict) -> "Error":
+        return Error(d["code"], d["message"])
 
     def __str__(self) -> str:
-        return f'{super().__str__()} ({self.code})'
+        return f"{super().__str__()} ({self.code})"
 
 
 def make_response(request_id: Any, params: PayloadLike) -> StringDict:
-    return {'jsonrpc': '2.0', 'id': request_id, 'result': params}
+    return {"jsonrpc": "2.0", "id": request_id, "result": params}
 
 
 def make_error_response(request_id: Any, err: Error) -> StringDict:
-    return {'jsonrpc': '2.0', 'id': request_id, 'error': err.to_lsp()}
+    return {"jsonrpc": "2.0", "id": request_id, "error": err.to_lsp()}
 
 
 def make_notification(method: str, params: PayloadLike) -> StringDict:
-    return {'jsonrpc': '2.0', 'method': method, 'params': params}
+    return {"jsonrpc": "2.0", "method": method, "params": params}
 
 
 def make_request(method: str, request_id: Any, params: PayloadLike) -> StringDict:
-    return {'jsonrpc': '2.0', 'method': method, 'id': request_id, 'params': params}
+    return {"jsonrpc": "2.0", "method": method, "id": request_id, "params": params}
 
 
 class StopLoopException(Exception):
@@ -97,11 +97,11 @@ class StopLoopException(Exception):
 
 def create_message(payload: PayloadLike):
     body = json.dumps(
-        payload, check_circular=False, ensure_ascii=False, separators=(',', ':')
+        payload, check_circular=False, ensure_ascii=False, separators=(",", ":")
     ).encode(ENCODING)
     return (
-        f'Content-Length: {len(body)}\r\n'.encode(ENCODING),
-        'Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n'.encode(
+        f"Content-Length: {len(body)}\r\n".encode(ENCODING),
+        "Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n".encode(
             ENCODING
         ),
         body,
@@ -133,13 +133,13 @@ class Request:
 
 
 def content_length(line: bytes) -> Optional[int]:
-    if line.startswith(b'Content-Length: '):
-        _, value = line.split(b'Content-Length: ')
+    if line.startswith(b"Content-Length: "):
+        _, value = line.split(b"Content-Length: ")
         value = value.strip()
         try:
             return int(value)
         except ValueError:
-            raise ValueError('Invalid Content-Length header: {}'.format(value))
+            raise ValueError("Invalid Content-Length header: {}".format(value))
     return None
 
 
@@ -263,7 +263,7 @@ class LanguageServerHandler:
         Create a log message
         """
         if self.logger:
-            self.logger('client', 'logger', message)
+            self.logger("client", "logger", message)
 
     async def run_forever(self) -> bool:
         """
@@ -312,7 +312,7 @@ class LanguageServerHandler:
                 line = await self.process.stderr.readline()
                 if not line:
                     continue
-                self._log('LSP stderr: ' + line.decode(ENCODING))
+                self._log("LSP stderr: " + line.decode(ENCODING))
         except (BrokenPipeError, ConnectionResetError, StopLoopException):
             pass
 
@@ -323,30 +323,30 @@ class LanguageServerHandler:
         try:
             await self._receive_payload(json.loads(body))
         except IOError as ex:
-            self._log(f'malformed {ENCODING}: {ex}')
+            self._log(f"malformed {ENCODING}: {ex}")
         except UnicodeDecodeError as ex:
-            self._log(f'malformed {ENCODING}: {ex}')
+            self._log(f"malformed {ENCODING}: {ex}")
         except json.JSONDecodeError as ex:
-            self._log(f'malformed JSON: {ex}')
+            self._log(f"malformed JSON: {ex}")
 
     async def _receive_payload(self, payload: StringDict) -> None:
         """
         Determine if the payload received from server is for a request, response, or notification and invoke the appropriate handler
         """
         if self.logger:
-            self.logger('server', 'client', payload)
+            self.logger("server", "client", payload)
         try:
-            if 'method' in payload:
-                if 'id' in payload:
+            if "method" in payload:
+                if "id" in payload:
                     await self._request_handler(payload)
                 else:
                     await self._notification_handler(payload)
-            elif 'id' in payload:
+            elif "id" in payload:
                 await self._response_handler(payload)
             else:
-                self._log(f'Unknown payload type: {payload}')
+                self._log(f"Unknown payload type: {payload}")
         except Exception as err:
-            self._log(f'Error handling server payload: {err}')
+            self._log(f"Error handling server payload: {err}")
 
     def send_notification(self, method: str, params: Optional[dict] = None) -> None:
         """
@@ -395,7 +395,7 @@ class LanguageServerHandler:
             return
         msg = create_message(payload)
         if self.logger:
-            self.logger('client', 'server', payload)
+            self.logger("client", "server", payload)
         self.process.stdin.writelines(msg)
 
     async def _send_payload(self, payload: StringDict) -> None:
@@ -406,7 +406,7 @@ class LanguageServerHandler:
             return
         msg = create_message(payload)
         if self.logger:
-            self.logger('client', 'server', payload)
+            self.logger("client", "server", payload)
         self.process.stdin.writelines(msg)
         await self.process.stdin.drain()
 
@@ -426,21 +426,21 @@ class LanguageServerHandler:
         """
         Handle the response received from the server for a request, using the id to determine the request
         """
-        request = self._response_handlers.pop(response['id'])
-        if 'result' in response and 'error' not in response:
-            await request.on_result(response['result'])
-        elif 'result' not in response and 'error' in response:
-            await request.on_error(Error.from_lsp(response['error']))
+        request = self._response_handlers.pop(response["id"])
+        if "result" in response and "error" not in response:
+            await request.on_result(response["result"])
+        elif "result" not in response and "error" in response:
+            await request.on_error(Error.from_lsp(response["error"]))
         else:
-            await request.on_error(Error(ErrorCodes.InvalidRequest, ''))
+            await request.on_error(Error(ErrorCodes.InvalidRequest, ""))
 
     async def _request_handler(self, response: StringDict) -> None:
         """
         Handle the request received from the server: call the appropriate callback function and return the result
         """
-        method = response.get('method', '')
-        params = response.get('params')
-        request_id = response.get('id')
+        method = response.get("method", "")
+        params = response.get("params")
+        request_id = response.get("id")
         handler = self.on_request_handlers.get(method)
         if not handler:
             self.send_error_response(
@@ -464,11 +464,11 @@ class LanguageServerHandler:
         """
         Handle the notification received from the server: call the appropriate callback function
         """
-        method = response.get('method', '')
-        params = response.get('params')
+        method = response.get("method", "")
+        params = response.get("params")
         handler = self.on_notification_handlers.get(method)
         if not handler:
-            self._log(f'unhandled {method}')
+            self._log(f"unhandled {method}")
             return
         try:
             await handler(params)
@@ -477,14 +477,14 @@ class LanguageServerHandler:
         except Exception as ex:
             if (not self._received_shutdown) and self.logger:
                 self.logger(
-                    'client',
-                    'logger',
+                    "client",
+                    "logger",
                     str(
                         {
-                            'type': MessageType.error,
-                            'message': str(ex),
-                            'method': method,
-                            'params': params,
+                            "type": MessageType.error,
+                            "message": str(ex),
+                            "method": method,
+                            "params": params,
                         }
                     ),
                 )

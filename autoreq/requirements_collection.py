@@ -34,8 +34,8 @@ class Requirement(BaseModel):
     location: RequirementLocation = Field(default_factory=RequirementLocation)
 
     model_config = {
-        'arbitrary_types_allowed': True,
-        'ignored_types': (
+        "arbitrary_types_allowed": True,
+        "ignored_types": (
             t.Callable,
             property,
         ),  # Tell Pydantic to ignore methods and properties
@@ -44,18 +44,18 @@ class Requirement(BaseModel):
     def to_flat_dict(self, convert_lines_to_string=False) -> dict:
         """Convert the requirement to a flat dictionary."""
         flat_dict = {
-            'key': self.key,
-            'id': self.id,
-            'title': self.title,
-            'description': self.description,
-            'unit': self.location.unit or '',
-            'function': self.location.function or '',
-            'lines': self.location.lines,
+            "key": self.key,
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "unit": self.location.unit or "",
+            "function": self.location.function or "",
+            "lines": self.location.lines,
         }
 
         if convert_lines_to_string:
             lines = self.location.lines
-            flat_dict['lines'] = json.dumps(lines) if lines is not None else ''
+            flat_dict["lines"] = json.dumps(lines) if lines is not None else ""
 
         return flat_dict
 
@@ -63,11 +63,11 @@ class Requirement(BaseModel):
     def from_flat_dict(data: dict):
         """Initialize the requirement from a flat dictionary."""
 
-        assert all(key in data for key in ['key', 'id', 'title', 'description']), (
-            "Data must contain 'key', 'id', 'title', and 'description' fields."
-        )
+        assert all(
+            key in data for key in ["key", "id", "title", "description"]
+        ), "Data must contain 'key', 'id', 'title', and 'description' fields."
 
-        lines_str = data.get('lines')
+        lines_str = data.get("lines")
         lines = None
         if lines_str and isinstance(lines_str, str):
             try:
@@ -81,13 +81,13 @@ class Requirement(BaseModel):
             lines = lines_str
 
         return Requirement(
-            key=data['key'],
-            id=data['id'],
-            title=data['title'],
-            description=data['description'],
+            key=data["key"],
+            id=data["id"],
+            title=data["title"],
+            description=data["description"],
             location=RequirementLocation(
-                unit=data.get('unit') or None,
-                function=data.get('function') or None,
+                unit=data.get("unit") or None,
+                function=data.get("function") or None,
                 lines=lines,
             ),
         )
@@ -103,7 +103,7 @@ class DecomposedRequirement(Requirement):
 
     def to_flat_dict(self, convert_lines_to_string=False) -> dict:
         data = super().to_flat_dict(convert_lines_to_string=convert_lines_to_string)
-        data['original_key'] = self.original_key
+        data["original_key"] = self.original_key
         return data
 
     @staticmethod
@@ -116,7 +116,7 @@ class DecomposedRequirement(Requirement):
             title=req.title,
             description=req.description,
             location=req.location,
-            original_key=data['original_key'],
+            original_key=data["original_key"],
         )
 
 
@@ -134,10 +134,10 @@ class RequirementsCollection:
         Validate that all requirements have unique keys.
         """
         if not all(isinstance(req, Requirement) for req in self.requirements):
-            raise TypeError('All items in requirements must be of type Requirement.')
+            raise TypeError("All items in requirements must be of type Requirement.")
 
         if len(self.requirements) != len(self._key_requirement_map):
-            raise ValueError('Requirements must have unique keys.')
+            raise ValueError("Requirements must have unique keys.")
 
     @property
     def requirement_keys(self):
@@ -202,21 +202,21 @@ class RequirementsCollection:
             self.requirements.extend(requirements)
         else:
             raise TypeError(
-                'Requirements must be a RequirementsCollection or a list of Requirement objects.'
+                "Requirements must be a RequirementsCollection or a list of Requirement objects."
             )
         self._validate_requirements()
 
     @staticmethod
     def from_csv(path):
         raw_reqs = []
-        with open(path, newline='', encoding='utf-8') as csvfile:
+        with open(path, newline="", encoding="utf-8") as csvfile:
             reader = csv.DictReader(
                 csvfile, skipinitialspace=True, quoting=csv.QUOTE_MINIMAL
             )
             for row in reader:
                 raw_reqs.append(
                     {
-                        key.lower() if key != 'Module' else 'unit': value
+                        key.lower() if key != "Module" else "unit": value
                         for key, value in row.items()
                     }
                 )
@@ -226,15 +226,15 @@ class RequirementsCollection:
         return RequirementsCollection(reqs)
 
     def to_csv(self, path):
-        with open(path, 'w', newline='', encoding='utf-8') as csvfile:
+        with open(path, "w", newline="", encoding="utf-8") as csvfile:
             fieldnames = [
-                'key',
-                'id',
-                'title',
-                'description',
-                'unit',
-                'function',
-                'lines',
+                "key",
+                "id",
+                "title",
+                "description",
+                "unit",
+                "function",
+                "lines",
             ]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -260,10 +260,10 @@ class RequirementsCollection:
             <h1>Requirements</h1>
         """
         requirements_by_function = self.group_by(
-            lambda req: req.location.function or 'No Function'
+            lambda req: req.location.function or "No Function"
         )
         for function, reqs in requirements_by_function.items():
-            html_content += f'<h2>{function}</h2>'
+            html_content += f"<h2>{function}</h2>"
             for req in reqs:
                 html_content += f"""
                 <div class="requirement">
@@ -272,10 +272,10 @@ class RequirementsCollection:
                 </div>
                 """
 
-        html_content += '</body></html>'
+        html_content += "</body></html>"
 
         if output_file:
-            with open(output_file, 'w') as f:
+            with open(output_file, "w") as f:
                 f.write(html_content)
         else:
             return html_content
@@ -300,26 +300,26 @@ class RequirementsCollection:
         wb = Workbook()
         ws = wb.active
         if ws is not None:
-            ws.title = 'Requirements'
+            ws.title = "Requirements"
 
         # Get function data from source environments if provided
         funcs = {}
         if source_envs:
             for env in source_envs:
                 for f in env.testable_functions:
-                    key = f['unit_name']
+                    key = f["unit_name"]
                     funcs.setdefault(key, [])
-                    funcs[key].append(f['name'])
+                    funcs[key].append(f["name"])
 
         # Define headers with metadata
-        headers = ['Key', 'ID', 'Title', 'Description']
+        headers = ["Key", "ID", "Title", "Description"]
         if include_metadata:
-            headers.extend(['Module', 'Function', 'Lines'])
+            headers.extend(["Module", "Function", "Lines"])
 
         # Create header styling
         header_font = Font(bold=True)
         header_fill = PatternFill(
-            fill_type='solid', start_color='C6EFCE'
+            fill_type="solid", start_color="C6EFCE"
         )  # Light green
 
         # Write headers with styling
@@ -341,22 +341,22 @@ class RequirementsCollection:
 
                 if include_metadata:
                     ws.cell(row=row_idx, column=5).value = (
-                        req.location.unit if req.location else ''
+                        req.location.unit if req.location else ""
                     )
                     ws.cell(row=row_idx, column=6).value = (
-                        req.location.function if req.location else ''
+                        req.location.function if req.location else ""
                     )
                     ws.cell(row=row_idx, column=7).value = (
-                        ', '.join(map(str, req.location.lines))
+                        ", ".join(map(str, req.location.lines))
                         if req.location and req.location.lines
-                        else ''
+                        else ""
                     )
 
         # Add dropdowns if source_envs provided and metadata included
         if source_envs and include_metadata and funcs and ws is not None:
             # Create hidden sheet for dropdown options
-            lists_ws = wb.create_sheet('Options')
-            lists_ws.sheet_state = 'hidden'
+            lists_ws = wb.create_sheet("Options")
+            lists_ws.sheet_state = "hidden"
 
             # List all modules in column A
             modules = list(funcs.keys())
@@ -365,14 +365,14 @@ class RequirementsCollection:
 
             # For each module, write its functions in its own column and create named range
             for i, module in enumerate(modules):
-                functions = funcs[module] + ['None']
+                functions = funcs[module] + ["None"]
                 col = i + 2
                 for row, func in enumerate(functions, start=1):
                     lists_ws.cell(row=row, column=col, value=func)
                 col_letter = get_column_letter(col)
                 end_row = len(functions)
-                range_ref = f'${col_letter}$1:${col_letter}${end_row}'
-                range_name = module.replace(' ', '_').replace('-', '_')
+                range_ref = f"${col_letter}$1:${col_letter}${end_row}"
+                range_name = module.replace(" ", "_").replace("-", "_")
                 wb.create_named_range(range_name, lists_ws, range_ref)
 
             # Add data validation for Unit column (assuming it's column 5)
@@ -383,23 +383,23 @@ class RequirementsCollection:
 
             # Module/Unit dropdown
             dv_unit = DataValidation(
-                type='list',
-                formula1=f'=Options!$A$1:$A${len(modules)}',
+                type="list",
+                formula1=f"=Options!$A$1:$A${len(modules)}",
                 allow_blank=True,
             )
             ws.add_data_validation(dv_unit)
-            dv_unit_range = f'{get_column_letter(unit_col_index)}2:{get_column_letter(unit_col_index)}{num_data_rows + 1}'
+            dv_unit_range = f"{get_column_letter(unit_col_index)}2:{get_column_letter(unit_col_index)}{num_data_rows + 1}"
             dv_unit.add(dv_unit_range)
 
             # Function dropdown using INDIRECT
             for row in range(2, num_data_rows + 2):
-                unit_cell = f'{unit_col_letter}{row}'
+                unit_cell = f"{unit_col_letter}{row}"
                 formula = f'=INDIRECT(SUBSTITUTE({unit_cell}," ","_"))'
                 dv_func = DataValidation(
-                    type='list', formula1=formula, allow_blank=True
+                    type="list", formula1=formula, allow_blank=True
                 )
                 ws.add_data_validation(dv_func)
-                function_cell = f'{get_column_letter(function_col_index)}{row}'
+                function_cell = f"{get_column_letter(function_col_index)}{row}"
                 dv_func.add(function_cell)
 
         # Auto-adjust column widths
@@ -435,24 +435,24 @@ class RequirementsCollection:
                 req_data = {}
                 for i, value in enumerate(row):
                     if i < len(headers) and value is not None:
-                        req_data[headers[i]] = str(value).strip() if value else ''
+                        req_data[headers[i]] = str(value).strip() if value else ""
 
                 # Extract basic requirement info
-                key = req_data.get('Key', '')
-                req_id = req_data.get('ID', '')
-                title = req_data.get('Title', '')
-                description = req_data.get('Description', '')
+                key = req_data.get("Key", "")
+                req_id = req_data.get("ID", "")
+                title = req_data.get("Title", "")
+                description = req_data.get("Description", "")
 
                 if not key or not description:
                     continue
 
                 # Parse location info
                 location = None
-                unit = req_data.get('Module', '')
-                function = req_data.get('Function', '')
-                lines_str = req_data.get('Lines', '')
+                unit = req_data.get("Module", "")
+                function = req_data.get("Function", "")
+                lines_str = req_data.get("Lines", "")
 
-                if function == 'None':
+                if function == "None":
                     function = None
 
                 if unit or function or lines_str:
@@ -461,7 +461,7 @@ class RequirementsCollection:
                         try:
                             lines = [
                                 int(line.strip())
-                                for line in lines_str.split(',')
+                                for line in lines_str.split(",")
                                 if line.strip().isdigit()
                             ]
                         except ValueError:
@@ -487,18 +487,18 @@ class RequirementsCollection:
         return RequirementsCollection(requirements)
 
     @classmethod
-    def from_path(cls, path: str) -> 'RequirementsCollection':
+    def from_path(cls, path: str) -> "RequirementsCollection":
         """Load requirements from a file path, auto-detecting format."""
         path_obj = Path(path)
 
         if path_obj.is_dir():
             return RequirementsCollection.from_rgw(path)
-        elif path_obj.suffix.lower() == '.xlsx':
+        elif path_obj.suffix.lower() == ".xlsx":
             return RequirementsCollection.from_excel(path)
-        elif path_obj.suffix.lower() == '.csv':
+        elif path_obj.suffix.lower() == ".csv":
             return cls.from_csv(path)
         else:
-            raise ValueError(f'Unsupported file format: {path_obj.suffix}')
+            raise ValueError(f"Unsupported file format: {path_obj.suffix}")
 
     def to_rgw(self, rgw_path, target_env=None, only_traceability=False):
         # Get traceability path first
@@ -522,19 +522,19 @@ class RequirementsCollection:
             traceability_data = {}
             for req in self.requirements:
                 traceability_data[req.key] = {
-                    'unit': req.location.unit,
-                    'function': req.location.function,
-                    'lines': req.location.lines,
+                    "unit": req.location.unit,
+                    "function": req.location.function,
+                    "lines": req.location.lines,
                 }
 
-            with open(str(requirements_traceability_path), 'w') as f:
+            with open(str(requirements_traceability_path), "w") as f:
                 json.dump(traceability_data, f, indent=4)
 
     def _create_rgw(self, rgw_path):
         rgw_path = Path(rgw_path)
         rgw_path.mkdir(parents=True, exist_ok=True)
 
-        temp_file = NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+        temp_file = NamedTemporaryFile(mode="w", suffix=".csv", delete=False)
 
         # Explicitly close the file handle to avoid problems on windows
 
@@ -543,55 +543,55 @@ class RequirementsCollection:
             self.to_csv(temp_file.name)
 
             rgw_prep_commands = [
-                ['-lc', 'option', 'VCAST_REPOSITORY', str(rgw_path.resolve())],
-                ['-lc', 'RGw', 'INitialize'],
-                ['-lc', 'Rgw', 'Set', 'Gateway', 'CSV'],
+                ["-lc", "option", "VCAST_REPOSITORY", str(rgw_path.resolve())],
+                ["-lc", "RGw", "INitialize"],
+                ["-lc", "Rgw", "Set", "Gateway", "CSV"],
                 [
-                    '-lc',
-                    'RGw',
-                    'Configure',
-                    'Set',
-                    'CSV',
-                    'csv_path',
+                    "-lc",
+                    "RGw",
+                    "Configure",
+                    "Set",
+                    "CSV",
+                    "csv_path",
                     temp_file.name,
                 ],
                 [
-                    '-lc',
-                    'RGw',
-                    'Configure',
-                    'Set',
-                    'CSV',
-                    'use_attribute_filter',
-                    '0',
+                    "-lc",
+                    "RGw",
+                    "Configure",
+                    "Set",
+                    "CSV",
+                    "use_attribute_filter",
+                    "0",
                 ],
-                ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute'],
-                ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'filter_attribute_value'],
-                ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'id_attribute', 'id'],
-                ['-lc', 'RGw', 'Configure', 'Set', 'CSV', 'key_attribute', 'key'],
+                ["-lc", "RGw", "Configure", "Set", "CSV", "filter_attribute"],
+                ["-lc", "RGw", "Configure", "Set", "CSV", "filter_attribute_value"],
+                ["-lc", "RGw", "Configure", "Set", "CSV", "id_attribute", "id"],
+                ["-lc", "RGw", "Configure", "Set", "CSV", "key_attribute", "key"],
                 [
-                    '-lc',
-                    'RGw',
-                    'Configure',
-                    'Set',
-                    'CSV',
-                    'title_attribute',
-                    'title',
+                    "-lc",
+                    "RGw",
+                    "Configure",
+                    "Set",
+                    "CSV",
+                    "title_attribute",
+                    "title",
                 ],
                 [
-                    '-lc',
-                    'RGw',
-                    'Configure',
-                    'Set',
-                    'CSV',
-                    'description_attribute',
-                    'description',
+                    "-lc",
+                    "RGw",
+                    "Configure",
+                    "Set",
+                    "CSV",
+                    "description_attribute",
+                    "description",
                 ],
-                ['-lc', 'RGw', 'Import'],
+                ["-lc", "RGw", "Import"],
             ]
 
             rgw_prep_commands = list(
                 map(
-                    lambda args: get_vectorcast_cmd('clicast', args),
+                    lambda args: get_vectorcast_cmd("clicast", args),
                     rgw_prep_commands,
                 )
             )
@@ -609,20 +609,20 @@ class RequirementsCollection:
             rgw_path
         )
 
-        assert requirements_json_path is not None, (
-            'The requirements gateway does not contain a file containing requirements.'
-        )
-        with open(requirements_json_path, 'r') as f:
+        assert (
+            requirements_json_path is not None
+        ), "The requirements gateway does not contain a file containing requirements."
+        with open(requirements_json_path, "r") as f:
             data = json.load(f)
 
         # For older versions of VectorCAST, the requirements might be under 'requirements' key.
-        if 'requirements' in data:
-            data = data['requirements']
+        if "requirements" in data:
+            data = data["requirements"]
 
         req_dicts = []
         for group_id, reqs_info in data.items():
             for req_key, req in reqs_info.items():
-                req['key'] = req_key
+                req["key"] = req_key
                 req_dicts.append(req)
 
         requirements_traceability_path = (
@@ -630,11 +630,11 @@ class RequirementsCollection:
         )
 
         if requirements_traceability_path is not None:
-            with open(requirements_traceability_path, 'r') as f:
+            with open(requirements_traceability_path, "r") as f:
                 traceability_data = json.load(f)
 
             for req in req_dicts:
-                traceability_info = traceability_data.get(req['key'])
+                traceability_info = traceability_data.get(req["key"])
 
                 if traceability_data is None:
                     logging.warning(
@@ -652,15 +652,15 @@ class RequirementsCollection:
     def _get_rgw_requirements_json_path(rgw_path, check_exist=True):
         rgw_path = Path(rgw_path)
 
-        requirements_json_path = rgw_path / 'requirements_gateway' / 'requirements.json'
+        requirements_json_path = rgw_path / "requirements_gateway" / "requirements.json"
         if not check_exist or requirements_json_path.is_file():
             return requirements_json_path
 
-        requirements_json_path = rgw_path / 'requirements_gateway' / 'repository.json'
+        requirements_json_path = rgw_path / "requirements_gateway" / "repository.json"
         if not check_exist or requirements_json_path.is_file():
             logging.warning(
-                'The requirements gateway contains a repository.json file instead of requirements.json.\n'
-                'In newer versions of VectorCAST, the requirements gateway uses requirements.json instead of repository.json.'
+                "The requirements gateway contains a repository.json file instead of requirements.json.\n"
+                "In newer versions of VectorCAST, the requirements gateway uses requirements.json instead of repository.json."
             )
             return requirements_json_path
 
@@ -669,7 +669,7 @@ class RequirementsCollection:
         rgw_path = Path(rgw_path)
 
         requirements_traceability_path = (
-            rgw_path / 'requirements_gateway' / 'traceability.json'
+            rgw_path / "requirements_gateway" / "traceability.json"
         )
         if not check_exist or requirements_traceability_path.is_file():
             return requirements_traceability_path

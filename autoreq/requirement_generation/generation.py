@@ -22,7 +22,7 @@ class DesignDecompositionResult(BaseModel):
     def with_requirement_indices(self):
         return DesignDecompositionResult(
             requirements=[
-                f'Requirement {i + 1}: {req}'
+                f"Requirement {i + 1}: {req}"
                 for i, req in enumerate(self.without_requirement_indices.requirements)
             ]
         )
@@ -31,7 +31,7 @@ class DesignDecompositionResult(BaseModel):
     def without_requirement_indices(self):
         return DesignDecompositionResult(
             requirements=[
-                req.split(':', 1)[1].strip() if ':' in req else req
+                req.split(":", 1)[1].strip() if ":" in req else req
                 for req in self.requirements
             ]
         )
@@ -61,16 +61,16 @@ def _derive_requirement_schema(num_parts):
 
     # Create fields for each semantic part
     result_keys: Dict[str, Any] = {
-        f'test_case_for_part_{i + 1}': (TestCase, ...) for i in range(num_parts)
+        f"test_case_for_part_{i + 1}": (TestCase, ...) for i in range(num_parts)
     }
     result_keys.update(
         {
-            f'requirement_for_part_{i + 1}': (RequirementSchema, ...)
+            f"requirement_for_part_{i + 1}": (RequirementSchema, ...)
             for i in range(num_parts)
         }
     )
 
-    return create_model('RequirementGenerationResult', **result_keys)
+    return create_model("RequirementGenerationResult", **result_keys)
 
 
 def _batch_items(items, batch_size=50):
@@ -109,12 +109,12 @@ class RequirementsGenerator:
         function_body = self.environment.tu_codebase.find_definitions_by_name(
             function_name
         )[0]
-        requirements_text = '\n'.join('- ' + r for r in requirements)
+        requirements_text = "\n".join("- " + r for r in requirements)
 
         if allow_merge:
-            merge_instructions = 'You are not just allowed to split the requirements into smaller parts, but also to merge them if you think that the original requirements are too granular.'
+            merge_instructions = "You are not just allowed to split the requirements into smaller parts, but also to merge them if you think that the original requirements are too granular."
         else:
-            merge_instructions = ''
+            merge_instructions = ""
 
         prompt = f"""
 You will be given a set of requirements for a function. Your task is to produce a new set of requirements derived from the given ones. 
@@ -146,12 +146,12 @@ Notes:
 
         try:
             response = await self.llm_client.call_model(
-                [{'role': 'user', 'content': prompt}], ReworkedRequirementsResult
+                [{"role": "user", "content": prompt}], ReworkedRequirementsResult
             )
             return cast(ReworkedRequirementsResult, response).reworked_requirements
         except Exception as e:
             logging.exception(
-                f'Postprocessing failed for function {function_name}: {e}'
+                f"Postprocessing failed for function {function_name}: {e}"
             )
             self.info_logger.set_postprocessing_failed(function_name)
             self.info_logger.add_exception(function_name, traceback.format_exc())
@@ -169,7 +169,7 @@ Notes:
 
         if post_process_requirements:
             logging.warning(
-                'Semantic parts will not correspond to the requirements if you ask for them to be post-processed.'
+                "Semantic parts will not correspond to the requirements if you ask for them to be post-processed."
             )
 
         # Start tracking this function
@@ -181,20 +181,20 @@ Notes:
         # Format semantic parts for prompt
         prettified_parts = []
         for i, part in enumerate(semantic_parts):
-            index_prefix = f'{i + 1}. '
+            index_prefix = f"{i + 1}. "
             prettified_parts.append(index_prefix + str(part))
 
-        available_parts = '\n'.join(prettified_parts)
+        available_parts = "\n".join(prettified_parts)
         num_parts = len(semantic_parts)
 
         messages = [
             {
-                'role': 'system',
-                'content': 'You are a world-class software engineer that does requirements engineering for a living.',
+                "role": "system",
+                "content": "You are a world-class software engineer that does requirements engineering for a living.",
             },
             {
-                'role': 'user',
-                'content': f"""
+                "role": "user",
+                "content": f"""
 Derive a complete list of test cases for the given function definition (give them in natural language). These test cases should give us 100% coverage of the code.
 After that derive a complete list of requirements for the given function definition. Use completely implementation-independent vocabulary. A requirement is a single, complete, and testable statement of the expected behaviour of a single semantic part of the code.
 
@@ -296,12 +296,12 @@ The success of this task is critical. If you do not generate exactly one test ca
                 current_num_parts = len(batch)
                 partial_prettified_parts = []
                 for i2, part in enumerate(batch):
-                    index_prefix = f'{i2 + 1}. '
+                    index_prefix = f"{i2 + 1}. "
                     partial_prettified_parts.append(index_prefix + str(part))
-                partial_available_parts = '\n'.join(partial_prettified_parts)
+                partial_available_parts = "\n".join(partial_prettified_parts)
 
                 batch_messages = [msg.copy() for msg in messages]
-                batch_messages[1]['content'] = batch_messages[1]['content'].replace(
+                batch_messages[1]["content"] = batch_messages[1]["content"].replace(
                     available_parts, partial_available_parts
                 )
 
@@ -315,14 +315,14 @@ The success of this task is critical. If you do not generate exactly one test ca
                     )
                     partial_requirements = [
                         getattr(
-                            partial_result, f'requirement_for_part_{i + 1}'
+                            partial_result, f"requirement_for_part_{i + 1}"
                         ).statement
                         for i in range(current_num_parts)
                     ]
                     all_requirements.extend(partial_requirements)
                 except Exception as e:
                     logging.exception(
-                        f'Call to model failed for batch requirement generation: {e}'
+                        f"Call to model failed for batch requirement generation: {e}"
                     )
                     self.info_logger.set_requirement_generation_failed(function_name)
                     self.info_logger.add_exception(
@@ -340,12 +340,12 @@ The success of this task is critical. If you do not generate exactly one test ca
                     extended_reasoning=self.extended_reasoning,
                 )
                 requirements = [
-                    getattr(result, f'requirement_for_part_{i + 1}').statement
+                    getattr(result, f"requirement_for_part_{i + 1}").statement
                     for i in range(num_parts)
                 ]
             except Exception as e:
                 logging.exception(
-                    f'Call to model failed for requirement generation: {e}'
+                    f"Call to model failed for requirement generation: {e}"
                 )
                 self.info_logger.set_requirement_generation_failed(function_name)
                 self.info_logger.add_exception(function_name, traceback.format_exc())
@@ -363,7 +363,7 @@ The success of this task is critical. If you do not generate exactly one test ca
         unit_name = self._get_function_unit(function_name)
 
         for i, req_text in enumerate(requirements):
-            req_id = f'{function_name}.{i + 1}'
+            req_id = f"{function_name}.{i + 1}"
 
             if post_process_requirements:
                 req_location = RequirementLocation(
@@ -397,7 +397,7 @@ The success of this task is critical. If you do not generate exactly one test ca
         matching_func_info = next(
             func_info
             for func_info in self.environment.testable_functions
-            if func_info['name'] == function_name
+            if func_info["name"] == function_name
         )
 
-        return matching_func_info['unit_name']
+        return matching_func_info["unit_name"]

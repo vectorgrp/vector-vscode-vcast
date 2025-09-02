@@ -21,7 +21,7 @@ class MonitorFileBuffer:
     prompt_lc: Tuple[int, int]
     current_lc: Tuple[int, int]
     language: Language
-    gen_text: str = ''
+    gen_text: str = ""
 
     def append_text(self, text: str):
         """
@@ -35,7 +35,7 @@ class MonitorFileBuffer:
         new_lc = self.lsp.insert_text_at_position(
             self.file_path, self.current_lc[0], self.current_lc[1], text
         )
-        self.current_lc = (new_lc['line'], new_lc['character'])
+        self.current_lc = (new_lc["line"], new_lc["character"])
         self.gen_text += text
         assert current_lc_index + len(text) == TextUtils.get_index_from_line_col(
             self.lsp.get_open_file_text(self.file_path),

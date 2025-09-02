@@ -47,7 +47,7 @@ class Reqs2CodeMapper:
 
         tasks = [
             req_generator.generate(
-                function_name=func['name'], post_process_requirements=False
+                function_name=func["name"], post_process_requirements=False
             )
             for func in self.environment.testable_functions
         ]
@@ -95,8 +95,8 @@ class Reqs2CodeMapper:
         try:
             message = await self.llm_client.call_model(
                 messages=[
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': task_prompt},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": task_prompt},
                 ],
                 schema=CorrespondingFunction,
                 temperature=0,
@@ -104,14 +104,14 @@ class Reqs2CodeMapper:
             )
             if message:
                 corresponding_function = getattr(
-                    message, 'corresponding_function', None
+                    message, "corresponding_function", None
                 )
                 if corresponding_function is None:
-                    raise ValueError('No corresponding_function in response')
+                    raise ValueError("No corresponding_function in response")
             else:
-                raise ValueError('No response from LLM')
+                raise ValueError("No response from LLM")
         except Exception as e:
-            logging.error(f'Error processing requirement {requirement.key}: {e}')
+            logging.error(f"Error processing requirement {requirement.key}: {e}")
             corresponding_function = None
 
         return (requirement, corresponding_function)

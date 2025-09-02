@@ -46,7 +46,7 @@ class MGDLogitsProcessor(LogitsProcessor):
                     for i in range(scores.shape[0])
                 ]
             ).to(scores.device),
-            float('-inf') * torch.ones(scores.shape[0]).to(scores.device),
+            float("-inf") * torch.ones(scores.shape[0]).to(scores.device),
             scores,
         ).to(scores)
         return output_scores

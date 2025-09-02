@@ -18,7 +18,7 @@ class TestPatcher:
             insertion_pos = self._find_insertion_position(test_case, pointer_id)
             test_case.input_values.insert(
                 insertion_pos,
-                GenericValueMapping(identifier=pointer_id, value=f'<<malloc {size}>>'),
+                GenericValueMapping(identifier=pointer_id, value=f"<<malloc {size}>>"),
             )
 
         unconstructed_class_constructors = self._get_unconstructed_class_constructors(
@@ -35,7 +35,7 @@ class TestPatcher:
             )
             test_case.input_values.insert(
                 insertion_pos,
-                GenericValueMapping(identifier=constructor_identifier, value='0'),
+                GenericValueMapping(identifier=constructor_identifier, value="0"),
             )
 
         return test_case
@@ -54,16 +54,16 @@ class TestPatcher:
 
         if relevant_identifiers is None:
             logging.warning(
-                f'No relevant identifiers found for subprogram {test_case.subprogram_name}'
+                f"No relevant identifiers found for subprogram {test_case.subprogram_name}"
             )
             return {}
 
         constructor_ids = [
-            i for i in relevant_identifiers if i.metadata.get('constructor_type')
+            i for i in relevant_identifiers if i.metadata.get("constructor_type")
         ]
         constructors_by_class = {}
         for ident in constructor_ids:
-            class_name = ident.metadata.get('constructor_type').name
+            class_name = ident.metadata.get("constructor_type").name
             if class_name not in constructors_by_class:
                 constructors_by_class[class_name] = []
             constructors_by_class[class_name].append(str(ident))
@@ -84,7 +84,7 @@ class TestPatcher:
 
         if relevant_identifiers is None:
             logging.warning(
-                f'No relevant identifiers found for subprogram {test_case.subprogram_name}'
+                f"No relevant identifiers found for subprogram {test_case.subprogram_name}"
             )
             return {}
 
@@ -93,8 +93,8 @@ class TestPatcher:
         pointer_ids = [
             i
             for i in relevant_identifiers
-            if i.metadata.get('pointer_type')
-            or i.metadata.get('unconstrained_array_type')
+            if i.metadata.get("pointer_type")
+            or i.metadata.get("unconstrained_array_type")
         ]
 
         top_level_pointer_ids = self._only_top_level_identifiers(pointer_ids)
@@ -110,15 +110,15 @@ class TestPatcher:
         uninitialized_top_level_param_pointer_ids = [
             i
             for i in uninitialized_top_level_pointer_ids
-            if 'param_for' in i.metadata
-            and i.metadata['param_for'].name == test_case.subprogram_name
+            if "param_for" in i.metadata
+            and i.metadata["param_for"].name == test_case.subprogram_name
         ]
 
         uninitialized_top_level_global_pointer_ids = [
             i
             for i in uninitialized_top_level_pointer_ids
-            if 'global_in' in i.metadata
-            and i.metadata['global_in'].name == test_case.subprogram_name
+            if "global_in" in i.metadata
+            and i.metadata["global_in"].name == test_case.subprogram_name
         ]
 
         uninitialized_nonparam_but_used_pointer_ids = [
@@ -152,7 +152,7 @@ class TestPatcher:
         function_type = self.env.type_resolver.resolve(test_case.subprogram_name)
 
         if function_type is None:
-            logging.warning(f'No type found for subprogram {test_case.subprogram_name}')
+            logging.warning(f"No type found for subprogram {test_case.subprogram_name}")
             return None
 
         return function_type.to_vectorcast_identifiers(
@@ -177,7 +177,7 @@ class TestPatcher:
                 input_identifiers.append(str_to_identifiers[identifier])
             else:
                 logging.warning(
-                    f'Identifier {identifier} not found in relevant identifiers for subprogram {test_case.subprogram_name}'
+                    f"Identifier {identifier} not found in relevant identifiers for subprogram {test_case.subprogram_name}"
                 )
 
         return input_identifiers
@@ -202,9 +202,9 @@ class TestPatcher:
             ):
                 # Extract index from array/pointer access like "arr[0]" or "ptr[5]"
                 remaining = test_identifier[len(identifier_str) :]
-                if remaining.startswith('[') and ']' in remaining:
+                if remaining.startswith("[") and "]" in remaining:
                     try:
-                        index_str = remaining[1:].split(']')[0]
+                        index_str = remaining[1:].split("]")[0]
                         index = int(index_str)
                         max_size = max(max_size, index + 1)
                     except (ValueError, IndexError):
