@@ -1349,10 +1349,13 @@ function configureExtension(context: vscode.ExtensionContext) {
         const enviroPath = testNode.enviroPath;
 
         const parentDir = path.dirname(enviroPath);
-        const enviroName = path.basename(enviroPath);
-
-        // requirements are now stored under envReqsFolderPath (e.g., reqs-<envName>)
-        const envReqsFolderPath = path.join(parentDir, `reqs-${enviroName}`);
+        const enviroNameWithExt = path.basename(enviroPath);
+        // remove ".env" if present
+        const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+        const envReqsFolderPath = path.join(
+          parentDir,
+          `reqs-${enviroNameWithoutExt}`
+        );
 
         const csvPath = path.join(envReqsFolderPath, "reqs.csv");
         const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
@@ -1411,9 +1414,13 @@ function configureExtension(context: vscode.ExtensionContext) {
 
         if (choice === "Remove") {
           const parentDir = path.dirname(enviroPath);
-          const enviroName = path.basename(enviroPath);
-          // requirements are now stored under envReqsFolderPath (e.g., reqs-<envName>)
-          const envReqsFolderPath = path.join(parentDir, `reqs-${enviroName}`);
+          const enviroNameWithExt = path.basename(enviroPath);
+          // remove ".env" if present
+          const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+          const envReqsFolderPath = path.join(
+            parentDir,
+            `reqs-${enviroNameWithoutExt}`
+          );
 
           const filesToRemove = [
             path.join(envReqsFolderPath, "reqs.csv"),
@@ -2317,8 +2324,12 @@ async function generateRequirements(enviroPath: string) {
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  // Create a dedicated folder for requirements
-  const envReqsFolderPath = path.join(parentDir, `reqs-${envName}`);
+  // remove ".env" if present
+  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(
+    parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
 
   // Ensure the requirements folder exists
   if (!fs.existsSync(envReqsFolderPath)) {
@@ -2532,8 +2543,12 @@ async function generateTestsFromRequirements(
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  // Use reqs-${envName} folder as the location for requirements files
-  const envReqsFolderPath = path.join(parentDir, `reqs-${envName}`);
+  // remove ".env" if present
+  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(
+    parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
 
   // Ensure the requirements folder exists
   if (!fs.existsSync(envReqsFolderPath)) {
@@ -2841,9 +2856,14 @@ async function importRequirementsFromGateway(enviroPath: string) {
 async function populateRequirementsGateway(enviroPath: string) {
   const parentDir = path.dirname(enviroPath);
   const envName = path.basename(enviroPath);
-  const envPath = path.join(parentDir, `${envName}.env`);
-  // requirements are now stored under envReqsFolderPath (e.g., reqs-<envName>)
-  const envReqsFolderPath = path.join(parentDir, `reqs-${envName}`);
+  const envPath = path.join(parentDir, envName);
+
+  // remove ".env" if present
+  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(
+    parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
 
   const csvPath = path.join(envReqsFolderPath, "reqs.csv");
   const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
@@ -2943,8 +2963,13 @@ function updateRequirementsAvailability(enviroPath: string) {
 
   // Check if this environment has requirements
   const parentDir = path.dirname(enviroPath);
-  const enviroName = path.basename(enviroPath);
-  const envReqsFolderPath = path.join(parentDir, `reqs-${enviroName}`);
+  const enviroNameWithExt = path.basename(enviroPath);
+  // remove ".env" if present
+  const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(
+    parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
 
   const csvPath = path.join(envReqsFolderPath, "reqs.csv");
   const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
