@@ -153,9 +153,20 @@ export async function deleteLevel(projectPath: string, level: string) {
 // Load Test Script - server logic included -----------------------------------------
 export async function loadTestScriptIntoEnvironment(
   enviroName: string,
-  scriptPath: string
+  scriptPath: string,
+  loadingReqsTest: boolean = false
 ) {
-  const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+  let enviroPath: string = "";
+
+  // If we are coming from loading a reqsTest, the tst script is in a seperate folder,
+  // for which we need a different handling (see updateRequirementsAvailability())
+  if (loadingReqsTest) {
+    let scriptRootPath = path.dirname(scriptPath);
+    enviroPath = path.join(path.dirname(scriptRootPath), enviroName);
+  } else {
+    enviroPath = path.join(path.dirname(scriptPath), enviroName);
+  }
+
   // call clicast to load the test script
   let loadScriptArgs: string = `-e${enviroName} test script run ${scriptPath}`;
 
