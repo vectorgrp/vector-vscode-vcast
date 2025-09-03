@@ -1347,9 +1347,15 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
+
         const parentDir = path.dirname(enviroPath);
-        const csvPath = path.join(parentDir, "reqs.csv");
-        const xlsxPath = path.join(parentDir, "reqs.xlsx");
+        const enviroName = path.basename(enviroPath);
+
+        // requirements are now stored under envReqsFolderPath (e.g., reqs-<envName>)
+        const envReqsFolderPath = path.join(parentDir, `reqs-${enviroName}`);
+
+        const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+        const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
 
         let filePath = "";
         let fileType = "";
@@ -1405,12 +1411,16 @@ function configureExtension(context: vscode.ExtensionContext) {
 
         if (choice === "Remove") {
           const parentDir = path.dirname(enviroPath);
+          const enviroName = path.basename(enviroPath);
+          // requirements are now stored under envReqsFolderPath (e.g., reqs-<envName>)
+          const envReqsFolderPath = path.join(parentDir, `reqs-${enviroName}`);
+
           const filesToRemove = [
-            path.join(parentDir, "reqs.csv"),
-            path.join(parentDir, "reqs.xlsx"),
-            path.join(parentDir, "reqs_converted.csv"),
-            path.join(parentDir, "reqs.html"),
-            path.join(parentDir, "reqs2tests.tst"),
+            path.join(envReqsFolderPath, "reqs.csv"),
+            path.join(envReqsFolderPath, "reqs.xlsx"),
+            path.join(envReqsFolderPath, "reqs_converted.csv"),
+            path.join(envReqsFolderPath, "reqs.html"),
+            path.join(envReqsFolderPath, "reqs2tests.tst"),
           ];
 
           // Remove files
@@ -1427,7 +1437,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           }
 
           const generatedRepositoryPath = path.join(
-            parentDir,
+            envReqsFolderPath,
             "generated_requirement_repository"
           );
           const actualRepositoryPath =
@@ -2307,10 +2317,18 @@ async function generateRequirements(enviroPath: string) {
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
-  const csvPath = path.join(parentDir, "reqs.csv");
+  // Create a dedicated folder for requirements
+  const envReqsFolderPath = path.join(parentDir, `reqs-${envName}`);
+
+  // Ensure the requirements folder exists
+  if (!fs.existsSync(envReqsFolderPath)) {
+    fs.mkdirSync(envReqsFolderPath, { recursive: true });
+  }
+
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
   const repositoryDir = path.join(
-    parentDir,
+    envReqsFolderPath,
     "generated_requirement_repository"
   );
 
@@ -2514,9 +2532,17 @@ async function generateTestsFromRequirements(
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  const csvPath = path.join(parentDir, "reqs.csv");
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
-  const tstPath = path.join(parentDir, "reqs2tests.tst");
+  // Use reqs-${envName} folder as the location for requirements files
+  const envReqsFolderPath = path.join(parentDir, `reqs-${envName}`);
+
+  // Ensure the requirements folder exists
+  if (!fs.existsSync(envReqsFolderPath)) {
+    fs.mkdirSync(envReqsFolderPath, { recursive: true });
+  }
+
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
+  const tstPath = path.join(envReqsFolderPath, "reqs2tests.tst");
 
   let reqsFile = "";
   let fileType = "";
@@ -2816,8 +2842,11 @@ async function populateRequirementsGateway(enviroPath: string) {
   const parentDir = path.dirname(enviroPath);
   const envName = path.basename(enviroPath);
   const envPath = path.join(parentDir, `${envName}.env`);
-  const csvPath = path.join(parentDir, "reqs.csv");
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
+  // requirements are now stored under envReqsFolderPath (e.g., reqs-<envName>)
+  const envReqsFolderPath = path.join(parentDir, `reqs-${envName}`);
+
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
 
   // Check which requirements file exists
   let requirementsFile = "";
@@ -2848,7 +2877,7 @@ async function populateRequirementsGateway(enviroPath: string) {
   }
 
   const exportRepository = path.join(
-    parentDir,
+    envReqsFolderPath,
     "generated_requirement_repository"
   );
 
@@ -2914,8 +2943,11 @@ function updateRequirementsAvailability(enviroPath: string) {
 
   // Check if this environment has requirements
   const parentDir = path.dirname(enviroPath);
-  const csvPath = path.join(parentDir, "reqs.csv");
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
+  const enviroName = path.basename(enviroPath);
+  const envReqsFolderPath = path.join(parentDir, `reqs-${enviroName}`);
+
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
 
   const hasRequirementsFiles =
     fs.existsSync(csvPath) || fs.existsSync(xlsxPath);
