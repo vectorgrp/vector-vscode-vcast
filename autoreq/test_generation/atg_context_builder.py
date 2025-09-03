@@ -36,7 +36,7 @@ class ATGContextBuilder:
             if sanitize_subprogram_name(test.subprogram_name).endswith(function_name)
             and all(
                 keyword not in test.test_name
-                for keyword in ['PARTIAL', 'INCOMPLETE', 'TEMPLATE']
+                for keyword in ["PARTIAL", "INCOMPLETE", "TEMPLATE"]
             )
         ]
 
@@ -46,7 +46,7 @@ class ATGContextBuilder:
             if sanitize_subprogram_name(test.subprogram_name).endswith(function_name)
             and any(
                 keyword in test.test_name
-                for keyword in ['PARTIAL', 'INCOMPLETE', 'TEMPLATE']
+                for keyword in ["PARTIAL", "INCOMPLETE", "TEMPLATE"]
             )
         ]
 

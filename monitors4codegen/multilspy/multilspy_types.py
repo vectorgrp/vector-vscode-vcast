@@ -221,7 +221,7 @@ class UnifiedSymbolInformation(TypedDict):
     """ A list of namespaces that this symbol belongs to. This is used to provide a full namespace path for the symbol"""
 
 
-TreeRepr = Dict[int, List['TreeRepr']]
+TreeRepr = Dict[int, List["TreeRepr"]]
 
 
 class MarkupKind(Enum):
@@ -231,9 +231,9 @@ class MarkupKind(Enum):
     Please note that `MarkupKinds` must not start with a `$`. This kinds
     are reserved for internal usage."""
 
-    PlainText = 'plaintext'
+    PlainText = "plaintext"
     """ Plain text is supported as a content format """
-    Markdown = 'markdown'
+    Markdown = "markdown"
     """ Markdown is supported as a content format """
 
 
@@ -242,7 +242,7 @@ class __MarkedString_Type_1(TypedDict):
     value: str
 
 
-MarkedString = Union[str, '__MarkedString_Type_1']
+MarkedString = Union[str, "__MarkedString_Type_1"]
 """ MarkedString can be used to render human readable text. It is either a markdown string
 or a code-block that provides a language and a code snippet. The language identifier
 is semantically equal to the optional language identifier in fenced code blocks in GitHub
@@ -281,7 +281,7 @@ class MarkupContent(TypedDict):
     *Please Note* that clients might sanitize the return markdown. A client could decide to
     remove HTML from the markdown to avoid script execution."""
 
-    kind: 'MarkupKind'
+    kind: "MarkupKind"
     """ The type of the Markup """
     value: str
     """ The content itself """
@@ -290,8 +290,8 @@ class MarkupContent(TypedDict):
 class Hover(TypedDict):
     """The result of a hover request."""
 
-    contents: Union['MarkupContent', 'MarkedString', List['MarkedString']]
+    contents: Union["MarkupContent", "MarkedString", List["MarkedString"]]
     """ The hover's content """
-    range: NotRequired['Range']
+    range: NotRequired["Range"]
     """ An optional range inside the text document that is used to
     visualize the hover, e.g. by changing the background color. """

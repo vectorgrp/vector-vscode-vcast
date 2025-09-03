@@ -58,10 +58,10 @@ class DereferencesMonitor(Monitor):
         all_break_chars: Set[str] = set()
         for vocab_char in charset:
             toks: List[ctok.tokens.ASTToken] = PLUtils.tokenizer_pl(
-                'abc' + vocab_char, language
+                "abc" + vocab_char, language
             )
-            toks = [t for t in toks if t.text != '']
-            if len(toks) == 0 or toks[0].text == 'abc':
+            toks = [t for t in toks if t.text != ""]
+            if len(toks) == 0 or toks[0].text == "abc":
                 all_break_chars.add(vocab_char)
         return all_break_chars
 
@@ -87,7 +87,7 @@ class DereferencesMonitor(Monitor):
         text_upto_cursor = self.monitor_file_buffer.lsp.get_open_file_text(
             self.monitor_file_buffer.file_path
         )[:cursor_idx]
-        if text_upto_cursor[-1] != '.':
+        if text_upto_cursor[-1] != ".":
             self.decoder_state = DecoderStates.S0
             return
 
@@ -184,9 +184,9 @@ class DereferencesMonitor(Monitor):
                 relative_file_path, line, column, allow_incomplete=True
             )
             legal_completions1 = [
-                completion['completionText']
+                completion["completionText"]
                 for completion in legal_completions1
-                if completion['kind'] != multilspy_types.CompletionItemKind.Keyword
+                if completion["kind"] != multilspy_types.CompletionItemKind.Keyword
             ]
             lsp_text = self.monitor_file_buffer.lsp.get_open_file_text(
                 relative_file_path
@@ -207,20 +207,20 @@ class DereferencesMonitor(Monitor):
             err = False
             for j in range(len(closing_bracket_stream)):
                 if (
-                    closing_bracket_stream[-j - 1] == '}'
-                    and opening_bracket_stream[j] != '{'
+                    closing_bracket_stream[-j - 1] == "}"
+                    and opening_bracket_stream[j] != "{"
                 ):
                     err = True
                     break
                 elif (
-                    closing_bracket_stream[-j - 1] == ')'
-                    and opening_bracket_stream[j] != '('
+                    closing_bracket_stream[-j - 1] == ")"
+                    and opening_bracket_stream[j] != "("
                 ):
                     err = True
                     break
                 elif (
-                    closing_bracket_stream[-j - 1] == ']'
-                    and opening_bracket_stream[j] != '['
+                    closing_bracket_stream[-j - 1] == "]"
+                    and opening_bracket_stream[j] != "["
                 ):
                     err = True
                     break
@@ -233,24 +233,24 @@ class DereferencesMonitor(Monitor):
             ]
             remaining_close_brackets = list(
                 map(
-                    lambda x: '}' if x == '{' else (')' if x == '(' else ']'),
+                    lambda x: "}" if x == "{" else (")" if x == "(" else "]"),
                     opening_bracket_stream,
                 )
             )[::-1]
 
-            insert_text = ''.join(remaining_close_brackets)
+            insert_text = "".join(remaining_close_brackets)
             updated_cursor = self.monitor_file_buffer.lsp.insert_text_at_position(
                 relative_file_path, line, column, insert_text
             )
-            assert updated_cursor['line'] == line
-            assert updated_cursor['character'] == column + len(insert_text)
+            assert updated_cursor["line"] == line
+            assert updated_cursor["character"] == column + len(insert_text)
             legal_completions2 = await self.monitor_file_buffer.lsp.request_completions(
                 relative_file_path, line, column, allow_incomplete=True
             )
             legal_completions2 = [
-                completion['completionText']
+                completion["completionText"]
                 for completion in legal_completions2
-                if completion['kind'] != multilspy_types.CompletionItemKind.Keyword
+                if completion["kind"] != multilspy_types.CompletionItemKind.Keyword
             ]
 
             deleted_text = self.monitor_file_buffer.lsp.delete_text_between_positions(

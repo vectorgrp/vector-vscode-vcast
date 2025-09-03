@@ -6,12 +6,12 @@ class CharacteristicDecompositionStrategy(DecompositionStrategy):
     def decompose(self, func_def, n=1, return_messages=False):
         messages = [
             {
-                'role': 'system',
-                'content': 'You are a world-class software engineer that does requirements engineering for a living.',
+                "role": "system",
+                "content": "You are a world-class software engineer that does requirements engineering for a living.",
             },
             {
-                'role': 'user',
-                'content': f"""
+                "role": "user",
+                "content": f"""
 Here is some code:
 {func_def.code_with_design}
 
@@ -39,7 +39,7 @@ Do not refer to any actual "specifics" of the code (e.g., variable names or thin
         ]
 
         completion = self.client.beta.chat.completions.parse(
-            model='gpt-4o',
+            model="gpt-4o",
             messages=messages,
             response_format=DesignDecompositionResult,
             temperature=0.0 if n == 1 else 0.5,

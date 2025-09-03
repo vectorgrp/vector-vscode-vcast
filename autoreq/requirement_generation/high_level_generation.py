@@ -59,8 +59,8 @@ class HighLevelRequirementsGenerator:
             return RequirementsCollection([])
 
         module_input_data[unit_name] = {
-            'count': req_count,
-            'requirements': unit_specific_reqs,
+            "count": req_count,
+            "requirements": unit_specific_reqs,
         }
 
         system_prompt_content = """
@@ -197,22 +197,22 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
 
         user_prompt_content = (
             f"In the following, I provided you with the low level requirements for module '{unit_name}' "
-            'that have to be abstracted into higher level requirements:\n'
-            '```json\n'
-            f'{json.dumps(module_input_data, indent=2)}\n'
-            '```\n'
+            "that have to be abstracted into higher level requirements:\n"
+            "```json\n"
+            f"{json.dumps(module_input_data, indent=2)}\n"
+            "```\n"
         )
 
         source_code_content = None
         source_code_content = self.environment.get_tu_content(
-            unit_name=unit_name, reduction_level='high'
+            unit_name=unit_name, reduction_level="high"
         )
         if source_code_content:
             user_prompt_content += (
                 f"\nAnd here is the corresponding code file for module '{unit_name}':\n"
-                '```c\n'
-                f'{source_code_content}\n'
-                '```\n'
+                "```c\n"
+                f"{source_code_content}\n"
+                "```\n"
             )
         else:
             logging.warning(
@@ -221,8 +221,8 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
             source_code_content = None
 
         messages = [
-            {'role': 'system', 'content': system_prompt_content},
-            {'role': 'user', 'content': user_prompt_content},
+            {"role": "system", "content": system_prompt_content},
+            {"role": "user", "content": user_prompt_content},
         ]
 
         try:
@@ -237,7 +237,7 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
             hl_reqs = []
             for i, req in enumerate(response_model.requirements):
                 if req.module_name == unit_name:
-                    req_id = f'{unit_name}_HL.{i + 1}'
+                    req_id = f"{unit_name}_HL.{i + 1}"
                     hl_reqs.append(
                         Requirement(
                             key=req_id,
@@ -252,7 +252,7 @@ Core 0 on Aurix shall act as Master core and remaining cores are slaves.
             return RequirementsCollection(hl_reqs)
         except Exception as e:
             logging.exception(
-                f'High-level requirement generation failed for unit {unit_name}: {e}'
+                f"High-level requirement generation failed for unit {unit_name}: {e}"
             )
             self.info_logger.set_high_level_generation_failed(unit_name)
             self.info_logger.add_exception(unit_name, traceback.format_exc())

@@ -30,7 +30,7 @@ class VcastContextBuilder:
 
         if blackbox:
             if focus_lines is not None:
-                logging.warning('Warning: Pruning will be ignored in blackbox mode.')
+                logging.warning("Warning: Pruning will be ignored in blackbox mode.")
             focus_lines = None
 
         context, used_fallback = await self._build_raw_code_context(
@@ -38,7 +38,7 @@ class VcastContextBuilder:
         )
 
         if include_unit_name:
-            context = f'// Unit: {unit_name}\n\n{context}'
+            context = f"// Unit: {unit_name}\n\n{context}"
 
         if return_used_fallback:
             return context, used_fallback
@@ -62,7 +62,7 @@ class VcastContextBuilder:
             return llm_context, True
 
         fallback_content = self.environment.get_tu_content(
-            unit_name=unit_name, reduction_level='high'
+            unit_name=unit_name, reduction_level="high"
         )
         return fallback_content, True
 
@@ -71,25 +71,25 @@ class VcastContextBuilder:
     ):  # Added unit_name
         if collapse_function_body:
             raise ValueError(
-                'LLM context reduction does not support collapsing function bodies.'
+                "LLM context reduction does not support collapsing function bodies."
             )
 
         context = self.environment.get_tu_content(
-            unit_name=unit_name, reduction_level='medium'
+            unit_name=unit_name, reduction_level="medium"
         )  # Pass unit_name
         max_context = 1000000
         max_context_lines = 1000
-        if len(context) > max_context or len(context.split('\n')) > max_context_lines:
+        if len(context) > max_context or len(context.split("\n")) > max_context_lines:
             context = self.environment.get_tu_content(
-                unit_name=unit_name, reduction_level='high'
+                unit_name=unit_name, reduction_level="high"
             )  # Pass unit_name
 
         search_engine = SearchEngine(context, llm_client=self.llm_client)
         reduced_context = await search_engine.search(
-            f'Give me only the relevant code to test this function: {function_name} (in unit {unit_name}). '
-            'Include all necessary transitive dependencies in terms of type definitions, '
-            'called functions, etc. but not anything else. Also include the name of '
-            'the file where the code is located.'
+            f"Give me only the relevant code to test this function: {function_name} (in unit {unit_name}). "
+            "Include all necessary transitive dependencies in terms of type definitions, "
+            "called functions, etc. but not anything else. Also include the name of "
+            "the file where the code is located."
         )
 
         return reduced_context
@@ -115,15 +115,15 @@ class VcastContextBuilder:
 
         definition_groups = defaultdict(list)
         for symbol, definition_text in relevant_definitions.items():
-            if symbol.split('::')[-1] == function_name.split('::')[-1]:
+            if symbol.split("::")[-1] == function_name.split("::")[-1]:
                 continue
             definition_groups[definition_text].append(symbol)
 
         reduced_context = [
-            '// Definitions of types, called functions and data structures:'
+            "// Definitions of types, called functions and data structures:"
         ]
         for definition_text in definition_groups:  # Iterate over keys directly
-            reduced_context.append(f'\n{definition_text}')
+            reduced_context.append(f"\n{definition_text}")
 
         func_code = codebase.find_definitions_by_name(
             function_name,
@@ -134,24 +134,24 @@ class VcastContextBuilder:
         if focus_lines:
             if len(focus_lines) == 0:
                 logging.warning(
-                    f'Warning: No relevant lines found for {function_name} with focus text: {focus_lines}'
+                    f"Warning: No relevant lines found for {function_name} with focus text: {focus_lines}"
                 )
             else:
                 # focus_lines = list(range(max(focus_lines) + 1)) # improves performance
                 func_code = prune_code(func_code, focus_lines)
 
-        reduced_context.append(f'\n// Code for {function_name}:\n{func_code}')
+        reduced_context.append(f"\n// Code for {function_name}:\n{func_code}")
 
-        return '\n'.join(reduced_context)
+        return "\n".join(reduced_context)
 
     def _get_function_unit(self, function_name):
         all_testable_functions = self.environment.testable_functions
 
         return next(
             (
-                info['unit_name']
+                info["unit_name"]
                 for info in all_testable_functions
-                if info['name'] == function_name
+                if info["name"] == function_name
             ),
             None,
         )

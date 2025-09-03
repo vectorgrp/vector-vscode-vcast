@@ -29,7 +29,7 @@ class TestGenerator:
         use_extended_reasoning=False,
         min_prune_lines=1000,
         use_test_examples=True,  # TODO: This can probably be disabled soon, some C++ features would need to be represented in the test framework examples though
-        schema_type='unified',  # TODO: input_expected could work a bit better for some C code when pruning, so keep that in mind for the future
+        schema_type="unified",  # TODO: input_expected could work a bit better for some C code when pruning, so keep that in mind for the future
         add_prompt_identifiers_when_unpruned=True,
         blackbox=False,
         with_test_patcher=True,
@@ -111,7 +111,7 @@ class TestGenerator:
     async def generate_batched_test_cases(
         self, requirements, allow_partial=False, individual_partial=False, **kwargs
     ):
-        logging.info(f'Generating batched test cases: {requirements.requirement_keys}')
+        logging.info(f"Generating batched test cases: {requirements.requirement_keys}")
         if not requirements:
             return
 
@@ -122,7 +122,7 @@ class TestGenerator:
         functions = {req.location.function for req in requirements}
         if len(functions) != 1:
             logging.warning(
-                'Requirements from different functions detected in batch. Falling back to individual generation.'
+                "Requirements from different functions detected in batch. Falling back to individual generation."
             )
             async for test_case in self.generate_test_cases(
                 requirements,
@@ -138,7 +138,7 @@ class TestGenerator:
         func_body = self.environment.tu_codebase.find_definitions_by_name(
             function_name
         )[0]
-        num_lines = len(func_body.split('\n'))
+        num_lines = len(func_body.split("\n"))
 
         # Extract relevant function lines
         if num_lines >= self.min_prune_lines:
@@ -148,9 +148,9 @@ class TestGenerator:
         else:
             relevant_lines = None
 
-        requirements_text = '\n'.join(
+        requirements_text = "\n".join(
             [
-                f'{i + 1}. {req.key}: {req.description}'
+                f"{i + 1}. {req.key}: {req.description}"
                 for i, req in enumerate(requirements)
             ]
         )
@@ -167,7 +167,7 @@ class TestGenerator:
             self.info_logger.set_used_code_context_fallback(req.key, used_fallback)
 
         # Build ATG context
-        context_lines = len(context.strip().split('\n'))
+        context_lines = len(context.strip().split("\n"))
         max_context_lines = 200
         basis_path = True
         num_examples = 3
@@ -188,9 +188,9 @@ Example Test Cases:
 ```
 """
         else:
-            example_test_cases_section = ''
+            example_test_cases_section = ""
 
-        with open(TEST_FRAMEWORK_REFERENCE_PATH, 'r') as f:
+        with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
 
         schema, gen_info = self.schema_builder.derive_completion_schema(
@@ -218,12 +218,12 @@ Example Test Cases:
 
         messages = [
             {
-                'role': 'system',
-                'content': 'You are an AI assistant that generates test code for given requirements.',
+                "role": "system",
+                "content": "You are an AI assistant that generates test code for given requirements.",
             },
             {
-                'role': 'user',
-                'content': f"""
+                "role": "user",
+                "content": f"""
 Based on the following requirements, references, and code, generate one test case per given requirement that exercises it.
 
 Test framework reference:
@@ -280,9 +280,9 @@ Return your answer in the following format:
         except Exception as e:
             import traceback
 
-            logging.exception(f'Call to model failed for batched requirements: {e}')
+            logging.exception(f"Call to model failed for batched requirements: {e}")
             logging.exception(
-                'Failed to generate batched test cases because model call failed. Falling back to individual generation.'
+                "Failed to generate batched test cases because model call failed. Falling back to individual generation."
             )
 
             for req in requirements:
@@ -300,7 +300,7 @@ Return your answer in the following format:
         test_cases = []
         for i, _ in enumerate(requirements):
             test_case = getattr(
-                test_generation_result, f'test_case_for_requirement_{i + 1}'
+                test_generation_result, f"test_case_for_requirement_{i + 1}"
             )
             test_cases.append(test_case)
 
@@ -313,7 +313,7 @@ Return your answer in the following format:
                 unseen_requirement_keys.remove(test_case.requirement_id)
             else:
                 logging.warning(
-                    f'Requirement {test_case.requirement_id} was generated multiple times or was not requested. Aborting generation.'
+                    f"Requirement {test_case.requirement_id} was generated multiple times or was not requested. Aborting generation."
                 )
                 return
 
@@ -394,7 +394,7 @@ Return your answer in the following format:
 
             self.info_logger.add_exception(requirement.key, traceback.format_exc())
             logging.exception(
-                f'Failed to generate test case for requirement {requirement.key}: {traceback.format_exc()}'
+                f"Failed to generate test case for requirement {requirement.key}: {traceback.format_exc()}"
             )
 
         return None
@@ -412,28 +412,28 @@ Return your answer in the following format:
 
         if reword_requirement:
             logging.info(
-                f'Original requirement ({requirement.key}): {requirement_text}'
+                f"Original requirement ({requirement.key}): {requirement_text}"
             )
             requirement_text = await self.llm_client.call_model(
                 messages=[
                     {
-                        'role': 'system',
-                        'content': 'You are an AI assistant that rewords requirements.',
+                        "role": "system",
+                        "content": "You are an AI assistant that rewords requirements.",
                     },
                     {
-                        'role': 'user',
-                        'content': f'Reword the following requirement: {requirement_text}',
+                        "role": "user",
+                        "content": f"Reword the following requirement: {requirement_text}",
                     },
                 ],
                 schema=create_model(
-                    'RewordedRequirement', reworded_requirement=(str, ...)
+                    "RewordedRequirement", reworded_requirement=(str, ...)
                 ),
                 extended_reasoning=extended_reasoning,
                 temperature=temperature,
             )
             requirement_text = requirement_text.reworded_requirement
             logging.info(
-                f'Reworded requirement ({requirement.key}): {requirement_text}'
+                f"Reworded requirement ({requirement.key}): {requirement_text}"
             )
 
         # Extract basic function info
@@ -441,7 +441,7 @@ Return your answer in the following format:
         func_body = self.environment.tu_codebase.find_definitions_by_name(
             function_name
         )[0]
-        num_lines = len(func_body.split('\n'))
+        num_lines = len(func_body.split("\n"))
 
         # Extract relevant lines
         # TODO: Maybe have this lower than for batch
@@ -484,10 +484,10 @@ Return your answer in the following format:
             blackbox=self.blackbox,
         )
         self.info_logger.set_used_code_context_fallback(requirement.key, used_fallback)
-        logging.debug('Generated code context: %s', context)
+        logging.debug("Generated code context: %s", context)
 
         # Determine number of example test cases based on context length
-        context_lines = len(context.strip().split('\n'))
+        context_lines = len(context.strip().split("\n"))
         max_context_lines = 200
         if context_lines < max_context_lines:
             num_examples = 1
@@ -496,15 +496,15 @@ Return your answer in the following format:
             num_examples = 3
             basis_path = False
 
-        logging.info(f'Fetching {num_examples} ATG example test cases')
+        logging.info(f"Fetching {num_examples} ATG example test cases")
         atg_examples = await self.atg_context_builder.get_relevant_test_cases(
             function_name, k=num_examples, basis_path=basis_path
         )
-        logging.debug('Retrieved ATG examples: %s', atg_examples)
+        logging.debug("Retrieved ATG examples: %s", atg_examples)
 
         self.info_logger.set_no_atg_examples(requirement.key, len(atg_examples) == 0)
 
-        with open(TEST_FRAMEWORK_REFERENCE_PATH, 'r') as f:
+        with open(TEST_FRAMEWORK_REFERENCE_PATH, "r") as f:
             test_framework_reference = f.read()
 
         if num_examples > 0 and self.use_test_examples:
@@ -515,16 +515,16 @@ Example Test Cases:
 ```
 """
         else:
-            example_test_cases_section = ''
+            example_test_cases_section = ""
 
         messages = [
             {
-                'role': 'system',
-                'content': 'You are an AI assistant that generates test code for given requirements.',
+                "role": "system",
+                "content": "You are an AI assistant that generates test code for given requirements.",
             },
             {
-                'role': 'user',
-                'content': f"""
+                "role": "user",
+                "content": f"""
 Based on the following requirement, references, code and example test cases, generate unit tests that exercise the requirement.
 
 Test framework reference:
@@ -578,7 +578,7 @@ Notes:
 
             self.info_logger.add_exception(requirement.key, traceback.format_exc())
             logging.exception(
-                f'Call to model failed for requirement {requirement.key}: {e}'
+                f"Call to model failed for requirement {requirement.key}: {e}"
             )
             return None
 
@@ -606,7 +606,7 @@ Notes:
 
         if len(func_names) != 1:
             raise ValueError(
-                'Can only get relevant lines for requirements of a single function'
+                "Can only get relevant lines for requirements of a single function"
             )
 
         func_name = func_names.pop()
@@ -639,17 +639,17 @@ Notes:
             self.add_prompt_identifiers_when_unpruned
             or num_lines >= self.min_prune_lines
         ):
-            rendered_input_identifiers = '\n'.join(
-                '- ' + i
+            rendered_input_identifiers = "\n".join(
+                "- " + i
                 for i in shown_input_identifiers
-                if 'USER_GLOBALS_VCAST' not in i
+                if "USER_GLOBALS_VCAST" not in i
             )
-            rendered_expected_identifiers = '\n'.join(
-                '- ' + i
+            rendered_expected_identifiers = "\n".join(
+                "- " + i
                 for i in shown_expected_identifiers
-                if 'USER_GLOBALS_VCAST' not in i
+                if "USER_GLOBALS_VCAST" not in i
             )
-            if self.schema_type == 'input_expected':
+            if self.schema_type == "input_expected":
                 identifier_section = f"""
 You are allowed to use the following identifiers in your test case:
 You must set an input value for each of the following identifiers:
@@ -658,7 +658,7 @@ You must set an input value for each of the following identifiers:
 An expected value is not required for all identifiers. These are the ones you can set:
 {rendered_expected_identifiers}
 """
-            elif self.schema_type == 'unified':
+            elif self.schema_type == "unified":
                 identifier_section = f"""
 You are allowed to use the following identifiers in your test case:
 {rendered_input_identifiers}
@@ -668,17 +668,17 @@ If you do not ensure this, it can happen that your test does not cover the corre
 An expected value is not required for all identifiers. Only for those relevant to the requirement.
 """
         else:
-            identifier_section = ''
+            identifier_section = ""
 
         return identifier_section
 
     def _prune_identifier_list_for_display(self, identifiers):
         # Remove USER_GLOBALS_VCAST identifiers
         identifiers = [
-            ident for ident in identifiers if 'USER_GLOBALS_VCAST' not in ident
+            ident for ident in identifiers if "USER_GLOBALS_VCAST" not in ident
         ]
 
-        INDEX_VARIABLE_NAMES = 'ijklmnopqrstuvwxyz'
+        INDEX_VARIABLE_NAMES = "ijklmnopqrstuvwxyz"
 
         similar_identifiers = defaultdict(list)
         original_identifiers = {}
@@ -689,9 +689,9 @@ An expected value is not required for all identifiers. Only for those relevant t
                 nonlocal array_indices
                 array_indices.append(int(match.group(1)))
                 var_name = INDEX_VARIABLE_NAMES[len(array_indices) - 1]
-                return f'!!ARRAY_INDEX_PLACEHOLDER_{var_name}!!'
+                return f"!!ARRAY_INDEX_PLACEHOLDER_{var_name}!!"
 
-            normalized_ident = re.sub(r'\[(\d+)\]', arrayrepl, ident)
+            normalized_ident = re.sub(r"\[(\d+)\]", arrayrepl, ident)
             similar_identifiers[normalized_ident].append(array_indices)
             original_identifiers[normalized_ident] = ident
 
@@ -717,43 +717,43 @@ An expected value is not required for all identifiers. Only for those relevant t
             used_var_names = [
                 var for var in INDEX_VARIABLE_NAMES if var in index_minima
             ]
-            index_description = '(for all:'
+            index_description = "(for all:"
             processed_ident = ident
             for i in used_var_names:
                 if index_minima[i] == index_maxima[i]:
                     processed_ident = processed_ident.replace(
-                        f'!!ARRAY_INDEX_PLACEHOLDER_{i}!!', f'[{index_minima[i]}]'
+                        f"!!ARRAY_INDEX_PLACEHOLDER_{i}!!", f"[{index_minima[i]}]"
                     )
                 else:
                     index_description += (
-                        f' {i} in {index_minima[i]}..{index_maxima[i]},'
+                        f" {i} in {index_minima[i]}..{index_maxima[i]},"
                     )
 
                     processed_ident = processed_ident.replace(
-                        f'!!ARRAY_INDEX_PLACEHOLDER_{i}!!', f'[{i}]'
+                        f"!!ARRAY_INDEX_PLACEHOLDER_{i}!!", f"[{i}]"
                     )
 
-            index_description = index_description[:-1] + ')'
-            combined_identifiers.append(f'{processed_ident} {index_description}')
+            index_description = index_description[:-1] + ")"
+            combined_identifiers.append(f"{processed_ident} {index_description}")
 
         return combined_identifiers
 
     def _build_stubbed_functions_section(self, function_name):
         # TODO: Handle pruned functions
         called_function_names = [
-            func_name.split('::')[-1]
+            func_name.split("::")[-1]
             for func_name in self.environment.type_resolver.resolve(
                 function_name
             ).called_functions
         ]
 
         if not called_function_names:
-            return ''
+            return ""
 
         called_unstubbed_functions = []
         for name in called_function_names:
             definition = self.environment.tu_codebase.find_definitions_by_name(name)[0]
-            if '{' and '}' in definition:
+            if "{" and "}" in definition:
                 called_unstubbed_functions.append(name)
 
         called_stubbed_functions = []
@@ -761,15 +761,15 @@ An expected value is not required for all identifiers. Only for those relevant t
             if name not in called_unstubbed_functions:
                 called_stubbed_functions.append(name)
 
-        section = ''
+        section = ""
         if called_unstubbed_functions:
-            section += f'Unstubbed-by-default called functions (implement behaviour unless an identifier is set in which case the respective function is stubbed) called by {function_name}:\n'
+            section += f"Unstubbed-by-default called functions (implement behaviour unless an identifier is set in which case the respective function is stubbed) called by {function_name}:\n"
             for name in called_unstubbed_functions:
-                section += f'- {name}\n'
+                section += f"- {name}\n"
         if called_stubbed_functions:
-            section += f'Stubbed-by-default called functions (no behaviour is implemented, you can use identifiers to simulate a return value) called by {function_name}:\n'
+            section += f"Stubbed-by-default called functions (no behaviour is implemented, you can use identifiers to simulate a return value) called by {function_name}:\n"
             for name in called_stubbed_functions:
-                section += f'- {name}\n'
+                section += f"- {name}\n"
 
         return section
 
@@ -827,15 +827,15 @@ An expected value is not required for all identifiers. Only for those relevant t
             if errors or test_failures:
                 self.info_logger.set_error_correction_needed(requirement.key)
                 # Prepare new messages with errors for the model
-                logging.info('Errors detected in test case. Iteration %d', iteration)
+                logging.info("Errors detected in test case. Iteration %d", iteration)
                 fix_messages += [
                     {
-                        'role': 'assistant',
-                        'content': test_generation_result.model_dump_json(indent=4),
+                        "role": "assistant",
+                        "content": test_generation_result.model_dump_json(indent=4),
                     },
                     {
-                        'role': 'user',
-                        'content': f"""
+                        "role": "user",
+                        "content": f"""
 There were errors when executing the test case:
 
 Error Output:
@@ -880,7 +880,7 @@ Tip:
                         requirement.key, traceback.format_exc()
                     )
                     logging.exception(
-                        f'Call to model failed for requirement {requirement.key} (during error correction): {e}'
+                        f"Call to model failed for requirement {requirement.key} (during error correction): {e}"
                     )
                     return None
 
@@ -889,12 +889,12 @@ Tip:
         )
 
         if errors:
-            logging.warning(f'Failed to fix errors after {iteration} iterations')
+            logging.warning(f"Failed to fix errors after {iteration} iterations")
             return None
         elif test_failures:
             if allow_partial:
                 logging.info(
-                    'Converting to partial test case due to persistent test failures'
+                    "Converting to partial test case due to persistent test failures"
                 )
                 return self._create_partial_test_case(test_generation_result)
             else:
@@ -915,23 +915,23 @@ Tip:
         test_fail_lines = []
 
         # Extract error messages starting with (E) and include indented lines
-        lines = output.split('\n')
+        lines = output.split("\n")
         collecting_error = False
         for line in lines:
-            if re.match(r'\(E\)', line):
-                if 'TEST.REQUIREMENT_KEY' in line:
+            if re.match(r"\(E\)", line):
+                if "TEST.REQUIREMENT_KEY" in line:
                     continue  # Skip requirement key errors
                 error_lines.append(line)
                 collecting_error = True
                 continue
             if collecting_error:
                 collecting_error = False
-                if line.startswith('    ') or line.strip() == '':
+                if line.startswith("    ") or line.strip() == "":
                     error_lines.append(line)
                     collecting_error = True
 
         # Check for compile errors
-        compile_error_index = output.find('Compile Failed')
+        compile_error_index = output.find("Compile Failed")
         # Include all lines after "Compile Failed"
         if compile_error_index != -1:
             compile_error_output = output[compile_error_index:]
@@ -940,25 +940,25 @@ Tip:
                 error_lines.append(compile_error_output.strip())
 
         # Check for segfauls
-        segfault_index = output.find('Segmentation Violation')
+        segfault_index = output.find("Segmentation Violation")
         if segfault_index != -1:
             error_lines.append(
-                'Segmentation Violation detected. This usually means that the test case is leaving some input/global/stub values uninitialized or dereferencing null pointers.'
+                "Segmentation Violation detected. This usually means that the test case is leaving some input/global/stub values uninitialized or dereferencing null pointers."
             )
 
         # Extract feedback from test execution
         for line in lines:
-            if '========' in line:
+            if "========" in line:
                 break
-            elif re.search(r'\[\s+FAIL\s+\]', line):
+            elif re.search(r"\[\s+FAIL\s+\]", line):
                 test_fail_lines.append(line.strip())
-            elif re.search(r'\[\s+\]', line):
+            elif re.search(r"\[\s+\]", line):
                 test_fail_lines.append(line.strip())
 
-        logging.debug('Output:\n%s', output)
-        logging.debug('Errors:\n%s', '\n'.join(error_lines))
-        logging.debug('Test Failures:\n%s', '\n'.join(test_fail_lines))
+        logging.debug("Output:\n%s", output)
+        logging.debug("Errors:\n%s", "\n".join(error_lines))
+        logging.debug("Test Failures:\n%s", "\n".join(test_fail_lines))
 
-        return '\n'.join(error_lines) if error_lines else None, '\n'.join(
-            test_fail_lines
-        ) if test_fail_lines else None
+        return "\n".join(error_lines) if error_lines else None, (
+            "\n".join(test_fail_lines) if test_fail_lines else None
+        )

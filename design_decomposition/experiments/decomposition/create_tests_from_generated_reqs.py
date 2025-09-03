@@ -15,29 +15,29 @@ from test_generation.environment import TestEnvironmentManager
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate tests from requirements.')
+    parser = argparse.ArgumentParser(description="Generate tests from requirements.")
     parser.add_argument(
-        'requirements',
-        nargs='?',
-        default='DrvI2c/generated_reqs.json',
-        help='Path to the requirements JSON file.',
+        "requirements",
+        nargs="?",
+        default="DrvI2c/generated_reqs.json",
+        help="Path to the requirements JSON file.",
     )
     parser.add_argument(
-        '--limit', '-n', type=int, help='Number of requirements to sample.'
+        "--limit", "-n", type=int, help="Number of requirements to sample."
     )
-    parser.add_argument('--output_file', '-o', help='Output file path.')
+    parser.add_argument("--output_file", "-o", help="Output file path.")
     parser.add_argument(
-        '--source_dirs',
-        nargs='+',
-        help='List of source directories to search for function definitions.',
+        "--source_dirs",
+        nargs="+",
+        help="List of source directories to search for function definitions.",
     )
     # Add argument for requirement references file
     parser.add_argument(
-        '--requirement_references',
-        help='Path to a file containing requirement references.',
+        "--requirement_references",
+        help="Path to a file containing requirement references.",
     )
     # Add argument for environments path
-    parser.add_argument('--envs_path', help='Path to environments directory.')
+    parser.add_argument("--envs_path", help="Path to environments directory.")
     args = parser.parse_args()
 
     # Load requirements from JSON file
@@ -60,7 +60,7 @@ def main():
             source_code = str(charset_normalizer.from_path(source_file).best())
             func_defs += extract_function_defs(source_code)
         except Exception as e:
-            print(f'Error processing {source_file}: {e}')
+            print(f"Error processing {source_file}: {e}")
 
     # Create a mapping from function names to function definitions
     func_def_dict = {func_def.name: func_def for func_def in func_defs}
@@ -84,9 +84,9 @@ def main():
     )
 
     # Generate tests and save to output file
-    with open(args.output_file, 'w') as output_file:
+    with open(args.output_file, "w") as output_file:
         for requirement_id in sampled_requirement_ids:
-            function_name = requirement_id.split('.')[0]
+            function_name = requirement_id.split(".")[0]
             requirement_text = requirements[requirement_id]
 
             # Generate test case for the requirement
@@ -98,38 +98,38 @@ def main():
             if func_def:
                 code_with_design = func_def.code_with_design
             else:
-                code_with_design = f'Function {function_name} not found.'
+                code_with_design = f"Function {function_name} not found."
 
             if result:
                 # Write to the output file
-                output_file.write(f'Requirement ID: {requirement_id}\n')
-                output_file.write(f'Requirement Text: {requirement_text}\n')
-                output_file.write(f'Function Name: {function_name}\n')
-                output_file.write('Code with Design:\n')
-                output_file.write(code_with_design + '\n')
-                output_file.write('Generated Test Description:\n')
-                output_file.write(result.test_description + '\n')
-                output_file.write('Test Cases:\n')
+                output_file.write(f"Requirement ID: {requirement_id}\n")
+                output_file.write(f"Requirement Text: {requirement_text}\n")
+                output_file.write(f"Function Name: {function_name}\n")
+                output_file.write("Code with Design:\n")
+                output_file.write(code_with_design + "\n")
+                output_file.write("Generated Test Description:\n")
+                output_file.write(result.test_description + "\n")
+                output_file.write("Test Cases:\n")
                 for test_case in result.test_cases:
                     vectorcast_case = test_case.to_vectorcast([requirement_id])
-                    output_file.write(vectorcast_case + '\n')
+                    output_file.write(vectorcast_case + "\n")
                     # Execute the test case and capture the output
                     unit_names = set(test_case.unit_names)
                     environment = env_manager.get_environment(unit_names)
                     if environment:
                         output = environment.run_tests([vectorcast_case], execute=True)
                         # Write the output to the file
-                        output_file.write('Execution Output:\n')
-                        output_file.write(output + '\n')
+                        output_file.write("Execution Output:\n")
+                        output_file.write(output + "\n")
                     else:
                         output_file.write(
-                            'No suitable environment found for execution.\n'
+                            "No suitable environment found for execution.\n"
                         )
-                output_file.write('=' * 40 + '\n')
+                output_file.write("=" * 40 + "\n")
             else:
-                output_file.write(f'Could not generate test for {requirement_id}\n')
-                output_file.write('=' * 40 + '\n')
+                output_file.write(f"Could not generate test for {requirement_id}\n")
+                output_file.write("=" * 40 + "\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

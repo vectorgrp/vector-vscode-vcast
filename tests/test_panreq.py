@@ -15,31 +15,31 @@ from .utils import copy_folder
 # Sample requirements for testing
 SAMPLE_REQUIREMENTS = [
     {
-        'key': 'REQ_001',
-        'id': 'REQ_001',
-        'title': 'Sample Requirement 1',
-        'description': 'This is the first sample requirement for testing.',
-        'unit': 'module1',
-        'function': 'function1',
-        'lines': [10, 11, 12],
+        "key": "REQ_001",
+        "id": "REQ_001",
+        "title": "Sample Requirement 1",
+        "description": "This is the first sample requirement for testing.",
+        "unit": "module1",
+        "function": "function1",
+        "lines": [10, 11, 12],
     },
     {
-        'key': 'REQ_002',
-        'id': 'REQ_002',
-        'title': 'Sample Requirement 2',
-        'description': 'This is the second sample requirement for testing.',
-        'unit': 'module2',
-        'function': 'function2',
-        'lines': [20, 21],
+        "key": "REQ_002",
+        "id": "REQ_002",
+        "title": "Sample Requirement 2",
+        "description": "This is the second sample requirement for testing.",
+        "unit": "module2",
+        "function": "function2",
+        "lines": [20, 21],
     },
     {
-        'key': 'REQ_003',
-        'id': 'REQ_003',
-        'title': 'Sample Requirement 3',
-        'description': 'This is the third sample requirement for testing.',
-        'unit': None,
-        'function': None,
-        'lines': None,
+        "key": "REQ_003",
+        "id": "REQ_003",
+        "title": "Sample Requirement 3",
+        "description": "This is the third sample requirement for testing.",
+        "unit": None,
+        "function": None,
+        "lines": None,
     },
 ]
 
@@ -50,14 +50,14 @@ def sample_requirements():
     requirements = []
     for req_data in SAMPLE_REQUIREMENTS:
         req = Requirement(
-            key=req_data['key'],
-            id=req_data['id'],
-            title=req_data['title'],
-            description=req_data['description'],
+            key=req_data["key"],
+            id=req_data["id"],
+            title=req_data["title"],
+            description=req_data["description"],
             location=RequirementLocation(
-                unit=req_data['unit'],
-                function=req_data['function'],
-                lines=req_data['lines'],
+                unit=req_data["unit"],
+                function=req_data["function"],
+                lines=req_data["lines"],
             ),
         )
         requirements.append(req)
@@ -67,7 +67,7 @@ def sample_requirements():
 @pytest.fixture
 def sample_csv_file(tmp_path, sample_requirements):
     """Create a sample CSV file for testing."""
-    csv_path = str(tmp_path / 'sample_requirements.csv')
+    csv_path = str(tmp_path / "sample_requirements.csv")
     sample_requirements.to_csv(csv_path)
     return csv_path
 
@@ -75,7 +75,7 @@ def sample_csv_file(tmp_path, sample_requirements):
 @pytest.fixture
 def sample_excel_file(tmp_path, sample_requirements):
     """Create a sample Excel file for testing."""
-    excel_path = str(tmp_path / 'sample_requirements.xlsx')
+    excel_path = str(tmp_path / "sample_requirements.xlsx")
     sample_requirements.to_excel(excel_path)
     return excel_path
 
@@ -94,21 +94,21 @@ def test_csv_to_excel_conversion(
     try:
         os.chdir(tmp_path)
 
-        output_path = tmp_path / 'output.xlsx'
+        output_path = tmp_path / "output.xlsx"
         test_args = [
-            'panreq',
+            "panreq",
             str(sample_csv_file),
             str(output_path),
-            '--target-format',
-            'excel',
+            "--target-format",
+            "excel",
         ]
-        monkeypatch.setattr('sys.argv', test_args)
+        monkeypatch.setattr("sys.argv", test_args)
 
         cli()
 
         assert output_path.exists()
         requirements_output_recorder.record_or_compare(
-            str(output_path), 'csv_to_excel.xlsx'
+            str(output_path), "csv_to_excel.xlsx"
         )
     finally:
         os.chdir(current_workdir)
@@ -125,19 +125,19 @@ def test_excel_to_csv_conversion(
     try:
         os.chdir(tmp_path)
 
-        output_path = str(tmp_path / 'output.csv')
+        output_path = str(tmp_path / "output.csv")
         test_args = [
-            'panreq',
+            "panreq",
             str(sample_excel_file),
             output_path,
-            '--target-format',
-            'csv',
+            "--target-format",
+            "csv",
         ]
-        monkeypatch.setattr('sys.argv', test_args)
+        monkeypatch.setattr("sys.argv", test_args)
 
         cli()
 
-        requirements_output_recorder.record_or_compare(output_path, 'excel_to_csv.csv')
+        requirements_output_recorder.record_or_compare(output_path, "excel_to_csv.csv")
     finally:
         os.chdir(current_workdir)
 
@@ -162,29 +162,29 @@ def test_csv_to_excel_with_traceability(
         os.chdir(tmp_path)
 
         # Copy a test environment
-        copy_folder(envs_dir / 'TUTORIAL_C', tmp_path)
-        env_path = str(tmp_path / 'TUTORIAL_C.env')
+        copy_folder(envs_dir / "TUTORIAL_C", tmp_path)
+        env_path = str(tmp_path / "TUTORIAL_C.env")
 
         env = Environment(env_path, use_sandbox=False)
         env.build()
 
-        output_path = str(tmp_path / 'output_with_traceability.xlsx')
+        output_path = str(tmp_path / "output_with_traceability.xlsx")
         test_args = [
-            'panreq',
+            "panreq",
             sample_csv_file,
             output_path,
-            '--target-format',
-            'excel',
-            '--target-env',
+            "--target-format",
+            "excel",
+            "--target-env",
             str(env_path),
-            '--infer-traceability',
+            "--infer-traceability",
         ]
-        monkeypatch.setattr('sys.argv', test_args)
+        monkeypatch.setattr("sys.argv", test_args)
 
         cli()
 
         requirements_output_recorder.record_or_compare(
-            output_path, 'csv_to_excel_with_traceability.xlsx'
+            output_path, "csv_to_excel_with_traceability.xlsx"
         )
     finally:
         os.chdir(current_workdir)
@@ -197,7 +197,7 @@ def test_csv_to_excel_with_traceability(
 def test_csv_round_trip_equivalence(tmp_path, sample_requirements):
     """Test that requirements survive a round trip through CSV format."""
     # Save to CSV
-    csv_path = tmp_path / 'test.csv'
+    csv_path = tmp_path / "test.csv"
     sample_requirements.to_csv(csv_path)
 
     # Load from CSV
@@ -218,7 +218,7 @@ def test_csv_round_trip_equivalence(tmp_path, sample_requirements):
 def test_excel_round_trip_equivalence(tmp_path, sample_requirements):
     """Test that requirements survive a round trip through Excel format."""
     # Save to Excel
-    excel_path = str(tmp_path / 'test.xlsx')
+    excel_path = str(tmp_path / "test.xlsx")
     sample_requirements.to_excel(excel_path)
 
     # Load from Excel
@@ -237,15 +237,15 @@ def test_excel_round_trip_equivalence(tmp_path, sample_requirements):
 def test_csv_excel_round_trip(tmp_path, sample_requirements):
     """Test CSV -> Excel -> CSV round trip."""
     # CSV -> Excel
-    csv_path1 = str(tmp_path / 'test1.csv')
-    excel_path = str(tmp_path / 'test.xlsx')
+    csv_path1 = str(tmp_path / "test1.csv")
+    excel_path = str(tmp_path / "test.xlsx")
     sample_requirements.to_csv(csv_path1)
 
     loaded_from_csv = RequirementsCollection.from_csv(csv_path1)
     loaded_from_csv.to_excel(excel_path)
 
     # Excel -> CSV
-    csv_path2 = tmp_path / 'test2.csv'
+    csv_path2 = tmp_path / "test2.csv"
     loaded_from_excel = RequirementsCollection.from_excel(excel_path)
     loaded_from_excel.to_csv(csv_path2)
 
@@ -271,21 +271,21 @@ def test_missing_target_env_for_traceability(monkeypatch, tmp_path, sample_csv_f
     try:
         os.chdir(tmp_path)
 
-        output_path = tmp_path / 'output.xlsx'
+        output_path = tmp_path / "output.xlsx"
         test_args = [
-            'panreq',
+            "panreq",
             str(sample_csv_file),
             str(output_path),
-            '--target-format',
-            'excel',
-            '--infer-traceability',
+            "--target-format",
+            "excel",
+            "--infer-traceability",
         ]
-        monkeypatch.setattr('sys.argv', test_args)
+        monkeypatch.setattr("sys.argv", test_args)
 
         # The ValueError should be raised directly by asyncio.run()
         with pytest.raises(
             ValueError,
-            match='When inferring traceability, a target environment must be provided',
+            match="When inferring traceability, a target environment must be provided",
         ):
             cli()
     finally:
@@ -298,15 +298,15 @@ def test_invalid_target_format(monkeypatch, tmp_path, sample_csv_file):
     try:
         os.chdir(tmp_path)
 
-        output_path = tmp_path / 'output.txt'
+        output_path = tmp_path / "output.txt"
         test_args = [
-            'panreq',
+            "panreq",
             str(sample_csv_file),
             str(output_path),
-            '--target-format',
-            'invalid',
+            "--target-format",
+            "invalid",
         ]
-        monkeypatch.setattr('sys.argv', test_args)
+        monkeypatch.setattr("sys.argv", test_args)
 
         with pytest.raises(SystemExit):
             cli()

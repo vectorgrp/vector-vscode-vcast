@@ -16,7 +16,7 @@ def _get_env_identifiers(env, for_function=None):
     all_identifiers = []
     for func in functions_to_consider:
         all_identifiers.extend(
-            tr.resolve(func['name']).to_vectorcast_identifiers(
+            tr.resolve(func["name"]).to_vectorcast_identifiers(
                 top_level=True, max_pointer_index=1
             )
         )
@@ -31,21 +31,21 @@ def test_tutorial_identifiers_match(
     with tempfile.TemporaryDirectory() as out_folder:
         os.chdir(out_folder)
 
-        copy_folder(envs_dir / 'TUTORIAL_C', Path(out_folder))
+        copy_folder(envs_dir / "TUTORIAL_C", Path(out_folder))
 
-        env = Environment('TUTORIAL_C.env', use_sandbox=False)
+        env = Environment("TUTORIAL_C.env", use_sandbox=False)
         env.build()
 
         identifier_lists_to_compare = [None] + env.testable_functions
 
         for function in identifier_lists_to_compare:
-            function_name = function['name'] if function else 'all_functions'
-            file_name = f'allowed_identifiers_{function_name}.txt'
+            function_name = function["name"] if function else "all_functions"
+            file_name = f"allowed_identifiers_{function_name}.txt"
 
             all_identifiers = _get_env_identifiers(env, for_function=function)
-            with open(file_name, 'w') as f:
+            with open(file_name, "w") as f:
                 for ident in all_identifiers:
-                    f.write(f'{ident}\n')
+                    f.write(f"{ident}\n")
 
             generic_output_recorder.record_or_compare(file_name, file_name)
 
@@ -57,13 +57,13 @@ def test_compare_against_test_script_template(envs_dir):
     with tempfile.TemporaryDirectory() as out_folder:
         os.chdir(out_folder)
 
-        copy_folder(envs_dir / 'TUTORIAL_C', Path(out_folder))
+        copy_folder(envs_dir / "TUTORIAL_C", Path(out_folder))
 
-        env = Environment('TUTORIAL_C.env', use_sandbox=False)
+        env = Environment("TUTORIAL_C.env", use_sandbox=False)
         env.build()
 
         test_script_template_identifiers = set(
-            x for x in env.raw_template_identifiers if 'VECTORCAST' not in x
+            x for x in env.raw_template_identifiers if "VECTORCAST" not in x
         )
         all_identifiers = set(_get_env_identifiers(env))
 
@@ -80,22 +80,22 @@ def test_filtered_identifiers_per_function_regression(
     with tempfile.TemporaryDirectory() as out_folder:
         os.chdir(out_folder)
 
-        copy_folder(envs_dir / 'TUTORIAL_C', Path(out_folder))
+        copy_folder(envs_dir / "TUTORIAL_C", Path(out_folder))
 
-        env = Environment('TUTORIAL_C.env', use_sandbox=False)
+        env = Environment("TUTORIAL_C.env", use_sandbox=False)
         env.build()
 
         # Test each function individually to track per-function filtered identifiers
         for function in env.testable_functions:
-            function_name = function['name']
-            file_name = f'filtered_identifiers_{function_name}.txt'
+            function_name = function["name"]
+            file_name = f"filtered_identifiers_{function_name}.txt"
 
             filtered_identifiers = env.get_allowed_identifiers_for_function(
                 function_name, max_identifier_index=1
             )
-            with open(file_name, 'w') as f:
+            with open(file_name, "w") as f:
                 for ident in sorted(filtered_identifiers):  # Sort for consistent output
-                    f.write(f'{ident}\n')
+                    f.write(f"{ident}\n")
 
             generic_output_recorder.record_or_compare(file_name, file_name)
 

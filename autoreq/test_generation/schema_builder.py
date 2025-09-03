@@ -66,9 +66,9 @@ class SchemaBuilder:
         )
 
         if identifier_type is None:
-            identifier_type = self.default_schema_identifier_type or 'input_expected'
+            identifier_type = self.default_schema_identifier_type or "input_expected"
 
-        if identifier_type == 'input_expected':
+        if identifier_type == "input_expected":
             allowed_input_identifiers = (
                 self.environment.get_allowed_identifiers_for_function(
                     function_name,
@@ -95,10 +95,10 @@ class SchemaBuilder:
             schema_gen_info.no_identifiers_found = found_no_allowed_identifiers
 
             logging.info(
-                f'Creating schema with {len(allowed_input_identifiers)} allowed input identifiers and '
-                f'{len(allowed_expected_identifiers)} allowed expected identifiers for function {function_name}'
+                f"Creating schema with {len(allowed_input_identifiers)} allowed input identifiers and "
+                f"{len(allowed_expected_identifiers)} allowed expected identifiers for function {function_name}"
             )
-        elif identifier_type == 'unified':
+        elif identifier_type == "unified":
             allowed_input_identifiers = (
                 self.environment.get_allowed_identifiers_for_function(
                     function_name,
@@ -114,7 +114,7 @@ class SchemaBuilder:
             schema_gen_info.no_identifiers_found = found_no_allowed_identifiers
 
             logging.info(
-                f'Creating schema with {len(allowed_input_identifiers)} allowed identifiers for function {function_name}'
+                f"Creating schema with {len(allowed_input_identifiers)} allowed identifiers for function {function_name}"
             )
         else:
             allowed_input_identifiers = None
@@ -129,8 +129,8 @@ class SchemaBuilder:
         )
         if too_many_identifiers and not relaxed_schema:
             logging.warning(
-                f'Function {function_name} has too many identifiers: '
-                f'{len(allowed_input_identifiers)} input and {len(allowed_expected_identifiers)} expected. Relaxing schema.'
+                f"Function {function_name} has too many identifiers: "
+                f"{len(allowed_input_identifiers)} input and {len(allowed_expected_identifiers)} expected. Relaxing schema."
             )
             schema_gen_info.too_many_identifiers = True
             relaxed_schema = True
@@ -147,7 +147,7 @@ class SchemaBuilder:
         schema = _construct_completion_schema(TestCaseClass, batched, batch_size)
 
         schema_json = json.dumps(schema.model_json_schema())
-        logging.info(f'Generated schema size: {len(schema_json)} chars')
+        logging.info(f"Generated schema size: {len(schema_json)} chars")
 
         if verify_schema:
             schema_issues = _validate_openai_structured_output_schema(
@@ -158,13 +158,13 @@ class SchemaBuilder:
 
         if schema_issues:
             logging.warning(
-                f'Schema has issues that make it illegal to use (i.e. it is too big):\\n{chr(10).join(schema_issues)}\\n\\nRetrying creation without specific allowed identifiers for a smaller schema.'
+                f"Schema has issues that make it illegal to use (i.e. it is too big):\\n{chr(10).join(schema_issues)}\\n\\nRetrying creation without specific allowed identifiers for a smaller schema."
             )
 
-            if identifier_type == 'input_expected':
-                fallback_type = 'unified'
+            if identifier_type == "input_expected":
+                fallback_type = "unified"
             else:
-                fallback_type = 'generic'
+                fallback_type = "generic"
 
             schema = self.derive_completion_schema(
                 function_name=function_name,
@@ -172,7 +172,7 @@ class SchemaBuilder:
                 batch_size=batch_size,
                 identifier_type=fallback_type,
                 verify_schema=fallback_type
-                != 'generic',  # Check unless we already have the generic schema
+                != "generic",  # Check unless we already have the generic schema
                 return_schema_gen_info=False,  # No need to return flags for the fallback schema
             )
 
@@ -200,11 +200,11 @@ def create_schema_instance_mock(instance_data: Dict[str, Any]) -> BaseModel:
         ValueError: If the schema type cannot be determined or data is malformed.
     """
     if not isinstance(instance_data, dict):
-        raise ValueError('Input data must be a dictionary.')
+        raise ValueError("Input data must be a dictionary.")
 
     # Try to infer if it's a single TestGenerationResult (contains 'test_case')
-    if 'test_case' in instance_data:
-        test_case_content = instance_data.get('test_case')
+    if "test_case" in instance_data:
+        test_case_content = instance_data.get("test_case")
         if not isinstance(test_case_content, dict):
             raise ValueError(
                 "'test_case' value must be a dictionary for a single TestGenerationResult."
@@ -217,11 +217,11 @@ def create_schema_instance_mock(instance_data: Dict[str, Any]) -> BaseModel:
         return FinalModel.model_validate(instance_data)
 
     # Try to infer if it's a batched TestGenerationResult
-    elif any(k.startswith('test_case_for_requirement_') for k in instance_data):
+    elif any(k.startswith("test_case_for_requirement_") for k in instance_data):
         batch_items = {
             k: v
             for k, v in instance_data.items()
-            if k.startswith('test_case_for_requirement_')
+            if k.startswith("test_case_for_requirement_")
         }
 
         TestCaseModel = _construct_test_case_schema(None, None)
@@ -231,7 +231,7 @@ def create_schema_instance_mock(instance_data: Dict[str, Any]) -> BaseModel:
         return FinalModel.model_validate(instance_data)
 
     # Try to infer if it's a direct TestCase (has 'input_values' or 'expected_values' but not 'test_case' or batch keys)
-    elif 'input_values' in instance_data or 'expected_values' in instance_data:
+    elif "input_values" in instance_data or "expected_values" in instance_data:
         TestCaseModel = _construct_test_case_schema(None, None)
         return TestCaseModel.model_validate(instance_data)
     else:
@@ -254,31 +254,31 @@ def _construct_test_case_schema(
 
     unique_suffix = int(time.time() * 1000)
 
-    InputValueMappingName = f'InputValueMapping_{unique_suffix}'
+    InputValueMappingName = f"InputValueMapping_{unique_suffix}"
     InputValueMappingGlobal = type(
         InputValueMappingName,
         (GenericValueMapping,),  # Use imported class
-        {'__annotations__': {'identifier': InputIdentifier}},
+        {"__annotations__": {"identifier": InputIdentifier}},
     )
 
-    ExpectedValueMappingName = f'ExpectedValueMapping_{unique_suffix}'
+    ExpectedValueMappingName = f"ExpectedValueMapping_{unique_suffix}"
     ExpectedValueMappingGlobal = type(
         ExpectedValueMappingName,
         (GenericValueMapping,),  # Use imported class
-        {'__annotations__': {'identifier': ExpectedIdentifier}},
+        {"__annotations__": {"identifier": ExpectedIdentifier}},
     )
 
-    TestCaseName = f'TestCase_{unique_suffix}'
+    TestCaseName = f"TestCase_{unique_suffix}"
     TestCaseGlobal = type(
         TestCaseName,
         (GenericTestCase,),  # Use imported class
         {
-            '__annotations__': {
-                'input_values': List[InputValueMappingGlobal],
-                'expected_values': List[ExpectedValueMappingGlobal],
+            "__annotations__": {
+                "input_values": List[InputValueMappingGlobal],
+                "expected_values": List[ExpectedValueMappingGlobal],
             },
-            'input_values': Field(default_factory=list),
-            'expected_values': Field(default_factory=list),
+            "input_values": Field(default_factory=list),
+            "expected_values": Field(default_factory=list),
         },
     )
     return TestCaseGlobal
@@ -289,7 +289,7 @@ def _construct_completion_schema(
 ):
     if not batched:
         TestGenerationResultClass = create_model(
-            'TestGenerationResult',
+            "TestGenerationResult",
             test_case=(TestCaseClass, ...),
             __base__=GenericTestGenerationResult,
         )
@@ -298,11 +298,11 @@ def _construct_completion_schema(
         assert batch_size is not None
         result_keys = {}
         for i in range(batch_size):
-            field_name = f'test_case_for_requirement_{i + 1}'
+            field_name = f"test_case_for_requirement_{i + 1}"
             result_keys[field_name] = (TestCaseClass, ...)
         # For batched results, the top-level model doesn't directly use GenericTestGenerationResult as a base
         # but is a dynamic model holding multiple TestCaseClass instances.
-        schema = create_model('TestGenerationResult', **result_keys)
+        schema = create_model("TestGenerationResult", **result_keys)
     return schema
 
 
@@ -321,13 +321,13 @@ def _validate_openai_structured_output_schema(schema) -> List[str]:
         max_nesting = 5
         max_total_props = 100
         if depth > max_nesting:
-            errors.append(f'Exceeded max nesting depth: {depth} > 5')
+            errors.append(f"Exceeded max nesting depth: {depth} > 5")
         # object checks
-        if node.get('type') == 'object':
-            props = node.get('properties', {})
+        if node.get("type") == "object":
+            props = node.get("properties", {})
             total_props += len(props)
             if len(props) and total_props > max_total_props:
-                errors.append(f'Total properties {total_props} exceeds limit of 100')
+                errors.append(f"Total properties {total_props} exceeds limit of 100")
             # TODO: Ideally we would check for additionalProperties here, but it is not actually present in pydantic generated schemas (and yet it still somehow works)
             # if node.get('additionalProperties', True) is not False:
             #    errors.append("'additionalProperties' must be false on all objects")
@@ -337,21 +337,21 @@ def _validate_openai_structured_output_schema(schema) -> List[str]:
         # enum checks
         max_vals = 250
         max_enum_len = 7500
-        if node.get('type') == 'string' and 'enum' in node:
-            vals = node['enum']
+        if node.get("type") == "string" and "enum" in node:
+            vals = node["enum"]
             count = len(vals)
             total_enum_vals += count
             enum_len = sum(len(str(v)) for v in vals)
             total_string_len += enum_len
             if count > max_vals and enum_len > max_enum_len:
                 errors.append(
-                    f'Enum property has {count} values and total length {enum_len} exceeds 7500'
+                    f"Enum property has {count} values and total length {enum_len} exceeds 7500"
                 )
         # const check
-        if 'const' in node:
-            total_string_len += len(str(node['const']))
+        if "const" in node:
+            total_string_len += len(str(node["const"]))
         # definitions and combinators
-        for key in ('$defs', 'definitions', 'allOf', 'anyOf', 'oneOf'):
+        for key in ("$defs", "definitions", "allOf", "anyOf", "oneOf"):
             items = node.get(key, {})
             if isinstance(items, dict):
                 iterable = items.values()
@@ -364,10 +364,10 @@ def _validate_openai_structured_output_schema(schema) -> List[str]:
     max_string_len = 15000
     if total_string_len > max_string_len:
         errors.append(
-            f'Total string length {total_string_len} exceeds limit of 15000 characters'
+            f"Total string length {total_string_len} exceeds limit of 15000 characters"
         )
     max_enum_vals = 500
     if total_enum_vals > max_enum_vals:
-        errors.append(f'Total enum values {total_enum_vals} exceeds limit of 500')
+        errors.append(f"Total enum values {total_enum_vals} exceeds limit of 500")
 
     return errors
