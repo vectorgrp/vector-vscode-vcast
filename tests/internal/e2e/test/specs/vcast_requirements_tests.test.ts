@@ -261,32 +261,34 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    // await browser.waitUntil(
-    //   async () =>
-    //     (await (await bottomBar.openOutputView()).getText())
-    //       .toString()
-    //       .includes("reqs2tests completed successfully with code 0"),
-    //   { timeout: 240_000 }
-    // );
-
-    // await bottomBar.maximize()
-    // console.log(await outputView.getText())
-
-    // await browser.waitUntil(
-    //   async () =>
-    //     (await (await bottomBar.openOutputView()).getText())
-    //       .toString()
-    //       .includes("Script loaded successfully"),
-    //   { timeout: 240_000 }
-    // );
-
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Processing environment data for:"),
-      { timeout: 240_000 }
-    );
+    // 2025sp1 shows the first log and then doesnt switch back to the other output channel.
+    try {
+      // First, try waiting for the "reqs2tests" log
+      await browser.waitUntil(
+        async () =>
+          (await (await bottomBar.openOutputView()).getText())
+            .toString()
+            .includes("reqs2tests completed successfully with code 0"),
+        { timeout: 240_000 }
+      );
+    } catch (err) {
+      // If that fails, fall back to "Processing environment data"
+      try {
+        await browser.waitUntil(
+          async () =>
+            (await (await bottomBar.openOutputView()).getText())
+              .toString()
+              .includes("Processing environment data for:"),
+          { timeout: 240_000 }
+        );
+      } catch (err2) {
+        // Both attempts failed → rethrow the first error (or combine them)
+        throw new Error(
+          `Neither log message appeared within the timeout.\n` +
+            `First error: ${err}\nSecond error: ${err2}`
+        );
+      }
+    }
 
     await (
       await (
