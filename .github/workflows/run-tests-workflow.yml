@@ -11,6 +11,9 @@ on:
   release:
   workflow_dispatch:
     inputs:
+      prioritize-spec-group:
+        description: 'Comma-separated list of E2E test groups to run (e.g. groupName1, groupName2, ...)'
+        required: false
       r2t-release-url-linux:
         description: 'Linux release URL to be used for the bundle'
         required: false
@@ -183,24 +186,25 @@ jobs:
           ENV_SAMPLES=(
             "https://rds-vtc-docker-dev-local.vegistry.vg.vector.int/artifactory/rds-build-packages-generic-dev-local/code2reqs2tests/demo-data/TUTORIAL_C.zip"
           )
-          mkdir .distribution && cd .distribution
-          
+          mkdir distribution
+          cd distribution
           wget $README_URL -O Readme.pdf
           for url in "${ENV_SAMPLES[@]}"; do
             wget $url -O $(basename $url)
             unzip $(basename $url)
             rm $(basename $url)
           done
+          cd ..
           
           echo "## Distribution - Linux" >> $GITHUB_STEP_SUMMARY
           if [[ -f ${{ env.LINUX_VSIX_FILE }} ]] ; then
              VSIX_FILE=${{ env.LINUX_VSIX_FILE }}
-             cp $VSIX_FILE $(basename "${VSIX_FILE%.linux.vsix}.vsix")
-             tar -cvzf ../VectorCAST-Reqs2Tests-Linux.tar.gz * > /dev/null
+             cp $VSIX_FILE distribution/$(basename "${VSIX_FILE%.linux.vsix}.vsix")
+             tar -cvzf VectorCAST-Reqs2Tests-Linux.tar.gz distribution > /dev/null
              URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
-             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Linux.tar.gz
+             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Linux.tar.gz
              echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
-             rm *.vsix
+             rm distribution/*.vsix
           else
              echo "Unable to build distribution for Linux" >> $GITHUB_STEP_SUMMARY
           fi
@@ -208,16 +212,16 @@ jobs:
           echo "## Distribution - Windows" >> $GITHUB_STEP_SUMMARY
           if [[ -f ${{ env.WIN_VSIX_FILE }} ]] ; then
              VSIX_FILE=${{ env.WIN_VSIX_FILE }}
-             cp $VSIX_FILE $(basename "${VSIX_FILE%.win.vsix}.vsix")
-             tar -cvzf ../VectorCAST-Reqs2Tests-Windows.tar.gz * > /dev/null
+             cp $VSIX_FILE distribution/$(basename "${VSIX_FILE%.win.vsix}.vsix")
+             tar -cvzf VectorCAST-Reqs2Tests-Windows.tar.gz distribution > /dev/null
              URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Windows.tar.gz"
-             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T ../VectorCAST-Reqs2Tests-Windows.tar.gz
+             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Windows.tar.gz
              echo "[Download distribution - Windows]($URL)" >> $GITHUB_STEP_SUMMARY
           else
              echo "Unable to build distribution for Windows" >> $GITHUB_STEP_SUMMARY
           fi
           
-          cd .. && rm -rf .distribution VectorCAST-Reqs2Tests-*.tar.gz
+          rm -rf distribution VectorCAST-Reqs2Tests-*.tar.gz
 
       - name: Upload coverage artifact
         if: ${{ always() && strategy.job-index == '0' }}
@@ -294,7 +298,10 @@ jobs:
         id: set-matrix
         env:
           VCAST_VERSIONS: ${{ vars.VCAST_VERSIONS }}
+          # Pass through the SPEC_GROUP to our matrix generator so it can prioritize matching tests
+          PRIORITIZE_SPEC_GROUP: ${{ github.event.inputs.prioritize-spec-group || '' }}
         run: |
+          echo "PRIORITIZE_SPEC_GROUP=${PRIORITIZE_SPEC_GROUP}" >> $GITHUB_ENV
           cd tests/internal/e2e/test
           npx tsx get_gha_matrix.ts
           echo "matrix=$(cat gha_matrix.json)" >> "$GITHUB_OUTPUT"
@@ -324,6 +331,7 @@ jobs:
       ENABLE_ATG_FEATURE: TRUE
       LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+      PRIORITIZE_SPEC_GROUP: ${{ github.event.inputs.prioritize-spec-group || '' }}
 
     steps:
       - name: Check out repository

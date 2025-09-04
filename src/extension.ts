@@ -202,8 +202,7 @@ const GENERATE_REQUIREMENTS_ENABLED: boolean = true;
 // Setup the paths to the code2reqs and reqs2tests executables
 let CODE2REQS_EXECUTABLE_PATH: string;
 let REQS2TESTS_EXECUTABLE_PATH: string;
-let REQS2EXCEL_EXECUTABLE_PATH: string;
-let REQS2RGW_EXECUTABLE_PATH: string;
+let PANREQ_EXECUTABLE_PATH: string;
 
 /**
  * Sets up the paths to the executables used by the autoreq feature. Distinguishes between github CI and local.
@@ -241,27 +240,12 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     "distribution",
     "reqs2tests"
   ).fsPath;
-  REQS2EXCEL_EXECUTABLE_PATH = vscode.Uri.joinPath(
+  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     "resources",
     "distribution",
-    "reqs2excel"
+    "panreq"
   ).fsPath;
-  REQS2RGW_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    "resources",
-    "distribution",
-    "reqs2rgw"
-  ).fsPath;
-
-  // Checking for debugging reasons if the path to the executable exsists or not
-  fs.access(CODE2REQS_EXECUTABLE_PATH, fs.constants.X_OK, (err) => {
-    if (err) {
-      logCliError(`Executable not accessible: ${err}`);
-    } else {
-      logCliOperation("Executable is accessible and executable");
-    }
-  });
 }
 function setHardcodedEnvVars() {
   for (const [key, value] of Object.entries(HARDCODED_ENV_VARS)) {
@@ -2725,8 +2709,6 @@ async function importRequirementsFromGateway(enviroPath: string) {
     return;
   }
 
-  const gatewayPath = path.join(repositoryPath, "requirements_gateway");
-
   const csvPath = path.join(parentDir, "reqs.csv");
   const xlsxPath = path.join(parentDir, "reqs.xlsx");
 
@@ -2768,16 +2750,17 @@ async function importRequirementsFromGateway(enviroPath: string) {
   const addTraceability = choice === "Yes";
 
   const commandArgs = [
-    "--requirements-gateway-path",
-    gatewayPath,
-    "--output-file",
+    repositoryPath,
     xlsxPath,
-    ...(addTraceability ? ["--automatic-traceability"] : []),
+    "--target-format",
+    "excel",
+    ...(addTraceability ? ["--infer-traceability"] : []),
+    "--target-env",
     envPath,
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2EXCEL_EXECUTABLE_PATH} ${commandArgs.join(
+  const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(
     " "
   )}`;
   logCliOperation(`Executing command: ${commandString}`);
@@ -2802,7 +2785,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
 
       return new Promise<void>((resolve, reject) => {
         const process = spawnWithVcastEnv(
-          REQS2EXCEL_EXECUTABLE_PATH,
+          PANREQ_EXECUTABLE_PATH,
           commandArgs
         );
 
@@ -2815,12 +2798,12 @@ async function importRequirementsFromGateway(enviroPath: string) {
 
         process.stdout.on("data", (data) => {
           const output = data.toString();
-          logCliOperation(`reqs2excel: ${output}`);
+          logCliOperation(`panreq: ${output}`);
         });
 
         process.stderr.on("data", (data) => {
           const errorOutput = data.toString();
-          logCliError(`reqs2excel: ${errorOutput}`);
+          logCliError(`panreq: ${errorOutput}`);
         });
 
         process.on("close", async (code) => {
@@ -2908,27 +2891,29 @@ async function populateRequirementsGateway(enviroPath: string) {
 
   // Run reqs2rgw with appropriate parameters
   const commandArgs = [
-    envPath,
     requirementsFile,
-    "--gateway-path",
     exportRepository,
+    "--target-format",
+    "rgw",
+    "--target-env",
+    envPath,
   ];
 
   // Log the command being executed
-  const commandString = `${REQS2RGW_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
+  const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
   return new Promise<void>((resolve, reject) => {
-    const process = spawnWithVcastEnv(REQS2RGW_EXECUTABLE_PATH, commandArgs);
+    const process = spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
     process.stdout.on("data", (data) => {
       const output = data.toString().trim();
-      logCliOperation(`reqs2rgw: ${output}`);
+      logCliOperation(`panreq: ${output}`);
     });
 
     process.stderr.on("data", (data) => {
       const errorOutput = data.toString().trim();
-      logCliError(`reqs2rgw: ${errorOutput}`);
+      logCliError(`panreq: ${errorOutput}`);
     });
 
     process.on("close", async (code) => {
@@ -3063,12 +3048,16 @@ function createProcessEnvironment(vcastInstallDir?: string): NodeJS.ProcessEnv {
     processEnv.VSCODE_VECTORCAST_DIR = vcastInstallDir;
   }
 
-  const outputDebugInfo = vscode.workspace
-    .getConfiguration("vectorcastTestExplorer")
-    .get<boolean>("outputDebugInfo", false);
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  
+  const outputDebugInfo = config.get<boolean>("outputDebugInfo", false);
   if (outputDebugInfo) {
     processEnv.REQ2TESTS_LOG_LEVEL = "debug";
   }
+
+  // Set the language for requirements generation
+  const languageCode = config.get<string>("requirementsLanguage", "en");
+  processEnv.REQ2TESTS_RESPONSE_LANGUAGE = languageCode;
 
   return processEnv;
 }
