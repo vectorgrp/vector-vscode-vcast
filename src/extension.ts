@@ -2557,6 +2557,11 @@ async function generateTestsFromRequirements(
 
   const csvPath = path.join(envReqsFolderPath, "reqs.csv");
   const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
+
+  // tstPath must be in the same parent directory as the .env.
+  // If the .tst is stored inside reqs-<envName>, VectorCAST treats the
+  // environment as read-only and refuses to load it. Therefore we place
+  // reqs2tests.tst directly under parentDir, alongside <envName>.env.
   const tstPath = path.join(parentDir, "reqs2tests.tst");
 
   let reqsFile = "";
