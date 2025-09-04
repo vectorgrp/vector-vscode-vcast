@@ -179,6 +179,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await bottomBar.maximize();
 
+    // We do not have to check the coverage, because we already do that in the normal requirements test
+    // This should just check if everything works with manage
     await browser.waitUntil(
       async () =>
         (await (await bottomBar.openOutputView()).getText())
@@ -194,11 +196,5 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("returned exit code: 0"),
       { timeout: 180_000 }
     );
-
-    const testsuiteNode = await findTreeNodeAtLevel(
-      4,
-      "Test_Bar_Returns_Input_Value-REVIEW-NEEDED"
-    );
-    expect(testsuiteNode).toBeDefined();
   });
 });
