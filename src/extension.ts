@@ -2690,11 +2690,7 @@ async function generateTestsFromRequirements(
             logCliOperation(
               `reqs2tests completed successfully with code ${code}`
             );
-            await loadTestScriptIntoEnvironment(
-              envName.split(".")[0],
-              tstPath,
-              true
-            );
+            await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
             await refreshAllExtensionData();
 
             vscode.window.showInformationMessage(
