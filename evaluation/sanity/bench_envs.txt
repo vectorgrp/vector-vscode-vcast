@@ -1,3 +1,0 @@
-/home/thiscakeisalie/programming/reqs-to-tests/data/manager-sanity/TUTORIAL_C.env
-/home/thiscakeisalie/programming/reqs-to-tests/data/modmgr4a-sanity/SRC__MODMGR4A.env
-/home/thiscakeisalie/programming/reqs-to-tests/data/pi--innovo-large-scale/vcast/Pi_Innovo/build/3091076738/COMMON__PUT_LEAKY_BUCKET_F32_FN.env

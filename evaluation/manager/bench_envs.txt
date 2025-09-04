@@ -1,2 +1,0 @@
-/home/thiscakeisalie/programming/reqs-to-tests/data/manager/TUTORIAL_C.env:/home/thiscakeisalie/programming/reqs-to-tests/generated/manager/reqs.csv
-/home/thiscakeisalie/programming/reqs-to-tests/data/managercpp/TUTORIAL_CPP.env:/home/thiscakeisalie/programming/reqs-to-tests/generated/managercpp/reqs.csv
