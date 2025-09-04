@@ -2557,7 +2557,7 @@ async function generateTestsFromRequirements(
 
   const csvPath = path.join(envReqsFolderPath, "reqs.csv");
   const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
-  const tstPath = path.join(envReqsFolderPath, "reqs2tests.tst");
+  const tstPath = path.join(parentDir, "reqs2tests.tst");
 
   let reqsFile = "";
   let fileType = "";
