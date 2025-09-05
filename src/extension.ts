@@ -2760,9 +2760,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
   ];
 
   // Log the command being executed
-  const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(
-    " "
-  )}`;
+  const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
   await vscode.window.withProgress(
@@ -2784,10 +2782,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
       }, 500);
 
       return new Promise<void>((resolve, reject) => {
-        const process = spawnWithVcastEnv(
-          PANREQ_EXECUTABLE_PATH,
-          commandArgs
-        );
+        const process = spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
         cancellationToken.onCancellationRequested(() => {
           process.kill();
@@ -3049,7 +3044,7 @@ function createProcessEnvironment(vcastInstallDir?: string): NodeJS.ProcessEnv {
   }
 
   const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  
+
   const outputDebugInfo = config.get<boolean>("outputDebugInfo", false);
   if (outputDebugInfo) {
     processEnv.REQ2TESTS_LOG_LEVEL = "debug";
