@@ -1,4 +1,0 @@
-key,id,title,description,unit,function,lines
-REQ_001,REQ_001,Sample Requirement 1,This is the first sample requirement for testing.,module1,function1,"[10, 11, 12]"
-REQ_002,REQ_002,Sample Requirement 2,This is the second sample requirement for testing.,module2,function2,"[20, 21]"
-REQ_003,REQ_003,Sample Requirement 3,This is the third sample requirement for testing.,,,
