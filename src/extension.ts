@@ -1331,9 +1331,18 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
+
         const parentDir = path.dirname(enviroPath);
-        const csvPath = path.join(parentDir, "reqs.csv");
-        const xlsxPath = path.join(parentDir, "reqs.xlsx");
+        const enviroNameWithExt = path.basename(enviroPath);
+        // remove ".env" if present
+        const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+        const envReqsFolderPath = path.join(
+          parentDir,
+          `reqs-${enviroNameWithoutExt}`
+        );
+
+        const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+        const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
 
         let filePath = "";
         let fileType = "";
@@ -1389,12 +1398,20 @@ function configureExtension(context: vscode.ExtensionContext) {
 
         if (choice === "Remove") {
           const parentDir = path.dirname(enviroPath);
+          const enviroNameWithExt = path.basename(enviroPath);
+          // remove ".env" if present
+          const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+          const envReqsFolderPath = path.join(
+            parentDir,
+            `reqs-${enviroNameWithoutExt}`
+          );
+
           const filesToRemove = [
-            path.join(parentDir, "reqs.csv"),
-            path.join(parentDir, "reqs.xlsx"),
-            path.join(parentDir, "reqs_converted.csv"),
-            path.join(parentDir, "reqs.html"),
-            path.join(parentDir, "reqs2tests.tst"),
+            path.join(envReqsFolderPath, "reqs.csv"),
+            path.join(envReqsFolderPath, "reqs.xlsx"),
+            path.join(envReqsFolderPath, "reqs_converted.csv"),
+            path.join(envReqsFolderPath, "reqs.html"),
+            path.join(envReqsFolderPath, "reqs2tests.tst"),
           ];
 
           // Remove files
@@ -1411,7 +1428,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           }
 
           const generatedRepositoryPath = path.join(
-            parentDir,
+            envReqsFolderPath,
             "generated_requirement_repository"
           );
           const actualRepositoryPath =
@@ -2291,10 +2308,22 @@ async function generateRequirements(enviroPath: string) {
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
-  const csvPath = path.join(parentDir, "reqs.csv");
-  const repositoryDir = path.join(
+  // remove ".env" if present
+  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(
     parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
+
+  // Ensure the requirements folder exists
+  if (!fs.existsSync(envReqsFolderPath)) {
+    fs.mkdirSync(envReqsFolderPath, { recursive: true });
+  }
+
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+  const repositoryDir = path.join(
+    envReqsFolderPath,
     "generated_requirement_repository"
   );
 
@@ -2498,8 +2527,25 @@ async function generateTestsFromRequirements(
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  const csvPath = path.join(parentDir, "reqs.csv");
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
+  // remove ".env" if present
+  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(
+    parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
+
+  // Ensure the requirements folder exists
+  if (!fs.existsSync(envReqsFolderPath)) {
+    fs.mkdirSync(envReqsFolderPath, { recursive: true });
+  }
+
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
+
+  // tstPath must be in the same parent directory as the .env.
+  // If the .tst is stored inside reqs-<envName>, VectorCAST treats the
+  // environment as read-only and refuses to load it. Therefore we place
+  // reqs2tests.tst directly under parentDir, alongside <envName>.env.
   const tstPath = path.join(parentDir, "reqs2tests.tst");
 
   let reqsFile = "";
@@ -2714,9 +2760,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
   ];
 
   // Log the command being executed
-  const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(
-    " "
-  )}`;
+  const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
   await vscode.window.withProgress(
@@ -2738,10 +2782,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
       }, 500);
 
       return new Promise<void>((resolve, reject) => {
-        const process = spawnWithVcastEnv(
-          PANREQ_EXECUTABLE_PATH,
-          commandArgs
-        );
+        const process = spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
         cancellationToken.onCancellationRequested(() => {
           process.kill();
@@ -2798,9 +2839,17 @@ async function importRequirementsFromGateway(enviroPath: string) {
 async function populateRequirementsGateway(enviroPath: string) {
   const parentDir = path.dirname(enviroPath);
   const envName = path.basename(enviroPath);
-  const envPath = path.join(parentDir, `${envName}.env`);
-  const csvPath = path.join(parentDir, "reqs.csv");
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
+  const envPath = path.join(parentDir, envName);
+
+  // remove ".env" if present
+  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(
+    parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
+
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
 
   // Check which requirements file exists
   let requirementsFile = "";
@@ -2831,7 +2880,7 @@ async function populateRequirementsGateway(enviroPath: string) {
   }
 
   const exportRepository = path.join(
-    parentDir,
+    envReqsFolderPath,
     "generated_requirement_repository"
   );
 
@@ -2899,8 +2948,16 @@ function updateRequirementsAvailability(enviroPath: string) {
 
   // Check if this environment has requirements
   const parentDir = path.dirname(enviroPath);
-  const csvPath = path.join(parentDir, "reqs.csv");
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
+  const enviroNameWithExt = path.basename(enviroPath);
+  // remove ".env" if present
+  const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(
+    parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
+
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
 
   const hasRequirementsFiles =
     fs.existsSync(csvPath) || fs.existsSync(xlsxPath);
@@ -2987,7 +3044,7 @@ function createProcessEnvironment(vcastInstallDir?: string): NodeJS.ProcessEnv {
   }
 
   const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  
+
   const outputDebugInfo = config.get<boolean>("outputDebugInfo", false);
   if (outputDebugInfo) {
     processEnv.REQ2TESTS_LOG_LEVEL = "debug";
