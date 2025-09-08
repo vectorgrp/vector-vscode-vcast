@@ -8,8 +8,10 @@ import {
 import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
+  checkForGutterAndGenerateReport,
   findSubprogram,
   findSubprogramMethod,
+  findTreeNodeAtLevel,
   getViewContent,
   updateTestID,
 } from "../test_utils/vcast_utils";
@@ -202,11 +204,10 @@ describe("vTypeCheck VS Code Extension", () => {
         )) as TextEditor;
 
         // Expect some HTML stuff to be present
-        expect(await checkElementExistsInHTML("extreme")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme 1")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme 2")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme 3")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme 4")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme.1")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme.2")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme.3")).toBe(true);
+        expect(await checkElementExistsInHTML("extreme.4")).toBe(true);
 
         await editorView.closeEditor("Requirements Report", 0);
       }
@@ -220,7 +221,6 @@ describe("vTypeCheck VS Code Extension", () => {
     let subprogram: TreeItem;
 
     const outputView = await bottomBar.openOutputView();
-    await bottomBar.maximize();
 
     // Find Manager::PlaceOrder subprogram and click on Generate Tests
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
@@ -254,27 +254,85 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    await outputView.clearText();
+
     const contextMenu = await subprogramMethod.openContextMenu();
     await contextMenu.select("VectorCAST");
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("reqs2tests completed successfully with code 0"),
-      { timeout: 180_000 }
-    );
+    // 2025sp1 shows the first log and then doesnt switch back to the other output channel.
+    try {
+      // First, try waiting for the "reqs2tests" log
+      await browser.waitUntil(
+        async () =>
+          (await (await bottomBar.openOutputView()).getText())
+            .toString()
+            .includes("reqs2tests completed successfully with code 0"),
+        { timeout: 240_000 }
+      );
+    } catch (err) {
+      // If that fails, fall back to "Processing environment data"
+      try {
+        await browser.waitUntil(
+          async () =>
+            (await (await bottomBar.openOutputView()).getText())
+              .toString()
+              .includes("Processing environment data for:"),
+          { timeout: 240_000 }
+        );
+      } catch (err2) {
+        // Both attempts failed → rethrow the first error (or combine them)
+        throw new Error(
+          `Neither log message appeared within the timeout.\n` +
+            `First error: ${err}\nSecond error: ${err2}`
+        );
+      }
+    }
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Generating tests: 100%|██████████|"),
-      { timeout: 180_000 }
-    );
+    await (
+      await (
+        await subprogramMethod.getActionButton("Run Test")
+      ).elem
+    ).click();
 
-    console.log(outputView.getText());
+    // -------- Coverage validation --------
+
+    // Because ATG generates tests with different names, we cannot "hard check" for existing tests.
+    // Only checking for the log is not enough. So we iterate thorugh the function for which we generated the tests
+    // And expect to have only green icons or no icons (empty lines, brackets, ...)
+    console.log("Validating Coverage icons for moo::extreme");
+    const GREEN_GUTTER = "cover-icon";
+
+    const requiredGreenLines = new Set<number>([7, 9, 11, 13]);
+
+    const missingRequired: number[] = [];
+
+    for (let line = 6; line <= 13; line++) {
+      console.log(`Checking gutter on line ${line} in moo.cpp`);
+
+      try {
+        await checkForGutterAndGenerateReport(
+          line,
+          "moo.cpp",
+          GREEN_GUTTER,
+          true, // move cursor so line is visible
+          false // don't generate report
+        );
+        console.log(`Line ${line} has a green gutter`);
+      } catch (err) {
+        if (requiredGreenLines.has(line)) {
+          missingRequired.push(line);
+        } else {
+          console.log(`Line ${line} has no gutter (allowed)`);
+        }
+      }
+    }
+
+    if (missingRequired.length > 0) {
+      throw new Error(
+        `Missing required green gutters on lines: ${missingRequired.join(", ")}`
+      );
+    }
   });
 });

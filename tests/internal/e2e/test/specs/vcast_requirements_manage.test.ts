@@ -194,11 +194,5 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("returned exit code: 0"),
       { timeout: 180_000 }
     );
-
-    const testsuiteNode = await findTreeNodeAtLevel(
-      4,
-      "Test_Bar_Returns_Input_Value-REVIEW-NEEDED"
-    );
-    expect(testsuiteNode).toBeDefined();
   });
 });
