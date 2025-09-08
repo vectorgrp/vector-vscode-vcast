@@ -45,17 +45,26 @@ logging.info(f"Using R2T_RELEASE_BRANCH: {BRANCH}")
 PATH = f"rds-build-packages-generic-dev/code2reqs2tests/distributions/{BRANCH}"
 API_STORAGE_URL = f"{BASE_URL}/api/storage/{PATH}"
 
+
+def parse_date_safe(uri: str):
+    """Return a datetime if URI starts with a valid ISO date, otherwise None."""
+    try:
+        return datetime.fromisoformat(uri.rsplit("-", 1)[0][1:])
+    except (ValueError, IndexError):
+        return None
+
+
 with tempfile.TemporaryDirectory() as tmpdirname:
     tmp = Path(tmpdirname, "tmp.json")
     download_file(API_STORAGE_URL, str(tmp))
     with open(tmp) as f:
         data = json.load(f)
 
-    children_urls = sorted(
-        [c["uri"] for c in data["children"]],
-        key=lambda x: datetime.fromisoformat(x.rsplit("-", 1)[0][1:]),
-        reverse=True,
-    )
+    # Filter out invalid URIs
+    valid_children = [c["uri"] for c in data.get("children", []) if parse_date_safe(c["uri"])]
+
+    # Sort by date descending
+    children_urls = sorted(valid_children, key=parse_date_safe, reverse=True)
 
     for c in children_urls:
         for distribution_name in DISTRIBUTION_NAMES:
