@@ -404,8 +404,20 @@
           "vectorcastTestExplorer.outputDebugInfo": {
             "type": "boolean",
             "order": 10,
-            "default": true,
+            "default": false,
             "description": "Output debug information to the console"
+          },
+          "vectorcastTestExplorer.requirementsLanguage": {
+            "type": "string",
+            "order": 11,
+            "default": "en",
+            "enum": [
+              "af", "sq", "am", "ar", "hy", "as", "az", "be", "bn", "bs", "bg", "my", "ch", "hr", "cs", "da", "nl", "en", "et", "tl", "fi", "fr", "ka", "de", "gu", "ha", "he", "hi", "hu", "is", "ig", "id", "ga", "it", "jp", "kn", "kk", "km", "ko", "ky", "lo", "lv", "lt", "mk", "ms", "ml", "mt", "mn", "me", "ne", "no", "or", "fa", "pl", "pt", "pa", "ro", "ru", "sr", "si", "sk", "sl", "es", "sw", "sv", "tg", "ta", "te", "th", "tr", "uk", "ur", "uz", "vi", "cy", "xh", "yo", "zu"
+            ],
+            "enumItemLabels": [
+              "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Belarusian", "Bengali", "Bosnian", "Bulgarian", "Burmese", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Filipino", "Finnish", "French", "Georgian", "German", "Gujarati", "Hausa", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Igbo", "Indonesian", "Irish", "Italian", "Japanese", "Kannada", "Kazakh", "Khmer", "Korean", "Kyrgyz", "Lao", "Latvian", "Lithuanian", "Macedonian", "Malay", "Malayalam", "Maltese", "Mongolian", "Montenegrin", "Nepali", "Norwegian", "Odia", "Persian", "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Serbian", "Sinhala", "Slovak", "Slovenian", "Spanish", "Swahili", "Swedish", "Tajik", "Tamil", "Telugu", "Thai", "Turkish", "Ukrainian", "Urdu", "Uzbek", "Vietnamese", "Welsh", "Xhosa", "Yoruba", "Zulu"
+            ],
+            "description": "Language for requirements and test generation responses"
           }
         }
       },
