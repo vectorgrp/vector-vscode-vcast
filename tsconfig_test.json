@@ -1,8 +1,5 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "esModuleInterop": true,
-    "noEmit": true
-  },
-  "include": ["tests/unit/*.ts"]
+    "extends": "./tsconfig.json",
+    "compilerOptions": {"esModuleInterop": true, "noEmit": true},
+    "include": ["tests/unit/*.ts"],
 }

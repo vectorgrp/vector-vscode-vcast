@@ -1,4 +1,0 @@
-manager.<<GLOBAL>>.(cl).Manager.Manager.<<constructor>>.Manager().<<call>>
-manager.<<GLOBAL>>.(cl).Manager.Manager.WaitingListSize
-manager.<<GLOBAL>>.(cl).Manager.Manager.WaitingList[0]
-manager.Manager::AddPartyToWaitingList.Name

@@ -1,16 +1,16 @@
 {
-  "compilerOptions": {
-    "target": "es2021",
-    "lib": ["es2021"],
-    "module": "commonjs",
-    "outDir": "out",
-    "importHelpers": true,
-    "sourceMap": true,
-    "strict": true,
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "removeComments": true,
-    "skipLibCheck": true
-  },
-  "include": ["src/extension.ts", "server/server.ts"]
+    "compilerOptions": {
+        "target": "es2021",
+        "lib": ["es2021"],
+        "module": "commonjs",
+        "outDir": "out",
+        "importHelpers": true,
+        "sourceMap": true,
+        "strict": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "removeComments": true,
+        "skipLibCheck": true,
+    },
+    "include": ["src/extension.ts", "server/server.ts"],
 }

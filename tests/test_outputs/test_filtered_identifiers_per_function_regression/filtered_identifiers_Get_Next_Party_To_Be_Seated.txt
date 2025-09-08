@@ -1,3 +1,0 @@
-manager.<<GLOBAL>>.WaitingListIndex
-manager.<<GLOBAL>>.WaitingList[0]
-manager.Get_Next_Party_To_Be_Seated.return

@@ -1,6 +1,0 @@
-manager.Add_Included_Dessert.Order
-manager.Add_Included_Dessert.Order[0].Soup
-manager.Add_Included_Dessert.Order[0].Salad
-manager.Add_Included_Dessert.Order[0].Entree
-manager.Add_Included_Dessert.Order[0].Dessert
-manager.Add_Included_Dessert.Order[0].Beverage
