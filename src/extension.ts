@@ -126,6 +126,7 @@ import {
   newTestScript,
   openCodedTest,
   ProjectEnvParameters,
+  getGlobalCoverageData,
 } from "./vcastTestInterface";
 
 import {
@@ -1875,6 +1876,13 @@ async function installPreActivationEventHandlers(
         return;
       }
 
+      const globalCoverageData = getGlobalCoverageData();
+
+      // Get environments for the file
+      const enviroList =
+        globalCoverageData.get(filePath)?.enviroList ?? new Map();
+      const enviroPaths = Array.from(enviroList.keys());
+
       // Create webview panel
       const baseDir = resolveWebviewBase(context);
       const panel = vscode.window.createWebviewPanel(
@@ -1892,14 +1900,15 @@ async function installPreActivationEventHandlers(
         context,
         panel,
         filePath,
-        lineNumber
+        lineNumber,
+        enviroPaths
       );
 
       panel.webview.onDidReceiveMessage(
         async (msg) => {
           switch (msg.command) {
             case "submit": {
-              const { sourceFile, line } = msg;
+              const { sourceFile, line, enviroPath } = msg;
 
               // Validation checks
               if (!sourceFile || sourceFile.trim() === "") {
@@ -1916,11 +1925,15 @@ async function installPreActivationEventHandlers(
                 );
                 return;
               }
+              if (!enviroPath) {
+                vscode.window.showErrorMessage("Please select an environment.");
+                return;
+              }
 
               // Continue if valid
-              await loadATGLineTest(sourceFile, lineNumber);
+              await loadATGLineTest(sourceFile, line, enviroPath);
               vscode.window.showInformationMessage(
-                `Fetching ATG test for ${sourceFile}:${line}`
+                `Fetching ATG test for ${sourceFile}:${line} in environment ${enviroPath}`
               );
               panel.dispose();
               break;
@@ -1942,7 +1955,8 @@ async function installPreActivationEventHandlers(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
     sourceFile: string,
-    lineNumber: number
+    lineNumber: number,
+    enviroPaths: string[]
   ): Promise<string> {
     const base = resolveWebviewBase(context);
     const cssOnDisk = vscode.Uri.file(
@@ -1967,6 +1981,7 @@ async function installPreActivationEventHandlers(
         <script nonce="${nonce}">
           window.defaultSourceFile = ${JSON.stringify(sourceFile)};
           window.defaultLineNumber = ${JSON.stringify(lineNumber)};
+          window.enviroPaths = ${JSON.stringify(enviroPaths)};
         </script>`
     );
     html = html.replace("{{ cssUri }}", cssUri.toString());

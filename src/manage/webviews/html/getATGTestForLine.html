@@ -11,10 +11,23 @@
     <h2>Get ATG Test for Line</h2>
   
     <label for="sourceFileInput">Source File Path:</label>
-    <input type="text" id="sourceFileInput" aria-label="Source File Path Input" />
+    <input 
+      type="text" 
+      id="sourceFileInput" 
+      aria-label="Source File Path Input" 
+      readonly 
+    />
   
     <label for="lineNumberInput">Line Number:</label>
-    <input type="text" id="lineNumberInput" aria-label="Line Number Input" />
+    <input 
+      type="text" 
+      id="lineNumberInput" 
+      aria-label="Line Number Input" 
+      readonly 
+    />
+
+    <label for="enviroPathSelect">Select Environment for File:</label>
+    <select id="enviroPathSelect" aria-label="Environment Select"></select>
   
     <div class="button-container">
       <button id="btnCancel" class="cancel-button">Cancel</button>
