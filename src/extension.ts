@@ -2063,13 +2063,14 @@ async function generateRequirements(enviroPath: string) {
   );
 
   const commandArgs = [
+    "-e",
     envPath,
     "--export-excel",
     xlsxPath,
     "--export-repository",
     repositoryDir,
     "--json-events",
-    "--combine-related-requirements",
+    //"--combine-related-requirements",
     //"--extended-reasoning"
   ];
 
@@ -2256,6 +2257,7 @@ async function generateTestsFromRequirements(
   console.log(decomposeRequirements, enableRequirementKeys);
 
   const commandArgs = [
+    "-e",
     envPath,
     reqsFile, // use the chosen requirements file
     ...(unitOrFunctionName ? [unitOrFunctionName] : []),
@@ -2264,11 +2266,10 @@ async function generateTestsFromRequirements(
     "--retries",
     "1",
     "--batched",
-    ...(decomposeRequirements ? [] : ["--no-decomposition"]),
+    ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
     "--allow-partial",
     "--json-events",
-    "--no-automatic-build",
-    ...(enableRequirementKeys ? [] : ["--no-requirement-keys"]),
+    ...(enableRequirementKeys ? ["--requirement-keys"] : []),
   ];
 
   // Log the command being executed
@@ -2563,7 +2564,6 @@ async function populateRequirementsGateway(enviroPath: string) {
     "generated_requirement_repository"
   );
 
-  // Run reqs2rgw with appropriate parameters
   const commandArgs = [
     requirementsFile,
     exportRepository,
