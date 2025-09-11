@@ -1984,20 +1984,19 @@ async function installPreActivationEventHandlers(
 }
 
 /* ===================================================================
- Helper: findFunctionAtLine
- - returns { name, params, startLine, endLine, code, selectedLine }
-   where code is the function source (from signature to closing brace)
-   and selectedLine is 1-based line index inside that function corresponding to the selected file line.
- - If no function found, returns code = whole file and selectedLine = requested line
+ Improved findFunctionAtLine
+ - supports qualified names (Class::Method), template-like tokens in
+   return type, and skips comments/strings when counting braces.
+ - Returns: { name, params, startLine, endLine, code, selectedLine }
  =================================================================== */
 function findFunctionAtLine(fileText: string, lineNumber: number) {
   const text = fileText;
   const totalLines = text.split(/\r?\n/).length;
 
-  // Heuristic regex to find function signatures followed by '{'
-  // groups: (return/type+qualifiers) (name) (params)
+  // Allow qualified names (A::B::name) in group 2.
   const funcRegex =
-    /([A-Za-z_][\w\s\*\&:<>,\[\]]*?)\s+([A-Za-z_]\w*)\s*\(([^\)]*)\)\s*\{/g;
+    /([A-Za-z_][\w\s\*\&:<>,\[\]]*?)\s+((?:[A-Za-z_]\w*::)*[A-Za-z_]\w*)\s*\(([^\)]*)\)\s*\{/g;
+
   let match: RegExpExecArray | null;
   const funcCandidates: Array<{
     name: string;
@@ -2017,28 +2016,79 @@ function findFunctionAtLine(fileText: string, lineNumber: number) {
     });
   }
 
-  // For each candidate, find matching closing brace with depth counting
-  for (const c of funcCandidates) {
-    const openPos = text.indexOf("{", c.startIndex);
-    if (openPos < 0) continue;
+  // Helper: find matching closing brace starting from the first '{' after startIndex.
+  function findMatchingBrace(
+    startIndex: number
+  ): { endPos: number; endLine: number } | null {
+    const openPos = text.indexOf("{", startIndex);
+    if (openPos < 0) return null;
+
     let depth = 0;
-    let endPos = -1;
-    for (let p = openPos; p < text.length; ++p) {
+    let p = openPos;
+    const n = text.length;
+
+    // We'll skip over comments and strings so braces inside them are ignored.
+    while (p < n) {
       const ch = text[p];
-      if (ch === "{") depth++;
-      else if (ch === "}") {
+
+      // Handle // comments
+      if (ch === "/" && text[p + 1] === "/") {
+        p += 2;
+        while (p < n && text[p] !== "\n") p++;
+        continue;
+      }
+
+      // Handle /* */ comments
+      if (ch === "/" && text[p + 1] === "*") {
+        p += 2;
+        while (p < n && !(text[p] === "*" && text[p + 1] === "/")) p++;
+        p += 2; // skip '*/'
+        continue;
+      }
+
+      // Handle string literals "..." and '...' and raw char sequences (\' and \")
+      if (ch === '"' || ch === "'" || ch === "`") {
+        const quote = ch;
+        p++;
+        while (p < n) {
+          if (text[p] === "\\") {
+            // skip escaped char
+            p += 2;
+            continue;
+          }
+          if (text[p] === quote) {
+            p++;
+            break;
+          }
+          p++;
+        }
+        continue;
+      }
+
+      // Real brace counting
+      if (ch === "{") {
+        depth++;
+      } else if (ch === "}") {
         depth--;
         if (depth === 0) {
-          endPos = p;
-          break;
+          // end found at p
+          const endLine = text.slice(0, p).split(/\r?\n/).length;
+          return { endPos: p, endLine };
         }
       }
+
+      p++;
     }
-    if (endPos === -1) continue; // skip if can't find end
 
-    const endLine = text.slice(0, endPos).split(/\r?\n/).length;
+    return null;
+  }
 
-    // If requested line is inside this function block
+  // For each candidate, find end using the robust matcher and check whether requested line is inside
+  for (const c of funcCandidates) {
+    const found = findMatchingBrace(c.startIndex);
+    if (!found) continue;
+    const { endPos, endLine } = found;
+
     if (lineNumber >= c.startLine && lineNumber <= endLine) {
       const code = text.slice(c.startIndex, endPos + 1);
       const params = parseParamNames(c.paramsRaw);
@@ -2054,30 +2104,21 @@ function findFunctionAtLine(fileText: string, lineNumber: number) {
     }
   }
 
-  // fallback: nearest preceding function
+  // fallback: nearest preceding function (more robust: use same brace-matcher)
   let lastFunc = null;
   for (const c of funcCandidates) {
     if (c.startLine <= lineNumber) lastFunc = c;
     else break;
   }
   if (lastFunc) {
-    // try to find end
-    const openPos = text.indexOf("{", lastFunc.startIndex);
+    const found = findMatchingBrace(lastFunc.startIndex);
     let endPos = -1;
-    if (openPos >= 0) {
-      let depth = 0;
-      for (let p = openPos; p < text.length; ++p) {
-        const ch = text[p];
-        if (ch === "{") depth++;
-        else if (ch === "}") {
-          depth--;
-          if (depth === 0) {
-            endPos = p;
-            break;
-          }
-        }
-      }
+    let endLine = totalLines;
+    if (found) {
+      endPos = found.endPos;
+      endLine = found.endLine;
     }
+
     const code =
       endPos >= 0
         ? text.slice(lastFunc.startIndex, endPos + 1)
@@ -2088,8 +2129,7 @@ function findFunctionAtLine(fileText: string, lineNumber: number) {
       name: lastFunc.name,
       params,
       startLine: lastFunc.startLine,
-      endLine:
-        endPos >= 0 ? text.slice(0, endPos).split(/\r?\n/).length : totalLines,
+      endLine,
       code,
       selectedLine,
     };
@@ -2106,11 +2146,6 @@ function findFunctionAtLine(fileText: string, lineNumber: number) {
   };
 }
 
-/* -------------------------
- parseParamNames
- parse parameter list text into parameter names (best-effort)
- "int a, const char *s" => ["a","s"]
- ------------------------- */
 function parseParamNames(paramsRaw: string): string[] {
   if (!paramsRaw || paramsRaw.trim() === "") return [];
   // naive split at commas, but handle commas inside templates by counting <> (simple)

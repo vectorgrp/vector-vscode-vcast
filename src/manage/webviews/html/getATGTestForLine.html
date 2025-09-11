@@ -3,48 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Get ATG Test for Line</title>
+  <title>Generate ATG Test for Line</title>
   <link rel="stylesheet" href="{{ cssUri }}" />
 </head>
 <body>
-  <div class="modal">
-    <h2>Get ATG Test for Line</h2>
-  
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <!-- Static dialog heading -->
+    <h2>Generate ATG Test for Line</h2>
+
     <label for="sourceFileInput">Source File Path:</label>
-    <input type="text" id="sourceFileInput" aria-label="Source File Path Input" readonly />
+    <input class="wide" type="text" id="sourceFileInput" aria-label="Source File Path Input" readonly />
 
     <label for="lineNumberInput">Line Number:</label>
-    <input type="text" id="lineNumberInput" aria-label="Line Number Input" readonly />
+    <input class="wide" type="text" id="lineNumberInput" aria-label="Line Number Input" readonly />
 
+    <!-- Environment dropdown (populated by JS) -->
     <label for="enviroPathSelect">Select Environment for File:</label>
-    <select id="enviroPathSelect" aria-label="Environment Select"></select>
+    <select id="enviroPathSelect" class="wide" aria-label="Environment Select"></select>
 
-    <div style="margin-top:12px;">
-      <strong>Function at line:</strong>
-      <div id="functionName" style="margin:6px 0;color:#cfcfd0;"></div>
-    </div>
+    <!-- Dynamic Function title goes here -->
+    <div id="functionTitle" class="function-title"></div>
 
     <!-- CODE WINDOW: readonly, with highlighted line -->
-    <div style="margin-top:12px;">
-      <label>Function Source (readonly):</label>
-      <div id="functionCode" class="code-container" tabindex="0" aria-readonly="true">
+    <div style="margin-top:8px;">
+      <div id="functionCode" class="code-container" tabindex="0" aria-readonly="true" role="region" aria-label="Function source code">
         <pre id="codeBlock" class="code-block"></pre>
       </div>
     </div>
 
     <div style="margin-top:12px;">
       <label for="varSelect">Add Variable / Value pair</label>
-      <div style="display:flex;gap:6px;">
-        <select id="varSelect" aria-label="Variable Select" style="flex:1"></select>
-        <input id="varValueInput" type="text" placeholder="value" style="flex:1" />
-        <button id="btnAddVar">Add</button>
+      <div class="add-var-row">
+        <select id="varSelect" aria-label="Variable Select"></select>
+        <input id="varValueInput" type="text" placeholder="value" aria-label="Variable value" />
+        <button id="btnAddVar" class="add-button" type="button" title="Add variable">Add</button>
       </div>
-      <div id="varList" style="margin-top:10px;"></div>
+      <div id="varList" aria-live="polite" style="margin-top:10px;"></div>
     </div>
-  
+
     <div class="button-container">
-      <button id="btnCancel" class="cancel-button">Cancel</button>
-      <button id="btnSubmit" class="primary-button">Fetch Test</button>
+      <button id="btnCancel" class="cancel-button" type="button">Cancel</button>
+      <button id="btnSubmit" class="primary-button" type="button">Fetch Test</button>
     </div>
   </div>
 

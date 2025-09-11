@@ -17,7 +17,7 @@ body {
 
 /* Modal container */
 .modal {
-  width: 600px;
+  width: 700px;
   background-color: #252526;
   padding: 25px;
   border-radius: 8px;
@@ -26,46 +26,49 @@ body {
 
 /* Title */
 .modal h2 {
-  text-align: center;
+  text-align: left;
   color: #ffffff;
-  margin-bottom: 20px;
-  font-size: 22px;
+  margin-bottom: 18px;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Labels */
 label {
-  font-size: 16px;
+  font-size: 14px;
   display: block;
   text-align: left;
   margin-top: 12px;
   margin-bottom: 6px;
 }
 
-/* Text inputs */
-input[type="text"] {
+/* Text inputs and selects base */
+input[type="text"],
+select {
   background-color: #3c3c3c;
   color: #d4d4d4;
   border: 1px solid #555;
   border-radius: 4px;
-  width: 100%;
   padding: 10px;
   font-size: 14px;
+  width: auto;
+  min-width: 0;
 }
 
-/* Dropdowns */
+/* OVERRIDE: force wide inputs/selects to stretch */
+input.wide,
+select.wide {
+  width: 100% !important;  /* important ensures it wins */
+}
+
+/* Keeps select appearance & custom arrow */
 select {
   cursor: pointer;
-  appearance: none; /* remove native styles */
-  background-color: #3c3c3c;
-  color: #d4d4d4;
-  border: 1px solid #555;
-  border-radius: 4px;
-  width: 100%;
-  padding: 10px;
-  padding-right: 30px; /* room for arrow */
-  font-size: 14px;
-
-  /* custom arrow */
+  appearance: none;
+  padding-right: 30px;
   background-image: linear-gradient(45deg, transparent 50%, #d4d4d4 50%),
                     linear-gradient(135deg, #d4d4d4 50%, transparent 50%);
   background-position: calc(100% - 15px) center, calc(100% - 10px) center;
@@ -73,41 +76,19 @@ select {
   background-repeat: no-repeat;
 }
 
-/* Button container */
-.button-container {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+/* Function header styling */
+.function-header .fh-top,
+.function-header .fh-bottom {
+  font-size: 13px;
+  color: #bfc2c6;
 }
-
-/* Buttons */
-.primary-button,
-.cancel-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.primary-button {
-  background-color: #007acc;
-  color: white;
-}
-
-.primary-button:hover {
-  background-color: #005f99;
-}
-
-.cancel-button {
-  background-color: #cc4444;
-  color: white;
-}
-
-.cancel-button:hover {
-  background-color: #992222;
+.function-header .fh-name {
+  font-weight: 600;
+  color: #e6eef8;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Code container */
@@ -122,6 +103,11 @@ select {
   font-family: "Courier New", monospace;
   font-size: 12px;
   color: #ddd;
+}
+
+/* code block layout */
+.code-block {
+  display: block;
 }
 
 /* each line row */
@@ -152,4 +138,136 @@ select {
   background: rgba(0, 122, 204, 0.12);
   border-left: 3px solid #007acc;
   padding-left: 4px;
+}
+
+/* Generic button styles (shared system) */
+button {
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 14px;
+}
+
+/* Primary OK */
+.primary-button {
+  background-color: #007acc;
+  color: white;
+  padding: 10px 15px;
+}
+.primary-button:hover { background-color: #005f99; }
+
+/* Cancel */
+.cancel-button {
+  background-color: #cc4444;
+  color: white;
+  padding: 10px 15px;
+}
+.cancel-button:hover { background-color: #992222; }
+
+/* Add (“➕”) */
+.add-button {
+  background-color: #007acc;
+  color: white;
+  padding: 6px 12px;
+  font-size: 14px;
+}
+.add-button:hover { background-color: #005f99; }
+
+.function-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6eef8;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* Remove (“✖”) */
+.remove-button {
+  background-color: #cc4444;
+  color: white;
+  padding: 8px 10px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  border-radius: 6px;
+}
+.remove-button:hover {
+  background-color: #992222;
+  transform: translateY(-1px);
+}
+
+/* Button container (bottom) */
+.button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Add var row: select + input + add button (single line) */
+.add-var-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 80px;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+/* Structured var list container */
+#varList {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Individual var item (card-like row) */
+.var-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr 56px; /* key | value | remove button */
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  border: 1px solid rgba(255,255,255,0.03);
+  border-radius: 6px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.5) inset;
+  min-height: 44px;
+}
+
+/* var key and value visuals */
+.var-item .var-key {
+  font-weight: 600;
+  color: #e6eef8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.var-item .var-value {
+  color: #d4d4d4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.var-item .remove-button {
+  justify-self: end;
+}
+
+/* responsive */
+@media (max-width: 640px) {
+  .modal { width: 92vw; padding: 18px; }
+  .add-var-row { grid-template-columns: 1fr 1fr 60px; }
+  .var-item { grid-template-columns: 1fr 1fr 48px; }
 }

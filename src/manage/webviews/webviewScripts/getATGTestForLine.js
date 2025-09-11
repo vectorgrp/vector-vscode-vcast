@@ -1,6 +1,7 @@
 const vscode = acquireVsCodeApi();
 
 window.addEventListener("DOMContentLoaded", () => {
+  const dialogTitle = document.getElementById("dialogTitle");
   const fileInput = document.getElementById("sourceFileInput");
   const lineInput = document.getElementById("lineNumberInput");
   const enviroSelect = document.getElementById("enviroPathSelect");
@@ -9,27 +10,37 @@ window.addEventListener("DOMContentLoaded", () => {
   const varValueInput = document.getElementById("varValueInput");
   const btnAddVar = document.getElementById("btnAddVar");
   const varList = document.getElementById("varList");
-  const functionNameDiv = document.getElementById("functionName");
 
   const codeBlock = document.getElementById("codeBlock");
-  const functionCodeContainer = document.getElementById("functionCode");
 
   // Prefill from defaults
   fileInput.value = window.defaultSourceFile || "";
   lineInput.value = window.defaultLineNumber || "";
 
-  // Populate environment dropdown
-  if (Array.isArray(window.enviroPaths)) {
+  // Populate environment dropdown if present & data provided.
+  if (enviroSelect) {
     enviroSelect.innerHTML = ""; // clear
-    window.enviroPaths.forEach((fullPath) => {
-      const opt = document.createElement("option");
-      opt.value = fullPath;
-      opt.textContent = fullPath.split(/[/\\]/).pop();
-      enviroSelect.appendChild(opt);
-    });
+    if (Array.isArray(window.enviroPaths) && window.enviroPaths.length > 0) {
+      window.enviroPaths.forEach((fullPath) => {
+        const opt = document.createElement("option");
+        opt.value = fullPath;
+        opt.textContent = fullPath.split(/[/\\]/).pop();
+        enviroSelect.appendChild(opt);
+      });
+      enviroSelect.selectedIndex = 0;
+    } else {
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "-- no environments --";
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      enviroSelect.appendChild(placeholder);
+    }
   }
 
-  // Function info (ensure defaults exist)
+  const functionTitle = document.getElementById("functionTitle");
+
+  // Function info
   const fn = window.fileFunction || {
     name: null,
     params: [],
@@ -38,13 +49,16 @@ window.addEventListener("DOMContentLoaded", () => {
     code: "",
     selectedLine: 1,
   };
-
-  if (fn && fn.name) {
-    functionNameDiv.textContent = `${fn.name}(${(fn.params || []).join(", ")}) [lines ${fn.startLine}-${fn.endLine}]`;
-  } else {
-    functionNameDiv.textContent = "No function detected near this line (file-level context).";
+  
+  if (functionTitle) {
+    if (fn && fn.name) {
+      const paramsPreview = (fn.params || []).join(", ");
+      functionTitle.textContent = `Source Function: ${fn.name}(${paramsPreview}) [lines ${fn.startLine}-${fn.endLine}]`;
+    } else {
+      functionTitle.textContent = "Source Function: (file-level)";
+    }
   }
-
+  
   // Render code: split into lines, show absolute line numbers (startLine + idx),
   // highlight the absolute selected line (startLine + selectedLine - 1)
   function renderFunctionCode(codeText, startLine, selectedLineWithinFunction) {
@@ -53,7 +67,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const absSelectedLine = Number(startLine) + Number(selectedLineWithinFunction) - 1;
 
     lines.forEach((ln, idx) => {
-      const lineNo = idx + 1; // 1-based inside function
       const gutterNumber = Number(startLine) + idx; // absolute file line
 
       const row = document.createElement("div");
@@ -62,20 +75,18 @@ window.addEventListener("DOMContentLoaded", () => {
 
       const gutter = document.createElement("span");
       gutter.className = "gutter";
-      // pad to at least width 4 but adapt to bigger numbers
       const pad = Math.max(4, String(fn.endLine).length);
       gutter.textContent = String(gutterNumber).padStart(pad, " ");
 
       const content = document.createElement("span");
       content.className = "content";
-      content.textContent = ln || " "; // keep empty lines visible
+      content.textContent = ln || " ";
 
       row.appendChild(gutter);
       row.appendChild(content);
 
       if (gutterNumber === absSelectedLine) {
         row.classList.add("highlight");
-        // scroll to center later
         setTimeout(() => {
           row.scrollIntoView({ block: "center", behavior: "smooth" });
         }, 50);
@@ -105,41 +116,51 @@ window.addEventListener("DOMContentLoaded", () => {
   function renderVarList() {
     varList.innerHTML = "";
     if (chosen.length === 0) {
-      varList.textContent = "No variable/value pairs added.";
+      const p = document.createElement("div");
+      p.textContent = "No variable/value pairs added.";
+      p.style.color = "#bfbfbf";
+      varList.appendChild(p);
       return;
     }
+
     chosen.forEach((pair, idx) => {
-      const row = document.createElement("div");
-      row.style.display = "flex";
-      row.style.gap = "8px";
-      row.style.alignItems = "center";
-      row.style.marginBottom = "6px";
+      const item = document.createElement("div");
+      item.className = "var-item";
+      item.dataset.index = String(idx);
 
-      const name = document.createElement("div");
-      name.textContent = pair.name;
-      name.style.minWidth = "140px";
-      name.style.color = "#e6e6e6";
+      const key = document.createElement("div");
+      key.className = "var-key";
+      key.title = pair.name;
+      key.textContent = pair.name;
 
-      const val = document.createElement("div");
-      val.textContent = pair.value;
-      val.style.flex = "1";
-      val.style.color = "#bfbfbf";
+      const value = document.createElement("div");
+      value.className = "var-value";
+      value.title = pair.value;
+      value.textContent = pair.value;
 
       const btnRem = document.createElement("button");
-      btnRem.textContent = "Remove";
+      btnRem.className = "remove-button";
+      btnRem.type = "button";
+      btnRem.title = `Remove ${pair.name}`;
+      btnRem.setAttribute("aria-label", `Remove variable ${pair.name}`);
+      btnRem.innerHTML = "✖";
+
       btnRem.addEventListener("click", () => {
-        chosen.splice(idx, 1);
-        renderVarList();
+        const removeIndex = Number(item.dataset.index);
+        if (!Number.isNaN(removeIndex)) {
+          chosen.splice(removeIndex, 1);
+          renderVarList();
+        }
       });
 
-      row.appendChild(name);
-      row.appendChild(val);
-      row.appendChild(btnRem);
-      varList.appendChild(row);
+      item.appendChild(key);
+      item.appendChild(value);
+      item.appendChild(btnRem);
+      varList.appendChild(item);
     });
   }
 
-  btnAddVar.addEventListener("click", () => {
+  function addVariableFromInputs() {
     let varName = varSelect.value;
     if (varName === "__custom__") {
       varName = prompt("Enter custom variable name:");
@@ -151,10 +172,22 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
     const existingIndex = chosen.findIndex(c => c.name === varName);
-    if (existingIndex >= 0) chosen.splice(existingIndex, 1);
+    if (existingIndex >= 0) {
+      chosen.splice(existingIndex, 1);
+    }
     chosen.push({ name: varName, value: val });
     varValueInput.value = "";
+    varValueInput.focus();
     renderVarList();
+  }
+
+  btnAddVar.addEventListener("click", addVariableFromInputs);
+
+  varValueInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addVariableFromInputs();
+    }
   });
 
   // Submit
@@ -163,7 +196,7 @@ window.addEventListener("DOMContentLoaded", () => {
       command: "submit",
       sourceFile: fileInput.value.trim(),
       line: lineInput.value.trim(),
-      enviroPath: enviroSelect.value,
+      enviroPath: enviroSelect ? enviroSelect.value : "",
       variableValues: chosen,
     });
   });
