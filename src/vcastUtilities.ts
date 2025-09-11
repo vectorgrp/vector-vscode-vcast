@@ -829,7 +829,8 @@ export function getLevelFromNodeId(path: string) {
 export async function loadATGLineTest(
   sourceFile: string,
   lineNumber: number,
-  enviroPath: string
+  enviroPath: string,
+  variableValues: any
 ): Promise<void> {
   const enclosingDirectory = path.dirname(enviroPath);
   const timeStamp = Date.now().toString();

@@ -11,23 +11,36 @@
     <h2>Get ATG Test for Line</h2>
   
     <label for="sourceFileInput">Source File Path:</label>
-    <input 
-      type="text" 
-      id="sourceFileInput" 
-      aria-label="Source File Path Input" 
-      readonly 
-    />
-  
+    <input type="text" id="sourceFileInput" aria-label="Source File Path Input" readonly />
+
     <label for="lineNumberInput">Line Number:</label>
-    <input 
-      type="text" 
-      id="lineNumberInput" 
-      aria-label="Line Number Input" 
-      readonly 
-    />
+    <input type="text" id="lineNumberInput" aria-label="Line Number Input" readonly />
 
     <label for="enviroPathSelect">Select Environment for File:</label>
     <select id="enviroPathSelect" aria-label="Environment Select"></select>
+
+    <div style="margin-top:12px;">
+      <strong>Function at line:</strong>
+      <div id="functionName" style="margin:6px 0;color:#cfcfd0;"></div>
+    </div>
+
+    <!-- CODE WINDOW: readonly, with highlighted line -->
+    <div style="margin-top:12px;">
+      <label>Function Source (readonly):</label>
+      <div id="functionCode" class="code-container" tabindex="0" aria-readonly="true">
+        <pre id="codeBlock" class="code-block"></pre>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <label for="varSelect">Add Variable / Value pair</label>
+      <div style="display:flex;gap:6px;">
+        <select id="varSelect" aria-label="Variable Select" style="flex:1"></select>
+        <input id="varValueInput" type="text" placeholder="value" style="flex:1" />
+        <button id="btnAddVar">Add</button>
+      </div>
+      <div id="varList" style="margin-top:10px;"></div>
+    </div>
   
     <div class="button-container">
       <button id="btnCancel" class="cancel-button">Cancel</button>

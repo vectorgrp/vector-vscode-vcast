@@ -109,3 +109,47 @@ select {
 .cancel-button:hover {
   background-color: #992222;
 }
+
+/* Code container */
+.code-container {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px;
+  margin-top: 6px;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  color: #ddd;
+}
+
+/* each line row */
+.code-block .code-line {
+  display: flex;
+  gap: 12px;
+  padding: 2px 6px;
+  white-space: pre;
+}
+
+/* gutter with line numbers */
+.code-block .gutter {
+  color: #888;
+  width: 48px;
+  text-align: right;
+  margin-right: 8px;
+  user-select: none;
+}
+
+/* content */
+.code-block .content {
+  flex: 1;
+  color: #dcdcdc;
+}
+
+/* highlighted selected line */
+.code-block .code-line.highlight {
+  background: rgba(0, 122, 204, 0.12);
+  border-left: 3px solid #007acc;
+  padding-left: 4px;
+}

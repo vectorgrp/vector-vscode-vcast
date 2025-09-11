@@ -1861,6 +1861,10 @@ async function installPreActivationEventHandlers(
     return html;
   }
 
+  /**
+   * Register command to open webview for ATG test for a specific line,
+   * and provide function + variables extracted from the source file.
+   */
   const getATGTestForLineCmd = vscode.commands.registerCommand(
     "vectorcastTestExplorer.getATGTestForLine",
     async (args) => {
@@ -1876,9 +1880,21 @@ async function installPreActivationEventHandlers(
         return;
       }
 
-      const globalCoverageData = getGlobalCoverageData();
+      // read file content
+      let fileText: string;
+      try {
+        fileText = fs.readFileSync(filePath, "utf8");
+      } catch (err) {
+        vscode.window.showErrorMessage("Failed to read file: " + String(err));
+        return;
+      }
 
-      // Get environments for the file
+      // find function & variables
+      const func = findFunctionAtLine(fileText, Number(lineNumber));
+      const vars = extractVariablesFromFile(fileText, func);
+
+      // Get environments for the file - replace with your real implementation
+      const globalCoverageData = getGlobalCoverageData();
       const enviroList =
         globalCoverageData.get(filePath)?.enviroList ?? new Map();
       const enviroPaths = Array.from(enviroList.keys());
@@ -1901,14 +1917,16 @@ async function installPreActivationEventHandlers(
         panel,
         filePath,
         lineNumber,
-        enviroPaths
+        enviroPaths,
+        func,
+        vars
       );
 
       panel.webview.onDidReceiveMessage(
         async (msg) => {
           switch (msg.command) {
             case "submit": {
-              const { sourceFile, line, enviroPath } = msg;
+              const { sourceFile, line, enviroPath, variableValues } = msg;
 
               // Validation checks
               if (!sourceFile || sourceFile.trim() === "") {
@@ -1930,11 +1948,24 @@ async function installPreActivationEventHandlers(
                 return;
               }
 
-              // Continue if valid
-              await loadATGLineTest(sourceFile, line, enviroPath);
-              vscode.window.showInformationMessage(
-                `Fetching ATG test for ${sourceFile}:${line} in environment ${enviroPath}`
-              );
+              // variableValues is an array of { name, value }
+              // Replace with your actual loader - we pass variableValues through
+              try {
+                await loadATGLineTest(
+                  sourceFile,
+                  Number(line),
+                  enviroPath,
+                  variableValues
+                );
+                vscode.window.showInformationMessage(
+                  `Fetching ATG test for ${sourceFile}:${line} in environment ${enviroPath}`
+                );
+              } catch (err) {
+                vscode.window.showErrorMessage(
+                  "Failed to load ATG test: " + String(err)
+                );
+              }
+
               panel.dispose();
               break;
             }
@@ -1950,48 +1981,337 @@ async function installPreActivationEventHandlers(
   );
 
   context.subscriptions.push(getATGTestForLineCmd);
+}
 
-  async function getATGWebviewContent(
-    context: vscode.ExtensionContext,
-    panel: vscode.WebviewPanel,
-    sourceFile: string,
-    lineNumber: number,
-    enviroPaths: string[]
-  ): Promise<string> {
-    const base = resolveWebviewBase(context);
-    const cssOnDisk = vscode.Uri.file(
-      path.join(base, "css", "getATGTestForLine.css")
-    );
-    const scriptOnDisk = vscode.Uri.file(
-      path.join(base, "webviewScripts", "getATGTestForLine.js")
-    );
-    const htmlPath = path.join(base, "html", "getATGTestForLine.html");
+/* ===================================================================
+ Helper: findFunctionAtLine
+ - returns { name, params, startLine, endLine, code, selectedLine }
+   where code is the function source (from signature to closing brace)
+   and selectedLine is 1-based line index inside that function corresponding to the selected file line.
+ - If no function found, returns code = whole file and selectedLine = requested line
+ =================================================================== */
+function findFunctionAtLine(fileText: string, lineNumber: number) {
+  const text = fileText;
+  const totalLines = text.split(/\r?\n/).length;
 
-    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
-    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+  // Heuristic regex to find function signatures followed by '{'
+  // groups: (return/type+qualifiers) (name) (params)
+  const funcRegex =
+    /([A-Za-z_][\w\s\*\&:<>,\[\]]*?)\s+([A-Za-z_]\w*)\s*\(([^\)]*)\)\s*\{/g;
+  let match: RegExpExecArray | null;
+  const funcCandidates: Array<{
+    name: string;
+    paramsRaw: string;
+    startIndex: number;
+    startLine: number;
+  }> = [];
 
-    let html = fs.readFileSync(htmlPath, "utf8");
-    const nonce = getNonce();
-    html = html.replace(
-      /<head>/,
-      `<head>
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
-          panel.webview.cspSource
-        }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
-        <script nonce="${nonce}">
-          window.defaultSourceFile = ${JSON.stringify(sourceFile)};
-          window.defaultLineNumber = ${JSON.stringify(lineNumber)};
-          window.enviroPaths = ${JSON.stringify(enviroPaths)};
-        </script>`
-    );
-    html = html.replace("{{ cssUri }}", cssUri.toString());
-    html = html.replace(
-      "{{ scriptUri }}",
-      `<script nonce="${nonce}" src="${scriptUri}"></script>`
-    );
-
-    return html;
+  while ((match = funcRegex.exec(text))) {
+    const before = text.slice(0, match.index);
+    const startLine = before.split(/\r?\n/).length;
+    funcCandidates.push({
+      name: match[2],
+      paramsRaw: match[3],
+      startIndex: match.index,
+      startLine,
+    });
   }
+
+  // For each candidate, find matching closing brace with depth counting
+  for (const c of funcCandidates) {
+    const openPos = text.indexOf("{", c.startIndex);
+    if (openPos < 0) continue;
+    let depth = 0;
+    let endPos = -1;
+    for (let p = openPos; p < text.length; ++p) {
+      const ch = text[p];
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          endPos = p;
+          break;
+        }
+      }
+    }
+    if (endPos === -1) continue; // skip if can't find end
+
+    const endLine = text.slice(0, endPos).split(/\r?\n/).length;
+
+    // If requested line is inside this function block
+    if (lineNumber >= c.startLine && lineNumber <= endLine) {
+      const code = text.slice(c.startIndex, endPos + 1);
+      const params = parseParamNames(c.paramsRaw);
+      const selectedLine = lineNumber - c.startLine + 1; // 1-based inside function
+      return {
+        name: c.name,
+        params,
+        startLine: c.startLine,
+        endLine,
+        code,
+        selectedLine,
+      };
+    }
+  }
+
+  // fallback: nearest preceding function
+  let lastFunc = null;
+  for (const c of funcCandidates) {
+    if (c.startLine <= lineNumber) lastFunc = c;
+    else break;
+  }
+  if (lastFunc) {
+    // try to find end
+    const openPos = text.indexOf("{", lastFunc.startIndex);
+    let endPos = -1;
+    if (openPos >= 0) {
+      let depth = 0;
+      for (let p = openPos; p < text.length; ++p) {
+        const ch = text[p];
+        if (ch === "{") depth++;
+        else if (ch === "}") {
+          depth--;
+          if (depth === 0) {
+            endPos = p;
+            break;
+          }
+        }
+      }
+    }
+    const code =
+      endPos >= 0
+        ? text.slice(lastFunc.startIndex, endPos + 1)
+        : text.slice(lastFunc.startIndex);
+    const params = parseParamNames(lastFunc.paramsRaw);
+    const selectedLine = Math.max(1, lineNumber - lastFunc.startLine + 1);
+    return {
+      name: lastFunc.name,
+      params,
+      startLine: lastFunc.startLine,
+      endLine:
+        endPos >= 0 ? text.slice(0, endPos).split(/\r?\n/).length : totalLines,
+      code,
+      selectedLine,
+    };
+  }
+
+  // no function found: return whole file as code and selectedLine as the requested line
+  return {
+    name: null,
+    params: [],
+    startLine: 1,
+    endLine: totalLines,
+    code: fileText,
+    selectedLine: lineNumber,
+  };
+}
+
+/* -------------------------
+ parseParamNames
+ parse parameter list text into parameter names (best-effort)
+ "int a, const char *s" => ["a","s"]
+ ------------------------- */
+function parseParamNames(paramsRaw: string): string[] {
+  if (!paramsRaw || paramsRaw.trim() === "") return [];
+  // naive split at commas, but handle commas inside templates by counting <> (simple)
+  const parts: string[] = [];
+  let depthAng = 0;
+  let cur = "";
+  for (let i = 0; i < paramsRaw.length; ++i) {
+    const ch = paramsRaw[i];
+    if (ch === "<") depthAng++;
+    else if (ch === ">") depthAng = Math.max(0, depthAng - 1);
+    if (ch === "," && depthAng === 0) {
+      parts.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  if (cur.trim() !== "") parts.push(cur);
+
+  const names: string[] = [];
+  for (let p of parts) {
+    p = p.trim();
+    if (!p) continue;
+    // remove default value
+    p = p.split("=")[0].trim();
+    const toks = p.split(/\s+/).filter(Boolean);
+    if (toks.length === 0) continue;
+    let last = toks[toks.length - 1];
+    // strip pointer/reference symbols
+    last = last.replace(/^[\*\&]+/, "").replace(/[\*\&]+$/, "");
+    if (/^[A-Za-z_]\w*$/.test(last)) names.push(last);
+  }
+  return names;
+}
+
+/* ===================================================================
+ extractVariablesFromFile - heuristic-based variable extraction
+ Returns an array of variable names (unique, sorted)
+ - includes function params passed in funcInfo.params
+ - finds typed declarations and assignment targets
+ =================================================================== */
+function extractVariablesFromFile(fileText: string, funcInfo: any): string[] {
+  const vars = new Set<string>();
+
+  // 1) function params
+  if (funcInfo && Array.isArray(funcInfo.params)) {
+    for (const p of funcInfo.params) vars.add(p);
+  }
+
+  // 2) typed declarations - heuristic
+  const typePattern =
+    "\\b(?:unsigned|signed|short|long|int|float|double|char|bool|auto|void|size_t|ssize_t|struct|class|enum)\\b";
+  const declRegex = new RegExp(
+    "(" +
+      typePattern +
+      "[\\w\\s\\*\\&:<>,\\[\\]]*?)\\s+([A-Za-z_]\\w*)(\\s*(?:[=,;\\[])?)",
+    "g"
+  );
+  let m: RegExpExecArray | null;
+  while ((m = declRegex.exec(fileText))) {
+    const name = m[2];
+    if (name && !isKeyword(name)) vars.add(name);
+
+    // try to capture subsequent comma-separated names on same declaration line
+    const post = fileText.slice(
+      m.index + m[0].length,
+      m.index + m[0].length + 200
+    );
+    const commaMatch = post.match(/^([^;\n]*)/);
+    if (commaMatch) {
+      const rest = commaMatch[1];
+      const moreNames = [...rest.matchAll(/\b([A-Za-z_]\w*)\b/g)].map(
+        (x) => x[1]
+      );
+      for (const nm of moreNames) {
+        if (!isKeyword(nm)) vars.add(nm);
+      }
+    }
+  }
+
+  // 3) assignment targets
+  const assignRegex = /\b([A-Za-z_]\w*)\s*=/g;
+  while ((m = assignRegex.exec(fileText))) {
+    const name = m[1];
+    if (!isKeyword(name)) vars.add(name);
+  }
+
+  // 4) pointer declarations
+  const pointerRegex = new RegExp(
+    "\\b(?:int|char|float|double|long|short|unsigned|signed|auto)\\b[^;\\n]*[\\*\\&]\\s*([A-Za-z_]\\w*)",
+    "g"
+  );
+  while ((m = pointerRegex.exec(fileText))) {
+    const name = m[1];
+    if (!isKeyword(name)) vars.add(name);
+  }
+
+  // remove function names
+  const funcNameRegex = /([A-Za-z_]\w*)\s*\([^\)]*\)\s*\{/g;
+  const fns = new Set<string>();
+  while ((m = funcNameRegex.exec(fileText))) {
+    fns.add(m[1]);
+  }
+  for (const f of fns) vars.delete(f);
+
+  // drop common tokens
+  const drop = [
+    "int",
+    "char",
+    "float",
+    "double",
+    "long",
+    "short",
+    "unsigned",
+    "signed",
+    "const",
+    "volatile",
+    "struct",
+    "class",
+    "enum",
+    "auto",
+    "void",
+  ];
+  for (const k of drop) vars.delete(k);
+
+  return Array.from(vars).sort((a, b) => a.localeCompare(b));
+}
+
+/* -------------------------
+ small helper to filter out keywords captured by heuristics
+ ------------------------- */
+function isKeyword(w: string) {
+  const kws = new Set([
+    "for",
+    "while",
+    "if",
+    "else",
+    "switch",
+    "case",
+    "return",
+    "break",
+    "continue",
+    "goto",
+    "sizeof",
+    "typedef",
+    "static",
+    "extern",
+    "inline",
+    "constexpr",
+    "namespace",
+    "using",
+  ]);
+  return kws.has(w);
+}
+
+/* ===================================================================
+ getATGWebviewContent - load html + inject variables
+ Note: html file should include placeholders {{ cssUri }} and {{ scriptUri }}
+ =================================================================== */
+async function getATGWebviewContent(
+  context: vscode.ExtensionContext,
+  panel: vscode.WebviewPanel,
+  sourceFile: string,
+  lineNumber: number,
+  enviroPaths: string[],
+  funcInfo: any,
+  variables: string[]
+): Promise<string> {
+  const base = resolveWebviewBase(context);
+  const cssOnDisk = vscode.Uri.file(
+    path.join(base, "css", "getATGTestForLine.css")
+  );
+  const scriptOnDisk = vscode.Uri.file(
+    path.join(base, "webviewScripts", "getATGTestForLine.js")
+  );
+  const htmlPath = path.join(base, "html", "getATGTestForLine.html");
+
+  const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+  const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+  let html = fs.readFileSync(htmlPath, "utf8");
+  const nonce = getNonce();
+
+  html = html.replace(
+    /<head>/,
+    `<head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${panel.webview.cspSource}; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    <script nonce="${nonce}">
+      window.defaultSourceFile = ${JSON.stringify(sourceFile)};
+      window.defaultLineNumber = ${JSON.stringify(lineNumber)};
+      window.enviroPaths = ${JSON.stringify(enviroPaths)};
+      window.fileFunction = ${JSON.stringify(funcInfo)};
+      window.fileVariables = ${JSON.stringify(variables)};
+    </script>`
+  );
+
+  html = html.replace("{{ cssUri }}", cssUri.toString());
+  html = html.replace(
+    "{{ scriptUri }}",
+    `<script nonce="${nonce}" src="${scriptUri}"></script>`
+  );
+
+  return html;
 }
 
 // this method is called when your extension is deactivated
