@@ -3035,34 +3035,102 @@ function generateRequirementsHtml(requirements: any[]): string {
   return htmlContent;
 }
 
-function createProcessEnvironment(vcastInstallDir?: string): NodeJS.ProcessEnv {
-  vcastInstallDir = vcastInstallDir || vcastInstallationDirectory;
+interface LLMProviderSettingsResult {
+  provider: string | null;
+  env: Record<string, string>;
+  valid: boolean;
+  missing: string[];
+}
 
-  const processEnv = { ...process.env };
-  if (vcastInstallDir) {
-    processEnv.VSCODE_VECTORCAST_DIR = vcastInstallDir;
-  }
-
+function gatherLLMProviderSettings(): LLMProviderSettingsResult {
   const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
 
-  const outputDebugInfo = config.get<boolean>("outputDebugInfo", false);
-  if (outputDebugInfo) {
-    processEnv.REQ2TESTS_LOG_LEVEL = "debug";
+  const provider = config.get<string>("reqs2x.provider");
+  const baseEnv: Record<string, string> = {}; // only provider specific entries here
+  const missing: string[] = [];
+
+  // Enforce provider selection
+  if (!provider) {
+    missing.push("Provider (reqs2x.provider)");
+    return { provider: null, env: baseEnv, valid: false, missing };
   }
 
-  // Set the language for requirements generation
-  const languageCode = config.get<string>("requirementsLanguage", "en");
-  processEnv.REQ2TESTS_RESPONSE_LANGUAGE = languageCode;
+  function need(value: string | undefined, label: string, envVarName: string) {
+    if (!value) {
+      missing.push(label);
+      return;
+    }
+    
+    baseEnv[envVarName] = value;
+  }
 
+  if (provider === "azure_openai") {
+    need(config.get<string>("reqs2x.azure.baseUrl"), "Azure Base URL", "REQS2X_AZURE_OPENAI_BASE_URL");
+    need(config.get<string>("reqs2x.azure.apiKey"), "Azure API Key", "REQS2X_AZURE_OPENAI_API_KEY");
+    need(config.get<string>("reqs2x.azure.deployment"), "Azure Deployment", "REQS2X_AZURE_OPENAI_DEPLOYMENT");
+    need(config.get<string>("reqs2x.azure.modelName"), "Azure Model Name", "REQS2X_AZURE_OPENAI_MODEL_NAME");
+    need(config.get<string>("reqs2x.azure.apiVersion"), "Azure API Version", "REQS2X_AZURE_OPENAI_API_VERSION");
+  } else if (provider === "openai") {
+    // baseUrl optional
+    const baseUrl = config.get<string>("reqs2x.openai.baseUrl", "");
+    if (baseUrl) baseEnv.REQS2X_OPENAI_BASE_URL = baseUrl;
+    need(config.get<string>("reqs2x.openai.apiKey"), "OpenAI API Key", "REQS2X_OPENAI_API_KEY");
+    need(config.get<string>("reqs2x.openai.modelName"), "OpenAI Model Name", "REQS2X_OPENAI_MODEL_NAME");
+  } else if (provider === "anthropic") {
+    need(config.get<string>("reqs2x.anthropic.apiKey"), "Anthropic API Key", "REQS2X_ANTHROPIC_API_KEY");
+    need(config.get<string>("reqs2x.anthropic.modelName"), "Anthropic Model Name", "REQS2X_ANTHROPIC_MODEL_NAME");
+  } else {
+    missing.push("Unsupported provider value");
+  }
+
+  return { provider, env: baseEnv, valid: missing.length === 0, missing };
+}
+
+
+function createProcessEnvironment(): NodeJS.ProcessEnv {
+  const processEnv = { ...process.env };
+
+  // Setup correct VectorCAST directory variable
+  processEnv.VSCODE_VECTORCAST_DIR = vcastInstallationDirectory;
+
+  // Setup LLM provider settings
+  const gatheredSettings = gatherLLMProviderSettings();
+  if (!gatheredSettings.valid) {
+    vscode.window
+      .showErrorMessage(
+        `Required information to run Reqs2X with currently selected LLM provider (${gatheredSettings.provider}) is missing: ${gatheredSettings.missing.join(", ")}`,
+        "Open Settings"
+      )
+      .then((choice) => {
+        if (choice === "Open Settings") {
+          vscode.commands.executeCommand("vectorcastTestExplorer.showSettings");
+        }
+      });
+    throw new Error("Missing LLM provider settings");
+  }
+
+  for (const [k, v] of Object.entries(gatheredSettings.env)) {
+    if (v) processEnv[k] = v;
+  }
+
+  // Add non-provider specific settings (language, debug) here
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer.reqs2x");
+  const languageCode = config.get<string>("generationLanguage", "en");
+  processEnv.REQS2X_RESPONSE_LANGUAGE = languageCode;
+
+  if (config.get<boolean>("outputDebugInfo", false)) {
+    processEnv.REQS2X_LOG_LEVEL = "debug";
+  }
+
+  // Return the constructed environment
   return processEnv;
 }
 
 function spawnWithVcastEnv(
   command: string,
   args: string[],
-  vcastInstallDir?: string,
   options: any = {}
 ): ChildProcessWithoutNullStreams {
-  const env = createProcessEnvironment(vcastInstallDir);
+  const env = createProcessEnvironment();
   return spawn(command, args, { ...options, env });
 }
