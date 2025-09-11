@@ -2578,7 +2578,7 @@ async function generateTestsFromRequirements(
     "-e",
     envPath,
     reqsFile, // use the chosen requirements file
-    ...(unitOrFunctionName ? [unitOrFunctionName] : []),
+    ...(unitOrFunctionName ? ["-f", unitOrFunctionName] : []),
     "--export-tst",
     tstPath,
     "--retries",
