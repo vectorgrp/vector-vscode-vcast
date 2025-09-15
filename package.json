@@ -466,8 +466,8 @@
             "type": "string",
             "order": 5,
             "default": "openai",
-            "enum": ["openai", "azure_openai", "anthropic"],
-            "enumDescriptions": ["OpenAI", "Azure OpenAI", "Anthropic"],
+            "enum": ["openai", "azure_openai", "anthropic", "litellm"],
+            "enumDescriptions": ["OpenAI", "Azure OpenAI", "Anthropic", "LiteLLM"],
             "description": "Language model provider for automatic requirements and test generation using Reqs2X"
           },
           "vectorcastTestExplorer.reqs2x.openai.apiKey": {
@@ -529,6 +529,18 @@
             "order": 15,
             "default": "",
             "description": "Anthropic model name"
+          },
+          "vectorcastTestExplorer.reqs2x.litellm.modelName": {
+            "type": "string",
+            "order": 16,
+            "default": "",
+            "description": "LiteLLM model name (prefix with provider used, e.g., openai/gpt-4o or azure/o3-mini)"
+          },
+          "vectorcastTestExplorer.reqs2x.litellm.providerEnvVars": {
+            "type": "string",
+            "order": 17,
+            "default": "",
+            "description": "Environment variables to set when running LiteLLM, e.g., OPENAI_API_KEY=xxxx. Multiple variables can be separated by commas, e.g., OPENAI_API_KEY=xxxx,ANOTHER_ENV_VAR=yyyy. For a list of variables to set for a specific LiteLLM-compatible provider, see https://docs.litellm.ai/docs/providers."
           }
         }
       }

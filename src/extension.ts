@@ -3115,6 +3115,22 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       "Anthropic Model Name",
       "REQS2X_ANTHROPIC_MODEL_NAME"
     );
+  } else if (provider === "litellm") {
+    need(
+      config.get<string>("reqs2x.litellm.modelPath"),
+      "LiteLLM Model Name",
+      "REQS2X_LITELLM_MODEL_NAME"
+    );
+    const litellmProviderEnvVarsString = config.get<string>("reqs2x.litellm.providerEnvVars", "");
+    const entries = litellmProviderEnvVarsString.split(",").map(pair => pair.split("="));
+
+    if (entries.some(entryValues => entryValues.length !== 2)) {
+      missing.push("LiteLLM Provider Environment Variables must be in KEY=VALUE format, separated by commas");
+    } else {
+      for (const [key, value] of entries) {
+        baseEnv[key.trim()] = value.trim();
+      }
+    }
   } else {
     missing.push("Unsupported provider value");
   }
