@@ -3068,58 +3068,58 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
     need(
       config.get<string>("reqs2x.azure.baseUrl"),
       "Azure Base URL",
-      "REQS2X_AZURE_OPENAI_BASE_URL"
+      "VCAST_REQS2X_AZURE_OPENAI_BASE_URL"
     );
     need(
       config.get<string>("reqs2x.azure.apiKey"),
       "Azure API Key",
-      "REQS2X_AZURE_OPENAI_API_KEY"
+      "VCAST_REQS2X_AZURE_OPENAI_API_KEY"
     );
     need(
       config.get<string>("reqs2x.azure.deployment"),
       "Azure Deployment",
-      "REQS2X_AZURE_OPENAI_DEPLOYMENT"
+      "VCAST_REQS2X_AZURE_OPENAI_DEPLOYMENT"
     );
     need(
       config.get<string>("reqs2x.azure.modelName"),
       "Azure Model Name",
-      "REQS2X_AZURE_OPENAI_MODEL_NAME"
+      "VCAST_REQS2X_AZURE_OPENAI_MODEL_NAME"
     );
     need(
       config.get<string>("reqs2x.azure.apiVersion"),
       "Azure API Version",
-      "REQS2X_AZURE_OPENAI_API_VERSION"
+      "VCAST_REQS2X_AZURE_OPENAI_API_VERSION"
     );
   } else if (provider === "openai") {
     // baseUrl optional
     const baseUrl = config.get<string>("reqs2x.openai.baseUrl", "");
-    if (baseUrl) baseEnv.REQS2X_OPENAI_BASE_URL = baseUrl;
+    if (baseUrl) baseEnv.VCAST_REQS2X_OPENAI_BASE_URL = baseUrl;
     need(
       config.get<string>("reqs2x.openai.apiKey"),
       "OpenAI API Key",
-      "REQS2X_OPENAI_API_KEY"
+      "VCAST_REQS2X_OPENAI_API_KEY"
     );
     need(
       config.get<string>("reqs2x.openai.modelName"),
       "OpenAI Model Name",
-      "REQS2X_OPENAI_MODEL_NAME"
+      "VCAST_REQS2X_OPENAI_MODEL_NAME"
     );
   } else if (provider === "anthropic") {
     need(
       config.get<string>("reqs2x.anthropic.apiKey"),
       "Anthropic API Key",
-      "REQS2X_ANTHROPIC_API_KEY"
+      "VCAST_REQS2X_ANTHROPIC_API_KEY"
     );
     need(
       config.get<string>("reqs2x.anthropic.modelName"),
       "Anthropic Model Name",
-      "REQS2X_ANTHROPIC_MODEL_NAME"
+      "VCAST_REQS2X_ANTHROPIC_MODEL_NAME"
     );
   } else if (provider === "litellm") {
     need(
       config.get<string>("reqs2x.litellm.modelPath"),
       "LiteLLM Model Name",
-      "REQS2X_LITELLM_MODEL_NAME"
+      "VCAST_REQS2X_LITELLM_MODEL_NAME"
     );
     const litellmProviderEnvVarsString = config.get<string>("reqs2x.litellm.providerEnvVars", "");
     const entries = litellmProviderEnvVarsString.split(",").map(pair => pair.split("="));
@@ -3169,10 +3169,10 @@ function createProcessEnvironment(): NodeJS.ProcessEnv {
     "vectorcastTestExplorer.reqs2x"
   );
   const languageCode = config.get<string>("generationLanguage", "en");
-  processEnv.REQS2X_RESPONSE_LANGUAGE = languageCode;
+  processEnv.VCAST_REQS2X_RESPONSE_LANGUAGE = languageCode;
 
   if (config.get<boolean>("outputDebugInfo", false)) {
-    processEnv.REQS2X_LOG_LEVEL = "debug";
+    processEnv.VCAST_REQS2X_LOG_LEVEL = "debug";
   }
 
   // Return the constructed environment
