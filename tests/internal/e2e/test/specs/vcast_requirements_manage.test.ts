@@ -102,7 +102,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const providerSetting = await settingsEditor.findSetting(
       "Provider",
       "Vectorcast Test Explorer",
-      "Reqs2X"
+      "Reqs2x"
     );
     await providerSetting.setValue("openai");
 
@@ -110,7 +110,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const apiKeySetting = await settingsEditor.findSetting(
       "OpenAI API key",
       "Vectorcast Test Explorer",
-      "Reqs2X"
+      "Reqs2x"
     );
     await apiKeySetting.setValue("API_KEY_PLACEHOLDER");
 
@@ -118,7 +118,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const modelSetting = await settingsEditor.findSetting(
       "OpenAI model name",
       "Vectorcast Test Explorer",
-      "Reqs2X"
+      "Reqs2x"
     );
     await modelSetting.setValue("MODEL_NAME_PLACEHOLDER");
 
@@ -126,31 +126,24 @@ describe("vTypeCheck VS Code Extension", () => {
     const baseUrlSetting = await settingsEditor.findSetting(
       "OpenAI base URL",
       "Vectorcast Test Explorer",
-      "Reqs2X"
+      "Reqs2x"
     );
     await baseUrlSetting.setValue("BASE_URL_PLACEHOLDER");
 
     // Small pause to allow settings to persist in the UI (tweak timeout if flaky)
     await browser.pause(500);
 
-    // Optional: verify values were applied in the settings UI (if getValue() is available)
-    // Replace these assertions with whatever assertion library you use (chai/assert)
-    if (typeof providerSetting.getValue === "function") {
-      const currentProvider = await providerSetting.getValue();
-      expect(currentProvider).toEqual("openai");
-    }
-    if (typeof apiKeySetting.getValue === "function") {
-      const currentKey = await apiKeySetting.getValue();
-      expect(currentKey).toEqual("API_KEY_PLACEHOLDER");
-    }
-    if (typeof modelSetting.getValue === "function") {
-      const currentModel = await modelSetting.getValue();
-      expect(currentModel).toEqual("MODEL_NAME_PLACEHOLDER");
-    }
-    if (typeof baseUrlSetting.getValue === "function") {
-      const currentBase = await baseUrlSetting.getValue();
-      expect(currentBase).toEqual("BASE_URL_PLACEHOLDER");
-    }
+    const currentProvider = await providerSetting.getValue();
+    expect(currentProvider).toEqual("openai");
+
+    const currentKey = await apiKeySetting.getValue();
+    expect(currentKey).toEqual("API_KEY_PLACEHOLDER");
+
+    const currentModel = await modelSetting.getValue();
+    expect(currentModel).toEqual("MODEL_NAME_PLACEHOLDER");
+
+    const currentBase = await baseUrlSetting.getValue();
+    expect(currentBase).toEqual("BASE_URL_PLACEHOLDER");
   });
 
   it("should generate requirements", async () => {
