@@ -3117,7 +3117,7 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
     );
   } else if (provider === "litellm") {
     need(
-      config.get<string>("reqs2x.litellm.modelPath"),
+      config.get<string>("reqs2x.litellm.modelName"),
       "LiteLLM Model Name",
       "VCAST_REQS2X_LITELLM_MODEL_NAME"
     );
