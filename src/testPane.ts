@@ -47,8 +47,9 @@ import {
   addLaunchConfiguration,
   cleanTestResultsPaneMessage,
   forceLowerCaseDriveLetter,
-  getWorkspaceRootPath,
+  getWorkspaceRootPaths,
   loadLaunchFile,
+  mergeWorkspaceEnvResponses,
   normalizePath,
   openFileWithLineSelected,
 } from "./utilities";
@@ -141,8 +142,6 @@ type EnviroData = {
 };
 
 type CachedWorkspaceData = {
-  testData: FileTestData[];
-  unitData: UnitData[];
   enviro: EnviroData[];
   errors?: string[];
 };
@@ -768,13 +767,19 @@ async function loadEnviroData(
 }
 
 async function buildEnvDataCacheForCurrentDir() {
-  const workspaceDir = getWorkspaceRootPath();
-  if (workspaceDir) {
-    cachedWorkspaceEnvData = await getWorkspaceEnvDataVPython(workspaceDir);
-  } else {
-    // This should not be possible as we have env data, but just in case
+  const folderPaths = getWorkspaceRootPaths();
+  if (!folderPaths.length) {
     vectorMessage("No workspace root found, cannot refresh environment data.");
+    return;
   }
+
+  // Query each root in parallel
+  const responses = await Promise.all(
+    folderPaths.map((p) => getWorkspaceEnvDataVPython(p))
+  );
+
+  // Merge them
+  cachedWorkspaceEnvData = await mergeWorkspaceEnvResponses(responses);
 }
 
 /**
