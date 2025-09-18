@@ -85,6 +85,70 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
+  it("should configure Reqs2X to use OpenAI and set api key, model and base URL", async () => {
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    // Open Settings
+    const settingsEditor = await workbench.openSettings();
+
+    // 1) Select provider -> "openai"
+    const providerSetting = await settingsEditor.findSetting(
+      "Provider",
+      "Vectorcast Test Explorer",
+      "Reqs2X"
+    );
+    await providerSetting.setValue("openai");
+
+    // 2) Set API key (placeholder)
+    const apiKeySetting = await settingsEditor.findSetting(
+      "OpenAI API key",
+      "Vectorcast Test Explorer",
+      "Reqs2X"
+    );
+    await apiKeySetting.setValue("API_KEY_PLACEHOLDER");
+
+    // 3) Set model name (placeholder)
+    const modelSetting = await settingsEditor.findSetting(
+      "OpenAI model name",
+      "Vectorcast Test Explorer",
+      "Reqs2X"
+    );
+    await modelSetting.setValue("MODEL_NAME_PLACEHOLDER");
+
+    // 4) Set base URL (placeholder)
+    const baseUrlSetting = await settingsEditor.findSetting(
+      "OpenAI base URL",
+      "Vectorcast Test Explorer",
+      "Reqs2X"
+    );
+    await baseUrlSetting.setValue("BASE_URL_PLACEHOLDER");
+
+    // Small pause to allow settings to persist in the UI (tweak timeout if flaky)
+    await browser.pause(500);
+
+    // Optional: verify values were applied in the settings UI (if getValue() is available)
+    // Replace these assertions with whatever assertion library you use (chai/assert)
+    if (typeof providerSetting.getValue === "function") {
+      const currentProvider = await providerSetting.getValue();
+      expect(currentProvider).toEqual("openai");
+    }
+    if (typeof apiKeySetting.getValue === "function") {
+      const currentKey = await apiKeySetting.getValue();
+      expect(currentKey).toEqual("API_KEY_PLACEHOLDER");
+    }
+    if (typeof modelSetting.getValue === "function") {
+      const currentModel = await modelSetting.getValue();
+      expect(currentModel).toEqual("MODEL_NAME_PLACEHOLDER");
+    }
+    if (typeof baseUrlSetting.getValue === "function") {
+      const currentBase = await baseUrlSetting.getValue();
+      expect(currentBase).toEqual("BASE_URL_PLACEHOLDER");
+    }
+  });
+
   it("should generate requirements", async () => {
     await updateTestID();
 
