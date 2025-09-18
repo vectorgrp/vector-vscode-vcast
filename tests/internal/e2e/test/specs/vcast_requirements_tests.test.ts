@@ -104,28 +104,25 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // 2) Set API key (placeholder)
     const apiKeySetting = await settingsEditor.findSetting(
-      "Api Key",
+      "Openai: Api Key",
       "Vectorcast Test Explorer",
-      "Reqs2x",
-      "Openai"
+      "Reqs2x"
     );
     await apiKeySetting.setValue("API_KEY_PLACEHOLDER");
 
     // 3) Set model name (placeholder)
     const modelSetting = await settingsEditor.findSetting(
-      "Model Name",
+      "Openai: Model Name",
       "Vectorcast Test Explorer",
-      "Reqs2x",
-      "Openai"
+      "Reqs2x"
     );
     await modelSetting.setValue("MODEL_NAME_PLACEHOLDER");
 
     // 4) Set base URL (placeholder)
     const baseUrlSetting = await settingsEditor.findSetting(
-      "Base Url",
+      "Openai: Base Url",
       "Vectorcast Test Explorer",
-      "Reqs2x",
-      "Openai"
+      "Reqs2x"
     );
     await baseUrlSetting.setValue("BASE_URL_PLACEHOLDER");
 
