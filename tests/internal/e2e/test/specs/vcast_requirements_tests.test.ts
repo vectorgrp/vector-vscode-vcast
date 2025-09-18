@@ -93,7 +93,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Open Settings
     const settingsEditor = await workbench.openSettings();
-
+    
     // 1) Select provider -> "openai"
     const providerSetting = await settingsEditor.findSetting(
       "Provider",
@@ -101,22 +101,32 @@ describe("vTypeCheck VS Code Extension", () => {
       "Reqs2x"
     );
     await providerSetting.setValue("openai");
+    
 
     // 2) Set API key (placeholder)
     const apiKeySetting = await settingsEditor.findSetting(
-      "vectorcastTestExplorer.reqs2x.openai.apiKey"
+      "Api Key",
+      "Vectorcast Test Explorer",
+      "Reqs2X",
+      "Openai"
     );
     await apiKeySetting.setValue("API_KEY_PLACEHOLDER");
 
     // 3) Set model name (placeholder)
     const modelSetting = await settingsEditor.findSetting(
-      "vectorcastTestExplorer.reqs2x.openai.modelName"
+      "Model Name",
+      "Vectorcast Test Explorer",
+      "Reqs2X",
+      "Openai"
     );
     await modelSetting.setValue("MODEL_NAME_PLACEHOLDER");
 
     // 4) Set base URL (placeholder)
     const baseUrlSetting = await settingsEditor.findSetting(
-      "vectorcastTestExplorer.reqs2x.openai.baseUrl"
+      "Base Url",
+      "Vectorcast Test Explorer",
+      "Reqs2X",
+      "Openai"
     );
     await baseUrlSetting.setValue("BASE_URL_PLACEHOLDER");
 
