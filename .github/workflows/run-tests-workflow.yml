@@ -330,6 +330,7 @@ jobs:
       LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
       PRIORITIZE_SPEC_GROUP: ${{ github.event.inputs.prioritize-spec-group || '' }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }} 
 
     steps:
       - name: Check out repository
