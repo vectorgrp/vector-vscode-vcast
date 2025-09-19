@@ -9,6 +9,7 @@ import { errorLevel, vectorMessage } from "./messagePane";
 import { getGlobalCoverageData } from "./vcastTestInterface";
 import { rebuildEnvironment } from "./vcastAdapter";
 import { rebuildEnvironmentCallback } from "./callbacks";
+import { CachedWorkspaceData, EnviroData } from "./testPane";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -418,98 +419,25 @@ export function getWorkspaceRootPaths(): string[] {
 }
 
 /**
- * Async canonicalize helper:
- * - path.resolve() to remove '.' / '..'
- * - fs.realpath() to resolve symlinks where possible
- * - normalizePath() to unify separators and drive-case (user-provided)
- */
-async function canonicalizeAsync(p: string): Promise<string> {
-  if (!p) return "";
-  // Resolve first (makes relative paths absolute)
-  const abs = path.resolve(p);
-  try {
-    // realpath resolves symlinks; if it fails we use abs
-    const real = await fs.realpath(abs);
-    return normalizePath(real);
-  } catch {
-    return normalizePath(abs);
-  }
-}
-
-/** Parse a response which might be a JSON string or already an object. */
-function parseEnvResponse(resp: any): any | undefined {
-  if (!resp) return undefined;
-  if (typeof resp === "string") {
-    try {
-      return JSON.parse(resp);
-    } catch (err) {
-      vectorMessage(`Failed to parse env data JSON: ${String(err)}`);
-      return undefined;
-    }
-  }
-  return resp;
-}
-
-/**
- * Merge and dedupe multiple workspace responses from vpython into a single
- * top-level object with enviro/testData/unitData/errors keys.
- *
- * Policy:
- * - dedupe key = canonicalized vce path without .vce extension (or dirname)
- * - first-wins: the first encountered env entry for that canonical key is kept
+ * Merges multiple workspace responses into a single CachedWorkspaceData object.
  */
 export async function mergeWorkspaceEnvResponses(
-  responses: any[]
-): Promise<any> {
-  const vceMap = new Map<string, any>(); // Map<canonicalVceFilePath, envAPIData>
+  responses: CachedWorkspaceData[]
+): Promise<CachedWorkspaceData> {
   const allErrors: string[] = [];
+  const allEnvs: EnviroData[] = [];
 
-  // Loop responses sequentially but canonicalize file paths in parallel inside each response
-  for (const respRaw of responses) {
-    const resp = parseEnvResponse(respRaw);
-    if (!resp) continue;
-
-    if (Array.isArray(resp.errors)) {
+  for (const resp of responses) {
+    if (resp.errors) {
       allErrors.push(...resp.errors);
     }
-
-    const envList = resp.enviro ?? [];
-    // If no env entries, continue
-    if (!envList.length) continue;
-
-    // Build canonicalization promises for this response
-    const canonPromises = envList.map((env: any) => {
-      const rawVce = (env.vcePath ?? "").toString();
-      // full file canonicalization (we know .vce is a file)
-      return canonicalizeAsync(rawVce).then((canon) => ({ canon, env }));
-    });
-
-    const canonResults = await Promise.all(canonPromises);
-
-    for (const { canon, env } of canonResults) {
-      const key = canon || normalizePath((env.vcePath ?? "").toString());
-      if (!key) {
-        vectorMessage(
-          `Skipping env entry with empty vcePath: ${JSON.stringify(env)}`
-        );
-        continue;
-      }
-
-      if (!vceMap.has(key)) {
-        vceMap.set(key, env);
-      } else {
-        // This would mean that we found the same vce file for multiple envs, which is not possible
-        vectorMessage(
-          `VCE File ${key} already matched to ${JSON.stringify(vceMap.get(key))}`
-        );
-      }
+    if (resp.enviro) {
+      allEnvs.push(...resp.enviro);
     }
   }
 
-  const enviroArray = Array.from(vceMap.values());
-
-  const topLevel: any = {};
-  topLevel.enviro = enviroArray;
-  if (allErrors.length) topLevel.errors = allErrors;
-  return topLevel;
+  return {
+    enviro: allEnvs,
+    errors: allErrors.length ? allErrors : undefined,
+  };
 }

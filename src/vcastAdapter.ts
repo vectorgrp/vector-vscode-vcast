@@ -707,7 +707,7 @@ export async function getWorkspaceEnvDataVPython(
   );
   let jsonData = getJsonDataFromTestInterface(commandToRun, workspaceDir);
 
-  vectorMessage("Building environments data for workspace...");
+  vectorMessage(`Building environments data for workspace: ${workspaceDir}`);
 
   return jsonData;
 }

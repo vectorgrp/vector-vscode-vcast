@@ -134,14 +134,14 @@ type UnitData = {
   functionList: FunctionUnitData[];
 };
 
-type EnviroData = {
+export type EnviroData = {
   vcePath: string;
   testData: FileTestData[];
   unitData: UnitData[];
   mockingSupport: boolean;
 };
 
-type CachedWorkspaceData = {
+export type CachedWorkspaceData = {
   enviro: EnviroData[];
   errors?: string[];
 };
