@@ -103,8 +103,6 @@ describe("vTypeCheck VS Code Extension", () => {
       "Reqs2x"
     );
     await providerSetting.setValue("openai");
-    // See if undefined
-    console.log(providerSetting);
     await workbench.getEditorView().closeAllEditors();
 
     // 2) Set API key (placeholder)
@@ -114,8 +112,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Api Key",
       "Vectorcast Test Explorer › Reqs2x › Openai"
     );
-    // See if undefined
-    console.log(apiKeySetting);
+
     await apiKeySetting.setValue(process.env.OPENAI_API_KEY ?? "");
     await workbench.getEditorView().closeAllEditors();
 
@@ -127,8 +124,6 @@ describe("vTypeCheck VS Code Extension", () => {
       "Vectorcast Test Explorer › Reqs2x › Openai"
     );
     await modelSetting.setValue("gpt-4.1");
-    // See if undefined
-    console.log(modelSetting);
     await workbench.getEditorView().closeAllEditors();
   });
 
