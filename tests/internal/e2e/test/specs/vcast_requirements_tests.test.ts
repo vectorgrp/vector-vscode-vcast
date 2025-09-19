@@ -109,7 +109,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // 2) Set API key (placeholder)
     console.log("Setting API Key");
-    const apiKeySetting = await settingsEditor.findSetting(
+    const settingsEditor2 = await workbench.openSettings();
+    const apiKeySetting = await settingsEditor2.findSetting(
       "Api Key",
       "Vectorcast Test Explorer",
       "Openai",
@@ -121,14 +122,15 @@ describe("vTypeCheck VS Code Extension", () => {
     await workbench.getEditorView().closeAllEditors();
 
     // 3) Set model name (placeholder)
-    console.log("gpt-4.1");
-    const modelSetting = await settingsEditor.findSetting(
+    console.log("Setting Model Name");
+    const settingsEditor3 = await workbench.openSettings();
+    const modelSetting = await settingsEditor3.findSetting(
       "Model Name",
       "Vectorcast Test Explorer",
       "Openai",
       "Reqs2x"
     );
-    await modelSetting.setValue("MODEL_NAME_PLACEHOLDER");
+    await modelSetting.setValue("gpt-4.1");
     // See if undefined
     console.log(modelSetting);
     await workbench.getEditorView().closeAllEditors();
