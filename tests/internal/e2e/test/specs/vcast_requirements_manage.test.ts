@@ -116,9 +116,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const settingsEditor2 = await workbench.openSettings();
     const apiKeySetting = await settingsEditor2.findSetting(
       "Api Key",
-      "Vectorcast Test Explorer",
-      "Openai",
-      "Reqs2x"
+      "Vectorcast Test Explorer › Reqs2x › Openai"
     );
     // See if undefined
     console.log(apiKeySetting);
@@ -130,9 +128,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const settingsEditor3 = await workbench.openSettings();
     const modelSetting = await settingsEditor3.findSetting(
       "Model Name",
-      "Vectorcast Test Explorer",
-      "Openai",
-      "Reqs2x"
+      "Vectorcast Test Explorer › Reqs2x › Openai"
     );
     await modelSetting.setValue("gpt-4.1");
     // See if undefined
