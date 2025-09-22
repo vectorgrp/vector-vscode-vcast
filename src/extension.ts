@@ -1983,159 +1983,173 @@ async function installPreActivationEventHandlers(
   context.subscriptions.push(getATGTestForLineCmd);
 }
 
-/* ===================================================================
- Improved findFunctionAtLine
- - supports qualified names (Class::Method), template-like tokens in
-   return type, and skips comments/strings when counting braces.
- - Returns: { name, params, startLine, endLine, code, selectedLine }
- =================================================================== */
+/**
+ * Find the function definition surrounding a given line number.
+ * This is used to extract function name, params, and code block
+ * for display in the ATG test webview.
+ *
+ * @param fileText   Full source code of the file
+ * @param lineNumber Line number (1-based) to inspect
+ * @returns Object with function metadata or file fallback
+ */
 function findFunctionAtLine(fileText: string, lineNumber: number) {
-  const text = fileText;
-  const totalLines = text.split(/\r?\n/).length;
+  const totalLines = fileText.split(/\r?\n/).length;
 
-  // Allow qualified names (A::B::name) in group 2.
-  const funcRegex =
+  // Regex to detect function definitions, including qualified names (e.g., A::B::foo)
+  const functionPattern =
     /([A-Za-z_][\w\s\*\&:<>,\[\]]*?)\s+((?:[A-Za-z_]\w*::)*[A-Za-z_]\w*)\s*\(([^\)]*)\)\s*\{/g;
 
   let match: RegExpExecArray | null;
-  const funcCandidates: Array<{
+  const functionCandidates: Array<{
     name: string;
     paramsRaw: string;
     startIndex: number;
     startLine: number;
   }> = [];
 
-  while ((match = funcRegex.exec(text))) {
-    const before = text.slice(0, match.index);
-    const startLine = before.split(/\r?\n/).length;
-    funcCandidates.push({
-      name: match[2],
-      paramsRaw: match[3],
+  // Collect all function definitions
+  while ((match = functionPattern.exec(fileText))) {
+    const textBeforeMatch = fileText.slice(0, match.index);
+    const startLine = textBeforeMatch.split(/\r?\n/).length;
+    functionCandidates.push({
+      name: match[2], // function name (possibly qualified)
+      paramsRaw: match[3], // raw parameter string
       startIndex: match.index,
       startLine,
     });
   }
 
-  // Helper: find matching closing brace starting from the first '{' after startIndex.
-  function findMatchingBrace(
+  /**
+   * Helper: Find the matching closing brace for a function,
+   * starting from the '{' at startIndex.
+   */
+  function findClosingBrace(
     startIndex: number
   ): { endPos: number; endLine: number } | null {
-    const openPos = text.indexOf("{", startIndex);
+    const openPos = fileText.indexOf("{", startIndex);
     if (openPos < 0) return null;
 
-    let depth = 0;
-    let p = openPos;
-    const n = text.length;
+    let braceDepth = 0;
+    let pos = openPos;
+    const length = fileText.length;
 
-    // We'll skip over comments and strings so braces inside them are ignored.
-    while (p < n) {
-      const ch = text[p];
+    // Traverse file, skipping comments and strings
+    while (pos < length) {
+      const ch = fileText[pos];
 
-      // Handle // comments
-      if (ch === "/" && text[p + 1] === "/") {
-        p += 2;
-        while (p < n && text[p] !== "\n") p++;
+      // Skip // comments
+      if (ch === "/" && fileText[pos + 1] === "/") {
+        pos += 2;
+        while (pos < length && fileText[pos] !== "\n") pos++;
         continue;
       }
 
-      // Handle /* */ comments
-      if (ch === "/" && text[p + 1] === "*") {
-        p += 2;
-        while (p < n && !(text[p] === "*" && text[p + 1] === "/")) p++;
-        p += 2; // skip '*/'
+      // Skip /* */ comments
+      if (ch === "/" && fileText[pos + 1] === "*") {
+        pos += 2;
+        while (
+          pos < length &&
+          !(fileText[pos] === "*" && fileText[pos + 1] === "/")
+        )
+          pos++;
+        pos += 2;
         continue;
       }
 
-      // Handle string literals "..." and '...' and raw char sequences (\' and \")
+      // Skip string/char literals
       if (ch === '"' || ch === "'" || ch === "`") {
         const quote = ch;
-        p++;
-        while (p < n) {
-          if (text[p] === "\\") {
-            // skip escaped char
-            p += 2;
+        pos++;
+        while (pos < length) {
+          if (fileText[pos] === "\\") {
+            pos += 2; // escape sequence
             continue;
           }
-          if (text[p] === quote) {
-            p++;
+          if (fileText[pos] === quote) {
+            pos++;
             break;
           }
-          p++;
+          pos++;
         }
         continue;
       }
 
       // Real brace counting
       if (ch === "{") {
-        depth++;
+        braceDepth++;
       } else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          // end found at p
-          const endLine = text.slice(0, p).split(/\r?\n/).length;
-          return { endPos: p, endLine };
+        braceDepth--;
+        if (braceDepth === 0) {
+          const endLine = fileText.slice(0, pos).split(/\r?\n/).length;
+          return { endPos: pos, endLine };
         }
       }
 
-      p++;
+      pos++;
     }
 
-    return null;
+    return null; // no matching brace found
   }
 
-  // For each candidate, find end using the robust matcher and check whether requested line is inside
-  for (const c of funcCandidates) {
-    const found = findMatchingBrace(c.startIndex);
-    if (!found) continue;
-    const { endPos, endLine } = found;
+  // Check each function candidate for a match at the given line
+  for (const candidate of functionCandidates) {
+    const closingBrace = findClosingBrace(candidate.startIndex);
+    if (!closingBrace) continue;
+    const { endPos, endLine } = closingBrace;
 
-    if (lineNumber >= c.startLine && lineNumber <= endLine) {
-      const code = text.slice(c.startIndex, endPos + 1);
-      const params = parseParamNames(c.paramsRaw);
-      const selectedLine = lineNumber - c.startLine + 1; // 1-based inside function
+    // Does the selected line fall inside this function?
+    if (lineNumber >= candidate.startLine && lineNumber <= endLine) {
+      const code = fileText.slice(candidate.startIndex, endPos + 1);
+      const params = parseParamNames(candidate.paramsRaw);
+      const relativeSelectedLine = lineNumber - candidate.startLine + 1; // relative to function start
+
       return {
-        name: c.name,
+        name: candidate.name,
         params,
-        startLine: c.startLine,
+        startLine: candidate.startLine,
         endLine,
         code,
-        selectedLine,
+        selectedLine: relativeSelectedLine,
       };
     }
   }
 
-  // fallback: nearest preceding function (more robust: use same brace-matcher)
+  // Fallback: nearest preceding function if line is outside braces
   let lastFunc = null;
-  for (const c of funcCandidates) {
-    if (c.startLine <= lineNumber) lastFunc = c;
+  for (const candidate of functionCandidates) {
+    if (candidate.startLine <= lineNumber) lastFunc = candidate;
     else break;
   }
   if (lastFunc) {
-    const found = findMatchingBrace(lastFunc.startIndex);
+    const closingBrace = findClosingBrace(lastFunc.startIndex);
     let endPos = -1;
     let endLine = totalLines;
-    if (found) {
-      endPos = found.endPos;
-      endLine = found.endLine;
+    if (closingBrace) {
+      endPos = closingBrace.endPos;
+      endLine = closingBrace.endLine;
     }
 
     const code =
       endPos >= 0
-        ? text.slice(lastFunc.startIndex, endPos + 1)
-        : text.slice(lastFunc.startIndex);
+        ? fileText.slice(lastFunc.startIndex, endPos + 1)
+        : fileText.slice(lastFunc.startIndex);
     const params = parseParamNames(lastFunc.paramsRaw);
-    const selectedLine = Math.max(1, lineNumber - lastFunc.startLine + 1);
+    const relativeSelectedLine = Math.max(
+      1,
+      lineNumber - lastFunc.startLine + 1
+    );
+
     return {
       name: lastFunc.name,
       params,
       startLine: lastFunc.startLine,
       endLine,
       code,
-      selectedLine,
+      selectedLine: relativeSelectedLine,
     };
   }
 
-  // no function found: return whole file as code and selectedLine as the requested line
+  // Final fallback: no function found → return whole file
   return {
     name: null,
     params: [],
@@ -2146,35 +2160,49 @@ function findFunctionAtLine(fileText: string, lineNumber: number) {
   };
 }
 
+/**
+ * Extract parameter names from raw parameter string.
+ * Example: "int a, const Foo& bar = 42" → ["a", "bar"]
+ */
 function parseParamNames(paramsRaw: string): string[] {
   if (!paramsRaw || paramsRaw.trim() === "") return [];
-  // naive split at commas, but handle commas inside templates by counting <> (simple)
+
   const parts: string[] = [];
-  let depthAng = 0;
-  let cur = "";
+  let templateDepth = 0;
+  let current = "";
+
+  // Split parameters on commas, respecting templates <...>
   for (let i = 0; i < paramsRaw.length; ++i) {
     const ch = paramsRaw[i];
-    if (ch === "<") depthAng++;
-    else if (ch === ">") depthAng = Math.max(0, depthAng - 1);
-    if (ch === "," && depthAng === 0) {
-      parts.push(cur);
-      cur = "";
-    } else cur += ch;
+    if (ch === "<") templateDepth++;
+    else if (ch === ">") templateDepth = Math.max(0, templateDepth - 1);
+
+    if (ch === "," && templateDepth === 0) {
+      parts.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
   }
-  if (cur.trim() !== "") parts.push(cur);
+  if (current.trim() !== "") parts.push(current);
 
   const names: string[] = [];
-  for (let p of parts) {
-    p = p.trim();
-    if (!p) continue;
-    // remove default value
-    p = p.split("=")[0].trim();
-    const toks = p.split(/\s+/).filter(Boolean);
-    if (toks.length === 0) continue;
-    let last = toks[toks.length - 1];
-    // strip pointer/reference symbols
-    last = last.replace(/^[\*\&]+/, "").replace(/[\*\&]+$/, "");
-    if (/^[A-Za-z_]\w*$/.test(last)) names.push(last);
+  for (let part of parts) {
+    part = part.trim();
+    if (!part) continue;
+
+    // Remove default value
+    part = part.split("=")[0].trim();
+
+    // Last token is usually the variable name
+    const tokens = part.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) continue;
+    let name = tokens[tokens.length - 1];
+
+    // Remove pointer/reference symbols (*, &)
+    name = name.replace(/^[\*\&]+/, "").replace(/[\*\&]+$/, "");
+
+    if (/^[A-Za-z_]\w*$/.test(name)) names.push(name);
   }
   return names;
 }
@@ -2299,10 +2327,6 @@ function isKeyword(w: string) {
   return kws.has(w);
 }
 
-/* ===================================================================
- getATGWebviewContent - load html + inject variables
- Note: html file should include placeholders {{ cssUri }} and {{ scriptUri }}
- =================================================================== */
 async function getATGWebviewContent(
   context: vscode.ExtensionContext,
   panel: vscode.WebviewPanel,
