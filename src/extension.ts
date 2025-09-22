@@ -2700,9 +2700,15 @@ async function importRequirementsFromGateway(enviroPath: string) {
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  // Look for potential requirement gateways
-  const repositoryPath = findRelevantRequirementGateway(enviroPath);
+  // Determine (or create) the requirements folder used elsewhere in the extension
+  const enviroNameWithoutExt = lowestDirname.replace(/\.env$/, "");
+  const envReqsFolderPath = path.join(parentDir, `reqs-${enviroNameWithoutExt}`);
+  if (!fs.existsSync(envReqsFolderPath)) {
+    fs.mkdirSync(envReqsFolderPath, { recursive: true });
+  }
 
+  // Look for requirement gateway
+  const repositoryPath = findRelevantRequirementGateway(enviroPath);
   if (!repositoryPath) {
     vscode.window.showErrorMessage(
       "Requirements Gateway either is not specified or does not exist. Aborting."
@@ -2710,8 +2716,9 @@ async function importRequirementsFromGateway(enviroPath: string) {
     return;
   }
 
-  const csvPath = path.join(parentDir, "reqs.csv");
-  const xlsxPath = path.join(parentDir, "reqs.xlsx");
+  // Target files INSIDE the reqs-<env> folder (align with generate/remove logic)
+  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
 
   // Check if requirements files already exist
   const xlsxExists = fs.existsSync(xlsxPath);
@@ -2720,13 +2727,10 @@ async function importRequirementsFromGateway(enviroPath: string) {
   if (xlsxExists || csvExists) {
     let warningMessage = "Warning: ";
     if (xlsxExists) {
-      warningMessage +=
-        "An existing Excel requirements file (reqs.xlsx) will be overwritten.";
+      warningMessage += "An existing Excel requirements file (reqs.xlsx) will be overwritten.";
     }
     if (csvExists) {
-      if (xlsxExists) {
-        warningMessage += " Additionally, ";
-      }
+      if (xlsxExists) warningMessage += " Additionally, ";
       warningMessage +=
         "An existing CSV requirements file (reqs.csv) will be ignored as the new Excel file takes precedence.";
     }
@@ -2736,18 +2740,14 @@ async function importRequirementsFromGateway(enviroPath: string) {
       "Continue",
       "Cancel"
     );
-
-    if (choice !== "Continue") {
-      return;
-    }
+    if (choice !== "Continue") return;
   }
 
   const choice = await vscode.window.showInformationMessage(
-    "Would you like our system to automatically try to add traceability to the requirements?",
+    "Would you like the system to automatically try to add traceability to the requirements?",
     "Yes",
     "No"
   );
-
   const addTraceability = choice === "Yes";
 
   const commandArgs = [
@@ -2757,10 +2757,9 @@ async function importRequirementsFromGateway(enviroPath: string) {
     "excel",
     ...(addTraceability ? ["--infer-traceability"] : []),
     "--target-env",
-    envPath,
+    envPath
   ];
 
-  // Log the command being executed
   const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
@@ -2768,67 +2767,57 @@ async function importRequirementsFromGateway(enviroPath: string) {
     {
       location: vscode.ProgressLocation.Notification,
       title: `Importing Requirements from Gateway`,
-      cancellable: true,
+      cancellable: true
     },
     async (progress, cancellationToken) => {
       let simulatedProgress = 0;
       const simulatedProgressInterval = setInterval(() => {
-        if (
-          simulatedProgress < 90 &&
-          !cancellationToken.isCancellationRequested
-        ) {
+        if (simulatedProgress < 90 && !cancellationToken.isCancellationRequested) {
           simulatedProgress += 5;
           progress.report({ increment: 5 });
         }
       }, 500);
 
       return new Promise<void>((resolve, reject) => {
-        const process = spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
+        const proc = spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
         cancellationToken.onCancellationRequested(() => {
-          process.kill();
+          proc.kill();
           clearInterval(simulatedProgressInterval);
           logCliOperation("Operation cancelled by user");
           resolve();
         });
 
-        process.stdout.on("data", (data) => {
-          const output = data.toString();
-          logCliOperation(`panreq: ${output}`);
+        proc.stdout.on("data", (d) => {
+          const out = d.toString();
+            logCliOperation(`panreq: ${out.trim()}`);
         });
 
-        process.stderr.on("data", (data) => {
-          const errorOutput = data.toString();
-          logCliError(`panreq: ${errorOutput}`);
+        proc.stderr.on("data", (d) => {
+          const errOut = d.toString();
+          logCliError(`panreq: ${errOut.trim()}`);
         });
 
-        process.on("close", async (code) => {
+        proc.on("close", async (code) => {
           clearInterval(simulatedProgressInterval);
           if (cancellationToken.isCancellationRequested) return;
 
           if (code === 0) {
-            logCliOperation(
-              `reqs2excel completed successfully with code ${code}`
-            );
-
-            // Update the requirements availability
+            logCliOperation(`reqs2excel completed successfully with code ${code}`);
             await refreshAllExtensionData();
             updateRequirementsAvailability(enviroPath);
-
-            // Show the imported requirements
             vscode.commands.executeCommand(
               "vectorcastTestExplorer.showRequirements",
               { id: enviroPath }
             );
-
             vscode.window.showInformationMessage(
               "Successfully imported requirements from gateway"
             );
             resolve();
           } else {
-            const errorMessage = `Error: reqs2excel exited with code ${code}`;
-            vscode.window.showErrorMessage(errorMessage);
-            logCliError(errorMessage, true);
+            const msg = `Error: reqs2excel exited with code ${code}`;
+            vscode.window.showErrorMessage(msg);
+            logCliError(msg, true);
             reject();
           }
         });
@@ -3148,11 +3137,13 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
 function createProcessEnvironment(): NodeJS.ProcessEnv {
   const processEnv = { ...process.env };
 
+
   // Setup correct VectorCAST directory variable
   processEnv.VSCODE_VECTORCAST_DIR = vcastInstallationDirectory;
 
   // Setup LLM provider settings
   const gatheredSettings = gatherLLMProviderSettings();
+  console.log(gatheredSettings);
   if (!gatheredSettings.valid) {
     vscode.window
       .showErrorMessage(
@@ -3170,6 +3161,8 @@ function createProcessEnvironment(): NodeJS.ProcessEnv {
   for (const [k, v] of Object.entries(gatheredSettings.env)) {
     if (v) processEnv[k] = v;
   }
+
+  processEnv['no_proxy'] = "localhost,127.0.0.1,10.0.0.0/8,.vector.int,10.180.44.4";
 
   // Add non-provider specific settings (language, debug) here
   const config = vscode.workspace.getConfiguration(
