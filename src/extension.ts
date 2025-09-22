@@ -3162,8 +3162,6 @@ function createProcessEnvironment(): NodeJS.ProcessEnv {
     if (v) processEnv[k] = v;
   }
 
-  processEnv['no_proxy'] = "localhost,127.0.0.1,10.0.0.0/8,.vector.int,10.180.44.4";
-
   // Add non-provider specific settings (language, debug) here
   const config = vscode.workspace.getConfiguration(
     "vectorcastTestExplorer.reqs2x"
