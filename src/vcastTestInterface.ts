@@ -58,9 +58,13 @@ import {
   commandStatusType,
   executeCommandSync,
   executeVPythonScript,
+  executeWithRealTimeEchoWithProgress,
 } from "./vcastCommandRunner";
 
-import { checksumCommandToUse } from "./vcastInstallation";
+import {
+  checksumCommandToUse,
+  getVectorCastInstallationLocation,
+} from "./vcastInstallation";
 
 import {
   closeAnyOpenErrorFiles,
@@ -1196,4 +1200,25 @@ export async function getMCDCResultFile(
   }
 
   return resultFile;
+}
+
+export async function newVCShell(filePath: string) {
+  const normalizeFilePath = normalizePath(filePath);
+  const dirName = path.dirname(normalizeFilePath);
+  const fileName = path.basename(normalizeFilePath);
+  const unitTestLocation = getUnitTestLocationForPath(dirName);
+  const normalizedUnitPath = normalizePath(unitTestLocation);
+  const vcDir = getVectorCastInstallationLocation();
+
+  if (vcDir) {
+    const vcShellCommand = path.join(normalizePath(vcDir), `vcshell`);
+    const commandToRun = `${vcShellCommand}`;
+    const infoMessage = `Creating vcshell for ${fileName} in ${normalizedUnitPath}`;
+    await executeWithRealTimeEchoWithProgress(
+      commandToRun,
+      ["gcc", "-c", normalizeFilePath],
+      normalizedUnitPath,
+      infoMessage
+    );
+  }
 }
