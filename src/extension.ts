@@ -126,6 +126,7 @@ import {
   newTestScript,
   openCodedTest,
   ProjectEnvParameters,
+  createNewCFGFile,
 } from "./vcastTestInterface";
 
 import {
@@ -1855,6 +1856,131 @@ async function installPreActivationEventHandlers(
            window.compilerData = ${compilerList};
          </script>\n</head>`
       );
+
+    return html;
+  }
+
+  const createNewCFGCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createNewCFG",
+    async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders?.length) {
+        vscode.window.showErrorMessage("Open a folder first.");
+        return;
+      }
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "newCFG",
+        "Create New CFG File",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      panel.webview.html = await getNewCFGWebviewContent(
+        context,
+        panel,
+        compilerTagList
+      );
+
+      panel.webview.onDidReceiveMessage(
+        async (msg) => {
+          switch (msg.command) {
+            case "submit": {
+              const compilerName: string | undefined = msg.compilerName?.trim();
+              const enableCodedTests: boolean = !!msg.enableCodedTests;
+
+              if (!compilerName) {
+                vscode.window.showErrorMessage(
+                  "Compiler selection is required."
+                );
+                return;
+              }
+              const compilerTag = compilerTagList[compilerName];
+              if (!compilerTag) {
+                vscode.window.showErrorMessage(
+                  `No compiler tag found for "${compilerName}".`
+                );
+                return;
+              }
+
+              vscode.window.showInformationMessage(
+                `Creating new CFG file using compiler: ${compilerName} (EnableCodedTests=${enableCodedTests})`
+              );
+
+              // pass flag to implementation
+              await createNewCFGFile(
+                workspaceRoot,
+                compilerTag,
+                enableCodedTests
+              );
+
+              panel.dispose();
+              break;
+            }
+            case "cancel":
+              panel.dispose();
+              break;
+          }
+        },
+        undefined,
+        context.subscriptions
+      );
+    }
+  );
+
+  context.subscriptions.push(createNewCFGCmd);
+
+  async function getNewCFGWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    compilerTagList: Record<string, string>,
+    defaultEnableCodedTests: boolean = false
+  ): Promise<string> {
+    // Build paths for webview files
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(path.join(base, "css", "newCFG.css"));
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "newCFG.js")
+    );
+    const htmlPath = path.join(base, "html", "newCFG.html");
+
+    // convert to URI
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // JSON list of compilers for autocomplete
+    const compilerList = JSON.stringify(Object.keys(compilerTagList ?? {}));
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+
+    // build CSP meta (need to allow our scripts with our generated nonce)
+    const csp = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+
+    // Insert CSP immediately after the opening <head>
+    html = html.replace(/<head>/i, `<head>${csp}`);
+    html = html.replace(/{{\s*cssUri\s*}}/g, cssUri.toString());
+    html = html.replace(
+      /<script\s+src="{{\s*scriptUri\s*}}"><\/script>/i,
+      `<script nonce="${nonce}" src="${scriptUri}"></script>`
+    );
+
+    // Inline script to expose compilerData and enableCodedTests to the webview client
+    const injectedScript = `<script nonce="${nonce}">
+      window.compilerData = ${compilerList};
+      window.enableCodedTests = ${JSON.stringify(!!defaultEnableCodedTests)};
+    </script>`;
+    html = html.replace(/\{\{\s*compilerDataScript\s*\}\}/g, injectedScript);
 
     return html;
   }

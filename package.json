@@ -49,6 +49,10 @@
         "title": "VectorCAST: Create New Project"
       },
       {
+        "command": "vectorcastTestExplorer.createNewCFG",
+        "title": "VectorCAST: Create New CFG"
+      },
+      {
         "command": "vectorcastTestExplorer.configure",
         "category": "VectorCAST Test Explorer",
         "title": "Configure"
@@ -401,7 +405,11 @@
       "file/newFile": [
         {
           "command": "vectorcastTestExplorer.createNewProject",
-          "group": "1_createnew"
+          "group": "VectorCAST: New Ressources"
+        },
+        {
+          "command": "vectorcastTestExplorer.createNewCFG",
+          "group": "VectorCAST: New Ressources"
         }
       ],
       "commandPalette": [

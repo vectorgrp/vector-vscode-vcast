@@ -1197,3 +1197,9 @@ export async function getMCDCResultFile(
 
   return resultFile;
 }
+
+export async function createNewCFGFile(
+  workspaceRoot: string,
+  compilerTag: string,
+  enableCodedTest: boolean
+) {}
