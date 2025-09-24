@@ -1201,5 +1201,6 @@ export async function getMCDCResultFile(
 export async function createNewCFGFile(
   workspaceRoot: string,
   compilerTag: string,
-  enableCodedTest: boolean
+  enableCodedTest: boolean,
+  defaultCFG: boolean
 ) {}

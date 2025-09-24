@@ -1894,6 +1894,7 @@ async function installPreActivationEventHandlers(
             case "submit": {
               const compilerName: string | undefined = msg.compilerName?.trim();
               const enableCodedTests: boolean = !!msg.enableCodedTests;
+              const defaultCFG: boolean = !!msg.defaultCFG;
 
               if (!compilerName) {
                 vscode.window.showErrorMessage(
@@ -1901,6 +1902,7 @@ async function installPreActivationEventHandlers(
                 );
                 return;
               }
+
               const compilerTag = compilerTagList[compilerName];
               if (!compilerTag) {
                 vscode.window.showErrorMessage(
@@ -1910,22 +1912,21 @@ async function installPreActivationEventHandlers(
               }
 
               vscode.window.showInformationMessage(
-                `Creating new CFG file using compiler: ${compilerName} (EnableCodedTests=${enableCodedTests})`
+                `Creating new CFG file using compiler: ${compilerName} ` +
+                  `(EnableCodedTests=${enableCodedTests}, DefaultCFG=${defaultCFG})`
               );
 
-              // pass flag to implementation
+              // Pass flags to implementation
               await createNewCFGFile(
                 workspaceRoot,
                 compilerTag,
-                enableCodedTests
+                enableCodedTests,
+                defaultCFG
               );
 
               panel.dispose();
               break;
             }
-            case "cancel":
-              panel.dispose();
-              break;
           }
         },
         undefined,
@@ -1939,8 +1940,7 @@ async function installPreActivationEventHandlers(
   async function getNewCFGWebviewContent(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
-    compilerTagList: Record<string, string>,
-    defaultEnableCodedTests: boolean = false
+    compilerTagList: Record<string, string>
   ): Promise<string> {
     // Build paths for webview files
     const base = resolveWebviewBase(context);
@@ -1978,7 +1978,8 @@ async function installPreActivationEventHandlers(
     // Inline script to expose compilerData and enableCodedTests to the webview client
     const injectedScript = `<script nonce="${nonce}">
       window.compilerData = ${compilerList};
-      window.enableCodedTests = ${JSON.stringify(!!defaultEnableCodedTests)};
+      window.enableCodedTests = ${false};
+      window.defaultCFG = ${false}
     </script>`;
     html = html.replace(/\{\{\s*compilerDataScript\s*\}\}/g, injectedScript);
 
