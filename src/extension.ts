@@ -127,6 +127,7 @@ import {
   openCodedTest,
   ProjectEnvParameters,
   createNewCFGFile,
+  ConfigurationOptions,
 } from "./vcastTestInterface";
 
 import {
@@ -1895,6 +1896,10 @@ async function installPreActivationEventHandlers(
               const compilerName: string | undefined = msg.compilerName?.trim();
               const enableCodedTests: boolean = !!msg.enableCodedTests;
               const defaultCFG: boolean = !!msg.defaultCFG;
+              const configurationOptions: ConfigurationOptions = {
+                enableCodedTests: enableCodedTests,
+                defaultCFG: defaultCFG,
+              };
 
               if (!compilerName) {
                 vscode.window.showErrorMessage(
@@ -1911,17 +1916,11 @@ async function installPreActivationEventHandlers(
                 return;
               }
 
-              vscode.window.showInformationMessage(
-                `Creating new CFG file using compiler: ${compilerName} ` +
-                  `(EnableCodedTests=${enableCodedTests}, DefaultCFG=${defaultCFG})`
-              );
-
               // Pass flags to implementation
               await createNewCFGFile(
                 workspaceRoot,
                 compilerTag,
-                enableCodedTests,
-                defaultCFG
+                configurationOptions
               );
 
               panel.dispose();
