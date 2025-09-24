@@ -205,16 +205,13 @@ const GENERATE_REQUIREMENTS_ENABLED: boolean = true;
 let CODE2REQS_EXECUTABLE_PATH: string;
 let REQS2TESTS_EXECUTABLE_PATH: string;
 let PANREQ_EXECUTABLE_PATH: string;
+let LLM2CHECK_EXECUTABLE_PATH: string;
 
-/**
- * Sets up the paths to the executables used by the autoreq feature. Distinguishes between github CI and local.
- * @param context vscode Context
- */
-function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
 const NECCESSARY_REQS2X_EXECUTABLES = [
   "code2reqs",
   "reqs2tests",
   "panreq",
+  "llm2check",
 ];
 
 function initializeReqs2X(context: vscode.ExtensionContext) {
@@ -316,15 +313,14 @@ function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
   ).fsPath;
   PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
-    "resources",
-    "distribution",
     "panreq"
   ).fsPath;
-}
-function setHardcodedEnvVars() {
-  for (const [key, value] of Object.entries(HARDCODED_ENV_VARS)) {
-    process.env[key] = value;
-  }
+  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    "llm2check"
+  ).fsPath;
+
+  return true;
 }
 
 let requirementsFileWatcher: vscode.FileSystemWatcher | undefined;
@@ -2481,12 +2477,12 @@ async function generateRequirements(enviroPath: string) {
         }
       }, 1000);
 
-      return await new Promise<void>((resolve, reject) => {
-        const process = spawnWithVcastEnv(
-          CODE2REQS_EXECUTABLE_PATH,
-          commandArgs
-        );
+      const process = await spawnWithVcastEnv(
+        CODE2REQS_EXECUTABLE_PATH,
+        commandArgs
+      );
 
+      return await new Promise<void>((resolve, reject) => {
         cancellationToken.onCancellationRequested(() => {
           process.kill();
           clearInterval(simulatedProgressInterval);
@@ -2696,11 +2692,12 @@ async function generateTestsFromRequirements(
         }
       }, 2000);
 
+      const process = await spawnWithVcastEnv(
+        REQS2TESTS_EXECUTABLE_PATH,
+        commandArgs
+      );
+
       return new Promise<void>((resolve, reject) => {
-        const process = spawnWithVcastEnv(
-          REQS2TESTS_EXECUTABLE_PATH,
-          commandArgs
-        );
         console.log(`reqs2tests ${commandArgs.join(" ")}`);
 
         cancellationToken.onCancellationRequested(() => {
@@ -2857,9 +2854,9 @@ async function importRequirementsFromGateway(enviroPath: string) {
         }
       }, 500);
 
-      return new Promise<void>((resolve, reject) => {
-        const proc = spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
+      const proc = await spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
+      return new Promise<void>((resolve, reject) => {
         cancellationToken.onCancellationRequested(() => {
           proc.kill();
           clearInterval(simulatedProgressInterval);
@@ -2966,9 +2963,9 @@ async function populateRequirementsGateway(enviroPath: string) {
   const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
-  return new Promise<void>((resolve, reject) => {
-    const process = spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
+  const process = await spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
+  return new Promise<void>((resolve, reject) => {
     process.stdout.on("data", (data) => {
       const output = data.toString().trim();
       logCliOperation(`panreq: ${output}`);
@@ -3103,11 +3100,32 @@ function generateRequirementsHtml(requirements: any[]): string {
   return htmlContent;
 }
 
+
 interface LLMProviderSettingsResult {
   provider: string | null;
   env: Record<string, string>;
-  valid: boolean;
   missing: string[];
+}
+
+function isLLMProviderEnvironmentUsable(additionalEnv?: NodeJS.ProcessEnv): Promise<{ usable: boolean; problem: string | null }> {
+  const proc = spawn(LLM2CHECK_EXECUTABLE_PATH, ['--json'], { env: additionalEnv });
+
+  return new Promise((resolve) => {
+    let output = '';
+    proc.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    proc.on('close', () => {
+      try {
+        const result = JSON.parse(output);
+        resolve({ usable: result.usable, problem: result.problem || null });
+      } catch (e) {
+        console.error(`Failed to parse llm2check output: ${e}`);
+        resolve({ usable: false, problem: 'Failed to parse llm2check output' } );
+      }
+    });
+  });
 }
 
 function gatherLLMProviderSettings(): LLMProviderSettingsResult {
@@ -3210,10 +3228,10 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
     missing.push("Unsupported provider value");
   }
 
-  return { provider, env: baseEnv, valid: missing.length === 0, missing };
+  return { provider, env: baseEnv, missing };
 }
 
-function createProcessEnvironment(): NodeJS.ProcessEnv {
+async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
   const processEnv = { ...process.env };
 
 
@@ -3223,10 +3241,28 @@ function createProcessEnvironment(): NodeJS.ProcessEnv {
   // Setup LLM provider settings
   const gatheredSettings = gatherLLMProviderSettings();
   console.log(gatheredSettings);
-  if (!gatheredSettings.valid) {
+
+  for (const [k, v] of Object.entries(gatheredSettings.env)) {
+    if (v) processEnv[k] = v;
+  }
+
+  const { usable, problem } = await isLLMProviderEnvironmentUsable(processEnv);
+
+  if (!usable) {
+    // TODO: Error based on what the problem was i.e. missing stuff or something else
+    const causedByMissing = problem?.includes("No provider configuration found");
+
+    let errorMessage: string;
+
+    if (causedByMissing) {
+        errorMessage = `Required information to run Reqs2X with currently selected LLM provider (${gatheredSettings.provider}) is missing: ${gatheredSettings.missing.join(", ")}`;
+    } else {
+        errorMessage = `The current LLM provider settings for Reqs2X (either set in the extension or in the environment) are not usable: ${problem}`;
+    }
+
     vscode.window
       .showErrorMessage(
-        `Required information to run Reqs2X with currently selected LLM provider (${gatheredSettings.provider}) is missing: ${gatheredSettings.missing.join(", ")}`,
+        errorMessage,
         "Open Settings"
       )
       .then((choice) => {
@@ -3235,10 +3271,6 @@ function createProcessEnvironment(): NodeJS.ProcessEnv {
         }
       });
     throw new Error("Missing LLM provider settings");
-  }
-
-  for (const [k, v] of Object.entries(gatheredSettings.env)) {
-    if (v) processEnv[k] = v;
   }
 
   // Add non-provider specific settings (language, debug) here
@@ -3256,11 +3288,11 @@ function createProcessEnvironment(): NodeJS.ProcessEnv {
   return processEnv;
 }
 
-function spawnWithVcastEnv(
+async function spawnWithVcastEnv(
   command: string,
   args: string[],
   options: any = {}
-): ChildProcessWithoutNullStreams {
-  const env = createProcessEnvironment();
+): Promise<ChildProcessWithoutNullStreams> {
+  const env = await createProcessEnvironment();
   return spawn(command, args, { ...options, env });
 }
