@@ -3132,13 +3132,12 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
   const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
 
   const provider = config.get<string>("reqs2x.provider");
-  const baseEnv: Record<string, string> = {}; // only provider specific entries here
+  const baseEnv: Record<string, string> = {};
   const missing: string[] = [];
 
-  // Enforce provider selection
   if (!provider) {
     missing.push("Provider (reqs2x.provider)");
-    return { provider: null, env: baseEnv, valid: false, missing };
+    return { provider: null, env: baseEnv, missing };
   }
 
   function need(value: string | undefined, label: string, envVarName: string) {
@@ -3146,8 +3145,13 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       missing.push(label);
       return;
     }
-
     baseEnv[envVarName] = value;
+  }
+
+  function optional(value: string | undefined, envVarName: string) {
+    if (value) {
+      baseEnv[envVarName] = value;
+    }
   }
 
   if (provider === "azure_openai") {
@@ -3171,15 +3175,16 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       "Azure Model Name",
       "VCAST_REQS2X_AZURE_OPENAI_MODEL_NAME"
     );
-    need(
-      config.get<string>("reqs2x.azure.apiVersion"),
-      "Azure API Version",
-      "VCAST_REQS2X_AZURE_OPENAI_API_VERSION"
+    optional(
+      config.get<string>("reqs2x.azure.reasoningModelName"),
+      "VCAST_REQS2X_REASONING_AZURE_OPENAI_MODEL_NAME"
+    );
+    optional(
+      config.get<string>("reqs2x.azure.reasoningDeployment"),
+      "VCAST_REQS2X_REASONING_AZURE_OPENAI_DEPLOYMENT"
     );
   } else if (provider === "openai") {
-    // baseUrl optional
-    const baseUrl = config.get<string>("reqs2x.openai.baseUrl", "");
-    if (baseUrl) baseEnv.VCAST_REQS2X_OPENAI_BASE_URL = baseUrl;
+    optional(config.get<string>("reqs2x.openai.baseUrl"), "VCAST_REQS2X_OPENAI_BASE_URL");
     need(
       config.get<string>("reqs2x.openai.apiKey"),
       "OpenAI API Key",
@@ -3189,6 +3194,10 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       config.get<string>("reqs2x.openai.modelName"),
       "OpenAI Model Name",
       "VCAST_REQS2X_OPENAI_MODEL_NAME"
+    );
+    optional(
+      config.get<string>("reqs2x.openai.reasoningModelName"),
+      "VCAST_REQS2X_REASONING_OPENAI_MODEL_NAME"
     );
   } else if (provider === "anthropic") {
     need(
@@ -3201,23 +3210,33 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       "Anthropic Model Name",
       "VCAST_REQS2X_ANTHROPIC_MODEL_NAME"
     );
+    optional(
+      config.get<string>("reqs2x.anthropic.reasoningModelName"),
+      "VCAST_REQS2X_REASONING_ANTHROPIC_MODEL_NAME",
+    );
   } else if (provider === "litellm") {
     need(
       config.get<string>("reqs2x.litellm.modelName"),
       "LiteLLM Model Name",
       "VCAST_REQS2X_LITELLM_MODEL_NAME"
     );
+    optional(
+      config.get<string>("reqs2x.litellm.reasoningModelName"),
+      "VCAST_REQS2X_REASONING_LITELLM_MODEL_NAME",
+    );
+
     const litellmProviderEnvVarsString = config.get<string>(
       "reqs2x.litellm.providerEnvVars",
       ""
     );
     const entries = litellmProviderEnvVarsString
       .split(",")
-      .map((pair) => pair.split("="));
+      .map((pair) => pair.split("="))
+      .filter((kv) => kv[0].trim().length);
 
     if (entries.some((entryValues) => entryValues.length !== 2)) {
       missing.push(
-        "LiteLLM Provider Environment Variables must be in KEY=VALUE format, separated by commas"
+        "LiteLLM Provider Environment Variables must be KEY=VALUE pairs"
       );
     } else {
       for (const [key, value] of entries) {
