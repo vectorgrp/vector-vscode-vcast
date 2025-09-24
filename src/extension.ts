@@ -197,9 +197,11 @@ function logCliError(message: string, show: boolean | null = null): void {
   }
 }
 
+let reqs2XFeatureEnabled: boolean = false;
+
 const GENERATE_REQUIREMENTS_ENABLED: boolean = true;
 
-// Setup the paths to the code2reqs and reqs2tests executables
+// Setup the paths to the reqs2x executables
 let CODE2REQS_EXECUTABLE_PATH: string;
 let REQS2TESTS_EXECUTABLE_PATH: string;
 let PANREQ_EXECUTABLE_PATH: string;
@@ -209,6 +211,68 @@ let PANREQ_EXECUTABLE_PATH: string;
  * @param context vscode Context
  */
 function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
+const NECCESSARY_REQS2X_EXECUTABLES = [
+  "code2reqs",
+  "reqs2tests",
+  "panreq",
+];
+
+function initializeReqs2X(context: vscode.ExtensionContext) {
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer.reqs2x");
+  reqs2XFeatureEnabled = config.get<boolean>("enableReqs2xFeature") || false;
+
+  let featureEnabled: boolean = false;
+  if (!reqs2XFeatureEnabled) {
+    featureEnabled = false;
+  } else {
+    setupRequirementsFileWatchers(context);
+    const successful = setupReqs2XExecutablePaths(context);
+
+    if (!successful) {
+      featureEnabled = false;
+      // Tell the user that we couldn't find the executables as an error popup and offer to open settings
+      vscode.window.showErrorMessage(
+        "Could not find the reqs2X executables anywhere, disabling Reqs2X. Please check your settings.",
+        "Open Settings"
+      ).then((selection) => {
+        if (selection === "Open Settings") {
+          showSettings();
+        }
+      });
+    } else {
+      featureEnabled = true;
+    }
+  }
+
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.reqs2xFeatureEnabled",
+    featureEnabled
+  );
+}
+
+function getAutoreqExecutableDirectory(context: vscode.ExtensionContext): vscode.Uri | undefined {
+  const pathHasAllExecutables = (dirPath: string): boolean => {
+    return NECCESSARY_REQS2X_EXECUTABLES.every((exe) => fs.existsSync(vscode.Uri.joinPath(vscode.Uri.file(dirPath), exe).fsPath));
+  }
+
+  // Resolve the location of the reqs2x executables according to the following priority:
+
+  // 1. Reqs2X path setting
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer.reqs2x");
+  const installationLocation = config.get<string>("installationLocation");
+
+  if (installationLocation && pathHasAllExecutables(installationLocation)) {
+    return vscode.Uri.file(installationLocation);
+  }
+
+  // 2. VectorCAST installation path setting
+  if (pathHasAllExecutables(vcastInstallationDirectory)) {
+    return vscode.Uri.file(vcastInstallationDirectory);
+  }
+
+  // 3. Search in vsixResourceBasePath
+
   // We need to check if we are on CI because in that case we have to use an alternate base dir to the resource files
   const isCI = process.env.HOME?.startsWith("/github") ?? false;
 
@@ -224,20 +288,30 @@ function setupAutoreqExecutablePaths(context: vscode.ExtensionContext) {
     logCliOperation(`Found VSIX resource folder at: ${vsixResourceBasePath}`);
   }
 
-  const baseUri = isCI
+  const vsixBaseURI = isCI
     ? vscode.Uri.file(vsixResourceBasePath)
     : context.extensionUri;
 
+  if (pathHasAllExecutables(vsixBaseURI.fsPath)) {
+    return vscode.Uri.joinPath(vsixBaseURI, "resources", "distribution");
+  }
+
+  return undefined;
+}
+
+function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
+  const baseUri = getAutoreqExecutableDirectory(context);
+
+  if (!baseUri) {
+    return false;
+  }
+
   CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
-    "resources",
-    "distribution",
     "code2reqs"
   ).fsPath;
   REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
-    "resources",
-    "distribution",
     "reqs2tests"
   ).fsPath;
   PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
@@ -322,8 +396,6 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
   }
 }
 
-const HARDCODED_ENV_VARS: Record<string, string> = {};
-
 async function getEnvironmentListIncludingUnbuilt(
   workspacePath: string
 ): Promise<string[]> {
@@ -391,14 +463,16 @@ async function activationLogic(context: vscode.ExtensionContext) {
     }
   }
 
-  // Setup file watchers for requirements files
-  setupRequirementsFileWatchers(context);
-
-  setupAutoreqExecutablePaths(context);
-  setHardcodedEnvVars();
+  initializeReqs2X(context);
 }
 
+let alreadyInitializedFileWatchers: boolean = false;
 function setupRequirementsFileWatchers(context: vscode.ExtensionContext) {
+  if (alreadyInitializedFileWatchers) {
+    return;
+  }
+  alreadyInitializedFileWatchers = true;
+
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
     // Create a file watcher that watches for requirements files changes
     // using a glob pattern to match all reqs.csv and reqs.xlsx files in the workspace
@@ -1593,6 +1667,11 @@ async function installPreActivationEventHandlers(
           // before the "refreshAllExtensionData" call in the TRUE case.
           await initializeServerState();
         }
+      } else if(
+        event.affectsConfiguration("vectorcastTestExplorer.reqs2x.installationLocation") || event.affectsConfiguration("vectorcastTestExplorer.reqs2x.enableReqs2xFeature")
+      ) {
+        // If the user changes the path to reqs2x or tries to enable or disable the feature, we re-initialize
+        initializeReqs2X(context);
       }
     }
     // pre-configuration, we only handle changes to the vcast installation location
@@ -3152,7 +3231,7 @@ function createProcessEnvironment(): NodeJS.ProcessEnv {
       )
       .then((choice) => {
         if (choice === "Open Settings") {
-          vscode.commands.executeCommand("vectorcastTestExplorer.showSettings");
+          showSettings();
         }
       });
     throw new Error("Missing LLM provider settings");
