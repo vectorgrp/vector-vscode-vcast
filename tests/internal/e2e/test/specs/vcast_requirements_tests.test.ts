@@ -96,7 +96,16 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Setting Provider");
 
-    // 1) Select provider -> "openai"
+    // 1) Enable Reqs2X
+    const enabledSetting = await settingsEditor.findSetting(
+      "Enable Reqs2X Feature",
+      "Vectorcast Test Explorer",
+      "Reqs2x"
+    );
+    await enabledSetting.setValue(true);
+    await workbench.getEditorView().closeAllEditors();
+
+    // 2) Select provider -> "openai"
     const providerSetting = await settingsEditor.findSetting(
       "Provider",
       "Vectorcast Test Explorer",
@@ -105,7 +114,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await providerSetting.setValue("openai");
     await workbench.getEditorView().closeAllEditors();
 
-    // 2) Set API key (placeholder)
+    // 3) Set API key (placeholder)
     console.log("Setting API Key");
     const settingsEditor2 = await workbench.openSettings();
     const apiKeySetting = await settingsEditor2.findSetting(
@@ -116,7 +125,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await apiKeySetting.setValue(process.env.OPENAI_API_KEY ?? "");
     await workbench.getEditorView().closeAllEditors();
 
-    // 3) Set model name (placeholder)
+    // 4) Set model name (placeholder)
     console.log("Setting Model Name");
     const settingsEditor3 = await workbench.openSettings();
     const modelSetting = await settingsEditor3.findSetting(
