@@ -105,26 +105,6 @@ jobs:
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
 
-      - name: Package with VSCE - Linux
-        run: |
-          mv /tmp/linux_distribution ./resources/distribution
-          npm run package
-          rm -rf ./resources/distribution
-          VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
-          NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
-          mv $VSIX_FILE $NEW_VSIX_FILE
-          echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
-
-      - name: Package with VSCE - Windows
-        run: |
-          mv /tmp/win_distribution ./resources/distribution
-          npm run package
-          rm -rf ./resources/distribution
-          VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
-          NEW_VSIX_FILE="${VSIX_FILE%.vsix}.win.vsix"
-          mv $VSIX_FILE $NEW_VSIX_FILE
-          echo "WIN_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
-
       - name: Vcast activation
         run: |
           RELEASE_DIR=/vcast/${{ matrix.vcast }}
@@ -195,29 +175,22 @@ jobs:
           cd ..
           
           echo "## Distribution - Linux" >> $GITHUB_STEP_SUMMARY
-          if [[ -f ${{ env.LINUX_VSIX_FILE }} ]] ; then
-             VSIX_FILE=${{ env.LINUX_VSIX_FILE }}
-             cp $VSIX_FILE distribution/$(basename "${VSIX_FILE%.linux.vsix}.vsix")
-             tar -cvzf VectorCAST-Reqs2Tests-Linux.tar.gz distribution > /dev/null
-             URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
-             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Linux.tar.gz
-             echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
-             rm distribution/*.vsix
-          else
-             echo "Unable to build distribution for Linux" >> $GITHUB_STEP_SUMMARY
-          fi
+          mkdir -p distribution/bin
+          cp -r /tmp/linux_distribution/* distribution/bin
+          tar -cvzf VectorCAST-Reqs2Tests-Linux.tar.gz distribution > /dev/null
+          URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Linux.tar.gz
+          echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
+          rm -rf distribution/bin
           
           echo "## Distribution - Windows" >> $GITHUB_STEP_SUMMARY
-          if [[ -f ${{ env.WIN_VSIX_FILE }} ]] ; then
-             VSIX_FILE=${{ env.WIN_VSIX_FILE }}
-             cp $VSIX_FILE distribution/$(basename "${VSIX_FILE%.win.vsix}.vsix")
-             tar -cvzf VectorCAST-Reqs2Tests-Windows.tar.gz distribution > /dev/null
-             URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Windows.tar.gz"
-             curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Windows.tar.gz
-             echo "[Download distribution - Windows]($URL)" >> $GITHUB_STEP_SUMMARY
-          else
-             echo "Unable to build distribution for Windows" >> $GITHUB_STEP_SUMMARY
-          fi
+          mkdir -p distribution/bin
+          cp -r /tmp/win_distribution/* distribution/bin
+          tar -cvzf VectorCAST-Reqs2Tests-Windows.tar.gz distribution > /dev/null
+          URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Windows.tar.gz"
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Windows.tar.gz
+          echo "[Download distribution - Windows]($URL)" >> $GITHUB_STEP_SUMMARY
+          rm -rf distribution/bin
           
           rm -rf distribution VectorCAST-Reqs2Tests-*.tar.gz
 
