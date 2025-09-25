@@ -27,6 +27,7 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
 jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
@@ -45,7 +46,7 @@ jobs:
       options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
 
     strategy:
-      fail-fast: false   # ⬅ allow all matrix versions to run even if one fails
+      fail-fast: false   # allow all matrix versions to run even if one fails
       matrix:
         vcast: ${{ fromJSON(vars.VCAST_VERSIONS) }}
 
@@ -67,7 +68,6 @@ jobs:
         if: failure()
         uses: actions/checkout@v4
 
-      # Run tests
       - name: Restore cached dependencies
         id: cache-dependencies-restore
         uses: actions/cache/restore@v4
@@ -101,7 +101,6 @@ jobs:
 
           # Move extracted distribution contents into a stable resources directory
           mkdir -p "$GITHUB_WORKSPACE/resources"
-          # 'distribution' folder is produced by the script; move its content into resources
           if [ -d distribution ]; then
             mv distribution/* "$GITHUB_WORKSPACE/resources/" || true
             rm -rf distribution || true
@@ -109,6 +108,8 @@ jobs:
 
           # Export RESOURCES_DIR for downstream steps (job-level env)
           echo "RESOURCES_DIR=$GITHUB_WORKSPACE/resources" >> $GITHUB_ENV
+          echo "Resources placed at: $RESOURCES_DIR"
+          ls -R "$RESOURCES_DIR" || true
 
       - name: Vcast activation
         run: |
@@ -178,14 +179,11 @@ jobs:
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast, Linux]
-
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
       options: --user vcast_user
-
     outputs:
       version_group_matrix: ${{ steps.set-matrix.outputs.matrix }}
-
     steps:
       - name: Check out repository
         id: checkout
@@ -208,7 +206,6 @@ jobs:
         id: set-matrix
         env:
           VCAST_VERSIONS: ${{ vars.VCAST_VERSIONS }}
-          # Pass through the SPEC_GROUP to our matrix generator so it can prioritize matching tests
           PRIORITIZE_SPEC_GROUP: ${{ github.event.inputs.prioritize-spec-group || '' }}
         run: |
           echo "PRIORITIZE_SPEC_GROUP=${PRIORITIZE_SPEC_GROUP}" >> $GITHUB_ENV
@@ -221,17 +218,13 @@ jobs:
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast, Linux]
-
     container:
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
       options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
-
     strategy:
-      # ⬅ let all groups run even if one fails
-      fail-fast: false  
+      fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.generate-e2e-matrix.outputs.version_group_matrix) }}
-
     env:
       BRANCH_REF: ${{ github.ref }}
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -242,7 +235,7 @@ jobs:
       LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
       PRIORITIZE_SPEC_GROUP: ${{ github.event.inputs.prioritize-spec-group || '' }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }} 
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Check out repository
@@ -281,7 +274,7 @@ jobs:
           path: |
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
-      
+
       - name: Pull latest reqs2tests release (resources only - linux)
         shell: bash
         run: |
@@ -308,7 +301,6 @@ jobs:
         id: package_vsix
         run: |
           # Ensure extension packaging does not pick up the resources directory
-          # (do not copy resources into extension resources folder)
           npm run package
 
           # locate the produced .vsix (take the first one in workspace)
@@ -317,31 +309,17 @@ jobs:
             echo "Error: no .vsix found after packaging."
             exit 1
           fi
+
+          # export path for subsequent step in this job
           echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
           echo "Packaged VSIX: $VSIX_FILE"
 
-      - name: Upload VSIX to Artifactory (downloadable link)
-        if: success()
-        shell: bash
-        run: |
-          # Build an Artifactory path similar to previous distribution uploads
-          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"
-
-          if [ -z "${VSIX_FILE}" ]; then
-            # If VSIX_FILE wasn't exported, attempt to find it
-            VSIX_FILE=$(find "$GITHUB_WORKSPACE" -maxdepth 2 -name "*.vsix" | head -n 1)
-          fi
-
-          if [ -z "$VSIX_FILE" ]; then
-            echo "Warning: VSIX file not found, skipping Artifactory upload."
-          else
-            VSIX_BASENAME=$(basename "$VSIX_FILE")
-            URL="$ARTIFACTORY_URL/$VSIX_BASENAME"
-            # Upload to Artifactory (requires ARTIFACTORY_TOKEN)
-            curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT "$URL" -T "$VSIX_FILE"
-            echo "[Download extension]($URL)" >> $GITHUB_STEP_SUMMARY
-          fi
+      - name: Upload VSIX artifact (only once, first matrix job)
+        if: ${{ strategy.job-index == 0 }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: ${{ env.VSIX_FILE }}
 
       - name: Restore cached dependencies - node
         id: cache-dependencies-restore-node
@@ -357,7 +335,7 @@ jobs:
         with:
           path: |
             tests/internal/e2e/.wdio-vscode-service
-          key: ${{ runner.os }}-dependencies-webdriver-vscode
+          key: ${{ runner.os }}-dependencies-webdriver-vscode }}
 
       - name: Vcast activation
         run: |
@@ -393,7 +371,7 @@ jobs:
           echo "### Run summary - Vcast ${{ matrix.version }} - Group ${{ matrix.group }}" >> $GITHUB_STEP_SUMMARY
           content=$([ -s ./tests/internal/e2e/gh_e2e_summary.md ] && cat ./tests/internal/e2e/gh_e2e_summary.md || echo 'Not available')
           echo "${content}" >> $GITHUB_STEP_SUMMARY
-          
+
           COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
           ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/tests-results"
           count=`ls -1 tests/internal/e2e/*.png 2>/dev/null | wc -l`
@@ -402,7 +380,7 @@ jobs:
             tar -cvzf e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots.tar.gz *.png > /dev/null
             URL="$ARTIFACTORY_URL/e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots/"
             curl -H "X-Explode-Archive: true" -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T e2e_vcast${{ matrix.version }}_${{ matrix.group }}_screenshots.tar.gz
-            cd ../../.. 
+            cd ../../..
             echo "[Screenshots]($URL)" >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -422,29 +400,63 @@ jobs:
             tests/internal/e2e/.wdio-vscode-service
           key: ${{ runner.os }}-dependencies-webdriver-vscode
 
-      - name: Upload release asset (single vsix)
-        if: ${{ github.event_name == 'release' && success() }}
+  publish-vsix:
+    needs: e2e-tests
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to upload release assets
+      actions: read
+    steps:
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: ./artifact
+
+      - name: Find VSIX file
+        id: find_vsix
         shell: bash
         run: |
-          # Use env VSIX_FILE if present, otherwise try to find it
-          if [ -z "${{ env.VSIX_FILE }}" ] || [ "${{ env.VSIX_FILE }}" = "null" ]; then
-            VSIX_FILE=$(find "$GITHUB_WORKSPACE" -maxdepth 2 -name "*.vsix" | head -n 1)
-          else
-            VSIX_FILE="${{ env.VSIX_FILE }}"
-          fi
-
+          VSIX_FILE=$(find ./artifact -name "*.vsix" | head -n 1 || true)
           if [ -z "$VSIX_FILE" ]; then
-            echo "Error: VSIX file not found to upload."
-            exit 1
+            echo "no_vsix=true" >> $GITHUB_OUTPUT
+            echo "VSIX_FILE not found."
+            exit 0
           fi
+          echo "vsix_path=$VSIX_FILE" >> $GITHUB_OUTPUT
 
+      - name: Upload VSIX to Artifactory and write summary box
+        if: steps.find_vsix.outputs.no_vsix != 'true'
+        shell: bash
+        env:
+          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+        run: |
+          VSIX_FILE="${{ steps.find_vsix.outputs.vsix_path }}"
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S || date -u +%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"
+          VSIX_BASENAME=$(basename "$VSIX_FILE")
+          URL="$ARTIFACTORY_URL/$VSIX_BASENAME"
+          echo "Uploading VSIX to Artifactory: $URL"
+          curl -H "X-JFrog-Art-Api:${ARTIFACTORY_TOKEN}" -X PUT "$URL" -T "$VSIX_FILE"
+          # Create a single "Download extension" box in the run summary
+          echo "## Download Extension" >> $GITHUB_STEP_SUMMARY
+          echo "[Download extension]($URL)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload VSIX to GitHub Release (if this is a release event)
+        if: ${{ github.event_name == 'release' && steps.find_vsix.outputs.no_vsix != 'true' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VSIX_FILE="${{ steps.find_vsix.outputs.vsix_path }}"
           url="${{ github.event.release.upload_url }}"
           upload_url=${url%%\{*}?name=vectorcasttestexplorer-${{ github.event.release.tag_name }}.vsix
-
+          echo "Uploading to GitHub Release: $upload_url"
           curl -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             -H "Content-Type: application/octet-stream" \
             "$upload_url" \
@@ -454,142 +466,147 @@ jobs:
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast, Linux]
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
 
-    container:	
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting	
-      options: --user vcast_user	
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
 
-    steps:	
-      - name: Check out repository	
-        id: checkout	
-        uses: actions/checkout@v4	
-        continue-on-error: true	
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
 
-      - name: Wait before retry	
-        id: should-retry-checkout	
-        if: failure()	
-        continue-on-error: true	
-        run: |	
-          sleep 10	
-          exit 1	
-      - name: Check out repository (retry)	
-        if: failure()	
-        uses: actions/checkout@v4	
+      - name: Run black
+        shell: bash
+        run: |
+          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/' > output.log 2>&1; echo $? > exitcode.txt
 
-      - name: Run black	
-        shell: bash	
-        run: |	
-          /home/vcast_user/.venv/bin/python -m black . --check --extend-exclude '/(.*venv.*)/' > output.log 2>&1; echo $? > exitcode.txt	
-      - name: Summary	
-        shell: bash	
-        if: always()	
-        run: |	
-          echo "### Black output" >> $GITHUB_STEP_SUMMARY	
-          {	
-            echo '```'	
-            cat output.log	
-            echo '```'	
-          } >> $GITHUB_STEP_SUMMARY	
-      - name: Exit with code	
-        shell: bash	
-        if: always()	
-        run: |	
-          if [ -f exitcode.txt ]; then	
-              exit $(cat exitcode.txt)	
-          fi	
-  prettier:	
-    if: github.event.pull_request.draft == false	
-    permissions: write-all	
-    runs-on: [ self-hosted, vscode-vcast]	
+      - name: Summary
+        shell: bash
+        if: always()
+        run: |
+          echo "### Black output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
 
-    container:	
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting	
-      options: --user vcast_user	
-
-    steps:	
-      - name: Check out repository	
-        id: checkout	
-        uses: actions/checkout@v4	
-        continue-on-error: true	
-
-      - name: Wait before retry	
-        id: should-retry-checkout	
-        if: failure()	
-        continue-on-error: true	
-        run: |	
-          sleep 10	
-          exit 1	
-      - name: Check out repository (retry)	
-        if: failure()	
-        uses: actions/checkout@v4	
-
-      - name: Run prettier	
-        shell: bash	
-        run: |	
-          npm install prettier@$(node -pe "require('./package').devDependencies.prettier")	
-          npx prettier -c . > output.log 2>&1; echo $? > exitcode.txt	
-      - name: Summary	
-        shell: bash	
-        if: always()	
-        run: |	
-          echo "### Prettier output" >> $GITHUB_STEP_SUMMARY	
-          {	
-            echo '```'	
-            cat output.log	
-            echo '```'	
-          } >> $GITHUB_STEP_SUMMARY	
-      - name: Exit with code	
-        shell: bash	
-        if: always()	
-        run: |	
-          if [ -f exitcode.txt ]; then	
-              exit $(cat exitcode.txt)	
-          fi	
-  xo:	
-    if: github.event.pull_request.draft == false	
-    permissions: write-all	
-    runs-on: [ self-hosted, vscode-vcast]	
-
-    container:	
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting	
-      options: --user vcast_user	
-
-    steps:	
-      - name: Check out repository	
-        id: checkout	
-        uses: actions/checkout@v4	
-        continue-on-error: true	
-
-      - name: Wait before retry	
-        id: should-retry-checkout	
-        if: failure()	
-        continue-on-error: true	
-        run: |	
-          sleep 10	
-          exit 1	
-      - name: Check out repository (retry)	
-        if: failure()	
-        uses: actions/checkout@v4	
-
-      - name: Run xo	
-        shell: bash	
-        run: |	
-          npm install xo@$(node -pe "require('./package').dependencies.xo")	
-          npx xo tests/unit > output.log 2>&1; echo $? > exitcode.txt	
-      - name: Summary	
-        shell: bash	
-        if: always()	
-        run: |	
-          echo "### Xo output" >> $GITHUB_STEP_SUMMARY	
-          {	
-            echo '```'	
-            cat output.log	
-            echo '```'	
-          } >> $GITHUB_STEP_SUMMARY	
-      - name: Exit with code	
-        shell: bash	
-        if: always()	
-        run: |	
+      - name: Exit with code
+        shell: bash
+        if: always()
+        run: |
           if [ -f exitcode.txt ]; then
-              exit $(cat exitcode.txt)	
+              exit $(cat exitcode.txt)
+          fi
+
+  prettier:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast]
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Run prettier
+        shell: bash
+        run: |
+          npm install prettier@$(node -pe "require('./package').devDependencies.prettier")
+          npx prettier -c . > output.log 2>&1; echo $? > exitcode.txt
+
+      - name: Summary
+        shell: bash
+        if: always()
+        run: |
+          echo "### Prettier output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Exit with code
+        shell: bash
+        if: always()
+        run: |
+          if [ -f exitcode.txt ]; then
+              exit $(cat exitcode.txt)
+          fi
+
+  xo:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [ self-hosted, vscode-vcast]
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        id: should-retry-checkout
+        if: failure()
+        continue-on-error: true
+        run: |
+          sleep 10
+          exit 1
+
+      - name: Check out repository (retry)
+        if: failure()
+        uses: actions/checkout@v4
+
+      - name: Run xo
+        shell: bash
+        run: |
+          npm install xo@$(node -pe "require('./package').dependencies.xo")
+          npx xo tests/unit > output.log 2>&1; echo $? > exitcode.txt
+
+      - name: Summary
+        shell: bash
+        if: always()
+        run: |
+          echo "### Xo output" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '```'
+            cat output.log
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Exit with code
+        shell: bash
+        if: always()
+        run: |
+          if [ -f exitcode.txt ]; then
+              exit $(cat exitcode.txt)
           fi
