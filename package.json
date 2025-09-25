@@ -323,6 +323,11 @@
         "command": "vectorcastTestExplorer.populateRequirementsGateway",
         "category": "VectorCAST Test Explorer",
         "title": "Populate RGW from Requirements"
+      },
+      {
+        "command": "vectorcastTestExplorer.testLLMConfiguration",
+        "category": "VectorCAST Test Explorer",
+        "title": "Test if Reqs2X works with the current LLM configuration"
       }
     ],
     "keybindings": [
@@ -808,6 +813,10 @@
         {
           "command": "vectorcastTestExplorer.populateRequirementsGateway",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.testLLMConfiguration",
+          "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
         }
       ],
       "view/title": [

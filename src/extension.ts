@@ -730,6 +730,24 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(populateRequirementsGatewayCommand);
 
+  let testLLMConfigurationCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.testLLMConfiguration",
+    async (args: any) => {
+      const checkSuccessful = await performLLMProviderUsableCheck();
+
+      if (checkSuccessful) {
+        vscode.window.showInformationMessage(
+          "LLM configuration test was successful."
+        );
+      } else {
+        vscode.window.showErrorMessage(
+          "LLM configuration test failed."
+        );
+      }
+    }
+  );
+  context.subscriptions.push(testLLMConfigurationCommand);
+
   // Command: vectorcastTestExplorer.createTestScriptFromEditor////////////////////////////////////////////////////////
   // This is the callback for right clicks of the source editor flask+ icon
   let createTestScriptFromEditorCommand = vscode.commands.registerCommand(
@@ -3107,8 +3125,15 @@ interface LLMProviderSettingsResult {
   missing: string[];
 }
 
-function isLLMProviderEnvironmentUsable(additionalEnv?: NodeJS.ProcessEnv): Promise<{ usable: boolean; problem: string | null }> {
-  const proc = spawn(LLM2CHECK_EXECUTABLE_PATH, ['--json'], { env: additionalEnv });
+function isLLMProviderEnvironmentUsable(): Promise<{ usable: boolean; problem: string | null }> {
+  const processEnv = { ...process.env };
+
+  const gatheredSettings = gatherLLMProviderSettings();
+  for (const [k, v] of Object.entries(gatheredSettings.env)) {
+    if (v) processEnv[k] = v;
+  }
+
+  const proc = spawn(LLM2CHECK_EXECUTABLE_PATH, ['--json'], { env: processEnv });
 
   return new Promise((resolve) => {
     let output = '';
@@ -3250,22 +3275,8 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
   return { provider, env: baseEnv, missing };
 }
 
-async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
-  const processEnv = { ...process.env };
-
-
-  // Setup correct VectorCAST directory variable
-  processEnv.VSCODE_VECTORCAST_DIR = vcastInstallationDirectory;
-
-  // Setup LLM provider settings
-  const gatheredSettings = gatherLLMProviderSettings();
-  console.log(gatheredSettings);
-
-  for (const [k, v] of Object.entries(gatheredSettings.env)) {
-    if (v) processEnv[k] = v;
-  }
-
-  const { usable, problem } = await isLLMProviderEnvironmentUsable(processEnv);
+async function performLLMProviderUsableCheck(): Promise<boolean> {
+  const { usable, problem } = await isLLMProviderEnvironmentUsable();
 
   if (!usable) {
     // TODO: Error based on what the problem was i.e. missing stuff or something else
@@ -3289,7 +3300,24 @@ async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
           showSettings();
         }
       });
-    throw new Error("Missing LLM provider settings");
+
+    return false;
+  }
+
+  return true;
+}
+
+async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
+  const processEnv = { ...process.env };
+
+  // Setup correct VectorCAST directory variable
+  processEnv.VSCODE_VECTORCAST_DIR = vcastInstallationDirectory;
+
+  // Setup LLM provider settings
+  const gatheredSettings = gatherLLMProviderSettings();
+
+  for (const [k, v] of Object.entries(gatheredSettings.env)) {
+    if (v) processEnv[k] = v;
   }
 
   // Add non-provider specific settings (language, debug) here
@@ -3312,6 +3340,12 @@ async function spawnWithVcastEnv(
   args: string[],
   options: any = {}
 ): Promise<ChildProcessWithoutNullStreams> {
+  const checkSuccessful = await performLLMProviderUsableCheck(); // Check if the LLM provider settings are usable
+
+  if (!checkSuccessful) {
+    throw new Error("LLM provider settings are not usable");
+  }
+
   const env = await createProcessEnvironment();
   return spawn(command, args, { ...options, env });
 }
