@@ -3278,6 +3278,8 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
 async function performLLMProviderUsableCheck(): Promise<boolean> {
   const { usable, problem } = await isLLMProviderEnvironmentUsable();
 
+  const gatheredSettings = gatherLLMProviderSettings();
+
   if (!usable) {
     // TODO: Error based on what the problem was i.e. missing stuff or something else
     const causedByMissing = problem?.includes("No provider configuration found");
