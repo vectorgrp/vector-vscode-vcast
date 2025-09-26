@@ -96,9 +96,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // 1) Enable Reqs2X
     const enabledSetting = await settingsEditor.findSetting(
-      "Enable Reqs2X Feature",
-      "Vectorcast Test Explorer",
-      "Reqs2x"
+      "Enable Reqs2x Feature",
+      "Vectorcast Test Explorer › Reqs2x"
     );
     await enabledSetting.setValue(true);
     await workbench.getEditorView().closeAllEditors();
@@ -108,8 +107,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Put in path to ressources
     const resourcePathSetting = await settingsEditor2.findSetting(
       "Installation Location",
-      "Vectorcast Test Explorer",
-      "Reqs2x"
+      "Vectorcast Test Explorer › Reqs2x"
     );
     await resourcePathSetting.setValue(process.env.REQS2TESTS_RESOURCES ?? "");
     await workbench.getEditorView().closeAllEditors();
@@ -146,7 +144,9 @@ describe("vTypeCheck VS Code Extension", () => {
       "Vectorcast Test Explorer › Reqs2x › Azure"
     );
 
-    await apiKeySetting.setValue(process.env.OPENAI_API_KEY ?? "");
+    await apiKeySetting.setValue(
+      process.env.OPENAI_API_KEY ?? "Failed to find API Key"
+    );
     await workbench.getEditorView().closeAllEditors();
 
     // 4) Set Base URL
@@ -156,7 +156,9 @@ describe("vTypeCheck VS Code Extension", () => {
       "Base Url",
       "Vectorcast Test Explorer › Reqs2x › Azure"
     );
-    await urlSetting.setValue(process.env.AZURE_BASE_URL ?? "");
+    await urlSetting.setValue(
+      process.env.AZURE_BASE_URL ?? "Failed to find Base URL"
+    );
     await workbench.getEditorView().closeAllEditors();
 
     // 4) Set Base URL

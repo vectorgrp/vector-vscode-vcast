@@ -84,53 +84,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
-  it("should configure Reqs2X to use OpenAI and set api key, model and base URL", async () => {
-    const workbench = await browser.getWorkbench();
-    const activityBar = workbench.getActivityBar();
-    const explorerView = await activityBar.getViewControl("Explorer");
-    await explorerView?.openView();
-
-    // Open Settings
-    const settingsEditor = await workbench.openSettings();
-
-    console.log("Setting Provider");
-
-    // 1) Select provider -> "openai"
-    const providerSetting = await settingsEditor.findSetting(
-      "Provider",
-      "Vectorcast Test Explorer",
-      "Reqs2x"
-    );
-    await providerSetting.setValue("openai");
-    // See if undefined
-    console.log(providerSetting);
-    await workbench.getEditorView().closeAllEditors();
-
-    // 2) Set API key (placeholder)
-    console.log("Setting API Key");
-    const settingsEditor2 = await workbench.openSettings();
-    const apiKeySetting = await settingsEditor2.findSetting(
-      "Api Key",
-      "Vectorcast Test Explorer › Reqs2x › Openai"
-    );
-    // See if undefined
-    console.log(apiKeySetting);
-    await apiKeySetting.setValue(process.env.OPENAI_API_KEY ?? "");
-    await workbench.getEditorView().closeAllEditors();
-
-    // 3) Set model name (placeholder)
-    console.log("Setting Model Name");
-    const settingsEditor3 = await workbench.openSettings();
-    const modelSetting = await settingsEditor3.findSetting(
-      "Model Name",
-      "Vectorcast Test Explorer › Reqs2x › Openai"
-    );
-    await modelSetting.setValue("gpt-4.1");
-    // See if undefined
-    console.log(modelSetting);
-    await workbench.getEditorView().closeAllEditors();
-  });
-
   it("should set default config file", async () => {
     await updateTestID();
 
