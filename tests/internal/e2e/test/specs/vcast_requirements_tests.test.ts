@@ -85,6 +85,18 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
+  it("should enable/disable Reqs2X and set path to ressources on github", async () => {
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    // Open Settings
+    const settingsEditor = await workbench.openSettings();
+
+    console.log("Setting Provider");
+  });
+
   it("should configure Reqs2X to use OpenAI and set api key, model and base URL", async () => {
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
@@ -108,8 +120,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // 2) Select provider
     const providerSetting = await settingsEditor.findSetting(
       "Provider",
-      "Vectorcast Test Explorer",
-      "Reqs2x"
+      "Vectorcast Test Explorer › Reqs2x"
     );
     await providerSetting.setValue("azure_openai");
     await workbench.getEditorView().closeAllEditors();
