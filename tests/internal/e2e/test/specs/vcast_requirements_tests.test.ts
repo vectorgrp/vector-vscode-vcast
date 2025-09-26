@@ -92,17 +92,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await explorerView?.openView();
 
     // Open Settings
-    const settingsEditor = await workbench.openSettings();
-
-    // 1) Enable Reqs2X
-    const enabledSetting = await settingsEditor.findSetting(
-      "Enable Reqs2x Feature",
-      "Vectorcast Test Explorer › Reqs2x"
-    );
-    await enabledSetting.setValue(true);
-    await workbench.getEditorView().closeAllEditors();
-
-    // Open Settings
     const settingsEditor2 = await workbench.openSettings();
     // Put in path to ressources
     const resourcePathSetting = await settingsEditor2.findSetting(
@@ -113,10 +102,17 @@ describe("vTypeCheck VS Code Extension", () => {
       `Setting Reqs2x installation location: ${process.env.REQS2TESTS_RESOURCES ?? "Failed to find Resources"}`
     );
     await resourcePathSetting.setValue(process.env.REQS2TESTS_RESOURCES ?? "");
-    await browser.takeScreenshot();
-    await browser.saveScreenshot(
-      "info_parsed_reqs2x_installation_location.png"
+    await workbench.getEditorView().closeAllEditors();
+
+    // Open Settings
+    const settingsEditor = await workbench.openSettings();
+
+    // 1) Enable Reqs2X
+    const enabledSetting = await settingsEditor.findSetting(
+      "Enable Reqs2x Feature",
+      "Vectorcast Test Explorer › Reqs2x"
     );
+    await enabledSetting.setValue(true);
     await workbench.getEditorView().closeAllEditors();
   });
 
