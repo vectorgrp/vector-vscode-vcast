@@ -105,32 +105,52 @@ describe("vTypeCheck VS Code Extension", () => {
     await enabledSetting.setValue(true);
     await workbench.getEditorView().closeAllEditors();
 
-    // 2) Select provider -> "openai"
+    // 2) Select provider
     const providerSetting = await settingsEditor.findSetting(
       "Provider",
       "Vectorcast Test Explorer",
       "Reqs2x"
     );
-    await providerSetting.setValue("openai");
+    await providerSetting.setValue("azure_openai");
     await workbench.getEditorView().closeAllEditors();
 
-    // 3) Set API key (placeholder)
+    // 3) Set API key
     console.log("Setting API Key");
     const settingsEditor2 = await workbench.openSettings();
     const apiKeySetting = await settingsEditor2.findSetting(
       "Api Key",
-      "Vectorcast Test Explorer › Reqs2x › Openai"
+      "Vectorcast Test Explorer › Reqs2x › Azure"
     );
 
     await apiKeySetting.setValue(process.env.OPENAI_API_KEY ?? "");
     await workbench.getEditorView().closeAllEditors();
 
-    // 4) Set model name (placeholder)
-    console.log("Setting Model Name");
+    // 4) Set Base URL
+    console.log("Setting Base URL");
     const settingsEditor3 = await workbench.openSettings();
-    const modelSetting = await settingsEditor3.findSetting(
+    const urlSetting = await settingsEditor3.findSetting(
+      "Base Url",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await urlSetting.setValue(process.env.AZURE_BASE_URL ?? "");
+    await workbench.getEditorView().closeAllEditors();
+
+    // 4) Set Base URL
+    console.log("Setting Deployment");
+    const settingsEditor4 = await workbench.openSettings();
+    const deployementSetting = await settingsEditor4.findSetting(
+      "Deployment",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await deployementSetting.setValue("gpt-4.1");
+    await workbench.getEditorView().closeAllEditors();
+
+    // 4) Set Base URL
+    console.log("Setting Model Name");
+    const settingsEditor5 = await workbench.openSettings();
+    const modelSetting = await settingsEditor5.findSetting(
       "Model Name",
-      "Vectorcast Test Explorer › Reqs2x › Openai"
+      "Vectorcast Test Explorer › Reqs2x › Azure"
     );
     await modelSetting.setValue("gpt-4.1");
     await workbench.getEditorView().closeAllEditors();
