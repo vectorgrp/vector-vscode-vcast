@@ -94,6 +94,28 @@ describe("vTypeCheck VS Code Extension", () => {
     // Open Settings
     const settingsEditor = await workbench.openSettings();
 
+    // 1) Enable Reqs2X
+    const enabledSetting = await settingsEditor.findSetting(
+      "Enable Reqs2X Feature",
+      "Vectorcast Test Explorer",
+      "Reqs2x"
+    );
+    await enabledSetting.setValue(true);
+    await workbench.getEditorView().closeAllEditors();
+
+    // Open Settings
+    const settingsEditor2 = await workbench.openSettings();
+    // Put in path to ressources
+    const resourcePathSetting = await settingsEditor2.findSetting(
+      "Installation Location",
+      "Vectorcast Test Explorer",
+      "Reqs2x"
+    );
+    await resourcePathSetting.setValue(process.env.REQS2TESTS_RESOURCES ?? "");
+    await workbench.getEditorView().closeAllEditors();
+
+    // Check if the requiremnets Buttons are gone
+
     console.log("Setting Provider");
   });
 
@@ -107,15 +129,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const settingsEditor = await workbench.openSettings();
 
     console.log("Setting Provider");
-
-    // 1) Enable Reqs2X
-    const enabledSetting = await settingsEditor.findSetting(
-      "Enable Reqs2X Feature",
-      "Vectorcast Test Explorer",
-      "Reqs2x"
-    );
-    await enabledSetting.setValue(true);
-    await workbench.getEditorView().closeAllEditors();
 
     // 2) Select provider
     const providerSetting = await settingsEditor.findSetting(
