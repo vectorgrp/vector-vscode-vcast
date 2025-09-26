@@ -342,7 +342,7 @@ jobs:
             node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
       
-            - name: Pull latest reqs2tests release
+      - name: Pull latest reqs2tests release
         shell: bash
         run: |
           python3 ./ci/get_most_recent_reqs2tests_distribution.py
