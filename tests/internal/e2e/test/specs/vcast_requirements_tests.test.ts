@@ -114,10 +114,6 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await resourcePathSetting.setValue(process.env.REQS2TESTS_RESOURCES ?? "");
     await workbench.getEditorView().closeAllEditors();
-
-    // Check if the requiremnets Buttons are gone
-
-    console.log("Setting Provider");
   });
 
   it("should configure Reqs2X to use OpenAI and set api key, model and base URL", async () => {
@@ -238,6 +234,12 @@ describe("vTypeCheck VS Code Extension", () => {
         if (generateButton == undefined) break;
 
         await generateButton.click();
+
+        const vcastNotificationSourceElement = await $(
+          "aria/VectorCAST Test Explorer (Extension)"
+        );
+        const vcastNotification = await vcastNotificationSourceElement.$("..");
+        await (await vcastNotification.$("aria/Continue")).click();
 
         // Should exit with code 0
         await browser.waitUntil(
