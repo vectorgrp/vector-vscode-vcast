@@ -110,9 +110,13 @@ describe("vTypeCheck VS Code Extension", () => {
       "Vectorcast Test Explorer › Reqs2x"
     );
     console.log(
-      `Setting Base URL ${process.env.REQS2TESTS_RESOURCES ?? "Failed to find Resources"}`
+      `Setting Reqs2x installation location: ${process.env.REQS2TESTS_RESOURCES ?? "Failed to find Resources"}`
     );
     await resourcePathSetting.setValue(process.env.REQS2TESTS_RESOURCES ?? "");
+    await browser.takeScreenshot();
+    await browser.saveScreenshot(
+      "info_parsed_reqs2x_installation_location.png"
+    );
     await workbench.getEditorView().closeAllEditors();
   });
 
