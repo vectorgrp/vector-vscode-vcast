@@ -174,22 +174,20 @@ jobs:
           done
           cd ..
           
-          echo "## Distribution - Linux" >> $GITHUB_STEP_SUMMARY
+          # Prepare and upload Linux reqs2tests distribution (artifact still uploaded but NO summary download links are added)
           mkdir -p distribution/bin
           cp -r /tmp/linux_distribution/* distribution/bin
           tar -cvzf VectorCAST-Reqs2Tests-Linux.tar.gz distribution > /dev/null
           URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Linux.tar.gz"
           curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Linux.tar.gz
-          echo "[Download distribution - Linux]($URL)" >> $GITHUB_STEP_SUMMARY
           rm -rf distribution/bin
           
-          echo "## Distribution - Windows" >> $GITHUB_STEP_SUMMARY
+          # Prepare and upload Windows reqs2tests distribution (artifact still uploaded but NO summary download links are added)
           mkdir -p distribution/bin
           cp -r /tmp/win_distribution/* distribution/bin
           tar -cvzf VectorCAST-Reqs2Tests-Windows.tar.gz distribution > /dev/null
           URL="$ARTIFACTORY_URL/VectorCAST-Reqs2Tests-Windows.tar.gz"
           curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T VectorCAST-Reqs2Tests-Windows.tar.gz
-          echo "[Download distribution - Windows]($URL)" >> $GITHUB_STEP_SUMMARY
           rm -rf distribution/bin
           
           rm -rf distribution VectorCAST-Reqs2Tests-*.tar.gz
@@ -359,27 +357,26 @@ jobs:
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz       
           mv distribution /tmp/linux_distribution
 
-          mkdir -p "$GITHUB_WORKSPACE/vsix/resources/distribution"
-          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/vsix/resources/distribution/"
+          # place resources under GITHUB_WORKSPACE/resources (DO NOT include these in the vsix)
+          mkdir -p "$GITHUB_WORKSPACE/resources/distribution"
+          cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/resources/distribution/"
+          echo "REQS2TESTS_RESOURCES=$GITHUB_WORKSPACE/resources" >> $GITHUB_ENV
 
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
 
-      - name: Package with VSCE - Linux
+      - name: Package with VSCE
         run: |
-          mv /tmp/linux_distribution ./resources/distribution
+          # Build a normal .vsix WITHOUT including the reqs2tests resources (we copied them to $GITHUB_WORKSPACE/resources)
           npm run package
 
-          echo "Contents of $GITHUB_WORKSPACE/vsix/resources/distribution:"
-          ls -R $GITHUB_WORKSPACE/vsix/resources/distribution
-
-          VSIX_FILE=$(find /__w/vector-vscode-vcast/vector-vscode-vcast/ -maxdepth 1 -name "*.vsix" | grep -vE '\.(linux|windows)\.vsix' | head -n 1)
-          NEW_VSIX_FILE="${VSIX_FILE%.vsix}.linux.vsix"
-          mv $VSIX_FILE $NEW_VSIX_FILE
-          echo "LINUX_VSIX_FILE=$NEW_VSIX_FILE" >> $GITHUB_ENV
-
-      - name: Package with VSCE
-        run: npm run package
+          # find the produced .vsix and expose its path to later steps
+          VSIX_FILE=$(find $GITHUB_WORKSPACE -maxdepth 2 -name "*.vsix" | head -n 1)
+          if [ -z "$VSIX_FILE" ]; then
+            echo "Error: vsix not found"
+            exit 1
+          fi
+          echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
 
       - name: Restore cached dependencies - node
         id: cache-dependencies-restore-node
@@ -410,6 +407,22 @@ jobs:
           USE_VCAST_24=$([ "$(head -n1 "$RELEASE_DIR/DATA/tool_version.txt" | grep -oE '^[0-9]+')" -ge 24 ] && echo "True" || echo "False")
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
         shell: bash
+
+      - name: Publish VSIX artifact
+        if: always()
+        shell: bash
+        run: |
+          # Upload the built vsix to Artifactory and add a downloadable link to the GH summary
+          if [ -z "${VSIX_FILE}" ]; then
+            echo "VSIX_FILE environment variable not set"
+            exit 1
+          fi
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"
+          BASENAME=$(basename "${VSIX_FILE}")
+          URL="$ARTIFACTORY_URL/$BASENAME"
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T "${VSIX_FILE}"
+          echo "[Download extension (.vsix)]($URL)" >> $GITHUB_STEP_SUMMARY
 
       - name: Run tests
         run: |
@@ -464,7 +477,7 @@ jobs:
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast, Linux]
 
-    container:	
+    container: 	
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting	
       options: --user vcast_user	
 
@@ -509,11 +522,11 @@ jobs:
   prettier:	
     if: github.event.pull_request.draft == false	
     permissions: write-all	
-    runs-on: [ self-hosted, vscode-vcast]	
+    runs-on: [ self-hosted, vscode-vcast]
 
     container:	
-      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting	
-      options: --user vcast_user	
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user
 
     steps:	
       - name: Check out repository	
@@ -557,7 +570,7 @@ jobs:
   xo:	
     if: github.event.pull_request.draft == false	
     permissions: write-all	
-    runs-on: [ self-hosted, vscode-vcast]	
+    runs-on: [ self-hosted, vscode-vcast]
 
     container:	
       image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting	
