@@ -360,7 +360,16 @@ jobs:
           # place resources under GITHUB_WORKSPACE/resources (DO NOT include these in the vsix)
           mkdir -p "$GITHUB_WORKSPACE/resources/distribution"
           cp -r /tmp/linux_distribution/* "$GITHUB_WORKSPACE/resources/distribution/"
-          echo "REQS2TESTS_RESOURCES=$GITHUB_WORKSPACE/resources" >> $GITHUB_ENV
+          echo "REQS2TESTS_RESOURCES=$GITHUB_WORKSPACE/resources/distribution" >> $GITHUB_ENV
+          echo "REQS2TESTS_RESOURCES set to: $GITHUB_WORKSPACE/resources/distribution"
+
+          # Echo file/dir structure of the resources for debugging
+          echo "Listing REQS2TESTS_RESOURCES contents:"
+          if command -v tree >/dev/null 2>&1; then
+            tree -a "$GITHUB_WORKSPACE/resources" || ls -laR "$GITHUB_WORKSPACE/resources"
+          else
+            ls -laR "$GITHUB_WORKSPACE/resources"
+          fi
 
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
@@ -408,7 +417,7 @@ jobs:
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
         shell: bash
 
-      - name: Publish VSIX artifact
+      - name: Publish VSIX artifact (no resources)
         if: always()
         shell: bash
         run: |
@@ -422,7 +431,7 @@ jobs:
           BASENAME=$(basename "${VSIX_FILE}")
           URL="$ARTIFACTORY_URL/$BASENAME"
           curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T "${VSIX_FILE}"
-          echo "[Download extension (.vsix)]($URL)" >> $GITHUB_STEP_SUMMARY
+          echo "[Download extension (.vsix) - (no reqs2tests resources)]($URL)" >> $GITHUB_STEP_SUMMARY
 
       - name: Run tests
         run: |

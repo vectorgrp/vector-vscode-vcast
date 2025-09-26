@@ -109,6 +109,9 @@ describe("vTypeCheck VS Code Extension", () => {
       "Installation Location",
       "Vectorcast Test Explorer › Reqs2x"
     );
+    console.log(
+      `Setting Base URL ${process.env.REQS2TESTS_RESOURCES ?? "Failed to find Resources"}`
+    );
     await resourcePathSetting.setValue(process.env.REQS2TESTS_RESOURCES ?? "");
     await workbench.getEditorView().closeAllEditors();
 
@@ -150,7 +153,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await workbench.getEditorView().closeAllEditors();
 
     // 4) Set Base URL
-    console.log("Setting Base URL");
+    console.log(
+      `Setting Base URL ${process.env.AZURE_BASE_URL ?? "Failed to find Base URL"}`
+    );
     const settingsEditor3 = await workbench.openSettings();
     const urlSetting = await settingsEditor3.findSetting(
       "Base Url",
