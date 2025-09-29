@@ -868,6 +868,6 @@ export function getATGLineTestCommand(
 ) {
   // TODO: FIX THE SCRIPT PATH, DONT MERGE VCAST_ATG_PATH
   const varValueCommand = buildVarStringSimple(variableValues);
-  const commandToRun = `cd ${enviroPath} && VCAST_ATG_PATH=/home/denis/vector/pyatg/get_me_here_with_val_llm/atg/main.py VCAST_ATG_PATH_TO_LINE_NUMBER=${lineNumber} VCAST_ATG_PATH_WITH_VALUE=${varValueCommand} ${atgCommandToUse} ${scriptPath}`;
+  const commandToRun = `cd ${enviroPath} && VCAST_ATG_PATH=/home/denis/vector/pyatg/get_me_here_with_val_llm/atg/main.py VCAST_ATG_TARGETED_LINE=${lineNumber} VCAST_ATG_TARGETED_VALUES="${varValueCommand}" ${atgCommandToUse} -v ${scriptPath}`;
   return commandToRun;
 }
