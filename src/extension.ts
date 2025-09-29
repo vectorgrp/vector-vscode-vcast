@@ -172,6 +172,9 @@ function decodeAndRemoveDeveloperEnvs() {
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
+
+let selectedEnvByFile = new Map<string, string | null>();
+let selectedEnvStatusBarObject: vscode.StatusBarItem | undefined;
 export async function activate(context: vscode.ExtensionContext) {
   // activation gets called when:
   //  -- VectorCAST environment exists in the workspace
@@ -196,6 +199,15 @@ export async function activate(context: vscode.ExtensionContext) {
   // this checks the vcast installation,
   // and if its ok will proceed with full activation
   await checkPrerequisites(context);
+
+  selectedEnvStatusBarObject = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    10
+  );
+  selectedEnvStatusBarObject.command = "myext.selectEnvStatus";
+
+  selectedEnvStatusBarObject.tooltip = "Select environment for current file";
+  context.subscriptions.push(selectedEnvStatusBarObject);
 }
 
 export function configureCommandCalled(context: vscode.ExtensionContext) {
@@ -1096,6 +1108,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (editor) {
         await updateDisplayedCoverage();
         updateTestDecorator();
+        updateStatusBarForActiveEditor();
       } else {
         hideStatusBarCoverage();
       }
@@ -1981,6 +1994,14 @@ async function installPreActivationEventHandlers(
   );
 
   context.subscriptions.push(getATGTestForLineCmd);
+
+  const envSelector = vscode.commands.registerCommand(
+    "myext.selectEnvStatus",
+    async () => {
+      await chooseEnvForActiveFile();
+    }
+  );
+  context.subscriptions.push(envSelector);
 }
 
 /**
@@ -2380,4 +2401,122 @@ export async function deactivate() {
   await deleteServerLog();
   console.log("The VectorCAST Test Explorer has been de-activated");
   return deactivateLanguageServerClient();
+}
+
+/*
+ * Call this from your code when env list for a file changes.
+ * Example:
+ *   updateEnvList('/path/manager.cpp', new Map([['dev',{}],['qa',{}],['prod',{}]]));
+ */
+export function updateEnvList(filePath: string, enviroList: Map<string, any>) {
+  const globalCoverageData = getGlobalCoverageData();
+  let prev = globalCoverageData.get(filePath);
+  if (!prev) {
+    prev = { hasCoverage: false, enviroList: new Map(), selectedEnv: null };
+  }
+
+  prev.enviroList = enviroList;
+  if (prev.selectedEnv && !enviroList.has(prev.selectedEnv))
+    prev.selectedEnv = null;
+  globalCoverageData.set(filePath, prev);
+
+  // If the currently active editor is this file, refresh status bar
+  updateStatusBarForActiveEditor();
+}
+
+/** Helper: whether file's env list should show a dropdown (strictly > 2) */
+function fileHasMoreThanTwoEnvs(filePath?: string) {
+  const globalCoverageData = getGlobalCoverageData();
+  if (!filePath) return false;
+  const info = globalCoverageData.get(filePath);
+  if (!info) {
+    vectorMessage(
+      "Direct lookup failed. Did you use the same path format (fsPath vs URI vs normalized)?"
+    );
+    return false;
+  }
+  const fileIsInvolvedInMultipleEnvs = info.enviroList.size > 1;
+  return fileIsInvolvedInMultipleEnvs;
+}
+
+/** Update the status bar item to reflect the active editor's env state. */
+function updateStatusBarForActiveEditor() {
+  const editor = vscode.window.activeTextEditor;
+  const filePath = editor?.document.uri.fsPath;
+
+  // create status bar item if needed
+  if (!selectedEnvStatusBarObject) {
+    selectedEnvStatusBarObject = vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Left,
+      10
+    );
+    selectedEnvStatusBarObject.command = "myext.selectEnvStatus";
+    selectedEnvStatusBarObject.tooltip = "Select environment for this file";
+  }
+
+  if (fileHasMoreThanTwoEnvs(filePath)) {
+    const globalCoverageData = getGlobalCoverageData();
+    const info = globalCoverageData.get(filePath!)!;
+    const firstEnvInCacheForFile =
+      info.enviroList.size > 0 ? [...info.enviroList.keys()][0] : "";
+
+    const selected =
+      info.selectedEnv ??
+      selectedEnvByFile.get(filePath!) ??
+      firstEnvInCacheForFile ??
+      "";
+
+    // Show something clear and visible
+    selectedEnvStatusBarObject.text = `$(plug) Env: ${selected ?? "none"} $(chevron-down)`;
+    selectedEnvStatusBarObject.show();
+  } else {
+    // hide when not needed
+    selectedEnvStatusBarObject.hide();
+  }
+}
+
+/** Show QuickPick dropdown for the active file and store selection. */
+async function chooseEnvForActiveFile() {
+  const globalCoverageData = getGlobalCoverageData();
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showInformationMessage("No active editor.");
+    return;
+  }
+  const filePath = editor.document.uri.fsPath;
+  const info = globalCoverageData.get(filePath);
+  if (!info || !info.enviroList || info.enviroList.size <= 1) {
+    vscode.window.showInformationMessage(
+      "No environment selection available for this file."
+    );
+    updateStatusBarForActiveEditor();
+    return;
+  }
+
+  const items: vscode.QuickPickItem[] = Array.from(info.enviroList.keys()).map(
+    (envName) => ({
+      label: envName,
+      description: info.selectedEnv === envName ? "Selected" : "",
+    })
+  );
+
+  const picked = await vscode.window.showQuickPick(items, {
+    placeHolder: `Select environment for ${editor.document.fileName}`,
+    canPickMany: false,
+  });
+
+  if (!picked) return;
+
+  // persist selection
+  info.selectedEnv = picked.label;
+  globalCoverageData.set(filePath, info);
+  selectedEnvByFile.set(filePath, picked.label);
+
+  // do whatever your extension needs here (emit events/call other code)
+  vscode.window.showInformationMessage(
+    `Environment for ${editor.document.fileName} set to ${picked.label}`
+  );
+
+  // update UI
+  updateStatusBarForActiveEditor();
 }

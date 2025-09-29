@@ -201,9 +201,10 @@ export type coverageDataType = {
   allBranches: number[];
 };
 
-interface fileCoverageType {
+export interface fileCoverageType {
   hasCoverage: boolean;
   enviroList: Map<string, coverageDataType>; //key is enviroPath
+  selectedEnv?: string | null;
 }
 
 // key is filePath

@@ -298,6 +298,10 @@
         "command": "vectorcastTestExplorer.getATGTestForLine",
         "category": "VectorCAST Test Explorer",
         "title": "ATG Test for Line"
+      },
+      {
+        "command": "myext.selectEnvStatus",
+        "title": "Select environment (Multiple env selection)"
       }
     ],
     "keybindings": [
