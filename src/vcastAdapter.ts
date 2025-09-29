@@ -1036,12 +1036,14 @@ async function getMCDCCoverageLinesFromServer(
 export async function getATGLineTest(
   lineNumber: number,
   tstScriptPath: string,
-  enviroPath: string
+  enviroPath: string,
+  variableValues: any
 ): Promise<void> {
   const commandToRun = getATGLineTestCommand(
     tstScriptPath,
     lineNumber,
-    enviroPath
+    enviroPath,
+    variableValues
   );
 
   // Use enviroPath as the working directory (cwd) for the command

@@ -839,18 +839,35 @@ export async function loadATGLineTest(
     `vcast-${timeStamp}.tst`
   );
   if (enviroPath) {
-    await getATGLineTest(lineNumber, tempScriptPath, enviroPath);
+    await getATGLineTest(
+      lineNumber,
+      tempScriptPath,
+      enviroPath,
+      variableValues
+    );
   } else {
     vectorMessage(`No Environment found for ${sourceFile}`);
   }
 }
 
+function buildVarStringSimple(pairs: { name: any; value: any }[]) {
+  // pairs: Array<{ name: string, value: string }>
+  return pairs
+    .map(
+      (p: { name: any; value: any }) =>
+        `${String(p.name).trim()}:${String(p.value).trim()}`
+    )
+    .join(",");
+}
+
 export function getATGLineTestCommand(
   scriptPath: string,
   lineNumber: number,
-  enviroPath: string
+  enviroPath: string,
+  variableValues: any
 ) {
   // TODO: FIX THE SCRIPT PATH, DONT MERGE VCAST_ATG_PATH
-  const commandToRun = `cd ${enviroPath} && VCAST_ATG_PATH=/home/denis/vector/pyatg/get_me_here_with_val_llm/atg/main.py VCAST_ATG_PATH_TO_LINE_NUMBER=${lineNumber} ${atgCommandToUse} ${scriptPath}`;
+  const varValueCommand = buildVarStringSimple(variableValues);
+  const commandToRun = `cd ${enviroPath} && VCAST_ATG_PATH=/home/denis/vector/pyatg/get_me_here_with_val_llm/atg/main.py VCAST_ATG_PATH_TO_LINE_NUMBER=${lineNumber} VCAST_ATG_PATH_WITH_VALUE=${varValueCommand} ${atgCommandToUse} ${scriptPath}`;
   return commandToRun;
 }
