@@ -142,7 +142,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Api Key",
       "Vectorcast Test Explorer › Reqs2x › Azure"
     );
-
+    console.log(`API key length: ${process.env.OPENAI_API_KEY.length}`);
     await apiKeySetting.setValue(
       process.env.OPENAI_API_KEY ?? "Failed to find API Key"
     );
@@ -160,6 +160,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await urlSetting.setValue(
       process.env.AZURE_BASE_URL ?? "Failed to find Base URL"
     );
+    console.log(`length of BASE URL: ${process.env.AZURE_BASE_URL.length}`);
     await workbench.getEditorView().closeAllEditors();
 
     // 4) Set Base URL
@@ -169,17 +170,28 @@ describe("vTypeCheck VS Code Extension", () => {
       "Deployment",
       "Vectorcast Test Explorer › Reqs2x › Azure"
     );
-    await deployementSetting.setValue("gpt-4.1");
+    await deployementSetting.setValue("gpt-4.1-mini");
     await workbench.getEditorView().closeAllEditors();
 
-    // 4) Set Base URL
+    // 5) Set Model Name
     console.log("Setting Model Name");
     const settingsEditor5 = await workbench.openSettings();
     const modelSetting = await settingsEditor5.findSetting(
       "Model Name",
       "Vectorcast Test Explorer › Reqs2x › Azure"
     );
-    await modelSetting.setValue("gpt-4.1");
+    await modelSetting.setValue("gpt-4.1-mini");
+    await workbench.getEditorView().closeAllEditors();
+
+    // 6) Checking API Version
+    console.log("Checking API Version");
+    const settingsEditor6 = await workbench.openSettings();
+    const previewSetting = await settingsEditor6.findSetting(
+      "Api Version",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    const preview = await previewSetting.getValue();
+    console.log(preview);
     await workbench.getEditorView().closeAllEditors();
   });
 
