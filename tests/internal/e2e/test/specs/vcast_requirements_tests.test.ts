@@ -190,8 +190,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Api Version",
       "Vectorcast Test Explorer › Reqs2x › Azure"
     );
-    const preview = await previewSetting.getValue();
-    console.log(preview);
+    await previewSetting.setValue("2024-12-01-preview");
     await workbench.getEditorView().closeAllEditors();
   });
 
