@@ -114,10 +114,6 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await enabledSetting.setValue(true);
     await workbench.getEditorView().closeAllEditors();
-    console.log("+++++++++++++++++++++++++++++++++++++++++");
-    console.log("After settings installation path");
-    console.log(process.env.GITHUB_STEP_SUMMARY);
-    console.log("+++++++++++++++++++++++++++++++++++++++++");
   });
 
   it("should configure Reqs2X to use OpenAI and set api key, model and base URL", async () => {
@@ -196,10 +192,6 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await previewSetting.setValue("2024-12-01-preview");
     await workbench.getEditorView().closeAllEditors();
-    console.log("+++++++++++++++++++++++++++++++++++++++++");
-    console.log("After other Settings");
-    console.log(process.env.GITHUB_STEP_SUMMARY);
-    console.log("+++++++++++++++++++++++++++++++++++++++++");
   });
 
   it("should generate requirements", async () => {

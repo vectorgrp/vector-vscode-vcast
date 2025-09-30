@@ -89,6 +89,115 @@ describe("vTypeCheck VS Code Extension", () => {
     await testingView?.openView();
   });
 
+  it("should enable/disable Reqs2X and set path to ressources on github", async () => {
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    // Open Settings
+    const settingsEditor2 = await workbench.openSettings();
+    // Put in path to ressources
+    const resourcePathSetting = await settingsEditor2.findSetting(
+      "Installation Location",
+      "Vectorcast Test Explorer › Reqs2x"
+    );
+    console.log(
+      `Setting Reqs2x installation location: ${process.env.REQS2TESTS_RESOURCES ?? "Failed to find Resources"}`
+    );
+    await resourcePathSetting.setValue(process.env.REQS2TESTS_RESOURCES ?? "");
+    await workbench.getEditorView().closeAllEditors();
+
+    // Open Settings
+    const settingsEditor = await workbench.openSettings();
+
+    // 1) Enable Reqs2X
+    const enabledSetting = await settingsEditor.findSetting(
+      "Enable Reqs2x Feature",
+      "Vectorcast Test Explorer › Reqs2x"
+    );
+    await enabledSetting.setValue(true);
+    await workbench.getEditorView().closeAllEditors();
+  });
+
+  it("should configure Reqs2X to use OpenAI and set api key, model and base URL", async () => {
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    // Open Settings
+    const settingsEditor = await workbench.openSettings();
+
+    console.log("Setting Provider");
+
+    // 2) Select provider
+    const providerSetting = await settingsEditor.findSetting(
+      "Provider",
+      "Vectorcast Test Explorer › Reqs2x"
+    );
+    await providerSetting.setValue("azure_openai");
+    await workbench.getEditorView().closeAllEditors();
+
+    // 3) Set API key
+    console.log("Setting API Key");
+    const settingsEditor2 = await workbench.openSettings();
+    const apiKeySetting = await settingsEditor2.findSetting(
+      "Api Key",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    console.log(`API key length: ${process.env.OPENAI_API_KEY.length}`);
+    await apiKeySetting.setValue(
+      process.env.OPENAI_API_KEY ?? "Failed to find API Key"
+    );
+    await workbench.getEditorView().closeAllEditors();
+
+    // 4) Set Base URL
+    console.log(
+      `Setting Base URL ${process.env.AZURE_BASE_URL ?? "Failed to find Base URL"}`
+    );
+    const settingsEditor3 = await workbench.openSettings();
+    const urlSetting = await settingsEditor3.findSetting(
+      "Base Url",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await urlSetting.setValue(
+      process.env.AZURE_BASE_URL ?? "Failed to find Base URL"
+    );
+    console.log(`length of BASE URL: ${process.env.AZURE_BASE_URL.length}`);
+    await workbench.getEditorView().closeAllEditors();
+
+    // 4) Set Base URL
+    console.log("Setting Deployment");
+    const settingsEditor4 = await workbench.openSettings();
+    const deployementSetting = await settingsEditor4.findSetting(
+      "Deployment",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await deployementSetting.setValue("gpt-4.1-mini");
+    await workbench.getEditorView().closeAllEditors();
+
+    // 5) Set Model Name
+    console.log("Setting Model Name");
+    const settingsEditor5 = await workbench.openSettings();
+    const modelSetting = await settingsEditor5.findSetting(
+      "Model Name",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await modelSetting.setValue("gpt-4.1-mini");
+    await workbench.getEditorView().closeAllEditors();
+
+    // 6) Checking API Version
+    console.log("Checking API Version");
+    const settingsEditor6 = await workbench.openSettings();
+    const previewSetting = await settingsEditor6.findSetting(
+      "Api Version",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await previewSetting.setValue("2024-12-01-preview");
+    await workbench.getEditorView().closeAllEditors();
+  });
+
   it("should generate requirements", async () => {
     await updateTestID();
 
