@@ -3154,25 +3154,53 @@ function isLLMProviderEnvironmentUsable(): Promise<{
 
   return new Promise((resolve) => {
     let output = "";
+    let errorOutput = "";
+
     proc.stdout.on("data", (data) => {
       output += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      errorOutput += data.toString();
     });
 
     proc.on("close", () => {
       try {
         const result = JSON.parse(output);
 
-        // Append raw JSON to GitHub Step Summary if available
         if (process.env.GITHUB_STEP_SUMMARY) {
+          // append stdout
           fs.appendFileSync(
             process.env.GITHUB_STEP_SUMMARY,
-            `\n### llm2check output\n\`\`\`json\n${output}\n\`\`\`\n`
+            `\n### llm2check stdout\n\`\`\`json\n${output}\n\`\`\`\n`
           );
+
+          // append stderr (if any)
+          if (errorOutput.trim().length > 0) {
+            fs.appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              `\n### llm2check stderr\n\`\`\`\n${errorOutput}\n\`\`\`\n`
+            );
+          }
         }
 
         resolve({ usable: result.usable, problem: result.problem || null });
       } catch (e) {
         console.error(`Failed to parse llm2check output: ${e}`);
+
+        if (process.env.GITHUB_STEP_SUMMARY) {
+          fs.appendFileSync(
+            process.env.GITHUB_STEP_SUMMARY,
+            `\nFailed to parse llm2check output\n`
+          );
+          if (errorOutput.trim().length > 0) {
+            fs.appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              `\n### llm2check stderr\n\`\`\`\n${errorOutput}\n\`\`\`\n`
+            );
+          }
+        }
+
         resolve({ usable: false, problem: "Failed to parse llm2check output" });
       }
     });
