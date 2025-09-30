@@ -215,7 +215,9 @@ const NECCESSARY_REQS2X_EXECUTABLES = [
 ];
 
 function initializeReqs2X(context: vscode.ExtensionContext) {
-  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer.reqs2x");
+  const config = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer.reqs2x"
+  );
   reqs2XFeatureEnabled = config.get<boolean>("enableReqs2xFeature") || false;
 
   let featureEnabled: boolean = false;
@@ -228,14 +230,16 @@ function initializeReqs2X(context: vscode.ExtensionContext) {
     if (!successful) {
       featureEnabled = false;
       // Tell the user that we couldn't find the executables as an error popup and offer to open settings
-      vscode.window.showErrorMessage(
-        "Could not find the reqs2X executables anywhere, disabling Reqs2X. Please check your settings.",
-        "Open Settings"
-      ).then((selection) => {
-        if (selection === "Open Settings") {
-          showSettings();
-        }
-      });
+      vscode.window
+        .showErrorMessage(
+          "Could not find the reqs2X executables anywhere, disabling Reqs2X. Please check your settings.",
+          "Open Settings"
+        )
+        .then((selection) => {
+          if (selection === "Open Settings") {
+            showSettings();
+          }
+        });
     } else {
       featureEnabled = true;
     }
@@ -248,15 +252,21 @@ function initializeReqs2X(context: vscode.ExtensionContext) {
   );
 }
 
-function getAutoreqExecutableDirectory(context: vscode.ExtensionContext): vscode.Uri | undefined {
+function getAutoreqExecutableDirectory(
+  context: vscode.ExtensionContext
+): vscode.Uri | undefined {
   const pathHasAllExecutables = (dirPath: string): boolean => {
-    return NECCESSARY_REQS2X_EXECUTABLES.every((exe) => fs.existsSync(vscode.Uri.joinPath(vscode.Uri.file(dirPath), exe).fsPath));
-  }
+    return NECCESSARY_REQS2X_EXECUTABLES.every((exe) =>
+      fs.existsSync(vscode.Uri.joinPath(vscode.Uri.file(dirPath), exe).fsPath)
+    );
+  };
 
   // Resolve the location of the reqs2x executables according to the following priority:
 
   // 1. Reqs2X path setting
-  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer.reqs2x");
+  const config = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer.reqs2x"
+  );
   const installationLocation = config.get<string>("installationLocation");
 
   if (installationLocation && pathHasAllExecutables(installationLocation)) {
@@ -303,22 +313,13 @@ function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
     return false;
   }
 
-  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    "code2reqs"
-  ).fsPath;
+  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, "code2reqs").fsPath;
   REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     "reqs2tests"
   ).fsPath;
-  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    "panreq"
-  ).fsPath;
-  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    "llm2check"
-  ).fsPath;
+  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, "panreq").fsPath;
+  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, "llm2check").fsPath;
 
   return true;
 }
@@ -740,9 +741,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           "LLM configuration test was successful."
         );
       } else {
-        vscode.window.showErrorMessage(
-          "LLM configuration test failed."
-        );
+        vscode.window.showErrorMessage("LLM configuration test failed.");
       }
     }
   );
@@ -1681,8 +1680,13 @@ async function installPreActivationEventHandlers(
           // before the "refreshAllExtensionData" call in the TRUE case.
           await initializeServerState();
         }
-      } else if(
-        event.affectsConfiguration("vectorcastTestExplorer.reqs2x.installationLocation") || event.affectsConfiguration("vectorcastTestExplorer.reqs2x.enableReqs2xFeature")
+      } else if (
+        event.affectsConfiguration(
+          "vectorcastTestExplorer.reqs2x.installationLocation"
+        ) ||
+        event.affectsConfiguration(
+          "vectorcastTestExplorer.reqs2x.enableReqs2xFeature"
+        )
       ) {
         // If the user changes the path to reqs2x or tries to enable or disable the feature, we re-initialize
         initializeReqs2X(context);
@@ -2796,7 +2800,10 @@ async function importRequirementsFromGateway(enviroPath: string) {
 
   // Determine (or create) the requirements folder used elsewhere in the extension
   const enviroNameWithoutExt = lowestDirname.replace(/\.env$/, "");
-  const envReqsFolderPath = path.join(parentDir, `reqs-${enviroNameWithoutExt}`);
+  const envReqsFolderPath = path.join(
+    parentDir,
+    `reqs-${enviroNameWithoutExt}`
+  );
   if (!fs.existsSync(envReqsFolderPath)) {
     fs.mkdirSync(envReqsFolderPath, { recursive: true });
   }
@@ -2821,7 +2828,8 @@ async function importRequirementsFromGateway(enviroPath: string) {
   if (xlsxExists || csvExists) {
     let warningMessage = "Warning: ";
     if (xlsxExists) {
-      warningMessage += "An existing Excel requirements file (reqs.xlsx) will be overwritten.";
+      warningMessage +=
+        "An existing Excel requirements file (reqs.xlsx) will be overwritten.";
     }
     if (csvExists) {
       if (xlsxExists) warningMessage += " Additionally, ";
@@ -2851,7 +2859,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
     "excel",
     ...(addTraceability ? ["--infer-traceability"] : []),
     "--target-env",
-    envPath
+    envPath,
   ];
 
   const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
@@ -2861,12 +2869,15 @@ async function importRequirementsFromGateway(enviroPath: string) {
     {
       location: vscode.ProgressLocation.Notification,
       title: `Importing Requirements from Gateway`,
-      cancellable: true
+      cancellable: true,
     },
     async (progress, cancellationToken) => {
       let simulatedProgress = 0;
       const simulatedProgressInterval = setInterval(() => {
-        if (simulatedProgress < 90 && !cancellationToken.isCancellationRequested) {
+        if (
+          simulatedProgress < 90 &&
+          !cancellationToken.isCancellationRequested
+        ) {
           simulatedProgress += 5;
           progress.report({ increment: 5 });
         }
@@ -2884,7 +2895,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
 
         proc.stdout.on("data", (d) => {
           const out = d.toString();
-            logCliOperation(`panreq: ${out.trim()}`);
+          logCliOperation(`panreq: ${out.trim()}`);
         });
 
         proc.stderr.on("data", (d) => {
@@ -2897,7 +2908,9 @@ async function importRequirementsFromGateway(enviroPath: string) {
           if (cancellationToken.isCancellationRequested) return;
 
           if (code === 0) {
-            logCliOperation(`reqs2excel completed successfully with code ${code}`);
+            logCliOperation(
+              `reqs2excel completed successfully with code ${code}`
+            );
             await refreshAllExtensionData();
             updateRequirementsAvailability(enviroPath);
             vscode.commands.executeCommand(
@@ -3118,14 +3131,16 @@ function generateRequirementsHtml(requirements: any[]): string {
   return htmlContent;
 }
 
-
 interface LLMProviderSettingsResult {
   provider: string | null;
   env: Record<string, string>;
   missing: string[];
 }
 
-function isLLMProviderEnvironmentUsable(): Promise<{ usable: boolean; problem: string | null }> {
+function isLLMProviderEnvironmentUsable(): Promise<{
+  usable: boolean;
+  problem: string | null;
+}> {
   const processEnv = { ...process.env };
 
   const gatheredSettings = gatherLLMProviderSettings();
@@ -3133,21 +3148,32 @@ function isLLMProviderEnvironmentUsable(): Promise<{ usable: boolean; problem: s
     if (v) processEnv[k] = v;
   }
 
-  const proc = spawn(LLM2CHECK_EXECUTABLE_PATH, ['--json'], { env: processEnv });
+  const proc = spawn(LLM2CHECK_EXECUTABLE_PATH, ["--json"], {
+    env: processEnv,
+  });
 
   return new Promise((resolve) => {
-    let output = '';
-    proc.stdout.on('data', (data) => {
+    let output = "";
+    proc.stdout.on("data", (data) => {
       output += data.toString();
     });
 
-    proc.on('close', () => {
+    proc.on("close", () => {
       try {
         const result = JSON.parse(output);
+
+        // Append raw JSON to GitHub Step Summary if available
+        if (process.env.GITHUB_STEP_SUMMARY) {
+          fs.appendFileSync(
+            process.env.GITHUB_STEP_SUMMARY,
+            `\n### llm2check output\n\`\`\`json\n${output}\n\`\`\`\n`
+          );
+        }
+
         resolve({ usable: result.usable, problem: result.problem || null });
       } catch (e) {
         console.error(`Failed to parse llm2check output: ${e}`);
-        resolve({ usable: false, problem: 'Failed to parse llm2check output' } );
+        resolve({ usable: false, problem: "Failed to parse llm2check output" });
       }
     });
   });
@@ -3209,7 +3235,10 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       "VCAST_REQS2X_REASONING_AZURE_OPENAI_DEPLOYMENT"
     );
   } else if (provider === "openai") {
-    optional(config.get<string>("reqs2x.openai.baseUrl"), "VCAST_REQS2X_OPENAI_BASE_URL");
+    optional(
+      config.get<string>("reqs2x.openai.baseUrl"),
+      "VCAST_REQS2X_OPENAI_BASE_URL"
+    );
     need(
       config.get<string>("reqs2x.openai.apiKey"),
       "OpenAI API Key",
@@ -3237,7 +3266,7 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
     );
     optional(
       config.get<string>("reqs2x.anthropic.reasoningModelName"),
-      "VCAST_REQS2X_REASONING_ANTHROPIC_MODEL_NAME",
+      "VCAST_REQS2X_REASONING_ANTHROPIC_MODEL_NAME"
     );
   } else if (provider === "litellm") {
     need(
@@ -3247,7 +3276,7 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
     );
     optional(
       config.get<string>("reqs2x.litellm.reasoningModelName"),
-      "VCAST_REQS2X_REASONING_LITELLM_MODEL_NAME",
+      "VCAST_REQS2X_REASONING_LITELLM_MODEL_NAME"
     );
 
     const litellmProviderEnvVarsString = config.get<string>(
@@ -3282,21 +3311,20 @@ async function performLLMProviderUsableCheck(): Promise<boolean> {
 
   if (!usable) {
     // TODO: Error based on what the problem was i.e. missing stuff or something else
-    const causedByMissing = problem?.includes("No provider configuration found");
+    const causedByMissing = problem?.includes(
+      "No provider configuration found"
+    );
 
     let errorMessage: string;
 
     if (causedByMissing) {
-        errorMessage = `Required information to run Reqs2X with currently selected LLM provider (${gatheredSettings.provider}) is missing: ${gatheredSettings.missing.join(", ")}`;
+      errorMessage = `Required information to run Reqs2X with currently selected LLM provider (${gatheredSettings.provider}) is missing: ${gatheredSettings.missing.join(", ")}`;
     } else {
-        errorMessage = `The current LLM provider settings for Reqs2X (either set in the extension or in the environment) are not usable: ${problem}`;
+      errorMessage = `The current LLM provider settings for Reqs2X (either set in the extension or in the environment) are not usable: ${problem}`;
     }
 
     vscode.window
-      .showErrorMessage(
-        errorMessage,
-        "Open Settings"
-      )
+      .showErrorMessage(errorMessage, "Open Settings")
       .then((choice) => {
         if (choice === "Open Settings") {
           showSettings();
