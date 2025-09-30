@@ -626,7 +626,6 @@ jobs:
           fi
 
   publish-extension:
-    if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast, Linux]
     container:
