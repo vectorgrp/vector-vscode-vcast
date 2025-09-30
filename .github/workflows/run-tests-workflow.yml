@@ -67,7 +67,6 @@ jobs:
         if: failure()
         uses: actions/checkout@v4
 
-      # Run tests
       - name: Restore cached dependencies
         id: cache-dependencies-restore
         uses: actions/cache/restore@v4
@@ -84,8 +83,7 @@ jobs:
         if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: |
-            node_modules
+          path: node_modules
           key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
 
       - name: Pull latest reqs2tests release
@@ -435,22 +433,6 @@ jobs:
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
         shell: bash
 
-      - name: Publish VSIX artifact
-        if: always()
-        shell: bash
-        run: |
-          # Upload the built vsix to Artifactory and add a downloadable link to the GH summary
-          if [ -z "${VSIX_FILE}" ]; then
-            echo "VSIX_FILE environment variable not set"
-            exit 1
-          fi
-          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
-          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"
-          BASENAME=$(basename "${VSIX_FILE}")
-          URL="$ARTIFACTORY_URL/$BASENAME"
-          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T "${VSIX_FILE}"
-          echo "[Download extension (.vsix)]($URL)" >> $GITHUB_STEP_SUMMARY
-
       - name: Run tests
         run: |
           ./tests/internal/e2e/run_e2e_tests.sh
@@ -642,3 +624,51 @@ jobs:
           if [ -f exitcode.txt ]; then
               exit $(cat exitcode.txt)	
           fi
+
+  publish-extension:
+    if: github.event.pull_request.draft == false
+    permissions: write-all
+    runs-on: [self-hosted, vscode-vcast, Linux]
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
+    needs: unit-tests
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Package extension and list VSIX
+        run: |
+          npm run package
+          echo "VSIX contents:"
+          npx vsce ls
+          VSIX_FILE=$(find . -maxdepth 2 -name "*.vsix" | head -n 1)
+          if [ -z "$VSIX_FILE" ]; then
+            echo "Error: vsix not found"
+            exit 1
+          fi
+          echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
+
+      - name: Upload VSIX
+        run: |
+          if [ -z "${VSIX_FILE}" ]; then
+            echo "VSIX_FILE environment variable not set"
+            exit 1
+          fi
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"
+          BASENAME=$(basename "${VSIX_FILE}")
+          URL="$ARTIFACTORY_URL/$BASENAME"
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T "${VSIX_FILE}"
+          echo "### VSIX Extension" >> $GITHUB_STEP_SUMMARY
+          echo "[Download extension (.vsix)]($URL)" >> $GITHUB_STEP_SUMMARY
