@@ -2777,7 +2777,7 @@ async function generateTestsFromRequirements(
             const errorMessage = `Error: reqs2tests exited with code ${code}`;
             vscode.window.showErrorMessage(errorMessage);
             logCliError(errorMessage, true);
-            reject();
+            reject(new Error(errorMessage));
           }
         });
       });
@@ -2918,7 +2918,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
             const msg = `Error: reqs2excel exited with code ${code}`;
             vscode.window.showErrorMessage(msg);
             logCliError(msg, true);
-            reject();
+            reject(new Error(msg));
           }
         });
       });
@@ -3013,10 +3013,12 @@ async function populateRequirementsGateway(enviroPath: string) {
           );
           resolve();
         } catch (err) {
+          // Sonar
+          const error = err instanceof Error ? err : new Error(String(err));
           vscode.window.showErrorMessage(
-            `Error updating environment configuration: ${err}`
+            `Error updating environment configuration: ${error.message}`
           );
-          reject(err);
+          reject(error);
         }
       } else {
         const errorMessage = `Error: reqs2rgw exited with code ${code}`;
