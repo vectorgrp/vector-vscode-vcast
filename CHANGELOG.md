@@ -2,6 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.21] - 2025-10-02
+
+### Added
+- Enabled creation of a new environment in a freshly created project.
+
 ## [1.0.20] - 2025-08-25
 
 ### Bug Fixes
@@ -115,7 +120,7 @@ All notable changes to the "vectorcastTestExplorer" extension will be documented
 ## [1.0.8] - 2023-11-15
 - Added new right click menu choices for .vce (open environment) and .env (build environment) files #30
 - Added new right click menu choice for test explorer tree to allow you to insert Basis Path and ATG tests #31
-    - Added Generate ATG and Generate Basis Path choices to the "flask+" icons in the text editor
+- Added Generate ATG and Generate Basis Path choices to the "flask+" icons in the text editor
 - Added support for TEST.REQUIREMENT_KEY syntax, including a hover-over that displays the requirement text #34
 - Improved the 'open settings' feature to default to the 'Workspace' tab
 
