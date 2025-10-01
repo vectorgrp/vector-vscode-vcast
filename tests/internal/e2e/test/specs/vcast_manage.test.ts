@@ -146,7 +146,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // For the compiler tab we need to do it that way, because it's input is not found
     // The different strucutre (autocompletion) + we already clicked on the same webview
     // make the problems, so we just navigate with tab and enter within the webview
-    await insertStringToInput("NewProject", "Project Name Input");
+    await insertStringToInput("ANewProject", "Project Name Input");
     await browser.keys(["Tab"]);
     await browser.keys("GNU Native_Automatic_C++17");
     await browser.keys(["Tab"]);
@@ -162,13 +162,66 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Checking existence of new Project");
-    const projectNode = await findTreeNodeAtLevel(0, "NewProject.vcm");
+    const projectNode = await findTreeNodeAtLevel(0, "ANewProject.vcm");
     const compilerNode = await findTreeNodeAtLevel(
       1,
       "GNU_Native_Automatic_C++17"
     );
     expect(projectNode).toBeDefined();
     expect(compilerNode).toBeDefined();
+  });
+
+  it("testing creating new environment in project", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    console.log("Create new ENV in Project");
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+    const cppFolder = workspaceFolderSection.findItem("cpp");
+    await (await cppFolder).select();
+
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
+    await executeCtrlClickOn(databaseCpp);
+    await executeCtrlClickOn(managerCpp);
+    await releaseCtrl();
+
+    await databaseCpp.openContextMenu();
+    await (await $("aria/Create VectorCAST Environment in Project")).click();
+
+    const button = await $(`aria/OK`);
+    await button.click();
+
+    console.log("Checking Logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--force --migrate' returned exit code: 0"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes("ANewProject.vcm"),
+      { timeout: TIMEOUT }
+    );
+    await browser.pause(3000);
+
+    // Should now find the env in the project
+    await getViewContent("Testing");
+    const envNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+    expect(envNode).toBeDefined();
   });
 
   it("testing tree structure", async () => {
