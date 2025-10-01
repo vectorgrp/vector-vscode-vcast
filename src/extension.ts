@@ -151,7 +151,7 @@ import {
 } from "./manage/manageSrc/manageUtils";
 
 const path = require("path");
-import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { parse as csvParse } from "csv-parse/sync";
 const excelToJson = require("convert-excel-to-json");
 
@@ -221,14 +221,11 @@ function initializeReqs2X(context: vscode.ExtensionContext) {
   reqs2XFeatureEnabled = config.get<boolean>("enableReqs2xFeature") || false;
 
   let featureEnabled: boolean = false;
-  if (!reqs2XFeatureEnabled) {
-    featureEnabled = false;
-  } else {
+
+  if (reqs2XFeatureEnabled) {
     setupRequirementsFileWatchers(context);
     const successful = setupReqs2XExecutablePaths(context);
-
     if (!successful) {
-      featureEnabled = false;
       // Tell the user that we couldn't find the executables as an error popup and offer to open settings
       vscode.window
         .showErrorMessage(
@@ -512,22 +509,21 @@ function setupRequirementsFileWatchers(context: vscode.ExtensionContext) {
 }
 function findEnvironmentInPath(dirPath: string): string | null {
   // Check if the directory contains an environment file
-  const envFilePattern = new RegExp(/\.env$/);
   const files = fs.readdirSync(dirPath);
-
-  const envFiles = files.filter((file) => envFilePattern.test(file));
+  const envFiles = files.filter((file) => file.endsWith(".env"));
 
   // Now see if there is a directory with the same name as the env file
   for (const file of envFiles) {
-    const envName = file.replace(envFilePattern, "");
+    // remove ".env"
+    const envName = file.slice(0, -4);
     const envDirPath = path.join(dirPath, envName);
     if (fs.existsSync(envDirPath) && fs.lstatSync(envDirPath).isDirectory()) {
       return envName;
     }
   }
-
   return null;
 }
+
 function configureExtension(context: vscode.ExtensionContext) {
   // this sets up the file explorer decorations for code coverage
   updateExploreDecorations();
@@ -2548,20 +2544,17 @@ async function generateRequirements(enviroPath: string) {
         process.on("close", async (code) => {
           clearInterval(simulatedProgressInterval);
           if (cancellationToken.isCancellationRequested) return;
-
           if (code === 0) {
             logCliOperation(
               `code2reqs completed successfully with code ${code}`
             );
             await refreshAllExtensionData();
             updateRequirementsAvailability(enviroPath);
-
             // Run the showRequirements command to display the generated Excel
             vscode.commands.executeCommand(
               "vectorcastTestExplorer.showRequirements",
               { id: enviroPath }
             );
-
             vscode.window.showInformationMessage(
               "Successfully generated requirements for the environment!"
             );
@@ -2570,7 +2563,7 @@ async function generateRequirements(enviroPath: string) {
             const errorMessage = `Error: code2reqs exited with code ${code}`;
             vscode.window.showErrorMessage(errorMessage);
             logCliError(errorMessage, true);
-            reject();
+            reject(new Error(errorMessage));
           }
         });
       });
@@ -3221,7 +3214,7 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       config.get<string>("reqs2x.azure.apiVersion"),
       "Azure API Version",
       "VCAST_REQS2X_AZURE_OPENAI_API_VERSION"
-    )
+    );
     optional(
       config.get<string>("reqs2x.azure.reasoningModelName"),
       "VCAST_REQS2X_REASONING_AZURE_OPENAI_MODEL_NAME"

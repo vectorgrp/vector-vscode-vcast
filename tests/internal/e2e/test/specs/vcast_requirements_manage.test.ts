@@ -18,18 +18,12 @@ import { checkForServerRunnability } from "../../../../unit/getToolversion";
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
-  let useDataServer: boolean = true;
   before(async () => {
     workbench = await browser.getWorkbench();
     // Opening bottom bar and problems view before running any tests
     bottomBar = workbench.getBottomBar();
     await bottomBar.toggle(true);
     process.env.E2E_TEST_ID = "0";
-
-    let releaseIsSuitableForServer = await checkForServerRunnability();
-    if (process.env.VCAST_USE_PYTHON || !releaseIsSuitableForServer) {
-      useDataServer = false;
-    }
   });
 
   it("test 1: should be able to load VS Code", async () => {
@@ -223,7 +217,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await vcastTestingViewContent.elem).click();
     const sections = await vcastTestingViewContent.getSections();
     const testExplorerSection = sections[0];
-    const testEnvironments = await testExplorerSection.getVisibleItems();
+    await testExplorerSection.getVisibleItems();
 
     await executeContextMenuAction(2, "BAR", true, "Generate Requirements");
 
@@ -263,9 +257,7 @@ describe("vTypeCheck VS Code Extension", () => {
         "Requirements Report"
     );
 
-    const tab = (await editorView.openEditor(
-      "Requirements Report"
-    )) as TextEditor;
+    (await editorView.openEditor("Requirements Report")) as TextEditor;
 
     // Expect some HTML stuff to be present
     expect(await checkElementExistsInHTML("Requirements")).toBe(true);

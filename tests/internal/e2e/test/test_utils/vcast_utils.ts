@@ -1385,18 +1385,15 @@ export async function selectItem(contentAssist: ContentAssist, item: string) {
   // Replace newline special characters in the input item string
   const normalizedItem = normalizeContentAssistString(item);
 
-  // Get all content assist items
-  const items: ContentAssistItem[] = await contentAssist.getItems();
-
-  // Find the index of the item that matches the processed input string
-  const itemIndex = (
-    await Promise.all(
-      items.map(async (assistItem) => {
-        const label = await assistItem.getLabel();
-        return normalizeContentAssistString(label);
-      })
+  // Get all content assist items and normalize their labels
+  const normalizedLabels = await Promise.all(
+    (await contentAssist.getItems()).map(async (assistItem) =>
+      normalizeContentAssistString(await assistItem.getLabel())
     )
-  ).findIndex((normalizedLabel) => normalizedLabel === normalizedItem);
+  );
+
+  // Find index using indexOf instead of findIndex
+  const itemIndex = normalizedLabels.indexOf(normalizedItem);
 
   if (itemIndex === -1) {
     console.log(`Content assist item ${item} not found`);
@@ -1410,8 +1407,7 @@ export async function selectItem(contentAssist: ContentAssist, item: string) {
 
   // Select the item
   await browser.keys("Enter");
-
-  return items[itemIndex];
+  return (await contentAssist.getItems())[itemIndex];
 }
 
 /**
