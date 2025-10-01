@@ -3217,6 +3217,11 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       "Azure Model Name",
       "VCAST_REQS2X_AZURE_OPENAI_MODEL_NAME"
     );
+    need(
+      config.get<string>("reqs2x.azure.apiVersion"),
+      "Azure API Version",
+      "VCAST_REQS2X_AZURE_OPENAI_API_VERSION"
+    )
     optional(
       config.get<string>("reqs2x.azure.reasoningModelName"),
       "VCAST_REQS2X_REASONING_AZURE_OPENAI_MODEL_NAME"
