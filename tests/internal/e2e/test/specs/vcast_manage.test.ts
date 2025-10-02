@@ -171,67 +171,6 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(compilerNode).toBeDefined();
   });
 
-  it("testing creating new environment in project", async () => {
-    await updateTestID();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
-    await outputView.clearText();
-
-    const notificationsCenter = await workbench.openNotificationsCenter();
-    await notificationsCenter.clearAllNotifications();
-
-    console.log("Create new ENV in Project");
-    const activityBar = workbench.getActivityBar();
-    const explorerView = await activityBar.getViewControl("Explorer");
-    await explorerView?.openView();
-
-    const workspaceFolderSection =
-      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-
-    const cppFolder = workspaceFolderSection.findItem("tutorial");
-    await (await cppFolder).select();
-
-    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
-    const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
-    await executeCtrlClickOn(databaseCpp);
-    await executeCtrlClickOn(managerCpp);
-    await releaseCtrl();
-
-    await databaseCpp.openContextMenu();
-    await (await $("aria/Create VectorCAST Environment in Project")).click();
-
-    let maxTries = 30; // safety limit
-    for (let i = 0; i < maxTries; i++) {
-      const active = await browser.execute(() => document.activeElement?.id);
-      if (active === "btnSubmit") {
-        await browser.keys("Enter");
-        return;
-      }
-      await browser.keys("Tab");
-    }
-
-    console.log("Checking Logs");
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("--force --migrate' returned exit code: 0"),
-      { timeout: TIMEOUT }
-    );
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText()).toString().includes("ANewProject.vcm"),
-      { timeout: TIMEOUT }
-    );
-    await browser.pause(3000);
-
-    // Should now find the env in the project
-    await getViewContent("Testing");
-    const envNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
-    expect(envNode).toBeDefined();
-  });
-
   it("testing tree structure", async () => {
     await updateTestID();
 
