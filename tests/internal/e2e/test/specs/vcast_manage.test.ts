@@ -186,9 +186,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await explorerView?.openView();
 
     const workspaceFolderSection =
-      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-    const cppFolder = workspaceFolderSection.findItem("cpp");
-    await (await cppFolder).select();
+      await expandWorkspaceFolderSectionInExplorer("tutorial");
 
     const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
     const databaseCpp = await workspaceFolderSection.findItem("database.cpp");
