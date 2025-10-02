@@ -15,6 +15,14 @@ coverage
 *.tar.gz
 *.bat
 *.sh
+.githooks
+.github
+ci
+docker
+.gitignore
+.prettierignore
+.xo-config.json
+tsconfig_test.json
 
 # <— unignore webview assets
 !src/manage/webviews/html/**

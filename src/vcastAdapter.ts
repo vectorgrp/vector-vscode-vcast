@@ -156,6 +156,7 @@ export async function loadTestScriptIntoEnvironment(
   scriptPath: string
 ) {
   const enviroPath = path.join(path.dirname(scriptPath), enviroName);
+
   // call clicast to load the test script
   let loadScriptArgs: string = `-e${enviroName} test script run ${scriptPath}`;
 
