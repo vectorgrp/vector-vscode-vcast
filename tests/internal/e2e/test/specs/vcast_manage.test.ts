@@ -157,7 +157,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project NewProject`),
+          .includes(`Added Compiler CCAST_.CFG to Project ANewProject`),
       { timeout: TIMEOUT }
     );
 
