@@ -128,49 +128,6 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(compilerNode).toBeDefined();
   });
 
-  it("testing creating new project", async () => {
-    await updateTestID();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
-    await outputView.clearText();
-
-    const notificationsCenter = await workbench.openNotificationsCenter();
-    await notificationsCenter.clearAllNotifications();
-
-    console.log("Executing Create New Project Command:");
-    await browser.executeWorkbench((vscode) => {
-      vscode.commands.executeCommand("vectorcastTestExplorer.createNewProject");
-    });
-
-    console.log("Inserting Data to Webview");
-    // For the compiler tab we need to do it that way, because it's input is not found
-    // The different strucutre (autocompletion) + we already clicked on the same webview
-    // make the problems, so we just navigate with tab and enter within the webview
-    await insertStringToInput("ANewProject", "Project Name Input");
-    await browser.keys(["Tab"]);
-    await browser.keys("GNU Native_Automatic_C++17");
-    await browser.keys(["Tab"]);
-    await browser.keys(["Tab"]);
-    await browser.keys(["Enter"]);
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project ANewProject`),
-      { timeout: TIMEOUT }
-    );
-
-    console.log("Checking existence of new Project");
-    const projectNode = await findTreeNodeAtLevel(0, "ANewProject.vcm");
-    const compilerNode = await findTreeNodeAtLevel(
-      1,
-      "GNU_Native_Automatic_C++17"
-    );
-    expect(projectNode).toBeDefined();
-    expect(compilerNode).toBeDefined();
-  });
-
   it("testing tree structure", async () => {
     await updateTestID();
 
@@ -911,5 +868,120 @@ describe("vTypeCheck VS Code Extension", () => {
           ),
       { timeout: TIMEOUT }
     );
+  });
+
+  it("testing creating new project", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    console.log("Executing Create New Project Command:");
+    await browser.pause(3000);
+    await browser.executeWorkbench((vscode) => {
+      vscode.commands.executeCommand("vectorcastTestExplorer.createNewProject");
+    });
+
+    console.log("Inserting Data to Webview");
+    // For the compiler tab we need to do it that way, because it's input is not found
+    // The different strucutre (autocompletion) + we already clicked on the same webview
+    // make the problems, so we just navigate with tab and enter within the webview
+    await insertStringToInput("ANewProject", "Project Name Input");
+    await browser.keys(["Tab"]);
+    await browser.keys("GNU Native_Automatic_C++17");
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Enter"]);
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Added Compiler CCAST_.CFG to Project ANewProject`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking existence of new Project");
+    const projectNode = await findTreeNodeAtLevel(0, "ANewProject.vcm");
+    const compilerNode = await findTreeNodeAtLevel(
+      1,
+      "GNU_Native_Automatic_C++17"
+    );
+    expect(projectNode).toBeDefined();
+    expect(compilerNode).toBeDefined();
+  });
+
+  it("testing creating new environment in new project", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    console.log("Create new ENV in Project");
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+    const cppFolder = workspaceFolderSection.findItem("tutorial");
+    await (await cppFolder).select();
+
+    const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
+    await executeCtrlClickOn(managerCpp);
+    await releaseCtrl();
+
+    await managerCpp.openContextMenu();
+    await (await $("aria/Create VectorCAST Environment in Project")).click();
+
+    // Wait for webview to appear
+    let webviews = await workbench.getAllWebviews();
+    expect(webviews).toHaveLength(1);
+    let webview = webviews[0];
+    await webview.open();
+
+    // -----------------------------
+    // Select the correct project
+    // -----------------------------
+    const projectDropdown = await $("aria/Project Path");
+    await projectDropdown.waitForDisplayed({ timeout: TIMEOUT });
+    await projectDropdown.click(); // Open dropdown
+    await browser.keys(["ArrowDown"]); // Navigate to desired project
+    await browser.keys(["Enter"]); // Select it
+
+    // -----------------------------
+    // Click OK to create the environment
+    // -----------------------------
+    const okButton = await $("aria/Import OK");
+    await okButton.waitForDisplayed({ timeout: TIMEOUT });
+    await okButton.click();
+
+    console.log("Checking Logs");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("--force --migrate' returned exit code: 0"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes("ANewProject.vcm"),
+      { timeout: TIMEOUT }
+    );
+    await browser.pause(3000);
+
+    // Should now find the env in the project
+    await getViewContent("Testing");
+    const envNode = await findTreeNodeAtLevel(3, "MANAGER");
+    expect(envNode).toBeDefined();
   });
 });
