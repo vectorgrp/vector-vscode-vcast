@@ -200,7 +200,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await databaseCpp.openContextMenu();
     await (await $("aria/Create VectorCAST Environment in Project")).click();
 
-    const button = await $(`aria/OK`);
+    const button = await $(`aria/Import OK`);
     await button.click();
 
     console.log("Checking Logs");
