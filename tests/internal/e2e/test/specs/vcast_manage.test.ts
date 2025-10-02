@@ -200,8 +200,11 @@ describe("vTypeCheck VS Code Extension", () => {
     await databaseCpp.openContextMenu();
     await (await $("aria/Create VectorCAST Environment in Project")).click();
 
-    const button = await $(`aria/Import OK`);
-    await button.click();
+    // Press Tab 12 times, then Enter. We do not find the button to click on otherwise
+    for (let i = 0; i < 12; i++) {
+      await browser.keys(["Tab"]);
+    }
+    await browser.keys("Enter");
 
     console.log("Checking Logs");
     await browser.waitUntil(
