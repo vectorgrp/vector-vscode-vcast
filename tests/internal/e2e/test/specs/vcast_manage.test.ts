@@ -931,8 +931,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
 
-    const cppFolder = workspaceFolderSection.findItem("tutorial");
-    await (await cppFolder).select();
+    // const cppFolder = workspaceFolderSection.findItem("tutorial");
+    // await (await cppFolder).select();
 
     const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
     await executeCtrlClickOn(managerCpp);
