@@ -794,8 +794,6 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             except Exception as err:
                 errors.append(f"{vce_path}: {str(err)}")
 
-        topLevel["testData"] = enviro_list[0]["testData"] if enviro_list else []
-        topLevel["unitData"] = enviro_list[0]["unitData"] if enviro_list else []
         topLevel["enviro"] = enviro_list
         if errors:
             topLevel["errors"] = errors
