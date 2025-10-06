@@ -9,6 +9,11 @@ import { errorLevel, vectorMessage } from "./messagePane";
 import { getGlobalCoverageData } from "./vcastTestInterface";
 import { rebuildEnvironment } from "./vcastAdapter";
 import { rebuildEnvironmentCallback } from "./callbacks";
+import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";
+import {
+  clicastCommandToUse,
+  getVectorCastInstallationLocation,
+} from "./vcastInstallation";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -417,4 +422,41 @@ export function getWorkspaceRootPath(): string | undefined {
     return folders[0].uri.fsPath;
   }
   return undefined;
+}
+
+export async function getFullEnvReport(
+  buildDirectory: string,
+  enviroPath: string
+): Promise<string> {
+  // Derive environment name
+  const envName = path.basename(enviroPath);
+  const cwd = path.dirname(buildDirectory);
+
+  // Build HTML output path
+  const htmlReportPath = path.join(
+    buildDirectory,
+    `${envName}_full_report.html`
+  );
+
+  // Get VectorCAST installation directory
+  const vectorcastDir = getVectorCastInstallationLocation();
+  if (!vectorcastDir) {
+    vscode.window.showErrorMessage(
+      "VECTORCAST_DIR environment variable is not set."
+    );
+    throw new Error("VECTORCASTDIR not set");
+  }
+
+  // Build command and arguments
+  const command = path.join(vectorcastDir, clicastCommandToUse);
+  const args = ["-e", envName, "report", "custom", "full", htmlReportPath];
+
+  // Optional: progress message for the VSCode UI
+  const vscodeMessage = `Generating full environment report for '${envName}'...`;
+
+  // Execute with progress + live output
+  await executeWithRealTimeEchoWithProgress(command, args, cwd, vscodeMessage);
+
+  // Return the generated HTML file path
+  return htmlReportPath;
 }

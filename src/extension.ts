@@ -37,7 +37,11 @@ import {
   vectorMessage,
 } from "./messagePane";
 
-import { viewMCDCReport, viewResultsReport } from "./reporting";
+import {
+  viewMCDCReport,
+  viewResultsReport,
+  viewResultsReportVC,
+} from "./reporting";
 
 import {
   environmentDataCache,
@@ -76,6 +80,7 @@ import {
   forceLowerCaseDriveLetter,
   decodeVar,
   normalizePath,
+  getFullEnvReport,
 } from "./utilities";
 
 import {
@@ -1197,6 +1202,23 @@ function configureExtension(context: vscode.ExtensionContext) {
 
     return html;
   }
+
+  // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
+  let getEnvFullReportCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.getEnvFullReport",
+    async (enviroNode: any) => {
+      // displayName is the what will be passed as the --level arg value
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+
+      const reportPathHTML = await getFullEnvReport(
+        enviroData.buildDirectory,
+        enviroPath
+      );
+      viewResultsReportVC(reportPathHTML);
+    }
+  );
+  context.subscriptions.push(getEnvFullReportCommand);
 
   // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
   let buildProjectEnviro = vscode.commands.registerCommand(
