@@ -358,8 +358,8 @@ jobs:
           mv distribution /tmp/linux_distribution
 
           # Preferred location: $HOME/reqs2tests/resources/distribution
-          HOME_TARGET="$HOME/reqs2tests/resources/distribution/bin"
-          WORKSPACE_TARGET="$GITHUB_WORKSPACE/resources/distribution/bin"
+          HOME_TARGET="$HOME/reqs2tests/resources/distribution"
+          WORKSPACE_TARGET="$GITHUB_WORKSPACE/resources/distribution"
 
           # Try to create and copy into $HOME target; if that fails, fallback to workspace
           if mkdir -p "$HOME_TARGET" 2>/dev/null && cp -r /tmp/linux_distribution/* "$HOME_TARGET/"; then
@@ -374,8 +374,8 @@ jobs:
           fi
 
           # Export the distribution folder path (this will be available to subsequent steps)
-          echo "REQS2TESTS_RESOURCES=$REQS_PATH" >> $GITHUB_ENV
-          echo "REQS2TESTS_RESOURCES set to: $REQS_PATH"
+          echo "REQS2TESTS_RESOURCES=$REQS_PATH/bin" >> $GITHUB_ENV
+          echo "REQS2TESTS_RESOURCES set to: $REQS_PATH/bin"
 
           # Debug listing of the distribution folder
           echo "Listing REQS2TESTS_RESOURCES contents: $REQS_PATH"
