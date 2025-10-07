@@ -70,6 +70,11 @@
         "title": "Open Environment"
       },
       {
+        "command": "vectorcastTestExplorer.getEnvFullReport",
+        "category": "VectorCAST Test Explorer",
+        "title": "Get Environment Report"
+      },
+      {
         "command": "vectorcastTestExplorer.buildIncremental",
         "category": "VectorCAST Test Explorer",
         "title": "Build Incremental"
@@ -611,6 +616,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.getEnvFullReport",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.openVCASTFromVce",
           "when": "never"
         },
@@ -962,6 +971,11 @@
         "command": "vectorcastTestExplorer.buildProjectEnviro",
         "group": "vcast.build",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastUnbuiltEnviroList"
+      },
+      {
+        "command": "vectorcastTestExplorer.getEnvFullReport",
+        "group": "vcast.build",
+        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.buildExecuteIncremental",
