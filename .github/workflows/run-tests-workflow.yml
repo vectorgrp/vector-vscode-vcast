@@ -359,7 +359,7 @@ jobs:
 
           # Preferred location: $HOME/reqs2tests/resources/distribution
           HOME_TARGET="$HOME/reqs2tests/resources/distribution"
-          WORKSPACE_TARGET="$GITHUB_WORKSPACE/resources/distribution"
+          WORKSPACE_TARGET="$GITHUB_WORKSPACE/resources/distribution/bin"
 
           # Try to create and copy into $HOME target; if that fails, fallback to workspace
           if mkdir -p "$HOME_TARGET" 2>/dev/null && cp -r /tmp/linux_distribution/* "$HOME_TARGET/"; then

@@ -1203,18 +1203,20 @@ function configureExtension(context: vscode.ExtensionContext) {
     return html;
   }
 
-  // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
+  // Command: vectorcastTestExplorer.getEnvFullReport  ////////////////////////////////////////////////////////
   let getEnvFullReportCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.getEnvFullReport",
     async (enviroNode: any) => {
-      // displayName is the what will be passed as the --level arg value
       const enviroPath = enviroNode.id.split("vcast:")[1];
       const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
 
+      // Execute process
       const reportPathHTML = await getFullEnvReport(
         enviroData.buildDirectory,
         enviroPath
       );
+
+      // View report
       viewResultsReportVC(reportPathHTML);
     }
   );
