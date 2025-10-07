@@ -3023,47 +3023,59 @@ async function populateRequirementsGateway(enviroPath: string) {
   const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
-  const process = await spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
+  // Show progress while running
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "Populating Requirements Gateway...",
+      cancellable: false,
+    },
+    async (progress) => {
+      const process = await spawnWithVcastEnv(
+        PANREQ_EXECUTABLE_PATH,
+        commandArgs
+      );
 
-  return new Promise<void>((resolve, reject) => {
-    process.stdout.on("data", (data) => {
-      const output = data.toString().trim();
-      logCliOperation(`panreq: ${output}`);
-    });
+      return new Promise<void>((resolve, reject) => {
+        process.stdout.on("data", (data) => {
+          const output = data.toString().trim();
+          logCliOperation(`panreq: ${output}`);
+        });
 
-    process.stderr.on("data", (data) => {
-      const errorOutput = data.toString().trim();
-      logCliError(`panreq: ${errorOutput}`);
-    });
+        process.stderr.on("data", (data) => {
+          const errorOutput = data.toString().trim();
+          logCliError(`panreq: ${errorOutput}`);
+        });
 
-    process.on("close", async (code) => {
-      if (code === 0) {
-        logCliOperation(`reqs2rgw completed successfully with code ${code}`);
+        process.on("close", async (code) => {
+          if (code === 0) {
+            logCliOperation(
+              `reqs2rgw completed successfully with code ${code}`
+            );
 
-        try {
-          // Refresh environment data
-          await refreshAllExtensionData();
-
-          vscode.window.showInformationMessage(
-            `Successfully populated requirements gateway at ${exportRepository}`
-          );
-          resolve();
-        } catch (err) {
-          // Sonar
-          const error = err instanceof Error ? err : new Error(String(err));
-          vscode.window.showErrorMessage(
-            `Error updating environment configuration: ${error.message}`
-          );
-          reject(error);
-        }
-      } else {
-        const errorMessage = `Error: reqs2rgw exited with code ${code}`;
-        vscode.window.showErrorMessage(errorMessage);
-        logCliError(errorMessage, true);
-        reject(new Error(errorMessage));
-      }
-    });
-  });
+            try {
+              await refreshAllExtensionData();
+              vscode.window.showInformationMessage(
+                `Successfully populated requirements gateway at ${exportRepository}`
+              );
+              resolve();
+            } catch (err) {
+              const error = err instanceof Error ? err : new Error(String(err));
+              vscode.window.showErrorMessage(
+                `Error updating environment configuration: ${error.message}`
+              );
+              reject(error);
+            }
+          } else {
+            const errorMessage = `Error: reqs2rgw exited with code ${code}`;
+            vscode.window.showErrorMessage(errorMessage);
+            logCliError(errorMessage, true);
+            reject(new Error(errorMessage));
+          }
+        });
+      });
+    }
+  );
 }
 
 let existingEnvs: string[] = [];
