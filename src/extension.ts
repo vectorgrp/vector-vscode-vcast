@@ -259,8 +259,10 @@ function getAutoreqExecutableDirectory(
   context: vscode.ExtensionContext
 ): vscode.Uri | undefined {
   const pathHasAllExecutables = (dirPath: string): boolean => {
-    return NECCESSARY_REQS2X_EXECUTABLES.every((exe) => 
-      fs.existsSync(vscode.Uri.joinPath(vscode.Uri.file(dirPath), exeFilename(exe)).fsPath)
+    return NECCESSARY_REQS2X_EXECUTABLES.every((exe) =>
+      fs.existsSync(
+        vscode.Uri.joinPath(vscode.Uri.file(dirPath), exeFilename(exe)).fsPath
+      )
     );
   };
 
@@ -316,13 +318,22 @@ function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
     return false;
   }
 
-  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, exeFilename("code2reqs")).fsPath;
+  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("code2reqs")
+  ).fsPath;
   REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     exeFilename("reqs2tests")
   ).fsPath;
-  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, exeFilename("panreq")).fsPath;
-  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, exeFilename("llm2check")).fsPath;
+  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("panreq")
+  ).fsPath;
+  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("llm2check")
+  ).fsPath;
 
   return true;
 }
