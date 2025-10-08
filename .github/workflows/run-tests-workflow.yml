@@ -374,8 +374,8 @@ jobs:
           fi
 
           # Export the distribution folder path (this will be available to subsequent steps)
-          echo "REQS2TESTS_RESOURCES=$REQS_PATH" >> $GITHUB_ENV
-          echo "REQS2TESTS_RESOURCES set to: $REQS_PATH"
+          echo "REQS2TESTS_RESOURCES=$REQS_PATH/bin" >> $GITHUB_ENV
+          echo "REQS2TESTS_RESOURCES set to: $REQS_PATH/bin"
 
           # Debug listing of the distribution folder
           echo "Listing REQS2TESTS_RESOURCES contents: $REQS_PATH"
@@ -432,6 +432,10 @@ jobs:
           USE_VCAST_24=$([ "$(head -n1 "$RELEASE_DIR/DATA/tool_version.txt" | grep -oE '^[0-9]+')" -ge 24 ] && echo "True" || echo "False")
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
         shell: bash
+      
+      - name: Load hidden env vars
+        run: |
+          echo "${{ secrets.E2E_ENV_BLOCK }}" >> $GITHUB_ENV
 
       - name: Run tests
         run: |

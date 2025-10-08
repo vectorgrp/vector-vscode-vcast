@@ -37,7 +37,11 @@ import {
   vectorMessage,
 } from "./messagePane";
 
-import { viewMCDCReport, viewResultsReport } from "./reporting";
+import {
+  viewMCDCReport,
+  viewResultsReport,
+  viewResultsReportVC,
+} from "./reporting";
 
 import {
   environmentDataCache,
@@ -77,6 +81,7 @@ import {
   decodeVar,
   normalizePath,
   exeFilename,
+  getFullEnvReport,
 } from "./utilities";
 
 import {
@@ -254,8 +259,10 @@ function getAutoreqExecutableDirectory(
   context: vscode.ExtensionContext
 ): vscode.Uri | undefined {
   const pathHasAllExecutables = (dirPath: string): boolean => {
-    return NECCESSARY_REQS2X_EXECUTABLES.every((exe) => 
-      fs.existsSync(vscode.Uri.joinPath(vscode.Uri.file(dirPath), exeFilename(exe)).fsPath)
+    return NECCESSARY_REQS2X_EXECUTABLES.every((exe) =>
+      fs.existsSync(
+        vscode.Uri.joinPath(vscode.Uri.file(dirPath), exeFilename(exe)).fsPath
+      )
     );
   };
 
@@ -311,13 +318,22 @@ function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
     return false;
   }
 
-  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, exeFilename("code2reqs")).fsPath;
+  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("code2reqs")
+  ).fsPath;
   REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     exeFilename("reqs2tests")
   ).fsPath;
-  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, exeFilename("panreq")).fsPath;
-  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(baseUri, exeFilename("llm2check")).fsPath;
+  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("panreq")
+  ).fsPath;
+  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("llm2check")
+  ).fsPath;
 
   return true;
 }
@@ -1198,6 +1214,25 @@ function configureExtension(context: vscode.ExtensionContext) {
 
     return html;
   }
+
+  // Command: vectorcastTestExplorer.getEnvFullReport  ////////////////////////////////////////////////////////
+  let getEnvFullReportCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.getEnvFullReport",
+    async (enviroNode: any) => {
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+
+      // Execute process
+      const reportPathHTML = await getFullEnvReport(
+        enviroData.buildDirectory,
+        enviroPath
+      );
+
+      // View report
+      viewResultsReportVC(reportPathHTML);
+    }
+  );
+  context.subscriptions.push(getEnvFullReportCommand);
 
   // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
   let buildProjectEnviro = vscode.commands.registerCommand(
@@ -2988,47 +3023,59 @@ async function populateRequirementsGateway(enviroPath: string) {
   const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
 
-  const process = await spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
+  // Show progress while running
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "Populating Requirements Gateway...",
+      cancellable: false,
+    },
+    async (progress) => {
+      const process = await spawnWithVcastEnv(
+        PANREQ_EXECUTABLE_PATH,
+        commandArgs
+      );
 
-  return new Promise<void>((resolve, reject) => {
-    process.stdout.on("data", (data) => {
-      const output = data.toString().trim();
-      logCliOperation(`panreq: ${output}`);
-    });
+      return new Promise<void>((resolve, reject) => {
+        process.stdout.on("data", (data) => {
+          const output = data.toString().trim();
+          logCliOperation(`panreq: ${output}`);
+        });
 
-    process.stderr.on("data", (data) => {
-      const errorOutput = data.toString().trim();
-      logCliError(`panreq: ${errorOutput}`);
-    });
+        process.stderr.on("data", (data) => {
+          const errorOutput = data.toString().trim();
+          logCliError(`panreq: ${errorOutput}`);
+        });
 
-    process.on("close", async (code) => {
-      if (code === 0) {
-        logCliOperation(`reqs2rgw completed successfully with code ${code}`);
+        process.on("close", async (code) => {
+          if (code === 0) {
+            logCliOperation(
+              `reqs2rgw completed successfully with code ${code}`
+            );
 
-        try {
-          // Refresh environment data
-          await refreshAllExtensionData();
-
-          vscode.window.showInformationMessage(
-            `Successfully populated requirements gateway at ${exportRepository}`
-          );
-          resolve();
-        } catch (err) {
-          // Sonar
-          const error = err instanceof Error ? err : new Error(String(err));
-          vscode.window.showErrorMessage(
-            `Error updating environment configuration: ${error.message}`
-          );
-          reject(error);
-        }
-      } else {
-        const errorMessage = `Error: reqs2rgw exited with code ${code}`;
-        vscode.window.showErrorMessage(errorMessage);
-        logCliError(errorMessage, true);
-        reject(new Error(errorMessage));
-      }
-    });
-  });
+            try {
+              await refreshAllExtensionData();
+              vscode.window.showInformationMessage(
+                `Successfully populated requirements gateway at ${exportRepository}`
+              );
+              resolve();
+            } catch (err) {
+              const error = err instanceof Error ? err : new Error(String(err));
+              vscode.window.showErrorMessage(
+                `Error updating environment configuration: ${error.message}`
+              );
+              reject(error);
+            }
+          } else {
+            const errorMessage = `Error: reqs2rgw exited with code ${code}`;
+            vscode.window.showErrorMessage(errorMessage);
+            logCliError(errorMessage, true);
+            reject(new Error(errorMessage));
+          }
+        });
+      });
+    }
+  );
 }
 
 let existingEnvs: string[] = [];

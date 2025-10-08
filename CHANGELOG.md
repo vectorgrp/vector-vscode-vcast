@@ -2,6 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.22] - 2025-10-07
+
+### Added
+- Added the ability to generate a full Environment Report
+
 ## [1.0.21] - 2025-10-02
 
 ### Added

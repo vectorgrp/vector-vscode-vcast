@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -68,6 +68,11 @@
         "command": "vectorcastTestExplorer.openVCAST",
         "category": "VectorCAST Test Explorer",
         "title": "Open Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.getEnvFullReport",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Environment Report"
       },
       {
         "command": "vectorcastTestExplorer.buildIncremental",
@@ -611,6 +616,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.getEnvFullReport",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.openVCASTFromVce",
           "when": "never"
         },
@@ -962,6 +971,11 @@
         "command": "vectorcastTestExplorer.buildProjectEnviro",
         "group": "vcast.build",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastUnbuiltEnviroList"
+      },
+      {
+        "command": "vectorcastTestExplorer.getEnvFullReport",
+        "group": "vcast.build",
+        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.buildExecuteIncremental",
