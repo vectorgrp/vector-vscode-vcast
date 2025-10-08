@@ -3148,7 +3148,7 @@ function generateRequirementsHtml(requirements: any[]): string {
   // Group requirements by function
   const requirementsByFunction: Record<string, any[]> = {};
   for (const req of requirements) {
-    const funcName = req.Function || "Unknown Function";
+    const funcName = req.Function || req.Module || "Unknown Function";
     if (!requirementsByFunction[funcName]) {
       requirementsByFunction[funcName] = [];
     }
