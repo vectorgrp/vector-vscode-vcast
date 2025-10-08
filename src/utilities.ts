@@ -448,7 +448,7 @@ export async function getFullEnvReport(
   }
 
   // Build command and arguments
-  const command = path.join(vectorcastDir, clicastCommandToUse);
+  const command = path.join(vectorcastDir, "clicast");
   const args = ["-e", envName, "report", "custom", "full", htmlReportPath];
 
   // Optional: progress message for the VSCode UI
