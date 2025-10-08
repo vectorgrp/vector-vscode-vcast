@@ -2486,7 +2486,7 @@ async function generateRequirements(enviroPath: string) {
     }
   }
 
-  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer.reqs2x");
   const generateHighLevelRequirements = config.get<boolean>(
     "generateHighLevelRequirements",
     false
