@@ -2,6 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.23] - 2025-10-08
+
+### Changed
+- Reorganized requirement representation in WebViews
+
 ## [1.0.22] - 2025-10-07
 
 ### Added
