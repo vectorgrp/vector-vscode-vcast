@@ -72,7 +72,7 @@
       {
         "command": "vectorcastTestExplorer.getEnvFullReport",
         "category": "VectorCAST Test Explorer",
-        "title": "Get Environment Report"
+        "title": "Generate Environment Report"
       },
       {
         "command": "vectorcastTestExplorer.buildIncremental",
