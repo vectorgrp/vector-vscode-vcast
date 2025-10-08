@@ -10,10 +10,7 @@ import { getGlobalCoverageData } from "./vcastTestInterface";
 import { rebuildEnvironment } from "./vcastAdapter";
 import { rebuildEnvironmentCallback } from "./callbacks";
 import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";
-import {
-  clicastCommandToUse,
-  getVectorCastInstallationLocation,
-} from "./vcastInstallation";
+import { getVectorCastInstallationLocation } from "./vcastInstallation";
 
 const fs = require("fs");
 const glob = require("glob");
