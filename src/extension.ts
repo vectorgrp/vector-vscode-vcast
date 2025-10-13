@@ -2888,6 +2888,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
     ...(addTraceability ? ["--infer-traceability"] : []),
     "--target-env",
     envPath,
+    "--json-events",
   ];
 
   const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
@@ -2900,30 +2901,53 @@ async function importRequirementsFromGateway(enviroPath: string) {
       cancellable: true,
     },
     async (progress, cancellationToken) => {
-      let simulatedProgress = 0;
-      const simulatedProgressInterval = setInterval(() => {
-        if (
-          simulatedProgress < 90 &&
-          !cancellationToken.isCancellationRequested
-        ) {
-          simulatedProgress += 5;
-          progress.report({ increment: 5 });
-        }
-      }, 500);
-
       const proc = await spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
       return new Promise<void>((resolve, reject) => {
+        let lastProgress = 0.0;
+
         cancellationToken.onCancellationRequested(() => {
           proc.kill();
-          clearInterval(simulatedProgressInterval);
           logCliOperation("Operation cancelled by user");
           resolve();
         });
 
         proc.stdout.on("data", (d) => {
+          if (cancellationToken.isCancellationRequested) return;
           const out = d.toString();
-          logCliOperation(`panreq: ${out.trim()}`);
+          const lines = out.split("\n");
+          for (const line of lines) {
+            if (!line) continue;
+            try {
+              const json = JSON.parse(line);
+              if (json.event === "progress") {
+                let step: string | undefined;
+                let newProgress: number | undefined;
+                if (typeof json.value === "object") {
+                  step = json.value.step;
+                  newProgress = json.value.progress;
+                } else if (typeof json.value === "number") {
+                  newProgress = json.value; // legacy
+                }
+
+                if (newProgress === undefined) {
+                  throw new Error("Progress value missing");
+                }
+
+                const increment = (newProgress - lastProgress) * 100;
+                if (increment > 0) {
+                  progress.report({ message: step, increment });
+                  lastProgress = newProgress;
+                }
+              }
+              if (json.event === "problem") {
+                vscode.window.showWarningMessage(json.value);
+                logCliOperation(`Warning: ${json.value}`);
+              }
+            } catch (e) {
+              logCliOperation(`panreq: ${line}`);
+            }
+          }
         });
 
         proc.stderr.on("data", (d) => {
@@ -2932,9 +2956,7 @@ async function importRequirementsFromGateway(enviroPath: string) {
         });
 
         proc.on("close", async (code) => {
-          clearInterval(simulatedProgressInterval);
           if (cancellationToken.isCancellationRequested) return;
-
           if (code === 0) {
             logCliOperation(
               `reqs2excel completed successfully with code ${code}`
