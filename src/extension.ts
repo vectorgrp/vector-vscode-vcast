@@ -2521,27 +2521,16 @@ async function generateRequirements(enviroPath: string) {
       cancellable: true,
     },
     async (progress, cancellationToken) => {
-      let lastProgress = 0;
-      let simulatedProgress = 0;
-      const simulatedProgressInterval = setInterval(() => {
-        if (
-          simulatedProgress < 30 &&
-          !cancellationToken.isCancellationRequested
-        ) {
-          simulatedProgress += 1;
-          progress.report({ increment: 1 });
-        }
-      }, 1000);
-
       const process = await spawnWithVcastEnv(
         CODE2REQS_EXECUTABLE_PATH,
         commandArgs
       );
 
-      return await new Promise<void>((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
+        let lastProgress = 0.0;
+
         cancellationToken.onCancellationRequested(() => {
           process.kill();
-          clearInterval(simulatedProgressInterval);
           logCliOperation("Operation cancelled by user");
           resolve();
         });
@@ -2552,23 +2541,36 @@ async function generateRequirements(enviroPath: string) {
 
           const lines = output.split("\n");
           for (const line of lines) {
+            if (!line) continue;
             try {
               const json = JSON.parse(line);
-              if (json.event === "progress" && json.value !== undefined) {
-                const scaledProgress = json.value * 0.7;
-                const increment = (scaledProgress - lastProgress) * 100;
-                if (increment > 0) {
-                  progress.report({ increment });
-                  lastProgress = scaledProgress;
+              if (json.event === "progress") {
+                let step: string | undefined;
+                let newProgress: number | undefined;
+                if (typeof json.value === "object") {
+                  step = json.value.step;
+                  newProgress = json.value.progress;
+                } else if (typeof json.value === "number") {
+                  newProgress = json.value; // legacy
                 }
-              } else if (json.event === "problem" && json.value !== undefined) {
+
+                if (newProgress === undefined) {
+                  throw new Error("Progress value missing");
+                }
+
+                const increment = (newProgress - lastProgress) * 100;
+                if (increment > 0) {
+                  progress.report({ message: step, increment });
+                  lastProgress = newProgress;
+                }
+              }
+              
+              if (json.event === "problem") {
                 vscode.window.showWarningMessage(json.value);
                 logCliOperation(`Warning: ${json.value}`);
               }
             } catch (e) {
-              if (line) {
-                logCliOperation(`code2reqs: ${line}`);
-              }
+              logCliOperation(`code2reqs: ${line}`);
             }
           }
         });
@@ -2580,7 +2582,6 @@ async function generateRequirements(enviroPath: string) {
         });
 
         process.on("close", async (code) => {
-          clearInterval(simulatedProgressInterval);
           if (cancellationToken.isCancellationRequested) return;
           if (code === 0) {
             logCliOperation(
@@ -2588,7 +2589,6 @@ async function generateRequirements(enviroPath: string) {
             );
             await refreshAllExtensionData();
             updateRequirementsAvailability(enviroPath);
-            // Run the showRequirements command to display the generated Excel
             vscode.commands.executeCommand(
               "vectorcastTestExplorer.showRequirements",
               { id: enviroPath }
@@ -2727,35 +2727,20 @@ async function generateTestsFromRequirements(
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `Generating Tests from Requirements (${fileType}) for ${
-        envName.split(".")[0]
-      }`,
+      title: `Generating Requirement Tests for ${envName.split(".")[0]}`,
       cancellable: true,
     },
     async (progress, cancellationToken) => {
-      let lastProgress = 0;
-      let simulatedProgress = 0;
-      const simulatedProgressInterval = setInterval(() => {
-        if (
-          simulatedProgress < 40 &&
-          !cancellationToken.isCancellationRequested
-        ) {
-          simulatedProgress += 1;
-          progress.report({ increment: 1 });
-        }
-      }, 2000);
-
       const process = await spawnWithVcastEnv(
         REQS2TESTS_EXECUTABLE_PATH,
         commandArgs
       );
 
       return new Promise<void>((resolve, reject) => {
-        console.log(`reqs2tests ${commandArgs.join(" ")}`);
+        let lastProgress = 0.0;
 
         cancellationToken.onCancellationRequested(() => {
           process.kill();
-          clearInterval(simulatedProgressInterval);
           logCliOperation("Operation cancelled by user");
           resolve();
         });
@@ -2768,14 +2753,27 @@ async function generateTestsFromRequirements(
           for (const line of lines) {
             try {
               const json = JSON.parse(line);
-              if (json.event === "progress" && json.value !== undefined) {
-                const scaledProgress = json.value * 0.6;
-                const increment = (scaledProgress - lastProgress) * 100;
-                if (increment > 0) {
-                  progress.report({ increment });
-                  lastProgress = scaledProgress;
-                }
-              } else if (json.event === "problem" && json.value !== undefined) {
+
+              if (json.event === "progress") {
+                  let step: string | undefined;
+                  let newProgress: number | undefined;
+                  if (typeof json.value === "object") {
+                    step = json.value.step;
+                    newProgress = json.value.progress;
+                  } else if (typeof json.value === "number") {
+                    newProgress = json.value; // legacy
+                  }
+
+                  if (newProgress === undefined) {
+                    throw new Error("Progress value missing");
+                  }
+
+                  const increment = (newProgress - lastProgress) * 100;
+                  progress.report({ message: step, increment });
+                  lastProgress = newProgress;
+              }
+              
+              if (json.event === "problem") {
                 if (json.value.includes("Individual")) {
                   return;
                 }
@@ -2797,7 +2795,6 @@ async function generateTestsFromRequirements(
         });
 
         process.on("close", async (code) => {
-          clearInterval(simulatedProgressInterval);
           if (cancellationToken.isCancellationRequested) return;
 
           if (code === 0) {
