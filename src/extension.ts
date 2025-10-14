@@ -3338,6 +3338,33 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
         baseEnv[key.trim()] = value.trim();
       }
     }
+  } else if (provider === "openai_at") {
+    // OpenAI Access Token based authentication (distinct from standard OpenAI apiKey usage)
+    need(
+      config.get<string>("reqs2x.openai_at.modelName"),
+      "OpenAI AT Model Name",
+      "VCAST_REQS2X_OPENAI_AT_MODEL_NAME"
+    );
+    need(
+      config.get<string>("reqs2x.openai_at.baseUrl"),
+      "OpenAI AT Base URL",
+      "VCAST_REQS2X_OPENAI_AT_BASE_URL"
+    );
+    need(
+      config.get<string>("reqs2x.openai_at.authUrl"),
+      "OpenAI AT Auth URL",
+      "VCAST_REQS2X_OPENAI_AT_AUTH_URL"
+    );
+    need(
+      config.get<string>("reqs2x.openai_at.appKey"),
+      "OpenAI AT App Key",
+      "VCAST_REQS2X_OPENAI_AT_APP_KEY"
+    );
+    need(
+      config.get<string>("reqs2x.openai_at.appSecret"),
+      "OpenAI AT App Secret",
+      "VCAST_REQS2X_OPENAI_AT_APP_SECRET"
+    );
   } else {
     missing.push("Unsupported provider value");
   }
