@@ -612,11 +612,11 @@
             "default": "",
             "description": "OpenAI AT model name"
           },
-          "vectorcastTestExplorer.reqs2x.openai_at.baseUrl": {
+          "vectorcastTestExplorer.reqs2x.openai_at.modelUrl": {
             "type": "string",
             "order": 26,
             "default": "",
-            "description": "OpenAI AT base URL"
+            "description": "OpenAI AT model URL"
           },
           "vectorcastTestExplorer.reqs2x.openai_at.authUrl": {
             "type": "string",
@@ -1229,7 +1229,6 @@
   },
   "dependencies": {
     "@vscode/vsce": "^2.32.0",
-    "async-mutex": "^0.5.0",
     "axios": "^1.7.7",
     "convert-excel-to-json": "^1.7.0",
     "crc-32": "^1.2.0",

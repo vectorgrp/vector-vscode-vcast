@@ -3346,9 +3346,9 @@ function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       "VCAST_REQS2X_OPENAI_AT_MODEL_NAME"
     );
     need(
-      config.get<string>("reqs2x.openai_at.baseUrl"),
+      config.get<string>("reqs2x.openai_at.modelUrl"),
       "OpenAI AT Base URL",
-      "VCAST_REQS2X_OPENAI_AT_BASE_URL"
+      "VCAST_REQS2X_OPENAI_AT_MODEL_URL"
     );
     need(
       config.get<string>("reqs2x.openai_at.authUrl"),
