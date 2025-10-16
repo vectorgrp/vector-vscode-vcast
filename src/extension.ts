@@ -2751,7 +2751,7 @@ async function generateTestsFromRequirements(
 
       const scheduleTestImport = debounceAsync(async () => {
         try {
-          await loadTestScriptIntoEnvironment(envBaseName, tstPath);
+          await loadTestScriptIntoEnvironment(envBaseName, tstPath, false);
           await updateTestPane(enviroPath);
           if (globalEnviroDataServerActive) {
             await closeConnection(enviroPath);
