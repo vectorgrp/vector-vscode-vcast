@@ -467,10 +467,12 @@ type DebouncedAsyncFunction<T extends (...args: any[]) => Promise<void> | void> 
 
 export function debounceAsync<T extends (...args: any[]) => Promise<void> | void>(
   fn: T,
-  delayMs: number
+  delayMs: number,
+  options?: { onError?: (message: string, error?: unknown) => void }
 ): DebouncedAsyncFunction<T> {
   let timer: NodeJS.Timeout | undefined;
-  let lastArgs: Parameters<T> | undefined;
+  let pendingArgs: Parameters<T> | undefined;
+  let queue: Promise<void> = Promise.resolve();
 
   const clearTimer = () => {
     if (timer) {
@@ -479,41 +481,52 @@ export function debounceAsync<T extends (...args: any[]) => Promise<void> | void
     }
   };
 
-  const invoke = async () => {
-    const args = lastArgs;
-    lastArgs = undefined;
+  const enqueueExecution = () => {
+    const args = pendingArgs;
+    pendingArgs = undefined;
+
     if (!args) {
       return;
     }
 
-    try {
-      await fn(...args);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      logCliError(`Debounced function execution failed: ${errorMessage}`);
-    }
+    queue = queue.then(async () => {
+      try {
+        await Promise.resolve(fn(...args));
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const formattedMessage = `Debounced function execution failed: ${errorMessage}`;
+        if (options?.onError) {
+          options.onError(formattedMessage, error);
+        } else {
+          console.error(formattedMessage, error);
+        }
+      }
+    });
+  };
+
+  const scheduleRun = () => {
+    clearTimer();
+    timer = setTimeout(() => {
+      timer = undefined;
+      enqueueExecution();
+    }, delayMs);
   };
 
   const debounced = ((...args: Parameters<T>) => {
-    lastArgs = args;
-    clearTimer();
-    timer = setTimeout(async () => {
-      timer = undefined;
-      await invoke();
-    }, delayMs);
+    pendingArgs = args;
+    scheduleRun();
   }) as DebouncedAsyncFunction<T>;
 
   debounced.flush = async () => {
-    if (timer || lastArgs) {
-      clearTimer();
-      await invoke();
-    }
+    clearTimer();
+    enqueueExecution();
+    await queue;
   };
 
   debounced.cancel = () => {
+    pendingArgs = undefined;
     clearTimer();
-    lastArgs = undefined;
   };
 
   return debounced;

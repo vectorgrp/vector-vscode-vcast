@@ -2749,19 +2749,25 @@ async function generateTestsFromRequirements(
         }
       }, 2000);
 
-      const scheduleTestImport = debounceAsync(async () => {
-        try {
-          await loadTestScriptIntoEnvironment(envBaseName, tstPath, false);
-          await updateTestPane(enviroPath);
-          if (globalEnviroDataServerActive) {
-            await closeConnection(enviroPath);
+      const scheduleTestImport = debounceAsync(
+        async () => {
+          try {
+            await loadTestScriptIntoEnvironment(envBaseName, tstPath, false);
+            await updateTestPane(enviroPath);
+            if (globalEnviroDataServerActive) {
+              await closeConnection(enviroPath);
+            }
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            logCliError(`Failed to refresh generated tests: ${message}`);
           }
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          logCliError(`Failed to refresh generated tests: ${message}`);
+        },
+        100,
+        {
+          onError: (message) => logCliError(message),
         }
-      }, 2000);
+      );
 
       const process = await spawnWithVcastEnv(
         REQS2TESTS_EXECUTABLE_PATH,
