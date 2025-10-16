@@ -153,7 +153,8 @@ export async function deleteLevel(projectPath: string, level: string) {
 // Load Test Script - server logic included -----------------------------------------
 export async function loadTestScriptIntoEnvironment(
   enviroName: string,
-  scriptPath: string
+  scriptPath: string,
+  reportSuccess: boolean = true
 ) {
   const enviroPath = path.join(path.dirname(scriptPath), enviroName);
 
@@ -183,7 +184,9 @@ export async function loadTestScriptIntoEnvironment(
     await updateProjectData(enviroPath);
     // Maybe this will be annoying to users, but I think
     // it's good to know when the load is complete.
-    vscode.window.showInformationMessage(`Test script loaded successfully`);
+    if (reportSuccess) {
+      vscode.window.showInformationMessage(`Test script loaded successfully`);
+    }
 
     // this API allows a timeout for the message, but I think its too subtle
     // because it is only shown in the status bar

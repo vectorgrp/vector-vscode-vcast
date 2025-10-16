@@ -457,3 +457,64 @@ export async function getFullEnvReport(
   // Return the generated HTML file path
   return htmlReportPath;
 }
+
+type DebouncedAsyncFunction<T extends (...args: any[]) => Promise<void> | void> = ((
+  ...args: Parameters<T>
+) => void) & {
+  flush: () => Promise<void>;
+  cancel: () => void;
+};
+
+export function debounceAsync<T extends (...args: any[]) => Promise<void> | void>(
+  fn: T,
+  delayMs: number
+): DebouncedAsyncFunction<T> {
+  let timer: NodeJS.Timeout | undefined;
+  let lastArgs: Parameters<T> | undefined;
+
+  const clearTimer = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+
+  const invoke = async () => {
+    const args = lastArgs;
+    lastArgs = undefined;
+    if (!args) {
+      return;
+    }
+
+    try {
+      await fn(...args);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logCliError(`Debounced function execution failed: ${errorMessage}`);
+    }
+  };
+
+  const debounced = ((...args: Parameters<T>) => {
+    lastArgs = args;
+    clearTimer();
+    timer = setTimeout(async () => {
+      timer = undefined;
+      await invoke();
+    }, delayMs);
+  }) as DebouncedAsyncFunction<T>;
+
+  debounced.flush = async () => {
+    if (timer || lastArgs) {
+      clearTimer();
+      await invoke();
+    }
+  };
+
+  debounced.cancel = () => {
+    clearTimer();
+    lastArgs = undefined;
+  };
+
+  return debounced;
+}

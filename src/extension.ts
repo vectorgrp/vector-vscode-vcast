@@ -69,6 +69,7 @@ import {
   setGlobalCompilerAndTestsuites,
   loadTestScriptButton,
   makeEnviroNodeID,
+  updateTestPane,
 } from "./testPane";
 
 import {
@@ -82,6 +83,7 @@ import {
   normalizePath,
   exeFilename,
   getFullEnvReport,
+  debounceAsync,
 } from "./utilities";
 
 import {
@@ -159,6 +161,7 @@ import {
 const path = require("path");
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { parse as csvParse } from "csv-parse/sync";
+import { closeConnection, globalEnviroDataServerActive } from "../src-common/vcastServer";
 const excelToJson = require("convert-excel-to-json");
 
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
@@ -2724,11 +2727,12 @@ async function generateTestsFromRequirements(
   )}`;
   logCliOperation(`Executing command: ${commandString}`);
 
+  const envBaseName = envName.split(".")[0];
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
       title: `Generating Tests from Requirements (${fileType}) for ${
-        envName.split(".")[0]
+        envBaseName
       }`,
       cancellable: true,
     },
@@ -2745,6 +2749,20 @@ async function generateTestsFromRequirements(
         }
       }, 2000);
 
+      const scheduleTestImport = debounceAsync(async () => {
+        try {
+          await loadTestScriptIntoEnvironment(envBaseName, tstPath);
+          await updateTestPane(enviroPath);
+          if (globalEnviroDataServerActive) {
+            await closeConnection(enviroPath);
+          }
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          logCliError(`Failed to refresh generated tests: ${message}`);
+        }
+      }, 2000);
+
       const process = await spawnWithVcastEnv(
         REQS2TESTS_EXECUTABLE_PATH,
         commandArgs
@@ -2756,11 +2774,12 @@ async function generateTestsFromRequirements(
         cancellationToken.onCancellationRequested(() => {
           process.kill();
           clearInterval(simulatedProgressInterval);
+          scheduleTestImport.cancel();
           logCliOperation("Operation cancelled by user");
           resolve();
         });
 
-        process.stdout.on("data", (data) => {
+        process.stdout.on("data", async (data) => {
           if (cancellationToken.isCancellationRequested) return;
           const output = data.toString();
 
@@ -2775,6 +2794,7 @@ async function generateTestsFromRequirements(
                   progress.report({ increment });
                   lastProgress = scaledProgress;
                 }
+                scheduleTestImport();
               } else if (json.event === "problem" && json.value !== undefined) {
                 if (json.value.includes("Individual")) {
                   return;
@@ -2798,14 +2818,16 @@ async function generateTestsFromRequirements(
 
         process.on("close", async (code) => {
           clearInterval(simulatedProgressInterval);
-          if (cancellationToken.isCancellationRequested) return;
+          if (cancellationToken.isCancellationRequested) {
+            scheduleTestImport.cancel();
+            return;
+          }
 
           if (code === 0) {
+            await scheduleTestImport.flush();
             logCliOperation(
               `reqs2tests completed successfully with code ${code}`
             );
-            await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
-            await refreshAllExtensionData();
 
             vscode.window.showInformationMessage(
               "Successfully generated tests for the requirements!"
@@ -2815,6 +2837,7 @@ async function generateTestsFromRequirements(
             const errorMessage = `Error: reqs2tests exited with code ${code}`;
             vscode.window.showErrorMessage(errorMessage);
             logCliError(errorMessage, true);
+            scheduleTestImport.cancel();
             reject(new Error(errorMessage));
           }
         });
