@@ -231,7 +231,7 @@ jobs:
           $upload_url \
           --data-binary "@${{ env.WIN_VSIX_FILE }}"
   
-  publish-extension:
+  build-downloadable-vsix:
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast, Linux]
     container:
