@@ -436,7 +436,7 @@ jobs:
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
 
-          TARGET_DIR=""$GITHUB_WORKSPACE/tests/internal/e2e/vcastTutorial"
+          TARGET_DIR="$GITHUB_WORKSPACE/tests/internal/e2e/vcastTutorial"
           echo "Listing contents under: $TARGET_DIR"
           if [ -d "$TARGET_DIR" ]; then
             echo "----------------------------------------"
