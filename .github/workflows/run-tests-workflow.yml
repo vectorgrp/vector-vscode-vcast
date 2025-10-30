@@ -436,17 +436,23 @@ jobs:
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
 
-          TARGET_DIR="$GITHUB_WORKSPACE/tests/internal/e2e/vcastTutorial"
-          echo "Listing contents under: $TARGET_DIR"
+          TARGET_DIR="$GITHUB_WORKSPACE/tests/internal/e2e/test"
+          echo "Listing all files and directories under: $TARGET_DIR"
           if [ -d "$TARGET_DIR" ]; then
             echo "----------------------------------------"
-            ls -laR "$TARGET_DIR"
+            # Show a tree-like listing if available (nicer output)
+            if command -v tree >/dev/null 2>&1; then
+              tree -a "$TARGET_DIR"
+            else
+              ls -laR "$TARGET_DIR"
+            fi
             echo "----------------------------------------"
           else
-            echo "❌ Directory not found: $TARGET_DIR"
+            echo "Directory not found: $TARGET_DIR"
             echo "Listing parent directories for context:"
             ls -la "$(dirname "$TARGET_DIR")" || true
           fi
+
 
 
       - name: Package with VSCE
