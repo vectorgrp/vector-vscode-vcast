@@ -54,7 +54,11 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_build_env_requirements.test.ts",
         "./**/**/vcast_requirements_tests.test.ts",
       ],
-      env: { REQS2X_PCT_RELEASE: "True", VCAST_USE_PYTHON: "True" },
+      env: {
+        REQS2X_PCT_RELEASE: "True",
+        VCAST_USE_PYTHON: "True",
+        VCAST_REQS2X_LOG_LEVEL: "debug",
+      },
       params: {},
     },
     bugs: {
@@ -128,6 +132,7 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {
         REQS2X_PCT_RELEASE: "True",
         VCAST_USE_PYTHON: "True",
+        VCAST_REQS2X_LOG_LEVEL: "debug",
       },
       params: {},
     };
