@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.18",
+  "version": "1.0.23",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -68,6 +68,11 @@
         "command": "vectorcastTestExplorer.openVCAST",
         "category": "VectorCAST Test Explorer",
         "title": "Open Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.getEnvFullReport",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Environment Report"
       },
       {
         "command": "vectorcastTestExplorer.buildIncremental",
@@ -230,6 +235,11 @@
         "title": "Insert ATG Tests"
       },
       {
+        "command": "vectorcastTestExplorer.generateRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Requirements"
+      },
+      {
         "command": "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
         "category": "VectorCAST Test Explorer",
         "title": "Generate Basis Path Tests"
@@ -290,9 +300,39 @@
         "title": "Open Data Server log"
       },
       {
+        "command": "vectorcastTestExplorer.generateTestsFromRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Tests from Requirements"
+      },
+      {
         "command": "vectorcastTestExplorer.viewMCDCReport",
         "category": "VectorCAST Test Explorer",
         "title": "VectorCAST MC/DC Report"
+      },
+      {
+        "command": "vectorcastTestExplorer.showRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Show Requirements"
+      },
+      {
+        "command": "vectorcastTestExplorer.removeRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Remove Requirements"
+      },
+      {
+        "command": "vectorcastTestExplorer.importRequirementsFromGateway",
+        "category": "VectorCAST Test Explorer",
+        "title": "Import Requirements from Gateway"
+      },
+      {
+        "command": "vectorcastTestExplorer.populateRequirementsGateway",
+        "category": "VectorCAST Test Explorer",
+        "title": "Populate RGW from Requirements"
+      },
+      {
+        "command": "vectorcastTestExplorer.testLLMConfiguration",
+        "category": "VectorCAST Test Explorer",
+        "title": "Test if Reqs2X works with the current LLM configuration"
       }
     ],
     "keybindings": [
@@ -315,7 +355,7 @@
           "vectorcastTestExplorer.vectorcastInstallationLocation": {
             "order": 1,
             "type": "string",
-            "description": "Path to the VectorCAST installation, used if VectorCAST is not found on the system PATH"
+            "description": "Path to the VectorCAST installation, if not set the extension searches for VectorCAST under VECTORCAST_DIR or if not found on the PATH"
           },
           "vectorcastTestExplorer.useDataServer": {
             "type": "boolean",
@@ -358,7 +398,7 @@
             "order": 7,
             "default": false,
             "description": "Log internal extension details"
-          }         
+          }
         }
       },
       {
@@ -396,6 +436,165 @@
           }
         }
       }
+      ,
+      {
+        "id": "reqs2x",
+        "title": "Reqs2X",
+        "order": 3,
+        "properties": {
+          "vectorcastTestExplorer.reqs2x.enableReqs2xFeature": {
+            "order": 1,
+            "type": "boolean",
+            "description": "Enable the AI-based VectorCAST-Reqs2X feature for automatic requirements and test generation (requires a Reqs2X beta distribution)",
+            "default": false
+          },
+          "vectorcastTestExplorer.reqs2x.installationLocation": {
+            "order": 2,
+            "type": "string",
+            "description": "Path to folder containing Reqs2X executables (reqs2tests, code2reqs and panreq), if unset search for the executables in the main VectorCAST installation folder instead"
+          },
+          "vectorcastTestExplorer.reqs2x.decomposeRequirements": {
+            "type": "boolean",
+            "order": 3,
+            "default": true,
+            "description": "Decompose requirements when generating tests"
+          },
+          "vectorcastTestExplorer.reqs2x.generateHighLevelRequirements": {
+            "type": "boolean",
+            "order": 4,
+            "default": false,
+            "description": "Generate high-level requirements in addition to low-level requirements."
+          },
+          "vectorcastTestExplorer.reqs2x.outputDebugInfo": {
+            "type": "boolean",
+            "order": 5,
+            "default": false,
+            "description": "Output debug information for requirement and test generation to the console"
+          },
+          "vectorcastTestExplorer.reqs2x.generationLanguage": {
+            "type": "string",
+            "order": 6,
+            "default": "en",
+            "enum": [
+              "af", "sq", "am", "ar", "hy", "as", "az", "be", "bn", "bs", "bg", "my", "ch", "hr", "cs", "da", "nl", "en", "et", "tl", "fi", "fr", "ka", "de", "gu", "ha", "he", "hi", "hu", "is", "ig", "id", "ga", "it", "jp", "kn", "kk", "km", "ko", "ky", "lo", "lv", "lt", "mk", "ms", "ml", "mt", "mn", "me", "ne", "no", "or", "fa", "pl", "pt", "pa", "ro", "ru", "sr", "si", "sk", "sl", "es", "sw", "sv", "tg", "ta", "te", "th", "tr", "uk", "ur", "uz", "vi", "cy", "xh", "yo", "zu"
+            ],
+            "enumItemLabels": [
+              "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Belarusian", "Bengali", "Bosnian", "Bulgarian", "Burmese", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Filipino", "Finnish", "French", "Georgian", "German", "Gujarati", "Hausa", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Igbo", "Indonesian", "Irish", "Italian", "Japanese", "Kannada", "Kazakh", "Khmer", "Korean", "Kyrgyz", "Lao", "Latvian", "Lithuanian", "Macedonian", "Malay", "Malayalam", "Maltese", "Mongolian", "Montenegrin", "Nepali", "Norwegian", "Odia", "Persian", "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Serbian", "Sinhala", "Slovak", "Slovenian", "Spanish", "Swahili", "Swedish", "Tajik", "Tamil", "Telugu", "Thai", "Turkish", "Ukrainian", "Urdu", "Uzbek", "Vietnamese", "Welsh", "Xhosa", "Yoruba", "Zulu"
+            ],
+            "description": "Generation language for requirements and test generation responses"
+          },
+          "vectorcastTestExplorer.reqs2x.provider": {
+            "type": "string",
+            "order": 7,
+            "default": "openai",
+            "enum": ["openai", "azure_openai", "anthropic", "litellm"],
+            "enumDescriptions": ["OpenAI", "Azure OpenAI", "Anthropic", "LiteLLM"],
+            "description": "Language model provider for automatic requirements and test generation using Reqs2X"
+          },
+          "vectorcastTestExplorer.reqs2x.openai.apiKey": {
+            "type": "string",
+            "order": 8,
+            "default": "",
+            "description": "OpenAI API key"
+          },
+          "vectorcastTestExplorer.reqs2x.openai.modelName": {
+            "type": "string",
+            "order": 9,
+            "default": "",
+            "description": "OpenAI model name"
+          },
+          "vectorcastTestExplorer.reqs2x.openai.reasoningModelName": {
+            "type": "string",
+            "order": 10,
+            "default": "",
+            "description": "Optional OpenAI reasoning model name used for specialized reasoning subtasks."
+          },
+          "vectorcastTestExplorer.reqs2x.openai.baseUrl": {
+            "type": "string",
+            "order": 11,
+            "default": "",
+            "description": "OpenAI base URL (optional, set this to use OpenAI-compatible providers such as Ollama, vLLM or Bedrock)"
+          },
+          "vectorcastTestExplorer.reqs2x.azure.baseUrl": {
+            "type": "string",
+            "order": 12,
+            "default": "",
+            "description": "Azure OpenAI endpoint/base URL, e.g., https://my-example-instance.openai.azure.com"
+          },
+          "vectorcastTestExplorer.reqs2x.azure.apiKey": {
+            "type": "string",
+            "order": 13,
+            "default": "",
+            "description": "Azure OpenAI API key"
+          },
+          "vectorcastTestExplorer.reqs2x.azure.deployment": {
+            "type": "string",
+            "order": 14,
+            "default": "",
+            "description": "Azure OpenAI deployment name, e.g., my-custom-gpt-4o-deployment"
+          },
+          "vectorcastTestExplorer.reqs2x.azure.modelName": {
+            "type": "string",
+            "order": 15,
+            "default": "",
+            "description": "Azure OpenAI model name, e.g., gpt-4o"
+          },
+          "vectorcastTestExplorer.reqs2x.azure.reasoningModelName": {
+            "type": "string",
+            "order": 16,
+            "default": "",
+            "description": "Optional Azure OpenAI reasoning model name used for specialized reasoning subtasks."
+          },
+          "vectorcastTestExplorer.reqs2x.azure.reasoningDeployment": {
+            "type": "string",
+            "order": 17,
+            "default": "",
+            "description": "Azure OpenAI reasoning deployment name (required if Azure reasoning model name is provided)."
+          },
+          "vectorcastTestExplorer.reqs2x.azure.apiVersion": {
+            "type": "string",
+            "order": 18,
+            "default": "2024-12-01-preview",
+            "description": "Azure OpenAI API version"
+          },
+          "vectorcastTestExplorer.reqs2x.anthropic.apiKey": {
+            "type": "string",
+            "order": 19,
+            "default": "",
+            "description": "Anthropic API key"
+          },
+          "vectorcastTestExplorer.reqs2x.anthropic.modelName": {
+            "type": "string",
+            "order": 20,
+            "default": "",
+            "description": "Anthropic model name"
+          },
+          "vectorcastTestExplorer.reqs2x.anthropic.reasoningModelName": {
+            "type": "string",
+            "order": 21,
+            "default": "",
+            "description": "Optional Anthropic reasoning model name used for specialized reasoning subtasks."
+          },
+          "vectorcastTestExplorer.reqs2x.litellm.modelName": {
+            "type": "string",
+            "order": 22,
+            "default": "",
+            "description": "LiteLLM model name (prefix with provider used, e.g., openai/gpt-4o or azure/o3-mini)"
+          },
+          "vectorcastTestExplorer.reqs2x.litellm.reasoningModelName": {
+            "type": "string",
+            "order": 23,
+            "default": "",
+            "description": "Optional LiteLLM reasoning model name used for specialized reasoning subtasks."
+          },
+          "vectorcastTestExplorer.reqs2x.litellm.providerEnvVars": {
+            "type": "string",
+            "order": 24,
+            "default": "",
+            "description": "Environment variables to set when running LiteLLM, e.g., OPENAI_API_KEY=xxxx. Multiple variables can be separated by commas, e.g., OPENAI_API_KEY=xxxx,ANOTHER_ENV_VAR=yyyy. For a list of variables to set for a specific LiteLLM-compatible provider, see https://docs.litellm.ai/docs/providers."
+          }
+        }
+      }
     ],
     "menus": {
       "file/newFile": [
@@ -414,6 +613,10 @@
         },
         {
           "command": "vectorcastTestExplorer.openVCAST",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.getEnvFullReport",
           "when": "never"
         },
         {
@@ -545,6 +748,14 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.generateRequirements",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.generateTestsFromRequirements",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
           "when": "never"
         },
@@ -595,6 +806,26 @@
         {
           "command": "vectorcastTestExplorer.viewMCDCReport",
           "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.showRequirements",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.removeRequirements",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.importRequirementsFromGateway",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.populateRequirementsGateway",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.testLLMConfiguration",
+          "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
         }
       ],
       "view/title": [
@@ -742,6 +973,11 @@
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
+        "command": "vectorcastTestExplorer.getEnvFullReport",
+        "group": "vcast.build",
+        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
+      },
+      {
         "command": "vectorcastTestExplorer.buildExecuteIncremental",
         "group": "vcast.build",
         "when": "vectorcastTestExplorer.globalProjectIsOpenedChecker && ( testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites || (testId =~ /^vcast:.*$/ && ( testId in vectorcastTestExplorer.vcastEnviroList || testId in vectorcastTestExplorer.vcastUnbuiltEnviroList)))"
@@ -830,6 +1066,36 @@
         "command": "vectorcastTestExplorer.deleteCompiler",
         "group": "vcast.delete",
         "when": "testId in vectorcastTestExplorer.globalProjectCompilers"
+      },
+      {
+        "command": "vectorcastTestExplorer.importRequirementsFromGateway",
+        "group": "vcast@8",
+        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.generateRequirements",
+        "group": "vcast@8",
+        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.showRequirements",
+        "group": "vcast@9",
+        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.generateTestsFromRequirements",
+        "group": "vcast@10",
+        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.removeRequirements",
+        "group": "vcast@9",
+        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.populateRequirementsGateway",
+        "group": "vcast@9",
+        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
       },
       {
         "command": "vectorcastTestExplorer.viewResults",
@@ -921,7 +1187,9 @@
   "dependencies": {
     "@vscode/vsce": "^2.32.0",
     "axios": "^1.7.7",
+    "convert-excel-to-json": "^1.7.0",
     "crc-32": "^1.2.0",
+    "csv-parse": "^5.6.0",
     "glob": "^7.1.7",
     "hasbin": "^1.2.3",
     "jsonc-parser": "^3.2.1",
@@ -931,6 +1199,7 @@
     "tslib": "^1.9.3",
     "vscode-languageclient": "^5.2.1",
     "vscode-languageserver": "^5.2.1",
+    "xlsx": "^0.18.5",
     "xo": "^0.58.0"
   },
   "extensionDependencies": [],

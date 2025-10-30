@@ -1023,9 +1023,10 @@ function createScriptTemplate(testNode: testNodeType): string {
   return scriptTemplateLines.join("\n");
 }
 
-export async function newTestScript(testNode: testNodeType) {
-  // This can be called for any subprogram node other than an environment node
+// Keep track of temporary test scripts created via "newTestScript"
+export const tempScriptCache: Set<string> = new Set();
 
+export async function newTestScript(testNode: testNodeType) {
   const contents = createScriptTemplate(testNode);
   const scriptPath = path.join(
     path.dirname(testNode.enviroPath),
@@ -1034,6 +1035,9 @@ export async function newTestScript(testNode: testNodeType) {
 
   // create the template file
   fs.writeFileSync(scriptPath, contents);
+
+  // cache this path so we know it’s temporary
+  tempScriptCache.add(scriptPath);
 
   let scriptUri: vscode.Uri = vscode.Uri.file(scriptPath);
   vscode.workspace.openTextDocument(scriptUri).then(

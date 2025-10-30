@@ -72,6 +72,7 @@ import {
   globalTestStatusArray,
   resetCoverageData,
   runVCTest,
+  tempScriptCache,
   testDataType,
   updateGlobalDataForFile,
   vcastEnviroFile,
@@ -541,7 +542,9 @@ export async function buildProjectDataCache(
     // "displayName", "buildDirectory", "isBuilt", "rebuildNeeded"
     // See python function vTestInterface.py:getProjectData()
     if (progress) {
-      progress.report({ message: `Processing project: ${projectFile}` });
+      progress.report({
+        message: `Processing project: ${path.basename(projectFile)}`,
+      });
       // allow UI to catch up
       await new Promise((r) => setTimeout(r, 0));
     }
@@ -652,7 +655,7 @@ function isEnvironmentOfInterest(candidatePath: string): boolean {
   return returnValue;
 }
 
-function getEnvironmentList(baseDirectory: string): string[] {
+export function getEnvironmentList(baseDirectory: string): string[] {
   // This function will find all of the VectorCAST and vTest
   // environments downstream of the current workspace
 
@@ -693,7 +696,7 @@ let vcastEnviroList: string[] = [];
 
 export let vcastUnbuiltEnviroList: string[] = [];
 // Helper to turn a buildDirectory into the unique test‐item ID
-function makeEnviroNodeID(buildDirectory: string): string {
+export function makeEnviroNodeID(buildDirectory: string): string {
   return `vcast:${buildDirectory}`;
 }
 
@@ -1685,7 +1688,13 @@ export async function loadTestScript() {
       // we are reading the data back from the environment with this call
       updateTestPane(enviroPath);
       if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-      fs.unlinkSync(scriptPath);
+
+      // If it's a temporary tst file (from create new test script), we delete it.
+      // Otherwise it's a manually editing of an already existing tst file
+      if (tempScriptCache.has(scriptPath)) {
+        fs.unlinkSync(scriptPath);
+        tempScriptCache.delete(scriptPath);
+      }
     } else if (!isTheEnvTestScript) {
       // Only show the messagt when it's NOT the whole ENV.tst
       vscode.window.showErrorMessage(

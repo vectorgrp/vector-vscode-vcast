@@ -37,6 +37,7 @@ describe("Testing pythonUtilities (invalid)", () => {
     "validate that initializePaths if the path was not found",
     async () => {
       const invalidPath = path.join("some", "invalid", "path");
+
       initializePaths(invalidPath, "someAction", true);
       const invalidPathToTestEditorInterface = path.join(
         invalidPath,

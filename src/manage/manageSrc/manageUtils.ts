@@ -7,7 +7,10 @@ import { spawn } from "child_process";
 import { globalController, globalProjectDataCache } from "../../testPane";
 import { vectorMessage } from "../../messagePane";
 import { normalizePath } from "../../utilities";
-import { clicastCommandToUse } from "../../vcastInstallation";
+import {
+  clicastCommandToUse,
+  vcastInstallationDirectory,
+} from "../../vcastInstallation";
 
 /**
  * Generates a new CFG file for the given compiler by invoking VectorCAST's clicast tool,
@@ -178,7 +181,7 @@ export function addManagedEnvironments(
   workspaceRoot: string
 ): void {
   for (const [projectPath, projectData] of globalProjectDataCache) {
-    vectorMessage(`Processing project: ${projectPath} ...`);
+    vectorMessage(`Processing project: ${path.basename(projectPath)} ...`);
     projectPathDirList.push(projectPath.split(".vcm")[0]);
     for (const [buildDirectory, enviroData] of projectData) {
       environmentList.push({
@@ -203,12 +206,12 @@ export const compilerTagList: CompilerList = {};
  * and updates the exported `compilerList` in-place.
  */
 export async function setCompilerList(): Promise<CompilerList> {
-  if (!process.env.VECTORCAST_DIR) {
-    throw new Error("VECTORCAST_DIR environment variable is not set");
+  if (!vcastInstallationDirectory) {
+    throw new Error("VectorCAST installation directory is not available");
   }
 
   const datPath = normalizePath(
-    path.join(process.env.VECTORCAST_DIR, "DATA", "C_TEMPLATES.DAT")
+    path.join(vcastInstallationDirectory, "DATA", "C_TEMPLATES.DAT")
   );
 
   const fileContents = await fs.readFile(datPath, "utf-8");
