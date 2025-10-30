@@ -281,6 +281,34 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await bottomBar.maximize();
 
+    // Check the files in the test folder
+    const fs = require("fs");
+    const path = require("path");
+    const targetDir = path.join(
+      process.env.GITHUB_WORKSPACE || ".",
+      "tests/internal/e2e/test"
+    );
+
+    console.log(`Checking contents of ${targetDir}...`);
+
+    if (fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory()) {
+      const files = fs.readdirSync(targetDir);
+      console.log("Files and directories found:");
+      files.forEach((f) => console.log(" -", f));
+
+      const expectedFiles = ["bar.cpp"];
+      expectedFiles.forEach((f) => {
+        expect(files).toContain(f);
+      });
+    } else {
+      console.warn(`Directory not found: ${targetDir}`);
+      const parentDir = path.dirname(targetDir);
+      if (fs.existsSync(parentDir)) {
+        console.log(`Parent directory contents (${parentDir}):`);
+        console.log(fs.readdirSync(parentDir));
+      }
+    }
+
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
