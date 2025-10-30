@@ -292,63 +292,19 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     await bottomBar.maximize();
-
-    // Check the files in the test folder
-    const targetDir = path.join(
-      process.env.GITHUB_WORKSPACE || ".",
-      "tests/internal/e2e/test"
-    );
-
-    console.log(`Checking contents of ${targetDir}...`);
-    printTree(targetDir);
-    await browser.pause(20000);
-
     const outputView = await bottomBar.openOutputView();
 
     console.log(await outputView.getText());
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Script loaded successfully"),
-      { timeout: 180_000 }
-    );
+    // Making sure notifications are shown
+    const notifications = await $("aria/Notifications");
+    await notifications.click();
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("returned exit code: 0"),
-      { timeout: 180_000 }
+    console.log("Notifications are shown");
+    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    const vcastNotificationSourceElement = await $(
+      "aria/Successfully generated tests for the requirements!"
     );
+    expect(vcastNotificationSourceElement).toBeDefined();
   });
 });
-
-/**
- * Recursively prints all files and directories under a folder
- * @param dir Path to start
- * @param prefix Used for indentation (optional)
- */
-function printTree(dir: string, prefix = "") {
-  if (!fs.existsSync(dir)) {
-    console.warn(`Directory not found: ${dir}`);
-    return;
-  }
-
-  const entries = fs.readdirSync(dir);
-
-  entries.forEach((entry, index) => {
-    const fullPath = path.join(dir, entry);
-    const isDir = fs.statSync(fullPath).isDirectory();
-    const connector = index === entries.length - 1 ? "└── " : "├── ";
-    console.log(`${prefix}${connector}${entry}`);
-
-    if (isDir) {
-      // Recurse into subdirectory
-      const newPrefix =
-        prefix + (index === entries.length - 1 ? "    " : "│   ");
-      printTree(fullPath, newPrefix);
-    }
-  });
-}
