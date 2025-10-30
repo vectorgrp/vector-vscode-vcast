@@ -7,6 +7,7 @@ import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
   executeContextMenuAction,
+  expandWorkspaceFolderSectionInExplorer,
   findTreeNodeAtLevel,
   getViewContent,
   selectOutputChannel,
@@ -279,6 +280,18 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     await bottomBar.maximize();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("manage");
+    const cppFolder = workspaceFolderSection.findItem("input");
+    await (await cppFolder).select();
+
+    const managerCpp = await workspaceFolderSection.findItem("bar.cpp");
+    expect(managerCpp).toBeDefined();
     await browser.pause(60000);
 
     const outputView = await bottomBar.openOutputView();
