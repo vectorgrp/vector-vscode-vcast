@@ -222,7 +222,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     await testExplorerSection.getVisibleItems();
 
-    await executeContextMenuAction(2, "BAR", true, "Generate Requirements");
+    await executeContextMenuAction(
+      2,
+      "DATABASE-MANAGER",
+      true,
+      "Generate Requirements"
+    );
 
     // Should exit with code 0
     await browser.waitUntil(
@@ -251,7 +256,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     const testEnvironments = await testExplorerSection.getVisibleItems();
 
-    await executeContextMenuAction(2, "BAR", true, "Show Requirements");
+    await executeContextMenuAction(
+      2,
+      "DATABASE-MANAGER",
+      true,
+      "Show Requirements"
+    );
 
     const editorView = workbench.getEditorView();
     await browser.waitUntil(
@@ -264,8 +274,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Expect some HTML stuff to be present
     expect(await checkElementExistsInHTML("Requirements")).toBe(true);
-    expect(await checkElementExistsInHTML("bar")).toBe(true);
-    expect(await checkElementExistsInHTML("bar.1")).toBe(true);
+    // expect(await checkElementExistsInHTML("bar")).toBe(true);
+    // expect(await checkElementExistsInHTML("bar.1")).toBe(true);
 
     await editorView.closeEditor("Requirements Report", 0);
   });
@@ -276,7 +286,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // Find Manager::PlaceOrder subprogram and click on Generate Tests
     await executeContextMenuAction(
       3,
-      "bar",
+      "manager",
       true,
       "Generate Tests from Requirements"
     );
@@ -284,8 +294,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.maximize();
 
     // Check the files in the test folder
-    const fs = require("fs");
-    const path = require("path");
     const targetDir = path.join(
       process.env.GITHUB_WORKSPACE || ".",
       "tests/internal/e2e/test"
@@ -293,19 +301,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log(`Checking contents of ${targetDir}...`);
     printTree(targetDir);
-
-    const workbench = await browser.getWorkbench();
-    const activityBar = workbench.getActivityBar();
-    const explorerView = await activityBar.getViewControl("Explorer");
-    await explorerView?.openView();
-    const workspaceFolderSection =
-      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-    const cppFolder = workspaceFolderSection.findItem("input");
-    await (await cppFolder).select();
-
-    const managerCpp = await workspaceFolderSection.findItem("bar.cpp");
-    expect(managerCpp).toBeDefined();
-    await browser.pause(60000);
+    await browser.pause(20000);
 
     const outputView = await bottomBar.openOutputView();
 

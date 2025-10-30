@@ -851,6 +851,58 @@ describe("vTypeCheck VS Code Extension", () => {
     await notificationsCenter.clearAllNotifications();
   });
 
+  it("testing building new added project environment", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    await executeContextMenuAction(
+      3,
+      "DATABASE-MANAGER",
+      true,
+      "Build Project Environment"
+    );
+
+    console.log("Checking for Output logs if Environment build is finished");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Creating Environment "DATABASE-MANAGER"`),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes(`Processing project:`),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
+
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.waitUntil(
+      async () => {
+        const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+        return testsuiteNode !== undefined;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 500,
+        timeoutMsg:
+          'Expected Env node "DATABASE-MANAGER" to be in the tree within timeout',
+      }
+    );
+
+    console.log("Checking if Env node is in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+    expect(testsuiteNode).toBeDefined();
+  });
+
   it("testing changing project update settings", async () => {
     await updateTestID();
     await bottomBar.toggle(true);
