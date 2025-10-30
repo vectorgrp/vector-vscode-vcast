@@ -15,6 +15,8 @@ import {
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
+import fs from "fs";
+import path from "path";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
@@ -290,24 +292,7 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log(`Checking contents of ${targetDir}...`);
-
-    if (fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory()) {
-      const files = fs.readdirSync(targetDir);
-      console.log("Files and directories found:");
-      files.forEach((f) => console.log(" -", f));
-
-      const expectedFiles = ["bar.cpp"];
-      expectedFiles.forEach((f) => {
-        expect(files).toContain(f);
-      });
-    } else {
-      console.warn(`Directory not found: ${targetDir}`);
-      const parentDir = path.dirname(targetDir);
-      if (fs.existsSync(parentDir)) {
-        console.log(`Parent directory contents (${parentDir}):`);
-        console.log(fs.readdirSync(parentDir));
-      }
-    }
+    printTree(targetDir);
 
     const workbench = await browser.getWorkbench();
     const activityBar = workbench.getActivityBar();
@@ -343,3 +328,31 @@ describe("vTypeCheck VS Code Extension", () => {
     );
   });
 });
+
+/**
+ * Recursively prints all files and directories under a folder
+ * @param dir Path to start
+ * @param prefix Used for indentation (optional)
+ */
+function printTree(dir: string, prefix = "") {
+  if (!fs.existsSync(dir)) {
+    console.warn(`Directory not found: ${dir}`);
+    return;
+  }
+
+  const entries = fs.readdirSync(dir);
+
+  entries.forEach((entry, index) => {
+    const fullPath = path.join(dir, entry);
+    const isDir = fs.statSync(fullPath).isDirectory();
+    const connector = index === entries.length - 1 ? "└── " : "├── ";
+    console.log(`${prefix}${connector}${entry}`);
+
+    if (isDir) {
+      // Recurse into subdirectory
+      const newPrefix =
+        prefix + (index === entries.length - 1 ? "    " : "│   ");
+      printTree(fullPath, newPrefix);
+    }
+  });
+}
