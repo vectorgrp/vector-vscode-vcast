@@ -175,7 +175,11 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_manage.test.ts",
         "./**/**/vcast_requirements_manage.test.ts",
       ],
-      env: { VCAST_USE_PYTHON: "True", MANAGE_TEST: "True" },
+      env: {
+        VCAST_USE_PYTHON: "True",
+        MANAGE_TEST: "True",
+        VCAST_REQS2X_LOG_LEVEL: "debug",
+      },
       params: {},
     };
 
@@ -295,7 +299,7 @@ export function getSpecGroups(useVcast24: boolean) {
         "./**/**/vcast_manage.test.ts",
         "./**/**/vcast_requirements_manage.test.ts",
       ],
-      env: { MANAGE_TEST: "True" },
+      env: { MANAGE_TEST: "True", VCAST_REQS2X_LOG_LEVEL: "debug" },
       params: {},
     };
 
