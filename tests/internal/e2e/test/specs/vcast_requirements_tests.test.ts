@@ -356,6 +356,7 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     await outputView.clearText();
+    await bottomBar.maximize();
 
     const contextMenu = await subprogramMethod.openContextMenu();
     await contextMenu.select("VectorCAST");
