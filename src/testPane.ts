@@ -654,7 +654,7 @@ function isEnvironmentOfInterest(candidatePath: string): boolean {
   return returnValue;
 }
 
-function getEnvironmentList(baseDirectory: string): string[] {
+export function getEnvironmentList(baseDirectory: string): string[] {
   // This function will find all of the VectorCAST and vTest
   // environments downstream of the current workspace
 
@@ -695,7 +695,7 @@ let vcastEnviroList: string[] = [];
 
 export let vcastUnbuiltEnviroList: string[] = [];
 // Helper to turn a buildDirectory into the unique test‐item ID
-function makeEnviroNodeID(buildDirectory: string): string {
+export function makeEnviroNodeID(buildDirectory: string): string {
   return `vcast:${buildDirectory}`;
 }
 

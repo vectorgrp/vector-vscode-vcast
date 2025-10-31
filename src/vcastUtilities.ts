@@ -573,6 +573,15 @@ export function checkIfAnyProjectsAreOpened() {
       return true;
     }
   }
+
+  // In case we have empty projects without envs in it
+  if (
+    typeof globalProjectDataCache !== "undefined" &&
+    globalProjectDataCache.size > 0
+  ) {
+    return true;
+  }
+
   return false;
 }
 

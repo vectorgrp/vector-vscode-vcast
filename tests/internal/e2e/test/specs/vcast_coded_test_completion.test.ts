@@ -392,7 +392,13 @@ describe("vTypeCheck VS Code Extension", () => {
       normalizedExpectedFunctionOutput
     );
 
-    expect(selectedItem).not.toBe(undefined);
+    // Get the updated line 19
+    const updatedLineAutocomplete = await tab.getTextAtLine(19);
+
+    // Validate that the line contains the expected replacement
+    expect(updatedLineAutocomplete).toContain(
+      "vmock_manager_Manager_ClearTable"
+    );
     console.log("Content assist validation passed.");
   });
 });

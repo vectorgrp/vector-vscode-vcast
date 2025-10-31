@@ -146,7 +146,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // For the compiler tab we need to do it that way, because it's input is not found
     // The different strucutre (autocompletion) + we already clicked on the same webview
     // make the problems, so we just navigate with tab and enter within the webview
-    await insertStringToInput("NewProject", "Project Name Input");
+    await insertStringToInput("ANewProject", "Project Name Input");
     await browser.keys(["Tab"]);
     await browser.keys("GNU Native_Automatic_C++17");
     await browser.keys(["Tab"]);
@@ -157,12 +157,12 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project NewProject`),
+          .includes(`Added Compiler CCAST_.CFG to Project ANewProject`),
       { timeout: TIMEOUT }
     );
 
     console.log("Checking existence of new Project");
-    const projectNode = await findTreeNodeAtLevel(0, "NewProject.vcm");
+    const projectNode = await findTreeNodeAtLevel(0, "ANewProject.vcm");
     const compilerNode = await findTreeNodeAtLevel(
       1,
       "GNU_Native_Automatic_C++17"
