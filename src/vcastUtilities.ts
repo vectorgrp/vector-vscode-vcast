@@ -403,7 +403,7 @@ function getCommonCommandString(
   command: vcastCommandType,
   enviroPath: string
 ): string {
-  return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${command.toString()} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+  return `${vPythonCommandToUse} ${globalTestInterfacePath} --mode=${command.toString()} --clicast=${clicastCommandToUse} --path="${enviroPath}"`;
 }
 
 export function getVcastInterfaceCommand(
@@ -440,7 +440,7 @@ export function getVcastInterfaceCommandForMCDC(
   unitName: string,
   lineNumber: number
 ) {
-  const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=${command.toString()} --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+  const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=${command.toString()} --clicast=${clicastCommandToUse} --path="${enviroPath}"`;
   let optionsDict: { [command: string]: string | number } = {};
   optionsDict["unitName"] = unitName;
   optionsDict["lineNumber"] = lineNumber;
