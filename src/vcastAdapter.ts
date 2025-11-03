@@ -834,18 +834,11 @@ export async function rebuildEnvironment(
   rebuildEnvironmentCallback: any
 ) {
   setCodedTestOption(path.dirname(enviroPath));
-  const quotedEnvPath = `"${enviroPath}"`;
 
   if (globalEnviroDataServerActive) {
-    await rebuildEnvironmentUsingServer(
-      quotedEnvPath,
-      rebuildEnvironmentCallback
-    );
+    await rebuildEnvironmentUsingServer(enviroPath, rebuildEnvironmentCallback);
   } else {
-    await rebuildEnvironmentUsingPython(
-      quotedEnvPath,
-      rebuildEnvironmentCallback
-    );
+    await rebuildEnvironmentUsingPython(enviroPath, rebuildEnvironmentCallback);
   }
 }
 
