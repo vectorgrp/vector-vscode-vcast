@@ -846,22 +846,14 @@ export async function rebuildEnvironmentUsingPython(
   enviroPath: string,
   rebuildEnvironmentCallback: any
 ) {
-  const commandToRun = getVcastInterfaceCommand(
+  // Get the raw command and arguments (without splitting on spaces)
+  const { commandVerb, argList } = buildVcastPythonArgs(
     vcastCommandType.rebuild,
     enviroPath
   );
-  const optionString = `--options=${getRebuildOptionsString()}`;
-
-  let commandPieces = commandToRun.split(" ");
-  commandPieces.push(optionString);
-  const commandVerb = commandPieces[0];
-  commandPieces.shift();
 
   const unitTestLocation = path.dirname(enviroPath);
 
-  // The progress bar ensures the execution waits and prevents failure when rebuilding
-  // multiple environments (for instance when changing the coverageKind).
-  // It also provides visual progress to the user.
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -874,7 +866,7 @@ export async function rebuildEnvironmentUsingPython(
       await new Promise<void>((resolve) => {
         executeWithRealTimeEcho(
           commandVerb,
-          commandPieces,
+          argList,
           unitTestLocation,
           async (envPath: string, errorCode: number) => {
             await rebuildEnvironmentCallback(envPath, errorCode);
@@ -887,6 +879,32 @@ export async function rebuildEnvironmentUsingPython(
       progress.report({ increment: 100 });
     }
   );
+}
+
+// ─────────────────────────────────────────────
+// Helper: safely build the argument list
+// ─────────────────────────────────────────────
+function buildVcastPythonArgs(
+  commandType: vcastCommandType,
+  enviroPath: string
+): { commandVerb: string; argList: string[] } {
+  const commandToRun = getVcastInterfaceCommand(commandType, enviroPath);
+  const rebuildOptions = getRebuildOptionsString();
+
+  // commandToRun is something like:
+  // "vpython /path/to/vTestInterface.py --mode=rebuild --clicast=/path/to/clicast"
+  // We need to split it *safely* — not with .split(" "), otherwise we have problems with path including backspaces
+  const commandParts = commandToRun.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+
+  const commandVerb = commandParts.shift()!;
+  const argList = commandParts.map(
+    (arg) => arg.replace(/^"(.*)"$/, "$1") // strip surrounding quotes if present
+  );
+
+  argList.push(`--path=${enviroPath}`);
+  argList.push(`--options=${rebuildOptions}`);
+
+  return { commandVerb, argList };
 }
 
 export async function rebuildEnvironmentUsingServer(
