@@ -881,9 +881,12 @@ export async function rebuildEnvironmentUsingPython(
   );
 }
 
-// ─────────────────────────────────────────────
-// Helper: safely build the argument list
-// ─────────────────────────────────────────────
+/**
+ * Builds an arglist from the command string when
+ * @param commandType Command mode like rebuild
+ * @param enviroPath Path to environment
+ * @returns Argument list
+ */
 function buildVcastPythonArgs(
   commandType: vcastCommandType,
   enviroPath: string
@@ -891,15 +894,12 @@ function buildVcastPythonArgs(
   const commandToRun = getVcastInterfaceCommand(commandType, enviroPath);
   const rebuildOptions = getRebuildOptionsString();
 
-  // commandToRun is something like:
-  // "vpython /path/to/vTestInterface.py --mode=rebuild --clicast=/path/to/clicast"
   // We need to split it *safely* — not with .split(" "), otherwise we have problems with path including backspaces
   const commandParts = commandToRun.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
-
   const commandVerb = commandParts.shift()!;
-  const argList = commandParts.map(
-    (arg) => arg.replace(/^"(.*)"$/, "$1") // strip surrounding quotes if present
-  );
+
+  // strip surrounding quotes if present
+  const argList = commandParts.map((arg) => arg.replace(/^"(.*)"$/, "$1"));
 
   argList.push(`--path=${enviroPath}`);
   argList.push(`--options=${rebuildOptions}`);
