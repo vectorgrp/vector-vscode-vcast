@@ -273,7 +273,10 @@ def main():
 
     # start the server
     logFilePath = os.path.join(os.getcwd(), "vcastDataServer.log")
-    with open(logFilePath, "w", buffering=1) as pythonUtilities.logFileHandle:
+    # ensure the log file uses utf-8 so we can write any unicode chars
+    with open(
+        logFilePath, "w", buffering=1, encoding="utf-8", errors="replace"
+    ) as pythonUtilities.logFileHandle:
         # this will set the vcastDataServerTypes.PORT global
         findAvailablePort()
         app = init_application(logFilePath)
