@@ -7,16 +7,10 @@ import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
   executeContextMenuAction,
-  expandWorkspaceFolderSectionInExplorer,
-  findTreeNodeAtLevel,
   getViewContent,
-  selectOutputChannel,
   updateTestID,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
-import { checkForServerRunnability } from "../../../../unit/getToolversion";
-import fs from "fs";
-import path from "path";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
@@ -274,8 +268,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Expect some HTML stuff to be present
     expect(await checkElementExistsInHTML("Requirements")).toBe(true);
-    // expect(await checkElementExistsInHTML("bar")).toBe(true);
-    // expect(await checkElementExistsInHTML("bar.1")).toBe(true);
 
     await editorView.closeEditor("Requirements Report", 0);
   });
