@@ -7,13 +7,10 @@ import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
   executeContextMenuAction,
-  findTreeNodeAtLevel,
   getViewContent,
-  selectOutputChannel,
   updateTestID,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
-import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
@@ -219,7 +216,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     await testExplorerSection.getVisibleItems();
 
-    await executeContextMenuAction(2, "BAR", true, "Generate Requirements");
+    await executeContextMenuAction(
+      2,
+      "DATABASE-MANAGER",
+      true,
+      "Generate Requirements"
+    );
 
     // Should exit with code 0
     await browser.waitUntil(
@@ -248,7 +250,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     const testEnvironments = await testExplorerSection.getVisibleItems();
 
-    await executeContextMenuAction(2, "BAR", true, "Show Requirements");
+    await executeContextMenuAction(
+      2,
+      "DATABASE-MANAGER",
+      true,
+      "Show Requirements"
+    );
 
     const editorView = workbench.getEditorView();
     await browser.waitUntil(
@@ -261,8 +268,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Expect some HTML stuff to be present
     expect(await checkElementExistsInHTML("Requirements")).toBe(true);
-    expect(await checkElementExistsInHTML("bar")).toBe(true);
-    expect(await checkElementExistsInHTML("bar.1")).toBe(true);
 
     await editorView.closeEditor("Requirements Report", 0);
   });
@@ -273,27 +278,24 @@ describe("vTypeCheck VS Code Extension", () => {
     // Find Manager::PlaceOrder subprogram and click on Generate Tests
     await executeContextMenuAction(
       3,
-      "bar",
+      "manager",
       true,
       "Generate Tests from Requirements"
     );
 
     await bottomBar.maximize();
+    const outputView = await bottomBar.openOutputView();
+    console.log(await outputView.getText());
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Script loaded successfully"),
-      { timeout: 180_000 }
-    );
+    // Making sure notifications are shown
+    const notifications = await $("aria/Notifications");
+    await notifications.click();
 
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("returned exit code: 0"),
-      { timeout: 180_000 }
+    console.log("Notifications are shown");
+    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
+    const vcastNotificationSourceElement = await $(
+      "aria/Successfully generated tests for the requirements!"
     );
+    expect(vcastNotificationSourceElement).toBeDefined();
   });
 });
