@@ -384,6 +384,7 @@ describe("vTypeCheck VS Code Extension", () => {
         );
       } catch (err2) {
         // Both attempts failed → rethrow the first error (or combine them)
+        console.log(await outputView.getText());
         throw new Error(
           `Neither log message appeared within the timeout.\n` +
             `First error: ${err}\nSecond error: ${err2}`

@@ -233,6 +233,53 @@ jobs:
           -H "Content-Type: application/octet-stream" \
           $upload_url \
           --data-binary "@${{ env.WIN_VSIX_FILE }}"
+  
+  build-downloadable-vsix:
+    permissions: write-all
+    runs-on: [self-hosted, vscode-vcast, Linux]
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
+    needs: unit-tests
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('package.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Package extension and list VSIX
+        run: |
+          npm run package
+          echo "VSIX contents:"
+          npx vsce ls
+          VSIX_FILE=$(find . -maxdepth 2 -name "*.vsix" | head -n 1)
+          if [ -z "$VSIX_FILE" ]; then
+            echo "Error: vsix not found"
+            exit 1
+          fi
+          echo "VSIX_FILE=$VSIX_FILE" >> $GITHUB_ENV
+
+      - name: Upload VSIX
+        run: |
+          if [ -z "${VSIX_FILE}" ]; then
+            echo "VSIX_FILE environment variable not set"
+            exit 1
+          fi
+          COMMIT_DATE=$(git log -1 --format=%cd --date=format:%Y-%m-%dT%H:%M:%S)
+          ARTIFACTORY_URL="https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev/vscode-gh1/${{ github.ref_name }}/$COMMIT_DATE-${{ github.sha }}/artifacts"
+          BASENAME=$(basename "${VSIX_FILE}")
+          URL="$ARTIFACTORY_URL/$BASENAME"
+          curl -H "X-JFrog-Art-Api:${{ secrets.ARTIFACTORY_TOKEN }}" -X PUT $URL -T "${VSIX_FILE}"
+          echo "### VSIX Extension" >> $GITHUB_STEP_SUMMARY
+          echo "[Download extension (.vsix)]($URL)" >> $GITHUB_STEP_SUMMARY
 
   generate-e2e-matrix:
     if: github.event.pull_request.draft == false
@@ -280,7 +327,7 @@ jobs:
           echo "matrix=$(cat gha_matrix.json)" >> "$GITHUB_OUTPUT"
 
   e2e-tests:
-    needs: generate-e2e-matrix
+    needs: [generate-e2e-matrix, build-downloadable-vsix]
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: ubuntu-24.04
@@ -397,6 +444,24 @@ jobs:
           # extract windows distribution for other uses (kept in /tmp)
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
+
+          TARGET_DIR="$GITHUB_WORKSPACE/tests/internal/e2e/test"
+          echo "Listing all files and directories under: $TARGET_DIR"
+          if [ -d "$TARGET_DIR" ]; then
+            echo "----------------------------------------"
+            # Show a tree-like listing if available (nicer output)
+            if command -v tree >/dev/null 2>&1; then
+              tree -a "$TARGET_DIR"
+            else
+              ls -laR "$TARGET_DIR"
+            fi
+            echo "----------------------------------------"
+          else
+            echo "Directory not found: $TARGET_DIR"
+            echo "Listing parent directories for context:"
+            ls -la "$(dirname "$TARGET_DIR")" || true
+          fi
+
 
 
       - name: Package with VSCE
@@ -652,7 +717,6 @@ jobs:
         shell: bash	
         if: always()	
         run: |	
->>>>>>> main
           if [ -f exitcode.txt ]; then
               exit $(cat exitcode.txt)
           fi
