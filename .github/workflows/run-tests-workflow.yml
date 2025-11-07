@@ -91,20 +91,30 @@ jobs:
 
       - name: Pull latest reqs2tests release
         shell: bash
+        env:
+          R2T_RELEASE_URL_LIN: ${{ env.R2T_RELEASE_URL_LIN }}
+          R2T_RELEASE_URL_WIN: ${{ env.R2T_RELEASE_URL_WIN }}
+          R2T_RELEASE_BRANCH: ${{ env.R2T_RELEASE_BRANCH }}
         run: |
-          python3 ./ci/get_most_recent_reqs2tests_distribution.py
-          if [ ! -f "autoreq-linux.tar.gz" ]; then
-            echo "Error: autoreq-linux.tar.gz not found."
+          # If URLs are provided, download directly
+          if [[ -n "$R2T_RELEASE_URL_LIN" && -n "$R2T_RELEASE_URL_WIN" ]]; then
+            wget "$R2T_RELEASE_URL_LIN" -O autoreq-linux.tar.gz
+            wget "$R2T_RELEASE_URL_WIN" -O autoreq-win.tar.gz
+          else
+            echo "No direct download URLs provided — falling back to branch lookup: $R2T_RELEASE_BRANCH"
+            python3 ./ci/get_most_recent_reqs2tests_distribution.py --branch "$R2T_RELEASE_BRANCH"
+          fi
+
+          if [ ! -f "autoreq-linux.tar.gz" ] || [ ! -f "autoreq-win.tar.gz" ]; then
+            echo "ERROR: reqs2tests bundle not found via URLs or branch: $R2T_RELEASE_BRANCH"
             exit 1
           fi
-          if [ ! -f "autoreq-win.tar.gz" ]; then
-            echo "Error: autoreq-win.tar.gz not found."
-            exit 1
-          fi
+
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
           mv distribution /tmp/linux_distribution
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
+
 
       - name: Vcast activation
         run: |
