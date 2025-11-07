@@ -91,29 +91,69 @@ jobs:
 
       - name: Pull latest reqs2tests release
         shell: bash
-        env:
-          R2T_RELEASE_BRANCH: ${{ github.event.inputs.r2t-release-branch || vars.R2T_RELEASE_BRANCH || 'demo_release' }}
-          R2T_RELEASE_URL_LIN: ${{ github.event.inputs.r2t-release-url-linux || '' }}
-          R2T_RELEASE_URL_WIN: ${{ github.event.inputs.r2t-release-url-win || '' }}
         run: |
-          # If URLs are provided, download directly
-          if [[ -n "$R2T_RELEASE_URL_LIN" && -n "$R2T_RELEASE_URL_WIN" ]]; then
-            wget "$R2T_RELEASE_URL_LIN" -O autoreq-linux.tar.gz
-            wget "$R2T_RELEASE_URL_WIN" -O autoreq-win.tar.gz
-          else
-            echo "No direct download URLs provided — falling back to branch lookup: $R2T_RELEASE_BRANCH"
-            python3 ./ci/get_most_recent_reqs2tests_distribution.py --branch "$R2T_RELEASE_BRANCH"
+          python3 ./ci/get_most_recent_reqs2tests_distribution.py
+          if [ ! -f "autoreq-linux.tar.gz" ]; then
+            echo "Error: autoreq-linux.tar.gz not found."
+            exit 1
           fi
-
-          if [ ! -f "autoreq-linux.tar.gz" ] || [ ! -f "autoreq-win.tar.gz" ]; then
-            echo "ERROR: reqs2tests bundle not found via URLs or branch: $R2T_RELEASE_BRANCH"
+          if [ ! -f "autoreq-win.tar.gz" ]; then
+            echo "Error: autoreq-win.tar.gz not found."
             exit 1
           fi
 
+          # extract linux distribution
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
           mv distribution /tmp/linux_distribution
+
+          # Preferred location: $HOME/reqs2tests/resources/distribution
+          HOME_TARGET="$HOME/reqs2tests/resources/distribution"
+          WORKSPACE_TARGET="$GITHUB_WORKSPACE/resources/distribution"
+
+          # Try to create and copy into $HOME target; if that fails, fallback to workspace
+          if mkdir -p "$HOME_TARGET" 2>/dev/null && cp -r /tmp/linux_distribution/* "$HOME_TARGET/"; then
+            REQS_PATH="$HOME_TARGET"
+            echo "Copied reqs2tests distribution to HOME target: $REQS_PATH"
+          else
+            echo "Could not use HOME target ($HOME_TARGET). Falling back to GITHUB_WORKSPACE."
+            mkdir -p "$WORKSPACE_TARGET"
+            cp -r /tmp/linux_distribution/* "$WORKSPACE_TARGET/"
+            REQS_PATH="$WORKSPACE_TARGET"
+            echo "Copied reqs2tests distribution to workspace target: $REQS_PATH"
+          fi
+
+          # Export the distribution folder path (this will be available to subsequent steps)
+          echo "REQS2TESTS_RESOURCES=$REQS_PATH/bin" >> $GITHUB_ENV
+          echo "REQS2TESTS_RESOURCES set to: $REQS_PATH/bin"
+
+          # Debug listing of the distribution folder
+          echo "Listing REQS2TESTS_RESOURCES contents: $REQS_PATH"
+          if command -v tree >/dev/null 2>&1; then
+            tree -a "$REQS_PATH" || ls -laR "$REQS_PATH"
+          else
+            ls -laR "$REQS_PATH"
+          fi
+
+          # extract windows distribution for other uses (kept in /tmp)
           tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
           mv distribution /tmp/win_distribution
+
+          TARGET_DIR="$GITHUB_WORKSPACE/tests/internal/e2e/test"
+          echo "Listing all files and directories under: $TARGET_DIR"
+          if [ -d "$TARGET_DIR" ]; then
+            echo "----------------------------------------"
+            # Show a tree-like listing if available (nicer output)
+            if command -v tree >/dev/null 2>&1; then
+              tree -a "$TARGET_DIR"
+            else
+              ls -laR "$TARGET_DIR"
+            fi
+            echo "----------------------------------------"
+          else
+            echo "Directory not found: $TARGET_DIR"
+            echo "Listing parent directories for context:"
+            ls -la "$(dirname "$TARGET_DIR")" || true
+          fi
 
 
       - name: Vcast activation
@@ -471,7 +511,6 @@ jobs:
             echo "Listing parent directories for context:"
             ls -la "$(dirname "$TARGET_DIR")" || true
           fi
-
 
 
       - name: Package with VSCE
