@@ -92,9 +92,9 @@ jobs:
       - name: Pull latest reqs2tests release
         shell: bash
         env:
-          R2T_RELEASE_URL_LIN: ${{ env.R2T_RELEASE_URL_LIN }}
-          R2T_RELEASE_URL_WIN: ${{ env.R2T_RELEASE_URL_WIN }}
-          R2T_RELEASE_BRANCH: ${{ env.R2T_RELEASE_BRANCH }}
+          R2T_RELEASE_BRANCH: ${{ github.event.inputs.r2t-release-branch || vars.R2T_RELEASE_BRANCH || 'demo_release' }}
+          R2T_RELEASE_URL_LIN: ${{ github.event.inputs.r2t-release-url-linux || '' }}
+          R2T_RELEASE_URL_WIN: ${{ github.event.inputs.r2t-release-url-win || '' }}
         run: |
           # If URLs are provided, download directly
           if [[ -n "$R2T_RELEASE_URL_LIN" && -n "$R2T_RELEASE_URL_WIN" ]]; then
