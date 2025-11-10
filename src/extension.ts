@@ -2389,6 +2389,127 @@ async function installPreActivationEventHandlers(
 
     return html;
   }
+
+  const editRequirementsCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.editRequirements",
+    async () => {
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "editRequirements",
+        "Edit Requirements",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      // Example merged JSON
+      const mergedJson = {
+        "DataBase::DeleteRecord.1": {
+          title: "",
+          description: "",
+          id: "DataBase::DeleteRecord.1",
+          last_modified: "tbd",
+          unit: "database",
+          function: "DataBase::DeleteRecord",
+          lines: null,
+        },
+        "DataBase::DeleteRecord.2": {
+          title: "",
+          description: "",
+          id: "DataBase::DeleteRecord.1",
+          last_modified: "tbd",
+          unit: "database",
+          function: "DataBase::DeleteRecord",
+          lines: null,
+        },
+        "DataBase::DeleteRecord.3": {
+          title: "",
+          description: "",
+          id: "DataBase::DeleteRecord.1",
+          last_modified: "tbd",
+          unit: "database",
+          function: "DataBase::DeleteRecord",
+          lines: null,
+        },
+      };
+
+      panel.webview.html = await getEditRequirementsWebviewContent(
+        context,
+        panel,
+        mergedJson
+      );
+
+      // Handle messages
+      const dispatch: Record<string, (msg?: any) => void> = {
+        saveJson: (msg) => {
+          vscode.window.showInformationMessage("Requirements JSON saved!");
+          console.log("Saved JSON:", msg.data);
+        },
+        cancel: () => panel.dispose(),
+      };
+
+      panel.webview.onDidReceiveMessage(
+        (msg) => dispatch[msg.command]?.(msg),
+        undefined,
+        context.subscriptions
+      );
+    }
+  );
+
+  context.subscriptions.push(editRequirementsCmd);
+
+  async function getEditRequirementsWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    mergedJson: any
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "editRequirements.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "editRequirements.js")
+    );
+    const htmlPath = path.join(base, "html", "editRequirements.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+
+    // Inject CSP and CSS
+    const csp = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+    html = html.replace(
+      /<head>/,
+      `<head>${csp}<link rel="stylesheet" href="${cssUri}">`
+    );
+
+    // Inject initial JSON and script
+    html = html.replace(
+      "{{ scriptUri }}",
+      `<script nonce="${nonce}">
+         window.initialJson = ${JSON.stringify(mergedJson)};
+       </script>
+       <script nonce="${nonce}" src="${scriptUri}"></script>`
+    );
+
+    // Replace CSS placeholder
+    html = html.replace(
+      "{{ cssUri }}",
+      `<link rel="stylesheet" href="${cssUri}">`
+    );
+
+    return html;
+  }
 }
 
 // this method is called when your extension is deactivated

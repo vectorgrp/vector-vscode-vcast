@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Requirements</title>
+  {{ cssUri }}
+</head>
+<body>
+  <div class="modal">
+    <h2>Edit Requirements JSON</h2>
+
+    <!-- Filter Bar -->
+    <div class="filter-title">Filter Keys</div>
+    <div class="filter-bar" id="filterBar"></div>
+    <div class="table-container" id="jsonContainer"></div>
+
+    <div class="button-container">
+      <button id="btnSave" class="primary-button">Save</button>
+      <button id="btnCancel" class="cancel-button">Cancel</button>
+    </div>
+    
+    <button id="showAddForm" class="add-button">+ Add Requirement</button>
+    
+    <!-- Add Requirement Form -->
+    <div id="addSection" style="display:none; margin-top:18px; padding:16px; border:1px solid #666; border-radius:8px; background:#252525;">
+      
+      <div class="add-section-title">Add New Requirement</div>
+
+      <div id="addRows"></div>
+
+      <div class="button-container" style="margin-top:14px;">
+        <button id="btnAddCancel" class="cancel-button">Cancel</button>
+        <button id="btnAddConfirm" class="primary-button">Add Requirement</button>
+      </div>
+
+    </div>
+
+
+  </div>
+
+  {{ scriptUri }}
+</body>
+</html>
