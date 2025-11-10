@@ -2392,75 +2392,259 @@ async function installPreActivationEventHandlers(
 
   const editRequirementsCmd = vscode.commands.registerCommand(
     "vectorcastTestExplorer.editRequirements",
-    async () => {
-      const baseDir = resolveWebviewBase(context);
-      const panel = vscode.window.createWebviewPanel(
-        "editRequirements",
-        "Edit Requirements",
-        vscode.ViewColumn.Active,
-        {
-          enableScripts: true,
-          retainContextWhenHidden: true,
-          localResourceRoots: [vscode.Uri.file(baseDir)],
+    async (args: any) => {
+      try {
+        // args must contain the test node id just like your showRequirements command
+        if (!args) {
+          vscode.window.showErrorMessage("No test node argument provided.");
+          return;
         }
-      );
 
-      // Example merged JSON
-      const mergedJson = {
-        "DataBase::DeleteRecord.1": {
-          title: "",
-          description: "",
-          id: "DataBase::DeleteRecord.1",
-          last_modified: "tbd",
-          unit: "database",
-          function: "DataBase::DeleteRecord",
-          lines: null,
-        },
-        "DataBase::DeleteRecord.2": {
-          title: "",
-          description: "",
-          id: "DataBase::DeleteRecord.1",
-          last_modified: "tbd",
-          unit: "database",
-          function: "DataBase::DeleteRecord",
-          lines: null,
-        },
-        "DataBase::DeleteRecord.3": {
-          title: "",
-          description: "",
-          id: "DataBase::DeleteRecord.1",
-          last_modified: "tbd",
-          unit: "database",
-          function: "DataBase::DeleteRecord",
-          lines: null,
-        },
-      };
+        const testNode: testNodeType = getTestNode(args.id);
+        if (!testNode) {
+          vscode.window.showErrorMessage("Test node not found.");
+          return;
+        }
 
-      panel.webview.html = await getEditRequirementsWebviewContent(
-        context,
-        panel,
-        mergedJson
-      );
+        const enviroPath = testNode.enviroPath;
+        const parentDir = path.dirname(enviroPath);
+        const enviroNameWithExt = path.basename(enviroPath);
+        const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+        const envReqsFolderPath = path.join(
+          parentDir,
+          `reqs-${enviroNameWithoutExt}`
+        );
 
-      // Handle messages
-      const dispatch: Record<string, (msg?: any) => void> = {
-        saveJson: (msg) => {
-          vscode.window.showInformationMessage("Requirements JSON saved!");
-          console.log("Saved JSON:", msg.data);
-        },
-        cancel: () => panel.dispose(),
-      };
+        // target folder containing generated_requirement_repository/requirements_gateway
+        const gatewayFolder = path.join(
+          envReqsFolderPath,
+          "generated_requirement_repository",
+          "requirements_gateway"
+        );
+        const requirementsJsonPath = path.join(
+          gatewayFolder,
+          "requirements.json"
+        );
+        const traceabilityJsonPath = path.join(
+          gatewayFolder,
+          "traceability.json"
+        );
 
-      panel.webview.onDidReceiveMessage(
-        (msg) => dispatch[msg.command]?.(msg),
-        undefined,
-        context.subscriptions
-      );
+        if (!fs.existsSync(gatewayFolder)) {
+          vscode.window.showErrorMessage(
+            `Requirements folder not found: ${gatewayFolder}`
+          );
+          return;
+        }
+
+        if (
+          !fs.existsSync(requirementsJsonPath) &&
+          !fs.existsSync(traceabilityJsonPath)
+        ) {
+          vscode.window.showErrorMessage(
+            "No requirements.json or traceability.json found in requirements_gateway."
+          );
+          return;
+        }
+
+        // Read files if they exist
+        let requirementsRaw: any = null;
+        let traceabilityRaw: any = null;
+        try {
+          if (fs.existsSync(requirementsJsonPath)) {
+            const txt = fs.readFileSync(requirementsJsonPath, "utf8");
+            requirementsRaw = JSON.parse(txt || "{}");
+          } else {
+            requirementsRaw = {};
+          }
+        } catch (err) {
+          vscode.window.showErrorMessage(
+            `Failed to read/parse requirements.json: ${err}`
+          );
+          return;
+        }
+
+        try {
+          if (fs.existsSync(traceabilityJsonPath)) {
+            const txt = fs.readFileSync(traceabilityJsonPath, "utf8");
+            traceabilityRaw = JSON.parse(txt || "{}");
+          } else {
+            traceabilityRaw = {};
+          }
+        } catch (err) {
+          vscode.window.showErrorMessage(
+            `Failed to read/parse traceability.json: ${err}`
+          );
+          return;
+        }
+
+        // Merge logic:
+        // - requirementsRaw may be grouped (like { "[CSV] [/tmp/..]": { id: {...}, ... } }) OR flat { id: {...}, ... }
+        // - traceabilityRaw is expected to be flat { id: { unit, function, lines }, ... }
+        const merged: Record<string, any> = {};
+
+        // Helper: extract id->obj mapping from requirementsRaw regardless of grouping
+        function flattenRequirements(reqsRoot: any): Record<string, any> {
+          const out: Record<string, any> = {};
+          if (!reqsRoot || typeof reqsRoot !== "object") return out;
+          const topKeys = Object.keys(reqsRoot);
+          // detect grouped: if top-level values are objects and their values are objects containing id fields
+          let isGrouped = false;
+          for (const k of topKeys) {
+            const v = reqsRoot[k];
+            if (v && typeof v === "object") {
+              const maybeInnerKeys = Object.keys(v);
+              if (maybeInnerKeys.length > 0) {
+                // check if inner values look like requirement objects
+                const sampleInner = v[maybeInnerKeys[0]];
+                if (
+                  sampleInner &&
+                  typeof sampleInner === "object" &&
+                  ("id" in sampleInner || "title" in sampleInner)
+                ) {
+                  isGrouped = true;
+                  break;
+                }
+              }
+            }
+          }
+          if (isGrouped) {
+            // merge all inner objects from groups
+            for (const groupKey of topKeys) {
+              const group = reqsRoot[groupKey];
+              if (group && typeof group === "object") {
+                for (const idKey of Object.keys(group)) {
+                  out[idKey] = group[idKey];
+                }
+              }
+            }
+          } else {
+            // flat top-level: treat each top-level key as id -> obj
+            for (const k of topKeys) {
+              const v = reqsRoot[k];
+              if (v && typeof v === "object") out[k] = v;
+            }
+          }
+          return out;
+        }
+
+        const reqsFlat = flattenRequirements(requirementsRaw);
+        const traceFlat =
+          traceabilityRaw && typeof traceabilityRaw === "object"
+            ? traceabilityRaw
+            : {};
+
+        // Build merged: start from union of ids in both
+        const allIds = new Set<string>([
+          ...Object.keys(reqsFlat),
+          ...Object.keys(traceFlat),
+        ]);
+        allIds.forEach((id) => {
+          const r = reqsFlat[id] || {};
+          const t = traceFlat[id] || {};
+          // Merge: prefer r fields and then t fields ('unit','function','lines')
+          const mergedObj: any = {};
+          // copy all reqs fields
+          for (const k of Object.keys(r)) mergedObj[k] = r[k];
+          // ensure id key exists
+          mergedObj.id = mergedObj.id || id;
+          // copy traceability fields
+          if ("unit" in t) mergedObj.unit = t.unit;
+          if ("function" in t) mergedObj.function = t.function;
+          if ("lines" in t) mergedObj.lines = t.lines;
+          merged[id] = mergedObj;
+        });
+
+        // Create panel & webview content (inject merged)
+        const baseDir = resolveWebviewBase(context);
+        const panel = vscode.window.createWebviewPanel(
+          "editRequirements",
+          "Edit Requirements",
+          vscode.ViewColumn.Active,
+          {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            localResourceRoots: [vscode.Uri.file(baseDir)],
+          }
+        );
+
+        panel.webview.html = await getEditRequirementsWebviewContent(
+          context,
+          panel,
+          merged
+        );
+
+        panel.webview.onDidReceiveMessage(
+          async (msg) => {
+            switch (msg.command) {
+              case "saveJson": {
+                try {
+                  const mergedData = msg.data; // key → merged object
+                  const requirementOutput: Record<string, any> = {};
+                  const traceOutput: Record<string, any> = {};
+
+                  // Split merged data back to each file
+                  for (const [id, obj] of Object.entries(
+                    mergedData as Record<string, any>
+                  )) {
+                    // Requirement JSON fields
+                    requirementOutput[id] = {
+                      title: obj.title ?? "",
+                      description: obj.description ?? "",
+                      id: obj.id ?? id,
+                      last_modified: obj.last_modified ?? "tbd",
+                    };
+
+                    // Traceability JSON fields
+                    traceOutput[id] = {
+                      unit: obj.unit ?? "",
+                      function: obj.function ?? "",
+                      lines: obj.lines ?? null,
+                    };
+                  }
+
+                  // Write files back to disk
+                  await fs.promises.writeFile(
+                    requirementsJsonPath,
+                    JSON.stringify(requirementOutput, null, 2),
+                    "utf8"
+                  );
+                  await fs.promises.writeFile(
+                    traceabilityJsonPath,
+                    JSON.stringify(traceOutput, null, 2),
+                    "utf8"
+                  );
+
+                  vscode.window.showInformationMessage(
+                    "Requirements saved successfully."
+                  );
+                } catch (err: any) {
+                  vscode.window.showErrorMessage(
+                    `Failed to save requirements: ${err.message}`
+                  );
+                }
+                break;
+              }
+
+              case "cancel":
+                panel.dispose();
+                break;
+            }
+          },
+          undefined,
+          context.subscriptions
+        );
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `editRequirements failed: ${String(err)}`
+        );
+      }
     }
   );
 
   context.subscriptions.push(editRequirementsCmd);
 
+  // Update getEditRequirementsWebviewContent to accept mergedJson and inject it (if you already have similar function, replace accordingly)
   async function getEditRequirementsWebviewContent(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
@@ -2488,12 +2672,13 @@ async function installPreActivationEventHandlers(
                      style-src ${panel.webview.cspSource};
                      script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
     `;
+    // Replace <head> with CSP + css link
     html = html.replace(
       /<head>/,
       `<head>${csp}<link rel="stylesheet" href="${cssUri}">`
     );
 
-    // Inject initial JSON and script
+    // Inject initialJson and the script tag (with nonce)
     html = html.replace(
       "{{ scriptUri }}",
       `<script nonce="${nonce}">
@@ -2502,9 +2687,9 @@ async function installPreActivationEventHandlers(
        <script nonce="${nonce}" src="${scriptUri}"></script>`
     );
 
-    // Replace CSS placeholder
+    // also replace css placeholder if present
     html = html.replace(
-      "{{ cssUri }}",
+      /{{\s*cssUri\s*}}/g,
       `<link rel="stylesheet" href="${cssUri}">`
     );
 
