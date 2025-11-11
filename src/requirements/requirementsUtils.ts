@@ -562,7 +562,15 @@ export async function spawnWithVcastEnv(
 export function expandEnvVars(inputPath: string): string {
   return inputPath.replace(/\$\(([^)]+)\)/g, (match, varName) => {
     const value = process.env[varName];
-    // Leave it unchanged if not found
-    return value ? value : match;
+
+    if (!value) {
+      vscode.window.showWarningMessage(
+        `Environment variable "${varName}" in VCAST_REPOSITORY is not defined.`
+      );
+      // leave it as-is
+      return match;
+    }
+
+    return value;
   });
 }
