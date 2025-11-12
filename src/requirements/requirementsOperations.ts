@@ -177,7 +177,7 @@ export async function generateRequirements(enviroPath: string) {
     "--export-excel",
     xlsxPath,
     "--export-repository",
-    repositoryDir,
+    `"${existingGateway ?? repositoryDir}"`, // use existingGateway if not null/undefined, else repositoryDir. This would mean that the vcast env in the path is not defined.
     "--json-events",
     //"--combine-related-requirements",
     //"--extended-reasoning"
@@ -474,6 +474,10 @@ export async function importRequirementsFromGateway(enviroPath: string) {
     parentDir,
     `reqs-${enviroNameWithoutExt}`
   );
+  const repositoryDirExpandedEnv = path.join(
+    envReqsFolderPath,
+    "generated_requirement_repository"
+  );
   if (!fs.existsSync(envReqsFolderPath)) {
     fs.mkdirSync(envReqsFolderPath, { recursive: true });
   }
@@ -523,7 +527,7 @@ export async function importRequirementsFromGateway(enviroPath: string) {
   const addTraceability = choice === "Yes";
 
   const commandArgs = [
-    repositoryPath,
+    `"${repositoryPath ?? repositoryDirExpandedEnv}"`, // repositoryPath should never be undefined here, as we return before but just to be sure
     xlsxPath,
     "--target-format",
     "excel",
@@ -653,7 +657,7 @@ export async function populateRequirementsGateway(enviroPath: string) {
 
   const commandArgs = [
     requirementsFile,
-    exportRepository,
+    `"${existingGateway ?? exportRepository}"`,
     "--target-format",
     "rgw",
     "--target-env",

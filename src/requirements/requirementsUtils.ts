@@ -54,7 +54,7 @@ export function findRelevantRequirementGateway(
     return null;
   }
 
-  return gatewayPath;
+  return rawGatewayPath;
 }
 
 export async function parseRequirementsFromFile(
