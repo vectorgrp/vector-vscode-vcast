@@ -98,17 +98,26 @@ export async function parseRequirementsFromFile(
 }
 
 export function findEnvironmentInPath(dirPath: string): string | null {
+  // dirPath will be the path were the requirements are, but the env files are in the parent folder
+  const parentDir = path.dirname(dirPath);
+
+  // the folder is named reqs-<envName>, so we cut out the correct env name to find the corresponding env file
+  const baseFolder = path.basename(dirPath);
+  const envName = baseFolder.split("reqs-")[1];
+
   // Check if the directory contains an environment file
-  const files = fs.readdirSync(dirPath);
-  const envFiles = files.filter((file: string) => file.endsWith(".env"));
+  const files = fs.readdirSync(parentDir);
+  const envFiles = files.filter((file: string) =>
+    file.endsWith(`${envName}.env`)
+  );
 
   // Now see if there is a directory with the same name as the env file
   for (const file of envFiles) {
     // remove ".env"
     const envName = file.slice(0, -4);
-    const envDirPath = path.join(dirPath, envName);
+    const envDirPath = path.join(parentDir, envName);
     if (fs.existsSync(envDirPath) && fs.lstatSync(envDirPath).isDirectory()) {
-      return envName;
+      return envDirPath;
     }
   }
   return null;
@@ -125,18 +134,18 @@ export function setupRequirementsFileWatchers(
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
     // Create a file watcher that watches for requirements files changes
     // using a glob pattern to match all reqs.csv and reqs.xlsx files in the workspace
-    requirementsFileWatcher =
-      workspace.createFileSystemWatcher("**/reqs.{csv,xlsx}");
+    requirementsFileWatcher = workspace.createFileSystemWatcher(
+      "**/reqs-*/reqs.{csv,xlsx}"
+    );
 
     // When a requirements file is created
     requirementsFileWatcher.onDidCreate(
       async (uri) => {
         logCliOperation(`Requirements file created: ${uri.fsPath}`);
         const changeDir = path.dirname(uri.fsPath);
-        const envDirName = findEnvironmentInPath(changeDir);
-        if (envDirName) {
-          const envPath = path.join(changeDir, envDirName);
-          updateRequirementsAvailability(envPath);
+        const envDirPath = findEnvironmentInPath(changeDir);
+        if (envDirPath) {
+          updateRequirementsAvailability(envDirPath);
         }
       },
       null,
@@ -148,10 +157,9 @@ export function setupRequirementsFileWatchers(
       async (uri) => {
         logCliOperation(`Requirements file deleted: ${uri.fsPath}`);
         const parentDir = path.dirname(uri.fsPath);
-        const envDirName = findEnvironmentInPath(parentDir);
-        if (envDirName) {
-          const envPath = path.join(parentDir, envDirName);
-          updateRequirementsAvailability(envPath);
+        const envDirPath = findEnvironmentInPath(parentDir);
+        if (envDirPath) {
+          updateRequirementsAvailability(envDirPath);
         }
       },
       null,
