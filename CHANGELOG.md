@@ -2,6 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.24] - 2025-11-14
+
+### Added
+- Enabled use of environment variables in CCAST.cfg for requirements logic.
+
 ## [1.0.23] - 2025-10-08
 
 ### Changed
