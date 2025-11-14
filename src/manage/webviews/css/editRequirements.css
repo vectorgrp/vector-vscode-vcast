@@ -243,7 +243,24 @@ h2 {
   cursor: pointer;
 }
 
-/* Optional: Add a little padding for the arrow space if you want a custom arrow */
+.hl-tag {
+  margin-left: 10px;
+  padding: 2px 6px;
+  background: #ffcc00;
+  color: #000;
+  font-weight: bold;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.hl-readonly {
+  background: #eee;
+  color: #555;
+  cursor: not-allowed;
+  border: 1px solid #ccc;
+}
+
+
 .key-value select::-ms-expand {
   display: none; /* Remove default arrow on IE/Edge */
 }
