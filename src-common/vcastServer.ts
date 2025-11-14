@@ -26,6 +26,7 @@ export enum vcastCommandType {
   mcdcReport = "mcdcReport",
   mcdcLines = "mcdcLines",
   getWorkspaceEnviroData = "getWorkspaceEnviroData",
+  requirementsWebview = "requirementsWebview",
 }
 
 export interface mcdcClientRequestType extends clientRequestType {

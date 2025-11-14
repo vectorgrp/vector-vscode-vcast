@@ -227,4 +227,23 @@ h2 {
     background-color: #3b1f1f !important;
   }
   
-  
+  /* Style dropdowns to match inputs */
+.key-value select {
+  flex: 1;
+  background-color: #3c3c3c;
+  color: #d4d4d4;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: monospace;
+  font-size: 16px;
+  appearance: none; /* removes default arrow on some browsers */
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+/* Optional: Add a little padding for the arrow space if you want a custom arrow */
+.key-value select::-ms-expand {
+  display: none; /* Remove default arrow on IE/Edge */
+}

@@ -93,6 +93,7 @@ import {
   rebuildEnvironment,
   openProjectInVcast,
   deleteLevel,
+  getRequirementsWebviewDataFromPython,
 } from "./vcastAdapter";
 
 import {
@@ -2407,6 +2408,10 @@ async function installPreActivationEventHandlers(
         }
 
         const enviroPath = testNode.enviroPath;
+
+        const webviewDropdownData =
+          getRequirementsWebviewDataFromPython(enviroPath);
+
         const parentDir = path.dirname(enviroPath);
         const enviroNameWithExt = path.basename(enviroPath);
         const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
@@ -2571,7 +2576,8 @@ async function installPreActivationEventHandlers(
         panel.webview.html = await getEditRequirementsWebviewContent(
           context,
           panel,
-          merged
+          merged,
+          webviewDropdownData
         );
 
         panel.webview.onDidReceiveMessage(
@@ -2648,7 +2654,8 @@ async function installPreActivationEventHandlers(
   async function getEditRequirementsWebviewContent(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
-    mergedJson: any
+    mergedJson: any,
+    webviewDropdownData: any
   ): Promise<string> {
     const base = resolveWebviewBase(context);
     const cssOnDisk = vscode.Uri.file(
@@ -2683,6 +2690,7 @@ async function installPreActivationEventHandlers(
       "{{ scriptUri }}",
       `<script nonce="${nonce}">
          window.initialJson = ${JSON.stringify(mergedJson)};
+         window.webviewDropdownData = ${JSON.stringify(webviewDropdownData)};
        </script>
        <script nonce="${nonce}" src="${scriptUri}"></script>`
     );
