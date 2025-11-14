@@ -2391,53 +2391,57 @@ async function installPreActivationEventHandlers(
     return html;
   }
 
-  const editRequirementsCmd = vscode.commands.registerCommand(
+  const editRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.editRequirements",
     async (args: any) => {
       try {
-        // args must contain the test node id just like your showRequirements command
+        // Ensure a test node argument is provided
         if (!args) {
           vscode.window.showErrorMessage("No test node argument provided.");
           return;
         }
 
+        // Retrieve the test node based on ID
         const testNode: testNodeType = getTestNode(args.id);
         if (!testNode) {
           vscode.window.showErrorMessage("Test node not found.");
           return;
         }
 
-        const enviroPath = testNode.enviroPath;
+        const environmentFilePath = testNode.enviroPath;
 
-        const webviewDropdownData =
-          getRequirementsWebviewDataFromPython(enviroPath);
+        // Fetch dropdown data for webview
+        const dropdownData =
+          getRequirementsWebviewDataFromPython(environmentFilePath);
 
-        const parentDir = path.dirname(enviroPath);
-        const enviroNameWithExt = path.basename(enviroPath);
-        const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
-        const envReqsFolderPath = path.join(
-          parentDir,
-          `reqs-${enviroNameWithoutExt}`
+        // Construct paths to requirements and traceability JSON files
+        const environmentDir = path.dirname(environmentFilePath);
+        const environmentFileName = path.basename(environmentFilePath);
+        const environmentName = environmentFileName.replace(/\.env$/, "");
+        const requirementsFolderPath = path.join(
+          environmentDir,
+          `reqs-${environmentName}`
         );
 
-        // target folder containing generated_requirement_repository/requirements_gateway
-        const gatewayFolder = path.join(
-          envReqsFolderPath,
+        const gatewayFolderPath = path.join(
+          requirementsFolderPath,
           "generated_requirement_repository",
           "requirements_gateway"
         );
+
         const requirementsJsonPath = path.join(
-          gatewayFolder,
+          gatewayFolderPath,
           "requirements.json"
         );
         const traceabilityJsonPath = path.join(
-          gatewayFolder,
+          gatewayFolderPath,
           "traceability.json"
         );
 
-        if (!fs.existsSync(gatewayFolder)) {
+        // Validate existence of target folders and files
+        if (!fs.existsSync(gatewayFolderPath)) {
           vscode.window.showErrorMessage(
-            `Requirements folder not found: ${gatewayFolder}`
+            `Requirements folder not found: ${gatewayFolderPath}`
           );
           return;
         }
@@ -2447,121 +2451,98 @@ async function installPreActivationEventHandlers(
           !fs.existsSync(traceabilityJsonPath)
         ) {
           vscode.window.showErrorMessage(
-            "No requirements.json or traceability.json found in requirements_gateway."
+            "Neither requirements.json nor traceability.json found in requirements_gateway."
           );
           return;
         }
 
-        // Read files if they exist
-        let requirementsRaw: any = null;
-        let traceabilityRaw: any = null;
-        try {
-          if (fs.existsSync(requirementsJsonPath)) {
-            const txt = fs.readFileSync(requirementsJsonPath, "utf8");
-            requirementsRaw = JSON.parse(txt || "{}");
-          } else {
-            requirementsRaw = {};
+        // Load JSON files safely
+        const readJsonFile = (filePath: string) => {
+          if (!fs.existsSync(filePath)) return {};
+          try {
+            const content = fs.readFileSync(filePath, "utf8");
+            return JSON.parse(content || "{}");
+          } catch (err) {
+            vscode.window.showErrorMessage(
+              `Failed to read/parse ${filePath}: ${err}`
+            );
+            return null;
           }
-        } catch (err) {
-          vscode.window.showErrorMessage(
-            `Failed to read/parse requirements.json: ${err}`
-          );
-          return;
-        }
+        };
 
-        try {
-          if (fs.existsSync(traceabilityJsonPath)) {
-            const txt = fs.readFileSync(traceabilityJsonPath, "utf8");
-            traceabilityRaw = JSON.parse(txt || "{}");
-          } else {
-            traceabilityRaw = {};
-          }
-        } catch (err) {
-          vscode.window.showErrorMessage(
-            `Failed to read/parse traceability.json: ${err}`
-          );
-          return;
-        }
+        const requirementsData = readJsonFile(requirementsJsonPath);
+        if (requirementsData === null) return;
 
-        // Merge logic:
-        // - requirementsRaw may be grouped (like { "[CSV] [/tmp/..]": { id: {...}, ... } }) OR flat { id: {...}, ... }
-        // - traceabilityRaw is expected to be flat { id: { unit, function, lines }, ... }
-        const merged: Record<string, any> = {};
+        const traceabilityData = readJsonFile(traceabilityJsonPath);
+        if (traceabilityData === null) return;
 
-        // Helper: extract id->obj mapping from requirementsRaw regardless of grouping
-        function flattenRequirements(reqsRoot: any): Record<string, any> {
-          const out: Record<string, any> = {};
-          if (!reqsRoot || typeof reqsRoot !== "object") return out;
-          const topKeys = Object.keys(reqsRoot);
-          // detect grouped: if top-level values are objects and their values are objects containing id fields
-          let isGrouped = false;
-          for (const k of topKeys) {
-            const v = reqsRoot[k];
-            if (v && typeof v === "object") {
-              const maybeInnerKeys = Object.keys(v);
-              if (maybeInnerKeys.length > 0) {
-                // check if inner values look like requirement objects
-                const sampleInner = v[maybeInnerKeys[0]];
-                if (
-                  sampleInner &&
-                  typeof sampleInner === "object" &&
-                  ("id" in sampleInner || "title" in sampleInner)
-                ) {
-                  isGrouped = true;
-                  break;
-                }
+        // Flatten grouped or nested requirement objects
+        const flattenRequirements = (data: any): Record<string, any> => {
+          if (!data || typeof data !== "object") return {};
+          const flattened: Record<string, any> = {};
+          const topKeys = Object.keys(data);
+
+          const isGrouped = topKeys.some((key) => {
+            const value = data[key];
+            if (value && typeof value === "object") {
+              const innerKeys = Object.keys(value);
+              if (innerKeys.length > 0) {
+                const sample = value[innerKeys[0]];
+                return (
+                  sample &&
+                  typeof sample === "object" &&
+                  ("id" in sample || "title" in sample)
+                );
               }
             }
-          }
+            return false;
+          });
+
           if (isGrouped) {
-            // merge all inner objects from groups
-            for (const groupKey of topKeys) {
-              const group = reqsRoot[groupKey];
+            topKeys.forEach((groupKey) => {
+              const group = data[groupKey];
               if (group && typeof group === "object") {
-                for (const idKey of Object.keys(group)) {
-                  out[idKey] = group[idKey];
-                }
+                Object.keys(group).forEach((id) => {
+                  flattened[id] = group[id];
+                });
               }
-            }
+            });
           } else {
-            // flat top-level: treat each top-level key as id -> obj
-            for (const k of topKeys) {
-              const v = reqsRoot[k];
-              if (v && typeof v === "object") out[k] = v;
-            }
+            topKeys.forEach((id) => {
+              const value = data[id];
+              if (value && typeof value === "object") flattened[id] = value;
+            });
           }
-          return out;
-        }
 
-        const reqsFlat = flattenRequirements(requirementsRaw);
-        const traceFlat =
-          traceabilityRaw && typeof traceabilityRaw === "object"
-            ? traceabilityRaw
-            : {};
+          return flattened;
+        };
 
-        // Build merged: start from union of ids in both
-        const allIds = new Set<string>([
-          ...Object.keys(reqsFlat),
-          ...Object.keys(traceFlat),
+        const flattenedRequirements = flattenRequirements(requirementsData);
+        const flattenedTraceability =
+          typeof traceabilityData === "object" ? traceabilityData : {};
+
+        // Merge requirements and traceability by ID
+        const mergedRequirements: Record<string, any> = {};
+        const allIds = new Set([
+          ...Object.keys(flattenedRequirements),
+          ...Object.keys(flattenedTraceability),
         ]);
+
         allIds.forEach((id) => {
-          const r = reqsFlat[id] || {};
-          const t = traceFlat[id] || {};
-          // Merge: prefer r fields and then t fields ('unit','function','lines')
-          const mergedObj: any = {};
-          // copy all reqs fields
-          for (const k of Object.keys(r)) mergedObj[k] = r[k];
-          // ensure id key exists
-          mergedObj.id = mergedObj.id || id;
-          // copy traceability fields
-          if ("unit" in t) mergedObj.unit = t.unit;
-          if ("function" in t) mergedObj.function = t.function;
-          if ("lines" in t) mergedObj.lines = t.lines;
-          merged[id] = mergedObj;
+          const requirement = flattenedRequirements[id] || {};
+          const trace = flattenedTraceability[id] || {};
+
+          mergedRequirements[id] = {
+            ...requirement,
+            id: requirement.id || id,
+            unit: trace.unit ?? undefined,
+            function: trace.function ?? undefined,
+            lines: trace.lines ?? undefined,
+          };
         });
 
-        // Create panel & webview content (inject merged)
-        const baseDir = resolveWebviewBase(context);
+        // Create and display the webview panel
+        const webviewBasePath = resolveWebviewBase(context);
         const panel = vscode.window.createWebviewPanel(
           "editRequirements",
           "Edit Requirements",
@@ -2569,39 +2550,35 @@ async function installPreActivationEventHandlers(
           {
             enableScripts: true,
             retainContextWhenHidden: true,
-            localResourceRoots: [vscode.Uri.file(baseDir)],
+            localResourceRoots: [vscode.Uri.file(webviewBasePath)],
           }
         );
 
         panel.webview.html = await getEditRequirementsWebviewContent(
           context,
           panel,
-          merged,
-          webviewDropdownData
+          mergedRequirements,
+          dropdownData
         );
 
+        // Handle messages from webview
         panel.webview.onDidReceiveMessage(
-          async (msg) => {
-            switch (msg.command) {
-              case "saveJson": {
+          async (message) => {
+            switch (message.command) {
+              case "saveJson":
                 try {
-                  const mergedData = msg.data; // key → merged object
-                  const requirementOutput: Record<string, any> = {};
+                  const mergedData = message.data as Record<string, any>;
+                  const requirementsOutput: Record<string, any> = {};
                   const traceOutput: Record<string, any> = {};
 
-                  // Split merged data back to each file
-                  for (const [id, obj] of Object.entries(
-                    mergedData as Record<string, any>
-                  )) {
-                    // Requirement JSON fields
-                    requirementOutput[id] = {
+                  for (const [id, obj] of Object.entries(mergedData)) {
+                    requirementsOutput[id] = {
                       title: obj.title ?? "",
                       description: obj.description ?? "",
                       id: obj.id ?? id,
                       last_modified: obj.last_modified ?? "tbd",
                     };
 
-                    // Traceability JSON fields
                     traceOutput[id] = {
                       unit: obj.unit ?? "",
                       function: obj.function ?? "",
@@ -2609,10 +2586,9 @@ async function installPreActivationEventHandlers(
                     };
                   }
 
-                  // Write files back to disk
                   await fs.promises.writeFile(
                     requirementsJsonPath,
-                    JSON.stringify(requirementOutput, null, 2),
+                    JSON.stringify(requirementsOutput, null, 2),
                     "utf8"
                   );
                   await fs.promises.writeFile(
@@ -2630,7 +2606,6 @@ async function installPreActivationEventHandlers(
                   );
                 }
                 break;
-              }
 
               case "cancel":
                 panel.dispose();
@@ -2648,9 +2623,9 @@ async function installPreActivationEventHandlers(
     }
   );
 
-  context.subscriptions.push(editRequirementsCmd);
+  context.subscriptions.push(editRequirementsCommand);
 
-  // Update getEditRequirementsWebviewContent to accept mergedJson and inject it (if you already have similar function, replace accordingly)
+  // Update getEditRequirementsWebviewContent to accept mergedJson and inject it
   async function getEditRequirementsWebviewContent(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
