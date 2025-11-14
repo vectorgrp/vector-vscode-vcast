@@ -802,6 +802,34 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
         returnObject = topLevel
 
+    elif mode == "requirementsWebview":
+        try:
+            api = UnitTestApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+
+        # getTestDataVCAST returns a list of nodes:
+        # - Compound Tests
+        # - Initialization Tests
+        # - Unit nodes: { "name": unitName, "functions": [ {name:...}, ... ] }
+        testData = getTestDataVCAST(api, pathToUse)
+
+        unitFunctionMap = {}
+
+        for node in testData:
+            # Skip compound + init test groups
+            if "functions" not in node:
+                continue
+
+            unitName = node.get("name")
+            functionNames = [fn.get("name") for fn in node["functions"]]
+
+            unitFunctionMap[unitName] = functionNames
+
+        api.close()
+        returnObject = unitFunctionMap
+
+
     elif mode == "getEnviroData":
         topLevel = dict()
 
