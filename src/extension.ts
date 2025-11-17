@@ -127,6 +127,7 @@ import {
   openCodedTest,
   ProjectEnvParameters,
   newVCShell,
+  updateVCShellDatabase,
 } from "./vcastTestInterface";
 
 import {
@@ -1243,6 +1244,44 @@ async function installPreActivationEventHandlers(
     }
   );
   context.subscriptions.push(newVCShellCommand);
+
+  let defaultVCShellCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.defaultVCShell",
+    async (fileURI: Uri) => {
+      // contains a check for already configured, so no work will be done in that case
+      await checkPrerequisites(context);
+      if (alreadyConfigured) {
+        if (fileURI) {
+          const filePath = fileURI.fsPath;
+          const settings = vscode.workspace.getConfiguration(
+            "vectorcastTestExplorer"
+          );
+          const defaultConfigurationPath = settings.get(
+            "configurationLocation",
+            undefined
+          );
+          if (!defaultConfigurationPath) {
+            vscode.window.showWarningMessage(
+              `Cannot set ${filePath} as default db. You first need to set a default Configuration file.`
+            );
+            return;
+          }
+          const configDirName = path.dirname(defaultConfigurationPath);
+          const fileDirName = path.dirname(filePath);
+
+          if (configDirName !== fileDirName) {
+            vscode.window.showWarningMessage(
+              `Cannot set ${filePath} as default db. The .db file (located in ${fileDirName}) has to be in the same directory as your default Configuraion file (${configDirName}).`
+            );
+            return;
+          }
+
+          await updateVCShellDatabase(filePath);
+        }
+      }
+    }
+  );
+  context.subscriptions.push(defaultVCShellCommand);
 
   const importEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importEnviroToProject",

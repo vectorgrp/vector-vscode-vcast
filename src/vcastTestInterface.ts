@@ -1222,3 +1222,40 @@ export async function newVCShell(filePath: string) {
     );
   }
 }
+
+export async function updateVCShellDatabase(vcShellPath: string) {
+  // Retrieve VectorCAST Dir
+  const vcDir = getVectorCastInstallationLocation();
+  if (!vcDir) {
+    vectorMessage("VectorCAST Installation Location not found. Aborting.");
+    vscode.window.showWarningMessage(
+      `VectorCAST Installation Location not found. Aborting.`
+    );
+    return;
+  }
+
+  // Build paths
+  const vcShellCommand = path.join(normalizePath(vcDir), `clicast`);
+  const commandToRun = `${vcShellCommand}`;
+  const dirName = path.dirname(vcShellPath);
+  const fileName = path.basename(vcShellPath);
+  const unitTestLocation = getUnitTestLocationForPath(dirName);
+  const normalizedUnitPath = normalizePath(unitTestLocation);
+
+  // Execute
+  const infoMessage = `Loading VectorCAST database from ${fileName} and setting it as the active VCDB.`;
+  await executeWithRealTimeEchoWithProgress(
+    commandToRun,
+    ["-lc", "option", "VCDB_FILENAME", `$(readlink -f ${fileName})`],
+    normalizedUnitPath,
+    infoMessage
+  );
+
+  // Update Settings
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  settings.update("databaseLocation", vcShellPath);
+
+  vscode.window.showInformationMessage(
+    `Default Database location has been set to: ${vcShellPath}`
+  );
+}

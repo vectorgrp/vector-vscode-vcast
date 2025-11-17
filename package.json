@@ -170,6 +170,11 @@
         "title": "Create New VC Shell"
       },
       {
+        "command": "vectorcastTestExplorer.defaultVCShell",
+        "category": "VectorCAST Test Explorer",
+        "title": "Set as default Database"
+      },
+      {
         "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
         "category": "VectorCAST Test Explorer",
         "title": "Create VectorCAST Environment in Project"
@@ -346,6 +351,12 @@
             "default": "",
             "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
           },
+          "vectorcastTestExplorer.databaseLocation": {
+            "type": "string",
+            "order": 4,
+            "default": "",
+            "description": "The file path to an existing VectorCAST database file that should be used when creating new environments."
+          },
           "vectorcastTestExplorer.showReportOnExecute": {
             "type": "boolean",
             "order": 5,
@@ -497,8 +508,12 @@
           "command": "vectorcastTestExplorer.newEnviroVCAST",
           "when": "never"
         },
-         {
+        {
           "command": "vectorcastTestExplorer.newVCShell",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.defaultVCShell",
           "when": "never"
         },
         {
@@ -627,6 +642,11 @@
         {
           "command": "vectorcastTestExplorer.newVCShell",
           "when": "resourceLangId == cpp || resourceLangId == c",
+          "group": "2_workspace"
+        },
+        {
+          "command": "vectorcastTestExplorer.defaultVCShell",
+          "when": "vectorcastTestExplorer.configured && resourceExtname==.db",
           "group": "2_workspace"
         },
         {
