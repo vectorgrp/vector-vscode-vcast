@@ -2,24 +2,48 @@ const vscode = acquireVsCodeApi();
 
 window.addEventListener("DOMContentLoaded", () => {
   const compilers = window.compilerData || [];
-  const defaultDir = window.defaultDir || "";
+  const defaultCFG = window.defaultCFG || "";
+  const defaultRow = document.getElementById("defaultCompilerRow");
+  const defaultPath = document.getElementById("defaultCFGPath");
+  const orSeparator = document.getElementById("orSeparator");
+  const useDefaultCheckbox = document.getElementById("useDefaultCompiler");
+  const newCompilerSection = document.getElementById("newCompilerSection");
 
   const targetInput = document.getElementById("targetDirInput");
-  const browseBtn   = document.getElementById("btnBrowse");
-  const nameInput   = document.getElementById("projectNameInput");
-  const compInput   = document.getElementById("compilerInput");
+  const browseBtn = document.getElementById("btnBrowse");
+  const nameInput = document.getElementById("projectNameInput");
+  const compInput = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
 
-  // initialize target folder
-  let targetDir = defaultDir;
-  targetInput.value = targetDir;
+  // Show default CFG row + OR only if defaultCFG exists
+  if (defaultCFG) {
+    defaultRow.style.display = "flex";
+    orSeparator.style.display = "block";
+    defaultPath.textContent = defaultCFG;
+  } else {
+    defaultRow.style.display = "none";
+    orSeparator.style.display = "none";
+  }
 
-  // browse for folder
+  function updateCompilerVisibility() {
+    if (useDefaultCheckbox && useDefaultCheckbox.checked) {
+      newCompilerSection.style.display = "none";
+      orSeparator.style.display = "none"; // hide OR when default is selected
+    } else {
+      newCompilerSection.style.display = "block";
+      if (defaultCFG) orSeparator.style.display = "block";
+    }
+  }
+
+  if (useDefaultCheckbox) useDefaultCheckbox.addEventListener("change", updateCompilerVisibility);
+  updateCompilerVisibility();
+
+  // Folder browse
+  let targetDir = window.defaultDir || "";
+  targetInput.value = targetDir;
   browseBtn.addEventListener("click", () => {
     vscode.postMessage({ command: "browseForDir" });
   });
-
-  // receive chosen folder
   window.addEventListener("message", (e) => {
     const msg = e.data;
     if (msg.command === "setTargetDir") {
@@ -28,8 +52,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // autocomplete setup (unchanged)...
+  // Autocomplete
   let filtered = [], activeIndex = -1;
+
   function renderSuggestions() {
     suggestions.innerHTML = "";
     if (!filtered.length) return suggestions.classList.remove("visible");
@@ -45,6 +70,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     suggestions.classList.add("visible");
   }
+
   function updateSuggestions(showAll = false) {
     const q = compInput.value.toLowerCase().trim();
     filtered = showAll || !q
@@ -53,8 +79,10 @@ window.addEventListener("DOMContentLoaded", () => {
     activeIndex = -1;
     renderSuggestions();
   }
+
   compInput.addEventListener("input", () => updateSuggestions());
   compInput.addEventListener("focus", () => updateSuggestions(true));
+  compInput.addEventListener("click", () => updateSuggestions(true));
   compInput.addEventListener("keydown", e => {
     if (!filtered.length) return;
     if (e.key === "ArrowDown") {
@@ -79,17 +107,20 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!e.target.closest(".autocomplete")) suggestions.classList.remove("visible");
   });
 
-  // submit
+  // Submit
   document.getElementById("btnSubmit").addEventListener("click", () => {
     vscode.postMessage({
       command: "submit",
       projectName: nameInput.value.trim(),
-      compilerName: compInput.value.trim(),
-      targetDir
+      compilerName: useDefaultCheckbox && useDefaultCheckbox.checked
+        ? undefined
+        : compInput.value.trim(),
+      useDefaultCFG: useDefaultCheckbox && useDefaultCheckbox.checked,
+      targetDir,
     });
   });
 
-  // cancel
+  // Cancel
   document.getElementById("btnCancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });
   });

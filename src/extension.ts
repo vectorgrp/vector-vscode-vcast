@@ -1662,32 +1662,47 @@ async function installPreActivationEventHandlers(
         projectName?: string;
         compilerName?: string;
         targetDir?: string;
+        useDefaultCFG?: boolean;
       }) {
-        const { projectName, compilerName, targetDir } = message;
-        // Make sure that Inputs have to be filled and the compiler tag is found
+        const { projectName, compilerName, targetDir, useDefaultCFG } = message;
         if (!projectName) {
           vscode.window.showErrorMessage("Project Name is required.");
           return;
         }
-        if (!compilerName) {
-          vscode.window.showErrorMessage("Compiler selection is required.");
-          return;
-        }
-        const compilerTag = compilerTagList[compilerName];
-        if (!compilerTag) {
-          vscode.window.showErrorMessage(
-            `No compiler tag found for "${compilerName}".`
+
+        let compiler: string | undefined;
+        let usingDefaultCFG = false;
+
+        if (useDefaultCFG) {
+          const settings = vscode.workspace.getConfiguration(
+            "vectorcastTestExplorer"
           );
-          return;
+          const defaultCFG = settings.get<string>("configurationLocation");
+          usingDefaultCFG = true;
+          if (!defaultCFG) {
+            vscode.window.showErrorMessage("No default CFG is defined.");
+            return;
+          }
+          // Derive compilerTag from default CFG if possible
+          compiler = defaultCFG; // TODO: adjust to however your system maps CFG → compilerTag
+        } else {
+          if (!compilerName) {
+            vscode.window.showErrorMessage("Compiler selection is required.");
+            return;
+          }
+          compiler = compilerTagList[compilerName];
+          if (!compiler) {
+            vscode.window.showErrorMessage(
+              `No compiler tag found for "${compilerName}".`
+            );
+            return;
+          }
         }
 
         const base = targetDir ?? workspaceRoot;
         const projectPath = path.join(base, projectName);
 
-        vscode.window.showInformationMessage(
-          `Creating project "${projectName}" at ${projectPath} using ${compilerName}.`
-        );
-        await createNewProject(projectPath, compilerTag);
+        await createNewProject(projectPath, compiler, usingDefaultCFG);
         panel.dispose();
       }
     }
@@ -1711,8 +1726,13 @@ async function installPreActivationEventHandlers(
     const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
 
     const compilersJson = JSON.stringify(Object.keys(compilerTagList));
-    // pass default targetDir as workspace root
     const workspaceJson = JSON.stringify(workspaceRoot);
+
+    // read defaultCFG setting
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    const defaultCFG = settings.get<string>("configurationLocation") ?? "";
 
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
@@ -1725,6 +1745,7 @@ async function installPreActivationEventHandlers(
         <script nonce="${nonce}">
           window.compilerData = ${compilersJson};
           window.defaultDir   = ${workspaceJson};
+          window.defaultCFG   = ${JSON.stringify(defaultCFG)};
         </script>`
     );
     html = html.replace("{{ cssUri }}", cssUri.toString());

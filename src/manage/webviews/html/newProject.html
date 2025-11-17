@@ -25,10 +25,42 @@
     <label for="projectNameInput">Project Name:</label>
     <input type="text" id="projectNameInput" aria-label="Project Name Input" placeholder="Enter new project name…" />
 
-    <label for="compilerInput">Select Compiler:</label>
-    <div class="autocomplete">
-      <input type="text" id="compilerInput" aria-label="Compiler Name Input" placeholder="Type or click to select…" autocomplete="off" />
-      <ul id="suggestions" class="suggestions"></ul>
+    <div class="options-section">
+      <h3>Compiler Selection</h3>
+
+      <!-- Only shown if defaultCFG is available -->
+      <div id="defaultCompilerRow" class="option-row" style="display:none;">
+        <span class="toggle-label">
+          Use Default CFG Compiler<br />
+          <small id="defaultCFGPath" style="color:#888; font-size:12px;"></small>
+        </span>
+        <label class="vscode-toggle">
+          <span class="toggle-switch">
+            <input type="checkbox" id="useDefaultCompiler" />
+            <span class="slider"></span>
+          </span>
+        </label>
+      </div>
+
+      <!-- OR separator -->
+      <div id="orSeparator" style="display:none; text-align:center; margin:10px 0;">
+        <h3>OR</h3>
+      </div>
+
+      <!-- New compiler autocomplete (shown only if toggle is OFF) -->
+      <div id="newCompilerSection">
+        <label for="compilerInput">Select Compiler:</label>
+        <div class="autocomplete">
+          <input
+            type="text"
+            id="compilerInput"
+            aria-label="Compiler Name Input"
+            placeholder="Search for Compiler"
+            autocomplete="off"
+          />
+          <ul id="suggestions" class="suggestions"></ul>
+        </div>
+      </div>
     </div>
 
     <div class="button-container">
