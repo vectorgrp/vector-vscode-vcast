@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { Uri } from "vscode";
+import { Uri, workspace } from "vscode";
 
 import { rebuildEnvironmentCallback } from "./callbacks";
 
@@ -37,7 +37,11 @@ import {
   vectorMessage,
 } from "./messagePane";
 
-import { viewMCDCReport, viewResultsReport } from "./reporting";
+import {
+  viewMCDCReport,
+  viewResultsReport,
+  viewResultsReportVC,
+} from "./reporting";
 
 import {
   environmentDataCache,
@@ -74,6 +78,7 @@ import {
   updateCoverageAndRebuildEnv,
   forceLowerCaseDriveLetter,
   decodeVar,
+  getFullEnvReport,
 } from "./utilities";
 
 import {
@@ -120,6 +125,24 @@ import {
 } from "./vcastInstallation";
 
 import {
+  findRelevantRequirementGateway,
+  generateRequirementsHtml,
+  parseRequirementsFromFile,
+  performLLMProviderUsableCheck,
+  requirementsFileWatcher,
+  updateRequirementsAvailability,
+} from "./requirements/requirementsUtils";
+
+import {
+  GENERATE_REQUIREMENTS_ENABLED,
+  generateRequirements,
+  generateTestsFromRequirements,
+  importRequirementsFromGateway,
+  initializeReqs2X,
+  populateRequirementsGateway,
+} from "./requirements/requirementsOperations";
+
+import {
   generateNewCodedTestFile,
   addExistingCodedTestFile,
   newEnvironment,
@@ -149,9 +172,6 @@ import {
 } from "./manage/manageSrc/manageUtils";
 
 const path = require("path");
-let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
-  "VectorCAST Test Explorer"
-);
 
 /**
  * Decodes a Base64-encoded variable name.
@@ -169,9 +189,14 @@ function decodeAndRemoveDeveloperEnvs() {
   }
 }
 
+let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
+  "VectorCAST Test Explorer"
+);
+
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
+
 export async function activate(context: vscode.ExtensionContext) {
   // activation gets called when:
   //  -- VectorCAST environment exists in the workspace
@@ -239,6 +264,35 @@ async function checkPrerequisites(context: vscode.ExtensionContext) {
   }
 }
 
+async function getEnvironmentListIncludingUnbuilt(
+  workspacePath: string
+): Promise<string[]> {
+  return new Promise<string[]>((resolve, reject) => {
+    // Use glob to find all .env files in the workspace
+    const glob = require("glob");
+    glob(
+      "**/*.env",
+      { cwd: workspacePath, nodir: true },
+      (err: Error, envFiles: string[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // Convert each .env file to its corresponding environment path
+        const envPaths = envFiles.map((envFile) => {
+          const fullPath = path.join(workspacePath, envFile);
+          const dirPath = path.dirname(fullPath);
+          const baseName = path.basename(envFile, ".env");
+          return path.join(dirPath, baseName);
+        });
+
+        resolve(envPaths);
+      }
+    );
+  });
+}
+
 async function activationLogic(context: vscode.ExtensionContext) {
   // remove developer env variables
   decodeAndRemoveDeveloperEnvs();
@@ -259,6 +313,25 @@ async function activationLogic(context: vscode.ExtensionContext) {
 
   // start the language server
   activateLanguageServerClient(context);
+
+  // Enable/disable the requirement generation component of the extension
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.generateRequirementsEnabled",
+    GENERATE_REQUIREMENTS_ENABLED
+  );
+
+  // Initialize requirements availability for all environments
+  if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
+    const envPaths = await getEnvironmentListIncludingUnbuilt(
+      workspace.workspaceFolders[0].uri.fsPath
+    );
+    for (const envPath of envPaths) {
+      updateRequirementsAvailability(envPath);
+    }
+  }
+
+  initializeReqs2X(context);
 }
 
 function configureExtension(context: vscode.ExtensionContext) {
@@ -412,6 +485,73 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(insertATGTestsFromEditorCommand);
+
+  let generateRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.generateRequirements",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        generateRequirements(enviroPath);
+      }
+    }
+  );
+  context.subscriptions.push(generateRequirementsCommand);
+
+  let generateRequirementsTestsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.generateTestsFromRequirements",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        await generateTestsFromRequirements(
+          enviroPath,
+          testNode.functionName || testNode.unitName || null
+        );
+      }
+    }
+  );
+  context.subscriptions.push(generateRequirementsTestsCommand);
+
+  let importRequirementsFromGatewayCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.importRequirementsFromGateway",
+    (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        importRequirementsFromGateway(enviroPath);
+      }
+    }
+  );
+  context.subscriptions.push(importRequirementsFromGatewayCommand);
+
+  let populateRequirementsGatewayCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.populateRequirementsGateway",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        await populateRequirementsGateway(enviroPath);
+      }
+    }
+  );
+  context.subscriptions.push(populateRequirementsGatewayCommand);
+
+  let testLLMConfigurationCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.testLLMConfiguration",
+    async (args: any) => {
+      const checkSuccessful = await performLLMProviderUsableCheck();
+
+      if (checkSuccessful) {
+        vscode.window.showInformationMessage(
+          "LLM configuration test was successful."
+        );
+      } else {
+        vscode.window.showErrorMessage("LLM configuration test failed.");
+      }
+    }
+  );
+  context.subscriptions.push(testLLMConfigurationCommand);
 
   // Command: vectorcastTestExplorer.createTestScriptFromEditor////////////////////////////////////////////////////////
   // This is the callback for right clicks of the source editor flask+ icon
@@ -868,6 +1008,25 @@ function configureExtension(context: vscode.ExtensionContext) {
     return html;
   }
 
+  // Command: vectorcastTestExplorer.getEnvFullReport  ////////////////////////////////////////////////////////
+  let getEnvFullReportCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.getEnvFullReport",
+    async (enviroNode: any) => {
+      const enviroPath = enviroNode.id.split("vcast:")[1];
+      const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
+
+      // Execute process
+      const reportPathHTML = await getFullEnvReport(
+        enviroData.buildDirectory,
+        enviroPath
+      );
+
+      // View report
+      viewResultsReportVC(reportPathHTML);
+    }
+  );
+  context.subscriptions.push(getEnvFullReportCommand);
+
   // Command: vectorcastTestExplorer.buildProjectEnviro  ////////////////////////////////////////////////////////
   let buildProjectEnviro = vscode.commands.registerCommand(
     "vectorcastTestExplorer.buildProjectEnviro",
@@ -1078,11 +1237,164 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(getMCDCReportCommand);
 
+  let showRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.showRequirements",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+
+        const parentDir = path.dirname(enviroPath);
+        const enviroNameWithExt = path.basename(enviroPath);
+        // remove ".env" if present
+        const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+        const envReqsFolderPath = path.join(
+          parentDir,
+          `reqs-${enviroNameWithoutExt}`
+        );
+
+        const csvPath = path.join(envReqsFolderPath, "reqs.csv");
+        const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
+
+        let filePath = "";
+        let fileType = "";
+        if (fs.existsSync(xlsxPath)) {
+          filePath = xlsxPath;
+          fileType = "Excel";
+        } else if (fs.existsSync(csvPath)) {
+          filePath = csvPath;
+          fileType = "CSV";
+        } else {
+          vscode.window.showErrorMessage(
+            "Requirements file not found. Generate requirements first."
+          );
+          return;
+        }
+
+        try {
+          const panel = vscode.window.createWebviewPanel(
+            "requirementsReport",
+            "Requirements Report",
+            vscode.ViewColumn.One,
+            { enableScripts: true }
+          );
+
+          panel.webview.html = `<html><body><h1>Loading ${fileType} requirements...</h1></body></html>`;
+          const requirements = await parseRequirementsFromFile(filePath);
+          const htmlContent = generateRequirementsHtml(requirements);
+          panel.webview.html = htmlContent;
+        } catch (err) {
+          vscode.window.showErrorMessage(
+            `Error generating requirements report: ${err}`
+          );
+        }
+      }
+    }
+  );
+  context.subscriptions.push(showRequirementsCommand);
+
+  let removeRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.removeRequirements",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+
+        const message =
+          "This will remove all generated requirements files. This action cannot be undone.";
+        const choice = await vscode.window.showWarningMessage(
+          message,
+          "Remove",
+          "Cancel"
+        );
+
+        if (choice === "Remove") {
+          const parentDir = path.dirname(enviroPath);
+          const enviroNameWithExt = path.basename(enviroPath);
+          // remove ".env" if present
+          const enviroNameWithoutExt = enviroNameWithExt.replace(/\.env$/, "");
+          const envReqsFolderPath = path.join(
+            parentDir,
+            `reqs-${enviroNameWithoutExt}`
+          );
+
+          const filesToRemove = [
+            path.join(envReqsFolderPath, "reqs.csv"),
+            path.join(envReqsFolderPath, "reqs.xlsx"),
+            path.join(envReqsFolderPath, "reqs_converted.csv"),
+            path.join(envReqsFolderPath, "reqs.html"),
+            path.join(envReqsFolderPath, "reqs2tests.tst"),
+          ];
+
+          // Remove files
+          for (const file of filesToRemove) {
+            if (fs.existsSync(file)) {
+              try {
+                fs.unlinkSync(file);
+              } catch (err) {
+                vscode.window.showErrorMessage(
+                  `Failed to remove ${file}: ${err}`
+                );
+              }
+            }
+          }
+
+          const generatedRepositoryPath = path.join(
+            envReqsFolderPath,
+            "generated_requirement_repository"
+          );
+          const actualRepositoryPath =
+            findRelevantRequirementGateway(enviroPath);
+
+          // Separately prompt for repository directory removal
+          if (
+            fs.existsSync(generatedRepositoryPath) &&
+            path.relative(generatedRepositoryPath, actualRepositoryPath) === ""
+          ) {
+            const repoMessage =
+              "Would you also like to remove the auto-generated requirements gateway too?";
+            const repoChoice = await vscode.window.showWarningMessage(
+              repoMessage,
+              "Yes",
+              "No"
+            );
+
+            if (repoChoice === "Yes") {
+              try {
+                fs.rmdirSync(generatedRepositoryPath, { recursive: true });
+              } catch (err) {
+                vscode.window.showErrorMessage(
+                  `Failed to remove repository directory: ${err}`
+                );
+              }
+            }
+          }
+
+          await refreshAllExtensionData();
+          updateRequirementsAvailability(enviroPath);
+          vscode.window.showInformationMessage(
+            "Requirements removed successfully"
+          );
+        }
+      }
+    }
+  );
+  context.subscriptions.push(removeRequirementsCommand);
+
   vscode.workspace.onDidChangeWorkspaceFolders(
     async (e) => {
       await refreshAllExtensionData();
       setGlobalProjectIsOpenedChecker();
       setGlobalCompilerAndTestsuites();
+      // Refresh requirements availability for all environments
+      if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
+        const envPaths = await getEnvironmentListIncludingUnbuilt(
+          workspace.workspaceFolders[0].uri.fsPath
+        );
+        for (const envPath of envPaths) {
+          updateRequirementsAvailability(envPath);
+        }
+      }
     },
     null,
     context.subscriptions
@@ -1193,6 +1505,16 @@ async function installPreActivationEventHandlers(
           // before the "refreshAllExtensionData" call in the TRUE case.
           await initializeServerState();
         }
+      } else if (
+        event.affectsConfiguration(
+          "vectorcastTestExplorer.reqs2x.installationLocation"
+        ) ||
+        event.affectsConfiguration(
+          "vectorcastTestExplorer.reqs2x.enableReqs2xFeature"
+        )
+      ) {
+        // If the user changes the path to reqs2x or tries to enable or disable the feature, we re-initialize
+        initializeReqs2X(context);
       }
     }
     // pre-configuration, we only handle changes to the vcast installation location
@@ -1921,6 +2243,10 @@ async function installPreActivationEventHandlers(
 
 // this method is called when your extension is deactivated
 export async function deactivate() {
+  if (requirementsFileWatcher) {
+    requirementsFileWatcher.dispose();
+  }
+
   await serverProcessController(serverStateType.stopped);
   // delete the server log if it exists
   await deleteServerLog();

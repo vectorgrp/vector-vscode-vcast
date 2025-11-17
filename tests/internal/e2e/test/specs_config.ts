@@ -112,6 +112,19 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
+    specGroups["requirements"] = {
+      specs: [
+        "./**/**/vcast_build_env_requirements.test.ts",
+        "./**/**/vcast_requirements_tests.test.ts",
+      ],
+      env: {
+        REQS2X_PCT_RELEASE: "True",
+        VCAST_USE_PYTHON: "True",
+        VCAST_REQS2X_LOG_LEVEL: "debug",
+      },
+      params: {},
+    };
+
     specGroups["unit_atg"] = {
       specs: [
         "./**/**/vcast_testgen_unit_atg.test.ts",
@@ -146,8 +159,15 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
     specGroups["manage"] = {
-      specs: ["./**/**/vcast_manage.test.ts"],
-      env: { VCAST_USE_PYTHON: "True", MANAGE_TEST: "True" },
+      specs: [
+        "./**/**/vcast_manage.test.ts",
+        "./**/**/vcast_requirements_manage.test.ts",
+      ],
+      env: {
+        VCAST_USE_PYTHON: "True",
+        MANAGE_TEST: "True",
+        VCAST_REQS2X_LOG_LEVEL: "debug",
+      },
       params: {},
     };
 
@@ -176,6 +196,7 @@ export function getSpecGroups(useVcast24: boolean) {
       env: {},
       params: {},
     };
+
     specGroups["build_env_failure_server"] = {
       specs: [
         "./**/**/vcast_build_env_failure.test.ts",
@@ -263,8 +284,11 @@ export function getSpecGroups(useVcast24: boolean) {
     };
 
     specGroups["manage_server"] = {
-      specs: ["./**/**/vcast_manage.test.ts"],
-      env: { MANAGE_TEST: "True" },
+      specs: [
+        "./**/**/vcast_manage.test.ts",
+        "./**/**/vcast_requirements_manage.test.ts",
+      ],
+      env: { MANAGE_TEST: "True", VCAST_REQS2X_LOG_LEVEL: "debug" },
       params: {},
     };
 
