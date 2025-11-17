@@ -1211,9 +1211,21 @@ export async function newVCShell(filePath: string) {
   const vcDir = getVectorCastInstallationLocation();
 
   if (vcDir) {
+    // Ensure the target directory exists before running vcshell
+    try {
+      await fs.promises.mkdir(normalizedUnitPath, { recursive: true });
+    } catch (err: any) {
+      vscode.window.showErrorMessage(
+        `Failed to create directory ${normalizedUnitPath}: ${err.message}`
+      );
+      return;
+    }
+
     const vcShellCommand = path.join(normalizePath(vcDir), `vcshell`);
     const commandToRun = `${vcShellCommand}`;
+
     const infoMessage = `Creating vcshell for ${fileName} in ${normalizedUnitPath}`;
+
     await executeWithRealTimeEchoWithProgress(
       commandToRun,
       ["gcc", "-c", normalizeFilePath],

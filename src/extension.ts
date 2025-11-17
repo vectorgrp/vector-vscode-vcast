@@ -1570,39 +1570,78 @@ async function installPreActivationEventHandlers(
   let defaultVCShellCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.defaultVCShell",
     async (fileURI: Uri) => {
-      // contains a check for already configured, so no work will be done in that case
       await checkPrerequisites(context);
-      if (alreadyConfigured) {
-        if (fileURI) {
-          const filePath = fileURI.fsPath;
-          const settings = vscode.workspace.getConfiguration(
-            "vectorcastTestExplorer"
-          );
-          const defaultConfigurationPath = settings.get(
-            "configurationLocation",
-            undefined
-          );
-          if (!defaultConfigurationPath) {
-            vscode.window.showWarningMessage(
-              `Cannot set ${filePath} as default db. You first need to set a default Configuration file.`
-            );
-            return;
-          }
-          const configDirName = path.dirname(defaultConfigurationPath);
-          const fileDirName = path.dirname(filePath);
 
-          if (configDirName !== fileDirName) {
-            vscode.window.showWarningMessage(
-              `Cannot set ${filePath} as default db. The .db file (located in ${fileDirName}) has to be in the same directory as your default Configuraion file (${configDirName}).`
-            );
-            return;
-          }
+      if (!alreadyConfigured) {
+        return;
+      }
 
-          await updateVCShellDatabase(filePath);
+      if (fileURI) {
+        const filePath = fileURI.fsPath;
+        const settings = vscode.workspace.getConfiguration(
+          "vectorcastTestExplorer"
+        );
+
+        const defaultConfigurationPath = settings.get(
+          "configurationLocation",
+          undefined
+        );
+
+        if (!defaultConfigurationPath) {
+          vscode.window.showWarningMessage(
+            `Cannot set ${filePath} as default db. You first need to set a default Configuration file.`
+          );
+          return;
         }
+
+        const configDirName = path.dirname(defaultConfigurationPath);
+        const fileDirName = path.dirname(filePath);
+
+        // If not in same directory → ask user if they want to move it
+        if (configDirName !== fileDirName) {
+          const choice = await vscode.window.showWarningMessage(
+            `The VC shell database is not in the same directory as the default configuration.\n\n` +
+              `Current location:\n${filePath}\n\n` +
+              `Target directory:\n${configDirName}\n\n` +
+              `Do you want to move the database to the configuration directory?`,
+            { modal: false },
+            "Yes",
+            "Cancel"
+          );
+
+          if (choice !== "Yes") {
+            return;
+          }
+
+          try {
+            // Try to move the file
+            const targetPath = path.join(
+              configDirName,
+              path.basename(filePath)
+            );
+            await fs.promises.rename(filePath, targetPath);
+
+            vscode.window.showInformationMessage(
+              `Moved database:\n${filePath}\n→\n${targetPath}`
+            );
+
+            // Continue using the new file path
+            await updateVCShellDatabase(targetPath);
+            return;
+          } catch (err: any) {
+            vscode.window.showErrorMessage(
+              `Failed to move database: ${err.message}`
+            );
+            return;
+          }
+        }
+
+        // Normal flow (already in correct directory)
+        await updateVCShellDatabase(filePath);
       }
     }
   );
+
   context.subscriptions.push(defaultVCShellCommand);
 
   const importEnviroToProject = vscode.commands.registerCommand(
