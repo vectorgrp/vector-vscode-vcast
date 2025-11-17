@@ -2476,6 +2476,11 @@ async function installPreActivationEventHandlers(
         const traceabilityData = readJsonFile(traceabilityJsonPath);
         if (traceabilityData === null) return;
 
+        // Preserve original top-level group key
+        const topLevelKeys = Object.keys(requirementsData);
+        const mainGroupKey =
+          topLevelKeys.length === 1 ? topLevelKeys[0] : "Requirements";
+
         // Flatten grouped or nested requirement objects
         const flattenRequirements = (data: any): Record<string, any> => {
           if (!data || typeof data !== "object") return {};
@@ -2586,9 +2591,14 @@ async function installPreActivationEventHandlers(
                     };
                   }
 
+                  // Wrap flattened requirements back in original top-level group
+                  const wrappedRequirementsOutput = {
+                    [mainGroupKey]: requirementsOutput,
+                  };
+
                   await fs.promises.writeFile(
                     requirementsJsonPath,
-                    JSON.stringify(requirementsOutput, null, 2),
+                    JSON.stringify(wrappedRequirementsOutput, null, 2),
                     "utf8"
                   );
                   await fs.promises.writeFile(
