@@ -162,21 +162,22 @@ def generateTestInfo(enviroPath, test):
         # or dataAPI has a bad line number for the test, and return None in this case.
         enclosingDirectory = os.path.dirname(enviroPath)
 
-        # If coded_tests_file uses $(VAR), expand it. 
+        # If coded_tests_file uses $(VAR), expand it.
         expanded_path = expand_vc_env_vars(test.coded_tests_file)
 
         # construct absolute path:
         if os.path.isabs(expanded_path):
             codedTestFilePath = os.path.abspath(expanded_path)
         else:
-            codedTestFilePath = os.path.abspath(os.path.join(enclosingDirectory, expanded_path))
+            codedTestFilePath = os.path.abspath(
+                os.path.join(enclosingDirectory, expanded_path)
+            )
 
         if os.path.exists(codedTestFilePath) and test.coded_tests_line > 0:
             testInfo["codedTestFile"] = codedTestFilePath
             testInfo["codedTestLine"] = test.coded_tests_line
         else:
             testInfo = None
-
 
     return testInfo
 
@@ -867,7 +868,6 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         # file and generate the test list.
         expanded_path = expand_vc_env_vars(pathToUse)
         returnObject = getCodeBasedTestNames(expanded_path)
-
 
     elif mode == "rebuild":
         # Rebuild environment has some special processing because we want

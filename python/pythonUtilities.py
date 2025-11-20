@@ -212,7 +212,9 @@ def monkeypatch_custom_css(custom_css):
     # Replace existing get_option with our one
     EnvironmentMixin.get_option = new_get_opt
 
+
 env_var_pattern = re.compile(r"\$\((.*?)\)")
+
 
 def expand_vc_env_vars(path: str) -> str:
     """
