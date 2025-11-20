@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import time
+import re
 from vector.apps.DataAPI.configuration import EnvironmentMixin
 
 # This contains the clicast command that was used to start the data server
@@ -210,3 +211,23 @@ def monkeypatch_custom_css(custom_css):
 
     # Replace existing get_option with our one
     EnvironmentMixin.get_option = new_get_opt
+
+env_var_pattern = re.compile(r"\$\((.*?)\)")
+
+def expand_vc_env_vars(path: str) -> str:
+    """
+    Expand VectorCAST-style $(VAR) variables.
+    If the variable does not exist, leave it unchanged.
+    """
+    if not path:
+        return path
+
+    def repl(match):
+        var_name = match.group(1)
+        val = os.environ.get(var_name)
+        if val is not None:
+            return val
+        # Leave $(VAR) unchanged if no environment variable exists
+        return match.group(0)
+
+    return env_var_pattern.sub(repl, path)

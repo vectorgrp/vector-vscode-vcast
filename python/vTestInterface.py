@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import traceback
+import re
 
 """
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -30,7 +31,7 @@ from versionChecks import (
     vpythonHasCodedTestSupport,
     enviroSupportsMocking,
 )
-from pythonUtilities import logMessage
+from pythonUtilities import logMessage, expand_vc_env_vars
 
 from vector.apps.DataAPI.manage_api import VCProjectApi
 from vector.apps.DataAPI.vcproject_models import EnvironmentType
@@ -160,14 +161,22 @@ def generateTestInfo(enviroPath, test):
         # guard against the case where the coded test file has been renamed or deleted
         # or dataAPI has a bad line number for the test, and return None in this case.
         enclosingDirectory = os.path.dirname(enviroPath)
-        codedTestFilePath = os.path.abspath(
-            os.path.join(enclosingDirectory, test.coded_tests_file)
-        )
+
+        # If coded_tests_file uses $(VAR), expand it. 
+        expanded_path = expand_vc_env_vars(test.coded_tests_file)
+
+        # construct absolute path:
+        if os.path.isabs(expanded_path):
+            codedTestFilePath = os.path.abspath(expanded_path)
+        else:
+            codedTestFilePath = os.path.abspath(os.path.join(enclosingDirectory, expanded_path))
+
         if os.path.exists(codedTestFilePath) and test.coded_tests_line > 0:
             testInfo["codedTestFile"] = codedTestFilePath
             testInfo["codedTestLine"] = test.coded_tests_line
         else:
             testInfo = None
+
 
     return testInfo
 
@@ -856,7 +865,9 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     elif mode == "parseCBT":
         # This is a special mode used by the unit test driver to parse the CBT
         # file and generate the test list.
-        returnObject = getCodeBasedTestNames(pathToUse)
+        expanded_path = expand_vc_env_vars(pathToUse)
+        returnObject = getCodeBasedTestNames(expanded_path)
+
 
     elif mode == "rebuild":
         # Rebuild environment has some special processing because we want
