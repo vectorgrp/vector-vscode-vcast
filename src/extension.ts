@@ -149,6 +149,8 @@ import {
   newTestScript,
   openCodedTest,
   ProjectEnvParameters,
+  createNewCFGFile,
+  ConfigurationOptions,
 } from "./vcastTestInterface";
 
 import {
@@ -1982,32 +1984,47 @@ async function installPreActivationEventHandlers(
         projectName?: string;
         compilerName?: string;
         targetDir?: string;
+        useDefaultCFG?: boolean;
       }) {
-        const { projectName, compilerName, targetDir } = message;
-        // Make sure that Inputs have to be filled and the compiler tag is found
+        const { projectName, compilerName, targetDir, useDefaultCFG } = message;
         if (!projectName) {
           vscode.window.showErrorMessage("Project Name is required.");
           return;
         }
-        if (!compilerName) {
-          vscode.window.showErrorMessage("Compiler selection is required.");
-          return;
-        }
-        const compilerTag = compilerTagList[compilerName];
-        if (!compilerTag) {
-          vscode.window.showErrorMessage(
-            `No compiler tag found for "${compilerName}".`
+
+        let compiler: string | undefined;
+        let usingDefaultCFG = false;
+
+        if (useDefaultCFG) {
+          const settings = vscode.workspace.getConfiguration(
+            "vectorcastTestExplorer"
           );
-          return;
+          const defaultCFG = settings.get<string>("configurationLocation");
+          usingDefaultCFG = true;
+          if (!defaultCFG) {
+            vscode.window.showErrorMessage("No default CFG is defined.");
+            return;
+          }
+          // Derive compilerTag from default CFG if possible
+          compiler = defaultCFG; // TODO: adjust to however your system maps CFG → compilerTag
+        } else {
+          if (!compilerName) {
+            vscode.window.showErrorMessage("Compiler selection is required.");
+            return;
+          }
+          compiler = compilerTagList[compilerName];
+          if (!compiler) {
+            vscode.window.showErrorMessage(
+              `No compiler tag found for "${compilerName}".`
+            );
+            return;
+          }
         }
 
         const base = targetDir ?? workspaceRoot;
         const projectPath = path.join(base, projectName);
 
-        vscode.window.showInformationMessage(
-          `Creating project "${projectName}" at ${projectPath} using ${compilerName}.`
-        );
-        await createNewProject(projectPath, compilerTag);
+        await createNewProject(projectPath, compiler, usingDefaultCFG);
         panel.dispose();
       }
     }
@@ -2031,8 +2048,13 @@ async function installPreActivationEventHandlers(
     const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
 
     const compilersJson = JSON.stringify(Object.keys(compilerTagList));
-    // pass default targetDir as workspace root
     const workspaceJson = JSON.stringify(workspaceRoot);
+
+    // read defaultCFG setting
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    const defaultCFG = settings.get<string>("configurationLocation") ?? "";
 
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
@@ -2045,6 +2067,7 @@ async function installPreActivationEventHandlers(
         <script nonce="${nonce}">
           window.compilerData = ${compilersJson};
           window.defaultDir   = ${workspaceJson};
+          window.defaultCFG   = ${JSON.stringify(defaultCFG)};
         </script>`
     );
     html = html.replace("{{ cssUri }}", cssUri.toString());
@@ -2177,6 +2200,130 @@ async function installPreActivationEventHandlers(
            window.compilerData = ${compilerList};
          </script>\n</head>`
       );
+
+    return html;
+  }
+
+  const createNewCFGCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createNewCFG",
+    async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders?.length) {
+        vscode.window.showErrorMessage("Open a folder first.");
+        return;
+      }
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "newCFG",
+        "Create New CFG File",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      panel.webview.html = await getNewCFGWebviewContent(
+        context,
+        panel,
+        compilerTagList
+      );
+
+      panel.webview.onDidReceiveMessage(
+        async (msg) => {
+          switch (msg.command) {
+            case "submit": {
+              const compilerName: string | undefined = msg.compilerName?.trim();
+              const enableCodedTests: boolean = !!msg.enableCodedTests;
+              const defaultCFG: boolean = !!msg.defaultCFG;
+              const configurationOptions: ConfigurationOptions = {
+                enableCodedTests: enableCodedTests,
+                defaultCFG: defaultCFG,
+              };
+
+              if (!compilerName) {
+                vscode.window.showErrorMessage(
+                  "Compiler selection is required."
+                );
+                return;
+              }
+
+              const compilerTag = compilerTagList[compilerName];
+              if (!compilerTag) {
+                vscode.window.showErrorMessage(
+                  `No compiler tag found for "${compilerName}".`
+                );
+                return;
+              }
+
+              // Pass flags to implementation
+              await createNewCFGFile(
+                workspaceRoot,
+                compilerTag,
+                configurationOptions
+              );
+
+              panel.dispose();
+              break;
+            }
+          }
+        },
+        undefined,
+        context.subscriptions
+      );
+    }
+  );
+
+  context.subscriptions.push(createNewCFGCmd);
+
+  async function getNewCFGWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    compilerTagList: Record<string, string>
+  ): Promise<string> {
+    // Build paths for webview files
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(path.join(base, "css", "newCFG.css"));
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "newCFG.js")
+    );
+    const htmlPath = path.join(base, "html", "newCFG.html");
+
+    // convert to URI
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    // JSON list of compilers for autocomplete
+    const compilerList = JSON.stringify(Object.keys(compilerTagList ?? {}));
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+
+    // build CSP meta (need to allow our scripts with our generated nonce)
+    const csp = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+
+    // Insert CSP immediately after the opening <head>
+    html = html.replace(/<head>/i, `<head>${csp}`);
+    html = html.replace(/{{\s*cssUri\s*}}/g, cssUri.toString());
+    html = html.replace(
+      /<script\s+src="{{\s*scriptUri\s*}}"><\/script>/i,
+      `<script nonce="${nonce}" src="${scriptUri}"></script>`
+    );
+
+    // Inline script to expose compilerData and enableCodedTests to the webview client
+    const injectedScript = `<script nonce="${nonce}">
+      window.compilerData = ${compilerList};
+      window.enableCodedTests = ${false};
+      window.defaultCFG = ${false}
+    </script>`;
+    html = html.replace(/\{\{\s*compilerDataScript\s*\}\}/g, injectedScript);
 
     return html;
   }

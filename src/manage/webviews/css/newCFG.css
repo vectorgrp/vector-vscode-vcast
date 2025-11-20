@@ -38,8 +38,6 @@ body {
 label, .toggle-label {
   font-size: 16px;
   color: #d4d4d4;
-  display: block;
-  margin-bottom: 8px; /* spacing between label and field */
 }
 
 input[type="text"], select {
@@ -50,7 +48,6 @@ input[type="text"], select {
   border: 1px solid #555;
   border-radius: 4px;
   width: 100%;
-  margin-bottom: 0; /* remove extra spacing because we handle spacing via container */
 }
 
 /* Folder-picker row */
@@ -73,7 +70,15 @@ input[type="text"], select {
   cursor: pointer;
   transition: background-color 0.3s;
 }
-.select-button:hover { background-color: #005f99; }
+
+.select-button:hover {
+  background-color: #005f99;
+}
+
+/* Add spacing between label and autocomplete */
+label[for="compilerInput"] {
+  margin-bottom: 10px; /* extra space for clarity */
+}
 
 /* Autocomplete */
 .autocomplete {
@@ -97,19 +102,26 @@ input[type="text"], select {
   z-index: 10;
   text-align: left;
 }
-.suggestions.visible { display: block; }
+
+.suggestions.visible {
+  display: block;
+}
+
 .suggestions li {
   padding: 8px 12px;
   cursor: pointer;
   font-size: 14px;
 }
+
 .suggestions li:hover,
 .suggestions li.active {
   background: #007acc;
   color: white;
 }
 
-/* Options section */
+/* ===========================
+   Options section
+   =========================== */
 .options-section {
   margin-top: 20px;
   padding-top: 10px;
@@ -122,67 +134,46 @@ input[type="text"], select {
 .options-section h3 {
   font-size: 16px;
   font-weight: 600;
-  margin: 0 0 8px 0; /* remove extra space above */
+  margin-bottom: 10px;
   color: #ffffff;
   text-align: center;
 }
 
-/* Boxes for default CFG and new compiler */
-#defaultCompilerRow,
-#newCompilerSection {
-  border: 1px solid #555;
-  border-radius: 6px;
-  padding: 8px 12px;
-  margin-bottom: 10px;
+.option-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 6px 0;
+  width: 100%;
 }
 
-/* Ensure label wraps in its space */
-#defaultCompilerRow .toggle-label,
-#newCompilerSection label {
-  margin: 0; 
-  line-height: 1.4;
-  flex: 1;
-}
-
-#defaultCFGPath {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: #aaa;
-  word-break: break-all; /* force wrap if path is too long */
-  max-width: 420px;      /* prevent stretching modal */
-}
-
-/* OR separator */
-#orSeparator h3 {
-  margin: 12px 0;
-  color: #fff;
-  font-weight: 600;
+.option-row .toggle-label {
   font-size: 16px;
-  text-align: center;
+  color: #d4d4d4;
 }
 
-/* VS Code–style toggle */
+/* ===========================
+   VS Code–style toggle
+   =========================== */
 .vscode-toggle {
   display: inline-block;
   cursor: pointer;
 }
+
 .toggle-switch {
   display: inline-block;
   position: relative;
   width: 44px;
   height: 24px;
-  vertical-align: middle;
 }
+
 .toggle-switch input {
   opacity: 0;
   width: 0;
   height: 0;
   margin: 0;
 }
+
 .toggle-switch .slider {
   position: absolute;
   inset: 0;
@@ -192,6 +183,7 @@ input[type="text"], select {
   transition: background 0.12s ease, border-color 0.12s ease;
   box-sizing: border-box;
 }
+
 .toggle-switch .slider::before {
   content: "";
   position: absolute;
@@ -205,27 +197,34 @@ input[type="text"], select {
   transform: translateY(-50%);
   transition: left 0.12s ease, background 0.12s ease;
 }
+
 .toggle-switch input:checked + .slider {
   background: #007acc;
   border-color: #007acc;
 }
+
 .toggle-switch input:checked + .slider::before {
   left: 21px;
   background: #ffffff;
 }
+
 .toggle-switch input:focus + .slider {
   box-shadow: 0 0 0 3px rgba(0,122,204,0.14);
 }
+
 .vscode-toggle:hover .slider {
   filter: brightness(1.06);
 }
 
-/* Buttons */
+/* ===========================
+   Buttons
+   =========================== */
 .button-container {
   display: flex;
-  justify-content: space-between;
-  margin-top: 25px;
+  justify-content: space-between; /* cancel left, create right */
+  margin-top: 25px; /* space between options and buttons */
 }
+
 .primary-button,
 .cancel-button {
   padding: 10px 20px;
@@ -235,17 +234,21 @@ input[type="text"], select {
   cursor: pointer;
   transition: background-color 0.3s;
 }
+
 .primary-button {
   background-color: #007acc;
   color: white;
 }
+
 .primary-button:hover {
   background-color: #005f99;
 }
+
 .cancel-button {
   background-color: #cc4444;
   color: white;
 }
+
 .cancel-button:hover {
   background-color: #992222;
 }

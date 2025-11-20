@@ -121,9 +121,14 @@ export async function createNewCompilerInProject(
 /**
  * Creates a new Project including a new Compiler
  * @param projectPath Path to the new project file
- * @param compiler Compiler Name
+ * @param compiler Compiler Tag OR compiler path in case we are using the default CFG from the settings
+ * @param usingDefaultCFG Boolean, if the user selected to use the default cfg in the settings
  */
-export async function createNewProject(projectPath: string, compiler: string) {
+export async function createNewProject(
+  projectPath: string,
+  compiler: string,
+  usingDefaultCFG: boolean = false
+) {
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
   const progressMessage = `Creating new Project ${projectName}  ...`;
@@ -136,7 +141,12 @@ export async function createNewProject(projectPath: string, compiler: string) {
     progressMessage
   );
 
-  await createNewCompilerInProject(projectPath, compiler);
+  // If we're using default cfg, the cfg already exists and we only need to import it to the project
+  if (usingDefaultCFG) {
+    await addCompilerToProject(projectPath, compiler);
+  } else {
+    await createNewCompilerInProject(projectPath, compiler);
+  }
 }
 
 export async function cleanProjectEnvironment(
