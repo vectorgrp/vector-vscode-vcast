@@ -1,0 +1,81 @@
+# ghcr.io/vectorgrp/vscode_ubuntu24_ci
+FROM rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+
+ARG USERNAME=vcast_user
+ARG USER_UID=1001     # host runner UID on GitHub-hosted runners
+ARG USER_GID=121      # common docker group GID on GH runners (sometimes 127)
+
+USER root
+SHELL ["/bin/bash", "-lc"]
+
+# vcast
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2021sp0.tar.gz /vcast/2021sp0.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2023sp0.tar.gz /vcast/2023sp0.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2024sp1.tar.gz /vcast/2024sp1.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2024sp4.tar.gz /vcast/2024sp4.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2024sp5.tar.gz /vcast/2024sp5.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2025sp0.tar.gz /vcast/2025sp0.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/2025sp1.tar.gz /vcast/2025sp1.tar.gz
+ADD https://artifactory.vi.vector.int:443/artifactory/rds-build-packages-generic-dev-local/vcast/vector-license.lic /vcast/vector-license.lic
+
+RUN set -eux; \
+    if getent group "${USER_GID}" >/dev/null; then \
+      groupmod -g "${USER_GID}" "${USERNAME}" || true; \
+    else \
+      groupmod -g "${USER_GID}" "${USERNAME}" || groupadd -g "${USER_GID}" "${USERNAME}"; \
+    fi; \
+    usermod -u "${USER_UID}" -g "${USER_GID}" "${USERNAME}"; \
+    chown -R "${USER_UID}:${USER_GID}" "/home/${USERNAME}"
+
+RUN cd /vcast && \
+    for f in *.tar.gz; do tar xf "$f"; done && rm *.tar.gz && \
+    chown -R $(id -u $USERNAME):$(id -g $USERNAME) /vcast && \
+    chown -R $(id -u $USERNAME):$(id -g $USERNAME) /__w
+
+# cleaning up proxy settings
+RUN set -eux; \
+    N_PREFIX_DEFAULT="/home/${USERNAME}/.n"; \
+    NPM_GLOBAL_NPMRC="${N_PREFIX:-$N_PREFIX_DEFAULT}/etc/npmrc"; \
+    for f in \
+      "/etc/npmrc" \
+      "/usr/local/etc/npmrc" \
+      "$NPM_GLOBAL_NPMRC" \
+      "/home/${USERNAME}/.npmrc" \
+      "/home/${USERNAME}/.config/npm/npmrc"; do \
+      if [ -f "$f" ]; then \
+        sed -i -E '/^(proxy|https-proxy|noproxy|cafile|registry)\s*=/d' "$f"; \
+      fi; \
+    done
+
+RUN set -eux; \
+    if [ -f "/home/${USERNAME}/.bashrc" ]; then \
+      sed -i -E '/REQUESTS_CA_BUNDLE|http_proxy|https_proxy|HTTP_PROXY|HTTPS_PROXY|NO_PROXY/d' "/home/${USERNAME}/.bashrc"; \
+    fi
+
+RUN set -eux; \
+    chown root:root /etc/ssl/certs/ca-certificates.crt || true; \
+    rm -f /etc/ssl/certs/ca-certificates.crt; \
+    find /usr/local/share/ca-certificates -type f -iname 'vector_*.crt' -print -delete || true; \
+    find /usr/local/share/ca-certificates/ -type f -iname '*.crt' -print -delete || true; \
+    update-ca-certificates --fresh || true
+
+ENV NODE_EXTRA_CA_CERTS= \
+    SSL_CERT_FILE= \
+    REQUESTS_CA_BUNDLE= \
+    SSL_CERT_DIR= \
+    CA_BUNDLE_PATH= \
+    CURL_CA_BUNDLE= \
+    GLOBAL_AGENT_HTTP_PROXY= \
+    http_proxy= \
+    GLOBAL_AGENT_HTTPS_PROXY= \
+    GLOBAL_AGENT_NO_PROXY= \
+    HTTPS_PROXY= \
+    https_proxy= \
+    no_proxy= \
+    HTTP_PROXY=
+
+RUN chown -R "${USERNAME}:${USERNAME}" "/home/${USERNAME}" || true
+
+USER ${USERNAME}
+
+SHELL ["/bin/bash", "--login", "-c"]
