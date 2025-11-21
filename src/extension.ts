@@ -149,7 +149,6 @@ import {
   newTestScript,
   openCodedTest,
   ProjectEnvParameters,
-  newVCShell,
   updateVCShellDatabase,
 } from "./vcastTestInterface";
 
@@ -1547,25 +1546,6 @@ async function installPreActivationEventHandlers(
     }
   );
   context.subscriptions.push(newEnviroVCASTCommand);
-
-  // Command: vectorcastTestExplorer.newEnviroVCAST ////////////////////////////////////////////////////////
-  let newVCShellCommand = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.newVCShell",
-    async (arg: Uri) => {
-      // contains a check for already configured, so no work will be done in that case
-      await checkPrerequisites(context);
-      if (alreadyConfigured) {
-        // arg is the actual item that the right click happened on, argList is the list
-        // of all items if this is a multi-select.  Since argList is always valid, even for a single
-        // selection, we just use this here.
-        if (arg) {
-          const filePath = arg.fsPath;
-          await newVCShell(filePath);
-        }
-      }
-    }
-  );
-  context.subscriptions.push(newVCShellCommand);
 
   let defaultVCShellCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.defaultVCShell",
