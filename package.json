@@ -170,11 +170,6 @@
         "title": "Create VectorCAST Environment"
       },
       {
-        "command": "vectorcastTestExplorer.newVCShell",
-        "category": "VectorCAST Test Explorer",
-        "title": "Create New VC Shell"
-      },
-      {
         "command": "vectorcastTestExplorer.defaultVCShell",
         "category": "VectorCAST Test Explorer",
         "title": "Set as default Database"
@@ -712,10 +707,6 @@
           "when": "never"
         },
         {
-          "command": "vectorcastTestExplorer.newVCShell",
-          "when": "never"
-        },
-        {
           "command": "vectorcastTestExplorer.defaultVCShell",
           "when": "never"
         },
@@ -867,11 +858,6 @@
       "explorer/context": [
         {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
-          "when": "resourceLangId == cpp || resourceLangId == c",
-          "group": "2_workspace"
-        },
-        {
-          "command": "vectorcastTestExplorer.newVCShell",
           "when": "resourceLangId == cpp || resourceLangId == c",
           "group": "2_workspace"
         },
