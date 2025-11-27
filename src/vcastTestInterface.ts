@@ -1203,6 +1203,19 @@ export async function getMCDCResultFile(
 }
 
 export async function updateVCShellDatabase(vcShellPath: string) {
+  // Update Settings
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  settings.update("databaseLocation", vcShellPath);
+
+  vscode.window.showInformationMessage(
+    `Default Database location has been set to: ${vcShellPath}`
+  );
+}
+
+export async function updateCFGWithVCShellDatabase(
+  vcShellPath: string,
+  normalizedCFGPath: string
+) {
   // Retrieve VectorCAST Dir
   const vcDir = getVectorCastInstallationLocation();
   if (!vcDir) {
@@ -1216,25 +1229,20 @@ export async function updateVCShellDatabase(vcShellPath: string) {
   // Build paths
   const vcShellCommand = path.join(normalizePath(vcDir), `clicast`);
   const commandToRun = `${vcShellCommand}`;
-  const dirName = path.dirname(vcShellPath);
   const fileName = path.basename(vcShellPath);
-  const unitTestLocation = getUnitTestLocationForPath(dirName);
-  const normalizedUnitPath = normalizePath(unitTestLocation);
+  const normalizedVCShellPath = normalizePath(vcShellPath);
 
   // Execute
   const infoMessage = `Loading VectorCAST database from ${fileName} and setting it as the active VCDB.`;
   await executeWithRealTimeEchoWithProgress(
     commandToRun,
-    ["-lc", "option", "VCDB_FILENAME", `$(readlink -f ${fileName})`],
-    normalizedUnitPath,
+    [
+      "-lc",
+      "option",
+      "VCDB_FILENAME",
+      `$(readlink -f ${normalizedVCShellPath})`,
+    ],
+    normalizedCFGPath,
     infoMessage
-  );
-
-  // Update Settings
-  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-  settings.update("databaseLocation", vcShellPath);
-
-  vscode.window.showInformationMessage(
-    `Default Database location has been set to: ${vcShellPath}`
   );
 }

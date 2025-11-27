@@ -79,6 +79,7 @@ import {
   forceLowerCaseDriveLetter,
   decodeVar,
   getFullEnvReport,
+  normalizePath,
 } from "./utilities";
 
 import {
@@ -150,6 +151,7 @@ import {
   openCodedTest,
   ProjectEnvParameters,
   updateVCShellDatabase,
+  updateCFGWithVCShellDatabase,
 } from "./vcastTestInterface";
 
 import {
@@ -1567,57 +1569,25 @@ async function installPreActivationEventHandlers(
           undefined
         );
 
-        if (!defaultConfigurationPath) {
-          vscode.window.showWarningMessage(
-            `Cannot set ${filePath} as default db. You first need to set a default Configuration file.`
-          );
-          return;
-        }
+        // First update vcshell db setting
+        await updateVCShellDatabase(filePath);
 
-        const configDirName = path.dirname(defaultConfigurationPath);
-        const fileDirName = path.dirname(filePath);
-
-        // If not in same directory → ask user if they want to move it
-        if (configDirName !== fileDirName) {
+        // In case we have a default cfg, ask the user if he wants to update the cfg with the current default vcshell db
+        if (defaultConfigurationPath) {
           const choice = await vscode.window.showWarningMessage(
-            `The VC shell database is not in the same directory as the default configuration.\n\n` +
-              `Current location:\n${filePath}\n\n` +
-              `Target directory:\n${configDirName}\n\n` +
-              `Do you want to move the database to the configuration directory?`,
+            `You have set a default CFG at ${defaultConfigurationPath}. Do you want to include your database in that configuration?`,
             { modal: false },
             "Yes",
-            "Cancel"
+            "No"
           );
 
-          if (choice !== "Yes") {
-            return;
-          }
-
-          try {
-            // Try to move the file
-            const targetPath = path.join(
-              configDirName,
-              path.basename(filePath)
+          if (choice === "Yes") {
+            const normalizedCFGPath = normalizePath(
+              path.dirname(defaultConfigurationPath)
             );
-            await fs.promises.rename(filePath, targetPath);
-
-            vscode.window.showInformationMessage(
-              `Moved database:\n${filePath}\n→\n${targetPath}`
-            );
-
-            // Continue using the new file path
-            await updateVCShellDatabase(targetPath);
-            return;
-          } catch (err: any) {
-            vscode.window.showErrorMessage(
-              `Failed to move database: ${err.message}`
-            );
-            return;
+            await updateCFGWithVCShellDatabase(filePath, normalizedCFGPath);
           }
         }
-
-        // Normal flow (already in correct directory)
-        await updateVCShellDatabase(filePath);
       }
     }
   );
