@@ -146,7 +146,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // For the compiler tab we need to do it that way, because it's input is not found
     // The different strucutre (autocompletion) + we already clicked on the same webview
     // make the problems, so we just navigate with tab and enter within the webview
-    await insertStringToInput("NewProject", "Project Name Input");
+    await insertStringToInput("ANewProject", "Project Name Input");
     await browser.keys(["Tab"]);
     await browser.keys("GNU Native_Automatic_C++17");
     await browser.keys(["Tab"]);
@@ -157,12 +157,12 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project NewProject`),
+          .includes(`Added Compiler CCAST_.CFG to Project ANewProject`),
       { timeout: TIMEOUT }
     );
 
     console.log("Checking existence of new Project");
-    const projectNode = await findTreeNodeAtLevel(0, "NewProject.vcm");
+    const projectNode = await findTreeNodeAtLevel(0, "ANewProject.vcm");
     const compilerNode = await findTreeNodeAtLevel(
       1,
       "GNU_Native_Automatic_C++17"
@@ -849,6 +849,58 @@ describe("vTypeCheck VS Code Extension", () => {
     // Closing all current notifications for the next test
     const notificationsCenter = await workbench.openNotificationsCenter();
     await notificationsCenter.clearAllNotifications();
+  });
+
+  it("testing building new added project environment", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    await executeContextMenuAction(
+      3,
+      "DATABASE-MANAGER",
+      true,
+      "Build Project Environment"
+    );
+
+    console.log("Checking for Output logs if Environment build is finished");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Creating Environment "DATABASE-MANAGER"`),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText()).toString().includes(`Processing project:`),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
+
+    // Need to wait because there are more than one "Processing environment data for" messages
+    await browser.waitUntil(
+      async () => {
+        const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+        return testsuiteNode !== undefined;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 500,
+        timeoutMsg:
+          'Expected Env node "DATABASE-MANAGER" to be in the tree within timeout',
+      }
+    );
+
+    console.log("Checking if Env node is in Tree");
+    const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
+    expect(testsuiteNode).toBeDefined();
   });
 
   it("testing changing project update settings", async () => {
