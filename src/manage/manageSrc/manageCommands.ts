@@ -23,7 +23,10 @@ import { getEnviroNodeData } from "../../testData";
 
 import { executeWithRealTimeEchoWithProgress } from "../../vcastCommandRunner";
 
-import { manageCommandToUse } from "../../vcastInstallation";
+import {
+  getVectorCastInstallationLocation,
+  manageCommandToUse,
+} from "../../vcastInstallation";
 
 import {
   checkIfEnvironmentIsBuildMultipleTimes,
@@ -44,6 +47,7 @@ import {
 } from "../../testPane";
 import { normalizePath } from "../../utilities";
 import { viewResultsReportVC } from "../../reporting";
+import { ConfigurationOptions } from "../../vcastTestInterface";
 
 const path = require("path");
 
@@ -121,12 +125,21 @@ export async function createNewCompilerInProject(
 /**
  * Creates a new Project including a new Compiler
  * @param projectPath Path to the new project file
- * @param compiler Compiler Name
+ * @param compiler Compiler Tag OR compiler path in case we are using the default CFG from the settings
+ * @param usingDefaultCFG Boolean, if the user selected to use the default cfg in the settings
  */
-export async function createNewProject(projectPath: string, compiler: string) {
+export async function createNewProject(
+  projectPath: string,
+  compiler: string,
+  usingDefaultCFG: boolean = false,
+  configurationOptions?: ConfigurationOptions
+) {
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
-  const progressMessage = `Creating new Project ${projectName}  ...`;
+
+  // 1. Create the Project Directory Structure
+  const progressMessage = `Creating new Project ${projectName} ...`;
+  // Assuming 'manageCommandToUse' is defined globally or imported
   const manageArgs = [`-p${projectName}`, `--create`, "--force"];
 
   await executeWithRealTimeEchoWithProgress(
@@ -136,7 +149,71 @@ export async function createNewProject(projectPath: string, compiler: string) {
     progressMessage
   );
 
-  await createNewCompilerInProject(projectPath, compiler);
+  // 2. Configure the Compiler / CFG
+  if (usingDefaultCFG) {
+    // Scenario A: Use an existing CFG file
+    // 'compiler' variable here is the PATH to the CFG
+    await addCompilerToProject(projectPath, compiler);
+  } else {
+    // Scenario B: Create a NEW CFG based on a Compiler Tag
+    // 'compiler' variable here is the Compiler Tag (e.g., "GNU_Native")
+
+    // Create the CFG file inside the new project directory
+    // We reuse the helper used in createNewCFGFile
+    const createdCfgPath = await createNewCFGFromCompiler(
+      compiler,
+      projectPath
+    );
+
+    // Handle Additional Configuration Options (if provided)
+    if (configurationOptions) {
+      const vcDir = getVectorCastInstallationLocation();
+      if (vcDir) {
+        const clicastCmd = path.join(vcDir, "clicast");
+
+        // Apply Coded Tests Option
+        const codedFlag = configurationOptions.enableCodedTests
+          ? "TRUE"
+          : "FALSE";
+        const codedOptionArgs = [
+          "-lc",
+          "option",
+          "VCAST_CODED_TESTS_SUPPORT",
+          codedFlag,
+        ];
+
+        // We run this command INSIDE the new project path so it affects the local CFG
+        await executeWithRealTimeEchoWithProgress(
+          clicastCmd,
+          codedOptionArgs,
+          projectPath,
+          "Setting VCAST_CODED_TESTS_SUPPORT in Project CFG"
+        );
+
+        // Set as Default CFG in VS Code Settings
+        if (configurationOptions.defaultCFG) {
+          const settings = vscode.workspace.getConfiguration(
+            "vectorcastTestExplorer"
+          );
+          await settings.update(
+            "configurationLocation",
+            createdCfgPath,
+            vscode.ConfigurationTarget.Workspace
+          );
+        }
+      } else {
+        vscode.window.showErrorMessage(
+          "Could not determine VectorCAST location. configuration options could not be applied."
+        );
+      }
+    }
+
+    // If CFG options are done, add the compiler to the project
+    // If the path would be undefined, we will get a message from createNewCFGFromCompiler, so no handling here
+    if (createdCfgPath) {
+      await addCompilerToProject(projectPath, createdCfgPath);
+    }
+  }
 }
 
 export async function cleanProjectEnvironment(

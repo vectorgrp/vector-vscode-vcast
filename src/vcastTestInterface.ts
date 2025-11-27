@@ -75,6 +75,7 @@ import {
   closeConnection,
   globalEnviroDataServerActive,
 } from "../src-common/vcastServer";
+import { createNewCFGFromCompiler } from "./manage/manageSrc/manageUtils";
 
 const fs = require("fs");
 const path = require("path");
@@ -1245,4 +1246,83 @@ export async function updateCFGWithVCShellDatabase(
     normalizedCFGPath,
     infoMessage
   );
+}
+
+export interface ConfigurationOptions {
+  enableCodedTests: boolean;
+  defaultCFG: boolean;
+}
+
+export async function createNewCFGFile(
+  workspaceRoot: string,
+  compilerTag: string,
+  configurationOptions: ConfigurationOptions
+) {
+  const unitTestLocation = getUnitTestLocationForPath(workspaceRoot);
+  const vcDir = getVectorCastInstallationLocation();
+  const commandToRun = path.join(vcDir, "clicast");
+
+  // Should not happen as we would get that message when initializing the extension, but to be sure
+  if (!vcDir) {
+    vectorMessage(
+      `Could not find VectorCAST Installation Location. Aborting creating a new CFG.`
+    );
+    return;
+  }
+
+  // Check if a CFG already exists
+  const cfgFile = path.join(unitTestLocation, "CCAST_.CFG");
+  if (fs.existsSync(cfgFile)) {
+    const choice = await vscode.window.showInformationMessage(
+      "A CFG file already exists at this location. Do you want to overwrite it?",
+      "Yes",
+      "Cancel"
+    );
+
+    if (choice !== "Yes") {
+      vscode.window.showInformationMessage(
+        `Operation cancelled. Existing CFG ( ${cfgFile} ) was not overwritten.`
+      );
+      return;
+    }
+  }
+
+  // First create new CFG and return path
+  const compilerPath = await createNewCFGFromCompiler(
+    compilerTag,
+    unitTestLocation
+  );
+
+  // Set Coded Tests option
+  let codedFlag = "FALSE";
+  if (configurationOptions.enableCodedTests) {
+    codedFlag = "TRUE";
+  }
+
+  const codedOptionArgs = [
+    "-lc",
+    "option",
+    "VCAST_CODED_TESTS_SUPPORT",
+    codedFlag,
+  ];
+  const codedOptionInfoMessage =
+    "Setting VCAST_CODED_TESTS_SUPPORT in CFG File";
+  await executeWithRealTimeEchoWithProgress(
+    commandToRun,
+    codedOptionArgs,
+    unitTestLocation,
+    codedOptionInfoMessage
+  );
+
+  // Set as Default CFG if required
+  if (configurationOptions.defaultCFG) {
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    settings.update(
+      "configurationLocation",
+      compilerPath,
+      vscode.ConfigurationTarget.Workspace
+    );
+  }
 }
