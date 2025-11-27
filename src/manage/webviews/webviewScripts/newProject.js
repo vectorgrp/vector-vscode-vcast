@@ -3,6 +3,8 @@ const vscode = acquireVsCodeApi();
 window.addEventListener("DOMContentLoaded", () => {
   const compilers = window.compilerData || [];
   const defaultCFG = window.defaultCFG || "";
+  
+  // DOM Elements
   const defaultRow = document.getElementById("defaultCompilerRow");
   const defaultPath = document.getElementById("defaultCFGPath");
   const orSeparator = document.getElementById("orSeparator");
@@ -14,6 +16,12 @@ window.addEventListener("DOMContentLoaded", () => {
   const nameInput = document.getElementById("projectNameInput");
   const compInput = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
+
+  // CFG Option Checkboxes
+  const codedCheckbox = document.getElementById("enableCodedTests");
+  const defaultCFGCheckbox = document.getElementById("defaultCFG");
+
+  // --- Initialization Logic ---
 
   // Show default CFG row + OR only if defaultCFG exists
   if (defaultCFG) {
@@ -28,22 +36,26 @@ window.addEventListener("DOMContentLoaded", () => {
   function updateCompilerVisibility() {
     if (useDefaultCheckbox && useDefaultCheckbox.checked) {
       newCompilerSection.style.display = "none";
-      orSeparator.style.display = "none"; // hide OR when default is selected
+      if (defaultCFG) orSeparator.style.display = "none"; 
     } else {
       newCompilerSection.style.display = "block";
       if (defaultCFG) orSeparator.style.display = "block";
     }
   }
 
-  if (useDefaultCheckbox) useDefaultCheckbox.addEventListener("change", updateCompilerVisibility);
+  if (useDefaultCheckbox) {
+    useDefaultCheckbox.addEventListener("change", updateCompilerVisibility);
+  }
   updateCompilerVisibility();
 
-  // Folder browse
+  // --- Target Directory Logic ---
   let targetDir = window.defaultDir || "";
   targetInput.value = targetDir;
+  
   browseBtn.addEventListener("click", () => {
     vscode.postMessage({ command: "browseForDir" });
   });
+  
   window.addEventListener("message", (e) => {
     const msg = e.data;
     if (msg.command === "setTargetDir") {
@@ -52,12 +64,13 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Autocomplete
+  // --- Autocomplete Logic ---
   let filtered = [], activeIndex = -1;
 
   function renderSuggestions() {
     suggestions.innerHTML = "";
     if (!filtered.length) return suggestions.classList.remove("visible");
+    
     filtered.forEach((item, i) => {
       const li = document.createElement("li");
       li.textContent = item;
@@ -72,7 +85,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateSuggestions(showAll = false) {
-    const q = compInput.value.toLowerCase().trim();
+    const q = (compInput.value || "").toLowerCase().trim();
     filtered = showAll || !q
       ? [...compilers]
       : compilers.filter(c => c.toLowerCase().includes(q));
@@ -82,7 +95,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
   compInput.addEventListener("input", () => updateSuggestions());
   compInput.addEventListener("focus", () => updateSuggestions(true));
-  compInput.addEventListener("click", () => updateSuggestions(true));
+  compInput.addEventListener("click", () => updateSuggestions(true)); // Ensure click triggers it
+  
   compInput.addEventListener("keydown", e => {
     if (!filtered.length) return;
     if (e.key === "ArrowDown") {
@@ -103,24 +117,29 @@ window.addEventListener("DOMContentLoaded", () => {
       suggestions.classList.remove("visible");
     }
   });
+  
   document.addEventListener("click", e => {
     if (!e.target.closest(".autocomplete")) suggestions.classList.remove("visible");
   });
 
-  // Submit
+  // --- Submit Logic ---
   document.getElementById("btnSubmit").addEventListener("click", () => {
+    const isUsingDefault = useDefaultCheckbox && useDefaultCheckbox.checked;
+
     vscode.postMessage({
       command: "submit",
       projectName: nameInput.value.trim(),
-      compilerName: useDefaultCheckbox && useDefaultCheckbox.checked
-        ? undefined
-        : compInput.value.trim(),
-      useDefaultCFG: useDefaultCheckbox && useDefaultCheckbox.checked,
       targetDir,
+      useDefaultCFG: isUsingDefault,
+      // Send compiler name only if NOT using default CFG
+      compilerName: isUsingDefault ? undefined : compInput.value.trim(),
+      // Send compiler options
+      enableCodedTests: !!(codedCheckbox && codedCheckbox.checked),
+      defaultCFG: !!(defaultCFGCheckbox && defaultCFGCheckbox.checked)
     });
   });
 
-  // Cancel
+  // --- Cancel Logic ---
   document.getElementById("btnCancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });
   });

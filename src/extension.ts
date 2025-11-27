@@ -1663,33 +1663,45 @@ async function installPreActivationEventHandlers(
         compilerName?: string;
         targetDir?: string;
         useDefaultCFG?: boolean;
+        enableCodedTests?: boolean;
+        defaultCFG?: boolean;
       }) {
-        const { projectName, compilerName, targetDir, useDefaultCFG } = message;
+        const {
+          projectName,
+          compilerName,
+          targetDir,
+          useDefaultCFG,
+          enableCodedTests,
+          defaultCFG,
+        } = message;
+
         if (!projectName) {
           vscode.window.showErrorMessage("Project Name is required.");
           return;
         }
 
         let compiler: string | undefined;
-        let usingDefaultCFG = false;
+        let configurationOptions: ConfigurationOptions | undefined;
 
         if (useDefaultCFG) {
           const settings = vscode.workspace.getConfiguration(
             "vectorcastTestExplorer"
           );
-          const defaultCFG = settings.get<string>("configurationLocation");
-          usingDefaultCFG = true;
-          if (!defaultCFG) {
+          const defaultCFGPath = settings.get<string>("configurationLocation");
+
+          if (!defaultCFGPath) {
             vscode.window.showErrorMessage("No default CFG is defined.");
             return;
           }
-          // Derive compilerTag from default CFG if possible
-          compiler = defaultCFG; // TODO: adjust to however your system maps CFG → compilerTag
+          // When using default CFG, the 'compiler' string is the path to the CFG
+          compiler = defaultCFGPath;
         } else {
+          // Manual Compiler Selection
           if (!compilerName) {
             vscode.window.showErrorMessage("Compiler selection is required.");
             return;
           }
+
           compiler = compilerTagList[compilerName];
           if (!compiler) {
             vscode.window.showErrorMessage(
@@ -1697,12 +1709,24 @@ async function installPreActivationEventHandlers(
             );
             return;
           }
+
+          // Pack the boolean options
+          configurationOptions = {
+            enableCodedTests: !!enableCodedTests,
+            defaultCFG: !!defaultCFG,
+          };
         }
 
         const base = targetDir ?? workspaceRoot;
         const projectPath = path.join(base, projectName);
 
-        await createNewProject(projectPath, compiler, usingDefaultCFG);
+        await createNewProject(
+          projectPath,
+          compiler,
+          !!useDefaultCFG,
+          configurationOptions
+        );
+
         panel.dispose();
       }
     }
@@ -1710,6 +1734,7 @@ async function installPreActivationEventHandlers(
 
   context.subscriptions.push(createNewProjectCmd);
 
+  // Helper function for Webview Content
   async function getNewProjectWebviewContent(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
@@ -1728,7 +1753,6 @@ async function installPreActivationEventHandlers(
     const compilersJson = JSON.stringify(Object.keys(compilerTagList));
     const workspaceJson = JSON.stringify(workspaceRoot);
 
-    // read defaultCFG setting
     const settings = vscode.workspace.getConfiguration(
       "vectorcastTestExplorer"
     );
@@ -1736,17 +1760,18 @@ async function installPreActivationEventHandlers(
 
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
+
     html = html.replace(
       /<head>/,
       `<head>
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
-          panel.webview.cspSource
-        }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
-        <script nonce="${nonce}">
-          window.compilerData = ${compilersJson};
-          window.defaultDir   = ${workspaceJson};
-          window.defaultCFG   = ${JSON.stringify(defaultCFG)};
-        </script>`
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
+        panel.webview.cspSource
+      }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+      <script nonce="${nonce}">
+        window.compilerData = ${compilersJson};
+        window.defaultDir   = ${workspaceJson};
+        window.defaultCFG   = ${JSON.stringify(defaultCFG)};
+      </script>`
     );
     html = html.replace("{{ cssUri }}", cssUri.toString());
     html = html.replace(

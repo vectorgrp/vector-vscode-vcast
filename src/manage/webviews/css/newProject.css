@@ -24,33 +24,44 @@ body {
   box-shadow: 0 0 10px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
+  max-height: 95vh;
+  overflow-y: auto;
 }
 
-/* Modal title */
+/* Modal Main Title */
 .modal h2 {
   text-align: center;
   color: #ffffff;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   font-size: 22px;
+  font-weight: 600;
 }
 
-/* Labels and inputs */
+/* Generic Labels */
 label, .toggle-label {
-  font-size: 16px;
-  color: #d4d4d4;
+  font-size: 14px;
+  color: #cccccc;
   display: block;
-  margin-bottom: 8px; /* spacing between label and field */
+  margin-bottom: 6px;
+  font-weight: 400; 
 }
 
+/* Inputs */
 input[type="text"], select {
-  padding: 10px;
+  padding: 8px 10px;
   font-size: 14px;
   background-color: #3c3c3c;
   color: #d4d4d4;
-  border: 1px solid #555;
+  border: 1px solid #3c3c3c;
   border-radius: 4px;
   width: 100%;
-  margin-bottom: 0; /* remove extra spacing because we handle spacing via container */
+  margin-bottom: 15px;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus, select:focus {
+  border-color: #007acc;
+  outline: none;
 }
 
 /* Folder-picker row */
@@ -58,20 +69,26 @@ input[type="text"], select {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
-  align-items: center;
+  align-items: start;
   margin-bottom: 15px;
 }
+.single-input-container input[type="text"] {
+  margin-bottom: 0;
+}
 
-/* “Select” button beside the input */
+/* Select Button */
 .select-button {
   background-color: #007acc;
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 10px 16px;
+  padding: 0 16px;
   font-size: 14px;
   cursor: pointer;
+  height: 35px; /* Match input height */
   transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
 }
 .select-button:hover { background-color: #005f99; }
 
@@ -80,92 +97,141 @@ input[type="text"], select {
   position: relative;
   width: 100%;
 }
-
 .suggestions {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background: #2a2a2a;
-  border: 1px solid #555;
+  background: #252526;
+  border: 1px solid #454545;
   max-height: 180px;
   overflow-y: auto;
   list-style: none;
   padding: 0;
-  margin-top: 4px;
+  margin-top: 2px;
   display: none;
-  z-index: 10;
-  text-align: left;
+  z-index: 100;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 .suggestions.visible { display: block; }
 .suggestions li {
   padding: 8px 12px;
   cursor: pointer;
   font-size: 14px;
+  border-bottom: 1px solid #333;
 }
+.suggestions li:last-child { border-bottom: none; }
 .suggestions li:hover,
 .suggestions li.active {
   background: #007acc;
   color: white;
 }
 
-/* Options section */
+/* =========================================
+   Options Section & Headers
+   ========================================= */
+
 .options-section {
-  margin-top: 20px;
-  padding-top: 10px;
-  border-top: 1px solid #444;
-  width: 80%;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #3e3e3e;
+  width: 98%;
   margin-left: auto;
   margin-right: auto;
 }
 
+/* MAIN SECTION TITLE (Compiler Selection) */
 .options-section h3 {
   font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 8px 0; /* remove extra space above */
-  color: #ffffff;
+  font-weight: 700;     
+  color: #ffffff;       
+  margin: 0 0 15px 0;
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* Boxes for default CFG and new compiler */
-#defaultCompilerRow,
-#newCompilerSection {
-  border: 1px solid #555;
+/* Selection Boxes */
+.selection-box {
+  border: 1px solid #444;
   border-radius: 6px;
-  padding: 8px 12px;
-  margin-bottom: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background-color: #2d2d2d;
+}
+
+/* Default Compiler Row */
+#defaultCompilerRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-
-/* Ensure label wraps in its space */
-#defaultCompilerRow .toggle-label,
-#newCompilerSection label {
-  margin: 0; 
-  line-height: 1.4;
-  flex: 1;
+#defaultCompilerRow .toggle-label {
+  margin: 0;
+  color: #fff;
+  font-weight: 600;
 }
-
 #defaultCFGPath {
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: #aaa;
-  word-break: break-all; /* force wrap if path is too long */
-  max-width: 420px;      /* prevent stretching modal */
+  color: #888;
+  font-weight: 400;
+  word-break: break-all;
 }
 
-/* OR separator */
-#orSeparator h3 {
-  margin: 12px 0;
-  color: #fff;
-  font-weight: 600;
-  font-size: 16px;
+/* OR Separator */
+#orSeparator {
   text-align: center;
+  margin: 10px 0;
+}
+#orSeparator h3 {
+  font-size: 14px;
+  color: #ffffff;    
+  font-weight: 700;   
+  margin: 0;
+  text-transform: none;
 }
 
-/* VS Code–style toggle */
+/* New Compiler Section */
+#newCompilerSection {
+  display: block; 
+}
+
+/* SUB-SECTION TITLE (Configuration Options) */
+.config-options-wrapper {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px dashed #444;
+}
+
+.config-options-wrapper h4 {
+  font-size: 14px;
+  color: #ffffff;    
+  font-weight: 700;   
+  margin-bottom: 12px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Option Rows */
+.option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  width: 100%;
+}
+
+.option-row .toggle-label {
+  font-size: 14px;
+  color: #d4d4d4;
+  font-weight: 400;
+  margin-bottom: 0;
+}
+
+/* Toggle Switch */
 .vscode-toggle {
   display: inline-block;
   cursor: pointer;
@@ -173,75 +239,72 @@ input[type="text"], select {
 .toggle-switch {
   display: inline-block;
   position: relative;
-  width: 44px;
-  height: 24px;
+  width: 40px;
+  height: 20px;
   vertical-align: middle;
 }
 .toggle-switch input {
   opacity: 0;
   width: 0;
   height: 0;
-  margin: 0;
 }
 .toggle-switch .slider {
   position: absolute;
   inset: 0;
   background: #3c3c3c;
   border: 1px solid #555;
-  border-radius: 12px;
-  transition: background 0.12s ease, border-color 0.12s ease;
-  box-sizing: border-box;
+  border-radius: 10px;
+  transition: .2s;
 }
 .toggle-switch .slider::before {
   content: "";
   position: absolute;
-  top: 50%;
-  left: 1px;
-  width: 22px;
-  height: 22px;
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 1px;
+  background-color: #ccc;
   border-radius: 50%;
-  background: #d4d4d4;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
-  transform: translateY(-50%);
-  transition: left 0.12s ease, background 0.12s ease;
+  transition: .2s;
 }
 .toggle-switch input:checked + .slider {
-  background: #007acc;
+  background-color: #007acc;
   border-color: #007acc;
 }
 .toggle-switch input:checked + .slider::before {
-  left: 21px;
-  background: #ffffff;
-}
-.toggle-switch input:focus + .slider {
-  box-shadow: 0 0 0 3px rgba(0,122,204,0.14);
+  transform: translateX(20px);
+  background-color: white;
 }
 .vscode-toggle:hover .slider {
-  filter: brightness(1.06);
+  border-color: #666;
 }
 
 /* Buttons */
 .button-container {
   display: flex;
-  justify-content: space-between;
-  margin-top: 25px;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 10px;
 }
+
 .primary-button,
 .cancel-button {
-  padding: 10px 20px;
-  font-size: 16px;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: 600;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.2s;
 }
+
 .primary-button {
   background-color: #007acc;
   color: white;
 }
-.primary-button:hover {
-  background-color: #005f99;
-}
+.primary-button:hover { background-color: #005f99; }
+
 .cancel-button {
   background-color: #cc4444;
   color: white;

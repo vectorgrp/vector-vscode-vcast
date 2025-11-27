@@ -29,10 +29,10 @@
       <h3>Compiler Selection</h3>
 
       <!-- Only shown if defaultCFG is available -->
-      <div id="defaultCompilerRow" class="option-row" style="display:none;">
+      <div id="defaultCompilerRow" class="selection-box" style="display:none;">
         <span class="toggle-label">
           Use Default CFG Compiler<br />
-          <small id="defaultCFGPath" style="color:#888; font-size:12px;"></small>
+          <small id="defaultCFGPath"></small>
         </span>
         <label class="vscode-toggle">
           <span class="toggle-switch">
@@ -43,22 +43,51 @@
       </div>
 
       <!-- OR separator -->
-      <div id="orSeparator" style="display:none; text-align:center; margin:10px 0;">
+      <div id="orSeparator" style="display:none;">
         <h3>OR</h3>
       </div>
 
       <!-- New compiler autocomplete (shown only if toggle is OFF) -->
-      <div id="newCompilerSection">
-        <label for="compilerInput">Select Compiler:</label>
-        <div class="autocomplete">
-          <input
-            type="text"
-            id="compilerInput"
-            aria-label="Compiler Name Input"
-            placeholder="Search for Compiler"
-            autocomplete="off"
-          />
-          <ul id="suggestions" class="suggestions"></ul>
+      <div id="newCompilerSection" class="selection-box">
+        
+        <!-- Input Row -->
+        <div class="compiler-input-row">
+          <label for="compilerInput">Select Compiler:</label>
+          <div class="autocomplete">
+            <input
+              type="text"
+              id="compilerInput"
+              aria-label="Compiler Name Input"
+              placeholder="Search for Compiler"
+              autocomplete="off"
+            />
+            <ul id="suggestions" class="suggestions"></ul>
+          </div>
+        </div>
+
+        <!-- Additional Options Row (New) -->
+        <div class="config-options-wrapper">
+          <h4>Configuration Options:</h4>
+          
+          <div class="option-row">
+            <span class="toggle-label">Enable Coded Tests</span>
+            <label class="vscode-toggle">
+              <span class="toggle-switch">
+                <input type="checkbox" id="enableCodedTests" />
+                <span class="slider"></span>
+              </span>
+            </label>
+          </div>
+
+          <div class="option-row">
+            <span class="toggle-label">Set as Default CFG</span>
+            <label class="vscode-toggle">
+              <span class="toggle-switch">
+                <input type="checkbox" id="defaultCFG" />
+                <span class="slider"></span>
+              </span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
