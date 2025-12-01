@@ -47,7 +47,10 @@ import {
 } from "../../testPane";
 import { normalizePath } from "../../utilities";
 import { viewResultsReportVC } from "../../reporting";
-import { ConfigurationOptions } from "../../vcastTestInterface";
+import {
+  ConfigurationOptions,
+  updateCFGWithVCShellDatabase,
+} from "../../vcastTestInterface";
 
 const path = require("path");
 
@@ -149,10 +152,13 @@ export async function createNewProject(
     progressMessage
   );
 
+  let activeCFGPath: string | undefined;
+
   // 2. Configure the Compiler / CFG
   if (usingDefaultCFG) {
     // Scenario A: Use an existing CFG file
     // 'compiler' variable here is the PATH to the CFG
+    activeCFGPath = compiler;
     await addCompilerToProject(projectPath, compiler);
   } else {
     // Scenario B: Create a NEW CFG based on a Compiler Tag
@@ -164,6 +170,8 @@ export async function createNewProject(
       compiler,
       projectPath
     );
+
+    activeCFGPath = createdCfgPath;
 
     // Handle Additional Configuration Options (if provided)
     if (configurationOptions) {
@@ -212,6 +220,22 @@ export async function createNewProject(
     // If the path would be undefined, we will get a message from createNewCFGFromCompiler, so no handling here
     if (createdCfgPath) {
       await addCompilerToProject(projectPath, createdCfgPath);
+    }
+  }
+
+  // 3. Apply Default Database if requested and path exists
+  if (configurationOptions?.useDefaultDB && activeCFGPath) {
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    const dbPath = settings.get<string>("databaseLocation");
+
+    if (dbPath && fs.existsSync(dbPath)) {
+      await updateCFGWithVCShellDatabase(dbPath, activeCFGPath);
+    } else {
+      vscode.window.showWarningMessage(
+        "Could not set Default Database: The database file defined in settings could not be found."
+      );
     }
   }
 }

@@ -3,6 +3,7 @@ const vscode = acquireVsCodeApi();
 window.addEventListener("DOMContentLoaded", () => {
   const compilers = window.compilerData || [];
   const defaultCFG = window.defaultCFG || "";
+  const defaultDB = window.defaultDB || "";
   
   // DOM Elements
   const defaultRow = document.getElementById("defaultCompilerRow");
@@ -21,6 +22,11 @@ window.addEventListener("DOMContentLoaded", () => {
   const codedCheckbox = document.getElementById("enableCodedTests");
   const defaultCFGCheckbox = document.getElementById("defaultCFG");
 
+  // DB Option Elements
+  const dbOptionRow = document.getElementById("dbOptionRow");
+  const dbPathLabel = document.getElementById("dbPathLabel");
+  const dbCheckbox = document.getElementById("useDefaultDB");
+
   // --- Initialization Logic ---
 
   // Show default CFG row + OR only if defaultCFG exists
@@ -31,6 +37,14 @@ window.addEventListener("DOMContentLoaded", () => {
   } else {
     defaultRow.style.display = "none";
     orSeparator.style.display = "none";
+  }
+
+  // Show Default DB row if a valid path exists
+  if (defaultDB) {
+    dbOptionRow.style.display = "flex";
+    dbPathLabel.textContent = defaultDB;
+  } else {
+    dbOptionRow.style.display = "none";
   }
 
   function updateCompilerVisibility() {
@@ -135,7 +149,8 @@ window.addEventListener("DOMContentLoaded", () => {
       compilerName: isUsingDefault ? undefined : compInput.value.trim(),
       // Send compiler options
       enableCodedTests: !!(codedCheckbox && codedCheckbox.checked),
-      defaultCFG: !!(defaultCFGCheckbox && defaultCFGCheckbox.checked)
+      defaultCFG: !!(defaultCFGCheckbox && defaultCFGCheckbox.checked),
+      useDefaultDB: !!(dbCheckbox && dbCheckbox.checked)
     });
   });
 

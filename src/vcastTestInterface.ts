@@ -1232,6 +1232,7 @@ export async function updateCFGWithVCShellDatabase(
   const commandToRun = `${vcShellCommand}`;
   const fileName = path.basename(vcShellPath);
   const normalizedVCShellPath = normalizePath(vcShellPath);
+  const normalizedCFGDir = normalizePath(path.dirname(normalizedCFGPath));
 
   // Execute
   const infoMessage = `Loading VectorCAST database from ${fileName} and setting it as the active VCDB.`;
@@ -1243,7 +1244,7 @@ export async function updateCFGWithVCShellDatabase(
       "VCDB_FILENAME",
       `$(readlink -f ${normalizedVCShellPath})`,
     ],
-    normalizedCFGPath,
+    normalizedCFGDir,
     infoMessage
   );
 }
@@ -1251,6 +1252,7 @@ export async function updateCFGWithVCShellDatabase(
 export interface ConfigurationOptions {
   enableCodedTests: boolean;
   defaultCFG: boolean;
+  useDefaultDB: boolean;
 }
 
 export async function createNewCFGFile(
@@ -1324,5 +1326,21 @@ export async function createNewCFGFile(
       compilerPath,
       vscode.ConfigurationTarget.Workspace
     );
+  }
+
+  // Apply Default Database if requested and path exists (NEW LOGIC)
+  if (configurationOptions.useDefaultDB && compilerPath) {
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    const dbPath = settings.get<string>("databaseLocation");
+
+    if (dbPath && fs.existsSync(dbPath)) {
+      await updateCFGWithVCShellDatabase(dbPath, compilerPath);
+    } else {
+      vscode.window.showWarningMessage(
+        "Could not set Default Database: The database file defined in settings could not be found."
+      );
+    }
   }
 }

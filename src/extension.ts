@@ -2035,6 +2035,7 @@ async function installPreActivationEventHandlers(
         useDefaultCFG?: boolean;
         enableCodedTests?: boolean;
         defaultCFG?: boolean;
+        useDefaultDB?: boolean;
       }) {
         const {
           projectName,
@@ -2043,6 +2044,7 @@ async function installPreActivationEventHandlers(
           useDefaultCFG,
           enableCodedTests,
           defaultCFG,
+          useDefaultDB,
         } = message;
 
         if (!projectName) {
@@ -2084,6 +2086,7 @@ async function installPreActivationEventHandlers(
           configurationOptions = {
             enableCodedTests: !!enableCodedTests,
             defaultCFG: !!defaultCFG,
+            useDefaultDB: !!useDefaultDB,
           };
         }
 
@@ -2128,6 +2131,13 @@ async function installPreActivationEventHandlers(
     );
     const defaultCFG = settings.get<string>("configurationLocation") ?? "";
 
+    // Check default DB setting and if file exists
+    const dbSettingPath = settings.get<string>("databaseLocation");
+    let validDBPath = "";
+    if (dbSettingPath && fs.existsSync(dbSettingPath)) {
+      validDBPath = dbSettingPath;
+    }
+
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
 
@@ -2141,6 +2151,7 @@ async function installPreActivationEventHandlers(
         window.compilerData = ${compilersJson};
         window.defaultDir   = ${workspaceJson};
         window.defaultCFG   = ${JSON.stringify(defaultCFG)};
+        window.defaultDB    = ${JSON.stringify(validDBPath)};
       </script>`
     );
     html = html.replace("{{ cssUri }}", cssUri.toString());
@@ -2312,9 +2323,13 @@ async function installPreActivationEventHandlers(
               const compilerName: string | undefined = msg.compilerName?.trim();
               const enableCodedTests: boolean = !!msg.enableCodedTests;
               const defaultCFG: boolean = !!msg.defaultCFG;
+              // Extract the new toggle value
+              const useDefaultDB: boolean = !!msg.useDefaultDB;
+
               const configurationOptions: ConfigurationOptions = {
                 enableCodedTests: enableCodedTests,
                 defaultCFG: defaultCFG,
+                useDefaultDB: useDefaultDB,
               };
 
               if (!compilerName) {
@@ -2371,6 +2386,17 @@ async function installPreActivationEventHandlers(
 
     // JSON list of compilers for autocomplete
     const compilerList = JSON.stringify(Object.keys(compilerTagList ?? {}));
+
+    // Check DB Setting
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    const dbSettingPath = settings.get<string>("databaseLocation");
+    let validDBPath = "";
+    if (dbSettingPath && fs.existsSync(dbSettingPath)) {
+      validDBPath = dbSettingPath;
+    }
+
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
 
@@ -2390,11 +2416,12 @@ async function installPreActivationEventHandlers(
       `<script nonce="${nonce}" src="${scriptUri}"></script>`
     );
 
-    // Inline script to expose compilerData and enableCodedTests to the webview client
+    // Inline script to expose compilerData, enableCodedTests, and defaultDB to the webview client
     const injectedScript = `<script nonce="${nonce}">
       window.compilerData = ${compilerList};
       window.enableCodedTests = ${false};
-      window.defaultCFG = ${false}
+      window.defaultCFG = ${false};
+      window.defaultDB = ${JSON.stringify(validDBPath)};
     </script>`;
     html = html.replace(/\{\{\s*compilerDataScript\s*\}\}/g, injectedScript);
 

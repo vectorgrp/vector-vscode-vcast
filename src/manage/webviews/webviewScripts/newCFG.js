@@ -2,6 +2,8 @@ const vscode = acquireVsCodeApi();
 
 window.addEventListener("DOMContentLoaded", () => {
   const compilers = window.compilerData || [];
+  const defaultDB = window.defaultDB || "";
+
   const compInput = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
 
@@ -9,12 +11,27 @@ window.addEventListener("DOMContentLoaded", () => {
   const codedCheckbox = document.getElementById("enableCodedTests");
   const defaultCheckbox = document.getElementById("defaultCFG");
 
+  // DB Elements
+  const dbOptionRow = document.getElementById("dbOptionRow");
+  const dbPathLabel = document.getElementById("dbPathLabel");
+  const dbCheckbox = document.getElementById("useDefaultDB");
+
   // If extension injected defaults, apply them
   if (typeof window.enableCodedTests !== "undefined" && codedCheckbox) {
     codedCheckbox.checked = !!window.enableCodedTests;
   }
   if (typeof window.defaultCFG !== "undefined" && defaultCheckbox) {
     defaultCheckbox.checked = !!window.defaultCFG;
+  }
+
+  // --- DB Toggle Visibility Logic ---
+  if (defaultDB) {
+    // Setting exists and file exists -> Show the toggle
+    dbOptionRow.style.display = "flex";
+    dbPathLabel.textContent = defaultDB; 
+  } else {
+    // Setting empty OR file not found -> Keep hidden
+    dbOptionRow.style.display = "none";
   }
 
   // Autocomplete setup
@@ -82,7 +99,9 @@ window.addEventListener("DOMContentLoaded", () => {
       command: "submit",
       compilerName: (compInput.value || "").trim(),
       enableCodedTests: !!(codedCheckbox && codedCheckbox.checked),
-      defaultCFG: !!(defaultCheckbox && defaultCheckbox.checked)
+      defaultCFG: !!(defaultCheckbox && defaultCheckbox.checked),
+      // NEW: Send the DB toggle state
+      useDefaultDB: !!(dbCheckbox && dbCheckbox.checked)
     });
   });
 
