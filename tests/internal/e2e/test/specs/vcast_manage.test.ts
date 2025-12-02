@@ -151,6 +151,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys("GNU Native_Automatic_C++17");
     await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
 
     await browser.waitUntil(
