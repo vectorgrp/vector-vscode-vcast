@@ -4,6 +4,7 @@ import {
   TreeItem,
   type BottomBarPanel,
   type Workbench,
+  NotificationType,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -742,18 +743,33 @@ describe("vTypeCheck VS Code Extension", () => {
       "Delete Environment from Project"
     );
     await browser.takeScreenshot();
-    await browser.saveScreenshot(
-      "info_clicked_on_delete.png"
-    );
+    await browser.saveScreenshot("info_clicked_on_delete.png");
 
     console.log("Confirming Notifications to delete the Environment");
-    const notifications = await $("aria/Notifications");
-    await notifications.click();
-    const vcastNotificationSourceElement = await $(
-      "aria/VectorCAST Test Explorer (Extension)"
+    const deleteNotif = await browser.waitUntil(
+      async () => {
+        const nc = await workbench.openNotificationsCenter();
+        const notifs = await nc.getNotifications(NotificationType.Any);
+
+        for (const n of notifs) {
+          const msg = await n.getMessage();
+          const src = await n.getSource();
+          if (msg.includes("Delete") || src.includes("VectorCAST")) {
+            return n;
+          }
+        }
+        return false; // keep waiting
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 300,
+        timeoutMsg: "Timed out waiting for delete notification",
+      }
     );
-    const vcastNotification = await vcastNotificationSourceElement.$("..");
-    await (await vcastNotification.$("aria/Delete")).click();
+
+    console.log("Found delete notification, clicking Delete...");
+    await deleteNotif.expand();
+    await deleteNotif.takeAction("Delete");
 
     console.log("Checking for Output logs if Environment deletion is finished");
     await browser.waitUntil(
