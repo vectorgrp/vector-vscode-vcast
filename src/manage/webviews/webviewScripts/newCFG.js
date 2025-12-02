@@ -93,14 +93,14 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!e.target.closest(".autocomplete")) suggestions.classList.remove("visible");
   });
 
-  // Submit button: send both toggle values
+  // Submit button
   document.getElementById("btnSubmit").addEventListener("click", () => {
     vscode.postMessage({
       command: "submit",
       compilerName: (compInput.value || "").trim(),
+      // Toggle Values
       enableCodedTests: !!(codedCheckbox && codedCheckbox.checked),
       defaultCFG: !!(defaultCheckbox && defaultCheckbox.checked),
-      // NEW: Send the DB toggle state
       useDefaultDB: !!(dbCheckbox && dbCheckbox.checked)
     });
   });

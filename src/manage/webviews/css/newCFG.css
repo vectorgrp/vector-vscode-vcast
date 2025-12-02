@@ -77,7 +77,7 @@ input[type="text"], select {
 
 /* Add spacing between label and autocomplete */
 label[for="compilerInput"] {
-  margin-bottom: 10px; /* extra space for clarity */
+  margin-bottom: 10px;
 }
 
 /* Autocomplete */
@@ -222,7 +222,7 @@ label[for="compilerInput"] {
 .button-container {
   display: flex;
   justify-content: space-between; /* cancel left, create right */
-  margin-top: 25px; /* space between options and buttons */
+  margin-top: 25px
 }
 
 .primary-button,

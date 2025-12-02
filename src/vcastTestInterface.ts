@@ -1203,6 +1203,10 @@ export async function getMCDCResultFile(
   return resultFile;
 }
 
+/**
+ * Updates databaseLocation setting
+ * @param vcShellPath Path to the defaultV VCDB
+ */
 export async function updateVCShellDatabase(vcShellPath: string) {
   // Update Settings
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
@@ -1213,6 +1217,11 @@ export async function updateVCShellDatabase(vcShellPath: string) {
   );
 }
 
+/**
+ * Updates CFG VCDB_FILENAME option
+ * @param vcShellPath Path of the vcshell db
+ * @param normalizedCFGPath Path to CFG
+ */
 export async function updateCFGWithVCShellDatabase(
   vcShellPath: string,
   normalizedCFGPath: string
@@ -1255,6 +1264,12 @@ export interface ConfigurationOptions {
   useDefaultDB: boolean;
 }
 
+/**
+ * Creates new CFG including selected options like: Default CFG, Enable Coded Tests
+ * @param workspaceRoot Root of Workspace
+ * @param compilerTag Compiler name
+ * @param configurationOptions Additional CFG options
+ */
 export async function createNewCFGFile(
   workspaceRoot: string,
   compilerTag: string,
@@ -1328,7 +1343,7 @@ export async function createNewCFGFile(
     );
   }
 
-  // Apply Default Database if requested and path exists (NEW LOGIC)
+  // Apply Default Database if requested and path exists
   if (configurationOptions.useDefaultDB && compilerPath) {
     const settings = vscode.workspace.getConfiguration(
       "vectorcastTestExplorer"

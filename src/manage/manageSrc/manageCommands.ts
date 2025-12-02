@@ -140,9 +140,8 @@ export async function createNewProject(
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
 
-  // 1. Create the Project Directory Structure
+  // Create the Project Directory Structure
   const progressMessage = `Creating new Project ${projectName} ...`;
-  // Assuming 'manageCommandToUse' is defined globally or imported
   const manageArgs = [`-p${projectName}`, `--create`, "--force"];
 
   await executeWithRealTimeEchoWithProgress(
@@ -154,7 +153,7 @@ export async function createNewProject(
 
   let activeCFGPath: string | undefined;
 
-  // 2. Configure the Compiler / CFG
+  // Configure the Compiler / CFG
   if (usingDefaultCFG) {
     // Scenario A: Use an existing CFG file
     // 'compiler' variable here is the PATH to the CFG
@@ -165,7 +164,6 @@ export async function createNewProject(
     // 'compiler' variable here is the Compiler Tag (e.g., "GNU_Native")
 
     // Create the CFG file inside the new project directory
-    // We reuse the helper used in createNewCFGFile
     const createdCfgPath = await createNewCFGFromCompiler(
       compiler,
       projectPath
@@ -223,7 +221,7 @@ export async function createNewProject(
     }
   }
 
-  // 3. Apply Default Database if requested and path exists
+  // Apply Default Database if requested and path exists
   if (configurationOptions?.useDefaultDB && activeCFGPath) {
     const settings = vscode.workspace.getConfiguration(
       "vectorcastTestExplorer"
