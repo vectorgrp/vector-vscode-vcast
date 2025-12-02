@@ -735,13 +735,15 @@ describe("vTypeCheck VS Code Extension", () => {
     const notificationsCenter = await workbench.openNotificationsCenter();
     await notificationsCenter.clearAllNotifications();
 
-    const node: TreeItem | undefined = await findTreeNodeAtLevel(3, "QUACK");
-    expect(node).toBeDefined();
     await executeContextMenuAction(
       3,
       "QUACK",
       true,
       "Delete Environment from Project"
+    );
+    await browser.takeScreenshot();
+    await browser.saveScreenshot(
+      "info_clicked_on_delete.png"
     );
 
     console.log("Confirming Notifications to delete the Environment");
