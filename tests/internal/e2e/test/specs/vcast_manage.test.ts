@@ -756,23 +756,8 @@ describe("vTypeCheck VS Code Extension", () => {
       timeoutMsg: "Timeout waiting for VectorCAST notification to be generated",
     });
 
-    // Open the Notification Center
-    const notifications = await $("aria/Notifications");
-    await notifications.waitForClickable({ timeout: TIMEOUT });
-    await notifications.click();
-
-    // Re-select the element now that the Center is open
-    const vcastNotificationSourceElement = await $(vcastNotificationSelector);
-
-    // Wait for it to be VISIBLE (handles the sliding animation of the panel)
-    await vcastNotificationSourceElement.waitForDisplayed({
-      timeout: TIMEOUT,
-      timeoutMsg:
-        "VectorCAST notification entry did not become visible in the center",
-    });
-
     // Navigate to the Delete button
-    const vcastNotification = await vcastNotificationSourceElement.$("..");
+    const vcastNotification = await $(vcastNotificationSelector).$("..");
     const deleteAction = await vcastNotification.$("aria/Delete");
 
     // Wait for the button to be Clickable (handles animation/obscuring)
