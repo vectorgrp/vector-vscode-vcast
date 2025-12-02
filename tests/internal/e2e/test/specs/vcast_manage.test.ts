@@ -746,34 +746,31 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Confirming Notifications to delete the Environment");
     const notifications = await $("aria/Notifications");
+
+    // Ensure the bell itself is clickable before interacting
+    await notifications.waitForClickable({ timeout: TIMEOUT });
     await notifications.click();
-    // Wait until the specific VectorCAST notification appears
-    const vcastNotificationSourceElement = await browser.waitUntil(
-      async () => {
-        const elem = await $("aria/VectorCAST Test Explorer (Extension)");
-        return (await elem.isExisting()) ? elem : false;
-      },
-      {
-        timeout: TIMEOUT,
-        interval: 300,
-        timeoutMsg: "Timed out waiting for VectorCAST notification to appear",
-      }
+
+    // Wait specifically for the VectorCAST notification source to be DISPLAYED (visible),
+    // not just existing in the DOM.
+    const vcastNotificationSourceElement = await $(
+      "aria/VectorCAST Test Explorer (Extension)"
     );
+    await vcastNotificationSourceElement.waitForDisplayed({
+      timeout: TIMEOUT,
+      timeoutMsg:
+        "VectorCAST notification entry did not appear or become visible",
+    });
 
     const vcastNotification = await vcastNotificationSourceElement.$("..");
 
-    // Wait until the Delete action exists, then click it
-    const deleteAction = await browser.waitUntil(
-      async () => {
-        const action = await vcastNotification.$("aria/Delete");
-        return (await action.isExisting()) ? action : false;
-      },
-      {
-        timeout: TIMEOUT,
-        interval: 200,
-        timeoutMsg: "Timed out waiting for Delete action in notification",
-      }
-    );
+    // Find the Delete button
+    const deleteAction = await vcastNotification.$("aria/Delete");
+
+    await deleteAction.waitForClickable({
+      timeout: TIMEOUT,
+      timeoutMsg: "Delete button in notification was not interactable",
+    });
 
     await deleteAction.click();
 
@@ -811,7 +808,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
     expect(testsuiteNode).toBeUndefined();
   });
-
   it("testing creating an Env from Source Files", async () => {
     await updateTestID();
     await bottomBar.toggle(true);
