@@ -159,7 +159,15 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project ANewProject`),
+          .includes(`-lc option VCAST_CODED_TESTS_SUPPORT FALSE`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Processing project: ANewProject`),
       { timeout: TIMEOUT }
     );
 
