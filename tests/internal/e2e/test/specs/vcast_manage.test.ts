@@ -4,7 +4,6 @@ import {
   TreeItem,
   type BottomBarPanel,
   type Workbench,
-  NotificationType,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -746,30 +745,37 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.saveScreenshot("info_clicked_on_delete.png");
 
     console.log("Confirming Notifications to delete the Environment");
-    const deleteNotif = await browser.waitUntil(
+    const notifications = await $("aria/Notifications");
+    await notifications.click();
+    // Wait until the specific VectorCAST notification appears
+    const vcastNotificationSourceElement = await browser.waitUntil(
       async () => {
-        const nc = await workbench.openNotificationsCenter();
-        const notifs = await nc.getNotifications(NotificationType.Any);
-
-        for (const n of notifs) {
-          const msg = await n.getMessage();
-          const src = await n.getSource();
-          if (msg.includes("Delete") || src.includes("VectorCAST")) {
-            return n;
-          }
-        }
-        return false; // keep waiting
+        const elem = await $("aria/VectorCAST Test Explorer (Extension)");
+        return (await elem.isExisting()) ? elem : false;
       },
       {
         timeout: TIMEOUT,
         interval: 300,
-        timeoutMsg: "Timed out waiting for delete notification",
+        timeoutMsg: "Timed out waiting for VectorCAST notification to appear",
       }
     );
 
-    console.log("Found delete notification, clicking Delete...");
-    await deleteNotif.expand();
-    await deleteNotif.takeAction("Delete");
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
+
+    // Wait until the Delete action exists, then click it
+    const deleteAction = await browser.waitUntil(
+      async () => {
+        const action = await vcastNotification.$("aria/Delete");
+        return (await action.isExisting()) ? action : false;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 200,
+        timeoutMsg: "Timed out waiting for Delete action in notification",
+      }
+    );
+
+    await deleteAction.click();
 
     console.log("Checking for Output logs if Environment deletion is finished");
     await browser.waitUntil(
