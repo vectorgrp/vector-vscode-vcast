@@ -735,6 +735,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const notificationsCenter = await workbench.openNotificationsCenter();
     await notificationsCenter.clearAllNotifications();
 
+    // Trigger the Delete action
     await executeContextMenuAction(
       3,
       "QUACK",
@@ -745,28 +746,36 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.saveScreenshot("info_clicked_on_delete.png");
 
     console.log("Confirming Notifications to delete the Environment");
-    const notifications = await $("aria/Notifications");
 
-    // Ensure the bell itself is clickable before interacting
+    // Wait for the notification to be generated (exist in DOM)
+    const vcastNotificationSelector =
+      "aria/VectorCAST Test Explorer (Extension)";
+    const pendingNotification = await $(vcastNotificationSelector);
+    await pendingNotification.waitForExist({
+      timeout: TIMEOUT,
+      timeoutMsg: "Timeout waiting for VectorCAST notification to be generated",
+    });
+
+    // Open the Notification Center
+    const notifications = await $("aria/Notifications");
     await notifications.waitForClickable({ timeout: TIMEOUT });
     await notifications.click();
 
-    // Wait specifically for the VectorCAST notification source to be DISPLAYED (visible),
-    // not just existing in the DOM.
-    const vcastNotificationSourceElement = await $(
-      "aria/VectorCAST Test Explorer (Extension)"
-    );
+    // Re-select the element now that the Center is open
+    const vcastNotificationSourceElement = await $(vcastNotificationSelector);
+
+    // Wait for it to be VISIBLE (handles the sliding animation of the panel)
     await vcastNotificationSourceElement.waitForDisplayed({
       timeout: TIMEOUT,
       timeoutMsg:
-        "VectorCAST notification entry did not appear or become visible",
+        "VectorCAST notification entry did not become visible in the center",
     });
 
+    // Navigate to the Delete button
     const vcastNotification = await vcastNotificationSourceElement.$("..");
-
-    // Find the Delete button
     const deleteAction = await vcastNotification.$("aria/Delete");
 
+    // Wait for the button to be Clickable (handles animation/obscuring)
     await deleteAction.waitForClickable({
       timeout: TIMEOUT,
       timeoutMsg: "Delete button in notification was not interactable",
@@ -808,6 +817,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
     expect(testsuiteNode).toBeUndefined();
   });
+
   it("testing creating an Env from Source Files", async () => {
     await updateTestID();
     await bottomBar.toggle(true);
