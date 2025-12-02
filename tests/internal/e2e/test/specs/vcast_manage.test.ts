@@ -505,67 +505,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("VectorCAST Report", 1);
   });
 
-  it("testing deleting an environment from project", async () => {
-    await updateTestID();
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
-    await outputView.clearText();
-
-    const notificationsCenter = await workbench.openNotificationsCenter();
-    await notificationsCenter.clearAllNotifications();
-
-    console.log("Deleting Environment QUACK from Project");
-    await executeContextMenuAction(
-      3,
-      "QUACK",
-      true,
-      "Delete Environment from Project"
-    );
-
-    console.log("Confirming Notifications to delete the Environment");
-    const notifications = await $("aria/Notifications");
-    await notifications.click();
-    const vcastNotificationSourceElement = await $(
-      "aria/VectorCAST Test Explorer (Extension)"
-    );
-    const vcastNotification = await vcastNotificationSourceElement.$("..");
-    await (await vcastNotification.$("aria/Delete")).click();
-
-    console.log("Checking for Output logs if Environment deletion is finished");
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes(
-            `manage: '-pTest.vcm -eQUACK --delete --force' returned exit code: 0`
-          ),
-      { timeout: TIMEOUT }
-    );
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes(`Processing environment data for:`),
-      { timeout: TIMEOUT }
-    );
-
-    console.log("Checking if Env node QUACK is not in Tree");
-    await browser.waitUntil(
-      async () => {
-        const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
-        return testsuiteNode === undefined;
-      },
-      {
-        timeout: TIMEOUT,
-        interval: 500,
-        timeoutMsg:
-          'Expected Env node "QUACK" to be not in the tree within timeout',
-      }
-    );
-    const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
-    expect(testsuiteNode).toBeUndefined();
-  });
-
   it("testing creating a Testsuite", async () => {
     await updateTestID();
     await bottomBar.toggle(true);
@@ -784,6 +723,68 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     );
     const testsuiteNode = await findTreeNodeAtLevel(3, "FREE-BAR");
+    expect(testsuiteNode).toBeUndefined();
+  });
+
+  it("testing deleting an environment from project", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    const node: TreeItem | undefined = await findTreeNodeAtLevel(3, "QUACK");
+    expect(node).toBeDefined();
+    await executeContextMenuAction(
+      3,
+      "QUACK",
+      true,
+      "Delete Environment from Project"
+    );
+
+    console.log("Confirming Notifications to delete the Environment");
+    const notifications = await $("aria/Notifications");
+    await notifications.click();
+    const vcastNotificationSourceElement = await $(
+      "aria/VectorCAST Test Explorer (Extension)"
+    );
+    const vcastNotification = await vcastNotificationSourceElement.$("..");
+    await (await vcastNotification.$("aria/Delete")).click();
+
+    console.log("Checking for Output logs if Environment deletion is finished");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(
+            `manage: '-pTest.vcm -eQUACK --delete --force' returned exit code: 0`
+          ),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Processing environment data for:`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking if Env node QUACK is not in Tree");
+    await browser.waitUntil(
+      async () => {
+        const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
+        return testsuiteNode === undefined;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 500,
+        timeoutMsg:
+          'Expected Env node "QUACK" to be not in the tree within timeout',
+      }
+    );
+    const testsuiteNode = await findTreeNodeAtLevel(3, "QUACK");
     expect(testsuiteNode).toBeUndefined();
   });
 
