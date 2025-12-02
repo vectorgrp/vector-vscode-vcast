@@ -151,13 +151,23 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys("GNU Native_Automatic_C++17");
     await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
 
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project ANewProject`),
+          .includes(`-lc option VCAST_CODED_TESTS_SUPPORT FALSE`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Processing project: ANewProject`),
       { timeout: TIMEOUT }
     );
 
@@ -578,7 +588,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(testsuiteNode).toBeUndefined();
   });
 
-  it("testing deleting a project Environment", async () => {
+  it("testing cleaning a project Environment", async () => {
     await updateTestID();
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
@@ -725,22 +735,38 @@ describe("vTypeCheck VS Code Extension", () => {
     const notificationsCenter = await workbench.openNotificationsCenter();
     await notificationsCenter.clearAllNotifications();
 
-    console.log("Deleting Environment QUACK from Project");
+    // Trigger the Delete action
     await executeContextMenuAction(
       3,
       "QUACK",
       true,
       "Delete Environment from Project"
     );
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("info_clicked_on_delete.png");
 
     console.log("Confirming Notifications to delete the Environment");
-    const notifications = await $("aria/Notifications");
-    await notifications.click();
-    const vcastNotificationSourceElement = await $(
-      "aria/VectorCAST Test Explorer (Extension)"
-    );
-    const vcastNotification = await vcastNotificationSourceElement.$("..");
-    await (await vcastNotification.$("aria/Delete")).click();
+
+    // Wait for the notification to be generated (exist in DOM)
+    const vcastNotificationSelector =
+      "aria/VectorCAST Test Explorer (Extension)";
+    const pendingNotification = await $(vcastNotificationSelector);
+    await pendingNotification.waitForExist({
+      timeout: TIMEOUT,
+      timeoutMsg: "Timeout waiting for VectorCAST notification to be generated",
+    });
+
+    // Navigate to the Delete button
+    const vcastNotification = await $(vcastNotificationSelector).$("..");
+    const deleteAction = await vcastNotification.$("aria/Delete");
+
+    // Wait for the button to be Clickable (handles animation/obscuring)
+    await deleteAction.waitForClickable({
+      timeout: TIMEOUT,
+      timeoutMsg: "Delete button in notification was not interactable",
+    });
+
+    await deleteAction.click();
 
     console.log("Checking for Output logs if Environment deletion is finished");
     await browser.waitUntil(
