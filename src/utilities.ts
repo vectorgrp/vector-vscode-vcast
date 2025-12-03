@@ -9,6 +9,7 @@ import { errorLevel, vectorMessage } from "./messagePane";
 import { getGlobalCoverageData } from "./vcastTestInterface";
 import { rebuildEnvironment } from "./vcastAdapter";
 import { rebuildEnvironmentCallback } from "./callbacks";
+import { CachedWorkspaceData, EnviroData } from "./testPane";
 import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";
 import { getVectorCastInstallationLocation } from "./vcastInstallation";
 
@@ -413,12 +414,34 @@ export async function updateCoverageAndRebuildEnv() {
 /**
  * Returns the root of the opened workspace.
  */
-export function getWorkspaceRootPath(): string | undefined {
+export function getWorkspaceRootPaths(): string[] {
   const folders = vscode.workspace.workspaceFolders;
-  if (folders && folders.length > 0) {
-    return folders[0].uri.fsPath;
+  if (!folders || folders.length === 0) return [];
+  return folders.map((f) => f.uri.fsPath);
+}
+
+/**
+ * Merges multiple workspace responses into a single CachedWorkspaceData object.
+ */
+export async function mergeWorkspaceEnvResponses(
+  responses: CachedWorkspaceData[]
+): Promise<CachedWorkspaceData> {
+  const allErrors: string[] = [];
+  const allEnvs: EnviroData[] = [];
+
+  for (const resp of responses) {
+    if (resp.errors) {
+      allErrors.push(...resp.errors);
+    }
+    if (resp.enviro) {
+      allEnvs.push(...resp.enviro);
+    }
   }
-  return undefined;
+
+  return {
+    enviro: allEnvs,
+    errors: allErrors.length ? allErrors : undefined,
+  };
 }
 
 export async function getFullEnvReport(
