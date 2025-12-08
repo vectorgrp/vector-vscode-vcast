@@ -337,6 +337,11 @@ export async function generateTestsFromRequirements(
     "decomposeRequirements",
     true
   );
+  const reqs2xConfig = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer.reqs2x"
+  );
+  const noTestExamples = reqs2xConfig.get<boolean>("noTestExamples", false);
+
   const enableRequirementKeys =
     findRelevantRequirementGateway(enviroPath) !== null;
   console.log(decomposeRequirements, enableRequirementKeys);
@@ -352,6 +357,7 @@ export async function generateTestsFromRequirements(
     "1",
     "--batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
+    ...(noTestExamples ? ["--no-test-examples"] : []),
     "--allow-partial",
     "--json-events",
     ...(enableRequirementKeys ? ["--requirement-keys"] : []),
