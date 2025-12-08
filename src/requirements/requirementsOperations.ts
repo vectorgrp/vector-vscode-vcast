@@ -178,7 +178,7 @@ export async function generateRequirements(enviroPath: string) {
     "--export-excel",
     xlsxPath,
     "--export-repository",
-    repositoryDir,
+    `${existingGateway ?? repositoryDir}`, // use existingGateway if not null/undefined, else repositoryDir. This would mean that the vcast env in the path is not defined.
     "--json-events",
     //"--combine-related-requirements",
     //"--extended-reasoning"
@@ -472,6 +472,10 @@ export async function importRequirementsFromGateway(enviroPath: string) {
     parentDir,
     `reqs-${enviroNameWithoutExt}`
   );
+  const repositoryDirExpandedEnv = path.join(
+    envReqsFolderPath,
+    "generated_requirement_repository"
+  );
   if (!fs.existsSync(envReqsFolderPath)) {
     fs.mkdirSync(envReqsFolderPath, { recursive: true });
   }
@@ -521,7 +525,7 @@ export async function importRequirementsFromGateway(enviroPath: string) {
   const addTraceability = choice === "Yes";
 
   const commandArgs = [
-    repositoryPath,
+    `${repositoryPath ?? repositoryDirExpandedEnv}`, // repositoryPath should never be undefined here, as we return before but just to be sure
     xlsxPath,
     "--target-format",
     "excel",
@@ -612,7 +616,7 @@ export async function importRequirementsFromGateway(enviroPath: string) {
             );
             resolve();
           } else {
-            const msg = `Error: reqs2excel exited with code ${code}`;
+            const msg = `Error: panreq exited with code ${code}`;
             vscode.window.showErrorMessage(msg);
             logCliError(msg, true);
             reject(new Error(msg));
