@@ -46,6 +46,63 @@ export function logCliError(
   }
 }
 
+class ProgressTracker {
+  private lastProgress = 0.0;
+
+  constructor(
+    private progress: vscode.Progress<{ message?: string; increment?: number }>,
+    private logPrefix: string
+  ) {}
+
+  public processOutput(output: string) {
+    const lines = output.split("\n");
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const json = JSON.parse(line);
+        this.handleJson(json);
+      } catch (e) {
+        logCliOperation(`${this.logPrefix}: ${line}`);
+      }
+    }
+  }
+
+  private handleJson(json: any) {
+    if (json.event === "progress") {
+      let step: string | undefined;
+      let newProgress: number | undefined;
+      if (typeof json.value === "object") {
+        step = json.value.step;
+        newProgress = json.value.progress;
+      } else if (typeof json.value === "number") {
+        newProgress = json.value; // legacy
+      }
+
+      if (newProgress === undefined) {
+        return;
+      }
+
+      const increment = (newProgress - this.lastProgress) * 100;
+      if (increment > 0) {
+        this.progress.report({ message: step, increment });
+        this.lastProgress = newProgress;
+        logCliOperation(`${this.logPrefix} Progress: ${(
+          newProgress * 100
+        ).toFixed(2)}% - ${step ?? ""}`);
+      }
+    } else if (json.event === "problem") {
+      if (
+        this.logPrefix === "reqs2tests" &&
+        json.value.includes("Individual")
+      ) {
+        return;
+      }
+      vscode.window.showWarningMessage(json.value);
+      logCliOperation(`Warning: ${json.value}`);
+    }
+  }
+}
+
 export function initializeReqs2X(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration(
     "vectorcastTestExplorer.reqs2x"
@@ -205,7 +262,7 @@ export async function generateRequirements(enviroPath: string) {
       );
 
       return new Promise<void>((resolve, reject) => {
-        let lastProgress = 0.0;
+        const tracker = new ProgressTracker(progress, "code2reqs");
 
         cancellationToken.onCancellationRequested(() => {
           process.kill();
@@ -215,42 +272,7 @@ export async function generateRequirements(enviroPath: string) {
 
         process.stdout.on("data", (data) => {
           if (cancellationToken.isCancellationRequested) return;
-          const output = data.toString();
-
-          const lines = output.split("\n");
-          for (const line of lines) {
-            if (!line) continue;
-            try {
-              const json = JSON.parse(line);
-              if (json.event === "progress") {
-                let step: string | undefined;
-                let newProgress: number | undefined;
-                if (typeof json.value === "object") {
-                  step = json.value.step;
-                  newProgress = json.value.progress;
-                } else if (typeof json.value === "number") {
-                  newProgress = json.value; // legacy
-                }
-
-                if (newProgress === undefined) {
-                  throw new Error("Progress value missing");
-                }
-
-                const increment = (newProgress - lastProgress) * 100;
-                if (increment > 0) {
-                  progress.report({ message: step, increment });
-                  lastProgress = newProgress;
-                }
-              }
-              
-              if (json.event === "problem") {
-                vscode.window.showWarningMessage(json.value);
-                logCliOperation(`Warning: ${json.value}`);
-              }
-            } catch (e) {
-              logCliOperation(`code2reqs: ${line}`);
-            }
-          }
+          tracker.processOutput(data.toString());
         });
 
         process.stderr.on("data", (data) => {
@@ -318,13 +340,10 @@ export async function generateTestsFromRequirements(
   const tstPath = path.join(parentDir, "reqs2tests.tst");
 
   let reqsFile = "";
-  let fileType = "";
   if (fs.existsSync(xlsxPath)) {
     reqsFile = xlsxPath;
-    fileType = "Excel";
   } else if (fs.existsSync(csvPath)) {
     reqsFile = csvPath;
-    fileType = "CSV";
   } else {
     vscode.window.showErrorMessage(
       "No requirements file found. Please generate requirements first."
@@ -377,7 +396,7 @@ export async function generateTestsFromRequirements(
       );
 
       return new Promise<void>((resolve, reject) => {
-        let lastProgress = 0.0;
+        const tracker = new ProgressTracker(progress, "reqs2tests");
 
         cancellationToken.onCancellationRequested(() => {
           process.kill();
@@ -387,45 +406,7 @@ export async function generateTestsFromRequirements(
 
         process.stdout.on("data", (data) => {
           if (cancellationToken.isCancellationRequested) return;
-          const output = data.toString();
-
-          const lines = output.split("\n");
-          for (const line of lines) {
-            try {
-              const json = JSON.parse(line);
-
-              if (json.event === "progress") {
-                  let step: string | undefined;
-                  let newProgress: number | undefined;
-                  if (typeof json.value === "object") {
-                    step = json.value.step;
-                    newProgress = json.value.progress;
-                  } else if (typeof json.value === "number") {
-                    newProgress = json.value; // legacy
-                  }
-
-                  if (newProgress === undefined) {
-                    throw new Error("Progress value missing");
-                  }
-
-                  const increment = (newProgress - lastProgress) * 100;
-                  progress.report({ message: step, increment });
-                  lastProgress = newProgress;
-              }
-              
-              if (json.event === "problem") {
-                if (json.value.includes("Individual")) {
-                  return;
-                }
-                vscode.window.showWarningMessage(json.value);
-                logCliOperation(`Warning: ${json.value}`);
-              }
-            } catch (e) {
-              if (line) {
-                logCliOperation(`reqs2tests: ${line}`);
-              }
-            }
-          }
+          tracker.processOutput(data.toString());
         });
 
         process.stderr.on("data", (data) => {
@@ -548,7 +529,7 @@ export async function importRequirementsFromGateway(enviroPath: string) {
       const proc = await spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
       return new Promise<void>((resolve, reject) => {
-        let lastProgress = 0.0;
+        const tracker = new ProgressTracker(progress, "panreq");
 
         cancellationToken.onCancellationRequested(() => {
           proc.kill();
@@ -558,40 +539,7 @@ export async function importRequirementsFromGateway(enviroPath: string) {
 
         proc.stdout.on("data", (d) => {
           if (cancellationToken.isCancellationRequested) return;
-          const out = d.toString();
-          const lines = out.split("\n");
-          for (const line of lines) {
-            if (!line) continue;
-            try {
-              const json = JSON.parse(line);
-              if (json.event === "progress") {
-                let step: string | undefined;
-                let newProgress: number | undefined;
-                if (typeof json.value === "object") {
-                  step = json.value.step;
-                  newProgress = json.value.progress;
-                } else if (typeof json.value === "number") {
-                  newProgress = json.value; // legacy
-                }
-
-                if (newProgress === undefined) {
-                  throw new Error("Progress value missing");
-                }
-
-                const increment = (newProgress - lastProgress) * 100;
-                if (increment > 0) {
-                  progress.report({ message: step, increment });
-                  lastProgress = newProgress;
-                }
-              }
-              if (json.event === "problem") {
-                vscode.window.showWarningMessage(json.value);
-                logCliOperation(`Warning: ${json.value}`);
-              }
-            } catch (e) {
-              logCliOperation(`panreq: ${line}`);
-            }
-          }
+          tracker.processOutput(d.toString());
         });
 
         proc.stderr.on("data", (d) => {
