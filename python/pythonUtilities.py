@@ -6,6 +6,10 @@ import time
 import re
 from vector.apps.DataAPI.configuration import EnvironmentMixin
 
+from vector.apps.DataAPI.unit_test_api import UnitTestApi
+from vector.apps.DataAPI.cover_api import CoverApi
+
+
 # This contains the clicast command that was used to start the data server
 globalClicastCommand = ""
 
