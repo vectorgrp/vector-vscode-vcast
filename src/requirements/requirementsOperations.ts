@@ -332,11 +332,22 @@ export async function generateTestsFromRequirements(
   }
 
   // Get the decompose setting from configuration
-  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const config = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer.reqs2x"
+  );
   const decomposeRequirements = config.get<boolean>(
     "decomposeRequirements",
     true
   );
+
+  const retries = config.get<number>("retries", 2);
+  if (retries < 1) {
+    vscode.window.showErrorMessage(
+      "Retries must be greater than or equal to 1. Please check your settings."
+    );
+    return;
+  }
+
   const enableRequirementKeys =
     findRelevantRequirementGateway(enviroPath) !== null;
   console.log(decomposeRequirements, enableRequirementKeys);
@@ -349,7 +360,7 @@ export async function generateTestsFromRequirements(
     "--export-tst",
     tstPath,
     "--retries",
-    "1",
+    retries.toString(),
     "--batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
     "--allow-partial",
