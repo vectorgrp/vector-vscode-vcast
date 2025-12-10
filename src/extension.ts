@@ -1221,8 +1221,15 @@ function configureExtension(context: vscode.ExtensionContext) {
         const filePath = activeEditor
           ? activeEditor.document.uri.fsPath
           : fileFromUri;
-        const enviroPath = getEnvPathForFilePath(filePath);
-        const fileName = path.parse(filePath).name;
+        let enviroPath = getEnvPathForFilePath(filePath);
+        let fileName = path.parse(filePath).name;
+
+        if (enviroPath?.endsWith(".vcp")) {
+          fileName = fileName + path.extname(filePath);
+          const parsed = path.parse(enviroPath);
+          enviroPath = path.join(parsed.dir, parsed.name);
+        }
+
         if (enviroPath) {
           viewMCDCReport(enviroPath, fileName, args.lineNumber);
         } else {

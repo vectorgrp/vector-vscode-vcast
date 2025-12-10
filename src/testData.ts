@@ -1,6 +1,7 @@
 import { normalizePath, quote } from "./utilities";
 
 export interface environmentNodeDataType {
+  isVcp: boolean;
   projectPath: string;
   buildDirectory: string;
   isBuilt: boolean;

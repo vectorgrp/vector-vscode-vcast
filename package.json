@@ -33,7 +33,8 @@
   "main": "out/extension.js",
   "activationEvents": [
     "workspaceContains:**/UNITDATA.VCD",
-    "workspaceContains:**/*.vcm"
+    "workspaceContains:**/*.vcm",
+    "workspaceContains:**/*.vcp"
   ],
   "contributes": {
     "viewsWelcome": [

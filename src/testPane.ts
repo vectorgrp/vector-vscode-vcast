@@ -135,6 +135,7 @@ type UnitData = {
 
 type EnviroData = {
   vcePath: string;
+  vcpPath: string;
   testData: FileTestData[];
   unitData: UnitData[];
   mockingSupport: boolean;
@@ -144,6 +145,7 @@ type CachedWorkspaceData = {
   testData: FileTestData[];
   unitData: UnitData[];
   enviro: EnviroData[];
+  vcp: EnviroData[];
   errors?: string[];
 };
 
@@ -631,6 +633,35 @@ export function addFreeEnvironments(
 }
 
 /**
+ * Adds VCP (VectorCAST Cover Project) files found in the workspace cache to the environment list.
+ * These are treated as environments but will have no test children.
+ * @param environmentList A list to push environment data.
+ * @param workspaceRoot The workspace root directory path.
+ */
+export function addVcpEnvironments(
+  environmentList: any[],
+  workspaceRoot: string
+): void {
+  // Check if the cached data exists and has the 'vcp' key we added in Python
+  if (cachedWorkspaceEnvData && cachedWorkspaceEnvData.vcp) {
+    for (const vcpData of cachedWorkspaceEnvData.vcp) {
+      // vcpData contains: { vcpPath, testData (empty), unitData, mockingSupport }
+      const normalizedPath = normalizePath(vcpData.vcpPath);
+      const displayName = path.basename(normalizedPath);
+
+      environmentList.push({
+        projectPath: "", // VCPs are usually standalone or treated differently than managed envs
+        buildDirectory: normalizedPath, // We use the VCP file path as the identifier
+        isBuilt: true, // VCPs are considered "non-built" / accessible
+        displayName: displayName,
+        workspaceRoot: workspaceRoot,
+        isVcp: true, // Flag to identify this as a VCP node if needed downstream
+      });
+    }
+  }
+}
+
+/**
  * Checks if the given path is an environment of interest.
  * @param candidatePath - The path to check
  * @returns True if the path is an environment of interest, false otherwise
@@ -739,17 +770,29 @@ async function loadEnviroData(
   comingFromRefresh: boolean
 ): Promise<EnviroData | undefined> {
   let buildDirDerivedFromVCEPath: string = "";
+  let buildDirDerivedFromVCPPath: string = "";
   let buildPathDir: string = enviroData.buildDirectory;
 
   if (comingFromRefresh) {
     // If we've already fetched the full workspace data, reuse it
     if (cachedWorkspaceEnvData) {
-      const enviroList = cachedWorkspaceEnvData["enviro"];
-      vectorMessage(`Processing environment data for: ${buildPathDir}`);
-      for (const envAPIData of enviroList) {
-        buildDirDerivedFromVCEPath = envAPIData.vcePath.split(".vce")[0];
-        if (buildDirDerivedFromVCEPath === buildPathDir) {
-          return envAPIData;
+      if (enviroData.isVcp) {
+        const vcpListList = cachedWorkspaceEnvData["vcp"];
+        vectorMessage(`Processing coverage project data for: ${buildPathDir}`);
+        for (const vcpAPIData of vcpListList) {
+          buildDirDerivedFromVCPPath = vcpAPIData.vcpPath;
+          if (buildDirDerivedFromVCPPath === buildPathDir) {
+            return vcpAPIData;
+          }
+        }
+      } else {
+        const enviroList = cachedWorkspaceEnvData["enviro"];
+        vectorMessage(`Processing environment data for: ${buildPathDir}`);
+        for (const envAPIData of enviroList) {
+          buildDirDerivedFromVCEPath = envAPIData.vcePath.split(".vce")[0];
+          if (buildDirDerivedFromVCEPath === buildPathDir) {
+            return envAPIData;
+          }
         }
       }
     } else {
@@ -980,6 +1023,9 @@ async function loadAllVCTests(
         ignoreEnvsInProject,
         environmentList
       );
+
+      // Add VCP (Cover Project) files
+      addVcpEnvironments(environmentList, workspaceRoot);
     }
 
     if (environmentList.length > 0) {

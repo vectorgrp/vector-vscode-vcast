@@ -37,7 +37,11 @@ export async function updateCurrentActiveUnitMCDCLines() {
 
     // Get the unit name based on the file name without extension
     const fullPath = activeEditor.document.fileName;
-    const unitName = path.basename(fullPath, path.extname(fullPath));
+    let unitName = path.basename(fullPath, path.extname(fullPath));
+
+    if (enviroPath?.endsWith(".vcp")) {
+      unitName = unitName + path.extname(fullPath);
+    }
 
     // Get all mcdc lines for every unit and parse it into JSON
     if (enviroPath) {

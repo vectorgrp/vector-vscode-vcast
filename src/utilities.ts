@@ -406,7 +406,9 @@ export async function updateCoverageAndRebuildEnv() {
   }
   // Now rebuild every env so that the coverage is updated
   for (let enviroPath of envArray) {
-    await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
+    if (!enviroPath.endsWith(".vcp")) {
+      await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
+    }
   }
 }
 

@@ -1,8 +1,10 @@
 import argparse
 import pathlib
 import sys
+import os
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
+from vector.apps.DataAPI.cover_api import CoverApi
 
 from pythonUtilities import monkeypatch_custom_css
 
@@ -29,11 +31,35 @@ def parse_args():
     return parser.parse_args()
 
 
+def get_api_context(env_path):
+    """
+    Determines if the environment is a Cover Project or a standard Unit Test env.
+    Returns: (ApiClass, collection_name, path_to_use)
+    """
+    clean_path = os.path.normpath(env_path)
+
+    # CASE 1: The user provided the path to the .vcp file directly
+    if clean_path.lower().endswith(".vcp") and os.path.isfile(clean_path):
+        return CoverApi, "File"
+
+    # CASE 2: The user provided a folder (e.g. /path/to/env)
+    # but the VCP file is adjacent (/path/to/env.vcp)
+    sibling_vcp = clean_path + ".vcp"
+    if os.path.isfile(sibling_vcp):
+        return CoverApi, "File"
+
+    # CASE 3: Standard Unit Test Environment (The folder itself)
+    return UnitTestApi, "Unit"
+
+
 def get_mcdc_lines(env):
     all_lines_with_data = {}
 
-    with UnitTestApi(env) as api:
-        for unit in api.Unit.filter():
+    ApiClass, collection_name = get_api_context(env)
+
+    with ApiClass(env) as api:
+        collection = getattr(api, collection_name)
+        for unit in collection.filter():
             for mcdc_dec in unit.cover_data.mcdc_decisions:
                 if not mcdc_dec.num_conditions:
                     continue
@@ -63,11 +89,14 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
     # Patch get_option to use our CSS without setting the CFG option
     monkeypatch_custom_css(custom_css)
 
+    ApiClass, collection_name = get_api_context(env)
+
     # Open-up the unit test API
-    with UnitTestApi(env) as api:
+    with ApiClass(env) as api:
+        collection = getattr(api, collection_name)
         # Find and check for our unit
         unit_found = False
-        for unit in api.Unit.filter(name=unit_filter):
+        for unit in collection.filter(name=unit_filter):
             unit_found = True
 
             # Spin through all MCDC decisions looking for the one on our line
