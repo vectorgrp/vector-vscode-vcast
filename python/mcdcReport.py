@@ -6,7 +6,7 @@ import os
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
 from vector.apps.DataAPI.cover_api import CoverApi
 
-from pythonUtilities import monkeypatch_custom_css
+from pythonUtilities import monkeypatch_custom_css, get_api_context
 
 
 def parse_args():
@@ -31,30 +31,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_api_context(env_path):
-    """
-    Determines if the environment is a Cover Project or a standard Unit Test env.
-    Returns: (ApiClass, collection_name, path_to_use)
-    """
-    clean_path = os.path.normpath(env_path)
-
-    # CASE 1: The user provided the path to the .vcp file directly
-    if clean_path.lower().endswith(".vcp") and os.path.isfile(clean_path):
-        return CoverApi, "File"
-
-    # CASE 2: The user provided a folder (e.g. /path/to/env)
-    # but the VCP file is adjacent (/path/to/env.vcp)
-    sibling_vcp = clean_path + ".vcp"
-    if os.path.isfile(sibling_vcp):
-        return CoverApi, "File"
-
-    # CASE 3: Standard Unit Test Environment (The folder itself)
-    return UnitTestApi, "Unit"
-
-
 def get_mcdc_lines(env):
     all_lines_with_data = {}
 
+    # We have to check whether env is the path to a "Normal" env or to a "Cover Project"
+    # and therefore use a different API
     ApiClass, collection_name = get_api_context(env)
 
     with ApiClass(env) as api:
@@ -89,6 +70,8 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
     # Patch get_option to use our CSS without setting the CFG option
     monkeypatch_custom_css(custom_css)
 
+    # We have to check whether env is the path to a "Normal" env or to a "Cover Project"
+    # and therefore use a different API
     ApiClass, collection_name = get_api_context(env)
 
     # Open-up the unit test API
