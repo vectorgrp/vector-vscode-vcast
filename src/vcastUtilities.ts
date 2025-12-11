@@ -444,11 +444,10 @@ export function getVcastInterfaceCommandForMCDC(
   let optionsDict: { [command: string]: string | number } = {};
   optionsDict["unitName"] = unitName;
   optionsDict["lineNumber"] = lineNumber;
-  const jsonOptions: string = JSON.stringify(optionsDict).replaceAll(
-    '"',
-    '\\"'
-  );
-  const testArgument = `--options="${jsonOptions}"`;
+
+  const jsonOptions: string = JSON.stringify(optionsDict);
+  const testArgument = `--options='${jsonOptions}'`;
+
   return `${commandToRun} ${testArgument}`;
 }
 

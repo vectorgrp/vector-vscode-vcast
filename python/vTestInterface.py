@@ -36,6 +36,7 @@ from pythonUtilities import logMessage, expand_vc_env_vars
 from vector.apps.DataAPI.manage_api import VCProjectApi
 from vector.apps.DataAPI.vcproject_models import EnvironmentType
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
+from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
 from vector.enums import COVERAGE_TYPE_TYPE_T
 
@@ -720,19 +721,28 @@ def getProjectCompilerData(api):
     return compilerList
 
 
-def find_vce_files(root_dir):
+def find_environment_files(root_dir):
+    """
+    Scans the directory tree once and returns two lists:
+    1. vce_files: Paths to vce files for Unit Test environments
+    2. vcp_files: Paths to vcp files for Cover Projects
+    """
     vce_files = []
+    vcp_files = []
 
     def scan_dir(path):
         with os.scandir(path) as entries:
             for entry in entries:
-                if entry.is_file() and entry.name.endswith(".vce"):
-                    vce_files.append(entry.path)
+                if entry.is_file():
+                    if entry.name.endswith(".vce"):
+                        vce_files.append(entry.path)
+                    elif entry.name.endswith(".vcp"):
+                        vcp_files.append(entry.path)
                 elif entry.is_dir(follow_symlinks=False):
                     scan_dir(entry.path)
 
     scan_dir(root_dir)
-    return vce_files
+    return vce_files, vcp_files
 
 
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
@@ -780,10 +790,14 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
     elif mode == "getWorkspaceEnviroData":
         enviro_list = []
+        vcp_list = []
         errors = []
         topLevel = {}
-        vce_files = find_vce_files(pathToUse)
 
+        # Scan directory for both file types
+        vce_files, vcp_files = find_environment_files(pathToUse)
+
+        # Process VCE Files
         for vce_path in vce_files:
             try:
                 api = UnitTestApi(vce_path)
@@ -800,13 +814,40 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                         "mockingSupport": mocking_support,
                     }
                 )
-
             except Exception as err:
                 errors.append(f"{vce_path}: {str(err)}")
 
+        # Process VCP Files
+        for vcp_path in vcp_files:
+            try:
+                api = CoverApi(vcp_path)
+                test_data = []  # Cover projects do not have test data
+                unit_data = getUnitData(api)
+                mocking_support = False  # Cover projects do not support mocking
+                api.close()
+
+                vcp_list.append(
+                    {
+                        "vcpPath": normalize_path(vcp_path),
+                        "testData": test_data,
+                        "unitData": unit_data,
+                        "mockingSupport": mocking_support,
+                    }
+                )
+            except Exception as err:
+                errors.append(f"{vcp_path}: {str(err)}")
+
+        # Construct Top Level Object
+        # Defaulting top-level data to the first VCE environment found (if any)
         topLevel["testData"] = enviro_list[0]["testData"] if enviro_list else []
         topLevel["unitData"] = enviro_list[0]["unitData"] if enviro_list else []
+
+        if not topLevel["unitData"] and vcp_list:
+            topLevel["unitData"] = vcp_list[0]["unitData"]
+
         topLevel["enviro"] = enviro_list
+        topLevel["vcp"] = vcp_list
+
         if errors:
             topLevel["errors"] = errors
 

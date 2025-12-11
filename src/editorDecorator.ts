@@ -3,7 +3,11 @@ import { DecorationRenderOptions, TextEditorDecorationType } from "vscode";
 
 import { testNodeType } from "./testData";
 
-import { getEnvPathForFilePath, getRangeOption } from "./utilities";
+import {
+  getEnvPathForFilePath,
+  getRangeOption,
+  resolveVcpPaths,
+} from "./utilities";
 
 import { checksumMatchesEnvironment } from "./vcastTestInterface";
 import { getMCDCCoverageLines } from "./vcastAdapter";
@@ -33,11 +37,18 @@ export async function updateCurrentActiveUnitMCDCLines() {
   if (activeEditor) {
     // First we need to get the env name from the active file
     const filePath = activeEditor.document.uri.fsPath;
-    const enviroPath = getEnvPathForFilePath(filePath);
+    let enviroPath = getEnvPathForFilePath(filePath);
 
     // Get the unit name based on the file name without extension
     const fullPath = activeEditor.document.fileName;
-    const unitName = path.basename(fullPath, path.extname(fullPath));
+    let unitName = path.basename(fullPath, path.extname(fullPath));
+
+    // If the file is in a cover project, we need adapt the paths
+    ({ enviroPath, unitName } = resolveVcpPaths(
+      enviroPath,
+      unitName,
+      fullPath
+    ));
 
     // Get all mcdc lines for every unit and parse it into JSON
     if (enviroPath) {

@@ -79,6 +79,7 @@ import {
   forceLowerCaseDriveLetter,
   decodeVar,
   getFullEnvReport,
+  resolveVcpPaths,
 } from "./utilities";
 
 import {
@@ -1221,10 +1222,18 @@ function configureExtension(context: vscode.ExtensionContext) {
         const filePath = activeEditor
           ? activeEditor.document.uri.fsPath
           : fileFromUri;
-        const enviroPath = getEnvPathForFilePath(filePath);
-        const fileName = path.parse(filePath).name;
+        let enviroPath = getEnvPathForFilePath(filePath);
+        let unitName = path.parse(filePath).name;
+
+        // If the file is in a cover project, we need adapt the paths
+        ({ enviroPath, unitName } = resolveVcpPaths(
+          enviroPath,
+          unitName,
+          filePath
+        ));
+
         if (enviroPath) {
-          viewMCDCReport(enviroPath, fileName, args.lineNumber);
+          viewMCDCReport(enviroPath, unitName, args.lineNumber);
         } else {
           vscode.window.showErrorMessage(
             `Did not find environment name ${enviroPath} or path for file: ${filePath}`
