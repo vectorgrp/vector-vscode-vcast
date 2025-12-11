@@ -721,34 +721,28 @@ def getProjectCompilerData(api):
     return compilerList
 
 
-def find_vce_files(root_dir):
+def find_environment_files(root_dir):
+    """
+    Scans the directory tree once and returns two lists:
+    1. vce_files: Paths to vce files for Unit Test environments
+    2. vcp_files: Paths to vcp files for Cover Projects
+    """
     vce_files = []
+    vcp_files = []
 
     def scan_dir(path):
         with os.scandir(path) as entries:
             for entry in entries:
-                if entry.is_file() and entry.name.endswith(".vce"):
-                    vce_files.append(entry.path)
+                if entry.is_file():
+                    if entry.name.endswith(".vce"):
+                        vce_files.append(entry.path)
+                    elif entry.name.endswith(".vcp"):
+                        vcp_files.append(entry.path)
                 elif entry.is_dir(follow_symlinks=False):
                     scan_dir(entry.path)
 
     scan_dir(root_dir)
-    return vce_files
-
-
-def find_vcp_files(root_dir):
-    vce_files = []
-
-    def scan_dir(path):
-        with os.scandir(path) as entries:
-            for entry in entries:
-                if entry.is_file() and entry.name.endswith(".vcp"):
-                    vce_files.append(entry.path)
-                elif entry.is_dir(follow_symlinks=False):
-                    scan_dir(entry.path)
-
-    scan_dir(root_dir)
-    return vce_files
+    return vce_files, vcp_files
 
 
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
@@ -800,8 +794,10 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         errors = []
         topLevel = {}
 
-        # 1. Process VCE (Unit Test) Files
-        vce_files = find_vce_files(pathToUse)
+        # Scan directory for both file types
+        vce_files, vcp_files = find_environment_files(pathToUse)
+
+        # Process VCE Files
         for vce_path in vce_files:
             try:
                 api = UnitTestApi(vce_path)
@@ -821,8 +817,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             except Exception as err:
                 errors.append(f"{vce_path}: {str(err)}")
 
-        # 2. Process VCP (Cover) Files
-        vcp_files = find_vcp_files(pathToUse)
+        # Process VCP Files
         for vcp_path in vcp_files:
             try:
                 api = CoverApi(vcp_path)
@@ -842,12 +837,11 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             except Exception as err:
                 errors.append(f"{vcp_path}: {str(err)}")
 
-        # 3. Construct Top Level Object
+        # Construct Top Level Object
         # Defaulting top-level data to the first VCE environment found (if any)
         topLevel["testData"] = enviro_list[0]["testData"] if enviro_list else []
         topLevel["unitData"] = enviro_list[0]["unitData"] if enviro_list else []
 
-        # If no VCEs exist but VCPs do, you might want to fallback to VCP unitData:
         if not topLevel["unitData"] and vcp_list:
             topLevel["unitData"] = vcp_list[0]["unitData"]
 

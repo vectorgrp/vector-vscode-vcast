@@ -34,7 +34,8 @@
   "activationEvents": [
     "workspaceContains:**/UNITDATA.VCD",
     "workspaceContains:**/*.vcm",
-    "workspaceContains:**/*.vcp"
+    "workspaceContains:**/*.vcp",
+    "workspaceContains:**/*.env"
   ],
   "contributes": {
     "viewsWelcome": [

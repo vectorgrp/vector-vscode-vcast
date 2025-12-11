@@ -34,13 +34,13 @@ def parse_args():
 def get_mcdc_lines(env):
     all_lines_with_data = {}
 
-    # We have to check whether env is the path to a "Normal" env or to a "Cover Project"
-    # and therefore use a different API
-    ApiClass, collection_name = get_api_context(env)
+    ApiClass, entity_attr = get_api_context(env)
 
     with ApiClass(env) as api:
-        collection = getattr(api, collection_name)
-        for unit in collection.filter():
+        # Access the API property (api.Unit or api.File) dynamically
+        source_modules = getattr(api, entity_attr)
+
+        for unit in source_modules.filter():
             for mcdc_dec in unit.cover_data.mcdc_decisions:
                 if not mcdc_dec.num_conditions:
                     continue
@@ -72,14 +72,13 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
 
     # We have to check whether env is the path to a "Normal" env or to a "Cover Project"
     # and therefore use a different API
-    ApiClass, collection_name = get_api_context(env)
+    ApiClass, entity_attr = get_api_context(env)
 
-    # Open-up the unit test API
     with ApiClass(env) as api:
-        collection = getattr(api, collection_name)
+        source_modules = getattr(api, entity_attr)
         # Find and check for our unit
         unit_found = False
-        for unit in collection.filter(name=unit_filter):
+        for unit in source_modules.filter(name=unit_filter):
             unit_found = True
 
             # Spin through all MCDC decisions looking for the one on our line

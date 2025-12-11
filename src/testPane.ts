@@ -777,9 +777,9 @@ async function loadEnviroData(
     // If we've already fetched the full workspace data, reuse it
     if (cachedWorkspaceEnvData) {
       if (enviroData.isVcp) {
-        const vcpListList = cachedWorkspaceEnvData["vcp"];
+        const vcpList = cachedWorkspaceEnvData["vcp"];
         vectorMessage(`Processing coverage project data for: ${buildPathDir}`);
-        for (const vcpAPIData of vcpListList) {
+        for (const vcpAPIData of vcpList) {
           buildDirDerivedFromVCPPath = vcpAPIData.vcpPath;
           if (buildDirDerivedFromVCPPath === buildPathDir) {
             return vcpAPIData;
