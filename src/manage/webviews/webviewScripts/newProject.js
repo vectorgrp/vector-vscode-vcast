@@ -1,9 +1,9 @@
 const vscode = acquireVsCodeApi();
 
-window.addEventListener("DOMContentLoaded", () => {
-  const compilers = window.compilerData || [];
-  const defaultCFG = window.defaultCFG || "";
-  const defaultDB = window.defaultDB || "";
+globalThis.addEventListener("DOMContentLoaded", () => {
+  const compilers = globalThis.compilerData || [];
+  const defaultCFG = globalThis.defaultCFG || "";
+  const defaultDB = globalThis.defaultDB || "";
   
   // DOM Elements
   const defaultRow = document.getElementById("defaultCompilerRow");
@@ -63,14 +63,14 @@ window.addEventListener("DOMContentLoaded", () => {
   updateCompilerVisibility();
 
   // --- Target Directory Logic ---
-  let targetDir = window.defaultDir || "";
+  let targetDir = globalThis.defaultDir || "";
   targetInput.value = targetDir;
   
   browseBtn.addEventListener("click", () => {
     vscode.postMessage({ command: "browseForDir" });
   });
   
-  window.addEventListener("message", (e) => {
+  globalThis.addEventListener("message", (e) => {
     const msg = e.data;
     if (msg.command === "setTargetDir") {
       targetDir = msg.targetDir;

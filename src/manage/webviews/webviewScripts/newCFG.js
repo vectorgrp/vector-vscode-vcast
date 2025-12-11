@@ -1,8 +1,8 @@
 const vscode = acquireVsCodeApi();
 
-window.addEventListener("DOMContentLoaded", () => {
-  const compilers = window.compilerData || [];
-  const defaultDB = window.defaultDB || "";
+globalThis.addEventListener("DOMContentLoaded", () => {
+  const compilers = globalThis.compilerData || [];
+  const defaultDB = globalThis.defaultDB || "";
 
   const compInput = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
@@ -17,11 +17,11 @@ window.addEventListener("DOMContentLoaded", () => {
   const dbCheckbox = document.getElementById("useDefaultDB");
 
   // If extension injected defaults, apply them
-  if (typeof window.enableCodedTests !== "undefined" && codedCheckbox) {
-    codedCheckbox.checked = !!window.enableCodedTests;
+  if (globalThis.enableCodedTests !== undefined && codedCheckbox) {
+    codedCheckbox.checked = !!globalThis.enableCodedTests;
   }
-  if (typeof window.defaultCFG !== "undefined" && defaultCheckbox) {
-    defaultCheckbox.checked = !!window.defaultCFG;
+  if (globalThis.defaultCFG !== undefined && defaultCheckbox) {
+    defaultCheckbox.checked = !!globalThis.defaultCFG;
   }
 
   // --- DB Toggle Visibility Logic ---

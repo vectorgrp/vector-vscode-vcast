@@ -18,39 +18,40 @@
 
     <div class="options-section">
         <h3>Additional Options:</h3>
+        
         <div class="option-row">
-            <span class="toggle-label">Enable Coded Tests</span>
-            <label class="vscode-toggle">
+            <label class="toggle-label" for="enableCodedTests">Enable Coded Tests</label>
+            <label class="vscode-toggle" for="enableCodedTests">
               <span class="toggle-switch">
                 <input type="checkbox" id="enableCodedTests" />
                 <span class="slider"></span>
               </span>
             </label>
-          </div>
+        </div>
           
-          <div class="option-row">
-            <span class="toggle-label">Set as Default Configuration File</span>
-            <label class="vscode-toggle">
+        <div class="option-row">
+            <label class="toggle-label" for="defaultCFG">Set as Default Configuration File</label>
+            <label class="vscode-toggle" for="defaultCFG">
               <span class="toggle-switch">
                 <input type="checkbox" id="defaultCFG" />
                 <span class="slider"></span>
               </span>
             </label>
-          </div>
+        </div>
 
-          <!-- Default DB Toggle (Hidden by default) -->
-          <div class="option-row" id="dbOptionRow" style="display: none;">
-            <span class="toggle-label">
+        <!-- Default DB Toggle (Hidden by default) -->
+        <div class="option-row" id="dbOptionRow" style="display: none;">
+            <label class="toggle-label" for="useDefaultDB">
               Use Default VCDB
               <br><small id="dbPathLabel" style="font-size: 11px; color: #888;"></small>
-            </span>
-            <label class="vscode-toggle">
+            </label>
+            <label class="vscode-toggle" for="useDefaultDB">
               <span class="toggle-switch">
                 <input type="checkbox" id="useDefaultDB" />
                 <span class="slider"></span>
               </span>
             </label>
-          </div>
+        </div>
     </div> 
           
 
