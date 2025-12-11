@@ -414,9 +414,6 @@ def getCoverageData(sourceObject):
 
         checksum = sourceObject.checksum
         coverageKind = getCoverageKind(sourceObject)
-        # print("----------------")
-        # print(coverageKind)
-        # print("----------------")
         mcdc_line_dic = coverageGutter.getMCDCLineDic(sourceObject)
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
