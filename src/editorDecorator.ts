@@ -3,7 +3,11 @@ import { DecorationRenderOptions, TextEditorDecorationType } from "vscode";
 
 import { testNodeType } from "./testData";
 
-import { getEnvPathForFilePath, getRangeOption } from "./utilities";
+import {
+  getEnvPathForFilePath,
+  getRangeOption,
+  resolveVcpPaths,
+} from "./utilities";
 
 import { checksumMatchesEnvironment } from "./vcastTestInterface";
 import { getMCDCCoverageLines } from "./vcastAdapter";
@@ -40,11 +44,11 @@ export async function updateCurrentActiveUnitMCDCLines() {
     let unitName = path.basename(fullPath, path.extname(fullPath));
 
     // If the file is in a cover project, we need adapt the paths
-    if (enviroPath?.endsWith(".vcp")) {
-      unitName = unitName + path.extname(fullPath);
-      const parsed = path.parse(enviroPath);
-      enviroPath = path.join(parsed.dir, parsed.name);
-    }
+    ({ enviroPath, unitName } = resolveVcpPaths(
+      enviroPath,
+      unitName,
+      fullPath
+    ));
 
     // Get all mcdc lines for every unit and parse it into JSON
     if (enviroPath) {
