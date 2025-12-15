@@ -137,7 +137,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const notificationsCenter = await workbench.openNotificationsCenter();
     await notificationsCenter.clearAllNotifications();
 
-    console.log("Executing Create New Project Command:");
+    console.log("Executing Create New Project Command (with options = false):");
     await browser.executeWorkbench((vscode) => {
       vscode.commands.executeCommand("vectorcastTestExplorer.createNewProject");
     });
@@ -179,6 +179,78 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     expect(projectNode).toBeDefined();
     expect(compilerNode).toBeDefined();
+  });
+
+  it("testing creating second project 'Banana'", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    console.log("Executing Create New Project Command for Banana:");
+    await browser.executeWorkbench((vscode) => {
+      vscode.commands.executeCommand("vectorcastTestExplorer.createNewProject");
+    });
+
+    console.log("Inserting Data to Webview for Banana project");
+    await insertStringToInput("Banana", "Project Name Input");
+    await browser.keys(["Tab"]);
+    await browser.keys("GNU Native_Automatic_C++");
+    await browser.keys(["Tab"]);
+    // Toggle "Enable Coded Tests" OFF
+    await browser.keys([" "]);
+    await browser.keys(["Tab"]);
+    // Toggle "Set as Default CFG" OFF
+    await browser.keys([" "]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Enter"]);
+
+    console.log("Verifying Coded Tests Support is set to True");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`-lc option VCAST_CODED_TESTS_SUPPORT True`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Processing project: Banana`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking existence of Banana Project");
+    const projectNode = await findTreeNodeAtLevel(0, "Banana.vcm");
+    const compilerNode = await findTreeNodeAtLevel(
+      1,
+      "GNU_Native_Automatic_C++"
+    );
+    expect(projectNode).toBeDefined();
+    expect(compilerNode).toBeDefined();
+
+    console.log(
+      "Verifying configurationLocation setting ends with Banana/CCAST.CFG"
+    );
+    const configLocation = await browser.executeWorkbench((vscode) => {
+      return vscode.workspace
+        .getConfiguration("vectorcastTestExplorer")
+        .get("configurationLocation");
+    });
+
+    console.log(`Configuration location: ${configLocation}`);
+    expect(configLocation).toBeDefined();
+    expect(typeof configLocation).toBe("string");
+
+    // Normalize path separators and check if it ends with Banana/CCAST.CFG
+    const normalizedPath = (configLocation as string).replace(/\\/g, "/");
+    expect(normalizedPath.endsWith("Banana/CCAST.CFG")).toBe(true);
   });
 
   it("testing tree structure", async () => {
