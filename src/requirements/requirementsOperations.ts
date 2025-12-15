@@ -68,6 +68,12 @@ class ProgressTracker {
   }
 
   private handleJson(json: any) {
+    if (!json.event) {
+      throw new Error(`Invalid JSON event: ${JSON.stringify(json)}. Missing 'event' field.`);
+    }
+    if (!json.value) {
+      throw new Error(`Invalid JSON event: ${JSON.stringify(json)}. Missing 'value' field.`);
+    }
     if (json.event === "progress") {
       let step: string | undefined;
       let newProgress: number | undefined;
