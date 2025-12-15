@@ -248,8 +248,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(configLocation).toBeDefined();
 
     // Check if config location is set with the new CFG from the project
-    expect(configLocation.includes("Banana")).toBe(true);
-    expect(configLocation.includes("CCAST.CFG")).toBe(true);
+    expect(configLocation.endsWith("Banana/CCAST_.CFG")).toBe(true);
   });
 
   it("testing tree structure", async () => {
