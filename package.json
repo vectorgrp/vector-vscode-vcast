@@ -459,29 +459,29 @@
             "default": true,
             "description": "Decompose requirements when generating tests"
           },
-          "vectorcastTestExplorer.reqs2x.retries": {
-            "type": "integer",
-            "order": 4,
-            "default": 2,
-            "description": "Number of retries test generation. WARNING: High values (over 3) may lead to increased costs and longer processing times."
-          },
-          "vectorcastTestExplorer.reqs2x.reorder": {
-            "type": "boolean",
-            "order": 5,
-            "default": true,
-            "description": "Reorder test cases exported to file (disable for easier investigation of incremental results)"
-          },
           "vectorcastTestExplorer.reqs2x.generateHighLevelRequirements": {
             "type": "boolean",
-            "order": 6,
+            "order": 4,
             "default": false,
             "description": "Generate high-level requirements in addition to low-level requirements."
           },
           "vectorcastTestExplorer.reqs2x.outputDebugInfo": {
             "type": "boolean",
-            "order": 7,
+            "order": 5,
             "default": false,
             "description": "Output debug information for requirement and test generation to the console"
+          },
+          "vectorcastTestExplorer.reqs2x.retries": {
+            "type": "integer",
+            "order": 6,
+            "default": 2,
+            "description": "Number of retries test generation. WARNING: High values (over 3) may lead to increased costs and longer processing times."
+          },
+          "vectorcastTestExplorer.reqs2x.reorder": {
+            "type": "boolean",
+            "order": 7,
+            "default": true,
+            "description": "Reorder test cases exported to file (disable for easier investigation of incremental results)"
           },
           "vectorcastTestExplorer.reqs2x.noTestExamples": {
             "type": "boolean",
