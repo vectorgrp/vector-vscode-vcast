@@ -69,10 +69,14 @@ class ProgressTracker {
 
   private handleJson(json: any) {
     if (!json.event) {
-      throw new Error(`Invalid JSON event: ${JSON.stringify(json)}. Missing 'event' field.`);
+      throw new Error(
+        `Invalid JSON event: ${JSON.stringify(json)}. Missing 'event' field.`
+      );
     }
     if (!json.value) {
-      throw new Error(`Invalid JSON event: ${JSON.stringify(json)}. Missing 'value' field.`);
+      throw new Error(
+        `Invalid JSON event: ${JSON.stringify(json)}. Missing 'value' field.`
+      );
     }
     if (json.event === "progress") {
       let step: string | undefined;
@@ -92,9 +96,11 @@ class ProgressTracker {
       if (increment > 0) {
         this.progress.report({ message: step, increment });
         this.lastProgress = newProgress;
-        logCliOperation(`${this.logPrefix} Progress: ${(
-          newProgress * 100
-        ).toFixed(2)}% - ${step ?? ""}`);
+        logCliOperation(
+          `${this.logPrefix} Progress: ${(newProgress * 100).toFixed(
+            2
+          )}% - ${step ?? ""}`
+        );
       }
     } else if (json.event === "problem") {
       if (
@@ -170,7 +176,6 @@ function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
 
   return true;
 }
-
 
 export async function generateRequirements(enviroPath: string) {
   const parentDir = path.dirname(enviroPath);
@@ -580,7 +585,6 @@ export async function importRequirementsFromGateway(enviroPath: string) {
     }
   );
 }
-
 
 export async function populateRequirementsGateway(enviroPath: string) {
   const parentDir = path.dirname(enviroPath);
