@@ -214,7 +214,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes(`-lc option VCAST_CODED_TESTS_SUPPORT True`),
+          .includes(`-lc option VCAST_CODED_TESTS_SUPPORT TRUE`),
       { timeout: TIMEOUT }
     );
 
