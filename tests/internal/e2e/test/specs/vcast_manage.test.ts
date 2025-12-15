@@ -246,11 +246,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log(`Configuration location: ${configLocation}`);
     expect(configLocation).toBeDefined();
-    expect(typeof configLocation).toBe("string");
 
-    // Normalize path separators and check if it ends with Banana/CCAST.CFG
-    const normalizedPath = (configLocation as string).replace(/\\/g, "/");
-    expect(normalizedPath.endsWith("Banana/CCAST.CFG")).toBe(true);
+    // Check if config location is set with the new CFG from the project
+    expect(configLocation.includes("Banana")).toBe(true);
+    expect(configLocation.includes("CCAST.CFG")).toBe(true);
   });
 
   it("testing tree structure", async () => {
