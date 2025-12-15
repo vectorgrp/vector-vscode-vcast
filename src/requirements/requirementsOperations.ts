@@ -340,6 +340,8 @@ export async function generateTestsFromRequirements(
     true
   );
 
+  const noTestExamples = config.get<boolean>("noTestExamples", false);
+
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
     vscode.window.showErrorMessage(
@@ -363,6 +365,7 @@ export async function generateTestsFromRequirements(
     retries.toString(),
     "--batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
+    ...(noTestExamples ? ["--no-test-examples"] : []),
     "--allow-partial",
     "--json-events",
     ...(enableRequirementKeys ? ["--requirement-keys"] : []),

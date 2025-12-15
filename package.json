@@ -477,9 +477,15 @@
             "default": false,
             "description": "Output debug information for requirement and test generation to the console"
           },
+          "vectorcastTestExplorer.reqs2x.noTestExamples": {
+            "type": "boolean",
+            "order": 7,
+            "default": false,
+            "description": "Do not provide additional test examples to the LLM during test generation"
+          },
           "vectorcastTestExplorer.reqs2x.generationLanguage": {
             "type": "string",
-            "order": 7,
+            "order": 8,
             "default": "en",
             "enum": [
               "af", "sq", "am", "ar", "hy", "as", "az", "be", "bn", "bs", "bg", "my", "ch", "hr", "cs", "da", "nl", "en", "et", "tl", "fi", "fr", "ka", "de", "gu", "ha", "he", "hi", "hu", "is", "ig", "id", "ga", "it", "jp", "kn", "kk", "km", "ko", "ky", "lo", "lv", "lt", "mk", "ms", "ml", "mt", "mn", "me", "ne", "no", "or", "fa", "pl", "pt", "pa", "ro", "ru", "sr", "si", "sk", "sl", "es", "sw", "sv", "tg", "ta", "te", "th", "tr", "uk", "ur", "uz", "vi", "cy", "xh", "yo", "zu"
@@ -491,7 +497,7 @@
           },
           "vectorcastTestExplorer.reqs2x.provider": {
             "type": "string",
-            "order": 8,
+            "order": 9,
             "default": "openai",
             "enum": ["openai", "azure_openai", "anthropic", "litellm"],
             "enumDescriptions": ["OpenAI", "Azure OpenAI", "Anthropic", "LiteLLM"],
@@ -499,103 +505,103 @@
           },
           "vectorcastTestExplorer.reqs2x.openai.apiKey": {
             "type": "string",
-            "order": 9,
+            "order": 10,
             "default": "",
             "description": "OpenAI API key"
           },
           "vectorcastTestExplorer.reqs2x.openai.modelName": {
             "type": "string",
-            "order": 10,
+            "order": 11,
             "default": "",
             "description": "OpenAI model name"
           },
           "vectorcastTestExplorer.reqs2x.openai.reasoningModelName": {
             "type": "string",
-            "order": 11,
+            "order": 12,
             "default": "",
             "description": "Optional OpenAI reasoning model name used for specialized reasoning subtasks."
           },
           "vectorcastTestExplorer.reqs2x.openai.baseUrl": {
             "type": "string",
-            "order": 12,
+            "order": 13,
             "default": "",
             "description": "OpenAI base URL (optional, set this to use OpenAI-compatible providers such as Ollama, vLLM or Bedrock)"
           },
           "vectorcastTestExplorer.reqs2x.azure.baseUrl": {
             "type": "string",
-            "order": 13,
+            "order": 14,
             "default": "",
             "description": "Azure OpenAI endpoint/base URL, e.g., https://my-example-instance.openai.azure.com"
           },
           "vectorcastTestExplorer.reqs2x.azure.apiKey": {
             "type": "string",
-            "order": 14,
+            "order": 15,
             "default": "",
             "description": "Azure OpenAI API key"
           },
           "vectorcastTestExplorer.reqs2x.azure.deployment": {
             "type": "string",
-            "order": 15,
+            "order": 16,
             "default": "",
             "description": "Azure OpenAI deployment name, e.g., my-custom-gpt-4o-deployment"
           },
           "vectorcastTestExplorer.reqs2x.azure.modelName": {
             "type": "string",
-            "order": 16,
+            "order": 17,
             "default": "",
             "description": "Azure OpenAI model name, e.g., gpt-4o"
           },
           "vectorcastTestExplorer.reqs2x.azure.reasoningModelName": {
             "type": "string",
-            "order": 17,
+            "order": 18,
             "default": "",
             "description": "Optional Azure OpenAI reasoning model name used for specialized reasoning subtasks."
           },
           "vectorcastTestExplorer.reqs2x.azure.reasoningDeployment": {
             "type": "string",
-            "order": 18,
+            "order": 19,
             "default": "",
             "description": "Azure OpenAI reasoning deployment name (required if Azure reasoning model name is provided)."
           },
           "vectorcastTestExplorer.reqs2x.azure.apiVersion": {
             "type": "string",
-            "order": 19,
+            "order": 20,
             "default": "2024-12-01-preview",
             "description": "Azure OpenAI API version"
           },
           "vectorcastTestExplorer.reqs2x.anthropic.apiKey": {
             "type": "string",
-            "order": 20,
+            "order": 21,
             "default": "",
             "description": "Anthropic API key"
           },
           "vectorcastTestExplorer.reqs2x.anthropic.modelName": {
             "type": "string",
-            "order": 21,
+            "order": 22,
             "default": "",
             "description": "Anthropic model name"
           },
           "vectorcastTestExplorer.reqs2x.anthropic.reasoningModelName": {
             "type": "string",
-            "order": 22,
+            "order": 23,
             "default": "",
             "description": "Optional Anthropic reasoning model name used for specialized reasoning subtasks."
           },
           "vectorcastTestExplorer.reqs2x.litellm.modelName": {
             "type": "string",
-            "order": 23,
+            "order": 24,
             "default": "",
             "description": "LiteLLM model name (prefix with provider used, e.g., openai/gpt-4o or azure/o3-mini)"
           },
           "vectorcastTestExplorer.reqs2x.litellm.reasoningModelName": {
             "type": "string",
-            "order": 24,
+            "order": 25,
             "default": "",
             "description": "Optional LiteLLM reasoning model name used for specialized reasoning subtasks."
           },
           "vectorcastTestExplorer.reqs2x.litellm.providerEnvVars": {
             "type": "string",
-            "order": 25,
+            "order": 26,
             "default": "",
             "description": "Environment variables to set when running LiteLLM, e.g., OPENAI_API_KEY=xxxx. Multiple variables can be separated by commas, e.g., OPENAI_API_KEY=xxxx,ANOTHER_ENV_VAR=yyyy. For a list of variables to set for a specific LiteLLM-compatible provider, see https://docs.litellm.ai/docs/providers."
           }
