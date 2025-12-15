@@ -170,6 +170,7 @@ export async function generateRequirements(enviroPath: string) {
     "generateHighLevelRequirements",
     false
   );
+  const reorder = config.get<boolean>("reorder", true);
 
   const commandArgs = [
     "-e",
@@ -185,6 +186,10 @@ export async function generateRequirements(enviroPath: string) {
 
   if (generateHighLevelRequirements) {
     commandArgs.push("--generate-high-level-requirements");
+  }
+
+  if (!reorder) {
+    commandArgs.push("--no-reorder");
   }
 
   // Log the command being executed
@@ -341,6 +346,7 @@ export async function generateTestsFromRequirements(
   );
 
   const noTestExamples = config.get<boolean>("noTestExamples", false);
+  const reorder = config.get<boolean>("reorder", true);
 
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
@@ -366,6 +372,7 @@ export async function generateTestsFromRequirements(
     "--batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
     ...(noTestExamples ? ["--no-test-examples"] : []),
+    ...(!reorder ? ["--no-reorder"] : []),
     "--allow-partial",
     "--json-events",
     ...(enableRequirementKeys ? ["--requirement-keys"] : []),
