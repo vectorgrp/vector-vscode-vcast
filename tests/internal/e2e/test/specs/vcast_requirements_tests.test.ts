@@ -255,7 +255,7 @@ describe("vTypeCheck VS Code Extension", () => {
           { timeout: 180_000 }
         );
 
-        const extensionHostChannel = "Log (Extension Host)";
+        const extensionHostChannel = "Extension Host";
         try {
           const availableChannels = await outputView.getChannelNames();
           const hasExtensionHostChannel = Array.isArray(availableChannels)
