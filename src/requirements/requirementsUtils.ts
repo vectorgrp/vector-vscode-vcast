@@ -355,7 +355,7 @@ export function isLLMProviderEnvironmentUsable(): Promise<{
         resolve({ usable: result.usable, problem: result.problem || null });
       } catch (e) {
         console.error(`Failed to parse llm2check output: ${e}`);
-        logCliError(`Failed to parse llm2check output: ${e}`, true);
+        logCliError(`Failed to parse llm2check output: ${e} | ${output}`, true);
         resolve({ usable: false, problem: "Failed to parse llm2check output" });
       }
     });
