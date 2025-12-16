@@ -254,39 +254,6 @@ describe("vTypeCheck VS Code Extension", () => {
               .includes("code2reqs completed successfully with code 0"),
           { timeout: 180_000 }
         );
-
-        const extensionHostChannel = "Extension Host";
-        try {
-          const availableChannels = await outputView.getChannelNames();
-          const hasExtensionHostChannel = Array.isArray(availableChannels)
-            ? availableChannels.includes(extensionHostChannel)
-            : availableChannels.toString().includes(extensionHostChannel);
-
-          if (hasExtensionHostChannel) {
-            await outputView.selectChannel(extensionHostChannel);
-            const extensionHostLog = await outputView.getText();
-            console.log(
-              "Captured Extension Host console output after requirement generation:\n",
-              extensionHostLog?.toString() ?? "<no log content>"
-            );
-          } else {
-            console.warn(
-              `Output channel "${extensionHostChannel}" not available for log capture.`
-            );
-          }
-        } catch (captureError) {
-          console.warn(
-            `Failed to capture Extension Host console output: ${captureError}`
-          );
-        } finally {
-          try {
-            await outputView.selectChannel(
-              "VectorCAST Requirement Test Generation Operations"
-            );
-          } catch {
-            console.warn("Failed to restore VectorCAST output channel after log capture.");
-          }
-        }
       }
     }
   });
