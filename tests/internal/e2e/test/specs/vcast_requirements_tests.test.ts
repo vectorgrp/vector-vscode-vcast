@@ -5,6 +5,8 @@ import {
   TextEditor,
   TreeItem,
 } from "wdio-vscode-service";
+import { existsSync } from "fs";
+import { join } from "path";
 import { Key } from "webdriverio";
 import {
   checkElementExistsInHTML,
@@ -237,6 +239,18 @@ describe("vTypeCheck VS Code Extension", () => {
         await testEnvironmentContextMenu.select("VectorCAST");
         const generateButton = await $("aria/Generate Requirements");
         if (generateButton == undefined) break;
+
+        if (process.env.REQS2TESTS_RESOURCES) {
+          const code2reqsPath = join(
+            process.env.REQS2TESTS_RESOURCES,
+            "code2reqs"
+          );
+          console.log(
+            `code2reqs exists at ${code2reqsPath}: ${existsSync(code2reqsPath)}`
+          );
+        } else {
+          console.warn("REQS2TESTS_RESOURCES env var is unset");
+        }
 
         await generateButton.click();
 
