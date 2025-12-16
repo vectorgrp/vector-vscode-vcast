@@ -82,6 +82,7 @@ with tempfile.TemporaryDirectory() as tmpdirname:
                 download_file(url)
 
         if all(os.path.exists(f) for f in DISTRIBUTION_NAMES):
+            print(url)
             break
 
 if not all(os.path.exists(f) for f in DISTRIBUTION_NAMES):
