@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory() as tmpdirname:
         data = json.load(f)
 
     children_urls = sorted(
-        [c["uri"] for c in data["children"]],
+        [c["uri"] for c in data["children"] if c["uri"].rsplit("-", 1)[0][1:]],
         key=lambda x: datetime.fromisoformat(x.rsplit("-", 1)[0][1:]),
         reverse=True,
     )
