@@ -46,6 +46,75 @@ export function logCliError(
   }
 }
 
+class ProgressTracker {
+  private lastProgress = 0.0;
+
+  constructor(
+    private progress: vscode.Progress<{ message?: string; increment?: number }>,
+    private logPrefix: string
+  ) {}
+
+  public processOutput(output: string) {
+    const lines = output.split("\n");
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const json = JSON.parse(line);
+        this.handleJson(json);
+      } catch (e) {
+        logCliOperation(`${this.logPrefix}: ${line}`);
+      }
+    }
+  }
+
+  private handleJson(json: any) {
+    if (!json.event) {
+      throw new Error(
+        `Invalid JSON event: ${JSON.stringify(json)}. Missing 'event' field.`
+      );
+    }
+    if (!json.value) {
+      throw new Error(
+        `Invalid JSON event: ${JSON.stringify(json)}. Missing 'value' field.`
+      );
+    }
+    if (json.event === "progress") {
+      let step: string | undefined;
+      let newProgress: number | undefined;
+      if (typeof json.value === "object") {
+        step = json.value.step;
+        newProgress = json.value.progress;
+      } else if (typeof json.value === "number") {
+        newProgress = json.value; // legacy
+      }
+
+      if (newProgress === undefined) {
+        return;
+      }
+
+      const increment = (newProgress - this.lastProgress) * 100;
+      if (increment > 0) {
+        this.progress.report({ message: step, increment });
+        this.lastProgress = newProgress;
+        logCliOperation(
+          `${this.logPrefix} Progress: ${(newProgress * 100).toFixed(
+            2
+          )}% - ${step ?? ""}`
+        );
+      }
+    } else if (json.event === "problem") {
+      if (
+        this.logPrefix === "reqs2tests" &&
+        json.value.includes("Individual")
+      ) {
+        return;
+      }
+      vscode.window.showWarningMessage(json.value);
+      logCliOperation(`Warning: ${json.value}`);
+    }
+  }
+}
+
 export function initializeReqs2X(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration(
     "vectorcastTestExplorer.reqs2x"
@@ -170,6 +239,7 @@ export async function generateRequirements(enviroPath: string) {
     "generateHighLevelRequirements",
     false
   );
+  const reorder = config.get<boolean>("reorder", true);
 
   const commandArgs = [
     "-e",
@@ -187,6 +257,10 @@ export async function generateRequirements(enviroPath: string) {
     commandArgs.push("--generate-high-level-requirements");
   }
 
+  if (!reorder) {
+    commandArgs.push("--no-reorder");
+  }
+
   // Log the command being executed
   const commandString = `${CODE2REQS_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
   logCliOperation(`Executing command: ${commandString}`);
@@ -198,56 +272,23 @@ export async function generateRequirements(enviroPath: string) {
       cancellable: true,
     },
     async (progress, cancellationToken) => {
-      let lastProgress = 0;
-      let simulatedProgress = 0;
-      const simulatedProgressInterval = setInterval(() => {
-        if (
-          simulatedProgress < 30 &&
-          !cancellationToken.isCancellationRequested
-        ) {
-          simulatedProgress += 1;
-          progress.report({ increment: 1 });
-        }
-      }, 1000);
-
       const process = await spawnWithVcastEnv(
         CODE2REQS_EXECUTABLE_PATH,
         commandArgs
       );
 
-      return await new Promise<void>((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
+        const tracker = new ProgressTracker(progress, "code2reqs");
+
         cancellationToken.onCancellationRequested(() => {
           process.kill();
-          clearInterval(simulatedProgressInterval);
           logCliOperation("Operation cancelled by user");
           resolve();
         });
 
         process.stdout.on("data", (data) => {
           if (cancellationToken.isCancellationRequested) return;
-          const output = data.toString();
-
-          const lines = output.split("\n");
-          for (const line of lines) {
-            try {
-              const json = JSON.parse(line);
-              if (json.event === "progress" && json.value !== undefined) {
-                const scaledProgress = json.value * 0.7;
-                const increment = (scaledProgress - lastProgress) * 100;
-                if (increment > 0) {
-                  progress.report({ increment });
-                  lastProgress = scaledProgress;
-                }
-              } else if (json.event === "problem" && json.value !== undefined) {
-                vscode.window.showWarningMessage(json.value);
-                logCliOperation(`Warning: ${json.value}`);
-              }
-            } catch (e) {
-              if (line) {
-                logCliOperation(`code2reqs: ${line}`);
-              }
-            }
-          }
+          tracker.processOutput(data.toString());
         });
 
         process.stderr.on("data", (data) => {
@@ -257,7 +298,6 @@ export async function generateRequirements(enviroPath: string) {
         });
 
         process.on("close", async (code) => {
-          clearInterval(simulatedProgressInterval);
           if (cancellationToken.isCancellationRequested) return;
           if (code === 0) {
             logCliOperation(
@@ -265,7 +305,6 @@ export async function generateRequirements(enviroPath: string) {
             );
             await refreshAllExtensionData();
             updateRequirementsAvailability(enviroPath);
-            // Run the showRequirements command to display the generated Excel
             vscode.commands.executeCommand(
               "vectorcastTestExplorer.showRequirements",
               { id: enviroPath }
@@ -317,13 +356,10 @@ export async function generateTestsFromRequirements(
   const tstPath = path.join(parentDir, "reqs2tests.tst");
 
   let reqsFile = "";
-  let fileType = "";
   if (fs.existsSync(xlsxPath)) {
     reqsFile = xlsxPath;
-    fileType = "Excel";
   } else if (fs.existsSync(csvPath)) {
     reqsFile = csvPath;
-    fileType = "CSV";
   } else {
     vscode.window.showErrorMessage(
       "No requirements file found. Please generate requirements first."
@@ -332,11 +368,25 @@ export async function generateTestsFromRequirements(
   }
 
   // Get the decompose setting from configuration
-  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const config = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer.reqs2x"
+  );
   const decomposeRequirements = config.get<boolean>(
     "decomposeRequirements",
     true
   );
+
+  const noTestExamples = config.get<boolean>("noTestExamples", false);
+  const reorder = config.get<boolean>("reorder", true);
+
+  const retries = config.get<number>("retries", 2);
+  if (retries < 1) {
+    vscode.window.showErrorMessage(
+      "Retries must be greater than or equal to 1. Please check your settings."
+    );
+    return;
+  }
+
   const enableRequirementKeys =
     findRelevantRequirementGateway(enviroPath) !== null;
   console.log(decomposeRequirements, enableRequirementKeys);
@@ -349,9 +399,11 @@ export async function generateTestsFromRequirements(
     "--export-tst",
     tstPath,
     "--retries",
-    "1",
+    retries.toString(),
     "--batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
+    ...(noTestExamples ? ["--no-test-examples"] : []),
+    ...(!reorder ? ["--no-reorder"] : []),
     "--allow-partial",
     "--json-events",
     ...(enableRequirementKeys ? ["--requirement-keys"] : []),
@@ -366,67 +418,27 @@ export async function generateTestsFromRequirements(
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `Generating Tests from Requirements (${fileType}) for ${
-        envName.split(".")[0]
-      }`,
+      title: `Generating Requirement Tests for ${envName.split(".")[0]}`,
       cancellable: true,
     },
     async (progress, cancellationToken) => {
-      let lastProgress = 0;
-      let simulatedProgress = 0;
-      const simulatedProgressInterval = setInterval(() => {
-        if (
-          simulatedProgress < 40 &&
-          !cancellationToken.isCancellationRequested
-        ) {
-          simulatedProgress += 1;
-          progress.report({ increment: 1 });
-        }
-      }, 2000);
-
       const process = await spawnWithVcastEnv(
         REQS2TESTS_EXECUTABLE_PATH,
         commandArgs
       );
 
       return new Promise<void>((resolve, reject) => {
-        console.log(`reqs2tests ${commandArgs.join(" ")}`);
+        const tracker = new ProgressTracker(progress, "reqs2tests");
 
         cancellationToken.onCancellationRequested(() => {
           process.kill();
-          clearInterval(simulatedProgressInterval);
           logCliOperation("Operation cancelled by user");
           resolve();
         });
 
         process.stdout.on("data", (data) => {
           if (cancellationToken.isCancellationRequested) return;
-          const output = data.toString();
-
-          const lines = output.split("\n");
-          for (const line of lines) {
-            try {
-              const json = JSON.parse(line);
-              if (json.event === "progress" && json.value !== undefined) {
-                const scaledProgress = json.value * 0.6;
-                const increment = (scaledProgress - lastProgress) * 100;
-                if (increment > 0) {
-                  progress.report({ increment });
-                  lastProgress = scaledProgress;
-                }
-              } else if (json.event === "problem" && json.value !== undefined) {
-                if (json.value.includes("Individual")) {
-                  return;
-                }
-                vscode.window.showWarningMessage(json.value);
-                logCliOperation(`Warning: ${json.value}`);
-              }
-            } catch (e) {
-              if (line) {
-                logCliOperation(`reqs2tests: ${line}`);
-              }
-            }
-          }
+          tracker.processOutput(data.toString());
         });
 
         process.stderr.on("data", (data) => {
@@ -436,7 +448,6 @@ export async function generateTestsFromRequirements(
         });
 
         process.on("close", async (code) => {
-          clearInterval(simulatedProgressInterval);
           if (cancellationToken.isCancellationRequested) return;
 
           if (code === 0) {
@@ -534,6 +545,7 @@ export async function importRequirementsFromGateway(enviroPath: string) {
     ...(addTraceability ? ["--infer-traceability"] : []),
     "--target-env",
     envPath,
+    "--json-events",
   ];
 
   const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
@@ -546,30 +558,20 @@ export async function importRequirementsFromGateway(enviroPath: string) {
       cancellable: true,
     },
     async (progress, cancellationToken) => {
-      let simulatedProgress = 0;
-      const simulatedProgressInterval = setInterval(() => {
-        if (
-          simulatedProgress < 90 &&
-          !cancellationToken.isCancellationRequested
-        ) {
-          simulatedProgress += 5;
-          progress.report({ increment: 5 });
-        }
-      }, 500);
-
       const proc = await spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
 
       return new Promise<void>((resolve, reject) => {
+        const tracker = new ProgressTracker(progress, "panreq");
+
         cancellationToken.onCancellationRequested(() => {
           proc.kill();
-          clearInterval(simulatedProgressInterval);
           logCliOperation("Operation cancelled by user");
           resolve();
         });
 
         proc.stdout.on("data", (d) => {
-          const out = d.toString();
-          logCliOperation(`panreq: ${out.trim()}`);
+          if (cancellationToken.isCancellationRequested) return;
+          tracker.processOutput(d.toString());
         });
 
         proc.stderr.on("data", (d) => {
@@ -578,9 +580,7 @@ export async function importRequirementsFromGateway(enviroPath: string) {
         });
 
         proc.on("close", async (code) => {
-          clearInterval(simulatedProgressInterval);
           if (cancellationToken.isCancellationRequested) return;
-
           if (code === 0) {
             logCliOperation(
               `reqs2excel completed successfully with code ${code}`
@@ -596,7 +596,7 @@ export async function importRequirementsFromGateway(enviroPath: string) {
             );
             resolve();
           } else {
-            const msg = `Error: reqs2excel exited with code ${code}`;
+            const msg = `Error: panreq exited with code ${code}`;
             vscode.window.showErrorMessage(msg);
             logCliError(msg, true);
             reject(new Error(msg));

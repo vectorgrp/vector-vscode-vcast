@@ -548,6 +548,10 @@ export async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
     processEnv.VCAST_REQS2X_LOG_LEVEL = "debug";
   }
 
+  if (config.get<boolean>("modelCompatibilityMode", false)) {
+    processEnv.VCAST_REQS2X_MODEL_COMPATIBILITY_MODE = "1";
+  }
+
   // Return the constructed environment
   return processEnv;
 }
