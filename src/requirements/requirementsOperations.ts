@@ -239,6 +239,7 @@ export async function generateRequirements(enviroPath: string) {
     "generateHighLevelRequirements",
     false
   );
+  const reorder = config.get<boolean>("reorder", true);
 
   const commandArgs = [
     "-e",
@@ -254,6 +255,10 @@ export async function generateRequirements(enviroPath: string) {
 
   if (generateHighLevelRequirements) {
     commandArgs.push("--generate-high-level-requirements");
+  }
+
+  if (!reorder) {
+    commandArgs.push("--no-reorder");
   }
 
   // Log the command being executed
@@ -363,11 +368,25 @@ export async function generateTestsFromRequirements(
   }
 
   // Get the decompose setting from configuration
-  const config = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  const config = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer.reqs2x"
+  );
   const decomposeRequirements = config.get<boolean>(
     "decomposeRequirements",
     true
   );
+
+  const noTestExamples = config.get<boolean>("noTestExamples", false);
+  const reorder = config.get<boolean>("reorder", true);
+
+  const retries = config.get<number>("retries", 2);
+  if (retries < 1) {
+    vscode.window.showErrorMessage(
+      "Retries must be greater than or equal to 1. Please check your settings."
+    );
+    return;
+  }
+
   const enableRequirementKeys =
     findRelevantRequirementGateway(enviroPath) !== null;
   console.log(decomposeRequirements, enableRequirementKeys);
@@ -380,9 +399,11 @@ export async function generateTestsFromRequirements(
     "--export-tst",
     tstPath,
     "--retries",
-    "1",
+    retries.toString(),
     "--batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
+    ...(noTestExamples ? ["--no-test-examples"] : []),
+    ...(!reorder ? ["--no-reorder"] : []),
     "--allow-partial",
     "--json-events",
     ...(enableRequirementKeys ? ["--requirement-keys"] : []),
