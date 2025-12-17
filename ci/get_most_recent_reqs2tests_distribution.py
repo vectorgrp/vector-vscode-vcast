@@ -41,7 +41,7 @@ if all(os.path.exists(f) for f in DISTRIBUTION_NAMES):
 
 BASE_URL = "https://artifactory.vi.vector.int/artifactory"
 BRANCH = os.getenv("R2T_RELEASE_BRANCH", "demo_release")
-logging.info(f"Using R2T_RELEASE_BRANCH: {BRANCH}")
+print(f"Using R2T_RELEASE_BRANCH: {BRANCH}, {os.getenv('R2T_RELEASE_BRANCH')}")
 PATH = f"rds-build-packages-generic-dev/code2reqs2tests/distributions/{BRANCH}"
 API_STORAGE_URL = f"{BASE_URL}/api/storage/{PATH}"
 
