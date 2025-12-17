@@ -2,6 +2,12 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.26] - 2025-12-15
+
+### Added
+- Improved Reqs2x progress tracking to be more precise
+- Added more detailed settings for some Reqs2x tools (including a compatibility mode to support LLM providers without structured outputs)
+
 ## [1.0.25] - 2025-11-20
 
 ### Added
