@@ -116,8 +116,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const outputView = await bottomBar.openOutputView();
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-    const workFolder = workspaceFolderSection.findItem("work");
-    await (await workFolder).select();
     const luaFolder = workspaceFolderSection.findItem("lua-5.4.0");
     await (await luaFolder).select();
     const srcFolder = workspaceFolderSection.findItem("src");
