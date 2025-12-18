@@ -6,6 +6,7 @@ import { testNodeType } from "./testData";
 import {
   getEnvPathForFilePath,
   getRangeOption,
+  normalizePath,
   resolveVcpPaths,
 } from "./utilities";
 
@@ -36,7 +37,7 @@ export async function updateCurrentActiveUnitMCDCLines() {
   let activeEditor = vscode.window.activeTextEditor;
   if (activeEditor) {
     // First we need to get the env name from the active file
-    const filePath = activeEditor.document.uri.fsPath;
+    const filePath = normalizePath(activeEditor.document.uri.fsPath);
     let enviroPath = getEnvPathForFilePath(filePath);
 
     // Get the unit name based on the file name without extension
