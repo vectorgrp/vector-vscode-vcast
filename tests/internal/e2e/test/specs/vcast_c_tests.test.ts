@@ -12,6 +12,7 @@ import {
   updateTestID,
   checkIfRequestInLogs,
   checkElementExistsInHTML,
+  findTreeNodeAtLevel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -110,9 +111,21 @@ describe("vTypeCheck VS Code Extension", () => {
     }
   });
 
+  it("should check for vcp node", async () => {
+    const outputView = await bottomBar.openOutputView();
+    const activityBar = workbench.getActivityBar();
+    const testingView = await activityBar.getViewControl("Testing");
+    await testingView?.openView();
+    const vcpNode = await findTreeNodeAtLevel(0, "env.vcp");
+    expect(compilerNode).toBeDefined();
+  });
+
   it("should check for c coverage", async () => {
     workbench = await browser.getWorkbench();
     bottomBar = workbench.getBottomBar();
+    const activityBar = workbench.getActivityBar();
+    const testingView = await activityBar.getViewControl("Explorer");
+    await testingView?.openView();
     const outputView = await bottomBar.openOutputView();
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
@@ -134,7 +147,9 @@ describe("vTypeCheck VS Code Extension", () => {
     }
     const icon = "no-cover-icon-with-mcdc";
     const tab = (await editorView.openEditor("lua.c")) as TextEditor;
-    const lineNumberElement = await $(`.line-numbers=80`);
+
+    const lineNumber = 65;
+    const lineNumberElement = await $(`.line-numbers=${lineNumber}`);
     const flaskElement = await (
       await lineNumberElement.parentElement()
     ).$(".cgmr.codicon");
@@ -173,9 +188,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Some important lines we want to check for in the report
     await expect(await checkElementExistsInHTML("lua.c")).toBe(true);
-    await expect(await checkElementExistsInHTML("80")).toBe(true);
+    await expect(await checkElementExistsInHTML("65")).toBe(true);
     await expect(
-      await checkElementExistsInHTML("Pairs satisfied: 0 of 1 ( 0% )")
+      await checkElementExistsInHTML("Pairs satisfied: 0 of 2 ( 0% )")
     ).toBe(true);
 
     await webview.close();
