@@ -117,7 +117,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
     const vcpNode = await findTreeNodeAtLevel(0, "env.vcp");
-    expect(compilerNode).toBeDefined();
+    expect(vcpNode).toBeDefined();
   });
 
   it("should check for c coverage", async () => {
