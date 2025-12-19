@@ -111,17 +111,6 @@ describe("vTypeCheck VS Code Extension", () => {
     }
   });
 
-  it("should change coverageKind and Rebuild env", async () => {
-    // We need to change the covarage kind to Statement+MCDC in order to get the MCDC lines
-    let settingsEditor = await workbench.openSettings();
-    const coverageKindSetting = await settingsEditor.findSetting(
-      "Coverage Kind",
-      "Vectorcast Test Explorer",
-      "Build"
-    );
-    await coverageKindSetting.setValue("Statement+MCDC");
-  });
-
   it("should check for vcp node", async () => {
     const outputView = await bottomBar.openOutputView();
     const activityBar = workbench.getActivityBar();
