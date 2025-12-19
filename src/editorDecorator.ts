@@ -66,6 +66,8 @@ export async function updateCurrentActiveUnitMCDCLines() {
       const mcdcLinesForUnit = mcdcUnitCoverageLines[unitName];
       // Check if there are no MCDC lines for the unit --> for example when the env is build with only Statement coverage
       // and the user changes it to Statement+MCDC in the settings
+      vectorMessage(`MCDC LINES FOR UNIT: ${unitName}`);
+      vectorMessage(mcdcLinesForUnit.toString());
       if (mcdcLinesForUnit) {
         currentActiveUnitMCDCLines = mcdcUnitCoverageLines[unitName];
       } else {
