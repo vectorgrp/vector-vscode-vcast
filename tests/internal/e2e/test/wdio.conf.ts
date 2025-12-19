@@ -335,6 +335,7 @@ export const config: Options.Testrunner = {
         async () => await buildEnvsWithSpecificReleases(initialWorkdir),
       ],
       ["MANAGE_TEST", async () => await testManage(initialWorkdir)],
+      ["C_COVERAGE", async () => await testCCoverage(initialWorkdir)],
     ]);
 
     // Determine the environment key
@@ -391,6 +392,31 @@ export const config: Options.Testrunner = {
      *                           INDIVIDUAL ENVIRONMENT SETUPS
      * ================================================================================================
      */
+
+    async function testCCoverage(initialWorkdir: string) {
+      const testInputCCoverage = path.join(initialWorkdir, "test", "cCoverage");
+      const workFolder = path.join(testInputCCoverage, "work");
+
+      await checkVPython();
+      clicastExecutablePath = await checkClicast();
+      process.env.CLICAST_PATH = clicastExecutablePath;
+
+      // Execute the coverage build script
+      const build_coverage = `cd ${testInputCCoverage} && bash ./c_cov_example.sh`;
+      await executeCommand(build_coverage);
+
+      await prepareConfig(initialWorkdir, clicastExecutablePath);
+
+      // Copy the work folder contents to vcastTutorial
+      const destFolder = path.join(initialWorkdir, "test", "vcastTutorial");
+      if (process.platform === "win32") {
+        await executeCommand(
+          `xcopy /s /i /y ${workFolder} ${destFolder} > NUL 2> NUL`
+        );
+      } else {
+        await executeCommand(`cp -r ${workFolder}/* ${destFolder}/`);
+      }
+    }
 
     async function testManage(initialWorkdir: string) {
       const testInputManage = path.join(initialWorkdir, "test", "manage");

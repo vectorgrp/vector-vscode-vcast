@@ -170,6 +170,14 @@ export function getSpecGroups(useVcast24: boolean) {
       },
       params: {},
     };
+    specGroups["c_coverage"] = {
+      specs: ["./**/**/vcast_c_tests.test.ts"],
+      env: {
+        VCAST_USE_PYTHON: "True",
+        C_COVERAGE: "True",
+      },
+      params: {},
+    };
 
     specGroups["basic_user_interactions_server"] = {
       specs: [
