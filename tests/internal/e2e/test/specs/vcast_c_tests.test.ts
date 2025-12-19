@@ -111,6 +111,17 @@ describe("vTypeCheck VS Code Extension", () => {
     }
   });
 
+  it("should change coverageKind and Rebuild env", async () => {
+    // We need to change the covarage kind to Statement+MCDC in order to get the MCDC lines
+    let settingsEditor = await workbench.openSettings();
+    const coverageKindSetting = await settingsEditor.findSetting(
+      "Coverage Kind",
+      "Vectorcast Test Explorer",
+      "Build"
+    );
+    await coverageKindSetting.setValue("Statement+MCDC");
+  });
+
   it("should check for vcp node", async () => {
     const outputView = await bottomBar.openOutputView();
     const activityBar = workbench.getActivityBar();
@@ -145,6 +156,9 @@ describe("vTypeCheck VS Code Extension", () => {
       // Select file from the explorer if not already open
       await (await file).select();
     }
+
+    await browser.pause(30000);
+
     const icon = "no-cover-icon-with-mcdc";
     const tab = (await editorView.openEditor("lua.c")) as TextEditor;
 
