@@ -149,6 +149,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const tab = (await editorView.openEditor("lua.c")) as TextEditor;
 
     const lineNumber = 65;
+    await tab.moveCursor(lineNumber, 1);
     const lineNumberElement = await $(`.line-numbers=${lineNumber}`);
     const flaskElement = await (
       await lineNumberElement.parentElement()
