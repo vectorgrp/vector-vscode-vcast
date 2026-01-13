@@ -126,45 +126,65 @@ describe("vTypeCheck VS Code Extension", () => {
     const activityBar = workbench.getActivityBar();
     const testingView = await activityBar.getViewControl("Explorer");
     await testingView?.openView();
-    const outputView = await bottomBar.openOutputView();
+
+    await bottomBar.toggle(false);
+
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+
+    const workFolder = workspaceFolderSection.findItem("work");
+    await (await workFolder).select();
+
     const luaFolder = workspaceFolderSection.findItem("lua-5.4.0");
     await (await luaFolder).select();
+
     const srcFolder = workspaceFolderSection.findItem("src");
     await (await srcFolder).select();
+
     const file = workspaceFolderSection.findItem("lua.c");
     await (await file).select();
 
     // Check if the file is already open in the editor
     const editorView = workbench.getEditorView();
-    // List of open editor titles
     const openEditors = await editorView.getOpenEditorTitles();
     const isFileOpen = openEditors.includes("lua.c");
+
     if (!isFileOpen) {
-      // Select file from the explorer if not already open
       await (await file).select();
     }
 
-    await browser.pause(30000);
+    // Give VS Code some time to settle (language server, decorations, etc.)
+    await browser.pause(30_000);
 
     const icon = "no-cover-icon-with-mcdc";
-    const tab = (await editorView.openEditor("lua.c")) as TextEditor;
-
     const lineNumber = 65;
+
+    const tab = (await editorView.openEditor("lua.c")) as TextEditor;
     await tab.moveCursor(lineNumber, 1);
+
+    // Use the EXACT same pattern as the working test
     const lineNumberElement = await $(`.line-numbers=${lineNumber}`);
     const flaskElement = await (
       await lineNumberElement.parentElement()
     ).$(".cgmr.codicon");
+
+    // Verify the icon
     const backgroundImageCSS =
       await flaskElement.getCSSProperty("background-image");
-    const backgroundImageURL = backgroundImageCSS.value;
-    const BEAKER = `/${icon}`;
-    expect(backgroundImageURL.includes(BEAKER)).toBe(true);
+    expect(backgroundImageCSS.value.includes(`/${icon}`)).toBe(true);
 
+    // Close bottom bar before context menu
+    await bottomBar.toggle(false);
+    await browser.pause(1000);
+
+    // Open context menu
     await flaskElement.click({ button: 2 });
+    await browser.pause(2000);
     await (await $("aria/VectorCAST MC/DC Report")).click();
+
+    const outputView = await bottomBar.openOutputView();
+
+    // Wait for report generation
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
@@ -172,31 +192,34 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Report file path is:"),
       { timeout: TIMEOUT }
     );
+
+    // Wait for webview to open
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length > 0,
       { timeout: TIMEOUT }
     );
+
     const webviews = await workbench.getAllWebviews();
     expect(webviews).toHaveLength(1);
-    const webview = webviews[0];
 
+    const webview = webviews[0];
     await webview.open();
 
-    // Retrieve the HTML and count the number of div.report-block
+    // Count report blocks in the HTML
     const reportBlockCount = await browser.execute(() => {
-      // Use querySelectorAll to count how many <div class="report-block"> elements are in the document
       return document.querySelectorAll("div.report-block").length;
     });
 
     expect(reportBlockCount).toEqual(1);
 
-    // Some important lines we want to check for in the report
+    // Validate report content
     await expect(await checkElementExistsInHTML("lua.c")).toBe(true);
     await expect(await checkElementExistsInHTML("65")).toBe(true);
     await expect(
       await checkElementExistsInHTML("Pairs satisfied: 0 of 2 ( 0% )")
     ).toBe(true);
 
+    // Cleanup
     await webview.close();
     await editorView.closeEditor("VectorCAST Report", 1);
   });

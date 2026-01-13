@@ -394,28 +394,37 @@ export const config: Options.Testrunner = {
      */
 
     async function testCCoverage(initialWorkdir: string) {
+      const workFolder = path.join(initialWorkdir, "test", "vcastTutorial");
       const testInputCCoverage = path.join(initialWorkdir, "test", "cCoverage");
-      const workFolder = path.join(testInputCCoverage, "work");
 
       await checkVPython();
       clicastExecutablePath = await checkClicast();
       process.env.CLICAST_PATH = clicastExecutablePath;
 
-      // Execute the coverage build script
-      const build_coverage = `cd ${testInputCCoverage} && bash ./c_cov_example.sh`;
-      await executeCommand(build_coverage);
-
       await prepareConfig(initialWorkdir, clicastExecutablePath);
 
-      // Copy the work folder contents to vcastTutorial
-      const destFolder = path.join(initialWorkdir, "test", "vcastTutorial");
+      // Create vcastTutorial directory
+      await mkdir(workFolder, { recursive: true });
+
+      // Copy the build script to vcastTutorial
+      const scriptSource = path.join(testInputCCoverage, "c_cov_example.sh");
+      const scriptDest = path.join(workFolder, "c_cov_example.sh");
+      const envSource = path.join(testInputCCoverage, "env.enc");
+      const envDest = path.join(workFolder, "env.enc");
+
       if (process.platform === "win32") {
-        await executeCommand(
-          `xcopy /s /i /y ${workFolder} ${destFolder} > NUL 2> NUL`
-        );
+        await executeCommand(`copy /y ${scriptSource} ${scriptDest}`);
+        await executeCommand(`copy /y ${envSource} ${envDest}`);
       } else {
-        await executeCommand(`cp -r ${workFolder}/* ${destFolder}/`);
+        await executeCommand(`cp ${scriptSource} ${scriptDest}`);
+        await executeCommand(`cp ${envSource} ${envDest}`);
       }
+
+      // Execute the coverage build script in vcastTutorial
+      const build_coverage = `cd ${workFolder} && bash ./c_cov_example.sh`;
+      await executeCommand(build_coverage);
+
+      // No copy needed - everything is already in the right place!
     }
 
     async function testManage(initialWorkdir: string) {
