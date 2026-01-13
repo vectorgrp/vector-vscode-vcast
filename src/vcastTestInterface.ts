@@ -907,7 +907,7 @@ export async function newEnvironment(
   // file in the list will be a C/C++ file but we need to filter
   // for the multi-select case.
   //
-
+  vectorMessage("-------------0---------------");
   let fileList: string[] = [];
   for (let index = 0; index < URIlist.length; index++) {
     const filePath = URIlist[index].fsPath;
@@ -938,12 +938,14 @@ export async function newEnvironment(
         );
         return;
       }
+      vectorMessage("-------------1---------------");
       await configureWorkspaceAndBuildEnviro(
         fileList,
         tempEnvPath,
         projectEnvParameters
       );
     } else {
+      vectorMessage("-------------1.5---------------");
       let unitTestLocation = getUnitTestLocationForPath(
         path.dirname(fileList[0])
       );
@@ -956,6 +958,7 @@ export async function newEnvironment(
         "]"
     );
   }
+  vectorMessage("-------------2---------------");
   await refreshAllExtensionData();
 }
 
