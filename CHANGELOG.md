@@ -2,12 +2,16 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.27] - 2025-12-17
+
+### Bug fixes
+- The LLM compatibility mode is now correctly applied to pre-run model usability checks too
+
 ## [1.0.26] - 2025-12-17
 
 ### Added
 - Improved Reqs2x progress tracking to be more precise
 - Added more detailed settings for some Reqs2x tools (including a compatibility mode to support LLM providers without structured outputs)
-- Added support for Multi-Root Workspaces
 
 ## [1.0.25] - 2025-11-20
 
