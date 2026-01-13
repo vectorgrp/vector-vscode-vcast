@@ -38,8 +38,9 @@ export async function updateCurrentActiveUnitMCDCLines() {
   if (activeEditor) {
     // First we need to get the env name from the active file
     const filePath = normalizePath(activeEditor.document.uri.fsPath);
+    vectorMessage(`filepath: ${filePath}`);
     let enviroPath = getEnvPathForFilePath(filePath);
-
+    vectorMessage(`enviroPath: ${enviroPath}`);
     // Get the unit name based on the file name without extension
     const fullPath = activeEditor.document.fileName;
     let unitName = path.basename(fullPath, path.extname(fullPath));
@@ -51,6 +52,7 @@ export async function updateCurrentActiveUnitMCDCLines() {
       fullPath
     ));
 
+    vectorMessage(`enviroPath: ${enviroPath}, unitName: ${unitName}`);
     // Get all mcdc lines for every unit and parse it into JSON
     if (enviroPath) {
       // Replace single quotes with double quotes to make it a valid JSON string
