@@ -424,7 +424,7 @@ export const config: Options.Testrunner = {
       const build_coverage = `cd ${workFolder} && bash ./c_cov_example.sh`;
       await executeCommand(build_coverage);
 
-      // No copy needed - everything is already in the right place!
+      // No copy needed - everything is put in place by the sh script
     }
 
     async function testManage(initialWorkdir: string) {

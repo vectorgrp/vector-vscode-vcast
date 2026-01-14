@@ -857,8 +857,7 @@ async function commonEnvironmentSetup(
   // Derive the environment name and path
   let enviroName = createEnvNameFromFiles(fileList)!.toUpperCase();
   let enviroPath = path.join(envLocation, enviroName);
-  vectorMessage(`enviroName: ${enviroName}`);
-  vectorMessage(`enviroPath 2: ${enviroPath}`);
+
   // If the directory already exists, prompt for a new name
   if (fs.existsSync(enviroPath)) {
     const response = await vscode.window.showInputBox({
@@ -914,7 +913,6 @@ export async function newEnvironment(
       fileList.push(filePath);
     }
   }
-  vectorMessage(`FILELIST: ${fileList.toString()}`);
   if (fileList.length > 0) {
     if (projectEnvParameters) {
       // Get the workspace root folder.

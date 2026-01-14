@@ -38,9 +38,7 @@ export async function updateCurrentActiveUnitMCDCLines() {
   if (activeEditor) {
     // First we need to get the env name from the active file
     const filePath = normalizePath(activeEditor.document.uri.fsPath);
-    vectorMessage(`filepath: ${filePath}`);
     let enviroPath = getEnvPathForFilePath(filePath);
-    vectorMessage(`enviroPath: ${enviroPath}`);
     // Get the unit name based on the file name without extension
     const fullPath = activeEditor.document.fileName;
     let unitName = path.basename(fullPath, path.extname(fullPath));
@@ -52,7 +50,6 @@ export async function updateCurrentActiveUnitMCDCLines() {
       fullPath
     ));
 
-    vectorMessage(`enviroPath: ${enviroPath}, unitName: ${unitName}`);
     // Get all mcdc lines for every unit and parse it into JSON
     if (enviroPath) {
       // Replace single quotes with double quotes to make it a valid JSON string
@@ -68,9 +65,7 @@ export async function updateCurrentActiveUnitMCDCLines() {
       const mcdcLinesForUnit = mcdcUnitCoverageLines[unitName];
       // Check if there are no MCDC lines for the unit --> for example when the env is build with only Statement coverage
       // and the user changes it to Statement+MCDC in the settings
-      vectorMessage(`MCDC LINES FOR UNIT: ${unitName}`);
       if (mcdcLinesForUnit) {
-        vectorMessage(mcdcLinesForUnit.toString());
         currentActiveUnitMCDCLines = mcdcUnitCoverageLines[unitName];
       } else {
         currentActiveUnitMCDCLines = [];

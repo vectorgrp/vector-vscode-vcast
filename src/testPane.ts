@@ -652,10 +652,10 @@ export function addVcpEnvironments(
       environmentList.push({
         projectPath: "", // VCPs are usually standalone or treated differently than managed envs
         buildDirectory: normalizedPath, // We use the VCP file path as the identifier
-        isBuilt: true, // VCPs are considered "non-built" / accessible
+        isBuilt: true,
         displayName: displayName,
         workspaceRoot: workspaceRoot,
-        isVcp: true, // Flag to identify this as a VCP node if needed downstream
+        isVcp: true,
       });
     }
   }
