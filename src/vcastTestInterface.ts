@@ -755,8 +755,11 @@ async function configureWorkspaceAndBuildEnviro(
   // If we have project params, we want to create an env within a project
   if (projectEnvParameters) {
     // Create the environment using the provided file list
+    vectorMessage("############## 0 ##############");
+    vectorMessage(`envLocation: ${envLocation}`);
+    vectorMessage(`fileList: ${fileList.toString()}`);
     await commonEnvironmentSetup(fileList, envLocation, false);
-
+    vectorMessage("############## 1 ##############");
     const envName = createEnvNameFromFiles(fileList);
     const envFilePath = path.join(envLocation, `${envName}.env`);
     const testSuites = projectEnvParameters.testsuiteArgs;
@@ -858,7 +861,8 @@ async function commonEnvironmentSetup(
   // Derive the environment name and path
   let enviroName = createEnvNameFromFiles(fileList)!.toUpperCase();
   let enviroPath = path.join(envLocation, enviroName);
-
+  vectorMessage(`enviroName: ${enviroName}`);
+  vectorMessage(`enviroPath 2: ${enviroPath}`);
   // If the directory already exists, prompt for a new name
   if (fs.existsSync(enviroPath)) {
     const response = await vscode.window.showInputBox({
@@ -885,7 +889,7 @@ async function commonEnvironmentSetup(
       return;
     }
   }
-
+  vectorMessage("############## 2 ##############");
   // Build the environment with the valid name
   await buildEnvironmentVCAST(
     fileList,
