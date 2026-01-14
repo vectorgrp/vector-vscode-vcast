@@ -814,6 +814,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const button = await $(`aria/Import OK`);
     await button.click();
     console.log("Checking for Output logs if Environment creation is finished");
+    await bottomBar.maximize();
     await browser.waitUntil(
       async () =>
         (await outputView.getText())

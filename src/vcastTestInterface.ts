@@ -920,6 +920,7 @@ export async function newEnvironment(
       fileList.push(filePath);
     }
   }
+  vectorMessage(`FILELIST: ${fileList.toString()}`);
   if (fileList.length > 0) {
     if (projectEnvParameters) {
       // Get the workspace root folder.
