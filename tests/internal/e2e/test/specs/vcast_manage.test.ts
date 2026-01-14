@@ -181,6 +181,40 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(compilerNode).toBeDefined();
   });
 
+  it("testing setting default vcshell.db", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+    const vcshellFolder = workspaceFolderSection.findItem("tutorial");
+    await (await vcshellFolder).select();
+
+    console.log("Selecting vcshell.db");
+    const vcshell = await workspaceFolderSection.findItem("vcshell.db");
+    await executeCtrlClickOn(vcshell);
+    await releaseCtrl();
+    console.log("Executing: Set as default Database");
+    await vcshell.openContextMenu();
+    await (await $("aria/Set as default Database")).click();
+
+    console.log("Checking whetehr Setting got updated");
+    const settingsEditor = await workbench.openSettings();
+    const databaseLocationSetting = await settingsEditor.findSetting(
+      "Database Location",
+      "Vectorcast Test Explorer"
+    );
+    const locationValue = await databaseLocationSetting.getValue();
+    expect(locationValue.toString().endsWith("vcshell.db")).toBe(true);
+  });
+
   it("testing creating second project 'Banana'", async () => {
     await updateTestID();
     await bottomBar.toggle(true);
@@ -199,11 +233,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await insertStringToInput("Banana", "Project Name Input");
     await browser.keys(["Tab"]);
     await browser.keys("GNU Native_Automatic_C++");
+    // Toggle "Enable Coded Tests" ON
     await browser.keys(["Tab"]);
-    // Toggle "Enable Coded Tests" OFF
     await browser.keys([" "]);
+    // Toggle "Set as Default CFG" ON
     await browser.keys(["Tab"]);
-    // Toggle "Set as Default CFG" OFF
+    await browser.keys([" "]);
+    // Toggle vcshell.db option ON
+    await browser.keys(["Tab"]);
     await browser.keys([" "]);
     await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
@@ -215,6 +252,17 @@ describe("vTypeCheck VS Code Extension", () => {
         (await outputView.getText())
           .toString()
           .includes(`-lc option VCAST_CODED_TESTS_SUPPORT TRUE`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () => {
+        const output = (await outputView.getText()).toString();
+        return (
+          output.includes("clicast: '-lc option VCDB_FILENAME") &&
+          output.includes("vcshell.db)' returned exit code: 0")
+        );
+      },
       { timeout: TIMEOUT }
     );
 
