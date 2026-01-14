@@ -755,11 +755,7 @@ async function configureWorkspaceAndBuildEnviro(
   // If we have project params, we want to create an env within a project
   if (projectEnvParameters) {
     // Create the environment using the provided file list
-    vectorMessage("############## 0 ##############");
-    vectorMessage(`envLocation: ${envLocation}`);
-    vectorMessage(`fileList: ${fileList.toString()}`);
     await commonEnvironmentSetup(fileList, envLocation, false);
-    vectorMessage("############## 1 ##############");
     const envName = createEnvNameFromFiles(fileList);
     const envFilePath = path.join(envLocation, `${envName}.env`);
     const testSuites = projectEnvParameters.testsuiteArgs;
@@ -889,7 +885,6 @@ async function commonEnvironmentSetup(
       return;
     }
   }
-  vectorMessage("############## 2 ##############");
   // Build the environment with the valid name
   await buildEnvironmentVCAST(
     fileList,
@@ -911,7 +906,6 @@ export async function newEnvironment(
   // file in the list will be a C/C++ file but we need to filter
   // for the multi-select case.
   //
-  vectorMessage("-------------0---------------");
   let fileList: string[] = [];
   for (let index = 0; index < URIlist.length; index++) {
     const filePath = URIlist[index].fsPath;
@@ -943,14 +937,12 @@ export async function newEnvironment(
         );
         return;
       }
-      vectorMessage("-------------1---------------");
       await configureWorkspaceAndBuildEnviro(
         fileList,
         tempEnvPath,
         projectEnvParameters
       );
     } else {
-      vectorMessage("-------------1.5---------------");
       let unitTestLocation = getUnitTestLocationForPath(
         path.dirname(fileList[0])
       );
@@ -963,7 +955,6 @@ export async function newEnvironment(
         "]"
     );
   }
-  vectorMessage("-------------2---------------");
   await refreshAllExtensionData();
 }
 

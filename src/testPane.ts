@@ -1835,11 +1835,8 @@ export async function refreshAllExtensionData() {
   //      - we fall back from server mode
   //
   resetCoverageData();
-  vectorMessage("-------------3---------------");
   await buildTestPaneContents();
-  vectorMessage("-------------4---------------");
   await updateCOVdecorations();
-  vectorMessage("-------------5---------------");
   // Global varibale to see if we have a manage Project opened or just an Environment
   setGlobalProjectIsOpenedChecker();
   setGlobalCompilerAndTestsuites();
