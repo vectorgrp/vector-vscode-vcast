@@ -847,6 +847,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const testsuiteNode = await findTreeNodeAtLevel(3, "DATABASE-MANAGER");
     expect(testsuiteNode).toBeDefined();
 
+    await bottomBar.restore();
+
     // Closing all current notifications for the next test
     const notificationsCenter = await workbench.openNotificationsCenter();
     await notificationsCenter.clearAllNotifications();
