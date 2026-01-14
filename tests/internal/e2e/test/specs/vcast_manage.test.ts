@@ -206,13 +206,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Set as default Database")).click();
 
     console.log("Checking whetehr Setting got updated");
-    const settingsEditor = await workbench.openSettings();
-    const databaseLocationSetting = await settingsEditor.findSetting(
-      "Database Location",
-      "Vectorcast Test Explorer"
-    );
-    const locationValue = await databaseLocationSetting.getValue();
-    expect(locationValue.toString().endsWith("vcshell.db")).toBe(true);
+    const workspaceDbLocation = await browser.executeWorkbench((vscode) => {
+      return vscode.workspace
+        .getConfiguration("vectorcastTestExplorer")
+        .get("databaseLocation", vscode.ConfigurationTarget.Workspace);
+    });
+
+    expect(workspaceDbLocation).toBeDefined();
+    expect(workspaceDbLocation.toString().endsWith("vcshell.db")).toBe(true);
   });
 
   it("testing creating second project 'Banana'", async () => {
