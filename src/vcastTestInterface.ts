@@ -189,6 +189,7 @@ export function clearTestDataFromStatusArray(): void {
 // List of source file from all local environments
 interface coverageDataType {
   crc32Checksum: number;
+  isVCP: boolean;
   covered: number[];
   uncovered: number[];
   partiallyCovered: number[];
@@ -248,7 +249,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
       let uncoveredList: number[] = [];
       let partiallyCoveredList: number[] = [];
       for (const enviroData of dataForThisFile.enviroList.values()) {
-        if (enviroData.crc32Checksum == checksum) {
+        if (enviroData.crc32Checksum == checksum || enviroData.isVCP) {
           coveredList = coveredList.concat(enviroData.covered);
           uncoveredList = uncoveredList.concat(enviroData.uncovered);
           partiallyCoveredList = partiallyCoveredList.concat(
@@ -338,7 +339,9 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
         .map(Number);
 
     const checksum = fileList[fileIndex].cmcChecksum;
+
     let coverageData: coverageDataType = {
+      isVCP: enviroPath.endsWith(".vcp"),
       crc32Checksum: checksum,
       covered: coveredList,
       uncovered: uncoveredList,
@@ -753,7 +756,6 @@ async function configureWorkspaceAndBuildEnviro(
   if (projectEnvParameters) {
     // Create the environment using the provided file list
     await commonEnvironmentSetup(fileList, envLocation, false);
-
     const envName = createEnvNameFromFiles(fileList);
     const envFilePath = path.join(envLocation, `${envName}.env`);
     const testSuites = projectEnvParameters.testsuiteArgs;
@@ -882,7 +884,6 @@ async function commonEnvironmentSetup(
       return;
     }
   }
-
   // Build the environment with the valid name
   await buildEnvironmentVCAST(
     fileList,
@@ -904,7 +905,6 @@ export async function newEnvironment(
   // file in the list will be a C/C++ file but we need to filter
   // for the multi-select case.
   //
-
   let fileList: string[] = [];
   for (let index = 0; index < URIlist.length; index++) {
     const filePath = URIlist[index].fsPath;

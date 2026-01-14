@@ -1,10 +1,12 @@
 import argparse
 import pathlib
 import sys
+import os
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
+from vector.apps.DataAPI.cover_api import CoverApi
 
-from pythonUtilities import monkeypatch_custom_css
+from pythonUtilities import monkeypatch_custom_css, get_api_context
 
 
 def parse_args():
@@ -32,8 +34,13 @@ def parse_args():
 def get_mcdc_lines(env):
     all_lines_with_data = {}
 
-    with UnitTestApi(env) as api:
-        for unit in api.Unit.filter():
+    ApiClass, entity_attr = get_api_context(env)
+
+    with ApiClass(env) as api:
+        # Access the API property (api.Unit or api.File) dynamically
+        source_modules = getattr(api, entity_attr)
+
+        for unit in source_modules.filter():
             for mcdc_dec in unit.cover_data.mcdc_decisions:
                 if not mcdc_dec.num_conditions:
                     continue
@@ -63,11 +70,15 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
     # Patch get_option to use our CSS without setting the CFG option
     monkeypatch_custom_css(custom_css)
 
-    # Open-up the unit test API
-    with UnitTestApi(env) as api:
+    # We have to check whether env is the path to a "Normal" env or to a "Cover Project"
+    # and therefore use a different API
+    ApiClass, entity_attr = get_api_context(env)
+
+    with ApiClass(env) as api:
+        source_modules = getattr(api, entity_attr)
         # Find and check for our unit
         unit_found = False
-        for unit in api.Unit.filter(name=unit_filter):
+        for unit in source_modules.filter(name=unit_filter):
             unit_found = True
 
             # Spin through all MCDC decisions looking for the one on our line

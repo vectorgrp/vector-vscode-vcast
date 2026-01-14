@@ -6,6 +6,10 @@ import time
 import re
 from vector.apps.DataAPI.configuration import EnvironmentMixin
 
+from vector.apps.DataAPI.unit_test_api import UnitTestApi
+from vector.apps.DataAPI.cover_api import CoverApi
+
+
 # This contains the clicast command that was used to start the data server
 globalClicastCommand = ""
 
@@ -233,3 +237,20 @@ def expand_vc_env_vars(path: str) -> str:
         return match.group(0)
 
     return env_var_pattern.sub(repl, path)
+
+
+def get_api_context(env_path):
+    """
+    Determines if the environment is a Cover Project or a standard Unit Test env.
+    And returns what API we need to use.
+    """
+    clean_path = os.path.normpath(env_path)
+
+    # Check if it's a Cover project by checking if there is a vcp file
+    # with the same name on the same level like the build dir (env_path)
+    vcp_file = clean_path + ".vcp"
+    if os.path.isfile(vcp_file):
+        return CoverApi, "File"
+
+    # If there is no vcp file --> normal env
+    return UnitTestApi, "Unit"

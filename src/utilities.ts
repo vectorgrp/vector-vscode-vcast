@@ -406,7 +406,9 @@ export async function updateCoverageAndRebuildEnv() {
   }
   // Now rebuild every env so that the coverage is updated
   for (let enviroPath of envArray) {
-    await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
+    if (!enviroPath.endsWith(".vcp")) {
+      await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
+    }
   }
 }
 
@@ -456,4 +458,26 @@ export async function getFullEnvReport(
 
   // Return the generated HTML file path
   return htmlReportPath;
+}
+
+/**
+ * Checks if the environment is a Cover Project (.vcp).
+ * If so, it adjusts the environment path (removing .vcp) and appends the
+ * file extension to the unit name, as required by the Cover API.
+ */
+export function resolveVcpPaths(
+  enviroPath: string | null,
+  unitName: string,
+  fullFilePath: string
+): { enviroPath: string | null; unitName: string } {
+  if (enviroPath?.endsWith(".vcp")) {
+    // Cover projects require the full filename (e.g. "manager.c" instead of "manager")
+    unitName = unitName + path.extname(fullFilePath);
+
+    // The build directory for VCP is the path without the .vcp extension
+    const parsed = path.parse(enviroPath);
+    enviroPath = path.join(parsed.dir, parsed.name);
+  }
+
+  return { enviroPath, unitName };
 }
