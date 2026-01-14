@@ -643,7 +643,7 @@ export function addVcpEnvironments(
   workspaceRoot: string
 ): void {
   // Check if the cached data exists and has the 'vcp' key we added in Python
-  if (cachedWorkspaceEnvData && cachedWorkspaceEnvData.vcp) {
+  if (cachedWorkspaceEnvData?.vcp) {
     for (const vcpData of cachedWorkspaceEnvData.vcp) {
       // vcpData contains: { vcpPath, testData (empty), unitData, mockingSupport }
       const normalizedPath = normalizePath(vcpData.vcpPath);

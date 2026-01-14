@@ -6,15 +6,13 @@ import {
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
-  releaseCtrl,
-  executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   updateTestID,
   checkIfRequestInLogs,
   checkElementExistsInHTML,
   findTreeNodeAtLevel,
+  TIMEOUT,
 } from "../test_utils/vcast_utils";
-import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
 
 describe("vTypeCheck VS Code Extension", () => {
@@ -112,7 +110,6 @@ describe("vTypeCheck VS Code Extension", () => {
   });
 
   it("should check for vcp node", async () => {
-    const outputView = await bottomBar.openOutputView();
     const activityBar = workbench.getActivityBar();
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
