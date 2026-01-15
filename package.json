@@ -1189,13 +1189,13 @@
     "@eslint/js": "^9.1.1",
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
-    "@types/node": "16.x",
+    "@types/node": "18.0.0",
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.59.0",
     "@typescript-eslint/parser": "^5.59.0",
     "@vitest/coverage-v8": "^0.32.2",
     "@vscode/test-electron": "^1.6.2",
-    "esbuild": "^0.14.2",
+    "esbuild": "^0.25.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-prettier": "^4.2.1",
@@ -1205,16 +1205,16 @@
     "typescript": "^4.9.5",
     "typescript-eslint": "^7.7.1",
     "unzipper": "^0.10.11",
-    "vite": "^4.3.9",
+    "vite": "^5.4.21",
     "vitest": "^0.32.2"
   },
   "dependencies": {
     "@vscode/vsce": "^2.32.0",
-    "axios": "^1.7.7",
+    "axios": "^1.12.0",
     "convert-excel-to-json": "^1.7.0",
     "crc-32": "^1.2.0",
     "csv-parse": "^5.6.0",
-    "glob": "^7.1.7",
+    "glob": "^10.5.0",
     "hasbin": "^1.2.3",
     "jsonc-parser": "^3.2.1",
     "local": "^0.3.3",
@@ -1229,5 +1229,19 @@
   "extensionDependencies": [],
   "engines": {
     "vscode": "^1.79.0"
+  },
+  "overrides": {
+    "rollup": ">=3.29.5",
+    "qs": ">=6.14.1",
+    "cross-spawn": ">=7.0.5",
+    "braces": ">=3.0.3",
+    "jws": ">=4.0.1",
+    "webpack": ">=5.94.0",
+    "undici": ">=6.23.0",
+    "serialize-javascript": ">=6.0.2",
+    "micromatch": ">=4.0.8",
+    "js-yaml": ">=4.1.1",
+    "tmp": ">=0.2.4",
+    "brace-expansion": ">=2.0.2"
   }
 }

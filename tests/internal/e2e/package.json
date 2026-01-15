@@ -7,13 +7,13 @@
         "@types/global-agent": "^2.1.1",
         "@typescript-eslint/eslint-plugin": "^5.54.1",
         "@typescript-eslint/parser": "^5.54.1",
-        "@wdio/cli": "^8.6.5",
+        "@wdio/cli": "^8.21.0",
         "@wdio/junit-reporter": "^8.36.1",
-        "@wdio/local-runner": "^8.6.3",
-        "@wdio/mocha-framework": "^8.6.1",
+        "@wdio/local-runner": "^8.21.0",
+        "@wdio/mocha-framework": "^8.21.0",
         "@wdio/spec-reporter": "^8.4.0",
         "child_process": "^1.0.2",
-        "chromedriver": "^107.0.3",
+        "chromedriver": "^119.0.1",
         "create-wdio": "^8.2.2",
         "csv-parse": "^5.3.4",
         "eslint": "^8.35.0",
@@ -27,5 +27,22 @@
         "wdio-chromedriver-service": "^8.1.1",
         "wdio-devtools-service": "^0.1.6",
         "wdio-vscode-service": "^5.0.0"
-    }
+    },
+  "overrides": {
+    "ws": ">=8.17.1",
+    "form-data": ">=4.0.4",
+    "axios": ">=1.12.0",
+    "ejs": ">=3.1.10",
+    "braces": ">=3.0.3",
+    "glob": ">=10.5.0",
+    "jws": ">=4.0.1",
+    "follow-redirects": ">=1.15.6",
+    "undici": ">=6.23.0",
+    "serialize-javascript": ">=6.0.2",
+    "js-yaml": ">=4.1.1",
+    "tmp": ">=0.2.4",
+    "brace-expansion": ">=2.0.2",
+    "ip": ">=2.0.1",
+    "cookie": ">=0.7.0"
+  }
 }
