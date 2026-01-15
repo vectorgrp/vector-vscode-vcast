@@ -876,10 +876,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const pendingNotification = await $(vcastNotificationSelector);
     await browser.takeScreenshot();
     await browser.saveScreenshot("info_clicked_on_delete.png");
-    // await pendingNotification.waitForExist({
-    //   timeout: TIMEOUT,
-    //   timeoutMsg: "Timeout waiting for VectorCAST notification to be generated",
-    // });
 
     // Navigate to the Delete button
     const vcastNotification = await $(vcastNotificationSelector).$("..");
@@ -941,8 +937,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-    const cppFolder = workspaceFolderSection.findItem("tutorial");
-    // await (await cppFolder).select();
 
     console.log("Selecting database.cpp & manager.cpp");
     const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
