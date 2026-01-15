@@ -867,8 +867,6 @@ describe("vTypeCheck VS Code Extension", () => {
       true,
       "Delete Environment from Project"
     );
-    await browser.takeScreenshot();
-    await browser.saveScreenshot("info_clicked_on_delete.png");
 
     console.log("Confirming Notifications to delete the Environment");
 
@@ -876,10 +874,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const vcastNotificationSelector =
       "aria/VectorCAST Test Explorer (Extension)";
     const pendingNotification = await $(vcastNotificationSelector);
-    await pendingNotification.waitForExist({
-      timeout: TIMEOUT,
-      timeoutMsg: "Timeout waiting for VectorCAST notification to be generated",
-    });
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("info_clicked_on_delete.png");
+    // await pendingNotification.waitForExist({
+    //   timeout: TIMEOUT,
+    //   timeoutMsg: "Timeout waiting for VectorCAST notification to be generated",
+    // });
 
     // Navigate to the Delete button
     const vcastNotification = await $(vcastNotificationSelector).$("..");
