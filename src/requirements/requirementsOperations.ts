@@ -378,7 +378,7 @@ export async function generateTestsFromRequirements(
 
   const noTestExamples = config.get<boolean>("noTestExamples", false);
   const reorder = config.get<boolean>("reorder", true);
-  const allowUUTStubs = config.get<boolean>("allowUUTStubs", true);
+  const allowUUTStubs = config.get<boolean>("enableUutStubbing", true);
 
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
