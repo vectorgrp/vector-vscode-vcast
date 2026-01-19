@@ -2,7 +2,7 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
-## [1.0.27] - 2025-12-17
+## [1.0.27] - 2025-12-15
 
 ### Bug fixes
 - The LLM compatibility mode is now correctly applied to pre-run model usability checks too
