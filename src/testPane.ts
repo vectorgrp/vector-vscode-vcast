@@ -703,7 +703,7 @@ let vcastHasCodedTestsList: string[] = [];
 
 // Global cache for workspace-wide env data
 // Used to avoid redundant API calls during refresh
-let cachedWorkspaceEnvData: CachedWorkspaceData | null = null;
+export let cachedWorkspaceEnvData: CachedWorkspaceData | null = null;
 
 export function clearCachedWorkspaceEnvData(): void {
   cachedWorkspaceEnvData = null;
@@ -950,6 +950,7 @@ async function loadAllVCTests(
   vcastUnbuiltEnviroList = [];
   clearEnviroDataCache();
   clearTestNodeCache();
+  clearCachedWorkspaceEnvData();
 
   // Resets the "used" and empty/unused compilers / testsuites
   clearGlobalCompilersAndTestsuites();
@@ -1015,7 +1016,6 @@ async function loadAllVCTests(
   // end if workspace folders
 
   checkWorkspaceEnvDataForErrors();
-  clearCachedWorkspaceEnvData();
 
   // In case we have empty testsuites or compilers in the project,
   // we won't find them in the Env data so we have to add them manually here

@@ -1612,6 +1612,18 @@ export async function checkForGutterAndGenerateReport(
     const contextMenu = await unit.openContextMenu();
     await contextMenu.select("VectorCAST");
     await (await $("aria/Open Source File under Test")).click();
+
+    // Wait for the file to actually open in the editor
+    await browser.waitUntil(
+      async () => {
+        const titles = await editorView.getOpenEditorTitles();
+        return titles.includes(unitFileName);
+      },
+      {
+        timeout: TIMEOUT,
+        timeoutMsg: `File ${unitFileName} did not open within timeout`,
+      }
+    );
   }
 
   const tab = (await editorView.openEditor(unitFileName)) as TextEditor;
