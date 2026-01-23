@@ -1077,7 +1077,7 @@
       },
       {
         "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
-        "group": "vcast.testGeneration",
+        "group": "vcast.enviroManagement",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList"
       },
       {
