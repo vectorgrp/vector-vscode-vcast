@@ -1581,30 +1581,37 @@ export async function checkForGutterAndGenerateReport(
   generateReport: boolean
 ) {
   const workbench = await browser.getWorkbench();
-  const activityBar = workbench.getActivityBar();
-  const explorerView = await activityBar.getViewControl("Explorer");
-  await explorerView?.openView();
 
-  const workspaceFolderSection =
-    await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+  // Extract unit name from file name (e.g., "manager.cpp" -> "manager")
+  const unitName = unitFileName.replace(/\.(cpp|c|h)$/, "");
 
-  // Need to check if cpp was already selected
-  // --> otherwise we close it again and we can not find manager.cpp
-  let managerCpp = await workspaceFolderSection.findItem(unitFileName);
-  if (!managerCpp) {
-    const cppFolder = workspaceFolderSection.findItem("cpp");
-    await (await cppFolder).select();
-    managerCpp = await workspaceFolderSection.findItem(unitFileName);
+  // Navigate to Testing pane and find the unit
+  const vcastTestingViewContent = await getViewContent("Testing");
+  let unit: TreeItem | undefined;
+
+  for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+    if (!(await vcastTestingViewSection.isExpanded())) {
+      await vcastTestingViewSection.expand();
+    }
+    unit = await findSubprogram(unitName, vcastTestingViewSection);
+    if (unit) {
+      break;
+    }
   }
-  // Check if the file is already open in the editor
+
+  if (!unit) {
+    throw new Error(`Unit ${unitName} not found in Testing pane`);
+  }
+
+  // Open the source file through the context menu
   const editorView = workbench.getEditorView();
-  // List of open editor titles
   const openEditors = await editorView.getOpenEditorTitles();
   const isFileOpen = openEditors.includes(unitFileName);
 
   if (!isFileOpen) {
-    // Select file from the explorer if not already open
-    await managerCpp.select();
+    const contextMenu = await unit.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    await (await $("aria/Open Source File under Test")).click();
   }
 
   const tab = (await editorView.openEditor(unitFileName)) as TextEditor;

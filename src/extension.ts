@@ -89,6 +89,7 @@ import {
   rebuildEnvironment,
   openProjectInVcast,
   deleteLevel,
+  getDataForEnvironment,
 } from "./vcastAdapter";
 
 import {
@@ -1234,6 +1235,49 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(getMCDCReportCommand);
+
+  // Command: vectorcastTestExplorer.insertBasisPathTestsFromEditor////////////////////////////////////////////////////////
+  let openSourceFileFromTestpaneCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        if (testNode) {
+          const enviroPath = testNode.enviroPath;
+          const unitName = testNode.unitName;
+          // Get the environment data
+          const envData = await getDataForEnvironment(enviroPath);
+
+          if (envData && envData.unitData) {
+            for (const unitInfo of envData.unitData) {
+              if (unitInfo.path) {
+                // Extract unit name from path to match against unitName
+                const pathBasename = path.basename(
+                  unitInfo.path,
+                  path.extname(unitInfo.path)
+                );
+                if (pathBasename === unitName) {
+                  const sourcePath = unitInfo.path;
+                  const uri = vscode.Uri.file(sourcePath);
+
+                  vscode.window.showTextDocument(uri, {
+                    preview: false, // open as a real tab
+                    preserveFocus: false,
+                  });
+                  console.log(`Source file for ${unitName}: ${sourcePath}`);
+                  break;
+                }
+              }
+            }
+          }
+        } else
+          vscode.window.showErrorMessage(
+            `Unable to open Source File for Node: ${args.id}`
+          );
+      }
+    }
+  );
+  context.subscriptions.push(openSourceFileFromTestpaneCommand);
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",
