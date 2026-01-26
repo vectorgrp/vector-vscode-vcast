@@ -68,7 +68,6 @@ import {
   setGlobalProjectIsOpenedChecker,
   setGlobalCompilerAndTestsuites,
   loadTestScriptButton,
-  cachedWorkspaceEnvData,
 } from "./testPane";
 
 import {
@@ -90,7 +89,6 @@ import {
   rebuildEnvironment,
   openProjectInVcast,
   deleteLevel,
-  getDataForEnvironment,
 } from "./vcastAdapter";
 
 import {
@@ -157,6 +155,7 @@ import {
   addIncludePath,
   envIsEmbeddedInProject,
   getEnviroNameFromFile,
+  getEnvironmentData,
   getLevelFromNodeId,
   getVcmRoot,
   openProjectFromEnviroPath,
@@ -1247,71 +1246,51 @@ function configureExtension(context: vscode.ExtensionContext) {
           const enviroPath = testNode.enviroPath;
           const unitName = testNode.unitName;
           const functionName = testNode.functionName;
+          const envData = await getEnvironmentData(enviroPath);
 
-          // Add .vce extension to enviroPath for cache key
-          const cacheKey = enviroPath.endsWith(".vce")
-            ? enviroPath
-            : `${enviroPath}.vce`;
-
-          // Try to get data from cache first
-          let envData = null;
-          if (cachedWorkspaceEnvData) {
-            envData =
-              cachedWorkspaceEnvData[
-                cacheKey as keyof typeof cachedWorkspaceEnvData
-              ];
-          }
-
-          // If not in cache, fetch it
-          if (!envData) {
-            envData = await getDataForEnvironment(enviroPath);
-          }
-
-          if (envData && envData.unitData) {
+          if (envData.unitData) {
             for (const unitInfo of envData.unitData) {
-              if (unitInfo.path) {
-                // Extract unit name from path to match against unitName
-                const pathBasename = path.basename(
-                  unitInfo.path,
-                  path.extname(unitInfo.path)
-                );
+              // Extract unit name from path to match against unitName
+              const pathBasename = path.basename(
+                unitInfo.path,
+                path.extname(unitInfo.path)
+              );
 
-                if (pathBasename === unitName) {
-                  const sourcePath = unitInfo.path;
-                  const uri = vscode.Uri.file(sourcePath);
+              if (pathBasename === unitName) {
+                const sourcePath = unitInfo.path;
+                const uri = vscode.Uri.file(sourcePath);
 
-                  // Determine the line number to open at
-                  let lineNumber = 0; // Default to top of file
+                // Determine the line number to open at (0 = top default)
+                let lineNumber = 0;
 
-                  // If functionName is defined, try to find it in the function list
-                  if (functionName && unitInfo.functionList) {
-                    for (const func of unitInfo.functionList) {
-                      if (
-                        func.name === functionName &&
-                        func.startLine !== undefined
-                      ) {
-                        lineNumber = func.startLine;
-                        break;
-                      }
+                // If functionName is defined, try to find it in the function list
+                if (functionName && unitInfo.functionList) {
+                  for (const func of unitInfo.functionList) {
+                    if (
+                      func.name === functionName &&
+                      func.startLine !== undefined
+                    ) {
+                      lineNumber = func.startLine;
+                      break;
                     }
                   }
-
-                  // Open the document at the specified line
-                  const document = await vscode.workspace.openTextDocument(uri);
-                  const position = new vscode.Position(
-                    Math.max(0, lineNumber - 1),
-                    0
-                  );
-                  const selection = new vscode.Range(position, position);
-
-                  await vscode.window.showTextDocument(document, {
-                    preview: false, // open as a real tab
-                    preserveFocus: false,
-                    selection: selection,
-                  });
-
-                  break;
                 }
+
+                // Open the document at the specified line
+                const document = await vscode.workspace.openTextDocument(uri);
+                const position = new vscode.Position(
+                  Math.max(0, lineNumber - 1),
+                  0
+                );
+                const selection = new vscode.Range(position, position);
+
+                await vscode.window.showTextDocument(document, {
+                  preview: false, // open as a real tab
+                  preserveFocus: false,
+                  selection: selection,
+                });
+
+                break;
               }
             }
           } else {

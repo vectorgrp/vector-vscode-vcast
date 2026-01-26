@@ -57,7 +57,7 @@ import {
 import {
   deleteSingleTest,
   getCBTNamesFromFile,
-  getDataForEnvironment,
+  getDataForEnvironmentFromAPI,
   getDataForProject,
   getWorkspaceEnvDataVPython,
   loadTestScriptIntoEnvironment,
@@ -753,11 +753,11 @@ async function loadEnviroData(
       }
     } else {
       // Fallback in case the cache is not build, but it should be
-      return await getDataForEnvironment(buildPathDir);
+      return await getDataForEnvironmentFromAPI(buildPathDir);
     }
   } else {
     // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
-    return await getDataForEnvironment(buildPathDir);
+    return await getDataForEnvironmentFromAPI(buildPathDir);
   }
   // We have a valid build directory, but we couldn't find a matching VCE file in the workspace data.
   vectorMessage(

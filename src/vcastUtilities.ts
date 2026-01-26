@@ -24,6 +24,7 @@ import {
 
 import {
   dumpTestScriptFile,
+  getDataForEnvironmentFromAPI,
   openProjectInVcast,
   runATGCommands,
   runBasisPathCommands,
@@ -43,6 +44,7 @@ import {
 
 import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
 import {
+  cachedWorkspaceEnvData,
   globalController,
   globalProjectDataCache,
   globalProjectMap,
@@ -837,4 +839,30 @@ export function getLevelFromNodeId(path: string) {
   const level = path.substring(remainderStart);
 
   return { projectName, level };
+}
+
+/**
+ * Retrieves Environment Data from the Cache or by asking the API if the cache
+ * is empty
+ * @param enviroPath Path of Environment
+ */
+export async function getEnvironmentData(enviroPath: string) {
+  // Add .vce extension to enviroPath for cache key
+  const cacheKey = enviroPath.endsWith(".vce")
+    ? enviroPath
+    : `${enviroPath}.vce`;
+
+  // Try to get data from cache first
+  let envData = null;
+  if (cachedWorkspaceEnvData) {
+    envData =
+      cachedWorkspaceEnvData[cacheKey as keyof typeof cachedWorkspaceEnvData];
+  }
+
+  // If not in cache, fetch it
+  if (!envData) {
+    envData = await getDataForEnvironmentFromAPI(enviroPath);
+  }
+
+  return envData;
 }
