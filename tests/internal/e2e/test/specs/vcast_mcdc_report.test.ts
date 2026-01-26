@@ -160,7 +160,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Verify the cursor is on line 74 (the start of Manager::GetCheckTotal)
     expect(coordinates[0]).toBe(74);
-    await editorView.closeAllEditors();
   });
 
   it("should change coverageKind and Rebuild env", async () => {
