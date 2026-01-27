@@ -2,6 +2,12 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.28] - 2026-01-27
+
+### Added
+- Added possibility to open up multiple workdpace folders
+- Added Button to open up a Source File under Test from the Testing Pane
+
 ## [1.0.27] - 2025-12-15
 
 ### Bug fixes
