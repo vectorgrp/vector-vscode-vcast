@@ -58,9 +58,13 @@ import {
   commandStatusType,
   executeCommandSync,
   executeVPythonScript,
+  executeWithRealTimeEchoWithProgress,
 } from "./vcastCommandRunner";
 
-import { checksumCommandToUse } from "./vcastInstallation";
+import {
+  checksumCommandToUse,
+  getVectorCastInstallationLocation,
+} from "./vcastInstallation";
 
 import {
   closeAnyOpenErrorFiles,
@@ -71,6 +75,7 @@ import {
   closeConnection,
   globalEnviroDataServerActive,
 } from "../src-common/vcastServer";
+import { createNewCFGFromCompiler } from "./manage/manageSrc/manageUtils";
 
 const fs = require("fs");
 const path = require("path");
@@ -1196,4 +1201,161 @@ export async function getMCDCResultFile(
   }
 
   return resultFile;
+}
+
+/**
+ * Updates databaseLocation setting
+ * @param vcShellPath Path to the defaultV VCDB
+ */
+export async function updateVCShellDatabase(vcShellPath: string) {
+  // Update Settings
+  const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
+  settings.update("databaseLocation", vcShellPath);
+
+  vscode.window.showInformationMessage(
+    `Default Database location has been set to: ${vcShellPath}`
+  );
+}
+
+/**
+ * Updates CFG VCDB_FILENAME option
+ * @param vcShellPath Path of the vcshell db
+ * @param normalizedCFGPath Path to CFG
+ */
+export async function updateCFGWithVCShellDatabase(
+  vcShellPath: string,
+  normalizedCFGPath: string
+) {
+  // Retrieve VectorCAST Dir
+  const vcDir = getVectorCastInstallationLocation();
+  if (!vcDir) {
+    vectorMessage("VectorCAST Installation Location not found. Aborting.");
+    vscode.window.showWarningMessage(
+      `VectorCAST Installation Location not found. Aborting.`
+    );
+    return;
+  }
+
+  // Build paths
+  const vcShellCommand = path.join(normalizePath(vcDir), `clicast`);
+  const commandToRun = `${vcShellCommand}`;
+  const fileName = path.basename(vcShellPath);
+  const normalizedVCShellPath = normalizePath(vcShellPath);
+  const normalizedCFGDir = normalizePath(path.dirname(normalizedCFGPath));
+
+  // Execute
+  const infoMessage = `Loading VectorCAST database from ${fileName} and setting it as the active VCDB.`;
+  await executeWithRealTimeEchoWithProgress(
+    commandToRun,
+    [
+      "-lc",
+      "option",
+      "VCDB_FILENAME",
+      `$(readlink -f ${normalizedVCShellPath})`,
+    ],
+    normalizedCFGDir,
+    infoMessage
+  );
+}
+
+export interface ConfigurationOptions {
+  enableCodedTests: boolean;
+  defaultCFG: boolean;
+  useDefaultDB: boolean;
+}
+
+/**
+ * Creates new CFG including selected options like: Default CFG, Enable Coded Tests
+ * @param workspaceRoot Root of Workspace
+ * @param compilerTag Compiler name
+ * @param configurationOptions Additional CFG options
+ */
+export async function createNewCFGFile(
+  workspaceRoot: string,
+  compilerTag: string,
+  configurationOptions: ConfigurationOptions
+) {
+  const unitTestLocation = getUnitTestLocationForPath(workspaceRoot);
+  const vcDir = getVectorCastInstallationLocation();
+  const commandToRun = path.join(vcDir, "clicast");
+
+  // Should not happen as we would get that message when initializing the extension, but to be sure
+  if (!vcDir) {
+    vectorMessage(
+      `Could not find VectorCAST Installation Location. Aborting creating a new CFG.`
+    );
+    return;
+  }
+
+  // Check if a CFG already exists
+  const cfgFile = path.join(unitTestLocation, "CCAST_.CFG");
+  if (fs.existsSync(cfgFile)) {
+    const choice = await vscode.window.showInformationMessage(
+      "A CFG file already exists at this location. Do you want to overwrite it?",
+      "Yes",
+      "Cancel"
+    );
+
+    if (choice !== "Yes") {
+      vscode.window.showInformationMessage(
+        `Operation cancelled. Existing CFG ( ${cfgFile} ) was not overwritten.`
+      );
+      return;
+    }
+  }
+
+  // First create new CFG and return path
+  const compilerPath = await createNewCFGFromCompiler(
+    compilerTag,
+    unitTestLocation
+  );
+
+  // Set Coded Tests option
+  let codedFlag = "FALSE";
+  if (configurationOptions.enableCodedTests) {
+    codedFlag = "TRUE";
+  }
+
+  const codedOptionArgs = [
+    "-lc",
+    "option",
+    "VCAST_CODED_TESTS_SUPPORT",
+    codedFlag,
+  ];
+  const codedOptionInfoMessage =
+    "Setting VCAST_CODED_TESTS_SUPPORT in CFG File";
+  await executeWithRealTimeEchoWithProgress(
+    commandToRun,
+    codedOptionArgs,
+    unitTestLocation,
+    codedOptionInfoMessage
+  );
+
+  // Set as Default CFG if required
+  if (configurationOptions.defaultCFG) {
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    settings.update(
+      "configurationLocation",
+      compilerPath,
+      vscode.ConfigurationTarget.Workspace
+    );
+  }
+
+  // Apply Default Database if requested and path exists
+  if (configurationOptions.useDefaultDB && compilerPath) {
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    const dbPath = settings.get<string>("databaseLocation");
+
+    if (dbPath && fs.existsSync(dbPath)) {
+      await updateCFGWithVCShellDatabase(dbPath, compilerPath);
+    } else {
+      vscode.window.showWarningMessage(
+        "Could not set Default Database: The database file defined in settings could not be found."
+      );
+    }
+  }
 }

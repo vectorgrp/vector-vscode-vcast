@@ -137,7 +137,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const notificationsCenter = await workbench.openNotificationsCenter();
     await notificationsCenter.clearAllNotifications();
 
-    console.log("Executing Create New Project Command:");
+    console.log("Executing Create New Project Command (with options = false):");
     await browser.executeWorkbench((vscode) => {
       vscode.commands.executeCommand("vectorcastTestExplorer.createNewProject");
     });
@@ -151,13 +151,23 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys("GNU Native_Automatic_C++17");
     await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
 
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
           .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project ANewProject`),
+          .includes(`-lc option VCAST_CODED_TESTS_SUPPORT FALSE`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Processing project: ANewProject`),
       { timeout: TIMEOUT }
     );
 
@@ -169,6 +179,130 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     expect(projectNode).toBeDefined();
     expect(compilerNode).toBeDefined();
+  });
+
+  it("testing setting default vcshell.db", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const workbench = await browser.getWorkbench();
+    const activityBar = workbench.getActivityBar();
+    const explorerView = await activityBar.getViewControl("Explorer");
+    await explorerView?.openView();
+
+    const workspaceFolderSection =
+      await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+    const vcshellFolder = workspaceFolderSection.findItem("tutorial");
+    await (await vcshellFolder).select();
+
+    console.log("Selecting vcshell.db");
+    const vcshell = await workspaceFolderSection.findItem("vcshell.db");
+    await executeCtrlClickOn(vcshell);
+    await releaseCtrl();
+    console.log("Executing: Set as default Database");
+    await vcshell.openContextMenu();
+    await (await $("aria/Set as default Database")).click();
+
+    console.log("Checking whetehr Setting got updated");
+    const settingsEditor = await workbench.openSettings();
+
+    // Switch scope to Workspace
+    await (await $("aria/Workspace")).click();
+
+    const databaseLocationSetting = await settingsEditor.findSetting(
+      "Database Location",
+      "Vectorcast Test Explorer"
+    );
+
+    const locationValue = await databaseLocationSetting.getValue();
+    console.log(`Location Value: ${locationValue}`);
+    expect(locationValue).toBeDefined();
+  });
+
+  it("testing creating second project 'Banana'", async () => {
+    await updateTestID();
+    await bottomBar.toggle(true);
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    const notificationsCenter = await workbench.openNotificationsCenter();
+    await notificationsCenter.clearAllNotifications();
+
+    console.log("Executing Create New Project Command for Banana:");
+    await browser.executeWorkbench((vscode) => {
+      vscode.commands.executeCommand("vectorcastTestExplorer.createNewProject");
+    });
+
+    console.log("Inserting Data to Webview for Banana project");
+    await insertStringToInput("Banana", "Project Name Input");
+    await browser.keys(["Tab"]);
+    await browser.keys("GNU Native_Automatic_C++");
+    // Toggle "Enable Coded Tests" ON
+    await browser.keys(["Tab"]);
+    await browser.keys([" "]);
+    // Toggle "Set as Default CFG" ON
+    await browser.keys(["Tab"]);
+    await browser.keys([" "]);
+    // Toggle vcshell.db option ON
+    await browser.keys(["Tab"]);
+    await browser.keys([" "]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Enter"]);
+
+    console.log("Verifying Coded Tests Support is set to True");
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`-lc option VCAST_CODED_TESTS_SUPPORT TRUE`),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () => {
+        const output = (await outputView.getText()).toString();
+        return (
+          output.includes("clicast: '-lc option VCDB_FILENAME") &&
+          output.includes("vcshell.db)' returned exit code: 0")
+        );
+      },
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes(`Processing project: Banana`),
+      { timeout: TIMEOUT }
+    );
+
+    console.log("Checking existence of Banana Project");
+    const projectNode = await findTreeNodeAtLevel(0, "Banana.vcm");
+    const compilerNode = await findTreeNodeAtLevel(
+      1,
+      "GNU_Native_Automatic_C++"
+    );
+    expect(projectNode).toBeDefined();
+    expect(compilerNode).toBeDefined();
+
+    console.log(
+      "Verifying configurationLocation setting ends with Banana/CCAST.CFG"
+    );
+    const configLocation = await browser.executeWorkbench((vscode) => {
+      return vscode.workspace
+        .getConfiguration("vectorcastTestExplorer")
+        .get("configurationLocation");
+    });
+
+    console.log(`Configuration location: ${configLocation}`);
+    expect(configLocation).toBeDefined();
+
+    // Check if config location is set with the new CFG from the project
+    expect(configLocation.endsWith("Banana/CCAST_.CFG")).toBe(true);
   });
 
   it("testing tree structure", async () => {
@@ -493,6 +627,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // CLose Report again
     await webview.close();
     await editorView.closeEditor("VectorCAST Report", 1);
+    await workbench.getEditorView().closeAllEditors();
   });
 
   it("testing creating a Testsuite", async () => {
@@ -578,7 +713,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(testsuiteNode).toBeUndefined();
   });
 
-  it("testing deleting a project Environment", async () => {
+  it("testing cleaning a project Environment", async () => {
     await updateTestID();
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
@@ -725,7 +860,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const notificationsCenter = await workbench.openNotificationsCenter();
     await notificationsCenter.clearAllNotifications();
 
-    console.log("Deleting Environment QUACK from Project");
+    // Trigger the Delete action
     await executeContextMenuAction(
       3,
       "QUACK",
@@ -734,13 +869,25 @@ describe("vTypeCheck VS Code Extension", () => {
     );
 
     console.log("Confirming Notifications to delete the Environment");
-    const notifications = await $("aria/Notifications");
-    await notifications.click();
-    const vcastNotificationSourceElement = await $(
-      "aria/VectorCAST Test Explorer (Extension)"
-    );
-    const vcastNotification = await vcastNotificationSourceElement.$("..");
-    await (await vcastNotification.$("aria/Delete")).click();
+
+    // Wait for the notification to be generated (exist in DOM)
+    const vcastNotificationSelector =
+      "aria/VectorCAST Test Explorer (Extension)";
+    const pendingNotification = await $(vcastNotificationSelector);
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("info_clicked_on_delete.png");
+
+    // Navigate to the Delete button
+    const vcastNotification = await $(vcastNotificationSelector).$("..");
+    const deleteAction = await vcastNotification.$("aria/Delete");
+
+    // Wait for the button to be Clickable (handles animation/obscuring)
+    await deleteAction.waitForClickable({
+      timeout: TIMEOUT,
+      timeoutMsg: "Delete button in notification was not interactable",
+    });
+
+    await deleteAction.click();
 
     console.log("Checking for Output logs if Environment deletion is finished");
     await browser.waitUntil(
@@ -790,8 +937,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const workspaceFolderSection =
       await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
-    const cppFolder = workspaceFolderSection.findItem("tutorial");
-    await (await cppFolder).select();
 
     console.log("Selecting database.cpp & manager.cpp");
     const managerCpp = await workspaceFolderSection.findItem("manager.cpp");
