@@ -89,6 +89,7 @@ import {
   rebuildEnvironment,
   openProjectInVcast,
   deleteLevel,
+  getRequirementsWebviewDataFromPython,
 } from "./vcastAdapter";
 
 import {
@@ -2250,6 +2251,304 @@ async function installPreActivationEventHandlers(
            window.compilerData = ${compilerList};
          </script>\n</head>`
       );
+
+    return html;
+  }
+
+  const editRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.editRequirements",
+    async (args: any) => {
+      try {
+        // Ensure a test node argument is provided
+        if (!args) {
+          vscode.window.showErrorMessage("No test node argument provided.");
+          return;
+        }
+
+        // Retrieve the test node based on ID
+        const testNode: testNodeType = getTestNode(args.id);
+        if (!testNode) {
+          vscode.window.showErrorMessage("Test node not found.");
+          return;
+        }
+
+        const environmentFilePath = testNode.enviroPath;
+
+        // Fetch dropdown data for webview
+        const dropdownData =
+          getRequirementsWebviewDataFromPython(environmentFilePath);
+
+        // Construct paths to requirements and traceability JSON files
+        const environmentDir = path.dirname(environmentFilePath);
+        const environmentFileName = path.basename(environmentFilePath);
+        const environmentName = environmentFileName.replace(/\.env$/, "");
+        const requirementsFolderPath = path.join(
+          environmentDir,
+          `reqs-${environmentName}`
+        );
+
+        const gatewayFolderPath = path.join(
+          requirementsFolderPath,
+          "generated_requirement_repository",
+          "requirements_gateway"
+        );
+
+        const requirementsJsonPath = path.join(
+          gatewayFolderPath,
+          "requirements.json"
+        );
+        const traceabilityJsonPath = path.join(
+          gatewayFolderPath,
+          "traceability.json"
+        );
+
+        // Validate existence of target folders and files
+        if (!fs.existsSync(gatewayFolderPath)) {
+          vscode.window.showErrorMessage(
+            `Requirements folder not found: ${gatewayFolderPath}`
+          );
+          return;
+        }
+
+        if (
+          !fs.existsSync(requirementsJsonPath) &&
+          !fs.existsSync(traceabilityJsonPath)
+        ) {
+          vscode.window.showErrorMessage(
+            "Neither requirements.json nor traceability.json found in requirements_gateway."
+          );
+          return;
+        }
+
+        // Load JSON files safely
+        const readJsonFile = (filePath: string) => {
+          if (!fs.existsSync(filePath)) return {};
+          try {
+            const content = fs.readFileSync(filePath, "utf8");
+            return JSON.parse(content || "{}");
+          } catch (err) {
+            vscode.window.showErrorMessage(
+              `Failed to read/parse ${filePath}: ${err}`
+            );
+            return null;
+          }
+        };
+
+        const requirementsData = readJsonFile(requirementsJsonPath);
+        if (requirementsData === null) return;
+
+        const traceabilityData = readJsonFile(traceabilityJsonPath);
+        if (traceabilityData === null) return;
+
+        // Preserve original top-level group key
+        const topLevelKeys = Object.keys(requirementsData);
+        const mainGroupKey =
+          topLevelKeys.length === 1 ? topLevelKeys[0] : "Requirements";
+
+        // Flatten grouped or nested requirement objects
+        const flattenRequirements = (data: any): Record<string, any> => {
+          if (!data || typeof data !== "object") return {};
+          const flattened: Record<string, any> = {};
+          const topKeys = Object.keys(data);
+
+          const isGrouped = topKeys.some((key) => {
+            const value = data[key];
+            if (value && typeof value === "object") {
+              const innerKeys = Object.keys(value);
+              if (innerKeys.length > 0) {
+                const sample = value[innerKeys[0]];
+                return (
+                  sample &&
+                  typeof sample === "object" &&
+                  ("id" in sample || "title" in sample)
+                );
+              }
+            }
+            return false;
+          });
+
+          if (isGrouped) {
+            topKeys.forEach((groupKey) => {
+              const group = data[groupKey];
+              if (group && typeof group === "object") {
+                Object.keys(group).forEach((id) => {
+                  flattened[id] = group[id];
+                });
+              }
+            });
+          } else {
+            topKeys.forEach((id) => {
+              const value = data[id];
+              if (value && typeof value === "object") flattened[id] = value;
+            });
+          }
+
+          return flattened;
+        };
+
+        const flattenedRequirements = flattenRequirements(requirementsData);
+        const flattenedTraceability =
+          typeof traceabilityData === "object" ? traceabilityData : {};
+
+        // Merge requirements and traceability by ID
+        const mergedRequirements: Record<string, any> = {};
+        const allIds = new Set([
+          ...Object.keys(flattenedRequirements),
+          ...Object.keys(flattenedTraceability),
+        ]);
+
+        allIds.forEach((id) => {
+          const requirement = flattenedRequirements[id] || {};
+          const trace = flattenedTraceability[id] || {};
+
+          mergedRequirements[id] = {
+            ...requirement,
+            id: requirement.id || id,
+            unit: trace.unit ?? undefined,
+            function: trace.function ?? undefined,
+            lines: trace.lines ?? undefined,
+          };
+        });
+
+        // Create and display the webview panel
+        const webviewBasePath = resolveWebviewBase(context);
+        const panel = vscode.window.createWebviewPanel(
+          "editRequirements",
+          "Edit Requirements",
+          vscode.ViewColumn.Active,
+          {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            localResourceRoots: [vscode.Uri.file(webviewBasePath)],
+          }
+        );
+
+        panel.webview.html = await getEditRequirementsWebviewContent(
+          context,
+          panel,
+          mergedRequirements,
+          dropdownData
+        );
+
+        // Handle messages from webview
+        panel.webview.onDidReceiveMessage(
+          async (message) => {
+            switch (message.command) {
+              case "saveJson":
+                try {
+                  const mergedData = message.data as Record<string, any>;
+                  const requirementsOutput: Record<string, any> = {};
+                  const traceOutput: Record<string, any> = {};
+
+                  for (const [id, obj] of Object.entries(mergedData)) {
+                    requirementsOutput[id] = {
+                      title: obj.title ?? "",
+                      description: obj.description ?? "",
+                      id: obj.id ?? id,
+                      last_modified: obj.last_modified ?? "tbd",
+                    };
+
+                    traceOutput[id] = {
+                      unit: obj.unit ?? "",
+                      function: obj.function ?? "",
+                      lines: obj.lines ?? null,
+                    };
+                  }
+
+                  // Wrap flattened requirements back in original top-level group
+                  const wrappedRequirementsOutput = {
+                    [mainGroupKey]: requirementsOutput,
+                  };
+
+                  await fs.promises.writeFile(
+                    requirementsJsonPath,
+                    JSON.stringify(wrappedRequirementsOutput, null, 2),
+                    "utf8"
+                  );
+                  await fs.promises.writeFile(
+                    traceabilityJsonPath,
+                    JSON.stringify(traceOutput, null, 2),
+                    "utf8"
+                  );
+
+                  vscode.window.showInformationMessage(
+                    "Requirements saved successfully."
+                  );
+                } catch (err: any) {
+                  vscode.window.showErrorMessage(
+                    `Failed to save requirements: ${err.message}`
+                  );
+                }
+                break;
+
+              case "cancel":
+                panel.dispose();
+                break;
+            }
+          },
+          undefined,
+          context.subscriptions
+        );
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `editRequirements failed: ${String(err)}`
+        );
+      }
+    }
+  );
+
+  context.subscriptions.push(editRequirementsCommand);
+
+  // Update getEditRequirementsWebviewContent to accept mergedJson and inject it
+  async function getEditRequirementsWebviewContent(
+    context: vscode.ExtensionContext,
+    panel: vscode.WebviewPanel,
+    mergedJson: any,
+    webviewDropdownData: any
+  ): Promise<string> {
+    const base = resolveWebviewBase(context);
+    const cssOnDisk = vscode.Uri.file(
+      path.join(base, "css", "editRequirements.css")
+    );
+    const scriptOnDisk = vscode.Uri.file(
+      path.join(base, "webviewScripts", "editRequirements.js")
+    );
+    const htmlPath = path.join(base, "html", "editRequirements.html");
+
+    const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+    const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+    const nonce = getNonce();
+
+    // Inject CSP and CSS
+    const csp = `
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${panel.webview.cspSource};
+                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+    `;
+    // Replace <head> with CSP + css link
+    html = html.replace(
+      /<head>/,
+      `<head>${csp}<link rel="stylesheet" href="${cssUri}">`
+    );
+
+    // Inject initialJson and the script tag (with nonce)
+    html = html.replace(
+      "{{ scriptUri }}",
+      `<script nonce="${nonce}">
+         window.initialJson = ${JSON.stringify(mergedJson)};
+         window.webviewDropdownData = ${JSON.stringify(webviewDropdownData)};
+       </script>
+       <script nonce="${nonce}" src="${scriptUri}"></script>`
+    );
+
+    // also replace css placeholder if present
+    html = html.replace(
+      /{{\s*cssUri\s*}}/g,
+      `<link rel="stylesheet" href="${cssUri}">`
+    );
 
     return html;
   }

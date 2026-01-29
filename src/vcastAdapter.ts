@@ -634,6 +634,17 @@ function getProjectDataFromPython(projectDirectoryPath: string): any {
   return jsonData;
 }
 
+export function getRequirementsWebviewDataFromPython(envPath: string): any {
+  // This function will return the environment data for a single directory
+  // by calling vpython with the appropriate command
+  const commandToRun = getVcastInterfaceCommand(
+    vcastCommandType.requirementsWebview,
+    envPath
+  );
+  let jsonData = getJsonDataFromTestInterface(commandToRun, envPath);
+  return jsonData;
+}
+
 // Get Environment Data ---------------------------------------------------------------
 // Server logic is in a separate function below
 export async function getDataForEnvironmentFromAPI(

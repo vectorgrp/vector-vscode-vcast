@@ -320,6 +320,11 @@
         "title": "Show Requirements"
       },
       {
+        "command": "vectorcastTestExplorer.editRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Edit Requirements"
+      },
+      {
         "command": "vectorcastTestExplorer.removeRequirements",
         "category": "VectorCAST Test Explorer",
         "title": "Remove Requirements"
@@ -845,6 +850,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.editRequirements",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.removeRequirements",
           "when": "never"
         },
@@ -1117,6 +1126,11 @@
       },
       {
         "command": "vectorcastTestExplorer.showRequirements",
+        "group": "vcast@9",
+        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.editRequirements",
         "group": "vcast@9",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
       },
