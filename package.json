@@ -230,6 +230,11 @@
         "title": "Open Source File under Test"
       },
       {
+        "command": "vectorcastTestExplorer.openReqsCoverageReview",
+        "category": "VectorCAST Test Explorer",
+        "title": "Open Requirements Coverage Review"
+      },
+      {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
         "category": "VectorCAST Test Explorer",
         "title": "Insert Basis Path Tests"
@@ -772,6 +777,10 @@
           "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
           "when": "never"
         },
+          {
+          "command": "vectorcastTestExplorer.openReqsCoverageReview",
+          "when": "never"
+        },
         {
           "command": "vectorcastTestExplorer.insertBasisPathTests",
           "when": "never"
@@ -1077,6 +1086,11 @@
       },
       {
         "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
+        "group": "vcast.enviroManagement",
+        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList"
+      },
+      {
+        "command": "vectorcastTestExplorer.openReqsCoverageReview",
         "group": "vcast.enviroManagement",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList"
       },

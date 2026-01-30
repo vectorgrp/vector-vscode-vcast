@@ -41,6 +41,11 @@ export interface jsonDataType {
   jsonDataAsString: string;
 }
 
+export interface requirementsTestData {
+  title: string;
+  description: string;
+}
+
 /**
  * Retrieves the environment path associated with a given file path.
  *

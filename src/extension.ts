@@ -79,6 +79,7 @@ import {
   forceLowerCaseDriveLetter,
   decodeVar,
   getFullEnvReport,
+  requirementsTestData,
 } from "./utilities";
 
 import {
@@ -1307,6 +1308,186 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(openSourceFileFromTestpaneCommand);
+  // Type for a single requirement
+  interface RequirementData {
+    title: string;
+    description: string;
+    lineNumber: number;
+    importantLineStart: number;
+    importantLineEnd: number;
+    coverageStatus: "covered" | "partially-covered" | "uncovered";
+  }
+
+  // Store active highlight decoration
+  let activeHighlightDecoration: vscode.TextEditorDecorationType | null = null;
+
+  // helper: wrap text to fixed width
+  function wrapText(text: string, width: number): string[] {
+    const words = text.split(" ");
+    const lines: string[] = [];
+    let current = "";
+
+    for (const w of words) {
+      if ((current + w).length > width) {
+        lines.push(current.trimEnd());
+        current = w + " ";
+      } else {
+        current += w + " ";
+      }
+    }
+    if (current.trim()) {
+      lines.push(current.trimEnd());
+    }
+    return lines;
+  }
+
+  // Command: vectorcastTestExplorer.openReqsCoverageReview
+  let openReqsCoverageReview = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.openReqsCoverageReview",
+    async (args: any) => {
+      if (!args) return;
+
+      const testNode: testNodeType = getTestNode(args.id);
+      if (!testNode) return;
+
+      const { enviroPath, unitName } = testNode;
+
+      const envData = await getEnvironmentData(enviroPath);
+      if (!envData?.unitData) return;
+
+      const reqData: RequirementData = {
+        title: "REQ-069: Session Timeout",
+        description:
+          "The system shall automatically terminate user sessions after 30 minutes of inactivity to ensure security.",
+        lineNumber: 74,
+        importantLineStart: 75,
+        importantLineEnd: 78,
+        coverageStatus: "covered",
+      };
+
+      const matchingUnit = envData.unitData.find((unit: { path: string }) => {
+        if (!unit.path) return false;
+        const unitBaseName = path.basename(unit.path, path.extname(unit.path));
+        return unitBaseName === unitName;
+      });
+
+      if (!matchingUnit?.path) return;
+
+      const sourceFileUri = vscode.Uri.file(matchingUnit.path);
+      const document = await vscode.workspace.openTextDocument(sourceFileUri);
+
+      const peekPosition = new vscode.Position(
+        Math.max(0, reqData.lineNumber - 2),
+        0
+      );
+
+      const editor = await vscode.window.showTextDocument(document, {
+        preview: false,
+        preserveFocus: false,
+        selection: new vscode.Range(peekPosition, peekPosition),
+      });
+
+      if (activeHighlightDecoration) {
+        activeHighlightDecoration.dispose();
+      }
+
+      activeHighlightDecoration = vscode.window.createTextEditorDecorationType({
+        backgroundColor: "rgba(0,255,0,0.15)",
+        before: {
+          contentText: "",
+          border: "4px solid",
+          borderColor: "#00ff00",
+          margin: "0 10px 0 0",
+        },
+      });
+
+      const blockRange = new vscode.Range(
+        new vscode.Position(reqData.importantLineStart - 1, 0),
+        new vscode.Position(
+          reqData.importantLineEnd - 1,
+          document.lineAt(reqData.importantLineEnd - 1).text.length
+        )
+      );
+
+      editor.setDecorations(activeHighlightDecoration, [blockRange]);
+
+      const virtualDocUri = vscode.Uri.parse(
+        "requirement-info:Requirement Info"
+      );
+
+      const BOX_WIDTH = 66;
+      const wrappedDescription = wrapText(reqData.description, BOX_WIDTH - 6);
+
+      const provider = new (class
+        implements vscode.TextDocumentContentProvider
+      {
+        provideTextDocumentContent(): string {
+          return [
+            "",
+            "╔" + "═".repeat(BOX_WIDTH) + "╗",
+            `║  ${reqData.title.padEnd(BOX_WIDTH - 2)}║`,
+            "╠" + "═".repeat(BOX_WIDTH) + "╣",
+            "║  DESCRIPTION".padEnd(BOX_WIDTH + 1) + "║",
+            "║  " + "─".repeat(BOX_WIDTH - 2) + "║",
+            ...wrappedDescription.map(
+              (l) => `║  ${l.padEnd(BOX_WIDTH - 4)}  ║`
+            ),
+            "║".padEnd(BOX_WIDTH + 1) + "║",
+            `║  Critical Lines : ${reqData.importantLineStart} - ${reqData.importantLineEnd}`.padEnd(
+              BOX_WIDTH + 1
+            ) + "║",
+            "╚" + "═".repeat(BOX_WIDTH) + "╝",
+            "",
+          ].join("\n");
+        }
+      })();
+
+      const providerDisposable =
+        vscode.workspace.registerTextDocumentContentProvider(
+          "requirement-info",
+          provider
+        );
+
+      await vscode.workspace.openTextDocument(virtualDocUri);
+
+      await vscode.commands.executeCommand(
+        "editor.action.peekLocations",
+        sourceFileUri,
+        peekPosition,
+        [new vscode.Location(virtualDocUri, new vscode.Position(0, 0))],
+        "peek"
+      );
+
+      setTimeout(() => {
+        for (const e of vscode.window.visibleTextEditors) {
+          if (e.document.uri.scheme === "requirement-info") {
+            e.options = {
+              ...e.options,
+              lineNumbers: vscode.TextEditorLineNumbersStyle.Off,
+            };
+          }
+        }
+      }, 0);
+
+      setTimeout(() => {
+        providerDisposable.dispose();
+      }, 1000);
+    }
+  );
+
+  // Command to close requirement box and highlights
+  let closeRequirementBoxes = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.closeRequirementBoxes",
+    () => {
+      if (activeHighlightDecoration) {
+        activeHighlightDecoration.dispose();
+        activeHighlightDecoration = null;
+      }
+    }
+  );
+
+  context.subscriptions.push(openReqsCoverageReview);
+  context.subscriptions.push(closeRequirementBoxes);
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",
