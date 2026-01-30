@@ -10,6 +10,9 @@ import {
   logCliOperation,
 } from "./requirementsOperations";
 import { makeEnviroNodeID } from "../testPane";
+import { dumpTestScriptFile } from "../vcastAdapter";
+import { convertTestScriptContents } from "../vcastUtilities";
+import { testNodeType } from "../testData";
 
 const path = require("path");
 const fs = require("fs");
@@ -593,4 +596,258 @@ export function expandEnvVars(inputPath: string): string {
 
     return value;
   });
+}
+
+export interface RequirementData {
+  title: string;
+  description: string;
+  lineNumber: number;
+  importantLineStart: number;
+  importantLineEnd: number;
+  coverageStatus: "covered" | "partially-covered" | "uncovered";
+}
+
+// State Management
+export let activeHighlightDecoration: vscode.TextEditorDecorationType | null =
+  null;
+
+/**
+ * Wraps text to a specified width, breaking at word boundaries
+ */
+export function wrapText(text: string, width: number): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if ((current + word).length > width) {
+      lines.push(current.trimEnd());
+      current = word + " ";
+    } else {
+      current += word + " ";
+    }
+  }
+
+  if (current.trim()) {
+    lines.push(current.trimEnd());
+  }
+
+  return lines;
+}
+
+/**
+ * Creates a formatted text box containing requirement information
+ */
+export function createRequirementInfoBox(reqData: RequirementData): string {
+  const BOX_WIDTH = 66;
+  const wrappedDescription = wrapText(reqData.description, BOX_WIDTH - 6);
+
+  return [
+    "",
+    "╔" + "═".repeat(BOX_WIDTH) + "╗",
+    `║  ${reqData.title.padEnd(BOX_WIDTH - 2)}║`,
+    "╠" + "═".repeat(BOX_WIDTH) + "╣",
+    "║  DESCRIPTION".padEnd(BOX_WIDTH + 1) + "║",
+    "║  " + "─".repeat(BOX_WIDTH - 2) + "║",
+    ...wrappedDescription.map((line) => `║  ${line.padEnd(BOX_WIDTH - 4)}  ║`),
+    "║".padEnd(BOX_WIDTH + 1) + "║",
+    `║  Critical Lines : ${reqData.importantLineStart} - ${reqData.importantLineEnd}`.padEnd(
+      BOX_WIDTH + 1
+    ) + "║",
+    "╚" + "═".repeat(BOX_WIDTH) + "╝",
+    "",
+  ].join("\n");
+}
+
+/**
+ * Finds the line number containing the test name in the TST script
+ */
+export function findTestNameLine(tstContent: string, testName: string): number {
+  const lines = tstContent.split("\n");
+  const searchPattern = `TEST.NAME:${testName}`;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes(searchPattern)) {
+      return i;
+    }
+  }
+
+  return 0; // Default to top of file if not found
+}
+
+/**
+ * Highlights the critical lines in the source file
+ */
+export function highlightCriticalLines(
+  editor: vscode.TextEditor,
+  document: vscode.TextDocument,
+  reqData: RequirementData
+): void {
+  // Dispose previous highlight if exists
+  if (activeHighlightDecoration) {
+    activeHighlightDecoration.dispose();
+  }
+
+  // Create highlight decoration
+  activeHighlightDecoration = vscode.window.createTextEditorDecorationType({
+    backgroundColor: "rgba(0,255,0,0.15)",
+    before: {
+      contentText: "",
+      border: "4px solid",
+      borderColor: "#00ff00",
+      margin: "0 10px 0 0",
+    },
+  });
+
+  // Apply highlight to critical lines
+  const blockRange = new vscode.Range(
+    new vscode.Position(reqData.importantLineStart - 1, 0),
+    new vscode.Position(
+      reqData.importantLineEnd - 1,
+      document.lineAt(reqData.importantLineEnd - 1).text.length
+    )
+  );
+
+  editor.setDecorations(activeHighlightDecoration, [blockRange]);
+}
+
+/**
+ * Shows the requirement info box as a peek window
+ * Automatically clears highlights when the peek window is closed
+ */
+export async function showRequirementPeekBox(
+  sourceFileUri: vscode.Uri,
+  peekPosition: vscode.Position,
+  reqData: RequirementData,
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const virtualDocUri = vscode.Uri.parse("requirement-info:Requirement Info");
+  const infoBoxContent = createRequirementInfoBox(reqData);
+
+  // Create content provider for the virtual document
+  const provider = new (class implements vscode.TextDocumentContentProvider {
+    provideTextDocumentContent(): string {
+      return infoBoxContent;
+    }
+  })();
+
+  const providerDisposable =
+    vscode.workspace.registerTextDocumentContentProvider(
+      "requirement-info",
+      provider
+    );
+
+  await vscode.workspace.openTextDocument(virtualDocUri);
+
+  // Show peek window
+  await vscode.commands.executeCommand(
+    "editor.action.peekLocations",
+    sourceFileUri,
+    peekPosition,
+    [new vscode.Location(virtualDocUri, new vscode.Position(0, 0))],
+    "peek"
+  );
+
+  // Disable line numbers in peek window
+  setTimeout(() => {
+    for (const editor of vscode.window.visibleTextEditors) {
+      if (editor.document.uri.scheme === "requirement-info") {
+        editor.options = {
+          ...editor.options,
+          lineNumbers: vscode.TextEditorLineNumbersStyle.Off,
+        };
+      }
+    }
+  }, 0);
+
+  // Listen for when the peek window is closed and clear highlights
+  const disposable = vscode.window.onDidChangeVisibleTextEditors((editors) => {
+    const peekWindowOpen = editors.some(
+      (editor) => editor.document.uri.scheme === "requirement-info"
+    );
+
+    if (!peekWindowOpen && activeHighlightDecoration) {
+      activeHighlightDecoration.dispose();
+      setActiveHighlightDecoration(null);
+      disposable.dispose(); // Clean up this listener
+    }
+  });
+
+  context.subscriptions.push(disposable);
+
+  // Clean up provider after peek window is shown
+  setTimeout(() => {
+    providerDisposable.dispose();
+  }, 1000);
+}
+
+/**
+ * Opens the source file with requirement highlighting
+ */
+export async function openSourceFileWithHighlight(
+  sourceFilePath: string,
+  reqData: RequirementData,
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const sourceFileUri = vscode.Uri.file(sourceFilePath);
+  const document = await vscode.workspace.openTextDocument(sourceFileUri);
+
+  // Position cursor near the requirement line
+  const peekPosition = new vscode.Position(
+    Math.max(0, reqData.lineNumber - 2),
+    0
+  );
+
+  // Open document
+  const editor = await vscode.window.showTextDocument(document, {
+    preview: false,
+    preserveFocus: false,
+    selection: new vscode.Range(peekPosition, peekPosition),
+  });
+
+  highlightCriticalLines(editor, document, reqData);
+  await showRequirementPeekBox(sourceFileUri, peekPosition, reqData, context);
+}
+
+/**
+ * Opens the TST script and jumps to the test definition
+ */
+export async function openTstScriptAtTest(
+  testNode: testNodeType,
+  scriptPath: string
+): Promise<void> {
+  const commandStatus = await dumpTestScriptFile(testNode, scriptPath);
+
+  if (commandStatus.errorCode !== 0) {
+    return;
+  }
+
+  convertTestScriptContents(scriptPath);
+
+  const tstScriptUri = vscode.Uri.file(scriptPath);
+  const tstDocument = await vscode.workspace.openTextDocument(tstScriptUri);
+
+  // Find the test name line in the script
+  let targetLine = 0;
+  if (testNode.testName) {
+    const tstContent = tstDocument.getText();
+    targetLine = findTestNameLine(tstContent, testNode.testName);
+  }
+
+  // Open document and jump to test definition
+  const position = new vscode.Position(targetLine, 0);
+  const selection = new vscode.Range(position, position);
+
+  await vscode.window.showTextDocument(tstDocument, {
+    viewColumn: vscode.ViewColumn.Beside,
+    selection: selection,
+    preview: false,
+    preserveFocus: false,
+  });
+}
+
+export function setActiveHighlightDecoration(
+  decoration: vscode.TextEditorDecorationType | null
+): void {
+  activeHighlightDecoration = decoration;
 }
