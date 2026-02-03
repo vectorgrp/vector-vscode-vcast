@@ -42,6 +42,7 @@ export interface testNodeType {
   // initially will be used for coded-tests
   testFile: string;
   testStartLine: number;
+  requirements: any;
   notes: string;
 }
 // this is a lookup table for the nodes in the test tree
@@ -60,6 +61,7 @@ export function createTestNodeInCache(
   testName: string = "",
   testFile: string = "",
   notes: string = "",
+  requirements: any = "",
   testStartLine: number = 1
 ) {
   let testNode: testNodeType = {
@@ -71,6 +73,7 @@ export function createTestNodeInCache(
     testName: testName,
     testFile: testFile,
     notes: notes,
+    requirements: requirements,
     testStartLine: testStartLine,
   };
   // set will over-write if nodeID exists

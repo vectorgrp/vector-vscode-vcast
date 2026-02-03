@@ -1488,6 +1488,9 @@ function configureExtension(context: vscode.ExtensionContext) {
       // Open TST script beside source file
       const scriptPath = testNode.enviroPath + ".tst";
       await openTstScriptAtTest(testNode, scriptPath);
+      vscode.window.showWarningMessage(
+        `You are currently in REVIEW Mode for the Requirement Test ${testName}. Only the Coverage for this Test will be shown in the file. In Order to exit this mode, close the Box with the Requirement Description in the Source file.`
+      );
     }
   );
 

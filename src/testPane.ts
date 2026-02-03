@@ -165,6 +165,7 @@ function addTestNodes(
       passfail: testList[testIndex].passfail,
       time: testList[testIndex].time,
       notes: testList[testIndex].notes,
+      requirements: testList[testIndex].requirements,
       resultFilePath: "",
       stdout: "",
       compoundOnly: testList[testIndex].compoundOnly,
@@ -187,9 +188,15 @@ function addTestNodes(
     testNodeForCache.testFile = testData.testFile;
     testNodeForCache.testStartLine = testData.testStartLine;
     testNodeForCache.notes = testData.notes;
+    testNodeForCache.requirements = testData.requirements;
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;
+
+    // TODO: Make usable also for multiple reqs --> also see data strucutre..
+    if (testNodeForCache.requirements !== "[]") {
+      testNodesWithRequirements.push(testNodeID);
+    }
 
     // currently we only use the Uri and Range for Coded Tests
     let testURI: vscode.Uri | undefined = undefined;
@@ -233,6 +240,12 @@ function addTestNodes(
     "setContext",
     "vectorcastTestExplorer.vcastHasCodedTestsList",
     vcastHasCodedTestsList
+  );
+
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.testNodesWithRequirements",
+    testNodesWithRequirements
   );
 
   addTestNodeToCache(parentNodeID, parentNodeForCache);
@@ -701,6 +714,7 @@ export function makeEnviroNodeID(buildDirectory: string): string {
 }
 
 let vcastHasCodedTestsList: string[] = [];
+let testNodesWithRequirements: string[] = [];
 
 // Global cache for workspace-wide env data
 // Used to avoid redundant API calls during refresh

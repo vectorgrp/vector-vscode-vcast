@@ -155,6 +155,7 @@ def generateTestInfo(enviroPath, test):
     testInfo["time"] = getTime(test.start_time)
     testInfo["status"] = textStatus(test.status)
     testInfo["passfail"] = getPassFailString(test)
+    testInfo["requirements"] = str(test.requirements)
 
     # New to support coded tests in vc24
     if vpythonHasCodedTestSupport() and test.coded_tests_file:
